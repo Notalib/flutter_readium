@@ -3,6 +3,8 @@ version = "1.0-SNAPSHOT"
 
 buildscript {
     ext.kotlin_version = "1.8.22"
+    ext.readium_version = '2.4.0'
+
     repositories {
         google()
         mavenCentral()
@@ -30,12 +32,12 @@ android {
     compileSdk = 35
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+        jvmTarget = JavaVersion.VERSION_17
     }
 
     sourceSets {
@@ -44,12 +46,21 @@ android {
     }
 
     defaultConfig {
-        minSdk = 21
+        minSdkVersion 24
     }
 
     dependencies {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.0.0")
+
+        implementation 'androidx.fragment:fragment-ktx:1.8.6'
+
+        implementation fileTree(include: ['*.jar'], dir: 'libs')
+        implementation "org.readium.kotlin-toolkit:readium-shared:$readium_version"
+        implementation "org.readium.kotlin-toolkit:readium-streamer:$readium_version"
+        implementation "org.readium.kotlin-toolkit:readium-navigator:$readium_version"
+
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1'
     }
 
     testOptions {

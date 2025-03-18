@@ -10,7 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  js_interop: ^0.0.1
   plugin_platform_interface: ^2.0.2
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
