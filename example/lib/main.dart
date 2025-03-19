@@ -1,10 +1,17 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:flutter_readium/flutter_readium.dart';
 
-void main() {
+import 'pub_utils.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // List all files in the assets folder of the app storage
+  await PublicationUtils.listAssetPubFiles();
+  await PublicationUtils.moveTestPublicationsToReadiumStorage();
   runApp(const MyApp());
 }
 
