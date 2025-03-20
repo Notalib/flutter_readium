@@ -6,9 +6,9 @@ abstract class ReadiumStorage {
   const ReadiumStorage._();
 
   // Do not change these after app is released.
-  static const _rootDirName = 'r2_dl';
-  static const _pubsDirName = 'r2_dl_publications';
-  static const _pubCachedDirName = 'r2_cached_publication';
+  static const _rootDirName = 'readium_flutter';
+  static const _pubsDirName = 'pubs';
+  static const _pubCachedDirName = 'cached';
 
   static final Future<Directory> rootDir = () async {
     final appDir = await getApplicationSupportDirectory();

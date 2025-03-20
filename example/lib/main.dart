@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,11 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
 import 'pub_utils.dart';
+import 'readium_storage.dart';
+
+const platform = MethodChannel('flutter_readium');
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // List all files in the assets folder of the app storage
-  await PublicationUtils.listAssetPubFiles();
+  // Ensure all test publications have been copied to App documents storage.
   await PublicationUtils.moveTestPublicationsToReadiumStorage();
   runApp(const MyApp());
 }
@@ -62,9 +65,37 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+          child: Column(
+            children: [
+              Text('Running on: $_platformVersion\n'),
+              IconButton(
+                iconSize: 72,
+                icon: const Icon(Icons.open_in_browser),
+                onPressed: _openBook,
+              ),
+              Text('Click above to open book')
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  _openBook() async {
+    try {
+      final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
+      final dir = Directory(publicationsDirPath);
+
+      // final pubs = <OPDSPublication>[];
+      final entities = dir.listSync().where((f) => f.path.endsWith('.epub'));
+
+      for (final entity in entities) {
+        debugPrint('Entity exists ? ${await entity.exists()}');
+        final result = await _flutterReadiumPlugin.openPublication(entity.path);
+        debugPrint('Result: $result');
+      }
+    } on PlatformException catch (ex) {
+      debugPrint('Failed to open publication: ${ex.message}');
+    }
   }
 }

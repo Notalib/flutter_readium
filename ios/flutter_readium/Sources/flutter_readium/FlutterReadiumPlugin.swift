@@ -12,6 +12,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin {
     switch call.method {
     case "getPlatformVersion":
       result("iOS " + UIDevice.current.systemVersion)
+    case "openPublication":
+      publicationMethodCallHandler(call: call, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }

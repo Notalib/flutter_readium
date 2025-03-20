@@ -14,4 +14,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
     return version;
   }
+
+  @override
+  Future<String?> openPublication(String pubUrl) async {
+    final result = await methodChannel.invokeMethod<String>('openPublication', [pubUrl]);
+    return result;
+  }
 }
