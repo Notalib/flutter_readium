@@ -1,0 +1,26 @@
+{
+  "[typescript]": {
+    "editor.formatOnSave": true
+  },
+  "cSpell.words": [
+    "animejs",
+    "codecov",
+    "Comicbook",
+    "comicpadding",
+    "epub",
+    "figw",
+    "iigw",
+    "isnan",
+    "Readium",
+    "SPID",
+    "xfig",
+    "xkcd"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.format.enable": true,
+  "files.exclude": {
+    "**/node_modules": true
+  }
+}

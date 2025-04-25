@@ -1,16 +1,241 @@
 PODS:
+  - audio_service (0.0.1):
+    - Flutter
+  - audio_session (0.0.1):
+    - Flutter
+  - background_downloader (0.0.1):
+    - Flutter
+  - connectivity_plus (0.0.1):
+    - Flutter
+  - CryptoSwift (1.8.4)
+  - DifferenceKit (1.3.0):
+    - DifferenceKit/Core (= 1.3.0)
+    - DifferenceKit/UIKitExtension (= 1.3.0)
+  - DifferenceKit/Core (1.3.0)
+  - DifferenceKit/UIKitExtension (1.3.0):
+    - DifferenceKit/Core
+  - DKImagePickerController/Core (4.3.9):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.3.9)
+  - DKImagePickerController/PhotoGallery (4.3.9):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.3.9)
+  - DKPhotoGallery (0.0.19):
+    - DKPhotoGallery/Core (= 0.0.19)
+    - DKPhotoGallery/Model (= 0.0.19)
+    - DKPhotoGallery/Preview (= 0.0.19)
+    - DKPhotoGallery/Resource (= 0.0.19)
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Core (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Model (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Preview (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Resource (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - file_picker (0.0.1):
+    - DKImagePickerController/PhotoGallery
+    - Flutter
   - Flutter (1.0.0)
+  - flutter_readium (0.0.1):
+    - Flutter
+    - PromiseKit
+    - ReadiumAdapterGCDWebServer (~> 3.2.0)
+    - ReadiumNavigator (~> 3.2.0)
+    - ReadiumOPDS (~> 3.2.0)
+    - ReadiumShared (~> 3.2.0)
+    - ReadiumStreamer (~> 3.2.0)
+  - flutter_tts (0.0.1):
+    - Flutter
+  - just_audio (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - Minizip (1.0.0)
+  - native_device_orientation (0.0.1):
+    - Flutter
+  - package_info_plus (0.4.5):
+    - Flutter
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - PromiseKit (8.2.0):
+    - PromiseKit/CorePromise (= 8.2.0)
+    - PromiseKit/Foundation (= 8.2.0)
+    - PromiseKit/UIKit (= 8.2.0)
+  - PromiseKit/CorePromise (8.2.0)
+  - PromiseKit/Foundation (8.2.0):
+    - PromiseKit/CorePromise
+  - PromiseKit/UIKit (8.2.0):
+    - PromiseKit/CorePromise
+  - ReadiumAdapterGCDWebServer (3.2.0):
+    - ReadiumGCDWebServer (~> 4.0.0)
+    - ReadiumInternal (~> 3.2.0)
+    - ReadiumShared (~> 3.2.0)
+  - ReadiumFuzi (4.0.0)
+  - ReadiumGCDWebServer (4.0.1):
+    - ReadiumGCDWebServer/Core (= 4.0.1)
+  - ReadiumGCDWebServer/Core (4.0.1)
+  - ReadiumInternal (3.2.0)
+  - ReadiumNavigator (3.2.0):
+    - DifferenceKit (~> 1.0)
+    - ReadiumInternal (~> 3.2.0)
+    - ReadiumShared (~> 3.2.0)
+    - SwiftSoup (~> 2.7.0)
+  - ReadiumOPDS (3.2.0):
+    - ReadiumFuzi (~> 4.0.0)
+    - ReadiumInternal (~> 3.2.0)
+    - ReadiumShared (~> 3.2.0)
+  - ReadiumShared (3.2.0):
+    - Minizip (~> 1.0.0)
+    - ReadiumFuzi (~> 4.0.0)
+    - ReadiumInternal (~> 3.2.0)
+    - ReadiumZIPFoundation (~> 3.0.0)
+    - SwiftSoup (~> 2.7.0)
+  - ReadiumStreamer (3.2.0):
+    - CryptoSwift (~> 1.8.0)
+    - ReadiumFuzi (~> 4.0.0)
+    - ReadiumInternal (~> 3.2.0)
+    - ReadiumShared (~> 3.2.0)
+  - ReadiumZIPFoundation (3.0.0)
+  - SDWebImage (5.21.0):
+    - SDWebImage/Core (= 5.21.0)
+  - SDWebImage/Core (5.21.0)
+  - sqflite_darwin (0.0.4):
+    - Flutter
+    - FlutterMacOS
+  - SwiftSoup (2.7.6)
+  - SwiftyGif (5.4.5)
+  - wakelock_plus (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
+  - audio_service (from `.symlinks/plugins/audio_service/ios`)
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
+  - background_downloader (from `.symlinks/plugins/background_downloader/ios`)
+  - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
+  - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
+  - flutter_readium (from `.symlinks/plugins/flutter_readium/ios`)
+  - flutter_tts (from `.symlinks/plugins/flutter_tts/ios`)
+  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
+  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
+  - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - PromiseKit (~> 8.1)
+  - ReadiumAdapterGCDWebServer (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec`)
+  - ReadiumInternal (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumInternal.podspec`)
+  - ReadiumNavigator (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumNavigator.podspec`)
+  - ReadiumOPDS (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumOPDS.podspec`)
+  - ReadiumShared (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumShared.podspec`)
+  - ReadiumStreamer (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumStreamer.podspec`)
+  - ReadiumZIPFoundation (from `https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.0/ReadiumZIPFoundation.podspec`)
+  - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
+  - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
+
+SPEC REPOS:
+  trunk:
+    - CryptoSwift
+    - DifferenceKit
+    - DKImagePickerController
+    - DKPhotoGallery
+    - Minizip
+    - PromiseKit
+    - ReadiumFuzi
+    - ReadiumGCDWebServer
+    - SDWebImage
+    - SwiftSoup
+    - SwiftyGif
 
 EXTERNAL SOURCES:
+  audio_service:
+    :path: ".symlinks/plugins/audio_service/ios"
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
+  background_downloader:
+    :path: ".symlinks/plugins/background_downloader/ios"
+  connectivity_plus:
+    :path: ".symlinks/plugins/connectivity_plus/ios"
+  file_picker:
+    :path: ".symlinks/plugins/file_picker/ios"
   Flutter:
     :path: Flutter
+  flutter_readium:
+    :path: ".symlinks/plugins/flutter_readium/ios"
+  flutter_tts:
+    :path: ".symlinks/plugins/flutter_tts/ios"
+  just_audio:
+    :path: ".symlinks/plugins/just_audio/darwin"
+  native_device_orientation:
+    :path: ".symlinks/plugins/native_device_orientation/ios"
+  package_info_plus:
+    :path: ".symlinks/plugins/package_info_plus/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  ReadiumAdapterGCDWebServer:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec
+  ReadiumInternal:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumInternal.podspec
+  ReadiumNavigator:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumNavigator.podspec
+  ReadiumOPDS:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumOPDS.podspec
+  ReadiumShared:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumShared.podspec
+  ReadiumStreamer:
+    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumStreamer.podspec
+  ReadiumZIPFoundation:
+    :podspec: https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.0/ReadiumZIPFoundation.podspec
+  sqflite_darwin:
+    :path: ".symlinks/plugins/sqflite_darwin/darwin"
+  wakelock_plus:
+    :path: ".symlinks/plugins/wakelock_plus/ios"
 
 SPEC CHECKSUMS:
+  audio_service: 2023a4a1bdb2fd1443e7b00bdbdb1baa321525db
+  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
+  background_downloader: b0572309a68d929c35941f0484e8ad7c65052228
+  connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
+  CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
+  DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
+  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
+  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  flutter_readium: 69a75f2d537a9c89813169e7e5935558eede964e
+  flutter_tts: b88dbc8655d3dc961bc4a796e4e16a4cc1795833
+  just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
+  Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
+  native_device_orientation: e3580675687d5034770da198f6839ebf2122ef94
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  PromiseKit: 74e6ab5894856b4762fef547055c809bca91d440
+  ReadiumAdapterGCDWebServer: e1b3e05c2c823b935323e08bfed96b0b71cea785
+  ReadiumFuzi: 888d023b862f524e314f85925c94768a501f05c0
+  ReadiumGCDWebServer: 6c905689d61c416a73e0b16e9218c10bb405817c
+  ReadiumInternal: 7faf2ededd72b7302ffc946f145cbf0446cda217
+  ReadiumNavigator: 3386599ef5394066e6537debec69bc08f66d2e41
+  ReadiumOPDS: 7e763e8b94518b51a70922644c7982822e7c4e08
+  ReadiumShared: 2d72e554b5a8b09546c014c2affef0cd0ccf90a3
+  ReadiumStreamer: ec39b709ab497199281f356fffe2a9c826207d52
+  ReadiumZIPFoundation: 7896c617e020696566d307e2374776a080237370
+  SDWebImage: f84b0feeb08d2d11e6a9b843cb06d75ebf5b8868
+  sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  SwiftSoup: 9ec2526c76ebc3fe5d3157c82b40b45a27eeb82d
+  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
+  wakelock_plus: 04623e3f525556020ebd4034310f20fe7fda8b49
 
-PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
+PODFILE CHECKSUM: c73cdf3f256bbf13645c6f108ea228153cd7dfa8
 
 COCOAPODS: 1.16.2

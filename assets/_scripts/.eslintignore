@@ -1,0 +1,8 @@
+node_modules
+dist
+webpack*
+custom.d.ts
+styleMock.js
+jest.config.js
+jest-config
+**/*.js

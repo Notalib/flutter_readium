@@ -1,0 +1,11 @@
+version: '3.5' 
+services:
+    front-application:
+      container_name: webpack-starter-container 
+      build: 
+        context: .
+        dockerfile: Dockerfile
+      volumes:
+        - '.:/usr/src/app' 
+      ports: 
+        - '4000:8080'

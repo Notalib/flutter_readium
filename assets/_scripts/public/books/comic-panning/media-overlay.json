@@ -1,0 +1,37 @@
+{
+  "narration": [
+    {
+      "narration": [
+        {
+          "audio": "title.mp3#t=0,2.194",
+          "text": "index.html#figw_0001"
+        },
+        {
+          "audio": "audio.mp3#t=0,3.000",
+          "text": "index.html#image00001"
+        },
+        {
+          "audio": "audio.mp3#t=3.000,5.493",
+          "text": "index.html#xfig_0001"
+        },
+        {
+          "audio": "audio.mp3#t=5.493,7.193",
+          "text": "index.html#xfig_0002"
+        },
+        {
+          "audio": "audio.mp3#t=7.193,8.193",
+          "text": "index.html#xfig_0003"
+        },
+        {
+          "audio": "audio.mp3#t=8.193,9.093",
+          "text": "index.html#xfig_0004"
+        },
+        {
+          "audio": "audio.mp3#t=9.093,11.1",
+          "text": "index.html#xfig_0005"
+        }
+      ]
+    }
+  ],
+  "role": "section"
+}

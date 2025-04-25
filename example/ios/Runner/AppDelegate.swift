@@ -1,5 +1,5 @@
-import Flutter
 import UIKit
+import Flutter
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -10,4 +10,7 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+}
+
+private func registerPlugins(registry: FlutterPluginRegistry) {
 }

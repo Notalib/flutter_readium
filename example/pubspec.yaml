@@ -1,32 +1,38 @@
 name: flutter_readium_example
-description: "Demonstrates how to use the flutter_readium plugin."
+description: Demonstrates how to use the flutter_readium plugin.
+
+version: 0.0.0+0
+
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: ^3.6.0
+  sdk: '>=3.1.0 <4.0.0'
+  flutter: '>=3.13.1'
 
 dependencies:
   flutter:
     sdk: flutter
 
+  archive:
+  audio_service:
+    git:
+      url: git@github.com:Notalib/audio_service.git
+      ref: lyt
+      path: audio_service
+  cupertino_icons: ^1.0.2
+  file_picker:
+  flutter_bloc:
   flutter_readium:
-    # When depending on this package from a real application you should use:
-    #   flutter_readium: ^x.y.z
-    # See https://dart.dev/tools/pub/dependencies#version-constraints
-    # The example app is bundled with the plugin so we use a path dependency on
-    # the parent directory to use the current plugin's version.
     path: ../
-
+  native_device_orientation:
   path:
   path_provider:
-  cupertino_icons: ^1.0.8
+  xml:
 
 dev_dependencies:
-  integration_test:
-    sdk: flutter
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  lint:
 
 flutter:
   uses-material-design: true

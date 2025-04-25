@@ -1,0 +1,16 @@
+---
+path:            '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx/prebuilt-modules/15.4/_StringProcessing.swiftmodule/arm64e-apple-macos.swiftmodule'
+dependencies:
+  - mtime:           1742265553000000000
+    path:            '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx/prebuilt-modules/15.4/_StringProcessing.swiftmodule/arm64e-apple-macos.swiftmodule'
+    size:            82688
+  - mtime:           1741406483000000000
+    path:            'usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface'
+    size:            1929664
+    sdk_relative:    true
+  - mtime:           1741408144000000000
+    path:            'usr/lib/swift/_StringProcessing.swiftmodule/arm64e-apple-macos.swiftinterface'
+    size:            22908
+    sdk_relative:    true
+version:         1
+...
