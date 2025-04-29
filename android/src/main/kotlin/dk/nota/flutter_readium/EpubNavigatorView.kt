@@ -78,11 +78,6 @@ internal class EpubNavigatorView(
 
     // DFG: This will be relative to your app's src/main/assets/ folder
     // Underneath Readium is using https://developer.android.com/reference/androidx/webkit/WebViewAssetLoader.AssetsPathHandler
-    var startPrefs = EpubPreferences(
-      theme = Theme.SEPIA,
-      scroll = false,
-      backgroundColor = ReadiumColor(Color.CYAN)
-    )
     val navigatorFactory = EpubNavigatorFactory(publication)
     val fragmentFactory = navigatorFactory.createFragmentFactory(
       configuration = EpubNavigatorFragment.Configuration(
@@ -96,8 +91,12 @@ internal class EpubNavigatorView(
       ),
       initialLocator = initialLocator,
       listener = this,
-      paginationListener = this,
-      initialPreferences = startPrefs
+      paginationListener = this
+      // initialPreferences = EpubPreferences(
+      //   theme = Theme.SEPIA,
+      //   scroll = false,
+      //   backgroundColor = ReadiumColor(Color.CYAN)
+      // )
     )
 
     editor = navigatorFactory.createPreferencesEditor(startPrefs)
