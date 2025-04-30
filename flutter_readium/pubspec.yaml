@@ -1,0 +1,41 @@
+name: flutter_readium
+description: "Flutter plugin wrapping the Readium toolkit components for EPUB reading."
+version: 0.0.1
+homepage: https://github.com/notalib/flutter_readium
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+  flutter: '>=3.3.0'
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dk.nota.flutter_readium
+        pluginClass: FlutterReadiumPlugin
+      ios:
+        pluginClass: FlutterReadiumPlugin
+      macos:
+        pluginClass: FlutterReadiumPlugin
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface
+  js_interop: ^0.0.1
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  plugin_platform_interface: ^2.0.2
+
+  # To add assets to your plugin package, add an assets section, like this:
+  # assets:
+  #   - images/a_dot_burr.jpeg
+  #   - images/a_dot_ham.jpeg

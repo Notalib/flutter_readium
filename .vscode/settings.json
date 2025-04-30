@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
         "readium"
-    ]
+    ],
+    "explorer.excludeGitIgnore": true
 }
