@@ -11,6 +11,7 @@ import 'src/enums.dart';
 import 'src/shared/index.dart';
 
 export 'src/shared/index.dart';
+export 'src/utils/index.dart';
 export 'src/enums.dart';
 
 /// The interface that implementations of FlutterReadium must implement.

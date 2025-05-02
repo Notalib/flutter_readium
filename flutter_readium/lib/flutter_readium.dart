@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
-
+export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 // export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart'
 //   show BatteryState;
 

@@ -9,6 +9,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  file_picker:
+  flutter_bloc:
   flutter_readium:
     # When depending on this package from a real application you should use:
     #   flutter_readium: ^x.y.z
@@ -17,6 +19,7 @@ dependencies:
     # the parent directory to use the current plugin's version.
     path: ../
 
+  native_device_orientation:
   path:
   path_provider:
   cupertino_icons: ^1.0.8

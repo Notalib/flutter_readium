@@ -16,7 +16,7 @@ class PublicationUtils {
     return pubAssets;
   }
 
-  static Future<void> moveTestPublicationsToReadiumStorage() async {
+  static Future<List<String>> moveAssetPublicationsToReadiumStorage() async {
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
 
     // Create the local directory if it doesn't exist
@@ -26,10 +26,12 @@ class PublicationUtils {
     }
     // Load the AssetManifest.json file and find all assets in the 'assets/pubs' directory
     final pubAssets = await getAssetPubFiles();
+    final pubs = <String>[];
 
     // Loop through the filtered assets
     for (final assetPath in pubAssets) {
       if (!assetPath.endsWith('.webpub') && !assetPath.endsWith('.epub')) {
+        debugPrint('Skip asset path: $assetPath');
         continue;
       }
       debugPrint('Asset in pubs: $assetPath');
@@ -47,6 +49,27 @@ class PublicationUtils {
       } else {
         debugPrint('cached ${file.path} size=${await file.length()}');
       }
+      pubs.add(file.path);
     }
+    return pubs;
+  }
+
+  static Future<String> copyFileToReadiumPubStorage(File file) async {
+    final exists = await file.exists();
+    if (!exists) {
+      debugPrint('Could not copy file from ${file.path}, does not exist');
+    }
+
+    final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
+    String newPath = path.join(publicationsDirPath, file.uri.path);
+    await file.copy(newPath);
+    debugPrint('copied file ${file.path} size=${await file.length()} to=$newPath');
+    return newPath;
+  }
+
+  static Future<void> removePublicationFromReadiumStorage(String pubPath) async {
+    final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
+    final publicationPath = path.join(publicationsDirPath, pubPath);
+    await File(publicationPath).delete();
   }
 }

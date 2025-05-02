@@ -76,9 +76,15 @@ func publicationMethodCallHandler(call: FlutterMethodCall, result: @escaping Flu
 
     Task.detached(priority: .background) {
       do {
-        let pub: (Publication, Format) = try await openPublication(at: url.anyURL.absoluteURL!, allowUserInteraction: false, sender: nil)
-        let mediaType: String = pub.1.mediaType?.string ?? "unknown"
+        guard let absUrl = url.anyURL.absoluteURL else {
+          return result(FlutterError.init(
+            code: "InvalidArgument",
+            message: "Invalid publication absoluteURL: \(url.absoluteString)",
+            details: nil))
+        }
+        let pub: (Publication, Format) = try await openPublication(at: absUrl, allowUserInteraction: false, sender: nil)
         print("Opened publication!")
+        let mediaType: String = pub.1.mediaType?.string ?? "unknown"
         print("Opened publication (format): \(mediaType)")
         currentPublication = pub.0
 

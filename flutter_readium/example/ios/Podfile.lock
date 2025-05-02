@@ -6,6 +6,40 @@ PODS:
   - DifferenceKit/Core (1.3.0)
   - DifferenceKit/UIKitExtension (1.3.0):
     - DifferenceKit/Core
+  - DKImagePickerController/Core (4.3.9):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.3.9)
+  - DKImagePickerController/PhotoGallery (4.3.9):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.3.9)
+  - DKPhotoGallery (0.0.19):
+    - DKPhotoGallery/Core (= 0.0.19)
+    - DKPhotoGallery/Model (= 0.0.19)
+    - DKPhotoGallery/Preview (= 0.0.19)
+    - DKPhotoGallery/Resource (= 0.0.19)
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Core (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Model (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Preview (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Resource (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - file_picker (0.0.1):
+    - DKImagePickerController/PhotoGallery
+    - Flutter
   - Flutter (1.0.0)
   - flutter_readium (0.0.1):
     - Flutter
@@ -18,6 +52,8 @@ PODS:
   - integration_test (0.0.1):
     - Flutter
   - Minizip (1.0.0)
+  - native_device_orientation (0.0.1):
+    - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -60,12 +96,18 @@ PODS:
     - ReadiumInternal (~> 3.2.0)
     - ReadiumShared (~> 3.2.0)
   - ReadiumZIPFoundation (3.0.0)
+  - SDWebImage (5.21.0):
+    - SDWebImage/Core (= 5.21.0)
+  - SDWebImage/Core (5.21.0)
   - SwiftSoup (2.7.6)
+  - SwiftyGif (5.4.5)
 
 DEPENDENCIES:
+  - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - Flutter (from `Flutter`)
   - flutter_readium (from `.symlinks/plugins/flutter_readium/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - PromiseKit (~> 8.1)
   - ReadiumAdapterGCDWebServer (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.2.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec`)
@@ -80,19 +122,27 @@ SPEC REPOS:
   trunk:
     - CryptoSwift
     - DifferenceKit
+    - DKImagePickerController
+    - DKPhotoGallery
     - Minizip
     - PromiseKit
     - ReadiumFuzi
     - ReadiumGCDWebServer
+    - SDWebImage
     - SwiftSoup
+    - SwiftyGif
 
 EXTERNAL SOURCES:
+  file_picker:
+    :path: ".symlinks/plugins/file_picker/ios"
   Flutter:
     :path: Flutter
   flutter_readium:
     :path: ".symlinks/plugins/flutter_readium/ios"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
+  native_device_orientation:
+    :path: ".symlinks/plugins/native_device_orientation/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   ReadiumAdapterGCDWebServer:
@@ -113,10 +163,14 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
+  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
+  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_readium: 1d3f571cb9af7ac8535a85f79029e4294dca2897
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
+  native_device_orientation: e3580675687d5034770da198f6839ebf2122ef94
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   PromiseKit: 74e6ab5894856b4762fef547055c809bca91d440
   ReadiumAdapterGCDWebServer: e1b3e05c2c823b935323e08bfed96b0b71cea785
@@ -128,7 +182,9 @@ SPEC CHECKSUMS:
   ReadiumShared: 2d72e554b5a8b09546c014c2affef0cd0ccf90a3
   ReadiumStreamer: ec39b709ab497199281f356fffe2a9c826207d52
   ReadiumZIPFoundation: 7896c617e020696566d307e2374776a080237370
+  SDWebImage: f84b0feeb08d2d11e6a9b843cb06d75ebf5b8868
   SwiftSoup: 9ec2526c76ebc3fe5d3157c82b40b45a27eeb82d
+  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
 
 PODFILE CHECKSUM: e63d9c16d2a29bb51183bb4c1409d32e21f5eea4
 
