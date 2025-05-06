@@ -1,4 +1,4 @@
-import 'package:flutter_readium_platform_interface/src/enums.dart';
+import 'package:flutter_readium_platform_interface/enums.dart';
 import 'package:flutter_readium_platform_interface/method_channel_flutter_readium.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,14 +32,14 @@ void main() {
       log.clear();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        MethodChannel(methodChannelReadium.eventChannel.name),
+        MethodChannel(methodChannelReadium.locatorChannel.name),
         (MethodCall methodCall) async {
           switch (methodCall.method) {
             case 'listen':
               await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
                   .handlePlatformMessage(
-                methodChannelReadium.eventChannel.name,
-                methodChannelReadium.eventChannel.codec.encodeSuccessEnvelope('full'),
+                methodChannelReadium.locatorChannel.name,
+                methodChannelReadium.locatorChannel.codec.encodeSuccessEnvelope('full'),
                 (_) {},
               );
               break;

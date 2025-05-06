@@ -1,22 +1,14 @@
-/// Indicates the current battery state.
-enum BatteryState {
-  /// The battery is fully charged.
-  full,
+/// Indicates the current reader widget status.
+enum ReadiumReaderStatus {
+  loading,
+  open,
+  close,
+  endOfPublication,
+}
 
-  /// The battery is currently charging.
-  charging,
-
-  /// Device is connected to external power source, but not charging the battery.
-  ///
-  /// Usually happens when device has charge limit enabled and this limit is reached.
-  /// Also, battery might be in this state if connected power source isn't powerful enough to charge the battery.
-  ///
-  /// Available on Android, MacOS and Linux platforms only.
-  connectedNotCharging,
-
-  /// The battery is currently losing energy.
-  discharging,
-
-  /// The state of the battery is unknown.
-  unknown;
+extension ReadiumReaderStatusExtension on ReadiumReaderStatus {
+  bool get isLoading => name == ReadiumReaderStatus.loading.name;
+  bool get isOpen => name == ReadiumReaderStatus.open.name;
+  bool get isClose => name == ReadiumReaderStatus.close.name;
+  bool get isEndOfPublication => name == ReadiumReaderStatus.endOfPublication.name;
 }

@@ -144,10 +144,10 @@ class BookshelfPageState extends State<BookshelfPage> {
         padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
         child: InkWell(
           onTap: () {
+            final fakeInitialLocator = publication.locatorFromLink(publication.readingOrder[2]);
             try {
-              context
-                  .read<PublicationBloc>()
-                  .add(OpenPublication(publication: publication, initialLocator: initialLocator));
+              context.read<PublicationBloc>().add(
+                  OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
               Navigator.pushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');

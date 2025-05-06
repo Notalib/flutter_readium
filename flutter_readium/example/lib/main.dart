@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
+import 'extensions/text_settings_theme.dart' show themes;
 import 'pages/index.dart';
 import 'state/index.dart';
 
@@ -21,7 +22,7 @@ Future<void> main() async {
           lazy: false,
         ),
         BlocProvider(
-          create: (final _) => TextSettingsBloc(),
+          create: (final _) => TextSettingsBloc()..add(ChangeTheme(themes[0])),
         ),
         // BlocProvider(
         //   create: (final _) => TtsSettingsBloc(),

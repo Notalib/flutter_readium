@@ -13,8 +13,6 @@ private let TAG = "PublicationChannel"
 
 let publicationChannelName = "dk.nota.flutter_readium/Publication"
 
-let readium = Readium()
-
 private var currentPublication: Publication? = nil
 
 func getCurrentPublication() -> Publication? {
@@ -27,9 +25,9 @@ private func openPublication(
         sender: UIViewController?
     ) async throws -> (Publication, Format) {
         do {
-            let asset = try await readium.assetRetriever.retrieve(url: url).get()
+            let asset = try await sharedReadium.assetRetriever.retrieve(url: url).get()
 
-            let publication = try await readium.publicationOpener.open(
+            let publication = try await sharedReadium.publicationOpener.open(
                 asset: asset,
                 allowUserInteraction: allowUserInteraction,
                 sender: sender
@@ -58,14 +56,19 @@ func publicationMethodCallHandler(call: FlutterMethodCall, result: @escaping Flu
   switch call.method {
   case "openPublication":
     let args = call.arguments as! [Any?]
-    let pubUrlStr = args[0] as! String
+    var pubUrlStr = args[0] as! String
 
 //    let documentFolderURL = try! FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
 //    let fileURL = documentFolderURL.appendingPathComponent("readium_flutter/pubs/moby_dick.epub")
-//    print("FileURL is \(fileURL.absoluteURL.absoluteString)")
+//    print("FileURL is \(fileURL.anyURL.absoluteURL.absoluteString)")
 
-    let encodedFilePath = "file://\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
-    guard let url = URL(string: encodedFilePath!) else {
+    if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
+      // Assume URLs without a supported prefix are local file paths.
+      pubUrlStr = "file://\(pubUrlStr)"
+    }
+
+    let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
+    guard let url = URL(string: encodedUrlStr!) else {
       return result(FlutterError.init(
         code: "InvalidArgument",
         message: "Invalid publication URL: \(pubUrlStr)",
@@ -100,26 +103,6 @@ func publicationMethodCallHandler(call: FlutterMethodCall, result: @escaping Flu
           }
       }
     }
-    break
-  case "assetFromHttpURL":
-//    let args = call.arguments as! [Any?]
-//    let urlStr = args[0] as! String
-//    let url = HTTPURL(string: urlStr)
-//    if (url == nil) {
-//      return result(FlutterError.init(
-//        code: "InvalidArgument",
-//        message: "Invalid file path: \(urlStr)",
-//        details: nil))
-//    }
-//
-//    Task.detached(priority: .background) {
-//      let asset = await getAssetFromUrl(url: url!)!
-//      let mediaType: String = asset.format.mediaType?.type ?? "unknown"
-//
-//      await MainActor.run {
-//        result(mediaType)
-//      }
-//    }
     break
   default:
     result(FlutterMethodNotImplemented)

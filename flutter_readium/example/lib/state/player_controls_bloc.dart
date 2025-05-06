@@ -75,27 +75,27 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<SkipToNextParagraph>((final event, final emit) {
-      // instance.skipToNextParagraph();
-    });
-
-    on<SkipToPreviousParagraph>((final event, final emit) {
-      // instance.skipToPreviousParagraph();
-    });
-
-    on<SkipToNextChapter>((final event, final emit) {
-      // instance.skipToNext();
-    });
-
-    on<SkipToPreviousChapter>((final event, final emit) {
-      // instance.skipToPrevious();
-    });
-
-    on<SkipToNextPage>((final event, final emit) {
       // instance.goRight();
     });
 
-    on<SkipToPreviousPage>((final event, final emit) {
+    on<SkipToPreviousParagraph>((final event, final emit) {
       // instance.goLeft();
+    });
+
+    on<SkipToNextChapter>((final event, final emit) {
+      instance.skipToNext();
+    });
+
+    on<SkipToPreviousChapter>((final event, final emit) {
+      instance.skipToPrevious();
+    });
+
+    on<SkipToNextPage>((final event, final emit) {
+      instance.goRight();
+    });
+
+    on<SkipToPreviousPage>((final event, final emit) {
+      instance.goLeft();
     });
   }
   final FlutterReadium instance = FlutterReadium();

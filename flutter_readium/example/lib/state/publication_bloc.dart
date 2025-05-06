@@ -17,26 +17,30 @@ class OpenPublication extends PublicationEvent {
 class PublicationState {
   PublicationState({
     this.publication,
+    this.initialLocator,
     this.error,
     this.isLoading = false,
   });
   final Publication? publication;
+  final Locator? initialLocator;
   final dynamic error;
   final bool isLoading;
 
   PublicationState copyWith({
     final Publication? publication,
+    final Locator? initialLocator,
     final dynamic error,
     final bool? isLoading,
   }) =>
       PublicationState(
         publication: publication ?? this.publication,
+        initialLocator: initialLocator ?? this.initialLocator,
         error: error ?? this.error,
         isLoading: isLoading ?? this.isLoading,
       );
 
-  PublicationState openPublicationSuccess(final Publication publication) =>
-      copyWith(publication: publication, isLoading: false);
+  PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
+      copyWith(publication: publication, initialLocator: initialLocator, isLoading: false);
 
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
@@ -56,7 +60,7 @@ class PublicationBloc extends Bloc<PublicationEvent, PublicationState> {
         // autoPlay: event.autoPlay ?? false,
         // preload: false,
         // );
-        emit(state.openPublicationSuccess(event.publication));
+        emit(state.openPublicationSuccess(event.publication, event.initialLocator));
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));
       }

@@ -54,23 +54,25 @@ class TextSettingsState {
       highlight: highlight ?? this.highlight,
     );
 
-    // FlutterReadium().setReaderProperties(
-    //   ReadiumReaderProperties(
-    //     fontFamily: 'Original',
-    //     fontSize: newState.fontSize,
-    //     verticalScroll: newState.verticalScroll,
-    //     backgroundColor: newState.theme.backgroundColor,
-    //     textColor: newState.theme.textColor,
-    //     highlightBackgroundColor: newState.highlight.backgroundColor,
-    //     highlightForegroundColor: newState.highlight.textColor,
-    //   ),
-    // );
-
     return newState;
   }
 }
 
 class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
+  final FlutterReadium instance = FlutterReadium();
+
+  void submitPreferenceUpdate() async {
+    final epubPreferences = EPUBPreferences(
+      fontFamily: 'Original',
+      fontSize: state.fontSize,
+      fontWeight: null,
+      verticalScroll: state.verticalScroll,
+      backgroundColor: state.theme.backgroundColor,
+      textColor: state.theme.textColor,
+    );
+    instance.setEPUBPreferences(epubPreferences);
+  }
+
   TextSettingsBloc()
       : super(
           TextSettingsState(
@@ -88,31 +90,26 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
         ) {
     on<ChangeFontSize>((final event, final emit) {
       emit(state.copyWith(fontSize: event.value));
+      submitPreferenceUpdate();
     });
 
     on<ToggleVerticalScroll>((final event, final emit) {
       emit(state.copyWith(verticalScroll: !state.verticalScroll));
+      submitPreferenceUpdate();
     });
 
     on<ChangeTheme>((final event, final emit) {
       emit(state.copyWith(theme: event.theme));
+      submitPreferenceUpdate();
     });
 
     on<ChangeHighlight>((final event, final emit) {
       emit(state.copyWith(highlight: event.highlight));
+      submitPreferenceUpdate();
     });
 
     on<OpenPubSuccess>((final event, final emit) {
-      // FlutterReadium.updateState(
-      //   readerProperties: ReadiumReaderProperties(
-      //     fontSize: state.fontSize,
-      //     verticalScroll: state.verticalScroll,
-      //     backgroundColor: state.theme.backgroundColor,
-      //     textColor: state.theme.textColor,
-      //     highlightForegroundColor: state.highlight.textColor,
-      //     highlightBackgroundColor: state.highlight.backgroundColor,
-      //   ),
-      // );
+      submitPreferenceUpdate();
     });
   }
 }

@@ -16,6 +16,7 @@ const _methodCount = 1;
 // Add keywords as class name or method name.
 const _trace = <String>[
   // EX. FlutterReadium
+  ''
 ];
 
 abstract class R2Log {

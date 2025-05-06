@@ -17,6 +17,9 @@ dependencies:
   json_annotation: ^4.9.0
   json_diff:
   plugin_platform_interface: ^2.1.4
+  rxdart:
+  wakelock_plus: ^1.3.2
+  xml:
 
 dev_dependencies:
   flutter_test:

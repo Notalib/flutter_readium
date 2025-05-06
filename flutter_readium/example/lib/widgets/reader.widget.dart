@@ -65,9 +65,12 @@ class ReaderWidget extends StatelessWidget {
             return Semantics(
               container: true,
               explicitChildNodes: true,
-              child: const ExcludeSemantics(
-                  // child: ReadiumReaderWidget(),
-                  ),
+              child: ExcludeSemantics(
+                child: ReadiumReaderWidget(
+                  publication: state.publication!,
+                  initialLocator: state.initialLocator,
+                ),
+              ),
             );
           }
           // Return a fallback widget in case none of the conditions above are met
