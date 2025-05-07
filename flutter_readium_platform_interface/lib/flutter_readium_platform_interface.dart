@@ -57,6 +57,11 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
+  Future<void> ttsStart(String voiceIdentifier, Locator? fromLocator) =>
+      throw UnimplementedError('ttsStart() has not been implemented');
+
+  Future<void> ttsStop() => throw UnimplementedError('ttsStop() has not been implemented');
+
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 

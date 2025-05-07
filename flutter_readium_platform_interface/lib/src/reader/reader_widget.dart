@@ -181,23 +181,22 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
   @override
   Future<void> skipToNext({final bool animated = true}) async {
-    Locator? loc = _currentLocator?.toTextLocator();
-    String currentHref = '${loc?.hrefPath.substring(1)}#${loc?.locationsOrEmpty.fragments?.first}';
     List<Link>? toc = widget.publication.toc;
-    if (toc != null && loc != null) {
-      // Ensure we are at least 1 page into the current chapter, if not in scroll mode
-      if (_readium.defaultPreferences?.verticalScroll != true) {
-        await _channel?.goRight(animated: false);
-        loc = (await _channel?.getCurrentLocator())?.toTextLocator();
-        currentHref =
-            '${loc?.toTextLocator().hrefPath.substring(1)}#${loc?.locationsOrEmpty.fragments?.first}';
-      }
+    if (toc == null || _currentLocator == null) {
+      return;
+    }
+    String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
 
-      int? curIndex = toc.indexWhere((l) => l.href == currentHref);
-      if (curIndex == -1) {
-        return;
-      }
-      // TODO: Sometimes miss and stay on same chapter - test the href/id and increase if not changed?
+    // Ensure we are at least 1 page into the current chapter, if not in scroll mode.
+    // TODO: Maybe find a better way to find something like `lastVisibleLocator`.
+    if (_readium.defaultPreferences?.verticalScroll != true) {
+      await _channel?.goRight(animated: false);
+      final loc = await _channel?.getCurrentLocator();
+      currentHref = getTextLocatorHrefWithTocFragment(loc);
+    }
+
+    int? curIndex = toc.indexWhere((l) => l.href == currentHref);
+    if (curIndex > -1) {
       Locator? nextChapter =
           widget.publication.locatorFromLink(toc[Math.min(curIndex + 1, toc.length - 1)]);
       if (nextChapter != null) {
@@ -225,10 +224,21 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
   }
 
   @override
-  Future<void> ttsStart(String langCode) async {
+  Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
+    this._channel?.setEPUBPreferences(preferences);
+  }
+
+  @override
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+    await this._channel?.applyDecorations(id, decorations);
+  }
+
+  @override
+  Future<void> ttsStart(String langCode, Locator? fromLocator) async {
     R2Log.d('TTS Start: $langCode');
 
-    await _channel?.ttsStart(langCode, null);
+    // When fromLocator is null => use firstVisibleLocator
+    await _channel?.ttsStart(langCode, fromLocator);
   }
 
   @override
@@ -363,12 +373,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     }
   }
 
-  Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    this._channel?.setEPUBPreferences(preferences);
-  }
-
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    await this._channel?.applyDecorations(id, decorations);
+  String? getTextLocatorHrefWithTocFragment(Locator? locator) {
+    if (locator == null) {
+      return null;
+    }
+    final txtLoc = locator.toTextLocator();
+    return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${txtLoc.locationsOrEmpty.fragments?.first}';
   }
 
   Future<void> _setLocation(final Locator locator, final bool isAudioBookWithText) async {

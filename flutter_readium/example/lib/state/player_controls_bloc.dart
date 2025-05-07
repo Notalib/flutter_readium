@@ -28,6 +28,8 @@ class PlayerControlsState {
   final bool playing;
   final bool ttsEnabled;
 
+  final FlutterReadium readium = FlutterReadium();
+
   PlayerControlsState togglePlay(final bool playing) {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
@@ -41,7 +43,11 @@ class PlayerControlsState {
   PlayerControlsState toggleTTS(final bool ttsEnabled) {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
-    // FlutterReadium().toggleTTS(ttsEnabled: newState.ttsEnabled, autoPlay: newState.ttsEnabled);
+    if (ttsEnabled) {
+      readium.ttsStart("en", null);
+    } else {
+      readium.ttsStop();
+    }
 
     return newState;
   }

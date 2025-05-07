@@ -93,7 +93,7 @@ class ReadiumReaderChannel extends MethodChannel {
         _ReaderChannelMethodInvoke.ttsStart,
         [
           lang,
-          null,
+          fromLocator != null ? fromLocator.toJson() : null,
         ],
       );
 

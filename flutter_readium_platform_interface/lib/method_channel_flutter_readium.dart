@@ -62,4 +62,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async =>
       await currentReaderWidget?.applyDecorations(id, decorations);
+
+  @override
+  Future<void> ttsStart(String langCode, Locator? fromLocator) async =>
+      await currentReaderWidget?.ttsStart(langCode, fromLocator);
+
+  @override
+  Future<void> ttsStop() async => await currentReaderWidget?.ttsStop();
 }

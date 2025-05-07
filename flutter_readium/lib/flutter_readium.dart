@@ -52,4 +52,9 @@ class FlutterReadium {
 
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async =>
       await _platform.applyDecorations(id, decorations);
+
+  Future<void> ttsStart(String langCode, Locator? fromLocator) async =>
+      await _platform.ttsStart(langCode, fromLocator);
+
+  Future<void> ttsStop() async => await _platform.ttsStop();
 }

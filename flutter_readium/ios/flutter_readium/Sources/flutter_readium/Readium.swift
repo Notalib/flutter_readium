@@ -18,29 +18,45 @@ import ReadiumLCP
 
 private let TAG = "Readium"
 
-let sharedReadium = Readium()
+let sharedReadium = Readium(withHeaders: nil)
 
 final class Readium {
-  lazy var httpClient: HTTPClient = DefaultHTTPClient()
-  lazy var httpServer: HTTPServer = GCDHTTPServer(assetRetriever: assetRetriever)
-
+  
+  init(withHeaders headers: [String: String]?) {
+    self.setupWithHeaders(headers: headers)
+  }
+  
+  lazy var httpClient: HTTPClient? = nil
+  lazy var httpServer: HTTPServer? = nil
   lazy var formatSniffer: FormatSniffer = DefaultFormatSniffer()
-
-  lazy var assetRetriever = AssetRetriever(
-    httpClient: httpClient
-  )
-
-  lazy var publicationOpener = PublicationOpener(
-    parser: DefaultPublicationParser(
-      httpClient: httpClient,
-      assetRetriever: assetRetriever,
-      pdfFactory: DefaultPDFDocumentFactory()
-    ),
-    contentProtections: contentProtections,
-    onCreatePublication: { manifest, container, services in
-      container = TransformingContainer(container: container, transformer: self.injectCSS)
-    }
-  )
+  lazy var assetRetriever: AssetRetriever? = nil
+  lazy var publicationOpener: PublicationOpener? = nil
+  
+  func setupWithHeaders(headers: [String: String]?) {
+    self.httpClient = DefaultHTTPClient.init(
+      cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
+      additionalHeaders: headers,
+      requestTimeout: nil,  // default = 60 seconds
+      resourceTimeout: nil, // default = 7 days
+    )
+    self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
+    self.httpServer = GCDHTTPServer(assetRetriever: self.assetRetriever!)
+    self.publicationOpener = PublicationOpener(
+      parser: DefaultPublicationParser(
+        httpClient: httpClient!,
+        assetRetriever: assetRetriever!,
+        pdfFactory: DefaultPDFDocumentFactory()
+      ),
+      contentProtections: contentProtections,
+      onCreatePublication: { manifest, container, services in
+        container = TransformingContainer(container: container, transformer: self.injectCSS)
+      }
+    )
+  }
+  
+  func setAdditionalHeaders(_ headers: [String: String]) -> Void {
+    self.setupWithHeaders(headers: headers)
+  }
 
 #if !LCP
   let contentProtections: [ContentProtection] = []
