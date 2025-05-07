@@ -23,6 +23,10 @@ class FlutterReadium {
     return _platform.openPublication(pubUrl);
   }
 
+  Future<bool> setCurrentPublication(String pubIdentifier) {
+    return _platform.setCurrentPublication(pubIdentifier);
+  }
+
   Stream<Locator> get onPageChanged {
     return _platform.onTextLocatorChanged;
   }

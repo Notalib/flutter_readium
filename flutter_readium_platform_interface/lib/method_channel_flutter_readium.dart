@@ -38,6 +38,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
   }
 
+  Future<bool> setCurrentPublication(String pubIdentifier) async =>
+      await methodChannel.invokeMethod('setCurrentPublication', pubIdentifier);
+
   @override
   Future<void> goLeft() async => await currentReaderWidget?.goLeft();
 

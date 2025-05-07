@@ -247,7 +247,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
     final defaultPreferences = _readium.defaultPreferences?.toJson();
 
+    // _readium.setCurrentPublication(publication.identifier);
+
     final creationParams = <String, dynamic>{
+      'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
     };

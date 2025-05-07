@@ -14,9 +14,14 @@ private let TAG = "PublicationChannel"
 let publicationChannelName = "dk.nota.flutter_readium/Publication"
 
 private var currentPublication: Publication? = nil
+private var openedReadiumPublications = [String: Publication]()
 
 func getCurrentPublication() -> Publication? {
   return currentPublication
+}
+
+func getPublicationByIdentifier(_ identifier: String) -> Publication? {
+  return openedReadiumPublications[identifier]
 }
 
 private func openPublication(
@@ -25,9 +30,9 @@ private func openPublication(
         sender: UIViewController?
     ) async throws -> (Publication, Format) {
         do {
-            let asset = try await sharedReadium.assetRetriever.retrieve(url: url).get()
+            let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
 
-            let publication = try await sharedReadium.publicationOpener.open(
+            let publication = try await sharedReadium.publicationOpener!.open(
                 asset: asset,
                 allowUserInteraction: allowUserInteraction,
                 sender: sender
@@ -54,13 +59,22 @@ private func getAssetFromUrl(url: AbsoluteURL) async -> Asset? {
 
 func publicationMethodCallHandler(call: FlutterMethodCall, result: @escaping FlutterResult) {
   switch call.method {
+  case "setCurrentPublication":
+    let pubId = call.arguments as! String
+    let pub = openedReadiumPublications[pubId]
+    if (pub != nil) {
+      currentPublication = pub
+      result(true)
+    } else {
+      result(FlutterError.init(
+        code: "InvalidArgument",
+        message: "Invalid publication ID: \(pubId), did you call openPublication first?",
+        details: nil))
+    }
+    break
   case "openPublication":
     let args = call.arguments as! [Any?]
     var pubUrlStr = args[0] as! String
-
-//    let documentFolderURL = try! FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-//    let fileURL = documentFolderURL.appendingPathComponent("readium_flutter/pubs/moby_dick.epub")
-//    print("FileURL is \(fileURL.anyURL.absoluteURL.absoluteString)")
 
     if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
       // Assume URLs without a supported prefix are local file paths.
@@ -89,10 +103,11 @@ func publicationMethodCallHandler(call: FlutterMethodCall, result: @escaping Flu
         print("Opened publication!")
         let mediaType: String = pub.1.mediaType?.string ?? "unknown"
         print("Opened publication (format): \(mediaType)")
+        openedReadiumPublications[pub.0.metadata.identifier ?? url.absoluteString] = pub.0
         currentPublication = pub.0
 
         await MainActor.run {
-          result(currentPublication?.jsonManifest)
+          result(pub.0.jsonManifest)
         }
       } catch {
           await MainActor.run {
@@ -126,113 +141,3 @@ extension String {
     return prefix + string + suffix
   }
 }
-
-
-
-
-// private func parseMediaType(_ mediaType: Any?) -> MediaType? {
-//   guard let list = mediaType as! [String?]? else {
-//     return nil
-//   }
-//   return MediaType(list[0]!, name: list[1], fileExtension: list[2])
-// }
-
-// func injectCSS(_ resource: Resource) -> Resource {
-//   let comicCssKey = FlutterReadiumPlugin.registrar?.lookupKey(
-//     forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
-//   let epubCssKey = FlutterReadiumPlugin.registrar?.lookupKey(
-//     forAsset: "assets/helpers/epub.css", fromPackage: "flutter_readium")
-
-//   let sourceFiles = [comicCssKey, epubCssKey]
-//   let source = sourceFiles.compactMap { sourceFile -> String? in
-//     if let path = Bundle.main.path(forResource: sourceFile, ofType: nil),
-//       let data = FileManager().contents(atPath: path),
-//       let stringData = String(data: data, encoding: .utf8)
-//     {
-//       return stringData
-//     }
-//     print("\(TAG)::injectCSS No source found on \(String(describing: sourceFile))")
-
-//     return nil
-//   }.joined(separator: "\n")
-
-//   // We only transform HTML resources.
-//   guard resource.link.mediaType.isHTML else {
-//     return resource
-//   }
-
-//   return resource.mapAsString { content -> String in
-//     var content = content
-
-//     if let headEnd = content.startIndex(of: "</head>") {
-//       let style = "<style>\(source)</style>"
-//       content = content.insert(string: style, at: headEnd)
-//     } else {
-//       print("\(TAG)::injectCSS No head found on the document")
-//     }
-
-//     return content
-//   }
-// }
-
-// private func assetToPublication(asset: PublicationAsset) -> Promise<Publication> {
-//   return Promise<Publication> { resolver in
-//     // Convert the FileAsset to a Publication using a temporary Streamer.
-//     //
-//     // A Streamer contains an EPUB parser which converts it to something the navigator can understand (probably HTML).
-//     // https://github.com/readium/architecture
-//     Streamer().open(
-//       asset: asset,
-//       allowUserInteraction: false,
-//       onCreatePublication: { _, _, fetcher, _ in
-//         fetcher = TransformingFetcher(fetcher: fetcher, transformers: [injectCSS])
-//       }
-//     ) { result in
-//       do {
-//         let publication = try result.get()
-//         resolver.fulfill(publication)
-//       } catch let error {
-//         print("error = \(error)")
-//         resolver.reject(error)
-//       }
-//     }
-//   }
-// }
-
-// private func handleFromSomething(asset: PublicationAsset, result: @escaping FlutterResult) {
-//   await assetRetriever.retrieve(url: url.anyURL.absoluteURL!)
-//   let _ = assetToPublication(asset: asset).done { pub in
-//     print("\(TAG)::fromSomething created publication on \(Thread.current)")
-//     DispatchQueue.global(qos: .background).async {
-//       guard let jsonManifest = pub.jsonManifest else {
-//         print("\(TAG)::fromSomething partially failed to create publication: jsonManifest == nil")
-//         result([
-//           nil, nil,
-//           "Something very wrong, opened publication but got publication.jsonManifest == nil!",
-//         ])
-//         return
-//       }
-//       let _ = pub.positions
-//       print(
-//         "\(TAG)::fromSomething did publication?.positions, workaround for app deadlock via EPUBNavigatorViewController.viewDidLoad on \(Thread.current)"
-//       )
-//       DispatchQueue.main.async {
-//         print("\(TAG)::fromSomething back on \(Thread.current)")
-//         publication = pub
-//         result(jsonManifest)
-//       }
-//     }
-//   }.catch { error in
-//     print("\(TAG)::fromSomething failed to create publication: \(error)")
-//     if let openingError = error as? Publication.OpeningError {
-//       result(
-//         FlutterError.init(
-//           code: "\(index(openingError: openingError)))", message: openingError.errorDescription,
-//           details: openingError.failureReason))
-//     } else {
-//       result(
-//         FlutterError.init(
-//           code: "", message: error.localizedDescription, details: error.localizedDescription))
-//     }
-//   }
-// }

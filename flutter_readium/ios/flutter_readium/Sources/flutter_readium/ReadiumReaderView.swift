@@ -49,7 +49,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
   ) {
     print(TAG, "::init")
     let creationParams = args as! Dictionary<String, Any?>
-    let publication = getCurrentPublication()!
+
+    let pubIdentifier = creationParams["pubIdentifier"] as! String
+    let publication = getPublicationByIdentifier(pubIdentifier)!
 
     let preferencesStr = creationParams["preferences"] as? Dictionary<String, String>?
     let defaultPreferences = preferencesStr == nil ? nil : EPUBPreferencesHelper.mapToEPUBPreferences(preferencesStr!!)
@@ -83,11 +85,11 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       publication: publication,
       initialLocation: locator,
       config: config,
-      httpServer: sharedReadium.httpServer
+      httpServer: sharedReadium.httpServer!
     )
 
+    // Add epub.js script for highlighting etc. and comics.js script for handling Nota's guided comics.
     let commicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-    // Add epub.js script for highlighting and things like that.
     let epubJsKey = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
     let sourceFiles = [commicJsKey, epubJsKey]
     let source = sourceFiles.map { sourceFile -> String in
@@ -176,9 +178,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
 
   private func emitOnPageChanged(locator: Locator) -> Void {
     let json = locator.jsonString ?? "null"
-    
+
     print(TAG, "emitOnPageChanged:locator=\(String(describing: locator))")
-    
+
     Task.detached(priority: .high) { [isVerticalScroll] in
       guard let locatorWithFragments = await self.getLocatorFragments(json, isVerticalScroll) else {
         print(TAG, "emitOnPageChanged failed!")
@@ -192,7 +194,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       }
     }
   }
-  
+
   private func getLocatorFragments(_ locatorJson: String, _ isVerticalScroll: Bool) async -> Locator? {
     switch await self.evaluateJavascript("window.epubPage.getLocatorFragments(\(locatorJson), \(isVerticalScroll));") {
       case .success(let jresult):
@@ -463,14 +465,14 @@ extension ReadiumReaderView : PublicationSpeechSynthesizerDelegate {
         decorations.append(Decoration(
             id: "tts-utterance",
             locator: locator,
-            style: .highlight(tint: .blue)
+            style: .highlight(tint: .yellow.withAlphaComponent(0.2), isActive: true)
         ))
     }
     if let locator = playingRangeLocator {
         decorations.append(Decoration(
             id: "tts-utterance-range",
             locator: locator,
-            style: .underline(tint: .red)
+            style: .underline(tint: .blue)
         ))
     }
     self.readiumViewController.apply(decorations: decorations, in: "tts")
