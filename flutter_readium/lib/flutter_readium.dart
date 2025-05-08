@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
-import 'package:flutter_readium_platform_interface/src/reader/reader_widget_interface.dart';
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 class FlutterReadium {
@@ -23,19 +22,21 @@ class FlutterReadium {
     return _platform.openPublication(pubUrl);
   }
 
-  Future<bool> setCurrentPublication(String pubIdentifier) {
-    return _platform.setCurrentPublication(pubIdentifier);
+  Future<Publication> closePublication(String pubUrl) {
+    return _platform.openPublication(pubUrl);
   }
 
-  Stream<Locator> get onPageChanged {
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;
+
+  Stream<Locator> get onTextLocatorChanged {
     return _platform.onTextLocatorChanged;
   }
 
-  Future<void>? goLeft() {
+  Future<void> goLeft() {
     return _platform.goLeft();
   }
 
-  Future<void>? goRight() {
+  Future<void> goRight() {
     return _platform.goRight();
   }
 
@@ -47,14 +48,21 @@ class FlutterReadium {
     return _platform.skipToPrevious();
   }
 
-  Future<void> setEPUBPreferences(EPUBPreferences preferences) async =>
-      await _platform.setEPUBPreferences(preferences);
+  Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
 
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async =>
-      await _platform.applyDecorations(id, decorations);
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
+      _platform.applyDecorations(id, decorations);
 
-  Future<void> ttsStart(String langCode, Locator? fromLocator) async =>
-      await _platform.ttsStart(langCode, fromLocator);
-
-  Future<void> ttsStop() async => await _platform.ttsStop();
+  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) =>
+      _platform.ttsEnable(defaultLangCode, voiceIdentifier);
+  Future<void> ttsStart(Locator? fromLocator) => _platform.ttsStart(fromLocator);
+  Future<void> ttsStop() => _platform.ttsStop();
+  Future<void> ttsPause() => _platform.ttsPause();
+  Future<void> ttsResume() => _platform.ttsResume();
+  Future<void> ttsNext() => _platform.ttsNext();
+  Future<void> ttsPrevious() => _platform.ttsPrevious();
+  Future<void> ttsSetDecorations(ReaderDecoration utteranceDecoration, ReaderDecoration rangeDecoration) =>
+      _platform.ttsSetDecorations(utteranceDecoration, rangeDecoration);
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() => _platform.ttsGetAvailableVoices();
+  Future<void> ttsSetVoice(String voiceIdentifier) => _platform.ttsSetVoice(voiceIdentifier);
 }

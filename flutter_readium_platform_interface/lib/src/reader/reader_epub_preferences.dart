@@ -34,7 +34,7 @@ class EPUBPreferences {
     };
   }
 
-  factory EPUBPreferences.fromJson(final Map<String, dynamic> map) => EPUBPreferences(
+  factory EPUBPreferences.fromJsonMap(final Map<String, dynamic> map) => EPUBPreferences(
         fontFamily: map['fontFamily'] as String,
         fontSize: map['fontSize'] as int,
         fontWeight: map['fontSize'] as double,

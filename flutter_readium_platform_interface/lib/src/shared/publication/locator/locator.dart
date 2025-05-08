@@ -63,10 +63,6 @@ abstract class Locator with _$Locator {
     // Only set id fragments to less confusing readium.
     final selector = locations?.cssSelector ?? locations?.domRange?.start.cssSelector;
     var idFragment = selector?.startsWith('#') == true ? selector!.substring(1) : null;
-    final tocFragment = locations?.fragments?.firstWhereOrNull((f) => f.startsWith("toc="));
-    if (idFragment == null && tocFragment != null) {
-      idFragment = tocFragment.substring(4);
-    }
 
     return copyWith(
       // Makes sure href only contains /path.

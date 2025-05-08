@@ -42,7 +42,7 @@ class ReaderDecoration {
     };
   }
 
-  factory ReaderDecoration.fromJson(final Map<String, dynamic> map) => ReaderDecoration(
+  factory ReaderDecoration.fromJsonMap(final Map<String, dynamic> map) => ReaderDecoration(
         id: map['id'] as String,
         locator: Locator.fromJson(map['locator']),
         style: _styleFromString(map['style']),

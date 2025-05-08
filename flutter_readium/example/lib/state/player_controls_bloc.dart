@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -23,6 +24,8 @@ class SkipToNextPage extends PlayerControlsEvent {}
 
 class SkipToPreviousPage extends PlayerControlsEvent {}
 
+class GetAvailableVoices extends PlayerControlsEvent {}
+
 class PlayerControlsState {
   PlayerControlsState({required this.playing, required this.ttsEnabled});
   final bool playing;
@@ -30,23 +33,26 @@ class PlayerControlsState {
 
   final FlutterReadium readium = FlutterReadium();
 
-  PlayerControlsState togglePlay(final bool playing) {
+  Future<PlayerControlsState> togglePlay(final bool playing) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
-    // FlutterReadium.updateState(
-    //   playing: newState.playing,
-    // );
+    if (playing) {
+      await readium.ttsResume();
+    } else {
+      await readium.ttsPause();
+    }
 
     return newState;
   }
 
-  PlayerControlsState toggleTTS(final bool ttsEnabled) {
+  Future<PlayerControlsState> toggleTTS(final bool ttsEnabled) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
     if (ttsEnabled) {
-      readium.ttsStart("en", null);
+      await readium.ttsEnable(null, null);
+      await readium.ttsStart(null);
     } else {
-      readium.ttsStop();
+      await readium.ttsStop();
     }
 
     return newState;
@@ -63,29 +69,29 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         ) {
     on<Play>((final event, final emit) async {
       if (!state.ttsEnabled) {
-        emit(state.toggleTTS(true));
+        emit(await state.toggleTTS(true));
       }
       // await instance.play();
-      emit(state.togglePlay(true));
+      emit(await state.togglePlay(true));
     });
 
-    on<Pause>((final event, final emit) {
+    on<Pause>((final event, final emit) async {
       // instance.pause();
-      emit(state.togglePlay(false));
+      emit(await state.togglePlay(false));
     });
 
-    on<Stop>((final event, final emit) {
+    on<Stop>((final event, final emit) async {
       // instance.stop();
-      emit(state.toggleTTS(false));
-      emit(state.togglePlay(false));
+      emit(await state.toggleTTS(false));
+      emit(await state.togglePlay(false));
     });
 
     on<SkipToNextParagraph>((final event, final emit) {
-      // instance.goRight();
+      instance.ttsNext();
     });
 
     on<SkipToPreviousParagraph>((final event, final emit) {
-      // instance.goLeft();
+      instance.ttsPrevious();
     });
 
     on<SkipToNextChapter>((final event, final emit) {
@@ -102,6 +108,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToPreviousPage>((final event, final emit) {
       instance.goLeft();
+    });
+
+    on<GetAvailableVoices>((final event, final emit) async {
+      final langs = await instance.ttsGetAvailableVoices();
+      for (final lang in langs) {
+        debugPrint('Available language: ${lang.identifier}');
+      }
     });
   }
   final FlutterReadium instance = FlutterReadium();

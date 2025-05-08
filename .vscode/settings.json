@@ -3,5 +3,11 @@
         "EPUB",
         "readium"
     ],
-    "explorer.excludeGitIgnore": true
+    "explorer.excludeGitIgnore": true,
+    "dart.lineLength": 120,
+    "[dart]": {
+      "editor.rulers": [
+        120
+      ],
+    }
 }

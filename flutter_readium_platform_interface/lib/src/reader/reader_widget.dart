@@ -42,8 +42,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
 
-class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
-    implements ReadiumReaderWidgetInterface {
+class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
   static const _maxRetryAwaitLocatorVisible = 20;
   static const _maxRetryAwaitNativeViewReady = 10;
@@ -59,6 +58,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
   mq.Orientation? _lastOrientation;
 
   late Widget _readerWidget;
+
+  EPUBPreferences? get _defaultPreferences {
+    return _readium.defaultPreferences;
+  }
 
   @override
   void initState() {
@@ -188,7 +191,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
 
     // Ensure we are at least 1 page into the current chapter, if not in scroll mode.
-    // TODO: Maybe find a better way to find something like `lastVisibleLocator`.
+    // TODO: Find a better way to do this, maybe a `lastVisibleLocator` ?
     if (_readium.defaultPreferences?.verticalScroll != true) {
       await _channel?.goRight(animated: false);
       final loc = await _channel?.getCurrentLocator();
@@ -197,8 +200,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
     int? curIndex = toc.indexWhere((l) => l.href == currentHref);
     if (curIndex > -1) {
-      Locator? nextChapter =
-          widget.publication.locatorFromLink(toc[Math.min(curIndex + 1, toc.length - 1)]);
+      final newIndex = (curIndex + 1).clamp(0, toc.length - 1);
+      Locator? nextChapter = widget.publication.locatorFromLink(toc[newIndex]);
       if (nextChapter != null) {
         await _channel?.go(nextChapter, isAudioBookWithText: false, animated: true);
       }
@@ -206,13 +209,27 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
   }
 
   @override
-  Future<void> skipToPrevious({final bool animated = true}) async => _channel?.goLeft();
+  Future<void> skipToPrevious({final bool animated = true}) async {
+    List<Link>? toc = widget.publication.toc;
+    if (toc == null || _currentLocator == null) {
+      return;
+    }
+    String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
+    int? curIndex = toc.indexWhere((l) => l.href == currentHref);
+    if (curIndex > -1) {
+      final newIndex = (curIndex - 1).clamp(0, toc.length - 1);
+      Locator? previousChapter = widget.publication.locatorFromLink(toc[newIndex]);
+      if (previousChapter != null) {
+        await _channel?.go(previousChapter, isAudioBookWithText: false, animated: true);
+      }
+    }
+  }
 
   @override
   Future<Locator?> getLocatorFragments(final Locator locator) async {
     R2Log.d('getLocatorFragments: $locator');
 
-    // TODO: state removed
+    await this._awaitNativeViewReady();
 
     return await _channel?.getLocatorFragments(locator);
   }
@@ -255,9 +272,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
     R2Log.d(publication.identifier);
 
-    final defaultPreferences = _readium.defaultPreferences?.toJson();
-
-    // _readium.setCurrentPublication(publication.identifier);
+    final defaultPreferences = _defaultPreferences?.toJson();
 
     final creationParams = <String, dynamic>{
       'pubIdentifier': publication.identifier,
@@ -345,10 +360,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
     _awaitNativeViewReady().then((final _) {
       // TODO: Set first visible Locator when ready
-      final nativeLocatorStream = _readium.onTextLocatorChanged
-          .debounceTime(const Duration(milliseconds: 50))
-          .asBroadcastStream()
-          .distinct();
+      final nativeLocatorStream =
+          _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
 
       nativeLocatorStream.listen((locator) {
         R2Log.d('LocatorChanged - $locator');
@@ -373,12 +386,18 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     }
   }
 
+  /// Gets a Locator's href with toc fragment appended as identifier
   String? getTextLocatorHrefWithTocFragment(Locator? locator) {
     if (locator == null) {
       return null;
     }
+
     final txtLoc = locator.toTextLocator();
-    return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${txtLoc.locationsOrEmpty.fragments?.first}';
+    final tocFragment = locator.locations?.fragments?.firstWhereOrNull((f) => f.startsWith("toc="));
+    if (tocFragment == null) {
+      return null;
+    }
+    return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${tocFragment.substring(4)}';
   }
 
   Future<void> _setLocation(final Locator locator, final bool isAudioBookWithText) async {

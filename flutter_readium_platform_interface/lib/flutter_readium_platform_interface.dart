@@ -8,13 +8,14 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
 import 'src/enums.dart';
-import 'src/reader/index.dart' show ReadiumReaderWidgetInterface, ReaderDecoration, EPUBPreferences;
+import 'src/reader/index.dart';
 import 'src/shared/index.dart';
 
+export 'src/reader/index.dart';
 export 'src/shared/index.dart';
 export 'src/utils/index.dart';
 export 'src/enums.dart';
-export 'src/reader/index.dart' show ReadiumReaderWidget, ReaderDecoration, EPUBPreferences;
+export 'src/reader/index.dart' show ReadiumReaderWidget, ReaderDecoration, EPUBPreferences, ReaderTTSVoice;
 
 /// The interface that implementations of FlutterReadium must implement.
 ///
@@ -44,23 +45,32 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<Publication> openPublication(String pubUrl) =>
       throw UnimplementedError('openPublication(pubUrl) has not been implemented.');
 
-  Future<bool> setCurrentPublication(String pubIdentifier) =>
-      throw UnimplementedError('setCurrentPublication(pubIdentifier) has not been implemented.');
+  Future<void> closePublication(String pubIdentifier) =>
+      throw UnimplementedError('closePublication(pubIdentifier) has not been implemented.');
 
   Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
   Future<void> goRight() => throw UnimplementedError('goRight() has not been implemented.');
   Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
-  Future<void> skipToPrevious() =>
-      throw UnimplementedError('skipToPrevious() has not been implemented.');
+  Future<void> skipToPrevious() => throw UnimplementedError('skipToPrevious() has not been implemented.');
 
   /// Sets the default EPUB rendering preferences and updates preferences for any current ReaderWidgetViews.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
-  Future<void> ttsStart(String voiceIdentifier, Locator? fromLocator) =>
-      throw UnimplementedError('ttsStart() has not been implemented');
-
+  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) =>
+      throw UnimplementedError('ttsEnable() has not been implemented');
+  Future<void> ttsStart(Locator? fromLocator) => throw UnimplementedError('ttsStart() has not been implemented');
   Future<void> ttsStop() => throw UnimplementedError('ttsStop() has not been implemented');
+  Future<void> ttsPause() => throw UnimplementedError('ttsPause() has not been implemented');
+  Future<void> ttsResume() => throw UnimplementedError('ttsResume() has not been implemented');
+  Future<void> ttsNext() => throw UnimplementedError('ttsNext() has not been implemented');
+  Future<void> ttsPrevious() => throw UnimplementedError('ttsPrevious() has not been implemented');
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
+      throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
+  Future<void> ttsSetDecorations(ReaderDecoration utteranceDecoration, ReaderDecoration rangeDecoration) =>
+      throw UnimplementedError('ttsSetDecorations() has not been implemented');
+  Future<void> ttsSetVoice(String voiceIdentifier) =>
+      throw UnimplementedError('ttsSetVoice() has not been implemented');
 
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
       throw UnimplementedError('applyDecorations() has not been implemented');

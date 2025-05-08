@@ -33,13 +33,14 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    String publicationString = await methodChannel
-        .invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
+    String publicationString =
+        await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
     return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
   }
 
-  Future<bool> setCurrentPublication(String pubIdentifier) async =>
-      await methodChannel.invokeMethod('setCurrentPublication', pubIdentifier);
+  @override
+  Future<void> closePublication(String pubIdentifier) async =>
+      await methodChannel.invokeMethod<void>('closePublication', [pubIdentifier]);
 
   @override
   Future<void> goLeft() async => await currentReaderWidget?.goLeft();
@@ -64,9 +65,45 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await currentReaderWidget?.applyDecorations(id, decorations);
 
   @override
-  Future<void> ttsStart(String langCode, Locator? fromLocator) async =>
-      await currentReaderWidget?.ttsStart(langCode, fromLocator);
+  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) async =>
+      await methodChannel.invokeMethod('ttsEnable', [defaultLangCode, voiceIdentifier]);
 
   @override
-  Future<void> ttsStop() async => await currentReaderWidget?.ttsStop();
+  Future<void> ttsStart(Locator? fromLocator) async => await methodChannel.invokeMethod('ttsStart', [fromLocator]);
+
+  @override
+  Future<void> ttsStop() async => await methodChannel.invokeMethod('ttsStop');
+
+  @override
+  Future<void> ttsPause() async => await methodChannel.invokeMethod('ttsPause');
+
+  @override
+  Future<void> ttsResume() async => await methodChannel.invokeMethod('ttsResume');
+
+  @override
+  Future<void> ttsNext() async => await methodChannel.invokeMethod('ttsNext');
+
+  @override
+  Future<void> ttsPrevious() async => await methodChannel.invokeMethod('ttsPrevious');
+
+  @override
+  Future<void> ttsSetDecorations(ReaderDecoration utteranceDecoration, ReaderDecoration rangeDecoration) =>
+      methodChannel.invokeMethod('ttsSetDecorations', [utteranceDecoration, rangeDecoration]);
+
+  @override
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
+    List<dynamic>? voicesStr = await methodChannel.invokeMethod<List<dynamic>>('ttsGetAvailableVoices');
+    final voices = voicesStr
+            ?.cast<String>()
+            .map<Map<String, dynamic>>((str) => json.decode(str) as Map<String, dynamic>)
+            .map<ReaderTTSVoice>((map) => ReaderTTSVoice.fromJsonMap(map))
+            .toList() ??
+        <ReaderTTSVoice>[];
+    return voices;
+  }
+
+  @override
+  Future<void> ttsSetVoice(String voiceIdentifier) async {
+    await methodChannel.invokeMethod('ttsNext', voiceIdentifier);
+  }
 }

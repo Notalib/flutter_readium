@@ -51,6 +51,11 @@ class PlayerControls extends StatelessWidget {
               onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter()),
               tooltip: 'Skip to next chapter',
             ),
+            IconButton(
+              icon: const Icon(Icons.settings_voice),
+              onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),
+              tooltip: 'Change voice',
+            ),
           ],
         ),
       );

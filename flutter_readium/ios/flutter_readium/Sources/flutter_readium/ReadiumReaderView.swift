@@ -10,6 +10,14 @@ private let TAG = "ReadiumReaderView"
 
 let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
+class ReadiumBugLogger: ReadiumShared.WarningLogger {
+  func log(_ warning: Warning) {
+    print(TAG, "Error in Readium: \(warning)")
+  }
+}
+
+private let readiumBugLogger = ReadiumBugLogger()
+
 private let scrollScripts = [
   false: WKUserScript(
     source: "setScrollMode(false);", injectionTime: .atDocumentEnd, forMainFrameOnly: false),
@@ -26,7 +34,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
   private let readiumViewController: EPUBNavigatorViewController
   private let userScript: WKUserScript
   private var isVerticalScroll = false
-  private var synthesizer: PublicationSpeechSynthesizer?
+  
+  var publicationIdentifier: String?
 
   func view() -> UIView {
     print(TAG, "::getView")
@@ -39,6 +48,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
     eventChannel.setStreamHandler(nil)
+    setCurrentReadiumReaderView(nil)
   }
 
   init(
@@ -114,6 +124,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     print(TAG, "Fixed view bounds \(view.bounds)")
     view.addSubview(readiumViewController.view)
 
+    setCurrentReadiumReaderView(self)
+    publicationIdentifier = publication.metadata.identifier
+
     print(TAG, "::init success")
   }
 
@@ -143,11 +156,21 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     emitOnPageChanged(locator: locator)
   }
 
-  // override NavigatorDelegate::navigator:didPressKey
-  func navigator(_ navigator: VisualNavigator, didPressKey event: KeyEvent) async {
-    print(TAG, "didPressKey: \(event)")
-    // Turn pages when pressing the arrow keys.
-    await DirectionalNavigationAdapter(navigator: navigator).didPressKey(event: event)
+  func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
+    print(TAG, "onMethodApplyDecorations: \(decorations) identifier: \(groupIdentifier)")
+    self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
+  }
+  
+  func getFirstVisibleLocator() async -> Locator? {
+    return await self.readiumViewController.firstVisibleElementLocator()
+  }
+  
+  func getCurrentLocation() -> Locator? {
+    return self.readiumViewController.currentLocation
+  }
+  
+  func getCurrentSelection() -> Locator? {
+    return self.readiumViewController.currentSelection?.locator
   }
 
   private func evaluateJavascript(_ code: String) async -> Result<Any, Error> {
@@ -187,6 +210,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
         return
       }
       await MainActor.run() {
+        // TODO: Decide which one to use.
         self.channel.onPageChanged(locator: locatorWithFragments)
         if (self.eventSink != nil) {
           self.eventSink!(locatorWithFragments.jsonString)
@@ -234,6 +258,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
         self.emitOnPageChanged()
       }
     }
+  }
+  
+  func justGoToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+    return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
   private func setLocation(locator: Locator, isAudioBookWithText: Bool) async -> Result<Any, Error> {
@@ -344,12 +372,6 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       }
       evaluateJSReturnResult("window.epubPage.isLocatorVisible(\(args));", result: result)
       break
-    case "ttsStart":
-      self.onMethodTTSStart(call, result: result)
-      break
-    case "ttsStop":
-      self.onMethodTTSStop(call, result: result)
-      break
     case "isReaderReady":
       self.evaluateJSReturnResult("""
                 (function() {
@@ -367,12 +389,25 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       let preferences = EPUBPreferencesHelper.mapToEPUBPreferences(args)
       setUserPreferences(preferences: preferences)
       break
+    case "applyDecorations":
+      let args = call.arguments as! [Any?]
+      let identifier = args[0] as! String
+      let decorationsStr = args[1] as! [String]
+
+      guard let decorations = try? decorationsStr.map({ try Decoration(fromJson: $0) }) else {
+        return result(FlutterError.init(
+          code: "JSON mapping error",
+          message: "Could not map decorations from JSON: \(decorationsStr)",
+          details: nil))
+      }
+
+      print(TAG, "onMethodCall[setPreferences] args = \(args)")
+      applyDecorations(decorations, forGroup: identifier)
+      break
     case "dispose":
       print(TAG, "Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
-      synthesizer?.delegate = nil;
-      synthesizer = nil;
       result(nil)
       break
     default:
@@ -392,153 +427,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     self.eventSink = nil
     return nil
   }
-
-  func onMethodApplyDecorations(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let args = call.arguments as! [Any?]
-    let identifier = args[0] as! String
-    let decorations = args[1] as! [Decoration]
-    print(TAG, "onMethodApplyDecorations: \(decorations) identifier: \(identifier)")
-    self.readiumViewController.apply(decorations: decorations, in: identifier)
-    result(true)
-  }
-}
-
-class ReadiumBugLogger: ReadiumShared.WarningLogger {
-  func log(_ warning: Warning) {
-    print(TAG, "Error in Readium: \(warning)")
-  }
-}
-
-private let readiumBugLogger = ReadiumBugLogger()
-
-private func tryType<T>(_ json: T?) throws -> Data? where T: Encodable {
-  return json != nil ? try JSONEncoder().encode(json) : nil
-}
-
-private func jsonEncode(_ json: Any?) -> String {
-  if json == nil {
-    return "null"
-  }
-  let data =
-  try! tryType(json as? Bool) ?? tryType(json as? Int) ?? tryType(json as? Double) ?? tryType(
-    json as? String) ?? JSONSerialization.data(withJSONObject: json!, options: [])
-  return String(data: data, encoding: .utf8)!
 }
 
 private func canScroll(locations: Locator.Locations?) -> Bool {
   guard let locations = locations else { return false }
   return locations.domRange != nil || locations.cssSelector != nil || locations.progression != nil
-}
-
-/// Extension handling TTS for ReadiumReaderView
-extension ReadiumReaderView : PublicationSpeechSynthesizerDelegate {
-
-  func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
-    print(TAG, "publicationSpeechSynthesizerStateDidChange: \(state)")
-    var playingUtteranceLocator: Locator? = nil
-    var playingRangeLocator: Locator? = nil
-
-    switch state {
-    case .playing(let utt, let range):
-      playingUtteranceLocator = utt.locator
-      playingRangeLocator = range
-      if let newLocator = range {
-        // TODO: this should likely be throttled somewhat
-        // See https://github.com/readium/swift-toolkit/blob/master/docs/Guides/TTS.md#turning-pages-automatically
-        Task.detached(priority: .high) {
-          await self.goToLocator(locator: newLocator, animated: true)
-        }
-      }
-      print(TAG, "tts playing: \(utt.text) in \(String(describing: utt.language?.locale.identifier))")
-      break
-    case .paused(let utt):
-      playingUtteranceLocator = utt.locator
-      print(TAG, "tts paused at: \(utt.text)")
-      break
-    case .stopped:
-      print(TAG, "tts stopped")
-      break
-    }
-
-    var decorations: [Decoration] = []
-    if let locator = playingUtteranceLocator {
-        decorations.append(Decoration(
-            id: "tts-utterance",
-            locator: locator,
-            style: .highlight(tint: .yellow.withAlphaComponent(0.2), isActive: true)
-        ))
-    }
-    if let locator = playingRangeLocator {
-        decorations.append(Decoration(
-            id: "tts-utterance-range",
-            locator: locator,
-            style: .underline(tint: .blue)
-        ))
-    }
-    self.readiumViewController.apply(decorations: decorations, in: "tts")
-  }
-
-  func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
-    print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
-  }
-
-  func onMethodTTSStart(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    let args = call.arguments as! [Any?]
-    let ttsLang = args[0] as! String
-    let lang = Language(stringLiteral: ttsLang)
-    var locator: Locator? = nil
-    if (args[1] is String) {
-      locator = try! Locator(jsonString: args[1] as! String, warnings: readiumBugLogger)!
-    }
-
-    if (self.synthesizer == nil) {
-      self.synthesizer = PublicationSpeechSynthesizer(
-        publication: self.readiumViewController.publication,
-        config: PublicationSpeechSynthesizer.Configuration(
-          defaultLanguage: lang
-        )
-      )
-      self.synthesizer?.delegate = self
-    }
-    Task.detached(priority: .high) { [self] in
-      // If no locator provided, start from current visible element.
-      if (locator == nil) {
-        locator = await (self.readiumViewController as VisualNavigator).firstVisibleElementLocator()
-      }
-      await MainActor.run() {
-        self.synthesizer?.start(from: locator)
-        return result(true)
-      }
-    }
-  }
-
-  func onMethodTTSPause(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.pause()
-    result(true)
-  }
-
-  func onMethodTTSResume(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.resume()
-    result(true)
-  }
-
-  func onMethodTTSNext(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.next()
-    result(true)
-  }
-
-  func onMethodTTSPrevious(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.previous()
-    result(true)
-  }
-
-  func onMethodTTSTogglePlay(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.pauseOrResume()
-    result(true)
-  }
-
-  func onMethodTTSStop(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    self.synthesizer?.stop()
-    result(true)
-  }
 }
