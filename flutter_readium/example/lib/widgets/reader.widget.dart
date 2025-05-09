@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_readium/reader_widget.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 
 import '../state/index.dart';
@@ -85,8 +85,7 @@ class ReaderWidget extends StatelessWidget {
 
   Widget _buildOnReady(final Widget child) => ValueListenableBuilder<bool>(
         valueListenable: loadingNotifier,
-        builder: (final _, final isLoading, final __) =>
-            isLoading ? const CircularProgressIndicator() : child,
+        builder: (final _, final isLoading, final __) => isLoading ? const CircularProgressIndicator() : child,
       );
 
   Widget _buildReaderSafeArea(final Widget child) => SafeArea(
@@ -95,15 +94,13 @@ class ReaderWidget extends StatelessWidget {
         child: child,
       );
 
-  Widget _buildSemanticsNextPage({required final bool verticalScroll}) =>
-      _buildSemanticsNextPrevPage(
+  Widget _buildSemanticsNextPage({required final bool verticalScroll}) => _buildSemanticsNextPrevPage(
         label: 'To next page',
         toNextPage: true,
         verticalScroll: verticalScroll,
       );
 
-  Widget _buildSemanticsPrevPage({required final bool verticalScroll}) =>
-      _buildSemanticsNextPrevPage(
+  Widget _buildSemanticsPrevPage({required final bool verticalScroll}) => _buildSemanticsNextPrevPage(
         label: 'To previous page',
         toNextPage: false,
         verticalScroll: verticalScroll,

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as Math;
 
 import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
@@ -11,8 +10,6 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 import 'package:rxdart/rxdart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-import '../_index.dart';
-import 'index.dart';
 import 'reader_channel.dart';
 
 const _viewType = 'dk.nota.flutter_readium/ReadiumReaderWidget';
@@ -44,7 +41,6 @@ class ReadiumReaderWidget extends StatefulWidget {
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
-  static const _maxRetryAwaitLocatorVisible = 20;
   static const _maxRetryAwaitNativeViewReady = 10;
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
@@ -97,7 +93,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Widget build(final BuildContext context) {
-    // _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
+    _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
     var userSwipe = false;
 
     return Listener(
@@ -229,7 +225,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Future<Locator?> getLocatorFragments(final Locator locator) async {
     R2Log.d('getLocatorFragments: $locator');
 
-    await this._awaitNativeViewReady();
+    await _awaitNativeViewReady();
 
     return await _channel?.getLocatorFragments(locator);
   }
@@ -242,12 +238,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    this._channel?.setEPUBPreferences(preferences);
+    _channel?.setEPUBPreferences(preferences);
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    await this._channel?.applyDecorations(id, decorations);
+    await _channel?.applyDecorations(id, decorations);
   }
 
   @override

@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
-
-import '../_index.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 
 enum _ReaderChannelMethodInvoke {
   applyDecorations,
@@ -80,8 +78,7 @@ class ReadiumReaderChannel extends MethodChannel {
     });
   }
 
-  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async =>
-      _invokeMethod(
+  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async => _invokeMethod(
         _ReaderChannelMethodInvoke.setLocation,
         [
           json.encode(locator),
@@ -93,7 +90,7 @@ class ReadiumReaderChannel extends MethodChannel {
         _ReaderChannelMethodInvoke.ttsStart,
         [
           lang,
-          fromLocator != null ? fromLocator.toJson() : null,
+          fromLocator?.toJson(),
         ],
       );
 
@@ -104,8 +101,7 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    return await _invokeMethod(
-        _ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
+    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
 
   Future<bool> isReaderReady() async => _invokeMethod(
@@ -125,10 +121,8 @@ class ReadiumReaderChannel extends MethodChannel {
       );
 
   Future<Locator?> getCurrentLocator() async =>
-      await _invokeMethod<dynamic>(_ReaderChannelMethodInvoke.getCurrentLocator, []).then(
-          (locStr) => locStr != null
-              ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>)
-              : null);
+      await _invokeMethod<dynamic>(_ReaderChannelMethodInvoke.getCurrentLocator, [])
+          .then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
 
   Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(
         _ReaderChannelMethodInvoke.isLocatorVisible,
@@ -176,5 +170,5 @@ class ReadiumReaderChannel extends MethodChannel {
 /// The original Readium UserProperty::getJson leaves out the quotes around "name" and "value".
 /// There are plans to clean up the Readium user settings API.
 /// TODO: Nuke this function from orbit if/when that happens.
-String _readiumEncode(final Map<String, String> map) => json
-    .encode(map.entries.map((final e) => json.encode({'name': e.key, 'value': e.value})).toList());
+String _readiumEncode(final Map<String, String> map) =>
+    json.encode(map.entries.map((final e) => json.encode({'name': e.key, 'value': e.value})).toList());
