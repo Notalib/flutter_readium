@@ -22,22 +22,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     }
   }
 
-  /// Factory method that initializes the Battery plugin platform with an instance
+  /// Factory method that initializes the FlutterReadium plugin platform with an instance
   /// of the plugin for the web.
   static void registerWith(Registrar registrar) {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
-  }
-
-  /// Returns the current battery level in percent.
-  Future<int> get batteryLevel async {
-    final batteryManager = await _getBatteryManager();
-    if (batteryManager == null) {
-      return 0;
-    }
-
-    // level is a number representing the system's battery charge level scaled to a value between 0.0 and 1.0
-    final level = batteryManager.level;
-    return (level * 100).toInt();
   }
 
   @override

@@ -262,7 +262,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
       self.synthesizer = PublicationSpeechSynthesizer(
         publication: publication,
         config: PublicationSpeechSynthesizer.Configuration(
-          defaultLanguage: defaultLangCode != nil ? Language(stringLiteral: defaultLangCode!) : nil,
+          defaultLanguage: defaultLangCode == nil ? nil : Language(stringLiteral: defaultLangCode!),
           voiceIdentifier: voiceIdent,
         )
       )

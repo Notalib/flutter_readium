@@ -11,11 +11,12 @@ import 'src/enums.dart';
 import 'src/reader/index.dart';
 import 'src/shared/index.dart';
 
+export 'src/exceptions/index.dart';
+export 'src/extensions/index.dart';
 export 'src/reader/index.dart';
 export 'src/shared/index.dart';
 export 'src/utils/index.dart';
 export 'src/enums.dart';
-export 'src/reader/index.dart' show ReadiumReaderWidget, ReaderDecoration, EPUBPreferences, ReaderTTSVoice;
 
 /// The interface that implementations of FlutterReadium must implement.
 ///
@@ -34,7 +35,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   /// Platform-specific plugins should set this with their own platform-specific
   /// class that extends [FlutterReadiumPlatform] when they register themselves.
-  static set instance(FlutterReadiumPlatform instance) {
+  static set instance(final FlutterReadiumPlatform instance) {
     PlatformInterface.verifyToken(instance, _token);
     _instance = instance;
   }
@@ -68,7 +69,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetDecorationStyle(
-          ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
+    ReaderDecorationStyle? utteranceDecoration,
+    ReaderDecorationStyle? rangeDecoration,
+  ) =>
       throw UnimplementedError('ttsSetDecorationStyle() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier) =>
       throw UnimplementedError('ttsSetVoice() has not been implemented');

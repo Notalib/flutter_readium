@@ -1,4 +1,3 @@
-import '../index.dart';
 import '../../_index.dart';
 
 part 'publication.freezed.dart';
@@ -78,8 +77,7 @@ abstract class Publication with _$Publication {
 
     final allDeepLinks = [readingOrder, resources, links].expand(deepLinks);
 
-    Link? find(final String href) =>
-        allDeepLinks.firstWhereOrNull((final link) => link.href == href);
+    Link? find(final String href) => allDeepLinks.firstWhereOrNull((final link) => link.href == href);
 
     final full = find(href);
     if (full != null) {
@@ -137,8 +135,7 @@ extension PublicationExtension on Publication {
   Link? get coverLink => resources?.firstWhereOrNull(
         (final r) =>
             (r.rel?.contains('cover') ?? false) ||
-            (r.href.contains('cover') && r.type == MediaType.jpeg.type ||
-                r.type == MediaType.png.type),
+            (r.href.contains('cover') && r.type == MediaType.jpeg.type || r.type == MediaType.png.type),
       );
 
   Uri? get coverUri => coverLink != null ? Uri.tryParse(coverLink!.href) : null;

@@ -29,6 +29,7 @@ dependencies:
   flutter_readium_platform_interface:
     path: ../flutter_readium_platform_interface
   js_interop: ^0.0.1
+  rxdart:
   wakelock_plus: ^1.2.8
   web: ^1.1.1
 

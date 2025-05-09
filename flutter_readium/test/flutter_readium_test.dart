@@ -2,36 +2,130 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_readium/flutter_readium.dart';
-import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
-import 'package:flutter_readium_platform_interface/method_channel_flutter_readium.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements FlutterReadiumPlatform {
   @override
-  Future<int> get batteryLevel => Future.value(42);
+  ReadiumReaderWidgetInterface? currentReaderWidget;
 
   @override
-  Future<BatteryState> get batteryState => Future.value(BatteryState.full);
+  EPUBPreferences? defaultPreferences;
 
   @override
-  Future<bool> get isInBatterySaveMode => Future.value(false);
+  Future<Publication> openPublication(String pubUrl) =>
+      Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
   @override
-  Stream<BatteryState> get onBatteryStateChanged => Stream.fromIterable([
-        BatteryState.unknown,
-        BatteryState.charging,
-        BatteryState.full,
-        BatteryState.discharging,
+  Stream<Locator> get onTextLocatorChanged => Stream.fromIterable([
+        // TODO: Test locators
       ]);
 
   @override
-  Future<Publication> openPublication(String pubUrl) {
-    // TODO: mock openPublication
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) {
+    // TODO: implement applyDecorations
     throw UnimplementedError();
   }
 
   @override
-  Future<String> get platformVersion => Future.value('42');
+  Future<void> closePublication(String pubIdentifier) {
+    // TODO: implement closePublication
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> goLeft() {
+    // TODO: implement goLeft
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> goRight() {
+    // TODO: implement goRight
+    throw UnimplementedError();
+  }
+
+  @override
+  // TODO: implement onReaderStatusChanged
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => throw UnimplementedError();
+
+  @override
+  Future<void> setEPUBPreferences(EPUBPreferences preferences) {
+    // TODO: implement setEPUBPreferences
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> skipToNext() {
+    // TODO: implement skipToNext
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> skipToPrevious() {
+    // TODO: implement skipToPrevious
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) {
+    // TODO: implement ttsEnable
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() {
+    // TODO: implement ttsGetAvailableVoices
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsNext() {
+    // TODO: implement ttsNext
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsPause() {
+    // TODO: implement ttsPause
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsPrevious() {
+    // TODO: implement ttsPrevious
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsResume() {
+    // TODO: implement ttsResume
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsSetDecorationStyle(
+      ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
+    // TODO: implement ttsSetDecorationStyle
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsSetVoice(String voiceIdentifier) {
+    // TODO: implement ttsSetVoice
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsStart(Locator? fromLocator) {
+    // TODO: implement ttsStart
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> ttsStop() {
+    // TODO: implement ttsStop
+    throw UnimplementedError();
+  }
 }
 
 void main() {

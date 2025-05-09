@@ -1,5 +1,5 @@
-import 'package:flutter_readium_platform_interface/enums.dart';
 import 'package:flutter_readium_platform_interface/method_channel_flutter_readium.dart';
+import 'package:flutter_readium_platform_interface/src/_index.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,21 +9,29 @@ void main() {
   group('$MethodChannelFlutterReadium', () {
     final log = <MethodCall>[];
     late MethodChannelFlutterReadium methodChannelReadium;
+    final testTextLocator = Locator(
+      href: 'chapter1.html',
+      type: 'text/xhtml',
+      locations: Locations(cssSelector: '#loc1'),
+      text: LocatorText(before: 'a', highlight: 'b', after: 'c'),
+      xNote: 'myNote',
+      xType: XType.lastmark,
+    );
 
     setUp(() async {
       methodChannelReadium = MethodChannelFlutterReadium();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         methodChannelReadium.methodChannel,
-        (MethodCall methodCall) async {
+        (methodCall) async {
           log.add(methodCall);
           switch (methodCall.method) {
-            case 'getBatteryLevel':
-              return 100;
-            case 'isInBatterySaveMode':
+            case 'openPublication':
+              return 'TODO';
+            case 'ttsEnable':
               return true;
-            case 'getBatteryState':
-              return 'charging';
+            case 'goRight':
+              return true;
             default:
               return null;
           }
@@ -33,13 +41,12 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         MethodChannel(methodChannelReadium.locatorChannel.name),
-        (MethodCall methodCall) async {
+        (methodCall) async {
           switch (methodCall.method) {
             case 'listen':
-              await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-                  .handlePlatformMessage(
+              await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
                 methodChannelReadium.locatorChannel.name,
-                methodChannelReadium.locatorChannel.codec.encodeSuccessEnvelope('full'),
+                methodChannelReadium.locatorChannel.codec.encodeSuccessEnvelope(testTextLocator),
                 (_) {},
               );
               break;
@@ -53,8 +60,8 @@ void main() {
     });
 
     test('onBatteryChanged', () async {
-      final result = await methodChannelReadium.onBatteryStateChanged.first;
-      expect(result, BatteryState.full);
+      final result = await methodChannelReadium.onTextLocatorChanged.first;
+      expect(result, testTextLocator);
     });
 
     //   test('getBatteryLevel', () async {

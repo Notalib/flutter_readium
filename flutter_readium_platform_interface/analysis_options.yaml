@@ -1,0 +1,62 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.freezed.dart"
+    - "**/*.g.dart"
+    - "**/*.gr.dart"
+    - "**/test/**/*.mocks.dart"
+    - "**/test/mock_packages/**"
+    - "**/test/rules/**"
+  errors:
+    # This rule is added because of freezed
+    # https://pub.dev/packages/freezed#disabling-invalid_annotation_target-warning-and-warning-in-generates-files
+    invalid_annotation_target: ignore
+
+    # Disabling to ignore lint error when calling [FlutterReadium.updateState]
+    unused_result: ignore
+
+    # This is too much of a bother
+    unintended_html_in_doc_comment: ignore
+linter:
+  rules:
+    # ------ Disable individual rules ----- #
+    always_use_package_imports: false
+    avoid_classes_with_only_static_members: false
+    avoid_relative_lib_imports: false
+    library_private_types_in_public_api: false
+    lines_longer_than_80_chars: false
+    depend_on_referenced_packages: false
+
+    # ------ Enable individual rules ------ #
+    always_put_required_named_parameters_first: true
+    avoid_catches_without_on_clauses: true
+    avoid_double_and_int_checks: true
+    avoid_js_rounded_ints: true
+    avoid_returning_this: true
+    avoid_types_on_closure_parameters: true
+    cascade_invocations: true
+    omit_local_variable_types: true
+    prefer_const_declarations: true
+    prefer_expression_function_bodies: true
+    prefer_final_in_for_each: true
+    prefer_final_locals: true
+    prefer_final_parameters: false
+    prefer_relative_imports: true
+    prefer_single_quotes: true
+    # public_member_api_docs: true
+    require_trailing_commas: true
+    sort_constructors_first: true
+    use_super_parameters: true
+    use_to_and_as_if_applicable: true
+
+# Unused for now, since free version of dart_code_metrics was discontinued and held back our dependencies.
+dart_code_metrics:
+  rules:
+    - newline-before-return
+    - no-boolean-literal-compare
+    - prefer-trailing-comma
+    - prefer-conditional-expressions
+    - no-equal-then-else
+    - binary-expression-operand-order
+    - no-equal-then-else

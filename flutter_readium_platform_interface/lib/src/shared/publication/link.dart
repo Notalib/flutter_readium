@@ -1,5 +1,4 @@
 import '../../_index.dart';
-import '../index.dart';
 import '../to_string_short.dart';
 
 part 'link.freezed.dart';
@@ -79,8 +78,7 @@ abstract class Link with _$Link, ToStringShort {
     final int? width,
   }) = _Link;
 
-  factory Link.fromJson(final Map<String, dynamic> json) =>
-      _$LinkFromJson(JsonUtils.trimStringsInMap(json));
+  factory Link.fromJson(final Map<String, dynamic> json) => _$LinkFromJson(JsonUtils.trimStringsInMap(json));
 
   const Link._();
 }

@@ -16,7 +16,7 @@ const _methodCount = 1;
 // Add keywords as class name or method name.
 const _trace = <String>[
   // EX. FlutterReadium
-  ''
+  '',
 ];
 
 abstract class R2Log {
@@ -226,8 +226,7 @@ bool _discardWebStacktraceLine(final String line) {
   if (match == null) {
     return false;
   }
-  return match.group(1)!.startsWith('packages/logger') ||
-      match.group(1)!.startsWith('dart-sdk/lib');
+  return match.group(1)!.startsWith('packages/logger') || match.group(1)!.startsWith('dart-sdk/lib');
 }
 
 bool _discardBrowserStacktraceLine(final String line) {

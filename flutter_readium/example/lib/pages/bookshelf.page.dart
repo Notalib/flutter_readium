@@ -106,8 +106,7 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   // ignore: unused_element
   void _toast(final String text, {final Duration duration = const Duration(milliseconds: 4000)}) {
-    ScaffoldMessenger.of(this.context)
-        .showSnackBar(SnackBar(content: Text(text), duration: duration));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: duration));
   }
 
   String _listAuthors(final Publication pub) {
@@ -146,8 +145,9 @@ class BookshelfPageState extends State<BookshelfPage> {
           onTap: () {
             final fakeInitialLocator = publication.locatorFromLink(publication.readingOrder[2]);
             try {
-              context.read<PublicationBloc>().add(
-                  OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
+              context
+                  .read<PublicationBloc>()
+                  .add(OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
               Navigator.pushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');
@@ -177,8 +177,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                       icon: Icon(Icons.delete, color: Colors.red),
                       onPressed: () async {
                         try {
-                          PublicationUtils.removePublicationFromReadiumStorage(
-                              publication.identifier);
+                          PublicationUtils.removePublicationFromReadiumStorage(publication.identifier);
                           setState(() {
                             _testPublications.remove(publication);
                           });

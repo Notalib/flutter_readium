@@ -1,6 +1,6 @@
 import 'dart:convert' show json;
 
-import 'package:flutter_readium_platform_interface/src/enums.dart';
+import '../enums.dart';
 
 class ReaderTTSVoice {
   ReaderTTSVoice({
@@ -11,12 +11,6 @@ class ReaderTTSVoice {
     required this.quality,
   });
 
-  String identifier;
-  String name;
-  String language;
-  TTSVoiceGender gender;
-  TTSVoiceQuality? quality;
-
   factory ReaderTTSVoice.fromJson(String jsonStr) => ReaderTTSVoice.fromJsonMap(json.decode(jsonStr));
   factory ReaderTTSVoice.fromJsonMap(final Map<String, dynamic> map) => ReaderTTSVoice(
         identifier: map['identifier'] as String,
@@ -25,4 +19,10 @@ class ReaderTTSVoice {
         gender: TTSVoiceGender.values.byName(map['gender']),
         quality: map['quality'] is String ? TTSVoiceQuality.values.byName(map['quality']) : null,
       );
+
+  String identifier;
+  String name;
+  String language;
+  TTSVoiceGender gender;
+  TTSVoiceQuality? quality;
 }

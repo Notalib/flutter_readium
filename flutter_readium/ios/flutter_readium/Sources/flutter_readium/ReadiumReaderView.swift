@@ -63,8 +63,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     let pubIdentifier = creationParams["pubIdentifier"] as! String
     let publication = getPublicationByIdentifier(pubIdentifier)!
 
-    let preferencesStr = creationParams["preferences"] as? Dictionary<String, String>?
-    let defaultPreferences = preferencesStr == nil ? nil : EPUBPreferencesHelper.mapToEPUBPreferences(preferencesStr!!)
+    let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
+    let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
     let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
@@ -386,7 +386,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     case "setPreferences":
       let args = call.arguments as! [String: String]
       print(TAG, "onMethodCall[setPreferences] args = \(args)")
-      let preferences = EPUBPreferencesHelper.mapToEPUBPreferences(args)
+      let preferences = EPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       break
     case "applyDecorations":

@@ -1,5 +1,4 @@
 import '../_index.dart';
-import 'index.dart';
 
 part 'sync_media_narration.freezed.dart';
 part 'sync_media_narration.g.dart';
@@ -27,8 +26,7 @@ abstract class SyncMediaNarration with _$SyncMediaNarration {
     @stringListJson final List<String>? role,
   }) = _SyncMediaNarration;
 
-  factory SyncMediaNarration.fromJson(final Map<String, dynamic> json) =>
-      _$SyncMediaNarrationFromJson(json);
+  factory SyncMediaNarration.fromJson(final Map<String, dynamic> json) => _$SyncMediaNarrationFromJson(json);
 }
 
 extension ReadiumSyncMediaNarration on SyncMediaNarration {
@@ -47,12 +45,10 @@ extension ReadiumSyncMediaNarration on SyncMediaNarration {
   String? get resource => audio == null ? null : _audioPattern.firstMatch(audio!)?[1];
 
   /// Returns begin duration from [audio].
-  Duration? get audioBegin =>
-      audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[2]);
+  Duration? get audioBegin => audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[2]);
 
   /// Returns end duration  from [audio].
-  Duration? get audioEnd =>
-      audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[3]);
+  Duration? get audioEnd => audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[3]);
 
   bool contains(final Duration position) =>
       (audioBegin == null || audioBegin! <= position) && (audioEnd == null || position < audioEnd!);
@@ -136,8 +132,7 @@ extension ReadiumSyncMediaNarration on SyncMediaNarration {
     );
   }
 
-  Iterable<SyncMediaNarration> get narrationsWithNonNullText =>
-      recursiveNarrations.where((final n) => n.text != null);
+  Iterable<SyncMediaNarration> get narrationsWithNonNullText => recursiveNarrations.where((final n) => n.text != null);
 
   Duration? get duration {
     final begin = audioBegin;

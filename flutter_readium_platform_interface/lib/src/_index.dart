@@ -1,5 +1,3 @@
-export 'package:xml/xml.dart';
-
 export 'utils/index.dart';
 export 'exceptions/index.dart';
 export 'extensions/index.dart';

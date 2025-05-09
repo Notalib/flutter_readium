@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Colors;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -49,10 +48,6 @@ class PlayerControlsState {
 
     if (ttsEnabled) {
       await readium.ttsEnable(null, null);
-      // await readium.ttsSetDecorationStyle(
-      //   ReaderDecorationStyle(style: DecorationStyle.underline, tint: Colors.red),
-      //   ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Colors.yellow),
-      // );
       await readium.ttsStart(null);
     } else {
       await readium.ttsStop();

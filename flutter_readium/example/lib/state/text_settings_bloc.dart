@@ -103,9 +103,13 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       submitPreferenceUpdate();
     });
 
-    on<ChangeHighlight>((final event, final emit) {
+    on<ChangeHighlight>((final event, final emit) async {
       emit(state.copyWith(highlight: event.highlight));
-      submitPreferenceUpdate();
+
+      await FlutterReadium().ttsSetDecorationStyle(
+        ReaderDecorationStyle(style: DecorationStyle.underline, tint: event.highlight.textColor),
+        ReaderDecorationStyle(style: DecorationStyle.highlight, tint: event.highlight.backgroundColor),
+      );
     });
 
     on<OpenPubSuccess>((final event, final emit) {

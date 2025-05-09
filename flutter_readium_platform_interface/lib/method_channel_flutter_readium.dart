@@ -23,9 +23,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   /// Fires whenever the Reader's current Locator changes.
   // @override
+  @override
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= locatorChannel.receiveBroadcastStream().map((dynamic event) {
-      Locator? newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
+      final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
       return newLocator;
     });
     return _onTextLocatorChanged!;
@@ -33,7 +34,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    String publicationString =
+    final publicationString =
         await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
     return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
   }
@@ -89,12 +90,14 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsSetDecorationStyle(
-          ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
+    ReaderDecorationStyle? utteranceDecoration,
+    ReaderDecorationStyle? rangeDecoration,
+  ) =>
       methodChannel.invokeMethod('ttsSetDecorationStyle', [utteranceDecoration?.toJson(), rangeDecoration?.toJson()]);
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    List<dynamic>? voicesStr = await methodChannel.invokeMethod<List<dynamic>>('ttsGetAvailableVoices');
+    final voicesStr = await methodChannel.invokeMethod<List<dynamic>>('ttsGetAvailableVoices');
     final voices = voicesStr
             ?.cast<String>()
             .map<Map<String, dynamic>>((str) => json.decode(str) as Map<String, dynamic>)
