@@ -1,0 +1,33 @@
+{
+  "narration": [
+    {
+      "narration": [
+        {
+          "audio": "title.mp3#t=0,2.194",
+          "text": "xkcd12.html#figw_0010"
+        },
+        {
+          "audio": "audio.mp3#t=0,3.000",
+          "text": "xkcd12.html#image00012"
+        },
+        {
+          "audio": "audio.mp3#t=3.000,4.493",
+          "text": "xkcd12.html#xfig_00c8"
+        },
+        {
+          "audio": "audio.mp3#t=4.493,8.493",
+          "text": "xkcd12.html#xfig_00c9"
+        },
+        {
+          "audio": "audio.mp3#t=8.493,12.193",
+          "text": "xkcd12.html#xfig_00ca"
+        },
+        {
+          "audio": "audio.mp3#t=12.193,13.093",
+          "text": "xkcd12.html#xfig_00cb"
+        }
+      ]
+    }
+  ],
+  "role": "section"
+}

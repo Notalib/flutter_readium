@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+// TODO: use these exceptions as relevant on methodChannel failures.
+
 class ReadiumException implements Exception {
   const ReadiumException(
     this.message, {
@@ -69,15 +71,13 @@ class ReadiumError implements Error {
 
   @override
   bool operator ==(covariant final Object other) =>
-      identical(this, other) ||
-      other is ReadiumError && other.message == message && other.code == code;
+      identical(this, other) || other is ReadiumError && other.message == message && other.code == code;
 
   @override
   int get hashCode => message.hashCode ^ code.hashCode;
 
   @override
-  String toString() =>
-      'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
+  String toString() => 'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'message': message,
@@ -91,8 +91,7 @@ class ReadiumError implements Error {
         map['message'] as String,
         code: map['code'] != null ? map['code'] as String : null,
         data: map['data'] != null ? map['data'] as Object : null,
-        stackTrace:
-            map['stackTrace'] != null ? StackTrace.fromString(map['stackTrace'] as String) : null,
+        stackTrace: map['stackTrace'] != null ? StackTrace.fromString(map['stackTrace'] as String) : null,
       );
 }
 

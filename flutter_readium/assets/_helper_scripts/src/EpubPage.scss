@@ -1,0 +1,140 @@
+[type='pagebreak'] {
+  border-top: 1px solid;
+  display: block;
+  width: 100%;
+  line-height: 100%;
+  padding-top: 8px;
+  margin-top: 40px;
+  margin-bottom: 20px;
+  text-align: right;
+  font-size: 98%;
+}
+
+span#activeLocation {
+  border-radius: 4px;
+  background-color: var(--USER__highlightBackgroundColor) !important;
+  color: var(--USER__highlightForegroundColor) !important;
+}
+
+body > *:first-child {
+  margin-top: 50px !important;
+}
+
+//TODO: Temporary fix for https://github.com/readium/readium-css/issues/129#issue-1856586505
+//remove when resolved
+* {
+  word-wrap: break-word;
+}
+
+// Table js and css formatting edited from https://codepen.io/naomir/pen/ZRJZMY, if needed for future reference
+$white: #fff;
+$light-gray: #ccc;
+$gray: #7c7c7c;
+$darker-gray: #241f20;
+$spacing: 16px;
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin: 15px 0;
+  width: calc(100% - var(--RS__pageGutter) / 2);
+  // table does not expand past width
+  word-break: break-word;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0; // remove margins from table headings
+  }
+  * {
+    font-size: 1rem;
+  }
+
+  td,
+  th {
+    border-collapse: collapse;
+    border: 1px solid $light-gray;
+    margin: 0;
+    padding: $spacing;
+    vertical-align: top;
+  }
+
+  caption {
+    margin-bottom: $spacing;
+  }
+
+  // table-layout fixed gave some problems where the table rows or cells are getting stacked on top of each other, width and max-width properties fixed it.
+  &.transparent-table,
+  &.docx-table,
+  &.plain-table {
+    table-layout: fixed;
+    width: 100%;
+
+    th,
+    td {
+      width: auto;
+      max-width: 100%;
+    }
+  }
+
+  &.transparent-table {
+    // tables that should have no border
+    border-width: 0;
+    td,
+    th {
+      border-width: 0;
+    }
+  }
+
+  &.has-first-row-headers {
+    // if header or <strong> elements are placed in the first row (this class is added by JS)
+    tr:first-child {
+      display: none; // hide top table header
+    }
+  }
+
+  &.has-header {
+    // special treatment to collapse table with headers
+    border: none !important; // remove table border and instead put border around each table section
+
+    tr {
+      display: block;
+      margin-bottom: 25px;
+
+      td {
+        border-top-width: 0;
+        display: block;
+        width: 100% !important; // override any table cell widths set via page editor
+        box-sizing: border-box;
+
+        &:first-child {
+          border-top-width: 1px;
+        }
+      }
+
+      td:not(.mobile-header):before {
+        background-color: $gray;
+        color: $white;
+        content: attr(data-th); // display table headers above each cell on mobile
+        display: block;
+        margin: -$spacing (-$spacing) 5px;
+        padding: calc($spacing / 2) $spacing;
+      }
+
+      td.mobile-header {
+        text-transform: uppercase;
+        background-color: $darker-gray !important;
+        h6 {
+          color: $white;
+        }
+      }
+    }
+
+    thead tr:first-child {
+      display: none; // hide top table header
+    }
+  }
+}
