@@ -73,7 +73,7 @@ internal class ReadiumReaderView(
     @Suppress("UNCHECKED_CAST")
     userProperties = creationParams["preferences"] as Map<String, String>?
     val pubIdentifier = creationParams["pubIdentifier"] as String
-    val publication = publicationFromHandle()!! // TODO: use identifier instead?
+    val publication = publicationFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
     val initialLocator =
       if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)

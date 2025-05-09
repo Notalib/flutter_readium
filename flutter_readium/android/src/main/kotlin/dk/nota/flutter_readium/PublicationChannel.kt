@@ -33,11 +33,19 @@ internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
 private var readium: Readium? = null
 
+// TODO: Do we still want to use this?
 private var publication: Publication? = null
-
 internal fun publicationFromHandle(): Publication? {
   return publication
 }
+
+// Collection of publications init to empty
+private var publications = emptyMap<String, Publication>().toMutableMap()
+
+internal fun publicationFromIdentifier(identifier: String): Publication? {
+  return publications[identifier];
+}
+
 
 /// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
 private fun openingExceptionIndex(exception: OpenError): Int =
@@ -67,21 +75,31 @@ private suspend fun assetToPublication(
 }
 
 private suspend fun openPublication(
-  asset: Asset,
+  pubUrl: AbsoluteUrl,
   result: MethodChannel.Result
 ) {
   try {
+    // TODO: should client provide mediaType to assetRetriever?
+    val asset: Asset = readium!!.assetRetriever.retrieve(pubUrl)
+      .getOrElse { error: AssetRetriever.RetrieveUrlError ->
+        Log.e(TAG, "Error retrieving asset: $error")
+        throw Exception()
+      }
     val pub = assetToPublication(asset).getOrElse { e ->
-      return result.error(openingExceptionIndex(e).toString(), e.toString(), null)
+      CoroutineScope(Dispatchers.Main).launch {
+        result.error(openingExceptionIndex(e).toString(), e.toString(), null)
+      }
+      return
     }
     Log.d(TAG, "Opened publication = ${pub.metadata.identifier}")
-    publication = pub
+    publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
     // Manifest must now be manually turned into JSON
-    val pubJsonManifest = publication!!.manifest.toJSON().toString().replace("\\/", "/")
-    result.success(pubJsonManifest)
+    val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
+    CoroutineScope(Dispatchers.Main).launch {
+      result.success(pubJsonManifest)
+    }
   } catch (e: Throwable) {
-    // Probably don't get random exceptions, but just in case.
-    result.error("", e.toString(), e.stackTraceToString())
+    result.error("OpenPublicationError", e.toString(), e.stackTraceToString())
   }
 }
 
@@ -95,7 +113,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
   MethodChannel.MethodCallHandler {
   @OptIn(InternalReadiumApi::class)
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-    CoroutineScope(Dispatchers.Main).launch {
+    CoroutineScope(Dispatchers.IO).launch {
       if (readium == null) {
         readium = Readium(context)
       }
@@ -103,59 +121,27 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         "openPublication" -> {
           val args = call.arguments as List<Any?>
           var pubUrlStr = args[0] as String
-          if (!pubUrlStr.startsWith("http") || !pubUrlStr.startsWith("file")) {
+          if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
             pubUrlStr = "file://$pubUrlStr"
           }
           val pubUrl = AbsoluteUrl(pubUrlStr) ?: run {
             Log.e(TAG, "openPublication: Invalid URL")
+            result.error("InvalidURLError", "Invalid publication URL", null)
             return@launch
           }
           Log.d(TAG, "openPublication for URL: $pubUrl")
 
-          // TODO: provide mediaType to assetRetriever
-          val asset: Asset? = readium!!.assetRetriever.retrieve(pubUrl)
-            .getOrElse { error: AssetRetriever.RetrieveUrlError ->
-              Log.e(TAG, "Error retrieving asset: $error")
-              result.error("AssetRetrievalError", error.message, error.cause)
-              return@getOrElse null
-            }
-
-          if (asset != null) {
-            openPublication(asset, result)
-          }
+          openPublication(pubUrl, result)
         }
 
-        "fromLink" -> {
-          val args = call.arguments as List<Any?>
-          val href = args[0] as String
-
-          @Suppress("UNCHECKED_CAST")
-          val headers = args[1] as Map<String, String>
-          val mediaType = parseMediaType(args[2])!!
-
-          // TODO: handle headers
-          // TODO: provide mediaType to assetRetriever
-          val url = AbsoluteUrl(href) ?: run {
-            Log.e(TAG, "fromLink: Invalid href URL")
-            return@launch
+        "closePublication" -> {
+          val pubIdentifier = call.arguments as String
+          Log.d(TAG, "Close publication with identifier = $pubIdentifier")
+          publications[pubIdentifier]?.close()
+          publications.remove(pubIdentifier)
+          CoroutineScope(Dispatchers.Main).launch {
+            result.success(null)
           }
-          val asset =
-            readium!!.assetRetriever.retrieve(url)
-              .getOrElse { error: AssetRetriever.RetrieveUrlError ->
-                Log.e(TAG, "Error retrieving asset: $error")
-                result.error("AssetRetrievalError", error.message, error.cause)
-                return@getOrElse null
-              }
-          if (asset != null) {
-            openPublication(asset, result)
-          }
-        }
-
-        "dispose" -> {
-          Log.d(TAG, "Dispose publication = $publication")
-          publication?.close()
-          publication = null
-          result.success(null)
         }
 
         "get" -> {
@@ -188,15 +174,19 @@ internal class PublicationMethodCallHandler(private val context: Context) :
               throw Exception("get: invalid EPUB href $linkData")
             }
 
-            if (asString) {
-              result.success(String(resourceBytes))
-            } else {
-              result.success(resourceBytes)
+            CoroutineScope(Dispatchers.Main).launch {
+              if (asString) {
+                result.success(String(resourceBytes))
+              } else {
+                result.success(resourceBytes)
+              }
             }
           } catch (e: Exception) {
             Log.e(TAG, "Exception: $e")
             Log.e(TAG, "${e.stackTrace}")
-            result.error(e.javaClass.toString(), e.toString(), e.stackTraceToString())
+            CoroutineScope(Dispatchers.Main).launch {
+              result.error(e.javaClass.toString(), e.toString(), e.stackTraceToString())
+            }
           }
         }
 

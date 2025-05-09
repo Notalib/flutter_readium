@@ -6,7 +6,7 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin"
 
-private var openedReadiumPublications = [String: Publication]()
+private var openedReadiumPublications = Dictionary<String, Publication>()
 private var currentReaderView: ReadiumReaderView?
 
 func getPublicationByIdentifier(_ identifier: String) -> Publication? {
@@ -207,6 +207,7 @@ extension FlutterReadiumPlugin {
   
   private func closePublication(_ pubIdentifier: String) {
     // Clean-up any resources associated with this publication identifier
+    openedReadiumPublications[pubIdentifier]?.close()
     openedReadiumPublications[pubIdentifier] = nil
   }
 }
