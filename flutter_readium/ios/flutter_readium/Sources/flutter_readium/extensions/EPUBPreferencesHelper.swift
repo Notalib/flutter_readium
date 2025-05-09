@@ -1,5 +1,7 @@
 import ReadiumNavigator
 
+// TODO: Refactor into a EPUBPreferences extension
+
 public class EPUBPreferencesHelper {
   static let TAG = "EPUBPreferencesHelper"
 

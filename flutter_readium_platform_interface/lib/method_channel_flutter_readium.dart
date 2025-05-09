@@ -69,7 +69,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod('ttsEnable', [defaultLangCode, voiceIdentifier]);
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) async => await methodChannel.invokeMethod('ttsStart', [fromLocator]);
+  Future<void> ttsStart(Locator? fromLocator) async =>
+      await methodChannel.invokeMethod('ttsStart', [fromLocator?.toJson()]);
 
   @override
   Future<void> ttsStop() async => await methodChannel.invokeMethod('ttsStop');
@@ -87,8 +88,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> ttsPrevious() async => await methodChannel.invokeMethod('ttsPrevious');
 
   @override
-  Future<void> ttsSetDecorations(ReaderDecoration utteranceDecoration, ReaderDecoration rangeDecoration) =>
-      methodChannel.invokeMethod('ttsSetDecorations', [utteranceDecoration, rangeDecoration]);
+  Future<void> ttsSetDecorationStyle(
+          ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
+      methodChannel.invokeMethod('ttsSetDecorationStyle', [utteranceDecoration?.toJson(), rangeDecoration?.toJson()]);
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
@@ -104,6 +106,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsSetVoice(String voiceIdentifier) async {
-    await methodChannel.invokeMethod('ttsNext', voiceIdentifier);
+    await methodChannel.invokeMethod('ttsSetVoice', voiceIdentifier);
   }
 }

@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Colors;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
-
-//TODO: When navigating using VO on ios, the SkipToNextPage and SkipToPreviousPage skip chapters instead of pages.
 
 abstract class PlayerControlsEvent {}
 
@@ -50,6 +49,10 @@ class PlayerControlsState {
 
     if (ttsEnabled) {
       await readium.ttsEnable(null, null);
+      // await readium.ttsSetDecorationStyle(
+      //   ReaderDecorationStyle(style: DecorationStyle.underline, tint: Colors.red),
+      //   ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Colors.yellow),
+      // );
       await readium.ttsStart(null);
     } else {
       await readium.ttsStop();
@@ -111,10 +114,15 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<GetAvailableVoices>((final event, final emit) async {
-      final langs = await instance.ttsGetAvailableVoices();
-      for (final lang in langs) {
+      final voices = await instance.ttsGetAvailableVoices();
+
+      for (final lang in voices) {
         debugPrint('Available language: ${lang.identifier}');
       }
+
+      // Change to first voice matching "da-DK" language.
+      final daVoice = voices.firstWhere((l) => l.language == "da-DK");
+      await instance.ttsSetVoice(daVoice.identifier);
     });
   }
   final FlutterReadium instance = FlutterReadium();

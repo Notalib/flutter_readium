@@ -21,8 +21,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   static var registrar: FlutterPluginRegistrar? = nil
   
   private var synthesizer: PublicationSpeechSynthesizer? = nil
-  private var ttsUtteranceDecoration: Decoration? = nil
-  private var ttsRangeDecoration: Decoration? = nil
+  
+  // TODO: Should these have defaults?
+  private var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
+  private var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .red)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
@@ -162,16 +164,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           message: "Invalid voice identifier: \(error.localizedDescription)",
           details: nil))
       }
-    case "ttsSetDecorators":
+    case "ttsSetDecorationStyle":
       let args = call.arguments as! [Any?]
-      let rangeDecoration: Decoration
-      let uttDecoration: Decoration
       
-      if let rangeDecorationStr = args[0] as? String {
-        ttsRangeDecoration = try! Decoration(fromJson: rangeDecorationStr)
+      if let uttDecorationMap = args[0] as? Dictionary<String, String> {
+        ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
       }
-      if let uttDecorationStr = args[1] as? String {
-        ttsUtteranceDecoration = try! Decoration(fromJson: uttDecorationStr)
+      
+      if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
+        ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
       result(true)
     default:
@@ -223,11 +224,12 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
   func ttsSetVoice(voiceIdentifier: String) throws {
     print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
     
-    guard let voice = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
+    /// Check that voice with given identifier exists
+    guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
       throw LibraryError.voiceNotFound
     }
     
-    /// Changes are not immediate, they will be applied for the next utterance.
+    /// Changes will be applied for the next utterance.
     synthesizer?.config.voiceIdentifier = voiceIdentifier
   }
   
@@ -275,6 +277,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
 
     switch state {
     case .playing(let utt, let range):
+      /// utterance is a full sentence/paragraph, while range is the currently spoken part.
       playingUtteranceLocator = utt.locator
       playingRangeLocator = range
       if let newLocator = playingUtteranceLocator {
@@ -297,12 +300,16 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
     // Update Reader text decorations
     var decorations: [Decoration] = []
     if let locator = playingUtteranceLocator,
-       let uttDecoration = ttsUtteranceDecoration {
-        decorations.append(uttDecoration)
+       let uttDecorationStyle = ttsUtteranceDecorationStyle {
+        decorations.append(Decoration(
+          id: "tts-utterance", locator: locator, style: uttDecorationStyle
+        ))
     }
     if let locator = playingRangeLocator,
-       let rangeDecoration = ttsRangeDecoration {
-        decorations.append(rangeDecoration)
+       let rangeDecorationStyle = ttsRangeDecorationStyle {
+      decorations.append(Decoration(
+        id: "tts-range", locator: locator, style: rangeDecorationStyle
+      ))
     }
     currentReaderView?.applyDecorations(decorations, forGroup: "tts")
   }
