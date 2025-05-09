@@ -1,3 +1,14 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
   package="dk.nota.flutter_readium">
+
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <!-- Used by background_downloader -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application android:usesCleartextTraffic="true" tools:targetApi="m" />
+
+  <!-- Add the following permission -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 </manifest>
