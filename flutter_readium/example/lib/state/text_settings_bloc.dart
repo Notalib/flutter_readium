@@ -107,8 +107,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       emit(state.copyWith(highlight: event.highlight));
 
       await FlutterReadium().ttsSetDecorationStyle(
-        ReaderDecorationStyle(style: DecorationStyle.underline, tint: event.highlight.textColor),
         ReaderDecorationStyle(style: DecorationStyle.highlight, tint: event.highlight.backgroundColor),
+        ReaderDecorationStyle(style: DecorationStyle.underline, tint: event.highlight.textColor),
       );
     });
 
