@@ -3,7 +3,6 @@ package dk.nota.flutter_readium
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
-import android.graphics.Color
 import android.util.AttributeSet
 import android.util.Log
 import android.widget.LinearLayout
@@ -12,13 +11,11 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
-import org.readium.r2.navigator.preferences.Color as ReadiumColor
-import org.readium.r2.navigator.preferences.FontFamily
-import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -163,6 +160,7 @@ internal class EpubNavigatorView(
   }
 
   internal val currentLocator get() = fragment.currentLocator.value
+  suspend fun getFirstVisibleLocator() = fragment.firstVisibleElementLocator()
 
   override fun onPageLoaded() {
     Log.d(TAG, "::onPageLoaded")
@@ -212,6 +210,13 @@ internal class EpubNavigatorView(
     }
   }
 
+  internal suspend fun applyDecorations(
+    decorations: List<Decoration>,
+    group: String,
+  ) {
+    fragment.applyDecorations(decorations, group)
+  }
+
   internal suspend fun evaluateJavascript(script: String): String? {
     // Make sure fragment has started, otherwise fragment.evaluateJavascript may fail early and
     // return null.
@@ -232,10 +237,11 @@ internal class EpubNavigatorView(
     Log.w(TAG, "onExternalLinkActivated: $url -- BUT NOT IMPLEMENTED!")
   }
 
-  fun setPreferencesFromMap(userProperties: Map<String, String>) {
+  internal suspend fun setPreferencesFromMap(userProperties: Map<String, String>) {
     try {
       val newPreferences = EpubPreferencesFromMap(userProperties, this.editor.preferences)
         ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
+
       this.editor.apply {
         fontFamily.set(newPreferences.fontFamily)
         fontSize.set(newPreferences.fontSize)
@@ -244,7 +250,9 @@ internal class EpubNavigatorView(
         backgroundColor.set(newPreferences.backgroundColor)
         textColor.set(newPreferences.textColor)
       }
-      this.fragment.submitPreferences(editor.preferences)
+      suspendCoroutine {
+        fragment.submitPreferences(editor.preferences)
+      }
     } catch (ex: Exception) {
       Log.e(TAG, "Error applying EpubPreferences: $ex")
     }

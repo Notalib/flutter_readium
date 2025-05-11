@@ -57,8 +57,14 @@ dependencies {
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "org.readium.kotlin-toolkit:readium-shared:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-streamer:$readium_version"
-  implementation "org.readium.kotlin-toolkit:readium-navigator:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-opds:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-navigator:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-navigator-media-common:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-navigator-media-tts:$readium_version"
+  // implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
+  // implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
+  // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-document:$readium_version"
+  // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-navigator:$readium_version"
   //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
 
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1'

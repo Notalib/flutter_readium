@@ -3,12 +3,19 @@
   xmlns:tools="http://schemas.android.com/tools"
   package="dk.nota.flutter_readium">
 
-  <uses-permission android:name="android.permission.INTERNET"/>
-  <!-- Used by background_downloader -->
-  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
   <application android:usesCleartextTraffic="true" tools:targetApi="m" />
 
-  <!-- Add the following permission -->
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.TTS_SERVICE" />
+    </intent>
+  </queries>
 </manifest>

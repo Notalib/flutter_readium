@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.VisualNavigator
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
@@ -36,6 +38,7 @@ internal class ReadiumReaderView(
   private var initialLocations: Locator.Locations?
 
   // Create a CoroutineScope using the Main (UI) dispatcher
+  // TODO: What was/is this used for?
   private var scope = CoroutineScope(Dispatchers.Main)
 
   override fun getView(): View {
@@ -85,6 +88,8 @@ internal class ReadiumReaderView(
 
     channel = ReadiumReaderChannel(messenger, "$viewType:$id")
     channel.setMethodCallHandler(this)
+
+    currentReadiumReaderView = this
   }
 
   override fun onPageLoaded() {
@@ -100,6 +105,8 @@ internal class ReadiumReaderView(
   override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
     CoroutineScope(Dispatchers.Main).launch { emitOnPageChanged(locator) }
   }
+
+  suspend fun getFirstVisibleLocator(): Locator? = this.readiumView.getFirstVisibleLocator()
 
   private fun setPreferencesFromMap(prefMap: Map<String, String>) {
     Log.d(TAG, "::setPreferencesFromMap")
@@ -144,7 +151,10 @@ internal class ReadiumReaderView(
     return null
   }
 
-  private val isVerticalScroll: Boolean get() = userPreferences?.get("--USER__scroll") == "readium-scroll-on"
+  private val isVerticalScroll: Boolean get() {
+    // TODO: Use current preferences
+    return userPreferences?.get("--USER__scroll") == "readium-scroll-on"
+  }
 
   private suspend fun scrollToLocations(
     locations: Locator.Locations,
@@ -155,7 +165,12 @@ internal class ReadiumReaderView(
     readiumView.evaluateJavascript("window.epubPage.scrollToLocations($json,$isVerticalScroll,$toStart)")
   }
 
-  private suspend fun goToLocator(locator: Locator, animated: Boolean) {
+  suspend fun justGoToLocator(locator: Locator, animated: Boolean) {
+    Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
+    return readiumView.go(locator, animated)
+  }
+
+  suspend fun goToLocator(locator: Locator, animated: Boolean) {
     val locations = locator.locations
     val shouldScroll = canScroll(locations)
     val shouldGo = readiumView.currentLocator.href != locator.href
@@ -181,6 +196,15 @@ internal class ReadiumReaderView(
     val json = locator.toJSON().toString()
     Log.d(TAG, "::scrollToLocations: Go to locations $json")
     readiumView.evaluateJavascript("window.epubPage.setLocation($json, $isAudioBookWithText);")
+  }
+
+  suspend fun applyDecorations(
+    decorations: List<Decoration>,
+    group: String,
+    ) {
+    CoroutineScope(Dispatchers.Main).launch {
+      readiumView.applyDecorations(decorations, group)
+    }
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
