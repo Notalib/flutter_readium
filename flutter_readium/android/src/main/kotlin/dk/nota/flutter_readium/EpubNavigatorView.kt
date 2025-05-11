@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.util.AttributeSet
 import android.util.Log
 import android.widget.LinearLayout
-import io.flutter.FlutterInjector
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -19,7 +18,6 @@ import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.FontFamily
-import org.readium.r2.navigator.preferences.PreferencesEditor
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
@@ -34,7 +32,10 @@ private const val TAG = "EpubNavigatorView"
 @SuppressLint("ViewConstructor")
 @OptIn(ExperimentalReadiumApi::class)
 internal class EpubNavigatorView(
-  context: Context, publication: Publication, initialLocator: Locator?,
+  context: Context,
+  publication: Publication,
+  initialLocator: Locator?,
+  initialPreferences: EpubPreferences?,
   private val listener: Listener, attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs), EpubNavigatorFragment.Listener,
   EpubNavigatorFragment.PaginationListener {
@@ -77,6 +78,7 @@ internal class EpubNavigatorView(
 
     // DFG: This will be relative to your app's src/main/assets/ folder
     // Underneath Readium is using https://developer.android.com/reference/androidx/webkit/WebViewAssetLoader.AssetsPathHandler
+    val preferences = initialPreferences ?: EpubPreferences()
     val navigatorFactory = EpubNavigatorFactory(publication)
     val fragmentFactory = navigatorFactory.createFragmentFactory(
       configuration = EpubNavigatorFragment.Configuration(
@@ -91,23 +93,10 @@ internal class EpubNavigatorView(
       initialLocator = initialLocator,
       listener = this,
       paginationListener = this,
-      // initialPreferences = EpubPreferences(
-      //   theme = Theme.SEPIA,
-      //   scroll = false,
-      //   backgroundColor = ReadiumColor(Color.CYAN)
-      // )
+      initialPreferences = preferences,
     )
 
-    editor = navigatorFactory.createPreferencesEditor(EpubPreferences(
-      publisherStyles = false,
-      theme = Theme.SEPIA,
-      scroll = false,
-      backgroundColor = ReadiumColor(Color.CYAN),
-      textColor = ReadiumColor(Color.BLACK),
-      fontFamily = FontFamily("sans-serif"),
-      fontSize = 1.0,
-      fontWeight = 1.0
-    ))
+    editor = navigatorFactory.createPreferencesEditor(preferences)
 
     fragment = fragmentFactory.instantiate(
         activity.classLoader,
@@ -243,16 +232,10 @@ internal class EpubNavigatorView(
     Log.w(TAG, "onExternalLinkActivated: $url -- BUT NOT IMPLEMENTED!")
   }
 
-  fun setPreferencesFromUserProperties(userProperties: Map<String, String>) {
+  fun setPreferencesFromMap(userProperties: Map<String, String>) {
     try {
-      val newPreferences = EpubPreferences(
-        fontFamily = userProperties["fontFamily"]?.let { FontFamily(it) } ?: editor.preferences.fontFamily,
-        fontSize = userProperties["fontSize"]?.toDouble() ?: editor.preferences.fontSize,
-        fontWeight = userProperties["fontWeight"]?.toDouble() ?: editor.preferences.fontWeight,
-        scroll = userProperties["verticalScroll"]?.toBoolean() ?: editor.preferences.scroll,
-        backgroundColor = userProperties["backgroundColor"]?.let { ReadiumColorFromCSS(it) } ?: editor.preferences.backgroundColor,
-        textColor = userProperties["textColor"]?.let { ReadiumColorFromCSS(it) } ?: editor.preferences.textColor
-      )
+      val newPreferences = EpubPreferencesFromMap(userProperties, this.editor.preferences)
+        ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
       this.editor.apply {
         fontFamily.set(newPreferences.fontFamily)
         fontSize.set(newPreferences.fontSize)
@@ -263,14 +246,9 @@ internal class EpubNavigatorView(
       }
       this.fragment.submitPreferences(editor.preferences)
     } catch (ex: Exception) {
-      Log.e(TAG, "Error applying UserProperties as EpubPreferences: $ex")
+      Log.e(TAG, "Error applying EpubPreferences: $ex")
     }
   }
-}
-
-private fun ReadiumColorFromCSS(cssColor: String): ReadiumColor {
-  val color = Color.parseColor(cssColor)
-  return ReadiumColor(color)
 }
 
 private val unitResult = Result.success(Unit)

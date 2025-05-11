@@ -65,7 +65,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     final epubPreferences = EPUBPreferences(
       fontFamily: 'Original',
       fontSize: state.fontSize,
-      fontWeight: null,
+      fontWeight: 1.0,
       verticalScroll: state.verticalScroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,

@@ -10,15 +10,10 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.html.domRange
@@ -37,7 +32,7 @@ internal class ReadiumReaderView(
   private val channel: ReadiumReaderChannel
   private val readiumView: EpubNavigatorView
 
-  private var userProperties: Map<String, String>?
+  private var userPreferences: Map<String, String> = mapOf()
   private var initialLocations: Locator.Locations?
 
   // Create a CoroutineScope using the Main (UI) dispatcher
@@ -71,16 +66,18 @@ internal class ReadiumReaderView(
   init {
     Log.d(TAG, "::init")
     @Suppress("UNCHECKED_CAST")
-    userProperties = creationParams["preferences"] as Map<String, String>?
+    val initPrefsMap = creationParams["preferences"] as Map<String, String>?
     val pubIdentifier = creationParams["pubIdentifier"] as String
     val publication = publicationFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
     val initialLocator =
       if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
+    val initialPreferences =
+      if (initPrefsMap == null) null else EpubPreferencesFromMap(initPrefsMap, null)
     Log.d(TAG, "publication = $publication")
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
-    readiumView = EpubNavigatorView(context, publication, initialLocator, this)
+    readiumView = EpubNavigatorView(context, publication, initialLocator, initialPreferences, this)
 
     // TODO: This should be optional as passed as parameter to the view.
     // Not sure if this will solve this issue: https://notalib.atlassian.net/browse/NOTA-9828
@@ -104,11 +101,11 @@ internal class ReadiumReaderView(
     CoroutineScope(Dispatchers.Main).launch { emitOnPageChanged(locator) }
   }
 
-  private fun setUserProperties(userProperties: Map<String, String>) {
-    Log.d(TAG, "::setUserProperties")
-    this.userProperties = userProperties
+  private fun setPreferencesFromMap(prefMap: Map<String, String>) {
+    Log.d(TAG, "::setPreferencesFromMap")
+    this.userPreferences = prefMap
     CoroutineScope(Dispatchers.Main).launch {
-      readiumView.setPreferencesFromUserProperties(userProperties)
+      readiumView.setPreferencesFromMap(prefMap)
       readiumView.setBackgroundColor(Color.TRANSPARENT)
       readiumView.setPadding(0, 0, 0, 0)
     }
@@ -147,7 +144,7 @@ internal class ReadiumReaderView(
     return null
   }
 
-  private val isVerticalScroll: Boolean get() = userProperties?.get("--USER__scroll") == "readium-scroll-on"
+  private val isVerticalScroll: Boolean get() = userPreferences?.get("--USER__scroll") == "readium-scroll-on"
 
   private suspend fun scrollToLocations(
     locations: Locator.Locations,
@@ -190,9 +187,10 @@ internal class ReadiumReaderView(
     CoroutineScope(Dispatchers.Main).launch {
       //Log.d(TAG, "::onMethodCall ${call.method}")
       when (call.method) {
-        "setUserProperties" -> {
+        "setPreferences" -> {
           @Suppress("UNCHECKED_CAST")
-          setUserProperties(call.arguments as Map<String, String>)
+          val prefsMap = call.arguments as Map<String, String>
+          setPreferencesFromMap(prefsMap)
           result.success(null)
         }
         "go" -> {
