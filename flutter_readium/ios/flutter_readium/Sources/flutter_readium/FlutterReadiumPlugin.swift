@@ -281,12 +281,11 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
       /// utterance is a full sentence/paragraph, while range is the currently spoken part.
       playingUtteranceLocator = utt.locator
       playingRangeLocator = range
-      if let newLocator = playingUtteranceLocator {
-        // TODO: How to handle page turns
+      if let newLocator = playingRangeLocator {
         // TODO: this should likely be throttled somewhat
         // See https://github.com/readium/swift-toolkit/blob/master/docs/Guides/TTS.md#turning-pages-automatically
         Task.detached(priority: .high) {
-          await currentReaderView?.justGoToLocator(newLocator, animated: false)
+          await currentReaderView?.justGoToLocator(newLocator, animated: true)
         }
       }
       print(TAG, "tts playing: \(utt.text) in \(String(describing: utt.language?.locale.identifier))")
@@ -336,7 +335,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
   }
   
   public func ttsPrevious() {
-    self.synthesizer?.next()
+    self.synthesizer?.previous()
   }
   
   public func ttsGetAvailableVoices() -> [TTSVoice] {
