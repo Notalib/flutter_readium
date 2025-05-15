@@ -81,10 +81,8 @@ internal class EpubNavigatorView(
       configuration = EpubNavigatorFragment.Configuration(
         shouldApplyInsetsPadding = false,
         servedAssets = listOf(
-          "comics.js",
-          "comics.css",
-          "epub.js",
-          "epub.css",
+          ".*"
+          //"flutter_assets/packages/flutter_readium/assets/helpers/.*",
         )
       ),
       initialLocator = initialLocator,
@@ -175,10 +173,9 @@ internal class EpubNavigatorView(
     val fragment = this.fragment
     afterFragmentStarted()
     if (fragment.go(locator, animated)) {
-      // Readium bug, we never get here.
       Log.d(TAG, "GO returned.")
     } else {
-      Log.d(TAG, "GO FAILED!")
+      Log.w(TAG, "GO FAILED!")
     }
   }
 

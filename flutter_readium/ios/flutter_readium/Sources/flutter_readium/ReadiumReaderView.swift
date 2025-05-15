@@ -34,7 +34,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
   private let readiumViewController: EPUBNavigatorViewController
   private let userScript: WKUserScript
   private var isVerticalScroll = false
-  
+
   var publicationIdentifier: String?
 
   func view() -> UIView {
@@ -99,9 +99,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     )
 
     // Add epub.js script for highlighting etc. and comics.js script for handling Nota's guided comics.
-    let commicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-    let epubJsKey = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
-    let sourceFiles = [commicJsKey, epubJsKey]
+    let commicJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
+    let epubJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
+    let sourceFiles = [commicJsAssetPath, epubJsAssetPath]
     let source = sourceFiles.map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!
@@ -160,15 +160,15 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     print(TAG, "onMethodApplyDecorations: \(decorations) identifier: \(groupIdentifier)")
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
   }
-  
+
   func getFirstVisibleLocator() async -> Locator? {
     return await self.readiumViewController.firstVisibleElementLocator()
   }
-  
+
   func getCurrentLocation() -> Locator? {
     return self.readiumViewController.currentLocation
   }
-  
+
   func getCurrentSelection() -> Locator? {
     return self.readiumViewController.currentSelection?.locator
   }
@@ -259,7 +259,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       }
     }
   }
-  
+
   func justGoToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }

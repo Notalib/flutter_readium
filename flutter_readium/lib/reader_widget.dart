@@ -41,7 +41,7 @@ class ReadiumReaderWidget extends StatefulWidget {
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
-  static const _maxRetryAwaitNativeViewReady = 10;
+  static const _maxRetryAwaitNativeViewReady = 100;
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
 

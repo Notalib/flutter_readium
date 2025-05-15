@@ -162,7 +162,7 @@ internal class ReadiumReaderView(
   ) {
     val json = locations.toJSON().toString()
     Log.d(TAG, "::scrollToLocations: Go to locations $json, toStart: $toStart")
-    readiumView.evaluateJavascript("window.epubPage.scrollToLocations($json,$isVerticalScroll,$toStart)")
+    readiumView.evaluateJavascript("window.epubPage.scrollToLocations($json,$isVerticalScroll,$toStart);")
   }
 
   suspend fun justGoToLocator(locator: Locator, animated: Boolean) {

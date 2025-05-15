@@ -31,7 +31,6 @@ import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
-import org.readium.r2.shared.util.resource.mediaType
 import org.readium.navigator.media.tts.AndroidTtsNavigatorFactory
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
@@ -64,7 +63,7 @@ internal fun publicationFromHandle(): Publication? {
 internal var currentReadiumReaderView: ReadiumReaderView? = null
 
 // Collection of publications init to empty
-private var publications = emptyMap<String, Publication>().toMutableMap()
+private var publications = mutableMapOf<String, Publication>()
 
 internal fun publicationFromIdentifier(identifier: String): Publication? {
   return publications[identifier];
@@ -149,6 +148,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         "openPublication" -> {
           val args = call.arguments as List<Any?>
           var pubUrlStr = args[0] as String
+
+          // If URL is neither http nor file, assume it is a local file reference.
           if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
             pubUrlStr = "file://$pubUrlStr"
           }
@@ -177,9 +178,9 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           val factory = AndroidTtsNavigatorFactory(
             pluginAppContext as Application,
             publication!!,
-//            tokenizerFactory = { language ->
-//              DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
-//            }
+            tokenizerFactory = { language ->
+              DefaultTextContentTokenizer(unit = TextUnit.Word, language = language)
+            }
           ) ?: throw Exception("This publication cannot be played with the TTS navigator")
 
           val listener = object : Listener {
@@ -345,18 +346,21 @@ internal class PublicationMethodCallHandler(private val context: Context) :
   }
 }
 
+private const val READIUM_FLUTTER_PATH_PREFIX = "https://readium/assets/flutter_assets/packages/flutter_readium"
+
 private fun Resource.injectScriptsAndStyles(): Resource =
   TransformingResource(this) { bytes ->
     val props = this.properties().getOrNull()
     val filename = props?.filename
 
+    // Skip all non-html files
     if (filename?.endsWith("html", ignoreCase = true) != true) {
       return@TransformingResource Try.success(bytes)
     }
 
     var content = bytes.toString(Charsets.UTF_8).trim()
 
-    if (content.contains("https://readium/assets/")) {
+    if (content.contains(READIUM_FLUTTER_PATH_PREFIX)) {
       Log.d(TAG, "Injecting skipped - already done for: $filename")
       return@TransformingResource Try.success(bytes)
     }
@@ -366,10 +370,11 @@ private fun Resource.injectScriptsAndStyles(): Resource =
     val injectLines = listOf(
       // this is injecting and stylesheets seems to be working, but the css variables does not exists,
       // and there are other issues with the looks as well, but I don't know if this is the cause, or I am missing something else.
-      """<script type="text/javascript" src="https://readium/assets/comics.js"></script>""",
-      """<script type="text/javascript" src="https://readium/assets/epub.js"></script>""",
-      """<link rel="stylesheet" type="text/css" href="https://readium/assets/comics.css"></link>""",
-      """<link rel="stylesheet" type="text/css" href="https://readium/assets/epub.css"></link>""",
+      """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
+      """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
+      """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/is_android.js"></script>""",
+      """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
+      """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
     )
 
     val headEndIndex = content.indexOf("</head>", 0, true)
@@ -377,6 +382,7 @@ private fun Resource.injectScriptsAndStyles(): Resource =
       val newContent = StringBuilder(content)
         .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
         .toString()
+//      injectionHistory[filename] = true
       content = newContent
     }
 

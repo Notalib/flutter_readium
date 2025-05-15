@@ -1011,9 +1011,9 @@ export class EpubPage {
   }
 
   private _debugLog(...args: unknown[]) {
-    this._log(`=======================================================`);
+    this._log(`=======Flutter Readium Debug=====`);
     this._log(args);
-    this._log(`=======================================================`);
+    this._log(`=================================`);
   }
 
   private _log(...args: unknown[]) {
