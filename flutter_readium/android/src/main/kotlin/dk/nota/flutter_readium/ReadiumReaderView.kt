@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.util.Log
 import android.view.View
 import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -14,7 +15,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
-import org.readium.r2.navigator.VisualNavigator
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
@@ -22,19 +22,22 @@ import org.readium.r2.shared.publication.html.domRange
 
 private const val TAG = "ReadiumReaderView"
 
-internal const val textLocatorChannelName = "dk.nota.flutter_readium/text-locator"
-internal const val viewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
+internal const val textLocatorEventChannelName = "dk.nota.flutter_readium/text-locator"
+internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 internal class ReadiumReaderView(
   context: Context,
   id: Int,
   creationParams: Map<String?, Any?>,
   messenger: BinaryMessenger
-) : PlatformView, MethodChannel.MethodCallHandler, EpubNavigatorView.Listener {
+) : PlatformView, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, EpubNavigatorView.Listener {
+
   private val channel: ReadiumReaderChannel
+  private val eventChannel: EventChannel
+  private var eventSink: EventChannel.EventSink? = null
   private val readiumView: EpubNavigatorView
 
-  private var userPreferences: Map<String, String> = mapOf()
+  private var userPreferences = EpubPreferences()
   private var initialLocations: Locator.Locations?
 
   // Create a CoroutineScope using the Main (UI) dispatcher
@@ -73,6 +76,7 @@ internal class ReadiumReaderView(
     val pubIdentifier = creationParams["pubIdentifier"] as String
     val publication = publicationFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
+    val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
     val initialLocator =
       if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
     val initialPreferences =
@@ -81,13 +85,24 @@ internal class ReadiumReaderView(
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
     readiumView = EpubNavigatorView(context, publication, initialLocator, initialPreferences, this)
+    readiumView.setBackgroundColor(Color.TRANSPARENT)
+    readiumView.setPadding(0, 0, 0, 0)
 
-    // TODO: This should be optional as passed as parameter to the view.
-    // Not sure if this will solve this issue: https://notalib.atlassian.net/browse/NOTA-9828
-    readiumView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    // Set userPreferences to initialPreferences if provided.
+    initialPreferences?.also { userPreferences = it }
 
-    channel = ReadiumReaderChannel(messenger, "$viewType:$id")
+    // By default reader contents are hidden from screen-readers, as not to trap them within it.
+    // This can be toggled back on via the 'allowScreenReaderNavigation' creation param.
+    // See issue: https://notalib.atlassian.net/browse/NOTA-9828
+    if (allowScreenReaderNavigation != true) {
+      readiumView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    }
+
+    channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
     channel.setMethodCallHandler(this)
+
+    eventChannel = EventChannel(messenger, textLocatorEventChannelName)
+    eventChannel.setStreamHandler(this)
 
     currentReadiumReaderView = this
   }
@@ -106,16 +121,23 @@ internal class ReadiumReaderView(
     CoroutineScope(Dispatchers.Main).launch { emitOnPageChanged(locator) }
   }
 
+  override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+    eventSink = events
+  }
+
+  override fun onCancel(arguments: Any?) {
+    eventSink = null
+  }
+
   suspend fun getFirstVisibleLocator(): Locator? = this.readiumView.getFirstVisibleLocator()
 
-  private fun setPreferencesFromMap(prefMap: Map<String, String>) {
+  @Throws(IllegalArgumentException::class)
+  private suspend fun setPreferencesFromMap(prefMap: Map<String, String>) {
     Log.d(TAG, "::setPreferencesFromMap")
-    this.userPreferences = prefMap
-    CoroutineScope(Dispatchers.Main).launch {
-      readiumView.setPreferencesFromMap(prefMap)
-      readiumView.setBackgroundColor(Color.TRANSPARENT)
-      readiumView.setPadding(0, 0, 0, 0)
-    }
+    val newPreferences = EpubPreferencesFromMap(prefMap, null)
+      ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
+    this.userPreferences = newPreferences
+    readiumView.setPreferences(newPreferences)
   }
 
   private suspend fun emitOnPageChanged(locator: Locator) {
@@ -127,6 +149,7 @@ internal class ReadiumReaderView(
       }
 
       channel.onPageChanged(locatorWithFragments)
+      eventSink?.success(jsonEncode(locatorWithFragments.toJSON()))
     }
     catch(e: Exception) {
       Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed! $e")
@@ -152,8 +175,7 @@ internal class ReadiumReaderView(
   }
 
   private val isVerticalScroll: Boolean get() {
-    // TODO: Use current preferences
-    return userPreferences?.get("--USER__scroll") == "readium-scroll-on"
+    return userPreferences.scroll ?: false
   }
 
   private suspend fun scrollToLocations(
@@ -166,20 +188,20 @@ internal class ReadiumReaderView(
   }
 
   suspend fun justGoToLocator(locator: Locator, animated: Boolean) {
-    Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
+    Log.d(TAG, "::justGoToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
     return readiumView.go(locator, animated)
   }
 
   suspend fun goToLocator(locator: Locator, animated: Boolean) {
     val locations = locator.locations
     val shouldScroll = canScroll(locations)
-    val shouldGo = readiumView.currentLocator.href != locator.href
+    val shouldGo = !readiumView.currentLocator.href.isEquivalent(locator.href)
 
     if (shouldGo) {
       Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
       readiumView.go(locator, animated)
     } else if (!shouldScroll) {
-      Log.d(TAG, "::goToLocator: Already at ${locator.href}, no scroll target, go to start")
+      Log.w(TAG, "::goToLocator: Already at ${locator.href}, no scroll target, go to start")
       scrollToLocations(Locator.Locations(progression = 0.0), true)
     } else {
       Log.d(TAG, "::goToLocator: Don't go to ${locator.href}, already there")
@@ -208,14 +230,21 @@ internal class ReadiumReaderView(
   }
 
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    // TODO: To be safe we're doing everything on the Main thread right now.
+    // Could probably optimize by using .IO and then change to Main
+    // when affecting readerView or returning a result.
     CoroutineScope(Dispatchers.Main).launch {
-      //Log.d(TAG, "::onMethodCall ${call.method}")
+      Log.d(TAG, "::onMethodCall ${call.method}")
       when (call.method) {
         "setPreferences" -> {
           @Suppress("UNCHECKED_CAST")
           val prefsMap = call.arguments as Map<String, String>
-          setPreferencesFromMap(prefsMap)
-          result.success(null)
+          try {
+            setPreferencesFromMap(prefsMap)
+            result.success(null)
+          } catch (ex: Exception) {
+            result.error("FlutterReadium", "Failed to set preferences", ex.message)
+          }
         }
         "go" -> {
           val args = call.arguments as List<*>

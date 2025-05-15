@@ -226,18 +226,15 @@ internal class EpubNavigatorView(
     Log.w(TAG, "onExternalLinkActivated: $url -- BUT NOT IMPLEMENTED!")
   }
 
-  internal suspend fun setPreferencesFromMap(userProperties: Map<String, String>) {
+  internal suspend fun setPreferences(preferences: EpubPreferences) {
     try {
-      val newPreferences = EpubPreferencesFromMap(userProperties, this.editor.preferences)
-        ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
-
       this.editor.apply {
-        fontFamily.set(newPreferences.fontFamily)
-        fontSize.set(newPreferences.fontSize)
-        fontWeight.set(newPreferences.fontWeight)
-        scroll.set(newPreferences.scroll)
-        backgroundColor.set(newPreferences.backgroundColor)
-        textColor.set(newPreferences.textColor)
+        fontFamily.set(preferences.fontFamily)
+        fontSize.set(preferences.fontSize)
+        fontWeight.set(preferences.fontWeight)
+        scroll.set(preferences.scroll)
+        backgroundColor.set(preferences.backgroundColor)
+        textColor.set(preferences.textColor)
       }
       suspendCoroutine {
         fragment.submitPreferences(editor.preferences)

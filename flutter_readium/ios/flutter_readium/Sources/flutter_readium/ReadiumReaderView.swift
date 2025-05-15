@@ -210,7 +210,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
         return
       }
       await MainActor.run() {
-        // TODO: Decide which one to use.
+        // TODO: Decide which one to use - or both ???
         self.channel.onPageChanged(locator: locatorWithFragments)
         if (self.eventSink != nil) {
           self.eventSink!(locatorWithFragments.jsonString)
