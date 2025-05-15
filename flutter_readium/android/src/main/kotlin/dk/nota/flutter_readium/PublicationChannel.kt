@@ -359,32 +359,29 @@ private fun Resource.injectScriptsAndStyles(): Resource =
     }
 
     var content = bytes.toString(Charsets.UTF_8).trim()
+    val headEndIndex = content.indexOf("</head>", 0, true)
+    if (headEndIndex == -1) {
+      Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
+      return@TransformingResource Try.success(bytes)
+    }
 
-    if (content.contains(READIUM_FLUTTER_PATH_PREFIX)) {
-      Log.d(TAG, "Injecting skipped - already done for: $filename")
+    if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
+      Log.d(TAG, "Skip injecting - already done for: $filename")
       return@TransformingResource Try.success(bytes)
     }
 
     Log.d(TAG, "Injecting files into: $filename")
 
     val injectLines = listOf(
-      // this is injecting and stylesheets seems to be working, but the css variables does not exists,
-      // and there are other issues with the looks as well, but I don't know if this is the cause, or I am missing something else.
       """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
       """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
       """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/is_android.js"></script>""",
       """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
       """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
     )
+    val newContent = StringBuilder(content)
+      .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
+      .toString()
 
-    val headEndIndex = content.indexOf("</head>", 0, true)
-    if (headEndIndex != -1) {
-      val newContent = StringBuilder(content)
-        .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
-        .toString()
-//      injectionHistory[filename] = true
-      content = newContent
-    }
-
-    Try.success(content.toByteArray())
+    Try.success(newContent.toByteArray())
   }

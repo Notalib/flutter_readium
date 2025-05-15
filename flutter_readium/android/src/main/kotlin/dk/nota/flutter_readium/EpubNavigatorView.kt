@@ -61,28 +61,21 @@ internal class EpubNavigatorView(
     // It was from r2-navigator-kotlin/r2-navigator/src/main/res/values/dimens.xml, and used by
     // r2-navigator-kotlin/r2-navigator/src/main/java/org/readium/r2/navigator/pager/R2EpubPageFragment.kt.
     // Overriding with <dimen name="r2.navigator.epub.vertical_padding">0dp</dimen> seems to work.
-    Log.d(TAG, "/********************************************\\")
     Log.d(
       TAG,
-      "::setPublication (title=${publication.metadata.title}, baseUrl=${publication.baseUrl})"
+      "setPublication (title=${publication.metadata.title}, baseUrl=${publication.baseUrl})"
     )
 
-    // TODO: Remove this copy/paste from documentation
-    // servedAssets:
-    // Patterns for asset paths which will be available to EPUB resources under https://readium/assets/.
-    // The patterns can use simple glob wildcards, see: https://developer.android.com/reference/android/os/PatternMatcher#PATTERN_SIMPLE_GLOB
-    // Use .* to serve all app assets.
-
-    // DFG: This will be relative to your app's src/main/assets/ folder
-    // Underneath Readium is using https://developer.android.com/reference/androidx/webkit/WebViewAssetLoader.AssetsPathHandler
+    // DFG: This will be relative to your app's src/main/assets/ folder.
+    // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
+    // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
     val preferences = initialPreferences ?: EpubPreferences()
     val navigatorFactory = EpubNavigatorFactory(publication)
     val fragmentFactory = navigatorFactory.createFragmentFactory(
       configuration = EpubNavigatorFragment.Configuration(
         shouldApplyInsetsPadding = false,
         servedAssets = listOf(
-          ".*"
-          //"flutter_assets/packages/flutter_readium/assets/helpers/.*",
+          "flutter_assets/packages/flutter_readium/assets/.*",
         )
       ),
       initialLocator = initialLocator,
@@ -100,7 +93,6 @@ internal class EpubNavigatorView(
     if (isAttachedToWindow) {
       attachFragment()
     }
-    Log.d(TAG, "\\********************************************/")
   }
 
   private fun attachFragment() {
