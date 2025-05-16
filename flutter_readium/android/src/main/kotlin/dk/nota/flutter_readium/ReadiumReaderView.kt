@@ -80,7 +80,7 @@ internal class ReadiumReaderView(
     val initialLocator =
       if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
     val initialPreferences =
-      if (initPrefsMap == null) null else EpubPreferencesFromMap(initPrefsMap, null)
+      if (initPrefsMap == null) null else epubPreferencesFromMap(initPrefsMap, null)
     Log.d(TAG, "publication = $publication")
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
@@ -134,7 +134,7 @@ internal class ReadiumReaderView(
   @Throws(IllegalArgumentException::class)
   private suspend fun setPreferencesFromMap(prefMap: Map<String, String>) {
     Log.d(TAG, "::setPreferencesFromMap")
-    val newPreferences = EpubPreferencesFromMap(prefMap, null)
+    val newPreferences = epubPreferencesFromMap(prefMap, null)
       ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
     this.userPreferences = newPreferences
     readiumView.setPreferences(newPreferences)
@@ -307,6 +307,9 @@ internal class ReadiumReaderView(
         "dispose" -> {
           readiumView.removeAllViews()
           initialLocations = null
+          eventSink = null
+          eventChannel.setStreamHandler(null)
+          channel.setMethodCallHandler(null)
           result.success(null)
         }
         else -> {

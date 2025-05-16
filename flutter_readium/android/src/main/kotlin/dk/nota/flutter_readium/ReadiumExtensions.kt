@@ -14,7 +14,7 @@ private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
   return ReadiumColor(color)
 }
 
-fun EpubPreferencesFromMap(
+fun epubPreferencesFromMap(
   prefMap: Map<String, String>,
   defaults: EpubPreferences?,
 ): EpubPreferences? {
