@@ -99,9 +99,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     )
 
     // Add epub.js script for highlighting etc. and comics.js script for handling Nota's guided comics.
-    let commicJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
+    let comicJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
     let epubJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
-    let sourceFiles = [commicJsAssetPath, epubJsAssetPath]
+    let sourceFiles = [comicJsAssetPath, epubJsAssetPath]
     let source = sourceFiles.map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!
