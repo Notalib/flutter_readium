@@ -2,16 +2,11 @@ package dk.nota.flutter_readium
 
 import android.app.Application
 import android.content.Context
-import android.graphics.Color
 import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -31,19 +26,11 @@ import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
-import org.readium.navigator.media.tts.AndroidTtsNavigatorFactory
-import org.readium.navigator.media.tts.TtsNavigator
-import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
-import org.readium.navigator.media.tts.android.AndroidTtsSettings
-import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Language
-import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
-import org.readium.r2.shared.util.tokenizer.TextUnit
-import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "PublicationChannel"
 
@@ -136,7 +123,7 @@ private fun parseMediaType(mediaType: Any?): MediaType? {
 internal class PublicationMethodCallHandler(private val context: Context) :
   MethodChannel.MethodCallHandler {
 
-  private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine. Error, AndroidTtsEngine. Voice>? = null
+  private var ttsViewModel: TTSViewModel? = null
 
   @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -175,22 +162,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           val defaultLangCode = args[0] as String?
           val voiceIdentifier = args[1] as String?
 
-          val factory = AndroidTtsNavigatorFactory(
-            pluginAppContext as Application,
-            publication!!,
-            tokenizerFactory = { language ->
-              DefaultTextContentTokenizer(unit = TextUnit.Word, language = language)
-            }
-          ) ?: throw Exception("This publication cannot be played with the TTS navigator")
-
-          val listener = object : Listener {
-            override fun onStopRequested() {
-              Log.d(TAG, "TtsListener::onStopRequested")
-            }
-          }
-
           val defaultVoices = if (defaultLangCode != null && voiceIdentifier != null)
-          mapOf(Language(defaultLangCode) to AndroidTtsEngine.Voice.Id(voiceIdentifier)) else emptyMap()
+            mapOf(Language(defaultLangCode) to AndroidTtsEngine.Voice.Id(voiceIdentifier)) else emptyMap()
 
           val ttsPrefs = AndroidTtsPreferences(
             language = null,
@@ -199,42 +172,19 @@ internal class PublicationMethodCallHandler(private val context: Context) :
             defaultVoices,
           )
 
-          CoroutineScope(Dispatchers.Main).launch {
-            val firstVisibleLocator = currentReadiumReaderView?.getFirstVisibleLocator()
-            ttsNavigator = factory.createNavigator(listener, firstVisibleLocator, ttsPrefs).getOrElse {
-              Log.e(TAG, "ttsEnable: failed to create navigator: $it")
-              throw Exception("ttsEnable: failed to create navigator: $it")
-            }
+          ttsViewModel = TTSViewModel(pluginAppContext as Application, publication!!, currentReadiumReaderView!!, ttsPrefs)
+          ttsViewModel?.initNavigator()
+          result.success(null)
+        }
 
-//          val editor = factory.createPreferencesEditor(preferences)
-//          editor.pitch.increment()
-//          navigator.submitPreferences(editor.preferences)
-
-            ttsNavigator!!.location
-              .map { it.utteranceLocator }
-              .distinctUntilChanged()
-              .onEach { locator ->
-                currentReadiumReaderView?.applyDecorations(listOf(
-                  Decoration(
-                    id = "tts-utterance",
-                    locator = locator,
-                    style = Decoration.Style.Highlight(tint = Color.RED)
-                  )
-                ), group = "tts")
-              }
-              .launchIn(scope)
-
-            ttsNavigator!!.location
-              .throttleLatest(1.seconds)
-              .map { it.tokenLocator ?: it.utteranceLocator }
-              .distinctUntilChanged()
-              .onEach { locator ->
-                currentReadiumReaderView?.justGoToLocator(locator, animated = true)
-              }
-              .launchIn(scope)
-
-            result.success(null)
-          }
+        "ttsSetDecorationStyle" -> {
+          val args = call.arguments as List<*>
+          val uttDecoMap = args[0] as Map<String, String>?
+          val rangeDecoMap = args[1] as Map<String, String>?
+          val uttStyle = if (uttDecoMap != null) decorationStyleFromMap(uttDecoMap) else null
+          val rangeStyle = if (rangeDecoMap != null) decorationStyleFromMap(rangeDecoMap) else null
+          ttsViewModel?.setUtteranceStyle(uttStyle)
+          ttsViewModel?.setCurrentRangeStyle(rangeStyle)
         }
 
         "ttsStart" -> {
@@ -243,55 +193,52 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           var fromLocator = if (fromLocatorStr != null) {
             Locator.fromJSON(JSONObject(fromLocatorStr))
           } else {
-            null
+            currentReadiumReaderView?.getFirstVisibleLocator()
           }
-          CoroutineScope(Dispatchers.Main).launch {
-            if (fromLocator == null) {
-              // WARN: Must be retrieved on main thread
-              fromLocator = currentReadiumReaderView?.getFirstVisibleLocator()
-            }
-            if (fromLocator != null) {
-              ttsNavigator?.go(fromLocator!!)
-            }
-            ttsNavigator?.play()
-            result.success(null)
-          }
+          ttsViewModel?.play(fromLocator)
+          result.success(null)
         }
 
         "ttsPause" -> {
-          ttsNavigator?.pause()
-          CoroutineScope(Dispatchers.Main).launch {
-            result.success(null)
-          }
+          ttsViewModel?.pause()
+          result.success(null)
         }
 
         "ttsResume" -> {
-          ttsNavigator?.play()
-          CoroutineScope(Dispatchers.Main).launch {
-            result.success(null)
-          }
+          ttsViewModel?.resume()
+          result.success(null)
         }
 
         "ttsStop" -> {
-          ttsNavigator?.close()
-          ttsNavigator = null
-          CoroutineScope(Dispatchers.Main).launch {
-            currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
-            result.success(null)
-          }
+          ttsViewModel?.dispose()
+          // Remove any current TTS decorations
+          currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
+          result.success(null)
         }
 
         "ttsNext" -> {
-          ttsNavigator?.skipToNextUtterance()
+          ttsViewModel?.nextUtterance()
+          result.success(null)
         }
 
         "ttsPrevious" -> {
-          ttsNavigator?.skipToPreviousUtterance()
+          ttsViewModel?.previousUtterance()
+          result.success(null)
         }
 
         "ttsGetAvailableVoices" -> {
-          val voices = ttsNavigator?.voices
+          val androidVoices = ttsViewModel?.voices
           // TODO: serialize and return. Decide on common data format/props.
+          val voicesJson = androidVoices?.map {
+            JSONObject().apply {
+              put("identifier", it.id.value)
+              put("name", it.id.value) // ID should be mapped to a readable name on Flutter side.
+              put("quality", it.quality.name.lowercase())
+              put("requiresNetwork", it.requiresNetwork)
+              put("language", it.language.code)
+            }.toString()
+          }
+          result.success(voicesJson)
         }
 
         "get" -> {
@@ -340,7 +287,9 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           }
         }
 
-        else -> result.notImplemented()
+        else -> {
+          result.notImplemented()
+        }
       }
     }
   }
