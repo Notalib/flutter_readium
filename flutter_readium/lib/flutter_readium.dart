@@ -22,8 +22,8 @@ class FlutterReadium {
     return _platform.openPublication(pubUrl);
   }
 
-  Future<Publication> closePublication(String pubUrl) {
-    return _platform.openPublication(pubUrl);
+  Future<void> closePublication(String pubUrl) {
+    return _platform.closePublication(pubUrl);
   }
 
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;
