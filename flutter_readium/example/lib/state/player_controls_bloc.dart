@@ -111,13 +111,19 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
 
-      for (final lang in voices) {
-        debugPrint('Available language: ${lang.identifier}');
+      // Sort by identifer
+      voices.sortBy((v) => v.identifier);
+
+      for (final v in voices) {
+        debugPrint(
+            'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name}');
       }
 
       // Change to first voice matching "da-DK" language.
-      final daVoice = voices.firstWhere((l) => l.language == "da-DK");
-      await instance.ttsSetVoice(daVoice.identifier);
+      final daVoice = voices.firstWhereOrNull((l) => l.language == "da-DK");
+      if (daVoice != null) {
+        await instance.ttsSetVoice(daVoice.identifier);
+      }
     });
   }
   final FlutterReadium instance = FlutterReadium();
