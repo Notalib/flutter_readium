@@ -164,3 +164,29 @@ extension EPUBPreferences {
     }
   }
 }
+
+public struct TTSPreferences {
+  /// Rate at which utterances should be spoken. Defaults to 1.0
+  public var rate: Double?
+
+  /// Pitch at which utterances should be spoken. Defaults to 1.0
+  public var pitch: Double?
+
+  /// Language overriding the publication one.
+  public var overrideLanguage: Language?
+
+  /// Identifier for the voice used to speak the utterances.
+  public var voiceIdentifier: String?
+
+  public init(
+    rate: Double? = nil,
+    pitch: Double? = nil,
+    overrideLanguage: Language? = nil,
+    voiceIdentifier: String? = nil
+  ) {
+    self.rate = rate
+    self.pitch = pitch
+    self.overrideLanguage = overrideLanguage
+    self.voiceIdentifier = voiceIdentifier
+  }
+}

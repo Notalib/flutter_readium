@@ -61,6 +61,7 @@ class FlutterReadium {
   Future<void> ttsResume() => _platform.ttsResume();
   Future<void> ttsNext() => _platform.ttsNext();
   Future<void> ttsPrevious() => _platform.ttsPrevious();
+  Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
   Future<void> ttsSetDecorationStyle(
           ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       _platform.ttsSetDecorationStyle(utteranceDecoration, rangeDecoration);

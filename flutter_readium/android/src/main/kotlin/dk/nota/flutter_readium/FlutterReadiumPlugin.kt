@@ -2,7 +2,6 @@ package dk.nota.flutter_readium
 
 import android.content.Context
 import android.util.Log
-import androidx.core.net.toUri
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.plugin.common.MethodCall
@@ -40,7 +39,7 @@ class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
     // TODO: Remove this, just for debugging.
     val files = listAssetFiles(flutterPluginBinding.applicationContext, "flutter_assets/packages/flutter_readium/assets/helpers")
     for (file in files) {
-      Log.i("ListAssetFiles", "Asset: ${file.toUri()}")
+      Log.i("ListAssetFiles", "Asset: $file")
     }
 
     // Setup publication channel
@@ -58,15 +57,15 @@ class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
     publicationChannel.setMethodCallHandler(null)
   }
 
-  fun listAssetFiles(c: Context, rootPath: String): List<String> {
+  private fun listAssetFiles(c: Context, rootPath: String): List<String> {
     Log.i("ListAssetFiles", "Listing assets in $rootPath")
     val files: MutableList<String> = ArrayList()
     try {
-      val Paths = c.assets.list(rootPath)
-      if (Paths!!.isNotEmpty()) {
+      val paths = c.assets.list(rootPath)
+      if (paths!!.isNotEmpty()) {
         // This is a folder
-        for (file in Paths) {
-          val path = "$rootPath/$file"
+        for (filePath in paths) {
+          val path = "$rootPath/$filePath"
           if (File(path).isDirectory()) files.addAll(listAssetFiles(c, path))
           else files.add(path)
         }

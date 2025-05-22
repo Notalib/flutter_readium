@@ -6,8 +6,8 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin"
 
-private var openedReadiumPublications = Dictionary<String, Publication>()
-private var currentReaderView: ReadiumReaderView?
+internal var openedReadiumPublications = Dictionary<String, Publication>()
+internal var currentReaderView: ReadiumReaderView?
 
 func getPublicationByIdentifier(_ identifier: String) -> Publication? {
   return openedReadiumPublications[identifier]
@@ -19,12 +19,13 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
-  
-  private var synthesizer: PublicationSpeechSynthesizer? = nil
-  
+
+  internal var synthesizer: PublicationSpeechSynthesizer? = nil
+  internal var ttsPrefs: TTSPreferences? = nil
+
   // TODO: Should these have defaults?
-  private var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
-  private var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .red)
+  internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
+  internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .red)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
@@ -37,8 +38,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
     self.registrar = registrar
   }
-  
-  
+
+
   public func log(_ warning: Warning) {
     print(TAG, "Error in Readium: \(warning)")
   }
@@ -77,12 +78,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       print("Attempting to open publication at: \(absUrl)")
 
-      Task.detached(priority: .background) {
+      Task.detached(priority: .high) {
         do {
           let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
           let mediaType: String = pub.1.mediaType?.string ?? "unknown"
           print("Opened publication: identifier: \(pub.0.metadata.identifier ?? "[no-ident]") format: \(mediaType)")
-          
+
           // Save this publication for later use, so we don't have to pass it back across native bridge.
           // TODO: should be set a random identifier if pub doesn't come with any?
           openedReadiumPublications[pub.0.metadata.identifier ?? url.absoluteString] = pub.0
@@ -100,13 +101,26 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
       }
     case "ttsEnable":
-      let args = call.arguments as! [Any?]
-      let langCode = args[0] as? String
-      let voiceIdentifier = args[1] as? String
+      let args = call.arguments as! [Any?],
+          speed = args[0] as? Double,
+          pitch = args[1] as? Double,
+          langCode = args[2] as? String,
+          voiceIdentifier = args[3] as? String,
+          overrideLanguage = langCode == nil ? nil : Language(stringLiteral: langCode!),
+          ttsPrefs = TTSPreferences(rate: speed, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
       Task.detached(priority: .high) {
-        try await self.ttsEnable(withDefaultLangCode: langCode, voiceIdent: voiceIdentifier)
-        await MainActor.run {
-          result(true)
+        do {
+          try await self.ttsEnable(withPreferences: ttsPrefs)
+          await MainActor.run {
+            result(nil)
+          }
+        } catch {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "TTSEnableFailed",
+              message: "Failed to enable TTS: \(error.localizedDescription)",
+              details: nil))
+          }
         }
       }
     case "ttsStart":
@@ -115,8 +129,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       if let locatorStr = args[0] as? String {
         locator = try! Locator(jsonString: locatorStr, warnings: self)!
       }
-      
-      Task.detached(priority: .background) {
+
+      Task.detached(priority: .high) {
         do {
           try await self.ttsStart(fromLocator: locator)
           await MainActor.run {
@@ -166,15 +180,28 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "ttsSetDecorationStyle":
       let args = call.arguments as! [Any?]
-      
+
       if let uttDecorationMap = args[0] as? Dictionary<String, String> {
         ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
       }
-      
+
       if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
         ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
-      result(true)
+      result(nil)
+    case "ttsSetPreferences":
+      let args = call.arguments as! [Any?]
+      let speed = args[0] as? Double
+      let pitch = args[1] as? Double
+      let langCode = args[2] as? String
+      let voiceIdentifier = args[3] as? String
+      
+      let overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil
+      
+      let ttsPrefs = TTSPreferences(rate: speed, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
+      ttsSetPreferences(prefs: ttsPrefs)
+      
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -183,7 +210,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
-  
+
   private func openPublication(
           at url: AbsoluteURL,
           allowUserInteraction: Bool,
@@ -204,172 +231,10 @@ extension FlutterReadiumPlugin {
               throw LibraryError.openFailed(error)
           }
       }
-  
+
   private func closePublication(_ pubIdentifier: String) {
     // Clean-up any resources associated with this publication identifier
     openedReadiumPublications[pubIdentifier]?.close()
     openedReadiumPublications[pubIdentifier] = nil
   }
-}
-
-// MARK: - TTS Implementation
-
-/// Extension handling TTS for ReadiumReaderView
-extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate {
-  
-  func ttsEnable(withDefaultLangCode defaultLangCode: String?, voiceIdent: String?) async throws {
-    print(TAG, "ttsEnable")
-    try await setupSynthesizerForCurrentPublication(withDefaultLangCode: defaultLangCode, voiceIdent: voiceIdent)
-  }
-  
-  func ttsSetVoice(voiceIdentifier: String) throws {
-    print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
-    
-    /// Check that voice with given identifier exists
-    guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
-      throw LibraryError.voiceNotFound
-    }
-    
-    /// Changes will be applied for the next utterance.
-    synthesizer?.config.voiceIdentifier = voiceIdentifier
-  }
-  
-  func ttsStart(fromLocator: Locator?) async throws {
-    print(TAG, "ttsStart: fromLocator=\(fromLocator?.jsonString ?? "nil")")
-    
-    // If no locator provided, start from current visible element.
-    var locator = fromLocator
-    if (locator == nil) {
-      locator = await currentReaderView?.getFirstVisibleLocator()
-    }
-    self.synthesizer?.start(from: locator)
-    
-    setupNowPlaying()
-  }
-  
-  func ttsStop() {
-    self.synthesizer?.stop()
-  }
-  
-  fileprivate func setupSynthesizerForCurrentPublication(withDefaultLangCode defaultLangCode: String?, voiceIdent: String?) async throws {
-    print(TAG, "setupSynthesizer")
-    
-    guard let ident = await currentReaderView?.publicationIdentifier,
-          let publication = openedReadiumPublications[ident] else {
-      throw LibraryError.bookNotFound
-    }
-    
-    if (self.synthesizer == nil) {
-      self.synthesizer = PublicationSpeechSynthesizer(
-        publication: publication,
-        config: PublicationSpeechSynthesizer.Configuration(
-          defaultLanguage: defaultLangCode == nil ? nil : Language(stringLiteral: defaultLangCode!),
-          voiceIdentifier: voiceIdent,
-        )
-      )
-      self.synthesizer?.delegate = self
-    }
-  }
-  
-  public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
-    print(TAG, "publicationSpeechSynthesizerStateDidChange: \(state)")
-    var playingUtteranceLocator: Locator? = nil
-    var playingRangeLocator: Locator? = nil
-
-    switch state {
-    case .playing(let utt, let range):
-      /// utterance is a full sentence/paragraph, while range is the currently spoken part.
-      playingUtteranceLocator = utt.locator
-      playingRangeLocator = range
-      if let newLocator = playingRangeLocator {
-        // TODO: this should likely be throttled somewhat
-        // See https://github.com/readium/swift-toolkit/blob/master/docs/Guides/TTS.md#turning-pages-automatically
-        Task.detached(priority: .high) {
-          await currentReaderView?.justGoToLocator(newLocator, animated: true)
-        }
-      }
-      print(TAG, "tts playing: \(utt.text) in \(String(describing: utt.language?.locale.identifier))")
-    case .paused(let utt):
-      playingUtteranceLocator = utt.locator
-      print(TAG, "tts paused at: \(utt.text)")
-    case .stopped:
-      print(TAG, "tts stopped")
-      clearNowPlaying()
-    }
-
-    // Update Reader text decorations
-    var decorations: [Decoration] = []
-    if let locator = playingUtteranceLocator,
-       let uttDecorationStyle = ttsUtteranceDecorationStyle {
-        decorations.append(Decoration(
-          id: "tts-utterance", locator: locator, style: uttDecorationStyle
-        ))
-    }
-    if let locator = playingRangeLocator,
-       let rangeDecorationStyle = ttsRangeDecorationStyle {
-      decorations.append(Decoration(
-        id: "tts-range", locator: locator, style: rangeDecorationStyle
-      ))
-    }
-    currentReaderView?.applyDecorations(decorations, forGroup: "tts")
-  }
-  
-  public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
-    print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
-  }
-  
-  public func ttsPause() {
-    self.synthesizer?.pause()
-  }
-  
-  public func ttsResume() {
-    self.synthesizer?.resume()
-  }
-  
-  public func ttsPauseOrResume() {
-    self.synthesizer?.pauseOrResume()
-  }
-  
-  public func ttsNext() {
-    self.synthesizer?.next()
-  }
-  
-  public func ttsPrevious() {
-    self.synthesizer?.previous()
-  }
-  
-  public func ttsGetAvailableVoices() -> [TTSVoice] {
-    return self.synthesizer?.availableVoices ?? []
-  }
-  
-  // MARK: - Now Playing
-
-  // This will display the publication in the Control Center and support
-  // external controls.
-
-  private func setupNowPlaying() {
-      Task {
-        guard let ident = await currentReaderView?.publicationIdentifier,
-              let publication = openedReadiumPublications[ident] else {
-          throw LibraryError.bookNotFound
-        }
-          NowPlayingInfo.shared.media = await .init(
-              title: publication.metadata.title ?? "",
-              artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
-              artwork: try? publication.cover().get()
-          )
-      }
-
-      let commandCenter = MPRemoteCommandCenter.shared()
-
-      commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-          self?.ttsPauseOrResume()
-          return .success
-      }
-  }
-
-  private func clearNowPlaying() {
-      NowPlayingInfo.shared.clear()
-  }
-  
 }

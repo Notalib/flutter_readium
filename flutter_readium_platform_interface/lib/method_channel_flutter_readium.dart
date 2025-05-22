@@ -111,4 +111,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> ttsSetVoice(String voiceIdentifier) async {
     await methodChannel.invokeMethod('ttsSetVoice', voiceIdentifier);
   }
+
+  @override
+  Future<void> ttsSetPreferences(TTSPreferences preferences) =>
+      methodChannel.invokeMapMethod('ttsSetPreferences', preferences.toMap());
 }

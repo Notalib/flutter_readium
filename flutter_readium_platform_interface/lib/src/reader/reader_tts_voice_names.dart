@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'index.dart';
 
+// TODO: Map voices using Hadrien's excellent web-speech-voices
+// See: https://github.com/HadrienGardeur/web-speech-recommended-voices/tree/main
+
 class ReaderTTSVoiceNames {
   static String getVoiceName(final ReaderTTSVoice voiceModel) {
     if (Platform.isAndroid) {
