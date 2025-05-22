@@ -11,13 +11,13 @@ android {
   ndkVersion = flutter.ndkVersion
 
   compileOptions {
-      isCoreLibraryDesugaringEnabled = true // TODO: Remove when desugaring is no longer needed (kotlin-toolkit v3.0.4+).
-      sourceCompatibility = JavaVersion.VERSION_17
-      targetCompatibility = JavaVersion.VERSION_17
+      isCoreLibraryDesugaringEnabled = true
+      sourceCompatibility = JavaVersion.VERSION_18
+      targetCompatibility = JavaVersion.VERSION_18
   }
 
   kotlinOptions {
-      jvmTarget = JavaVersion.VERSION_17.toString()
+      jvmTarget = JavaVersion.VERSION_18.toString()
   }
 
   defaultConfig {
@@ -46,5 +46,5 @@ flutter {
 }
 
 dependencies {
-  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") // TODO: Remove when desugaring is no longer needed (kotlin-toolkit v3.0.4+).
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
