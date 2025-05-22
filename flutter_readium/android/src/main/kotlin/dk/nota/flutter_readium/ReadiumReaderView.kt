@@ -304,6 +304,15 @@ internal class ReadiumReaderView(
 
           result.success(jsonEncode(locator?.toJSON()))
         }
+        "applyDecorations" -> {
+          val args = call.arguments as List<*>
+          val groupId = args[0] as String
+          val decorationListStr = args[1] as List<Map<String, String>>
+          val decorations = decorationListStr.mapNotNull { decorationFromMap(it) }
+
+          applyDecorations(decorations, groupId)
+          result.success(null)
+        }
         "dispose" -> {
           readiumView.removeAllViews()
           initialLocations = null

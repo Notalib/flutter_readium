@@ -58,6 +58,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
+      throw UnimplementedError('applyDecorations() has not been implemented');
+
   Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) =>
       throw UnimplementedError('ttsEnable() has not been implemented');
   Future<void> ttsStart(Locator? fromLocator) => throw UnimplementedError('ttsStart() has not been implemented');
@@ -73,11 +76,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     ReaderDecorationStyle? rangeDecoration,
   ) =>
       throw UnimplementedError('ttsSetDecorationStyle() has not been implemented');
+  Future<void> ttsSetPreferences(TTSPreferences preferences) =>
+      throw UnimplementedError('ttsSetPreferences() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier) =>
       throw UnimplementedError('ttsSetVoice() has not been implemented');
-
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
-      throw UnimplementedError('applyDecorations() has not been implemented');
 
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');
