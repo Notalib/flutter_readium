@@ -101,15 +101,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
       }
     case "ttsEnable":
-      let args = call.arguments as! [Any?],
-          speed = args[0] as? Double,
-          pitch = args[1] as? Double,
-          langCode = args[2] as? String,
-          voiceIdentifier = args[3] as? String,
-          overrideLanguage = langCode == nil ? nil : Language(stringLiteral: langCode!),
-          ttsPrefs = TTSPreferences(rate: speed, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
       Task.detached(priority: .high) {
         do {
+          let args = call.arguments as! Dictionary<String, Any>,
+              ttsPrefs = (try? TTSPreferences(fromMap: args)) ?? TTSPreferences()
           try await self.ttsEnable(withPreferences: ttsPrefs)
           await MainActor.run {
             result(nil)
@@ -134,7 +129,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         do {
           try await self.ttsStart(fromLocator: locator)
           await MainActor.run {
-            result(true)
+            result(nil)
           }
         }
         catch {
@@ -148,22 +143,22 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "ttsStop":
       self.ttsStop()
-      result(true)
+      result(nil)
     case "ttsPause":
       self.ttsPause()
-      result(true)
+      result(nil)
     case "ttsResume":
       self.ttsResume()
-      result(true)
+      result(nil)
     case "ttsToggle":
       self.ttsPauseOrResume()
-      result(true)
+      result(nil)
     case "ttsNext":
       self.ttsNext()
-      result(true)
+      result(nil)
     case "ttsPrevious":
       self.ttsPrevious()
-      result(true)
+      result(nil)
     case "ttsGetAvailableVoices":
       let availableVocies = self.ttsGetAvailableVoices()
       result(availableVocies.map { $0.jsonString } )
@@ -171,7 +166,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let voiceIdentifier = call.arguments as! String
       do {
         try self.ttsSetVoice(voiceIdentifier: voiceIdentifier)
-        result(true)
+        result(nil)
       } catch {
         result(FlutterError.init(
           code: "TTSError",
@@ -190,18 +185,17 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       result(nil)
     case "ttsSetPreferences":
-      let args = call.arguments as! [Any?]
-      let speed = args[0] as? Double
-      let pitch = args[1] as? Double
-      let langCode = args[2] as? String
-      let voiceIdentifier = args[3] as? String
-      
-      let overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil
-      
-      let ttsPrefs = TTSPreferences(rate: speed, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
-      ttsSetPreferences(prefs: ttsPrefs)
-      
-      result(nil)
+      let args = call.arguments as! Dictionary<String, String>
+      do {
+        let ttsPrefs = try TTSPreferences(fromMap: args)
+        ttsSetPreferences(prefs: ttsPrefs)
+        result(nil)
+      } catch {
+        result(FlutterError.init(
+          code: "TTSError",
+          message: "Failed to deserialize TTSPreferences: \(error.localizedDescription)",
+          details: nil))
+      }
     default:
       result(FlutterMethodNotImplemented)
     }

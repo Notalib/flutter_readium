@@ -47,7 +47,7 @@ class PlayerControlsState {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
     if (ttsEnabled) {
-      await readium.ttsEnable(null, null);
+      await readium.ttsEnable(TTSPreferences(speed: 1.2));
       await readium.ttsStart(null);
     } else {
       await readium.ttsStop();

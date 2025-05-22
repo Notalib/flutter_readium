@@ -331,18 +331,6 @@ internal class ReadiumReaderView(
   }
 }
 
-private fun jsonDecode(json: String): Any = JSONArray("[$json]")[0]
-
-private fun jsonEncode(json: Any?): String = when (json) {
-  is JSONArray -> json.toString()
-  is JSONObject -> json.toString()
-  is Nothing? -> "null"
-  else -> {
-    val ret = JSONArray(listOf(json)).toString()
-    ret.substring(1, ret.length - 1)
-  }
-}
-
 private const val isLoading = 1
 private const val isScrolling = 2
 

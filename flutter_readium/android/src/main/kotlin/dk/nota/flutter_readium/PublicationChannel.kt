@@ -158,23 +158,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         }
 
         "ttsEnable" -> {
-          val args = call.arguments as List<*>
-
-          val speed = args[0] as Double?
-          val pitch = args[1] as Double?
-          val voiceIdentifier = args[3] as String?
-          val langCodeOverride = args[2] as String?
-
-          // TODO: Decide if this is correct handling of defaultVoices on Android
-          val defaultVoices = if (langCodeOverride != null && voiceIdentifier != null)
-            mapOf(Language(langCodeOverride) to AndroidTtsEngine.Voice.Id(voiceIdentifier)) else emptyMap()
-
-          val ttsPrefs = AndroidTtsPreferences(
-            speed = speed ?: 1.0,
-            pitch = pitch ?: 1.0,
-            language = langCodeOverride?.let { Language(it) },
-            voices = defaultVoices,
-          )
+          val args = call.arguments as Map<String, Any>?
+          val ttsPrefs = if (args != null) androidTtsPreferencesFromMap(args) else AndroidTtsPreferences()
 
           ttsViewModel = TTSViewModel(pluginAppContext as Application, publication!!, currentReadiumReaderView!!, ttsPrefs)
           ttsViewModel?.initNavigator()
@@ -182,16 +167,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         }
 
         "ttsSetPreferences" -> {
-          val args = call.arguments as List<*>
-          val speed = args[0] as Double?
-          val pitch = args[1] as Double?
-          val langCodeOverride = args[2] as String?
-
-          val prefs = AndroidTtsPreferences(
-            language = langCodeOverride?.let { Language(it) },
-            speed = speed,
-            pitch = pitch,
-          )
+          val args = call.arguments as Map<String, Any>
+          val prefs = androidTtsPreferencesFromMap(args)
           ttsViewModel?.setPreferences(prefs)
         }
 

@@ -189,4 +189,14 @@ public struct TTSPreferences {
     self.overrideLanguage = overrideLanguage
     self.voiceIdentifier = voiceIdentifier
   }
+  
+  init(fromMap jsonMap: Dictionary<String, Any>) throws {
+    let map = jsonMap,
+        rate = map["speed"] as? Double,
+        pitch = map["pitch"] as? Double,
+        langCode = map["languageOverride"] as? String,
+        overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil,
+        voiceIdentifier = map["voiceIdentifier"] as? String
+    self.init(rate: rate, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
+  }
 }

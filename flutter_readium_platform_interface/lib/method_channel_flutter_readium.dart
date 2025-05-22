@@ -66,8 +66,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await currentReaderWidget?.applyDecorations(id, decorations);
 
   @override
-  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) async =>
-      await methodChannel.invokeMethod('ttsEnable', [defaultLangCode, voiceIdentifier]);
+  Future<void> ttsEnable(TTSPreferences? preferences) async =>
+      await methodChannel.invokeMapMethod('ttsEnable', preferences?.toMap());
 
   @override
   Future<void> ttsStart(Locator? fromLocator) async =>

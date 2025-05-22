@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
+import org.readium.navigator.media.tts.android.AndroidTtsDefaults
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
@@ -34,13 +35,16 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 @OptIn(ExperimentalReadiumApi::class)
 internal class TTSViewModel(
-  private val appContext: Context, private val publication: Publication,
-  private val reader: ReadiumReaderView, private var preferences: AndroidTtsPreferences) {// Used as reference in kotlin-rx
+  private val appContext: Context,
+  private val publication: Publication,
+  private val reader: ReadiumReaderView,
+  private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
+) {// Used as reference in kotlin-rx
 
   private var jobDecoration: Job? = null
   private var jobPageTurn: Job? = null
 
-  // TODO: Should these have defaults?
+  // TODO: Should these have defaults? Strange if they don't and you enable TTS, but see nothing.
   private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
   private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
 
@@ -51,7 +55,7 @@ internal class TTSViewModel(
       this.appContext as Application,
       this.publication,
       tokenizerFactory = { language ->
-        DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language,)
+        DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
       }
     ) ?: throw Exception("This publication cannot be played with the TTS navigator")
 
@@ -150,9 +154,5 @@ internal class TTSViewModel(
     ttsNavigator = null
     jobDecoration = null
     jobPageTurn = null
-  }
-
-  fun setPreferences() {
-    TODO("Not yet implemented")
   }
 }
