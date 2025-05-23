@@ -6,11 +6,72 @@ private let TAG = "ReadiumReaderPlugin/TTS"
 
 extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate {
   
+  fileprivate func setupSynthesizer(withPreferences prefs: TTSPreferences?) async throws {
+    print(TAG, "setupSynthesizer")
+    
+    var engine: AVTTSEngine?
+
+    guard let ident = await currentReaderView?.publicationIdentifier,
+          let publication = openedReadiumPublications[ident] else {
+      throw LibraryError.bookNotFound
+    }
+
+    self.synthesizer = PublicationSpeechSynthesizer(
+      publication: publication,
+      config: PublicationSpeechSynthesizer.Configuration(
+          defaultLanguage: prefs?.overrideLanguage,
+          voiceIdentifier: prefs?.voiceIdentifier,
+      ),
+      engineFactory: {
+        engine = AVTTSEngine()
+        return engine!
+      }
+    )
+    _ = self.synthesizer?.availableVoices // Hack to preload the engine, until we support rates and pitch in the toolkit
+    engine?.delegate = self
+    self.ttsPrefs = prefs
+    self.synthesizer?.delegate = self
+  }
+  
   func ttsEnable(withPreferences ttsPrefs: TTSPreferences) async throws {
     print(TAG, "ttsEnable")
     try await setupSynthesizer(withPreferences: ttsPrefs)
   }
 
+  func ttsStart(fromLocator: Locator?) {
+    print(TAG, "ttsStart: fromLocator=\(fromLocator?.jsonString ?? "nil")")
+    self.synthesizer?.start(from: fromLocator)
+    setupNowPlaying()
+  }
+
+  func ttsStop() {
+    self.synthesizer?.stop()
+  }
+
+  func ttsPause() {
+    self.synthesizer?.pause()
+  }
+
+  func ttsResume() {
+    self.synthesizer?.resume()
+  }
+
+  func ttsPauseOrResume() {
+    self.synthesizer?.pauseOrResume()
+  }
+
+  func ttsNext() {
+    self.synthesizer?.next()
+  }
+
+  func ttsPrevious() {
+    self.synthesizer?.previous()
+  }
+
+  func ttsGetAvailableVoices() -> [TTSVoice] {
+    return self.synthesizer?.availableVoices ?? []
+  }
+  
   func ttsSetVoice(voiceIdentifier: String) throws {
     print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
 
@@ -22,52 +83,17 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     /// Changes will be applied for the next utterance.
     synthesizer?.config.voiceIdentifier = voiceIdentifier
   }
-
-  func ttsStart(fromLocator: Locator?) async throws {
-    print(TAG, "ttsStart: fromLocator=\(fromLocator?.jsonString ?? "nil")")
-
-    // If no locator provided, start from current visible element.
-    var locator = fromLocator
-    if (locator == nil) {
-      locator = await currentReaderView?.getFirstVisibleLocator()
-    }
-    self.synthesizer?.start(from: locator)
-
-    setupNowPlaying()
+  
+  func ttsSetPreferences(prefs: TTSPreferences) {
+    self.ttsPrefs?.rate = prefs.rate ?? self.ttsPrefs?.rate
+    self.ttsPrefs?.pitch = prefs.pitch ?? self.ttsPrefs?.pitch
+    self.ttsPrefs?.voiceIdentifier = prefs.voiceIdentifier ?? self.ttsPrefs?.voiceIdentifier
+    self.ttsPrefs?.overrideLanguage = prefs.overrideLanguage ?? self.ttsPrefs?.overrideLanguage
+    self.synthesizer?.config.voiceIdentifier = prefs.voiceIdentifier
+    self.synthesizer?.config.defaultLanguage = prefs.overrideLanguage
   }
-
-  func ttsStop() {
-    self.synthesizer?.stop()
-  }
-
-  fileprivate func setupSynthesizer(withPreferences prefs: TTSPreferences?) async throws {
-    print(TAG, "setupSynthesizer")
-
-    guard let ident = await currentReaderView?.publicationIdentifier,
-          let publication = openedReadiumPublications[ident] else {
-      throw LibraryError.bookNotFound
-    }
-    
-    var engine: AVTTSEngine?
-
-    if (self.synthesizer == nil) {
-      self.synthesizer = PublicationSpeechSynthesizer(
-        publication: publication,
-        config: PublicationSpeechSynthesizer.Configuration(
-          defaultLanguage: prefs?.overrideLanguage,
-          voiceIdentifier: prefs?.voiceIdentifier,
-        ),
-        engineFactory: {
-          engine = AVTTSEngine()
-          return engine!
-        }
-      )
-      _ = self.synthesizer?.availableVoices // Hack to preload the engine, until we support rates and pitch in the toolkit
-      engine?.delegate = self
-      self.ttsPrefs = prefs
-      self.synthesizer?.delegate = self
-    }
-  }
+  
+  // MARK: - Protocol impl
   
   /// AVTTSEngineDelegate callback on creating new utterance
   public func avTTSEngine(_ engine: AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
@@ -78,7 +104,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   }
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
-    print(TAG, "publicationSpeechSynthesizerStateDidChange: \(state)")
+    print(TAG, "publicationSpeechSynthesizerStateDidChange")
     var playingUtteranceLocator: Locator? = nil
     var playingRangeLocator: Locator? = nil
 
@@ -122,39 +148,6 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
-  }
-
-  public func ttsPause() {
-    self.synthesizer?.pause()
-  }
-
-  public func ttsResume() {
-    self.synthesizer?.resume()
-  }
-
-  public func ttsPauseOrResume() {
-    self.synthesizer?.pauseOrResume()
-  }
-
-  public func ttsNext() {
-    self.synthesizer?.next()
-  }
-
-  public func ttsPrevious() {
-    self.synthesizer?.previous()
-  }
-
-  public func ttsGetAvailableVoices() -> [TTSVoice] {
-    return self.synthesizer?.availableVoices ?? []
-  }
-  
-  public func ttsSetPreferences(prefs: TTSPreferences) {
-    self.ttsPrefs?.rate = prefs.rate ?? self.ttsPrefs?.rate
-    self.ttsPrefs?.pitch = prefs.pitch ?? self.ttsPrefs?.pitch
-    self.ttsPrefs?.voiceIdentifier = prefs.voiceIdentifier ?? self.ttsPrefs?.voiceIdentifier
-    self.ttsPrefs?.overrideLanguage = prefs.overrideLanguage ?? self.ttsPrefs?.overrideLanguage
-    self.synthesizer?.config.voiceIdentifier = prefs.voiceIdentifier
-    self.synthesizer?.config.defaultLanguage = prefs.overrideLanguage
   }
 
   // MARK: - Now Playing

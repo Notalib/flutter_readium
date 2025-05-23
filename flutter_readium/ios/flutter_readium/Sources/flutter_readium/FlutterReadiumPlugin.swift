@@ -126,20 +126,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
 
       Task.detached(priority: .high) {
-        do {
-          try await self.ttsStart(fromLocator: locator)
+          if (locator == nil) {
+            locator = await currentReaderView?.getFirstVisibleLocator()
+          }
+          self.ttsStart(fromLocator: locator)
           await MainActor.run {
             result(nil)
           }
-        }
-        catch {
-          await MainActor.run {
-            result(FlutterError.init(
-              code: "TTSError",
-              message: "Failed to start TTS: \(error.localizedDescription)",
-              details: nil))
-          }
-        }
       }
     case "ttsStop":
       self.ttsStop()
@@ -230,5 +223,6 @@ extension FlutterReadiumPlugin {
     // Clean-up any resources associated with this publication identifier
     openedReadiumPublications[pubIdentifier]?.close()
     openedReadiumPublications[pubIdentifier] = nil
+    synthesizer = nil
   }
 }

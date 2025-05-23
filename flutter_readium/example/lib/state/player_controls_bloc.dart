@@ -34,24 +34,11 @@ class PlayerControlsState {
   Future<PlayerControlsState> togglePlay(final bool playing) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
 
-    if (playing) {
-      await readium.ttsResume();
-    } else {
-      await readium.ttsPause();
-    }
-
     return newState;
   }
 
   Future<PlayerControlsState> toggleTTS(final bool ttsEnabled) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
-
-    if (ttsEnabled) {
-      await readium.ttsEnable(TTSPreferences(speed: 1.2));
-      await readium.ttsStart(null);
-    } else {
-      await readium.ttsStop();
-    }
 
     return newState;
   }
@@ -67,19 +54,27 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         ) {
     on<Play>((final event, final emit) async {
       if (!state.ttsEnabled) {
+        await instance.ttsEnable(TTSPreferences(speed: 1.2));
+        await instance.ttsStart(null);
         emit(await state.toggleTTS(true));
+      } else {
+        await instance.ttsResume();
       }
-      // await instance.play();
+
       emit(await state.togglePlay(true));
     });
 
     on<Pause>((final event, final emit) async {
-      // instance.pause();
+      if (state.playing) {
+        await instance.ttsPause();
+      } else {
+        await instance.ttsResume();
+      }
       emit(await state.togglePlay(false));
     });
 
     on<Stop>((final event, final emit) async {
-      // instance.stop();
+      await instance.ttsStop();
       emit(await state.toggleTTS(false));
       emit(await state.togglePlay(false));
     });
