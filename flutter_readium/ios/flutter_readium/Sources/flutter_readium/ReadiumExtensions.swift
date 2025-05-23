@@ -3,6 +3,19 @@ import ReadiumNavigator
 import ReadiumShared
 import ReadiumInternal
 
+extension Resource {
+  var propertiesSync: ResourceProperties {
+    let semaphore = DispatchSemaphore(value: 0)
+    var props: ResourceProperties? = nil
+    Task {
+      props = await properties().getOrNil()
+      semaphore.signal()
+    }
+    semaphore.wait()
+    return props ?? ResourceProperties()
+  }
+}
+
 extension Decoration {
   init(fromJson jsonString: String) throws {
     let jsonMap: Dictionary<String, String>?
@@ -14,7 +27,7 @@ extension Decoration {
     }
     try self.init(fromMap: jsonMap)
   }
-  
+
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let jsonObject = jsonMap,
           let idString = jsonObject["id"],
@@ -39,7 +52,7 @@ extension Decoration.Style {
     let styleId = Decoration.Style.Id(rawValue: style)
     self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor))
   }
-  
+
   init(fromJson jsonString: String) throws {
     let jsonMap: Dictionary<String, String>?
     do {
@@ -50,7 +63,7 @@ extension Decoration.Style {
     }
     try self.init(fromMap: jsonMap)
   }
-  
+
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let map = jsonMap,
           let styleStr = map["style"],
@@ -82,7 +95,7 @@ extension TTSVoice {
 extension EPUBPreferences {
   init(fromMap jsonMap: Dictionary<String, String>) {
     self.init()
-    
+
     for (key, value) in jsonMap {
       switch key {
       case "backgroundColor":
@@ -93,7 +106,7 @@ extension EPUBPreferences {
         }
       case "fontFamily":
         fontFamily = FontFamily(rawValue: value)
-        
+
       case "fontSize":
         if let fontSizeValue = Double(value) {
           fontSize = fontSizeValue
@@ -189,7 +202,7 @@ public struct TTSPreferences {
     self.overrideLanguage = overrideLanguage
     self.voiceIdentifier = voiceIdentifier
   }
-  
+
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
     let map = jsonMap,
         rate = map["speed"] as? Double,

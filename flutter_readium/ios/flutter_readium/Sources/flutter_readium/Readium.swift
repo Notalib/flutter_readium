@@ -21,17 +21,17 @@ private let TAG = "Readium"
 let sharedReadium = Readium(withHeaders: nil)
 
 final class Readium {
-  
+
   init(withHeaders headers: [String: String]?) {
     self.setupWithHeaders(headers: headers)
   }
-  
+
   lazy var httpClient: HTTPClient? = nil
   lazy var httpServer: HTTPServer? = nil
   lazy var formatSniffer: FormatSniffer = DefaultFormatSniffer()
   lazy var assetRetriever: AssetRetriever? = nil
   lazy var publicationOpener: PublicationOpener? = nil
-  
+
   func setupWithHeaders(headers: [String: String]?) {
     self.httpClient = DefaultHTTPClient.init(
       cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
@@ -53,7 +53,7 @@ final class Readium {
       }
     )
   }
-  
+
   func setAdditionalHeaders(_ headers: [String: String]) -> Void {
     self.setupWithHeaders(headers: headers)
   }
@@ -94,6 +94,14 @@ final class Readium {
 
 
   func injectCSS(_ anyUrl: AnyURL, _ resource: Resource) -> Resource {
+
+    // We only transform HTML resources.
+    let props = resource.propertiesSync
+    guard props.filename?.localizedCaseInsensitiveContains("html") == true else {
+      print("\(TAG)::injectCSS skip non-html file: \(props.filename ?? "<no-filename>")")
+      return resource
+    }
+
     let comicCssKey = FlutterReadiumPlugin.registrar?.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
     let epubCssKey = FlutterReadiumPlugin.registrar?.lookupKey(forAsset: "assets/helpers/epub.css", fromPackage: "flutter_readium")
 
@@ -108,11 +116,6 @@ final class Readium {
 
       return nil
     }.joined(separator: "\n")
-
-    // We only transform HTML resources.
-    guard resource.sourceURL?.pathExtension?.rawValue.localizedCaseInsensitiveContains("html") == true else {
-      return resource
-    }
 
     return resource.mapAsString { content -> String in
       var content = content
