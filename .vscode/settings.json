@@ -3,6 +3,12 @@
   "files.watcherExclude": {
     "**/.fvm": true
   },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true,
+    "**/ios/.symlinks/**": true
+  },
   "files.readonlyInclude": {
     "**/*.g.dart": true,
     "**/*.freezed.dart": true,
