@@ -25,11 +25,11 @@ private let scrollScripts = [
     source: "setScrollMode(true);", injectionTime: .atDocumentEnd, forMainFrameOnly: false),
 ]
 
-class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EPUBNavigatorDelegate {
+class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private let eventChannel: FlutterEventChannel
-  private var eventSink: FlutterEventSink?
+  private let textLocatorChannel: FlutterEventChannel
+  private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private let userScript: WKUserScript
@@ -47,7 +47,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    eventChannel.setStreamHandler(nil)
+    textLocatorChannel.setStreamHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
 
@@ -72,7 +72,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
-    eventChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/text-locator", binaryMessenger: registrar.messenger())
+    textLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/text-locator", binaryMessenger: registrar.messenger())
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -113,7 +113,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
     super.init()
 
     channel.setMethodCallHandler(onMethodCall)
-    eventChannel.setStreamHandler(self)
+    textLocatorStreamHandler = EventStreamHandler(streamName: "text-locator")
+    textLocatorChannel.setStreamHandler(textLocatorStreamHandler)
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view  // Must specify type `UIView`, or we end up with an `UIView?` instead…
@@ -210,16 +211,15 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
         return
       }
       await MainActor.run() {
-        // TODO: Decide which one to use - or both ???
         self.channel.onPageChanged(locator: locatorWithFragments)
-        if (self.eventSink != nil) {
-          self.eventSink!(locatorWithFragments.jsonString)
+        if (self.textLocatorStreamHandler != nil) {
+          self.textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
         }
       }
     }
   }
 
-  private func getLocatorFragments(_ locatorJson: String, _ isVerticalScroll: Bool) async -> Locator? {
+  internal func getLocatorFragments(_ locatorJson: String, _ isVerticalScroll: Bool) async -> Locator? {
     switch await self.evaluateJavascript("window.epubPage.getLocatorFragments(\(locatorJson), \(isVerticalScroll));") {
       case .success(let jresult):
         let locatorWithFragments = try! Locator(json: jresult as? Dictionary<String, Any?>, warnings: readiumBugLogger)!
@@ -415,17 +415,6 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, FlutterStreamHandler, EP
       result(FlutterMethodNotImplemented)
       break
     }
-  }
-
-  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-    print(TAG, "onListen: \(String(describing: arguments))")
-    self.eventSink = events
-    return nil
-  }
-
-  public func onCancel(withArguments arguments: Any?) -> FlutterError? {
-    self.eventSink = nil
-    return nil
   }
 }
 

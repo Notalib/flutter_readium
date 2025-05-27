@@ -1,4 +1,5 @@
 import Flutter
+import Combine
 import UIKit
 import MediaPlayer
 import ReadiumNavigator
@@ -20,6 +21,17 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
 
+  
+  /// TTS related variables
+  /// TODO: Refactor into a TTSViewModel?
+  @Published internal var playingUtterance: Locator?
+  internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
+  internal var subscriptions: Set<AnyCancellable> = []
+  internal var isMoving = false
+  
+  internal static var audioLocatorChannel: FlutterEventChannel?
+  internal var audioLocatorStreamHandler: EventStreamHandler?
+  
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
 
@@ -31,6 +43,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    
+    audioLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/audio-locator", binaryMessenger: registrar.messenger())
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
@@ -39,6 +53,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     self.registrar = registrar
   }
 
+  public override init() {
+    super.init()
+    audioLocatorStreamHandler = EventStreamHandler(streamName: "audio-locator")
+    FlutterReadiumPlugin.audioLocatorChannel?.setStreamHandler(audioLocatorStreamHandler)
+  }
 
   public func log(_ warning: Warning) {
     print(TAG, "Error in Readium: \(warning)")
@@ -47,8 +66,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
-      // TODO: Implement like this or make an init() or send with openPublication??
+      // TODO: Implement like this or send with openPublication??
       break
+    case "dispose":
+      openedReadiumPublications.values.forEach { pub in
+        pub.close()
+      }
+      self.synthesizer?.stop()
+      self.synthesizer = nil
+      result(nil)
     case "closePublication":
       let pubId = call.arguments as! String
       self.closePublication(pubId)
@@ -188,6 +214,28 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           code: "TTSError",
           message: "Failed to deserialize TTSPreferences: \(error.localizedDescription)",
           details: nil))
+      }
+    case "audioStart":
+      let args = call.arguments as! [Any?]
+      let initialSpeed = args[0] as? Double
+      var locator: Locator? = nil
+      if let locatorStr = args[1] as? String {
+        locator = try! Locator(jsonString: locatorStr, warnings: self)!
+      }
+      
+      Task {
+        guard let currentPubId = await currentReaderView?.publicationIdentifier,
+              let pub = openedReadiumPublications[currentPubId] else {
+          return result(FlutterError.init(
+            code: "AudioBookError",
+            message: "Failed to start audiobook: no current publication found",
+            details: nil))
+        }
+        
+        let prefs = AudioPreferences(speed: initialSpeed ?? 0.5)
+        await setupAudiobookNavigator(publication: pub, locator: locator, initialPreferences: prefs)
+        self.play()
+        result(nil)
       }
     default:
       result(FlutterMethodNotImplemented)

@@ -13,7 +13,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   /// The event channel used to receive text Locator changes from the native platform.
   @visibleForTesting
-  EventChannel locatorChannel = const EventChannel('dk.nota.flutter_readium/text-locator');
+  EventChannel textLocatorChannel = const EventChannel('dk.nota.flutter_readium/text-locator');
+
+  @visibleForTesting
+  EventChannel audioLocatorChannel = const EventChannel('dk.nota.flutter_readium/audio-locator');
 
   /// The event channel used to receive text Locator changes from the native platform.
   @visibleForTesting
@@ -21,15 +24,26 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   Stream<Locator>? _onTextLocatorChanged;
 
+  Stream<Locator>? _onAudioLocatorChanged;
+
   /// Fires whenever the Reader's current Locator changes.
-  // @override
   @override
   Stream<Locator> get onTextLocatorChanged {
-    _onTextLocatorChanged ??= locatorChannel.receiveBroadcastStream().map((dynamic event) {
+    _onTextLocatorChanged ??= textLocatorChannel.receiveBroadcastStream().map((dynamic event) {
       final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
       return newLocator;
     });
     return _onTextLocatorChanged!;
+  }
+
+  /// Fires whenever the Audio Locator changes. Can be either TTS or pre-recorded.
+  @override
+  Stream<Locator> get onAudioLocatorChanged {
+    _onAudioLocatorChanged ??= audioLocatorChannel.receiveBroadcastStream().map((dynamic event) {
+      final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
+      return newLocator;
+    });
+    return _onAudioLocatorChanged!;
   }
 
   @override
@@ -67,7 +81,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async =>
-      await methodChannel.invokeMapMethod('ttsEnable', preferences?.toMap());
+      await methodChannel.invokeMethod('ttsEnable', preferences?.toMap());
 
   @override
   Future<void> ttsStart(Locator? fromLocator) async =>
@@ -114,5 +128,5 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) =>
-      methodChannel.invokeMapMethod('ttsSetPreferences', preferences.toMap());
+      methodChannel.invokeMethod('ttsSetPreferences', preferences.toMap());
 }

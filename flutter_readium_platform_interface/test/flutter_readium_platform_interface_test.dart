@@ -40,13 +40,13 @@ void main() {
       log.clear();
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-        MethodChannel(methodChannelReadium.locatorChannel.name),
+        MethodChannel(methodChannelReadium.textLocatorChannel.name),
         (methodCall) async {
           switch (methodCall.method) {
             case 'listen':
               await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
-                methodChannelReadium.locatorChannel.name,
-                methodChannelReadium.locatorChannel.codec.encodeSuccessEnvelope(testTextLocator),
+                methodChannelReadium.textLocatorChannel.name,
+                methodChannelReadium.textLocatorChannel.codec.encodeSuccessEnvelope(testTextLocator),
                 (_) {},
               );
               break;

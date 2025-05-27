@@ -27,10 +27,57 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         return engine!
       }
     )
-    _ = self.synthesizer?.availableVoices // Hack to preload the engine, until we support rates and pitch in the toolkit
     engine?.delegate = self
     self.ttsPrefs = prefs
     self.synthesizer?.delegate = self
+    
+    $playingUtterance
+      .removeDuplicates()
+      .sink { [weak self] locator in
+        guard let self = self else {
+          return
+        }
+        print(TAG, "tts send audio-locator")
+        audioLocatorStreamHandler?.sendEvent(locator)
+      }
+      .store(in: &subscriptions)
+    
+    playingWordRangeSubject
+      .removeDuplicates()
+      //  Improve performances by throttling the moves to maximum one per second.
+      .throttle(for: 1, scheduler: RunLoop.main, latest: true)
+      .drop(while: { [weak self] _ in self?.isMoving ?? true })
+      .sink { [weak self] locator in
+        guard let self = self else {
+          return
+        }
+
+        print(TAG, "tts navigate reader to locator")
+        isMoving = true
+        Task {
+          await currentReaderView?.justGoToLocator(locator, animated: true)
+          self.isMoving = false
+        }
+      }
+      .store(in: &subscriptions)
+  }
+  
+  @MainActor func updateDecorations(uttLocator: Locator?, rangeLocator: Locator?) {
+    // Update Reader text decorations
+    var decorations: [Decoration] = []
+    if let uttLocator = uttLocator,
+       let uttDecorationStyle = ttsUtteranceDecorationStyle {
+        decorations.append(Decoration(
+          id: "tts-utterance", locator: uttLocator, style: uttDecorationStyle
+        ))
+    }
+    if let rangeLocator = rangeLocator,
+       let rangeDecorationStyle = ttsRangeDecorationStyle {
+      decorations.append(Decoration(
+        id: "tts-range", locator: rangeLocator, style: rangeDecorationStyle
+      ))
+    }
+    currentReaderView?.applyDecorations(decorations, forGroup: "tts")
   }
   
   func ttsEnable(withPreferences ttsPrefs: TTSPreferences) async throws {
@@ -105,45 +152,24 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
     print(TAG, "publicationSpeechSynthesizerStateDidChange")
-    var playingUtteranceLocator: Locator? = nil
-    var playingRangeLocator: Locator? = nil
 
     switch state {
-    case .playing(let utt, let range):
+    case let .playing(utt, wordRange):
+      print(TAG, "tts playing")
       /// utterance is a full sentence/paragraph, while range is the currently spoken part.
-      playingUtteranceLocator = utt.locator
-      playingRangeLocator = range
-      if let newLocator = playingRangeLocator {
-        // TODO: this should likely be throttled somewhat
-        // See https://github.com/readium/swift-toolkit/blob/master/docs/Guides/TTS.md#turning-pages-automatically
-        Task.detached(priority: .high) {
-          await currentReaderView?.justGoToLocator(newLocator, animated: true)
-        }
+      playingUtterance = utt.locator
+      if let wordRange = wordRange {
+        playingWordRangeSubject.send(wordRange)
       }
-      print(TAG, "tts playing: \(utt.text) in \(String(describing: utt.language?.locale.identifier))")
-    case .paused(let utt):
-      playingUtteranceLocator = utt.locator
+      updateDecorations(uttLocator: utt.locator, rangeLocator: wordRange)
+    case let .paused(utt):
       print(TAG, "tts paused at: \(utt.text)")
+      playingUtterance = utt.locator
     case .stopped:
+      playingUtterance = nil
       print(TAG, "tts stopped")
       clearNowPlaying()
     }
-
-    // Update Reader text decorations
-    var decorations: [Decoration] = []
-    if let locator = playingUtteranceLocator,
-       let uttDecorationStyle = ttsUtteranceDecorationStyle {
-        decorations.append(Decoration(
-          id: "tts-utterance", locator: locator, style: uttDecorationStyle
-        ))
-    }
-    if let locator = playingRangeLocator,
-       let rangeDecorationStyle = ttsRangeDecorationStyle {
-      decorations.append(Decoration(
-        id: "tts-range", locator: locator, style: rangeDecorationStyle
-      ))
-    }
-    currentReaderView?.applyDecorations(decorations, forGroup: "tts")
   }
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
