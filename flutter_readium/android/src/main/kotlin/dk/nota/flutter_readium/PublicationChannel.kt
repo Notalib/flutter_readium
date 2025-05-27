@@ -26,18 +26,13 @@ import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
-import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.util.Language
 
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-
-// Used as reference in kotlin-rx
-private var scope = CoroutineScope(Dispatchers.Main)
 
 private var readium: Readium? = null
 
@@ -169,7 +164,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         "ttsSetPreferences" -> {
           val args = call.arguments as Map<String, Any>
           val prefs = androidTtsPreferencesFromMap(args)
-          ttsViewModel?.setPreferences(prefs)
+          ttsViewModel?.updatePreferences(prefs)
         }
 
         "ttsSetDecorationStyle" -> {
@@ -223,7 +218,6 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
         "ttsGetAvailableVoices" -> {
           val androidVoices = ttsViewModel?.voices
-          // TODO: serialize and return. Decide on common data format/props.
           val voicesJson = androidVoices?.map {
             JSONObject().apply {
               put("identifier", it.id.value)
@@ -234,6 +228,16 @@ internal class PublicationMethodCallHandler(private val context: Context) :
             }.toString()
           }
           result.success(voicesJson)
+        }
+
+        "ttsSetVoice" -> {
+          val args = call.arguments as List<*>
+          val voiceId = args[0] as String?
+          val language = args[1] as String?
+          if (voiceId != null) {
+            ttsViewModel?.setPreferredVoice(voiceId, language)
+          }
+          result.success(null)
         }
 
         "get" -> {

@@ -13,10 +13,10 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.readium.navigator.media.common.MediaNavigator
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
-import org.readium.navigator.media.tts.android.AndroidTtsDefaults
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
@@ -24,9 +24,11 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "TTSViewModel"
@@ -39,12 +41,10 @@ internal class TTSViewModel(
   private val publication: Publication,
   private val reader: ReadiumReaderView,
   private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) {// Used as reference in kotlin-rx
+) {
+  private val jobs = mutableListOf<Job>()
 
-  private var jobDecoration: Job? = null
-  private var jobPageTurn: Job? = null
-
-  // TODO: Should these have defaults? Strange if they don't and you enable TTS, but see nothing.
+  // TODO: Decision on appropriate defaults
   private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
   private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
 
@@ -73,7 +73,7 @@ internal class TTSViewModel(
       }
 
       // Setup streaming listeners for locator & decoration updates.
-      setupLocationListeners(ttsNavigator)
+      setupNavigatorListeners(ttsNavigator)
 
       this@TTSViewModel.ttsNavigator = ttsNavigator
     }.await()
@@ -99,16 +99,41 @@ internal class TTSViewModel(
   fun nextUtterance() = ttsNavigator?.skipToNextUtterance()
   fun previousUtterance() = ttsNavigator?.skipToPreviousUtterance()
 
-  fun setPreferences(prefs: AndroidTtsPreferences) {
+  /// Updates TTS preferences, does not override current preferences if props are null
+  fun updatePreferences(prefs: AndroidTtsPreferences) {
     this.preferences = this.preferences.plus(prefs)
     this.ttsNavigator?.submitPreferences(this.preferences)
+  }
+
+  fun setPreferredVoice(voiceId: String, lang: String?) {
+    // If no lang provided, assume client wants to override currently spoken language.
+    val language = if (lang != null) Language(lang) else this.ttsNavigator?.settings?.value?.language
+    val voices = if (language != null) mapOf(language to AndroidTtsEngine.Voice.Id(voiceId)) else emptyMap()
+    this.updatePreferences(AndroidTtsPreferences(voices = voices))
   }
 
   val voices: Set<AndroidTtsEngine.Voice>
     get() = ttsNavigator?.voices ?: emptySet()
 
-  private fun setupLocationListeners(navigator: TtsNavigator<*, *, *, *>) {
-    jobDecoration = navigator.location
+  private fun setupNavigatorListeners(navigator: TtsNavigator<*, *, *, *>) {
+    // Listen to state changes
+    navigator.playback
+      .throttleLatest(100.milliseconds)
+      .map { it.state }
+      .distinctUntilChanged()
+      .onEach { state ->
+        Log.d(TAG, "ttsPlayback: state=$state")
+        if (state is MediaNavigator.State.Failure) {
+          CoroutineScope(Dispatchers.Main).launch {
+            //TODO: Send to Flutter plugin state stream.
+          }
+        }
+      }
+      .launchIn(CoroutineScope(Dispatchers.Main))
+      .let { jobs.add(it) }
+
+    // Listen to utterance updates and apply decorations
+    navigator.location
       .map { Pair(it.utteranceLocator, it.tokenLocator) }
       .distinctUntilChanged()
       .onEach { (uttLocator, tokenLocator) ->
@@ -134,25 +159,24 @@ internal class TTSViewModel(
         }
       }
       .launchIn(CoroutineScope(Dispatchers.IO))
+      .let { jobs.add(it) }
 
-    jobPageTurn = navigator.location
-      .throttleLatest(1.seconds)
+    // Listen to location changes and turn pages (throttled).
+    navigator.location
+      .throttleLatest(0.4.seconds)
       .map { it.tokenLocator ?: it.utteranceLocator }
       .distinctUntilChanged()
       .onEach { locator ->
-        CoroutineScope(Dispatchers.Main).launch {
-          this@TTSViewModel.reader.justGoToLocator(locator, animated = true)
-        }
+        this@TTSViewModel.reader.justGoToLocator(locator, animated = true)
       }
       .launchIn(CoroutineScope(Dispatchers.Main))
+      .let { jobs.add(it) }
   }
 
   fun dispose() {
+    jobs.forEach { it.cancel() }
+    jobs.clear()
     ttsNavigator?.close()
-    jobDecoration?.cancel()
-    jobPageTurn?.cancel()
     ttsNavigator = null
-    jobDecoration = null
-    jobPageTurn = null
   }
 }
