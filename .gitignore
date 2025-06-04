@@ -31,7 +31,7 @@
 
 build/
 assets/helpers
-
+assets/_scripts/dist
 
 ## JsonSerializable
 lib/**/*.g.dart
