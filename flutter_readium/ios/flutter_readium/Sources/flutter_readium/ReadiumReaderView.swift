@@ -17,13 +17,7 @@ class ReadiumBugLogger: ReadiumShared.WarningLogger {
 }
 
 private let readiumBugLogger = ReadiumBugLogger()
-
-private let scrollScripts = [
-  false: WKUserScript(
-    source: "setScrollMode(false);", injectionTime: .atDocumentEnd, forMainFrameOnly: false),
-  true: WKUserScript(
-    source: "setScrollMode(true);", injectionTime: .atDocumentEnd, forMainFrameOnly: false),
-]
+private var userScripts: [WKUserScript] = []
 
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
@@ -32,7 +26,6 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
-  private let userScript: WKUserScript
   private var isVerticalScroll = false
 
   var publicationIdentifier: String?
@@ -84,11 +77,12 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
     ]
+    // TODO: Make this config configurable from Flutter
     config.preloadPreviousPositionCount = 1
     config.preloadNextPositionCount = 1
     config.debugState = true
     if (defaultPreferences != nil) {
-      config.preferences = defaultPreferences!;
+      config.preferences = defaultPreferences!
     }
 
     readiumViewController = try! EPUBNavigatorViewController(
@@ -97,17 +91,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       config: config,
       httpServer: sharedReadium.httpServer!
     )
-
-    // Add epub.js script for highlighting etc. and comics.js script for handling Nota's guided comics.
-    let comicJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-    let epubJsAssetPath = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
-    let sourceFiles = [comicJsAssetPath, epubJsAssetPath]
-    let source = sourceFiles.map { sourceFile -> String in
-      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-      let data = FileManager().contents(atPath: path)!
-      return String(data: data, encoding: .utf8)!
-    }.joined(separator: "\n")
-    userScript = WKUserScript(source: "const isAndroid=false,isIos=true;\n" + source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+    
+    if userScripts.isEmpty {
+      initUserScripts(registrar: registrar)
+    }
 
     _view = UIView()
     super.init()
@@ -133,8 +120,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   // override EPUBNavigatorDelegate::navigator:setupUserScripts
   func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
-    print(TAG, "setupUserScripts:")
-    userContentController.addUserScript(userScript)
+    print(TAG, "setupUserScripts: adding \(userScripts.count) scripts")
+    for script in userScripts {
+      userContentController.addUserScript(script)
+    }
   }
 
   // override EPUBNavigatorDelegate::middleTapHandler
@@ -223,10 +212,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     switch await self.evaluateJavascript("window.epubPage.getLocatorFragments(\(locatorJson), \(isVerticalScroll));") {
       case .success(let jresult):
         let locatorWithFragments = try! Locator(json: jresult as? Dictionary<String, Any?>, warnings: readiumBugLogger)!
-        return locatorWithFragments;
+        return locatorWithFragments
       case .failure(let err):
         print(TAG, "getLocatorFragments failed! \(err)")
-        return nil;
+        return nil
       }
   }
 
@@ -245,7 +234,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     if shouldGo {
       print(TAG, "goToLocator: Go to \(locator.href)")
-      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: false));
+      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: false))
       if (goToSuccees && shouldScroll) {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
@@ -416,6 +405,40 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       break
     }
   }
+}
+
+func initUserScripts(registrar: FlutterPluginRegistrar) {
+  let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
+  let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
+  let epubJsKey = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
+  let epubCssKey = registrar.lookupKey(forAsset: "assets/helpers/epub.css", fromPackage: "flutter_readium")
+  let jsScripts = [comicJsKey, epubJsKey].map { sourceFile -> String in
+    let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
+    let data = FileManager().contents(atPath: path)!
+    return String(data: data, encoding: .utf8)!
+  }
+  let addCssScripts = [comicCssKey, epubCssKey].map { sourceFile -> String in
+    let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
+    let data = FileManager().contents(atPath: path)!.base64EncodedString()
+    return """
+      (function() {
+      var parent = document.getElementsByTagName('head').item(0);
+      var style = document.createElement('style');
+      style.type = 'text/css';
+      style.innerHTML = window.atob('\(data)');
+      parent.appendChild(style)})();
+    """
+  }
+  /// Add JS scripts right away, before loading the rest of the document.
+  for jsScript in jsScripts {
+    userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+  }
+  /// Add css injection scripts after primary document finished loading.
+  for addCssScript in addCssScripts {
+    userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
+  }
+  /// Add simple script used by our JS to detect OS
+  userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
 }
 
 private func canScroll(locations: Locator.Locations?) -> Bool {

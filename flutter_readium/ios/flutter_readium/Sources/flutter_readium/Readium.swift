@@ -48,9 +48,6 @@ final class Readium {
         pdfFactory: DefaultPDFDocumentFactory()
       ),
       contentProtections: contentProtections,
-      onCreatePublication: { manifest, container, services in
-        container = TransformingContainer(container: container, transformer: self.injectCSS)
-      }
     )
   }
 
@@ -92,44 +89,6 @@ final class Readium {
   }
 #endif
 
-
-  func injectCSS(_ anyUrl: AnyURL, _ resource: Resource) -> Resource {
-
-    // We only transform HTML resources.
-    let props = resource.propertiesSync
-    guard props.filename?.localizedCaseInsensitiveContains("html") == true else {
-      print("\(TAG)::injectCSS skip non-html file: \(props.filename ?? "<no-filename>")")
-      return resource
-    }
-
-    let comicCssKey = FlutterReadiumPlugin.registrar?.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
-    let epubCssKey = FlutterReadiumPlugin.registrar?.lookupKey(forAsset: "assets/helpers/epub.css", fromPackage: "flutter_readium")
-
-    let sourceFiles = [comicCssKey, epubCssKey]
-    let source = sourceFiles.compactMap { sourceFile -> String? in
-      if let path = Bundle.main.path(forResource: sourceFile, ofType: nil),
-         let data = FileManager().contents(atPath: path),
-         let stringData = String(data: data, encoding: .utf8) {
-        return stringData
-      }
-      print("\(TAG)::injectCSS No source found on \(String(describing: sourceFile))")
-
-      return nil
-    }.joined(separator: "\n")
-
-    return resource.mapAsString { content -> String in
-      var content = content
-
-      if let headEnd = content.startIndex(of: "</head>") {
-        let style = "<style>\(source)</style>"
-        content = content.insert(string: style, at: headEnd)
-      } else {
-        print("\(TAG)::injectCSS No head found on the document")
-      }
-
-      return content
-    }
-  }
 }
 
 extension ReadiumShared.ReadError: UserErrorConvertible {

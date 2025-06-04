@@ -215,28 +215,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           message: "Failed to deserialize TTSPreferences: \(error.localizedDescription)",
           details: nil))
       }
-    case "audioStart":
-      let args = call.arguments as! [Any?]
-      let initialSpeed = args[0] as? Double
-      var locator: Locator? = nil
-      if let locatorStr = args[1] as? String {
-        locator = try! Locator(jsonString: locatorStr, warnings: self)!
-      }
-      
-      Task {
-        guard let currentPubId = await currentReaderView?.publicationIdentifier,
-              let pub = openedReadiumPublications[currentPubId] else {
-          return result(FlutterError.init(
-            code: "AudioBookError",
-            message: "Failed to start audiobook: no current publication found",
-            details: nil))
-        }
-        
-        let prefs = AudioPreferences(speed: initialSpeed ?? 0.5)
-        await setupAudiobookNavigator(publication: pub, locator: locator, initialPreferences: prefs)
-        self.play()
-        result(nil)
-      }
     default:
       result(FlutterMethodNotImplemented)
     }
