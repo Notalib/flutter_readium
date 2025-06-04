@@ -140,15 +140,13 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     self.synthesizer?.config.defaultLanguage = prefs.overrideLanguage
   }
   
-  // MARK: - Protocol impl
+  // MARK: - Protocol impl.
   
-  /// AVTTSEngineDelegate callback on creating new utterance
   public func avTTSEngine(_ engine: AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
-    /// Rate must be normalized on iOS, since AVSpeechUtterance has a default rate of 0.5
-    let avRate = min(max(Float(self.ttsPrefs?.rate ?? 1.0) * AVSpeechUtteranceDefaultSpeechRate, AVSpeechUtteranceMinimumSpeechRate), AVSpeechUtteranceMaximumSpeechRate)
-    utterance.pitchMultiplier = Float(self.ttsPrefs?.pitch ?? 1.0)
-    utterance.rate = avRate
+    utterance.rate = self.ttsPrefs?.rate ?? AVSpeechUtteranceDefaultSpeechRate
+    utterance.pitchMultiplier = self.ttsPrefs?.pitch ?? 1.0
   }
+  
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
     print(TAG, "publicationSpeechSynthesizerStateDidChange")

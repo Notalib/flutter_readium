@@ -1,7 +1,12 @@
 import Foundation
+import MediaPlayer
 import ReadiumNavigator
 import ReadiumShared
 import ReadiumInternal
+
+func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
+    return min(max(value, minValue), maxValue)
+}
 
 extension Resource {
   var propertiesSync: ResourceProperties {
@@ -179,11 +184,11 @@ extension EPUBPreferences {
 }
 
 public struct TTSPreferences {
-  /// Rate at which utterances should be spoken. Defaults to 1.0
-  public var rate: Double?
+  /// Rate at which utterances should be spoken. Defaults to 0.5
+  public var rate: Float?
 
-  /// Pitch at which utterances should be spoken. Defaults to 1.0
-  public var pitch: Double?
+  /// Pitch at which utterances should be spoken. Defaults to 1.0 and should be in range 0.5 to 2.0
+  public var pitch: Float?
 
   /// Language overriding the publication one.
   public var overrideLanguage: Language?
@@ -192,8 +197,8 @@ public struct TTSPreferences {
   public var voiceIdentifier: String?
 
   public init(
-    rate: Double? = nil,
-    pitch: Double? = nil,
+    rate: Float? = nil,
+    pitch: Float? = nil,
     overrideLanguage: Language? = nil,
     voiceIdentifier: String? = nil
   ) {
@@ -205,11 +210,21 @@ public struct TTSPreferences {
 
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
     let map = jsonMap,
-        rate = map["speed"] as? Double,
-        pitch = map["pitch"] as? Double,
+        rate = map["speed"] as? Double ?? 1.0,
+        pitch = map["pitch"] as? Double ?? 1.0,
         langCode = map["languageOverride"] as? String,
         overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil,
         voiceIdentifier = map["voiceIdentifier"] as? String
-    self.init(rate: rate, pitch: pitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
+
+    /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
+    /// Rate is also clamped between allowed values.
+    let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,
+                       minValue: AVSpeechUtteranceMinimumSpeechRate,
+                       maxValue: AVSpeechUtteranceMaximumSpeechRate)
+    /// Pitch is clamped between allowed values according to AVSpeechUtterance docs.
+    let avPitch = clamp(Float(pitch),
+                        minValue: 0.5,
+                        maxValue: 2.0)
+    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
   }
 }
