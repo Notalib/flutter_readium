@@ -1,0 +1,33 @@
+name: flutter_readium_web
+description: Wrapper for Readium ts-toolkit
+version: 0.0.1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+  flutter: '>=3.27.1'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface
+  flutter_web_plugins:
+    sdk: flutter
+  web:
+  plugin_platform_interface:
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner:
+
+executables:
+  copy_js_file: bin/copy_js_file.dart
+
+flutter:
+  plugin:
+    platforms:
+      web:
+        pluginClass: FlutterReadiumWeb
+        fileName: flutter_readium_web.dart

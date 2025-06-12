@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "@material/web": "^2.3.0",
+    "@readium/navigator": "^2.0.0-beta.4",
+    "@readium/navigator-html-injectables": "^2.0.0-beta.2",
+    "@readium/shared": "^1.2.1"
+  },
+  "devDependencies": {
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.7.2",
+    "webpack": "^5.97.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "scripts": {
+    "build": "webpack --config ./web/_scripts/webpack.config.js"
+  }
+}
