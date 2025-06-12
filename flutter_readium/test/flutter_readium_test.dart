@@ -110,7 +110,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsSetVoice(String voiceIdentifier) {
+  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) {
     // TODO: implement ttsSetVoice
     throw UnimplementedError();
   }

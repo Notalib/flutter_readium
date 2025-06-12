@@ -120,6 +120,45 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
         }
       }
+    case "getLinkContent":
+      let args = call.arguments as! [Any?]
+      //let asString = args[2] as? Bool ?? true
+      let asString = true
+      guard let pubId = args[0] as? String,
+            let linkStr = args[1] as? String,
+            let publication = getPublicationByIdentifier(pubId),
+            let link = try? Link(fromJsonString: linkStr) else {
+        return result(FlutterError.init(
+          code: "getLinkContent",
+          message: "Failed to get link content",
+          details: nil))
+      }
+      Task.detached(priority: .background) {
+        let resource = publication.get(link)
+        do {
+          if (asString) {
+            let linkContent = try await resource?.readAsString(encoding: .utf8).get()
+            await MainActor.run {
+              result(linkContent)
+            }
+          } else {
+            let data = try await resource!.read().get()
+            await MainActor.run {
+              result(FlutterStandardTypedData(bytes: data))
+            }
+          }
+        } catch let err {
+          await MainActor.run {
+            print("\(TAG).getLinkContent exception: \(err)")
+            result(
+              FlutterError.init(
+                code: "getLinkContent",
+                message: err.localizedDescription,
+                details: "Something went wrong fetching link content."))
+          }
+        }
+      }
+      
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
@@ -176,7 +215,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let availableVocies = self.ttsGetAvailableVoices()
       result(availableVocies.map { $0.jsonString } )
     case "ttsSetVoice":
-      let voiceIdentifier = call.arguments as! String
+      let args = call.arguments as! [Any?]
+      let voiceIdentifier = args[0] as! String
+      // TODO: language might be supplied as args[1], ignored on iOS for now.
       do {
         try self.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
