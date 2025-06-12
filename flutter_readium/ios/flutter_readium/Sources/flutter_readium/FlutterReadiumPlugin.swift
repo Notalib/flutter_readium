@@ -21,17 +21,16 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
 
-  
+
   /// TTS related variables
   /// TODO: Refactor into a TTSViewModel?
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
-  
-  internal static var audioLocatorChannel: FlutterEventChannel?
+
   internal var audioLocatorStreamHandler: EventStreamHandler?
-  
+
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
 
@@ -43,20 +42,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
-    
-    audioLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/audio-locator", binaryMessenger: registrar.messenger())
+    instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
     registrar.register(factory, withId: readiumReaderViewType)
 
     self.registrar = registrar
-  }
-
-  public override init() {
-    super.init()
-    audioLocatorStreamHandler = EventStreamHandler(streamName: "audio-locator")
-    FlutterReadiumPlugin.audioLocatorChannel?.setStreamHandler(audioLocatorStreamHandler)
   }
 
   public func log(_ warning: Warning) {
@@ -74,6 +66,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       self.synthesizer?.stop()
       self.synthesizer = nil
+      self.audioLocatorStreamHandler?.dispose()
+      self.audioLocatorStreamHandler = nil
       result(nil)
     case "closePublication":
       let pubId = call.arguments as! String

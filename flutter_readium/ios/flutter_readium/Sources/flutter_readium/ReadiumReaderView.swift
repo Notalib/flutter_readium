@@ -22,7 +22,6 @@ private var userScripts: [WKUserScript] = []
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private let textLocatorChannel: FlutterEventChannel
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
@@ -39,8 +38,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     print(TAG, "::dispose")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
+    textLocatorStreamHandler?.dispose()
+    textLocatorStreamHandler = nil
     channel.setMethodCallHandler(nil)
-    textLocatorChannel.setStreamHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
 
@@ -65,7 +65,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
-    textLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/text-locator", binaryMessenger: registrar.messenger())
+    textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -100,8 +100,6 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     super.init()
 
     channel.setMethodCallHandler(onMethodCall)
-    textLocatorStreamHandler = EventStreamHandler(streamName: "text-locator")
-    textLocatorChannel.setStreamHandler(textLocatorStreamHandler)
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view  // Must specify type `UIView`, or we end up with an `UIView?` instead…
