@@ -12,6 +12,7 @@ declare const isAndroid: boolean;
 declare const webkit: any;
 declare const readium: Readium;
 declare const comicBookPage: ComicBookPage;
+declare const Android: any | null;
 
 export class EpubPage {
   constructor() {
@@ -75,26 +76,28 @@ export class EpubPage {
 
   // Scrolls such that the given Locations is visible. If part of the given Locations is
   // already visible, only scrolls to the start of it if toStart is true.
-  public scrollToLocations(locations: Locations, isVerticalScroll: boolean, toStart: boolean): void {
+  public scrollToLocations(locations: Locations, isVerticalScroll: boolean, toStart: boolean): boolean {
     try {
       const range = this._processLocations(locations);
       if (range != null) {
         this._scrollToProcessedRange(range, isVerticalScroll, toStart);
 
-        return;
+        return true;
       }
 
       const progression = locations.progression;
       if (progression != null) {
-        this._scrollToProgression(progression, isVerticalScroll);
+        readium?.scrollToPosition(progression);
 
-        return;
+        return true;
       }
 
       this._debugLog(`ScrollToLocations: Unknown range`, locations);
     } catch (error) {
       this._errorLog(error);
     }
+
+    return false;
   }
 
   // Checks whether a given locator is (at least partially) visible.
@@ -118,6 +121,7 @@ export class EpubPage {
         return false;
       }
       // Checks also that the locator also contains `active` class.
+      // TODO: This doesn't do what we expect, if the range is visible but not active, this function will return false.
       return this._isProcessedRangeVisible(range) && !!document.querySelector(`${selector} #${this._activeLocationId}`);
     } catch (error) {
       this._errorLog(error);
@@ -532,12 +536,6 @@ export class EpubPage {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _scrollToProgression(progression: number, isVerticalScroll: boolean) {
-    // isVerticalScroll unused, but maybe used in the future if re-adding vertical scrolling mode.
-    readium?.scrollToPosition(progression, 'ltr');
-  }
-
   private _scrollToBoundingClientRect(range: Range, isVerticalScroll: boolean) {
     const { top, right, bottom, left } = range.getBoundingClientRect();
 
@@ -553,11 +551,11 @@ export class EpubPage {
 
       if (top < minHeight || bottom > maxHeight) {
         const offset = this._clamp((scrollTop + top - minHeight) / scrollHeight, 0, 1);
-        readium?.scrollToPosition(offset, 'ltr');
+        readium?.scrollToPosition(offset);
       }
     } else {
       const offset = (scrollLeft + 0.5 * (left + right)) / scrollWidth;
-      readium?.scrollToPosition(offset, 'ltr');
+      readium?.scrollToPosition(offset);
     }
   }
 
@@ -1019,7 +1017,7 @@ export class EpubPage {
   private _log(...args: unknown[]) {
     // Alternative for webkit in order to print logs in flutter log outputs.
 
-    if (this.isIos()) {
+    if (this._isIos()) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       webkit?.messageHandlers.log.postMessage(
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -1053,7 +1051,7 @@ export class EpubPage {
     this._log(`^===^===^===^===^===^`);
   }
 
-  private isIos(): boolean {
+  private _isIos(): boolean {
     try {
       return isIos;
     } catch (error) {

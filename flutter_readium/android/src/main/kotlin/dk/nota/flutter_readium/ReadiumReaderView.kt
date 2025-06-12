@@ -16,6 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.html.domRange
@@ -25,6 +26,7 @@ private const val TAG = "ReadiumReaderView"
 internal const val textLocatorEventChannelName = "dk.nota.flutter_readium/text-locator"
 internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
+@OptIn(ExperimentalReadiumApi::class)
 internal class ReadiumReaderView(
   context: Context,
   id: Int,
@@ -142,7 +144,7 @@ internal class ReadiumReaderView(
 
   private suspend fun emitOnPageChanged(locator: Locator) {
     try {
-      val locatorWithFragments = getLocatorFragments(locator);
+      val locatorWithFragments = getLocatorFragments(locator)
       if (locatorWithFragments == null) {
         Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed!")
         return
@@ -163,8 +165,8 @@ internal class ReadiumReaderView(
         Log.e(TAG, "getLocatorFragments: window.epubPage.getVisibleRange failed!")
         return null
       }
-      val jsonLocator = jsonDecode(json) as JSONObject;
-      val locatorWithFragments = Locator.fromJSON(jsonLocator);
+      val jsonLocator = jsonDecode(json) as JSONObject
+      val locatorWithFragments = Locator.fromJSON(jsonLocator)
 
       return locatorWithFragments
     }
@@ -195,10 +197,10 @@ internal class ReadiumReaderView(
   suspend fun goToLocator(locator: Locator, animated: Boolean) {
     val locations = locator.locations
     val shouldScroll = canScroll(locations)
-    val shouldGo = !readiumView.currentLocator.href.isEquivalent(locator.href)
+    val shouldGo = readiumView.currentLocator?.href?.isEquivalent(locator.href) == false
 
     if (shouldGo) {
-      Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
+      Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${readiumView.currentLocator?.href}")
       readiumView.go(locator, animated)
     } else if (!shouldScroll) {
       Log.w(TAG, "::goToLocator: Already at ${locator.href}, no scroll target, go to start")
@@ -282,7 +284,7 @@ internal class ReadiumReaderView(
           val args = call.arguments as String
           val locatorJson = JSONObject(args)
           val locator = Locator.fromJSON(locatorJson)!!
-          val visible = locator.href == readiumView.currentLocator.href && jsonDecode(
+          val visible = locator.href == readiumView.currentLocator?.href && jsonDecode(
             readiumView.evaluateJavascript("window.epubPage.isLocatorVisible($args);") ?: "false"
           ) as Boolean
           result.success(visible)

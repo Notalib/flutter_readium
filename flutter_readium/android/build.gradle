@@ -45,9 +45,14 @@ android {
 
   sourceSets {
     main.java.srcDirs += 'src/main/kotlin'
+    main.res.srcDirs += 'src/main/res'
   }
   defaultConfig {
     minSdkVersion 24
+  }
+
+  buildFeatures {
+    viewBinding = true
   }
 }
 
