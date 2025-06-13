@@ -19,13 +19,15 @@ import kotlin.coroutines.suspendCoroutine
 private const val TAG = "EpubReaderFragment"
 
 @OptIn(ExperimentalReadiumApi::class)
-class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) : VisualReaderFragment(model), EpubNavigatorFragment.Listener,
+class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listener,
     EpubNavigatorFragment.PaginationListener {
 
     interface Listener {
         fun onPageLoaded()
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
     }
+
+    var listener: Listener? = null
 
     override lateinit var navigator: EpubNavigatorFragment
 
@@ -38,20 +40,24 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val readerData = model as? EpubReaderInitData ?: run {
+            Log.d(TAG, "::onCreate - restore")
             // We provide a dummy fragment factory  if the ReaderActivity is restored after the
             // app process was killed because the ReaderRepository is empty. In that case, finish
             // the activity as soon as possible and go back to the previous one.
+            // Note: this causes a restart of the app to the main activity.
             childFragmentManager.fragmentFactory = EpubNavigatorFragment.createDummyFactory()
             super.onCreate(savedInstanceState)
             requireActivity().finish()
             return
         }
 
+        Log.d(TAG, "::onCreate")
+
         // DFG: This will be relative to your app's src/main/assets/ folder.
         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
         val preferences = readerData.initialPreferences ?: EpubPreferences()
-        val navigatorFactory = model.navigatorFactory
+        val navigatorFactory = readerData.navigatorFactory
         editor = navigatorFactory.createPreferencesEditor(preferences)
         childFragmentManager.fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
@@ -60,7 +66,7 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
                     "flutter_assets/packages/flutter_readium/assets/.*",
                 )
             ),
-            initialLocator = model.initialLocation,
+            initialLocator = readerData.initialLocation,
             listener = this,
             paginationListener = this,
             initialPreferences = preferences,
@@ -77,6 +83,7 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
         val view = super.onCreateView(inflater, container, savedInstanceState)
 
         if (savedInstanceState == null) {
+            Log.d(TAG, "::onCreateView - add fragment");
             childFragmentManager.commitNow {
                 add(
                     R.id.fragment_reader_container,
@@ -85,10 +92,13 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
                     NAVIGATOR_FRAGMENT_TAG,
                 )
             }
+        } else {
+            Log.d(TAG, "::onCreateView - no add fragment");
         }
 
         navigator = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
 
+        // TODO: Do we risk multiple observers here?
         navigator.lifecycle.addObserver(fragmentObserver)
 
         return view!!
@@ -104,12 +114,12 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
             TAG,
             "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression}"
         )
-        listener.onPageChanged(pageIndex, totalPages, locator)
+        listener?.onPageChanged(pageIndex, totalPages, locator)
     }
 
     override fun onPageLoaded() {
         Log.d(TAG, "::onPageLoaded")
-        listener.onPageLoaded()
+        listener?.onPageLoaded()
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
@@ -128,18 +138,21 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
     }
 
     suspend fun setPreferences(preferences: EpubPreferences) {
+        Log.d(TAG, "::setPreferences")
+
         try {
-            editor?.apply {
-                fontFamily.set(preferences.fontFamily)
-                fontSize.set(preferences.fontSize)
-                fontWeight.set(preferences.fontWeight)
-                scroll.set(preferences.scroll)
-                backgroundColor.set(preferences.backgroundColor)
-                textColor.set(preferences.textColor)
-            }
-            suspendCoroutine {
-                editor?.let {
-                    navigator.submitPreferences(it.preferences)
+            editor?.let {
+                val e = it
+                it.apply {
+                    fontFamily.set(preferences.fontFamily)
+                    fontSize.set(preferences.fontSize)
+                    fontWeight.set(preferences.fontWeight)
+                    scroll.set(preferences.scroll)
+                    backgroundColor.set(preferences.backgroundColor)
+                    textColor.set(preferences.textColor)
+                }
+                suspendCoroutine {
+                    navigator.submitPreferences(e.preferences)
                 }
             }
         } catch (ex: Exception) {
@@ -149,6 +162,7 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
 
     suspend fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
+
         suspendCoroutine {
             if (navigator.goBackward(animated)) {
                 Log.d(TAG, "::goLeft: Went back.")
@@ -161,6 +175,7 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
     }
     internal suspend fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
+
         suspendCoroutine {
             if (navigator.goForward(animated)) {
                 Log.d(TAG, "::goRight: Went forward.")

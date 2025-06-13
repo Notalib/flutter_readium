@@ -222,10 +222,10 @@ internal class ReadiumReaderView(
     readiumView.evaluateJavascript("window.epubPage.setLocation($json, $isAudioBookWithText);")
   }
 
-  suspend fun applyDecorations(
+  fun applyDecorations(
     decorations: List<Decoration>,
-    group: String,
-    ) {
+    group: String
+  ) {
     CoroutineScope(Dispatchers.Main).launch {
       readiumView.applyDecorations(decorations, group)
     }
@@ -328,7 +328,6 @@ internal class ReadiumReaderView(
           result.notImplemented()
         }
       }
-      //Log.d(TAG, "::onMethodCall exit ${call.method}")
     }
   }
 }

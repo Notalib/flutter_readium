@@ -54,7 +54,9 @@ internal class EpubNavigatorView(
       "setPublication (title=${publication.metadata.title}, baseUrl=${publication.baseUrl})"
     )
 
-    navigator = EpubReaderFragment(EpubReaderInitData(publication, initialLocator, initialPreferences), this)
+    navigator = EpubReaderFragment()
+    navigator.model = EpubReaderInitData(publication, initialLocator, initialPreferences)
+    navigator.listener = this
     if (isAttachedToWindow) {
       attachFragment()
     }
@@ -62,7 +64,6 @@ internal class EpubNavigatorView(
 
   private fun attachFragment() {
     Log.d(TAG, "::attachFragment")
-    // navigator.lifecycle.addObserver(fragmentObserver)
 
     fragmentManager.beginTransaction().apply {
       add(id, navigator)
@@ -72,6 +73,7 @@ internal class EpubNavigatorView(
 
   private fun detachFragment() {
     Log.d(TAG, "::detachFragment")
+  
     // Causes this error with some delay, unsure whether it matters:
     // E/chromium(13736): [ERROR:aw_browser_terminator.cc(125)] Renderer process (13879) crash detected (code -1).
     // Does a fragment actually need detaching when the view containing it is removed? Afraid of leaking fragments.
@@ -83,7 +85,7 @@ internal class EpubNavigatorView(
         Log.e(TAG, "::detachFragment $e")
       }
     }
-    // navigator.lifecycle.removeObserver(fragmentObserver)
+    
     going?.resumeWith(unitResult)
     going = null
   }
@@ -91,7 +93,7 @@ internal class EpubNavigatorView(
   override fun onAttachedToWindow() {
     Log.d(TAG, "::onAttachedToWindow")
     super.onAttachedToWindow()
-     attachFragment()
+    attachFragment()
   }
 
   override fun onDetachedFromWindow() {
