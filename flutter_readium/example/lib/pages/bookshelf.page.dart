@@ -19,6 +19,7 @@ class BookshelfPage extends StatefulWidget {
 
 class BookshelfPageState extends State<BookshelfPage> {
   final _flutterReadiumPlugin = FlutterReadium();
+  final ScrollController _scrollController = ScrollController();
   List<Publication> _testPublications = [];
   bool _isLoading = true;
   // Pubs loaded from assets folder should not be delete-able as they would just be re-added on restart
@@ -74,6 +75,12 @@ class BookshelfPageState extends State<BookshelfPage> {
   }
 
   @override
+  void dispose() {
+    _scrollController.dispose(); // <-- Dispose the controller
+    super.dispose();
+  }
+
+  @override
   Widget build(final BuildContext context) => Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.deepPurple[200],
@@ -86,9 +93,11 @@ class BookshelfPageState extends State<BookshelfPage> {
                   children: [
                     Expanded(
                       child: CupertinoScrollbar(
+                        controller: _scrollController,
                         thickness: 5.0,
                         thumbVisibility: true,
                         child: ListView.builder(
+                          controller: _scrollController,
                           itemCount: _testPublications.length,
                           itemBuilder: (final context, final index) {
                             final publication = _testPublications[index];
