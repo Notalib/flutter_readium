@@ -5,7 +5,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
+import androidx.fragment.app.commitNow
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -74,25 +74,24 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
-        val rootView = LinearLayout(requireContext())
+        val view = super.onCreateView(inflater, container, savedInstanceState)
 
         if (savedInstanceState == null) {
-            navigator = childFragmentManager.fragmentFactory.instantiate(
-                requireActivity().classLoader,
-                EpubNavigatorFragment::class.java.name,
-            ) as EpubNavigatorFragment
-
-            childFragmentManager.beginTransaction().apply {
-                add(navigator, EpubNavigatorFragment::class.java.name)
-                commit()
+            childFragmentManager.commitNow {
+                add(
+                    R.id.fragment_reader_container,
+                    EpubNavigatorFragment::class.java,
+                    Bundle(),
+                    NAVIGATOR_FRAGMENT_TAG,
+                )
             }
-        } else {
-            navigator = childFragmentManager.findFragmentByTag(EpubNavigatorFragment::class.java.name) as EpubNavigatorFragment
         }
+
+        navigator = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
 
         navigator.lifecycle.addObserver(fragmentObserver)
 
-        return rootView
+        return view!!
     }
 
     @ExperimentalReadiumApi
@@ -171,5 +170,9 @@ class EpubReaderFragment(model: ReaderInitData, private val listener: Listener) 
                 it.resume(Unit)
             }
         }
+    }
+
+    companion object {
+        private const val NAVIGATOR_FRAGMENT_TAG = "navigator"
     }
 }

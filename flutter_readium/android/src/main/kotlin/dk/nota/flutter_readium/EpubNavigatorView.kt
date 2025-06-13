@@ -53,8 +53,8 @@ internal class EpubNavigatorView(
       TAG,
       "setPublication (title=${publication.metadata.title}, baseUrl=${publication.baseUrl})"
     )
-    navigator = EpubReaderFragment(EpubReaderInitData(publication, initialLocator, initialPreferences), this)
 
+    navigator = EpubReaderFragment(EpubReaderInitData(publication, initialLocator, initialPreferences), this)
     if (isAttachedToWindow) {
       attachFragment()
     }
