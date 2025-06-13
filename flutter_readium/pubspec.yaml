@@ -1,5 +1,5 @@
 name: flutter_readium
-description: "Flutter plugin wrapping the Readium toolkit components for EPUB reading."
+description: 'Flutter plugin wrapping the Readium toolkit components for EPUB reading.'
 version: 0.0.1
 homepage: https://github.com/notalib/flutter_readium
 publish_to: none
@@ -28,6 +28,8 @@ dependencies:
     sdk: flutter
   flutter_readium_platform_interface:
     path: ../flutter_readium_platform_interface
+  flutter_readium_web:
+    path: ../flutter_readium_web
   js_interop: ^0.0.1
   rxdart:
   wakelock_plus: ^1.2.8
