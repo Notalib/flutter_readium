@@ -13,6 +13,7 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.AbsoluteUrl
 import kotlin.coroutines.Continuation
 
 private const val TAG = "EpubNavigatorView"
@@ -28,6 +29,7 @@ internal class EpubNavigatorView(
   interface Listener {
     fun onPageLoaded()
     fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+    fun onExternalLinkActivated(url: AbsoluteUrl);
   }
 
   private val navigator: EpubReaderFragment
@@ -138,6 +140,10 @@ internal class EpubNavigatorView(
 
     going?.resumeWith(unitResult)
     going = null
+  }
+
+  override fun onExternalLinkActivated(url: AbsoluteUrl) {
+    listener.onExternalLinkActivated(url)
   }
 
   internal suspend fun go(locator: Locator, animated: Boolean) {

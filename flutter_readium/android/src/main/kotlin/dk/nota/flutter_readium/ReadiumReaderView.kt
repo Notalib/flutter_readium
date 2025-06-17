@@ -20,6 +20,9 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.html.domRange
+import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.toUri
+import org.readium.r2.shared.util.toUrl
 
 private const val TAG = "ReadiumReaderView"
 
@@ -123,6 +126,10 @@ internal class ReadiumReaderView(
     CoroutineScope(Dispatchers.Main).launch { emitOnPageChanged(locator) }
   }
 
+  override fun onExternalLinkActivated(url: AbsoluteUrl) {
+    CoroutineScope(Dispatchers.Main).launch { emitOnExternalLinkActivated(url) }
+  }
+
   override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
     eventSink = events
   }
@@ -156,6 +163,11 @@ internal class ReadiumReaderView(
     catch(e: Exception) {
       Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed! $e")
     }
+  }
+
+  private fun emitOnExternalLinkActivated(url: AbsoluteUrl)
+  {
+    channel.onExternalLinkActivated(url)
   }
 
   private suspend fun getLocatorFragments(locator: Locator) : Locator? {

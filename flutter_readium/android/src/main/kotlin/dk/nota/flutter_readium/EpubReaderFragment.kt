@@ -25,6 +25,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     interface Listener {
         fun onPageLoaded()
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+        fun onExternalLinkActivated(url: AbsoluteUrl);
     }
 
     var listener: Listener? = null
@@ -106,7 +107,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     @ExperimentalReadiumApi
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
-        TODO("Not yet implemented")
+        listener?.onExternalLinkActivated(url)
     }
 
     override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
