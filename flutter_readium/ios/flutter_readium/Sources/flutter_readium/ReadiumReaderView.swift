@@ -91,7 +91,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       config: config,
       httpServer: sharedReadium.httpServer!
     )
-    
+
     if userScripts.isEmpty {
       initUserScripts(registrar: registrar)
     }
@@ -104,11 +104,19 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     let child: UIView = readiumViewController.view  // Must specify type `UIView`, or we end up with an `UIView?` instead…
     let view = _view
-    // Set view to match parent, otherwise it ends up bigger than the parent and overflowing.
-    // Somehow seems to work even after screen rotation, despite not being called again.
-    child.frame = view.bounds
-    print(TAG, "Fixed view bounds \(view.bounds)")
+
     view.addSubview(readiumViewController.view)
+
+    child.translatesAutoresizingMaskIntoConstraints = false
+
+    NSLayoutConstraint.activate(
+        [
+            child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            child.topAnchor.constraint(equalTo: view.topAnchor),
+            child.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ]
+    )
 
     setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
