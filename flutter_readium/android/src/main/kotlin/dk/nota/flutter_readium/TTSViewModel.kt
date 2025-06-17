@@ -39,7 +39,6 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 internal class TTSViewModel(
   private val appContext: Context,
   private val publication: Publication,
-  private val reader: ReadiumReaderView,
   private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
 ) {
   private val jobs = mutableListOf<Job>()
@@ -65,7 +64,7 @@ internal class TTSViewModel(
       }
     }
     CoroutineScope(Dispatchers.Main).async {
-      val firstVisibleLocator = this@TTSViewModel.reader.getFirstVisibleLocator()
+      val firstVisibleLocator = currentReadiumReaderView?.getFirstVisibleLocator()
 
       val ttsNavigator = factory.createNavigator(listener, firstVisibleLocator, preferences).getOrElse {
         Log.e(TAG, "ttsEnable: failed to create navigator: $it")
@@ -106,10 +105,14 @@ internal class TTSViewModel(
   }
 
   fun setPreferredVoice(voiceId: String, lang: String?) {
+    // Modify existing map of voice overrides, in case user sets multiple preferred voices.
+    val voices = this.preferences.voices?.toMutableMap() ?: mutableMapOf()
     // If no lang provided, assume client wants to override currently spoken language.
     val language = if (lang != null) Language(lang) else this.ttsNavigator?.settings?.value?.language
-    val voices = if (language != null) mapOf(language to AndroidTtsEngine.Voice.Id(voiceId)) else emptyMap()
-    this.updatePreferences(AndroidTtsPreferences(voices = voices))
+    if (language != null) {
+      voices[language] = AndroidTtsEngine.Voice.Id(voiceId)
+      this.updatePreferences(AndroidTtsPreferences(voices = voices))
+    }
   }
 
   val voices: Set<AndroidTtsEngine.Voice>
@@ -155,7 +158,7 @@ internal class TTSViewModel(
           )
         }
         CoroutineScope(Dispatchers.Main).launch {
-          this@TTSViewModel.reader.applyDecorations(decorations, group = "tts")
+          currentReadiumReaderView?.applyDecorations(decorations, group = "tts")
         }
       }
       .launchIn(CoroutineScope(Dispatchers.IO))
@@ -167,7 +170,7 @@ internal class TTSViewModel(
       .map { it.tokenLocator ?: it.utteranceLocator }
       .distinctUntilChanged()
       .onEach { locator ->
-        this@TTSViewModel.reader.justGoToLocator(locator, animated = true)
+        currentReadiumReaderView?.justGoToLocator(locator, animated = true)
       }
       .launchIn(CoroutineScope(Dispatchers.Main))
       .let { jobs.add(it) }

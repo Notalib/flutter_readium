@@ -47,7 +47,7 @@ extension ReadiumSyncMediaNarration on SyncMediaNarration {
   /// Returns begin duration from [audio].
   Duration? get audioBegin => audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[2]);
 
-  /// Returns end duration  from [audio].
+  /// Returns end duration from [audio].
   Duration? get audioEnd => audio == null ? null : _parseDurationDoubleNullable(_audioPattern.firstMatch(audio!)?[3]);
 
   bool contains(final Duration position) =>

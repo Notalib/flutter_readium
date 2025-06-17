@@ -42,7 +42,13 @@ class ReadiumReaderWidget extends StatefulWidget {
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
-  static const _maxRetryAwaitNativeViewReady = 100;
+
+  /// Duration per retry to wait for native view to be ready.
+  static const _awaitNativeViewReadyDuration = Duration(milliseconds: 20);
+
+  /// Maximum number of retries to check, if native view is ready.
+  static const _maxRetryAwaitNativeViewReady = 500;
+
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
 
@@ -376,20 +382,21 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     });
   }
 
-  Future<void> _awaitNativeViewReady([int retry = 0]) async {
-    // R2Log.d('attempt: $retry');
+  Future<void> _awaitNativeViewReady() async {
+    final nativeViewStartTime = DateTime.now();
+    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady; retry++) {
+      if (await _channel?.isReaderReady() == true) {
+        R2Log.d(
+            'Native view is ready! Time spent: ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
+        return;
+      }
 
-    if (retry >= _maxRetryAwaitNativeViewReady) {
-      R2Log.d('Max retry reached!');
-      return;
+      R2Log.d('Native reader not ready - retry:$retry');
+      await Future.delayed(_awaitNativeViewReadyDuration);
     }
 
-    if (await _channel?.isReaderReady() != true) {
-      // R2Log.d(() => 'Native reader not ready - retry');
-
-      await Future.delayed(const Duration(milliseconds: 100));
-      return _awaitNativeViewReady(++retry);
-    }
+    R2Log.d(
+        'Max retry reached! After ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier
