@@ -39,9 +39,16 @@ class ReadiumReaderWidget extends StatefulWidget {
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
 
-class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
+    implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
-  static const _maxRetryAwaitNativeViewReady = 100;
+
+  /// Duration per retry to wait for native view to be ready.
+  static const _awaitNativeViewReadyDuration = Duration(milliseconds: 20);
+
+  /// Maximum number of retries to check, if native view is ready.
+  static const _maxRetryAwaitNativeViewReady = 500;
+
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
 
@@ -176,7 +183,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Future<void> goLeft({final bool animated = true}) async => _channel?.goLeft();
 
   @override
-  Future<void> goRight({final bool animated = true}) async => _channel?.goRight();
+  Future<void> goRight({final bool animated = true}) async =>
+      _channel?.goRight();
 
   @override
   Future<void> skipToNext({final bool animated = true}) async {
@@ -199,7 +207,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       final newIndex = (curIndex + 1).clamp(0, toc.length - 1);
       Locator? nextChapter = widget.publication.locatorFromLink(toc[newIndex]);
       if (nextChapter != null) {
-        await _channel?.go(nextChapter, isAudioBookWithText: false, animated: true);
+        await _channel?.go(nextChapter,
+            isAudioBookWithText: false, animated: true);
       }
     }
   }
@@ -214,9 +223,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     int? curIndex = toc.indexWhere((l) => l.href == currentHref);
     if (curIndex > -1) {
       final newIndex = (curIndex - 1).clamp(0, toc.length - 1);
-      Locator? previousChapter = widget.publication.locatorFromLink(toc[newIndex]);
+      Locator? previousChapter =
+          widget.publication.locatorFromLink(toc[newIndex]);
       if (previousChapter != null) {
-        await _channel?.go(previousChapter, isAudioBookWithText: false, animated: true);
+        await _channel?.go(previousChapter,
+            isAudioBookWithText: false, animated: true);
       }
     }
   }
@@ -242,7 +253,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+  Future<void> applyDecorations(
+      String id, List<ReaderDecoration> decorations) async {
     await _channel?.applyDecorations(id, decorations);
   }
 
@@ -273,7 +285,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     final creationParams = <String, dynamic>{
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
-      'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
+      'initialLocator': widget.initialLocator == null
+          ? null
+          : json.encode(widget.initialLocator),
     };
 
     R2Log.d('creationParams=$creationParams');
@@ -286,16 +300,17 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           gestureRecognizers: const {},
           hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         ),
-        onCreatePlatformView: (final params) => PlatformViewsService.initSurfaceAndroidView(
+        onCreatePlatformView: (final params) =>
+            PlatformViewsService.initSurfaceAndroidView(
           id: params.id,
           viewType: _viewType,
           layoutDirection: TextDirection.ltr,
           creationParams: creationParams,
           creationParamsCodec: const StandardMessageCodec(),
         )
-          ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-          ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
-          ..create(),
+              ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+              ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
+              ..create(),
       );
     } else if (Platform.isIOS) {
       return UiKitView(
@@ -356,8 +371,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
     _awaitNativeViewReady().then((final _) {
       // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
-      final nativeLocatorStream =
-          _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
+      final nativeLocatorStream = _readium.onTextLocatorChanged
+          .debounceTime(const Duration(milliseconds: 50))
+          .asBroadcastStream()
+          .distinct();
 
       nativeLocatorStream.listen((locator) {
         R2Log.d('LocatorChanged - $locator');
@@ -365,20 +382,21 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     });
   }
 
-  Future<void> _awaitNativeViewReady([int retry = 0]) async {
-    R2Log.d('attempt: $retry');
+  Future<void> _awaitNativeViewReady() async {
+    final nativeViewStartTime = DateTime.now();
+    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady; retry++) {
+      if (await _channel?.isReaderReady() == true) {
+        R2Log.d(
+            'Native view is ready! Time spent: ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
+        return;
+      }
 
-    if (retry >= _maxRetryAwaitNativeViewReady) {
-      R2Log.d('Max retry reached!');
-      return;
+      R2Log.d('Native reader not ready - retry:$retry');
+      await Future.delayed(_awaitNativeViewReadyDuration);
     }
 
-    if (await _channel?.isReaderReady() != true) {
-      R2Log.d(() => 'Native reader not ready - retry');
-
-      await Future.delayed(const Duration(milliseconds: 100));
-      return _awaitNativeViewReady(++retry);
-    }
+    R2Log.d(
+        'Max retry reached! After ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier
@@ -388,14 +406,16 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     final txtLoc = locator.toTextLocator();
-    final tocFragment = locator.locations?.fragments?.firstWhereOrNull((f) => f.startsWith("toc="));
+    final tocFragment = locator.locations?.fragments
+        ?.firstWhereOrNull((f) => f.startsWith("toc="));
     if (tocFragment == null) {
       return null;
     }
     return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${tocFragment.substring(4)}';
   }
 
-  Future<void> _setLocation(final Locator locator, final bool isAudioBookWithText) async {
+  Future<void> _setLocation(
+      final Locator locator, final bool isAudioBookWithText) async {
     R2Log.d('Set highlight');
 
     // final playbackRate = FlutterReadium.state.playbackRate;
@@ -413,7 +433,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     // Make sure to copy fragment durations onto locators before sending over native channel.
-    final fragmentDurationInSec = (locations?.xFragmentDuration?.inSeconds ?? 0);
+    final fragmentDurationInSec =
+        (locations?.xFragmentDuration?.inSeconds ?? 0);
 
     _channel?.setLocation(
       locator.mapLocations(
@@ -442,12 +463,14 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       // trigger scrolling to the nearest page.
       if (_lastOrientation != null && _currentLocator != null) {
         Future.delayed(const Duration(milliseconds: 500)).then((final value) {
-          R2Log.d('Orientation changed. Re-navigating to current locator to re-align page.');
+          R2Log.d(
+              'Orientation changed. Re-navigating to current locator to re-align page.');
           R2Log.d('locator = $_currentLocator');
           _channel?.go(
             _currentLocator!,
             animated: false,
-            isAudioBookWithText: false, // TODO: isAudioBookWithText - we don't know atm.
+            isAudioBookWithText:
+                false, // TODO: isAudioBookWithText - we don't know atm.
           );
         });
       }
