@@ -43,6 +43,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   ReadiumReaderWidgetInterface? currentReaderWidget;
   EPUBPreferences? defaultPreferences;
 
+  Future<Publication> getPublication(String pubUrl) =>
+      throw UnimplementedError('getPublication(pubUrl) has not been implemented.');
+
   Future<Publication> openPublication(String pubUrl) =>
       throw UnimplementedError('openPublication(pubUrl) has not been implemented.');
 

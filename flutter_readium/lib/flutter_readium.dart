@@ -18,6 +18,10 @@ class FlutterReadium {
     return FlutterReadiumPlatform.instance;
   }
 
+  Future<Publication> getPublication(String pubUrl) {
+    return _platform.getPublication(pubUrl);
+  }
+
   Future<Publication> openPublication(String pubUrl) {
     return _platform.openPublication(pubUrl);
   }

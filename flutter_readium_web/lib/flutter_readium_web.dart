@@ -16,7 +16,7 @@ class FlutterReadiumWeb extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<Publication> openPublication(String pubUrl) async {
+  Future<Publication> getPublication(String pubUrl) async {
     Publication publication;
 
     try {
@@ -111,6 +111,17 @@ class FlutterReadiumWeb extends FlutterReadiumPlatform {
         }
         return item;
       }).toList();
+
+  @override
+  Future<Publication> openPublication(String pubUrl) async {
+    // TODO: This needs better handling
+    // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
+    // additionally the openPublication method does currently not return a publication object
+    R2Log.d(
+        'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.');
+    final publication = await getPublication(pubUrl);
+    return publication;
+  }
 
   @override
   Future<void> closePublication(String pubUrl) async {
