@@ -1,5 +1,5 @@
 name: flutter_readium_example
-description: "Demonstrates how to use the flutter_readium plugin."
+description: 'Demonstrates how to use the flutter_readium plugin.'
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
@@ -9,6 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  cupertino_icons: ^1.0.8
   file_picker:
   flutter_bloc:
   flutter_readium:
@@ -22,7 +23,6 @@ dependencies:
   native_device_orientation:
   path:
   path_provider:
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   integration_test:
