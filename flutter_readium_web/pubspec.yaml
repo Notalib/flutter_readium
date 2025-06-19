@@ -1,6 +1,9 @@
 name: flutter_readium_web
 description: Wrapper for Readium ts-toolkit
 version: 0.0.1
+homepage: https://github.com/notalib/flutter_readium
+repository: https://github.com/notalib/flutter_readium
+publish_to: none
 
 environment:
   sdk: '>=3.6.0 <4.0.0'
