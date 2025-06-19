@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 @JS('ReadiumReader')
 extension type ReadiumReader._(JSObject _) implements JSObject {
   external ReadiumReader();
-  external JSPromise openPublication(
-      JSString publicationURL, JSBoolean? isAudiobook, JSBoolean? hasText, JSString? initialPositionJson);
+  external JSPromise openPublication(JSString publicationURL, JSString pubId, JSBoolean? isAudiobook,
+      JSBoolean? hasText, JSString? initialPositionJson);
   external JSPromise getPublication(JSString link);
   external JSPromise goTo(JSString location);
   external void goLeft();
@@ -20,11 +20,11 @@ external set updateLocator(JSFunction f);
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
 
-  Future<void> openPublication(String publicationURL,
+  Future<void> openPublication(String publicationURL, String pubId,
       {bool? isAudiobook = false, bool? hasText = false, String? initialPositionJson}) async {
     try {
       await _readiumReader
-          .openPublication(publicationURL.toJS, isAudiobook?.toJS, hasText?.toJS, initialPositionJson?.toJS)
+          .openPublication(publicationURL.toJS, pubId.toJS, isAudiobook?.toJS, hasText?.toJS, initialPositionJson?.toJS)
           .toDart;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();

@@ -39,6 +39,11 @@ class _ReadiumReader {
   private _publication: Publication | undefined;
   private _nav: EpubNavigator | undefined;
 
+  private static _publications: Map<string, Publication> = new Map<
+    string,
+    Publication
+  >();
+
   private async fetchManifest(publicationURL: string) {
     const manifestLink = new Link({ href: 'manifest.json' });
     const fetcher: Fetcher = new HttpFetcher(undefined, publicationURL);
@@ -57,6 +62,9 @@ class _ReadiumReader {
     try {
       const { manifest, fetcher } = await this.fetchManifest(publicationURL);
       this._publication = new Publication({ manifest, fetcher });
+
+      let pubId = this._publication.metadata.identifier ?? 'unidentified';
+      _ReadiumReader._publications.set(pubId, this._publication);
 
       return JSON.stringify(this._publication);
     } catch (error) {
@@ -212,6 +220,7 @@ class _ReadiumReader {
 
   public async openPublication(
     publicationURL: string,
+    pubId: string,
     isAudiobook: boolean = false,
     hasText: boolean = false,
     initialPositionJson: string | undefined,
@@ -242,10 +251,13 @@ class _ReadiumReader {
     };
 
     try {
-      if (this._publication == undefined) {
+      this._publication = _ReadiumReader._publications.get(pubId);
+      if (!this._publication) {
         const { manifest, fetcher } = await this.fetchManifest(publicationURL);
         this._publication = new Publication({ manifest, fetcher });
+        _ReadiumReader._publications.set(pubId, this._publication);
       }
+
       if (isAudiobook) {
         // Initialize WebAudioEngine for audiobooks
         // TODO: wip

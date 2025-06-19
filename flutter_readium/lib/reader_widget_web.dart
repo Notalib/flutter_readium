@@ -53,23 +53,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     // TODO: move initialPositionJsonString to flutter_readium_web when shared is implemented
     final initialLocator = widget.initialLocator ?? null;
     final initialPositionJsonString = initialLocator != null ? json.encode(widget.initialLocator) : null;
-    final publicationUrl = widget.publication.links
-        .firstWhereOrNull(
-          (final link) => link.href.contains('manifest.json'),
-        )
-        ?.href;
-    if (publicationUrl == null) {
-      return Center(
-        child: Text('Publication URL not found.'),
-      );
-    }
 
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 1500),
         child: SizedBox.expand(
           child: ReadiumWebView(
-            publicationURL: publicationUrl,
+            publication: widget.publication,
             currentLocatorString: initialPositionJsonString,
           ),
         ),

@@ -11,11 +11,11 @@ import 'dart:js_interop' as js_interop;
 class ReadiumWebView extends StatefulWidget {
   const ReadiumWebView({
     super.key,
-    required this.publicationURL,
+    required this.publication,
     this.currentLocatorString,
   });
 
-  final String publicationURL;
+  final Publication publication;
   final String? currentLocatorString;
 
   @override
@@ -43,8 +43,18 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {
     try {
+      final publicationUrl = widget.publication.links
+          .firstWhereOrNull(
+            (final link) => link.href.contains('manifest.json'),
+          )
+          ?.href;
+      if (publicationUrl == null) {
+        throw Exception('Publication URL not found in publication links');
+      }
+
+      final pubId = widget.publication.identifier;
       await JsPublicationChannel()
-          .openPublication(widget.publicationURL, initialPositionJson: widget.currentLocatorString);
+          .openPublication(publicationUrl, pubId, initialPositionJson: widget.currentLocatorString);
       updateLocator = onLocatorUpdate.toJS;
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails
