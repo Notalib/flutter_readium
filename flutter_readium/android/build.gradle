@@ -11,7 +11,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:7.4.2'
+    classpath 'com.android.tools.build:gradle:8.10.1'
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
@@ -40,7 +40,7 @@ android {
     jvmTarget = '18'
   }
 
-  compileSdkVersion 35
+  compileSdk 35
   ndkVersion = "26.3.11579264"
 
   sourceSets {
@@ -74,6 +74,6 @@ dependencies {
   // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-navigator:$readium_version"
   //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
 
-  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1'
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 }
