@@ -26,11 +26,13 @@ class ReadiumReaderChannel extends MethodChannel {
   ReadiumReaderChannel(
     super.name, {
     required this.onPageChanged,
+    this.onExternalLinkActivated,
   }) {
     setMethodCallHandler(onMethodCall);
   }
 
   final void Function(Locator) onPageChanged;
+  void Function(String)? onExternalLinkActivated;
 
   Future<void> go(
     final Locator locator, {
@@ -166,7 +168,7 @@ class ReadiumReaderChannel extends MethodChannel {
         case 'onExternalLinkActivated':
           final link = call.arguments as String;
           R2Log.d('onExternalLinkActivated $link');
-          // TODO: Handle external link activations?
+          onExternalLinkActivated?.call(link);
 
           return null;
         default:
