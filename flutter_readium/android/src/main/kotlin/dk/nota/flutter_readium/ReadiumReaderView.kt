@@ -45,9 +45,7 @@ internal class ReadiumReaderView(
   private var userPreferences = EpubPreferences()
   private var initialLocations: Locator.Locations?
 
-  // Create a CoroutineScope using the Main (UI) dispatcher
-  // TODO: What was/is this used for?
-  private var scope = CoroutineScope(Dispatchers.Main)
+  val currentPublicationIdentifier: String
 
   override fun getView(): View {
     //Log.d(TAG, "::getView")
@@ -87,6 +85,7 @@ internal class ReadiumReaderView(
     val initialPreferences =
       if (initPrefsMap == null) null else epubPreferencesFromMap(initPrefsMap, null)
     Log.d(TAG, "publication = $publication")
+    currentPublicationIdentifier = pubIdentifier
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
     readiumView = EpubNavigatorView(context, publication, initialLocator, initialPreferences, this)
@@ -329,6 +328,7 @@ internal class ReadiumReaderView(
         }
         "dispose" -> {
           readiumView.removeAllViews()
+          currentReadiumReaderView = null
           initialLocations = null
           eventSink = null
           eventChannel.setStreamHandler(null)

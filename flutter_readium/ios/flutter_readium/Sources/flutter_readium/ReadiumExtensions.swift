@@ -8,16 +8,16 @@ func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
     return min(max(value, minValue), maxValue)
 }
 
-extension Resource {
-  var propertiesSync: ResourceProperties {
-    let semaphore = DispatchSemaphore(value: 0)
-    var props: ResourceProperties? = nil
-    Task {
-      props = await properties().getOrNil()
-      semaphore.signal()
+extension Link {
+  init(fromJsonString jsonString: String) throws {
+    do {
+      let jsonObj = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!)
+      try self.init(json: jsonObj)
+    } catch {
+        print("Invalid Link object: \(error)")
+        throw JSONError.parsing(Self.self)
     }
-    semaphore.wait()
-    return props ?? ResourceProperties()
+    
   }
 }
 

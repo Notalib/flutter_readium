@@ -166,6 +166,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     case .stopped:
       playingUtterance = nil
       print(TAG, "tts stopped")
+      updateDecorations(uttLocator: nil, rangeLocator: nil)
       clearNowPlaying()
     }
   }

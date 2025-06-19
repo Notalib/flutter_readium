@@ -2,6 +2,11 @@ import Flutter
 
 class EventStreamHandler: NSObject, FlutterStreamHandler {
 
+  private let TAG: String
+  private let streamName: String
+  private var channel: FlutterEventChannel
+  private var eventSink: FlutterEventSink?
+
   public func sendEvent(_ event: Any?) {
     print(TAG, "sendEvent")
     eventSink?(event)
@@ -19,12 +24,20 @@ class EventStreamHandler: NSObject, FlutterStreamHandler {
     return nil
   }
 
-  var eventSink: FlutterEventSink?
-  var streamName: String
-  let TAG: String
+  func dispose() {
+    print(TAG, "dispose")
+    // End stream and clear the event-sink to prevent memory leaks.
+    eventSink?(FlutterEndOfEventStream)
+    eventSink = nil
+    channel.setStreamHandler(nil)
+  }
 
-  init(streamName: String) {
+  init(withName streamName: String, messenger: FlutterBinaryMessenger) {
     self.streamName = streamName
-    self.TAG = "EventStreamHandler[\(streamName)]"
+    TAG = "EventStreamHandler[\(streamName)]"
+    channel = FlutterEventChannel(name: "dk.nota.flutter_readium/\(streamName)", binaryMessenger: messenger)
+    super.init()
+
+    channel.setStreamHandler(self)
   }
 }

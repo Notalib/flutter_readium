@@ -21,17 +21,16 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
 
-  
+
   /// TTS related variables
   /// TODO: Refactor into a TTSViewModel?
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
-  
-  internal static var audioLocatorChannel: FlutterEventChannel?
+
   internal var audioLocatorStreamHandler: EventStreamHandler?
-  
+
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
 
@@ -43,20 +42,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
-    
-    audioLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/audio-locator", binaryMessenger: registrar.messenger())
+    instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
     registrar.register(factory, withId: readiumReaderViewType)
 
     self.registrar = registrar
-  }
-
-  public override init() {
-    super.init()
-    audioLocatorStreamHandler = EventStreamHandler(streamName: "audio-locator")
-    FlutterReadiumPlugin.audioLocatorChannel?.setStreamHandler(audioLocatorStreamHandler)
   }
 
   public func log(_ warning: Warning) {
@@ -74,6 +66,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       self.synthesizer?.stop()
       self.synthesizer = nil
+      self.audioLocatorStreamHandler?.dispose()
+      self.audioLocatorStreamHandler = nil
       result(nil)
     case "closePublication":
       let pubId = call.arguments as! String
@@ -126,6 +120,45 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
         }
       }
+    case "getLinkContent":
+      let args = call.arguments as! [Any?]
+      //let asString = args[2] as? Bool ?? true
+      let asString = true
+      guard let pubId = args[0] as? String,
+            let linkStr = args[1] as? String,
+            let publication = getPublicationByIdentifier(pubId),
+            let link = try? Link(fromJsonString: linkStr) else {
+        return result(FlutterError.init(
+          code: "getLinkContent",
+          message: "Failed to get link content",
+          details: nil))
+      }
+      Task.detached(priority: .background) {
+        let resource = publication.get(link)
+        do {
+          if (asString) {
+            let linkContent = try await resource?.readAsString(encoding: .utf8).get()
+            await MainActor.run {
+              result(linkContent)
+            }
+          } else {
+            let data = try await resource!.read().get()
+            await MainActor.run {
+              result(FlutterStandardTypedData(bytes: data))
+            }
+          }
+        } catch let err {
+          await MainActor.run {
+            print("\(TAG).getLinkContent exception: \(err)")
+            result(
+              FlutterError.init(
+                code: "getLinkContent",
+                message: err.localizedDescription,
+                details: "Something went wrong fetching link content."))
+          }
+        }
+      }
+      
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
@@ -182,7 +215,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let availableVocies = self.ttsGetAvailableVoices()
       result(availableVocies.map { $0.jsonString } )
     case "ttsSetVoice":
-      let voiceIdentifier = call.arguments as! String
+      let args = call.arguments as! [Any?]
+      let voiceIdentifier = args[0] as! String
+      // TODO: language might be supplied as args[1], ignored on iOS for now.
       do {
         try self.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
