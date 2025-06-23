@@ -7,7 +7,7 @@ import {
   EpubNavigator,
 } from '@readium/navigator';
 
-export function setPreferencesFromString(
+export function initializePreferencesFromString(
   preferencesString: string
 ): IEpubPreferences {
   const prefs = JSON.parse(preferencesString);
@@ -83,7 +83,7 @@ export const defaults: IEpubDefaults = {
   textAlign: TextAlignment.justify,
   textColor: null,
   textNormalization: true,
-  theme: Theme.day,
+  theme: Theme.custom,
   visitedColor: '#551a8b',
   wordSpacing: 0,
 };
@@ -95,10 +95,8 @@ function _themeFromJson(themeString: string): Theme {
     case 'night':
       return Theme.night;
     case 'custom':
-      return Theme.custom;
-    case 'day':
     default:
-      return Theme.day;
+      return Theme.custom;
   }
 }
 
@@ -117,7 +115,7 @@ function _textAlignFromJson(textAlignString: string): TextAlignment {
   }
 }
 
-export function updatePreferences(
+export function setPreferencesFromString(
   newPreferencesString: string,
   nav: EpubNavigator
 ) {

@@ -27,8 +27,8 @@ import '@material/web/all';
 import Peripherals from './peripherals';
 import {
   defaults,
+  initializePreferencesFromString,
   setPreferencesFromString,
-  updatePreferences,
 } from './preferences';
 
 class _ReadiumReader {
@@ -38,6 +38,10 @@ class _ReadiumReader {
 
   private _publication: Publication | undefined;
   private _nav: EpubNavigator | undefined;
+
+  public get isNavigatorReady(): boolean {
+    return !!this._nav;
+  }
 
   private static _publications: Map<string, Publication> = new Map<
     string,
@@ -241,9 +245,9 @@ class _ReadiumReader {
     }
 
     let preferencesJsonString =
-      preferencesJson !== undefined ? JSON.stringify(preferencesJson) : '{}';
+      !preferencesJson || preferencesJson === 'null' ? '{}' : preferencesJson;
 
-    let preferences = setPreferencesFromString(preferencesJsonString);
+    let preferences = initializePreferencesFromString(preferencesJsonString);
 
     const configuration: EpubNavigatorConfiguration = {
       preferences,
@@ -286,11 +290,11 @@ class _ReadiumReader {
     }
   }
 
-  public updatePreferences(newPreferencesString: string) {
+  public setEPUBPreferences(newPreferencesString: string) {
     if (!this._nav) {
       throw new Error('Navigator is not initialized');
     }
-    updatePreferences(newPreferencesString, this._nav);
+    setPreferencesFromString(newPreferencesString, this._nav);
   }
 
   public closePublication() {
