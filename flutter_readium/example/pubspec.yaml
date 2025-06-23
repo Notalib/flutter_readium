@@ -37,4 +37,4 @@ flutter:
   disable-swift-package-manager: true
   assets:
     - assets/pubs/
-      - assets/webManifestList.json
+    - assets/webManifestList.json
