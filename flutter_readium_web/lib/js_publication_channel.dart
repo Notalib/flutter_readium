@@ -1,17 +1,20 @@
 import 'dart:js_interop';
 import 'package:flutter/services.dart';
+import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 @JS('ReadiumReader')
 extension type ReadiumReader._(JSObject _) implements JSObject {
   external ReadiumReader();
   external JSPromise openPublication(JSString publicationURL, JSString pubId, JSBoolean? isAudiobook,
-      JSBoolean? hasText, JSString? initialPositionJson);
+      JSBoolean? hasText, JSString? initialPositionJson, JSString preferencesJson);
   external JSPromise getPublication(JSString link);
   external JSPromise goTo(JSString location);
   external void goLeft();
   external void goRight();
   external void closePublication();
   external JSPromise getResource(JSString linkString, JSBoolean? asBytes);
+  external void setEPUBPreferences(JSString newPreferencesString);
+  external JSBoolean get isNavigatorReady;
 }
 
 @JS()
@@ -20,11 +23,16 @@ external set updateLocator(JSFunction f);
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
 
-  Future<void> openPublication(String publicationURL, String pubId,
-      {bool? isAudiobook = false, bool? hasText = false, String? initialPositionJson}) async {
+  Future<void> openPublication(String publicationURL,
+      {required String pubId,
+      required String initialPreferences,
+      bool? isAudiobook = false,
+      bool? hasText = false,
+      String? initialPositionJson}) async {
     try {
       await _readiumReader
-          .openPublication(publicationURL.toJS, pubId.toJS, isAudiobook?.toJS, hasText?.toJS, initialPositionJson?.toJS)
+          .openPublication(publicationURL.toJS, pubId.toJS, isAudiobook?.toJS, hasText?.toJS, initialPositionJson?.toJS,
+              initialPreferences.toJS)
           .toDart;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();
@@ -118,6 +126,28 @@ class JsPublicationChannel {
       final resourceJS = _readiumReader.getResource(link.toJS, asBytes?.toJS);
       var resourceString = await resourceJS.toDart as String;
       return resourceString;
+    } on Object catch (jsError, stackTrace) {
+      String errorString = jsError.toString();
+      int? statusCode = _extractStatusCode(errorString);
+      String nativeCode = _convertToNativeCode(statusCode);
+
+      throw PlatformException(
+        code: nativeCode,
+        message: errorString,
+        details: statusCode,
+        stacktrace: stackTrace.toString(),
+      );
+    }
+  }
+
+  Future<void> setEPUBPreferences(String newPreferencesString) async {
+    try {
+      final isReady = _readiumReader.isNavigatorReady.toDart;
+      if (isReady) {
+        _readiumReader.setEPUBPreferences(newPreferencesString.toJS);
+      } else {
+        R2Log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
+      }
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();
       int? statusCode = _extractStatusCode(errorString);

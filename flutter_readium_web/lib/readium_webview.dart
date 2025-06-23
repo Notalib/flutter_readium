@@ -30,6 +30,12 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     super.initState();
   }
 
+  final _readium = FlutterReadiumPlatform.instance;
+
+  EPUBPreferences? get _defaultPreferences {
+    return _readium.defaultPreferences;
+  }
+
   @js_interop.JSExport()
   void onLocatorUpdate(final String locatorJsonString) {
     final locatorJson = jsonDecode(locatorJsonString);
@@ -53,8 +59,9 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
       }
 
       final pubId = widget.publication.identifier;
-      await JsPublicationChannel()
-          .openPublication(publicationUrl, pubId, initialPositionJson: widget.currentLocatorString);
+      final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
+      await JsPublicationChannel().openPublication(publicationUrl,
+          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: widget.currentLocatorString);
       updateLocator = onLocatorUpdate.toJS;
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails

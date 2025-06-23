@@ -167,7 +167,7 @@ class FlutterReadiumWeb extends FlutterReadiumPlatform {
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    R2Log.d('setEPUBPreferences not implemented in web version');
+    JsPublicationChannel().setEPUBPreferences(json.encode(preferences.toJson()));
   }
 
   @override
