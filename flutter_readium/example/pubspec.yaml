@@ -23,6 +23,7 @@ dependencies:
   native_device_orientation:
   path:
   path_provider:
+  pointer_interceptor:
 
 dev_dependencies:
   integration_test:
@@ -36,3 +37,4 @@ flutter:
   disable-swift-package-manager: true
   assets:
     - assets/pubs/
+      - assets/webManifestList.json

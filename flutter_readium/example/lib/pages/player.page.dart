@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../state/index.dart';
 import '../widgets/index.dart';
@@ -20,9 +21,7 @@ class _PlayerPageState extends State<PlayerPage> {
             title: Semantics(
               header: true,
               child: Text(
-                pubState.error != null
-                    ? 'Error'
-                    : pubState.publication?.metadata.title.values.first ?? 'Unknown',
+                pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
               ),
             ),
             actions: _buildActionButtons(context),
@@ -66,7 +65,7 @@ class _PlayerPageState extends State<PlayerPage> {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              builder: (final context) => const TextSettingsWidget(),
+              builder: (final context) => PointerInterceptor(child: const TextSettingsWidget()),
             );
           },
           tooltip: 'Open text style settings',
