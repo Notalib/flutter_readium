@@ -13,7 +13,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 import java.io.File
 import java.io.IOException
 
-private const val TAG = "FlutterReadiumPlugin";
+private const val TAG = "FlutterReadiumPlugin"
 
 class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
   /// The MethodChannel that will the communication between Flutter and native Android

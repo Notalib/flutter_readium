@@ -7,22 +7,47 @@
 package dk.nota.flutter_readium
 
 import android.content.Context
+import android.util.Log
+import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.content.DefaultContentService
+import org.readium.r2.shared.publication.services.content.contentServiceFactory
+import org.readium.r2.shared.publication.services.content.iterators.HtmlResourceContentIterator
+import org.readium.r2.shared.publication.services.search.StringSearchService
+import org.readium.r2.shared.publication.services.search.searchServiceFactory
+import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.ThrowableError
+import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
+import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
+import org.readium.r2.shared.util.resource.Resource
+import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.streamer.PublicationOpener
+import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 
 private const val TAG = "ReadiumHelper"
 
+// Collection of publications init to empty
+private var publications = mutableMapOf<String, Publication>()
+
 /**
  * Holds the shared Readium objects and services used by the app.
  */
-class Readium(context: Context) {
-
+@OptIn(ExperimentalReadiumApi::class)
+class Readium(private val context: Context) {
   private val httpClient =
     DefaultHttpClient()
 
-  val assetRetriever =
+  private val assetRetriever =
     AssetRetriever(context.contentResolver, httpClient)
 
   /**
@@ -45,7 +70,7 @@ class Readium(context: Context) {
   /**
    * The PublicationFactory is used to open publications.
    */
-  val publicationOpener = PublicationOpener(
+  private val publicationOpener = PublicationOpener(
     publicationParser = DefaultPublicationParser(
       context,
       assetRetriever = assetRetriever,
@@ -65,4 +90,65 @@ class Readium(context: Context) {
       //lcpDialogAuthentication.onParentViewDetachedFromWindow()
   }
   */
+
+  fun publicationFromIdentifier(identifier: String): Publication? {
+    return publications[identifier]
+  }
+
+  private suspend fun assetToPublication(
+    asset: Asset
+  ): Try<Publication, OpenError> {
+    return withContext(Dispatchers.IO) {
+      val publication: Publication =
+        publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
+          container = TransformingContainer(container) { _: Url, resource: Resource ->
+            resource.injectScriptsAndStyles()
+          }
+          // TODO: Temporary fix for missing service factories for WebPubs with HTML content.
+          servicesBuilder.contentServiceFactory = DefaultContentService.createFactory(
+            resourceContentIteratorFactories = listOf(
+              HtmlResourceContentIterator.Factory()
+            )
+          )
+          servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
+        })
+          .getOrElse { err: OpenError ->
+            Log.e(TAG, "Error opening publication: $err")
+            asset.close()
+            return@withContext Try.failure(err)
+          }
+      Log.d(TAG, "Open publication success: $publication")
+      return@withContext Try.success(publication)
+    }
+  }
+
+  suspend fun openPublication(
+    pubUrl: AbsoluteUrl
+  ): Try<Publication, PublicationError> {
+    try {
+      // TODO: should client provide mediaType to assetRetriever?
+      val asset: Asset = assetRetriever.retrieve(pubUrl)
+        .getOrElse { error: AssetRetriever.RetrieveUrlError ->
+          Log.e(TAG, "Error retrieving asset: $error")
+          return Try.failure(PublicationError.invoke(error))
+        }
+      val pub = assetToPublication(asset).getOrElse { e ->
+        Log.e(TAG, "Error loading asset to Publication object")
+        return Try.failure(PublicationError.invoke(e))
+      }
+      Log.d(TAG, "Opened publication = ${pub.metadata.identifier}")
+      publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
+      // Manifest must now be manually turned into JSON
+      val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
+      return Try.success(pub)
+    } catch (e: Throwable) {
+      return Try.failure(PublicationError.Unexpected(ThrowableError(e)))
+    }
+  }
+
+  fun closePublication(pubIdentifier: String)
+  {
+    publications[pubIdentifier]?.close()
+    publications.remove(pubIdentifier)
+  }
 }

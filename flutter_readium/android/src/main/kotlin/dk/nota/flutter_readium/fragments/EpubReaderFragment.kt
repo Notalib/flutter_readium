@@ -44,7 +44,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val readerData = model as? EpubReaderInitData ?: run {
-            Log.d(TAG, "::onCreate - restore")
+            Log.d(TAG, "::onCreate - restore: readium")
             // We provide a dummy fragment factory  if the ReaderActivity is restored after the
             // app process was killed because the ReaderRepository is empty. In that case, finish
             // the activity as soon as possible and go back to the previous one.

@@ -35,6 +35,7 @@ internal class ReadiumReaderView(
 ) : PlatformView, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, EpubNavigatorView.Listener {
 
   private val channel: ReadiumReaderChannel
+  private val readium = Readium(context)
   private val eventChannel: EventChannel
   private var eventSink: EventChannel.EventSink? = null
   private val readiumView: EpubNavigatorView
@@ -74,7 +75,7 @@ internal class ReadiumReaderView(
     @Suppress("UNCHECKED_CAST")
     val initPrefsMap = creationParams["preferences"] as Map<String, String>?
     val pubIdentifier = creationParams["pubIdentifier"] as String
-    val publication = publicationFromIdentifier(pubIdentifier)!!
+    val publication = readium.  publicationFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
     val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
     val initialLocator =
