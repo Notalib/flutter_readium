@@ -43,7 +43,6 @@ private fun parseMediaType(mediaType: Any?): MediaType? {
   return MediaType(list[0]!!)
 }
 
-@OptIn(ExperimentalReadiumApi::class)
 internal class PublicationMethodCallHandler(private val context: Context) :
   MethodChannel.MethodCallHandler {
 

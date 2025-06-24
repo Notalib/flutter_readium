@@ -38,6 +38,7 @@ private const val TAG = "ReadiumHelper"
 
 // Collection of publications init to empty
 private var publications = mutableMapOf<String, Publication>()
+private var publicationUrls = mutableMapOf<String, String>()
 
 /**
  * Holds the shared Readium objects and services used by the app.
@@ -47,8 +48,9 @@ class Readium(private val context: Context) {
   private val httpClient =
     DefaultHttpClient()
 
-  private val assetRetriever =
+  private val assetRetriever by lazy {
     AssetRetriever(context.contentResolver, httpClient)
+  }
 
   /**
    * The LCP service decrypts LCP-protected publication and acquire publications from a
@@ -62,24 +64,28 @@ class Readium(private val context: Context) {
 
 //     private val lcpDialogAuthentication = LcpDialogAuthentication()
 
-  private val contentProtections = listOfNotNull(
-    null,
-    //lcpService.getOrNull()?.contentProtection(lcpDialogAuthentication)
-  )
+  private val contentProtections by lazy {
+    listOfNotNull(
+      null,
+      //lcpService.getOrNull()?.contentProtection(lcpDialogAuthentication)
+    )
+  }
 
   /**
    * The PublicationFactory is used to open publications.
    */
-  private val publicationOpener = PublicationOpener(
-    publicationParser = DefaultPublicationParser(
-      context,
-      assetRetriever = assetRetriever,
-      httpClient = httpClient,
-      // Only required if you want to support PDF files using the PDFium adapter.
-      pdfFactory = null, //PdfiumDocumentFactory(context)
-    ),
-    contentProtections = contentProtections,
-  )
+  private val publicationOpener by lazy {
+    PublicationOpener(
+      publicationParser = DefaultPublicationParser(
+        context,
+        assetRetriever = assetRetriever,
+        httpClient = httpClient,
+        // Only required if you want to support PDF files using the PDFium adapter.
+        pdfFactory = null, //PdfiumDocumentFactory(context)
+      ),
+      contentProtections = contentProtections,
+    )
+  }
 
   /*
   fun onLcpDialogAuthenticationParentAttached(view: View) {
@@ -93,6 +99,10 @@ class Readium(private val context: Context) {
 
   fun publicationFromIdentifier(identifier: String): Publication? {
     return publications[identifier]
+  }
+
+  fun publicationUrlFromIdentifier(identifier: String): String?{
+    return publicationUrls[identifier]
   }
 
   private suspend fun assetToPublication(
@@ -129,17 +139,16 @@ class Readium(private val context: Context) {
       // TODO: should client provide mediaType to assetRetriever?
       val asset: Asset = assetRetriever.retrieve(pubUrl)
         .getOrElse { error: AssetRetriever.RetrieveUrlError ->
-          Log.e(TAG, "Error retrieving asset: $error")
+          Log.e(TAG, "Error retrieving asset: $error from url:$pubUrl")
           return Try.failure(PublicationError.invoke(error))
         }
-      val pub = assetToPublication(asset).getOrElse { e ->
-        Log.e(TAG, "Error loading asset to Publication object")
-        return Try.failure(PublicationError.invoke(e))
+      val pub = assetToPublication(asset).getOrElse { error: OpenError ->
+        Log.e(TAG, "Error loading asset to Publication object: $error from url:$pubUrl")
+        return Try.failure(PublicationError.invoke(error))
       }
-      Log.d(TAG, "Opened publication = ${pub.metadata.identifier}")
+      Log.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
       publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
-      // Manifest must now be manually turned into JSON
-      val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
+      publicationUrls[pub.metadata.identifier ?: pubUrl.toString()] = pubUrl.toString()
       return Try.success(pub)
     } catch (e: Throwable) {
       return Try.failure(PublicationError.Unexpected(ThrowableError(e)))

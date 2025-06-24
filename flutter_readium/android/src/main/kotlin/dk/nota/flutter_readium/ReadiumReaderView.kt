@@ -86,7 +86,7 @@ internal class ReadiumReaderView(
     currentPublicationIdentifier = pubIdentifier
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
-    readiumView = EpubNavigatorView(context, publication, initialLocator, initialPreferences, this)
+    readiumView = EpubNavigatorView(context, pubIdentifier, publication, initialLocator, initialPreferences, this)
     readiumView.setBackgroundColor(Color.TRANSPARENT)
     readiumView.setPadding(0, 0, 0, 0)
 
@@ -341,9 +341,6 @@ internal class ReadiumReaderView(
     }
   }
 }
-
-private const val isLoading = 1
-private const val isScrolling = 2
 
 private fun canScroll(locations: Locator.Locations) =
   locations.domRange != null || locations.cssSelector != null || locations.progression != null

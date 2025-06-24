@@ -9,7 +9,7 @@ import android.util.Log
 import android.widget.LinearLayout
 import androidx.fragment.app.FragmentActivity
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
-import dk.nota.flutter_readium.models.EpubReaderInitData
+import dk.nota.flutter_readium.models.EpubReaderViewModel
 import kotlinx.coroutines.flow.first
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -23,6 +23,7 @@ private const val TAG = "EpubNavigatorView"
 @SuppressLint("ViewConstructor")
 internal class EpubNavigatorView(
   context: Context,
+  pubIdentifier: String,
   publication: Publication,
   initialLocator: Locator?,
   initialPreferences: EpubPreferences?,
@@ -59,7 +60,15 @@ internal class EpubNavigatorView(
     )
 
     navigator = EpubReaderFragment()
-    navigator.model = EpubReaderInitData(publication, initialLocator, initialPreferences)
+    navigator.vm = EpubReaderViewModel().let()
+    {
+      it.identifier = publication.metadata.identifier
+      it.publication = publication
+      it.locator = initialLocator
+      it.preferences = initialPreferences
+
+      it
+    }
     navigator.listener = this
     if (isAttachedToWindow) {
       attachFragment()

@@ -24,6 +24,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onGoLeft,
     this.onGoRight,
     this.onSwipe,
+    this.onExternalLinkActivated,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final VoidCallback? onGoLeft;
   final VoidCallback? onGoRight;
   final VoidCallback? onSwipe;
+  final Function(String)? onExternalLinkActivated;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
