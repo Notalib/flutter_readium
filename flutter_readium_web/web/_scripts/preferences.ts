@@ -12,6 +12,8 @@ export function initializePreferencesFromString(
 ): IEpubPreferences {
   const prefs = JSON.parse(preferencesString);
 
+  convertVerticalScroll(prefs);
+
   if (prefs.theme != null) {
     prefs.theme = _themeFromJson(prefs.theme);
   }
@@ -59,6 +61,10 @@ export function initializePreferencesFromString(
     wordSpacing: prefs.wordSpacing ?? null,
   };
 
+  preferences = normalizeTypes(preferences);
+
+  console.log('Init preferences scroll state:', preferences.scroll);
+
   return preferences;
 }
 
@@ -77,7 +83,7 @@ export const defaults: IEpubDefaults = {
   lineHeight: 1.5,
   linkColor: '#0000ff',
   pageGutter: 10,
-  scroll: false,
+  // scroll: true, // default scroll mode is not getting overridden and if not set here it defaults to false
   selectionBackgroundColor: '#cccccc',
   selectionTextColor: '#000000',
   textAlign: TextAlignment.justify,
@@ -115,16 +121,59 @@ function _textAlignFromJson(textAlignString: string): TextAlignment {
   }
 }
 
+function convertVerticalScroll(prefs: any) {
+  if ('verticalScroll' in prefs) {
+    prefs.scroll = prefs.verticalScroll;
+    delete prefs.verticalScroll;
+  }
+}
+
+function normalizeTypes(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeTypes);
+  } else if (obj !== null && typeof obj === 'object') {
+    for (const key in obj) {
+      if (!obj.hasOwnProperty(key)) continue;
+      const value = obj[key];
+      if (typeof value === 'string') {
+        if (value === 'true') {
+          obj[key] = true;
+        } else if (value === 'false') {
+          obj[key] = false;
+        } else if (/^-?\d+(\.\d+)?$/.test(value)) {
+          // Only convert if the string is a pure number (int or float)
+          obj[key] = value.includes('.')
+            ? parseFloat(value)
+            : parseInt(value, 10);
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        obj[key] = normalizeTypes(value);
+      }
+    }
+  }
+  return obj;
+}
+
 export function setPreferencesFromString(
   newPreferencesString: string,
   nav: EpubNavigator
 ) {
   let newPreferences: EpubPreferences = JSON.parse(newPreferencesString);
+
+  convertVerticalScroll(newPreferences);
+
+  console.log('Setting new preferences:', newPreferences);
+
   if (newPreferences.theme != null) {
     newPreferences.theme = _themeFromJson(newPreferences.theme);
   }
   if (newPreferences.textAlign != null) {
     newPreferences.textAlign = _textAlignFromJson(newPreferences.textAlign);
   }
+
+  newPreferences = normalizeTypes(newPreferences);
+
+  console.log('New preferences scroll state:', newPreferences.scroll);
+
   nav.submitPreferences(newPreferences);
 }
