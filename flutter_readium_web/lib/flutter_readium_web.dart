@@ -167,6 +167,7 @@ class FlutterReadiumWeb extends FlutterReadiumPlatform {
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
+    defaultPreferences = preferences;
     JsPublicationChannel().setEPUBPreferences(json.encode(preferences.toJson()));
   }
 
