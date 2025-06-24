@@ -12,7 +12,6 @@ import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -21,8 +20,6 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.html.domRange
 import org.readium.r2.shared.util.AbsoluteUrl
-import org.readium.r2.shared.util.toUri
-import org.readium.r2.shared.util.toUrl
 
 private const val TAG = "ReadiumReaderView"
 

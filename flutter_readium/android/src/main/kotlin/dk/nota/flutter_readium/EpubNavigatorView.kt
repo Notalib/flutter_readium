@@ -8,6 +8,8 @@ import android.util.AttributeSet
 import android.util.Log
 import android.widget.LinearLayout
 import androidx.fragment.app.FragmentActivity
+import dk.nota.flutter_readium.fragments.EpubReaderFragment
+import dk.nota.flutter_readium.models.EpubReaderInitData
 import kotlinx.coroutines.flow.first
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -29,7 +31,7 @@ internal class EpubNavigatorView(
   interface Listener {
     fun onPageLoaded()
     fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
-    fun onExternalLinkActivated(url: AbsoluteUrl);
+    fun onExternalLinkActivated(url: AbsoluteUrl)
   }
 
   private val navigator: EpubReaderFragment

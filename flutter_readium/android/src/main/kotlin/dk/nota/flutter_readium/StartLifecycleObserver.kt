@@ -10,7 +10,8 @@ class StartLifecycleObserver(private val tag: String): DefaultLifecycleObserver 
 
   override fun onStart(owner: LifecycleOwner) {
     val firstRun = !started.value
-      Log.d(tag, "Fragment: onStart: First run? $firstRun")
+
+    Log.d(tag, "Fragment: onStart: First run? $firstRun")
     if (firstRun) {
       started.value = true
     }

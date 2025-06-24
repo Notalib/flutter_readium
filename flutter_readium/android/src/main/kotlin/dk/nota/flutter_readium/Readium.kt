@@ -7,11 +7,6 @@
 package dk.nota.flutter_readium
 
 import android.content.Context
-import org.readium.r2.shared.ExperimentalReadiumApi
-// import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
-// import org.readium.r2.lcp.LcpError
-// import org.readium.r2.lcp.LcpService
-// import org.readium.r2.lcp.auth.LcpDialogAuthentication
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.streamer.PublicationOpener
@@ -24,7 +19,7 @@ private const val TAG = "ReadiumHelper"
  */
 class Readium(context: Context) {
 
-  val httpClient =
+  private val httpClient =
     DefaultHttpClient()
 
   val assetRetriever =

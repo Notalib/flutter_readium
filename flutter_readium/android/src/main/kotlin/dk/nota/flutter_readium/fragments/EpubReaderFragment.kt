@@ -1,4 +1,4 @@
-package dk.nota.flutter_readium
+package dk.nota.flutter_readium.fragments
 
 import android.os.Bundle
 import android.util.Log
@@ -6,6 +6,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.commitNow
+import dk.nota.flutter_readium.R
+import dk.nota.flutter_readium.StartLifecycleObserver
+import dk.nota.flutter_readium.models.EpubReaderInitData
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -25,7 +28,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     interface Listener {
         fun onPageLoaded()
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
-        fun onExternalLinkActivated(url: AbsoluteUrl);
+        fun onExternalLinkActivated(url: AbsoluteUrl)
     }
 
     var listener: Listener? = null
@@ -48,6 +51,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             // Note: this causes a restart of the app to the main activity.
             childFragmentManager.fragmentFactory = EpubNavigatorFragment.createDummyFactory()
             super.onCreate(savedInstanceState)
+            Log.d(TAG, "activity $activity")
+            Log.d(TAG, "requireActivity ${requireActivity()}")
+            Log.d(TAG, "requireActivity == activity ${requireActivity() == activity}")
             requireActivity().finish()
             return
         }
@@ -84,7 +90,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         val view = super.onCreateView(inflater, container, savedInstanceState)
 
         if (savedInstanceState == null) {
-            Log.d(TAG, "::onCreateView - add fragment");
+            Log.d(TAG, "::onCreateView - add fragment")
             childFragmentManager.commitNow {
                 add(
                     R.id.fragment_reader_container,
@@ -94,7 +100,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 )
             }
         } else {
-            Log.d(TAG, "::onCreateView - no add fragment");
+            Log.d(TAG, "::onCreateView - no add fragment")
         }
 
         navigator = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment

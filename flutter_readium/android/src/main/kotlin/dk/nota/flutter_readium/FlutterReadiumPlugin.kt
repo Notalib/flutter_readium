@@ -13,11 +13,6 @@ import io.flutter.plugin.common.MethodChannel.Result
 import java.io.File
 import java.io.IOException
 
-
-//internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-
-internal var pluginAppContext: Context? = null
-
 private const val TAG = "FlutterReadiumPlugin";
 
 class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
@@ -32,8 +27,6 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPluginBinding) {
     Log.d(TAG, "onAttachedToEngine")
     val messenger = flutterPluginBinding.binaryMessenger
-
-    pluginAppContext = flutterPluginBinding.applicationContext
 
     // Register reader view factory
     flutterPluginBinding.platformViewRegistry.registerViewFactory(
@@ -98,5 +91,4 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
   override fun onDetachedFromActivity() {
     Log.d(TAG, "onDetachedFromActivity")
   }
-
 }

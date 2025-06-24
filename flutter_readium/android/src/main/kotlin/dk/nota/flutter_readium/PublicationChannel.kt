@@ -2,9 +2,9 @@
 
 package dk.nota.flutter_readium
 
-import android.app.Application
 import android.content.Context
 import android.util.Log
+import dk.nota.flutter_readium.models.TTSViewModel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -12,30 +12,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
+import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.streamer.PublicationOpener.OpenError
+import org.readium.r2.shared.publication.services.content.DefaultContentService
+import org.readium.r2.shared.publication.services.content.contentServiceFactory
+import org.readium.r2.shared.publication.services.content.iterators.HtmlResourceContentIterator
+import org.readium.r2.shared.publication.services.search.StringSearchService
+import org.readium.r2.shared.publication.services.search.searchServiceFactory
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
-import org.readium.r2.shared.util.fromEpubHref
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
-import org.readium.r2.shared.ExperimentalReadiumApi
-import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.services.content.DefaultContentService
-import org.readium.r2.shared.publication.services.content.contentServiceFactory
-import org.readium.r2.shared.publication.services.content.iterators.HtmlResourceContentIterator
-import org.readium.r2.shared.publication.services.search.StringSearchService
-import org.readium.r2.shared.publication.services.search.searchServiceFactory
+import org.readium.r2.streamer.PublicationOpener.OpenError
 
 private const val TAG = "PublicationChannel"
 
@@ -47,7 +46,7 @@ internal var currentReadiumReaderView: ReadiumReaderView? = null
 private var publications = mutableMapOf<String, Publication>()
 
 internal fun publicationFromIdentifier(identifier: String): Publication? {
-  return publications[identifier];
+  return publications[identifier]
 }
 
 /// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
@@ -167,9 +166,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           }
           val publication = publicationFromIdentifier(pubId!!)
 
-
           try {
-            ttsViewModel = TTSViewModel(pluginAppContext as Application, publication!!, ttsPrefs)
+            ttsViewModel = TTSViewModel(context, publication!!, ttsPrefs)
             ttsViewModel?.initNavigator()
             result.success(null)
           } catch (e: Exception) {
@@ -197,7 +195,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         "ttsStart" -> {
           val args = call.arguments as List<*>
           val fromLocatorStr = args[0] as String?
-          var fromLocator = if (fromLocatorStr != null) {
+          val fromLocator = if (fromLocatorStr != null) {
             Locator.fromJSON(JSONObject(fromLocatorStr))
           } else {
             currentReadiumReaderView?.getFirstVisibleLocator()
@@ -315,7 +313,7 @@ private fun Resource.injectScriptsAndStyles(): Resource =
       return@TransformingResource Try.success(bytes)
     }
 
-    var content = bytes.toString(Charsets.UTF_8).trim()
+    val content = bytes.toString(Charsets.UTF_8).trim()
     val headEndIndex = content.indexOf("</head>", 0, true)
     if (headEndIndex == -1) {
       Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
