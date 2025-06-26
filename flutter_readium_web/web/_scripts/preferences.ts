@@ -30,7 +30,7 @@ export function initializePreferencesFromString(
     darkenFilter: prefs.darkenFilter ?? null,
     deprecatedFontSize: prefs.deprecatedFontSize ?? null,
     fontFamily: prefs.fontFamily ?? null,
-    // FontSize is NOT in pixels or pt!!!
+    // FontSize is NOT in pixels or pt
     fontSize: prefs.fontSize ?? null,
     fontSizeNormalize: prefs.fontSizeNormalize ?? null,
     fontOpticalSizing: prefs.fontOpticalSizing ?? null,
@@ -84,7 +84,7 @@ export const defaults: IEpubDefaults = {
   lineHeight: 1.5,
   linkColor: '#0000ff',
   pageGutter: 10,
-  // scroll: true, // default scroll mode is not getting overridden and if not set here it defaults to false
+  scroll: false,
   selectionBackgroundColor: '#cccccc',
   selectionTextColor: '#000000',
   textAlign: TextAlignment.justify,
