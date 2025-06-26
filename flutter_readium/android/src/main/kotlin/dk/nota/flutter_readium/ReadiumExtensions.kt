@@ -75,7 +75,8 @@ fun epubPreferencesFromMap(
       fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
       scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
       backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.backgroundColor,
-      textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor
+      textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor,
+      pageMargins = prefMap["pageMargins"]?.toDoubleOrNull() ?: defaults?.pageMargins,
     )
     return newPreferences
   } catch (ex: Exception) {

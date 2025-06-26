@@ -25,7 +25,6 @@ export function initializePreferencesFromString(
   let preferences: IEpubPreferences = {
     backgroundColor: prefs.backgroundColor ?? null,
     blendFilter: prefs.blendFilter ?? null,
-    // need to find out how to ensure reflowable works without refresh
     columnCount: prefs.columnCount ?? null,
     constraint: prefs.constraint ?? null,
     darkenFilter: prefs.darkenFilter ?? null,
@@ -47,7 +46,9 @@ export function initializePreferencesFromString(
     linkColor: prefs.linkColor ?? null,
     noRuby: prefs.noRuby ?? null,
     optimalLineLength: prefs.optimalLineLength ?? null,
-    pageGutter: prefs.pageGutter ?? null,
+    // on native there is no pageGutter but pageMargins and my understanding is that it is the same
+    // as pageMargins feels more descriptive I have chosen to use that and convert it here to pageGutter
+    pageGutter: prefs.pageMargins ?? null,
     paragraphIndent: prefs.paragraphIndent ?? null,
     paragraphSpacing: prefs.paragraphSpacing ?? null,
     scroll: prefs.scroll ?? null,
@@ -158,11 +159,9 @@ export function setPreferencesFromString(
   newPreferencesString: string,
   nav: EpubNavigator
 ) {
-  let newPreferences: EpubPreferences = JSON.parse(newPreferencesString);
+  let newPreferences = JSON.parse(newPreferencesString);
 
   convertVerticalScroll(newPreferences);
-
-  console.log('Setting new preferences:', newPreferences);
 
   if (newPreferences.theme != null) {
     newPreferences.theme = _themeFromJson(newPreferences.theme);
@@ -170,10 +169,12 @@ export function setPreferencesFromString(
   if (newPreferences.textAlign != null) {
     newPreferences.textAlign = _textAlignFromJson(newPreferences.textAlign);
   }
+  if (newPreferences.pageMargins != null) {
+    newPreferences.pageGutter = newPreferences.pageMargins;
+    delete newPreferences.pageMargins;
+  }
 
   newPreferences = normalizeTypes(newPreferences);
-
-  console.log('New preferences scroll state:', newPreferences.scroll);
 
   nav.submitPreferences(newPreferences);
 }

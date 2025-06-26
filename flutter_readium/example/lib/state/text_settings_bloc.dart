@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -30,12 +31,14 @@ class TextSettingsState {
     required this.fontSize,
     required this.theme,
     required this.highlight,
+    this.pageMargins,
   });
 
   bool verticalScroll;
   int fontSize;
   TextSettingsTheme theme;
   TextSettingsTheme highlight;
+  double? pageMargins;
 
   @override
   String toString() =>
@@ -46,12 +49,14 @@ class TextSettingsState {
     final int? fontSize,
     final TextSettingsTheme? theme,
     final TextSettingsTheme? highlight,
+    final double? pageMargins,
   }) {
     final newState = TextSettingsState(
       verticalScroll: verticalScroll ?? this.verticalScroll,
       fontSize: fontSize ?? this.fontSize,
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
+      pageMargins: pageMargins ?? this.pageMargins,
     );
 
     return newState;
@@ -69,6 +74,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       verticalScroll: state.verticalScroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
+      pageMargins: state.pageMargins,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
@@ -86,6 +92,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
               textColor: highlights[0].textColor,
               backgroundColor: highlights[0].backgroundColor,
             ),
+            pageMargins: kIsWeb ? 35 : null,
           ),
         ) {
     on<ChangeFontSize>((final event, final emit) {
