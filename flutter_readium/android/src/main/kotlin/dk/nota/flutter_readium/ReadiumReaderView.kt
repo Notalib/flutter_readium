@@ -75,7 +75,8 @@ internal class ReadiumReaderView(
     @Suppress("UNCHECKED_CAST")
     val initPrefsMap = creationParams["preferences"] as Map<String, String>?
     val pubIdentifier = creationParams["pubIdentifier"] as String
-    val publication = readium.  publicationFromIdentifier(pubIdentifier)!!
+    val publication = readium.publicationFromIdentifier(pubIdentifier)!!
+    val pubUrl = readium.publicationUrlFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
     val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
     val initialLocator =
@@ -86,7 +87,7 @@ internal class ReadiumReaderView(
     currentPublicationIdentifier = pubIdentifier
 
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
-    readiumView = EpubNavigatorView(context, pubIdentifier, publication, initialLocator, initialPreferences, this)
+    readiumView = EpubNavigatorView(context, pubIdentifier, pubUrl, publication, initialLocator, initialPreferences, this)
     readiumView.setBackgroundColor(Color.TRANSPARENT)
     readiumView.setPadding(0, 0, 0, 0)
 
@@ -199,7 +200,7 @@ internal class ReadiumReaderView(
   }
 
   suspend fun justGoToLocator(locator: Locator, animated: Boolean) {
-    Log.d(TAG, "::justGoToLocator: Go to ${locator.href} from ${readiumView.currentLocator.href}")
+    Log.d(TAG, "::justGoToLocator: Go to ${locator.href} from ${readiumView.currentLocator?.href}")
     return readiumView.go(locator, animated)
   }
 
@@ -307,7 +308,7 @@ internal class ReadiumReaderView(
         "getLocatorFragments" -> {
           val args = call.arguments as String?
           Log.d(TAG, "::====== $args")
-           val locatorJson = JSONObject(args)
+           val locatorJson = JSONObject(args!!)
           Log.d(TAG, "::====== $locatorJson")
 
           val locator = getLocatorFragments(Locator.fromJSON(locatorJson)!!)

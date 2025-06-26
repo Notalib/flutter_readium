@@ -24,6 +24,7 @@ private const val TAG = "EpubNavigatorView"
 internal class EpubNavigatorView(
   context: Context,
   pubIdentifier: String,
+  pubUrl: String,
   publication: Publication,
   initialLocator: Locator?,
   initialPreferences: EpubPreferences?,
@@ -62,7 +63,8 @@ internal class EpubNavigatorView(
     navigator = EpubReaderFragment()
     navigator.vm = EpubReaderViewModel().let()
     {
-      it.identifier = publication.metadata.identifier
+      it.identifier = pubIdentifier
+      it.pubUrl = pubUrl
       it.publication = publication
       it.locator = initialLocator
       it.preferences = initialPreferences
@@ -142,7 +144,7 @@ internal class EpubNavigatorView(
     }
   }
 
-  internal val currentLocator get() = navigator.currentLocator.value
+  internal val currentLocator get() = navigator.currentLocator?.value
   suspend fun getFirstVisibleLocator() = navigator.firstVisibleElementLocator()
 
   override fun onPageLoaded() {

@@ -8,14 +8,14 @@ import org.readium.r2.shared.publication.Publication
 open class ReaderViewModel {
     var identifier: String? = null
 
-    var publication: Publication? = null
-}
+    var pubUrl: String? = null
 
-open class VisualReaderViewModel : ReaderViewModel() {
+    var publication: Publication? = null
+
     var locator: Locator? = null
 }
 
-open class EpubReaderViewModel : VisualReaderViewModel()
+open class EpubReaderViewModel : ReaderViewModel()
 {
     var preferences: EpubPreferences? = null
 

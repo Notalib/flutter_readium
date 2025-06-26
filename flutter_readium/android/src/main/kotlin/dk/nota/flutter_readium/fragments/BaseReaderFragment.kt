@@ -15,22 +15,36 @@ import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val publicationUrlKeyName: String = "publicationUrl"
 private const val identifierKeyName: String = "publicationIdentifier"
+private const val currentLocatorKeyName: String = "currentLocator"
 
 private const val TAG: String = "BaseReaderFragment"
 
-abstract class BaseReaderFragment: Fragment() {
+private fun Bundle.resetState() {
+    this.remove(identifierKeyName)
+    this.remove(publicationUrlKeyName)
+    this.remove(currentLocatorKeyName)
+}
+
+abstract class BaseReaderFragment : Fragment() {
     var vm: ReaderViewModel? = null
-    protected abstract val navigator: Navigator
+    protected var navigator: Navigator? = null
+
+    val currentLocator get() = navigator?.currentLocator
 
     protected val readium: Readium by lazy {
         Readium(requireContext())
     }
 
     open fun go(locator: Locator, animated: Boolean): Boolean {
-        return navigator.go(locator, animated)
+        if (navigator == null) {
+            Log.d(TAG, "::go - navigator not ready.")
+            return false
+        }
+
+        return navigator!!.go(locator, animated)
     }
 
-    protected suspend fun restorePublicationFromState(savedInstanceState: Bundle): ReaderViewModel? {
+    protected open suspend fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
         val identifier = savedInstanceState.getString(identifierKeyName) ?: return null
         val publicationUrl = savedInstanceState.getString(publicationUrlKeyName) ?: return null
 
@@ -40,36 +54,39 @@ abstract class BaseReaderFragment: Fragment() {
 
         if (publication == null) {
             Log.d(TAG, "failed to restore publication")
+            return null
         }
 
+        val locator = savedInstanceState.getParcelable(currentLocatorKeyName) as Locator?
+
         return ReaderViewModel().let {
+            it.pubUrl = publicationUrl
             it.publication = publication
             it.identifier = identifier
+            it.locator = locator
 
             it
         }
     }
 
-    protected fun storePublicationInState(outState: Bundle) {
-        val publication = vm?.publication
+    protected open fun storeViewModelInState(outState: Bundle) {
+        val model = vm ?: return
+
+        val publication = model.publication
         if (publication == null) {
-            outState.remove(identifierKeyName)
-            outState.remove(publicationUrlKeyName)
+            outState.resetState()
             return
         }
 
-        val identifier = vm?.identifier
+        val identifier = model.identifier
         if (identifier == null) {
-            outState.remove(identifierKeyName)
-            outState.remove(publicationUrlKeyName)
+            outState.resetState()
             return
         }
 
-        val pubUrl = readium.publicationUrlFromIdentifier(identifier)
-        if (pubUrl == null)
-        {
-            outState.remove(identifierKeyName)
-            outState.remove(publicationUrlKeyName)
+        val pubUrl = model.pubUrl
+        if (pubUrl == null) {
+            outState.resetState()
             return
         }
 
@@ -77,11 +94,12 @@ abstract class BaseReaderFragment: Fragment() {
 
         outState.putString(identifierKeyName, identifier)
         outState.putString(publicationUrlKeyName, pubUrl)
+        outState.putParcelable(currentLocatorKeyName, model.locator)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         Log.d(TAG, "::onSaveInstanceState")
-        storePublicationInState(outState)
+        storeViewModelInState(outState)
         super.onSaveInstanceState(outState)
     }
 
