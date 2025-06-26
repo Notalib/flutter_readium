@@ -18,6 +18,10 @@ class FlutterReadium {
     return FlutterReadiumPlatform.instance;
   }
 
+  void setDefaultPreferences(EPUBPreferences preferences) {
+    _platform.setDefaultPreferences(preferences);
+  }
+
   Future<Publication> getPublication(String pubUrl) {
     return _platform.getPublication(pubUrl);
   }

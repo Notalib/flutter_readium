@@ -79,6 +79,19 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     instance.setEPUBPreferences(epubPreferences);
   }
 
+  void setDefaultPreferences() {
+    final defaultPreferences = EPUBPreferences(
+      fontFamily: 'Original',
+      fontSize: state.fontSize,
+      fontWeight: 1.0,
+      verticalScroll: state.verticalScroll,
+      backgroundColor: state.theme.backgroundColor,
+      textColor: state.theme.textColor,
+      pageMargins: state.pageMargins,
+    );
+    instance.setDefaultPreferences(defaultPreferences);
+  }
+
   TextSettingsBloc()
       : super(
           TextSettingsState(

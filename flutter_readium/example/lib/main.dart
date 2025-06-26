@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'extensions/text_settings_theme.dart' show themes;
 import 'pages/index.dart';
 import 'state/index.dart';
 
@@ -20,7 +19,11 @@ Future<void> main() async {
           lazy: false,
         ),
         BlocProvider(
-          create: (final _) => TextSettingsBloc()..add(ChangeTheme(themes[0])),
+          create: (final _) {
+            final bloc = TextSettingsBloc();
+            bloc.setDefaultPreferences();
+            return bloc;
+          },
         ),
         // BlocProvider(
         //   create: (final _) => TtsSettingsBloc(),
