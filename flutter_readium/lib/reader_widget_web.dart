@@ -54,15 +54,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     final initialLocator = widget.initialLocator ?? null;
     final initialPositionJsonString = initialLocator != null ? json.encode(widget.initialLocator) : null;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 1500),
-        child: SizedBox.expand(
-          child: ReadiumWebView(
-            publication: widget.publication,
-            currentLocatorString: initialPositionJsonString,
-          ),
-        ),
+    return SizedBox.expand(
+      child: ReadiumWebView(
+        publication: widget.publication,
+        currentLocatorString: initialPositionJsonString,
       ),
     );
   }
