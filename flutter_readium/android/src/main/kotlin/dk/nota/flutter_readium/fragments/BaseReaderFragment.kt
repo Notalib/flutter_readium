@@ -44,24 +44,14 @@ abstract class BaseReaderFragment : Fragment() {
         return navigator!!.go(locator, animated)
     }
 
-    protected open suspend fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
+    protected open fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
         val identifier = savedInstanceState.getString(identifierKeyName) ?: return null
         val publicationUrl = savedInstanceState.getString(publicationUrlKeyName) ?: return null
-
-        val publication = AbsoluteUrl.invoke(publicationUrl)?.let {
-            readium.openPublication(it).getOrNull()
-        }
-
-        if (publication == null) {
-            Log.d(TAG, "failed to restore publication")
-            return null
-        }
 
         val locator = savedInstanceState.getParcelable(currentLocatorKeyName) as Locator?
 
         return ReaderViewModel().let {
             it.pubUrl = publicationUrl
-            it.publication = publication
             it.identifier = identifier
             it.locator = locator
 
@@ -113,6 +103,12 @@ abstract class BaseReaderFragment : Fragment() {
         super.onAttach(context)
     }
 
+    override fun onStart() {
+        Log.d(TAG, "::onStart")
+        super.onStart()
+        Log.d(TAG, "::onStart - ended")
+    }
+
     override fun onStop() {
         Log.d(TAG, "::onStop")
         super.onStop()
@@ -121,6 +117,7 @@ abstract class BaseReaderFragment : Fragment() {
     override fun onResume() {
         Log.d(TAG, "::onResume")
         super.onResume()
+        Log.d(TAG, "::onResume - ended")
     }
 
     override fun onDestroyView() {

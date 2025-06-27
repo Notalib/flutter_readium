@@ -12,10 +12,8 @@ import dk.nota.flutter_readium.StartLifecycleObserver
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.readium.r2.navigator.Decoration
@@ -58,7 +56,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     private var editor: EpubPreferencesEditor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d(TAG, "::onCreate - savedInstanceState? = ${savedInstanceState != null}")
+        Log.d(TAG, "::onCreate - savedInstanceState? = ${savedInstanceState != null} ")
+
+        if (savedInstanceState != null) {
+            vm = restoreViewModelFromState(savedInstanceState)
+        }
 
         super.onCreate(savedInstanceState)
     }
@@ -68,15 +70,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View {
-        Log.d(TAG, "::onCreateView")
+        Log.d(TAG, "::onCreateView - $savedInstanceState")
         val view = super.onCreateView(inflater, container, savedInstanceState)
 
-        lifecycleScope.launch {
-            attachingNavigatorFragment = true
-            attachNavigator(savedInstanceState)
-            attachingNavigatorFragment = false
-        }
-
+        Log.d(TAG, "::onCreateView - done")
         return view!!
     }
 
@@ -213,13 +210,14 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    override suspend fun restoreViewModelFromState(savedInstanceState: Bundle): EpubReaderViewModel? {
+    override fun restoreViewModelFromState(savedInstanceState: Bundle): EpubReaderViewModel? {
         val restoredPreferences = savedInstanceState.getString(epubPreferencesKeyName)?.let{ Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
 
         return super.restoreViewModelFromState(savedInstanceState)?.let {
             val vm = EpubReaderViewModel().apply()
             {
                 identifier = it.identifier
+                pubUrl = it.pubUrl
                 publication = it.publication
                 locator = it.locator
                 preferences = restoredPreferences
@@ -230,24 +228,70 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     override fun onResume() {
-        Log.d(TAG, "::onResume")
-        if (!attachingNavigatorFragment) {
-            lifecycleScope.launch {
-                attachNavigator(null)
-            }
+        Log.d(TAG, "::onResume - $attachingNavigatorFragment")
+
+        if (vm == null) {
+            Log.d(TAG, "::onResume - missing view model")
+            super.onResume()
+            return
         }
 
+        if (attachingNavigatorFragment) {
+            Log.d(TAG, "::onResume - don't attach navigator")
+            super.onResume()
+            return
+        }
+
+        attachNavigator()
+        Log.d(TAG, "::onResume - ended")
         super.onResume()
+    }
+
+    override fun onViewStateRestored(savedInstanceState: Bundle?) {
+        super.onViewStateRestored(savedInstanceState)
+        Log.d(TAG, "::onViewStateRestored - $savedInstanceState")
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        Log.d(TAG, "::onViewCreated $view, $savedInstanceState")
+
+        attachingNavigatorFragment = true
+        if (vm?.publication == null) {
+            Log.d(TAG, "::onViewCreated - attach navigator - re-open publication: $attachingNavigatorFragment")
+
+            lifecycleScope.launch {
+                val readerData = vm as EpubReaderViewModel
+                Log.d(TAG, "::onViewCreated - open publication $readium - $context - $readerData - ${readerData.pubUrl}")
+                readerData.publication = readium.openPublication(readerData.pubUrl).getOrNull();
+                Log.d(TAG, "::onViewCreated - open publication - done - ${readerData.publication}")
+
+                attachNavigator()
+                attachingNavigatorFragment = false
+            }
+        } else {
+            Log.d(TAG, "::onViewCreated - attach navigator - with existing data")
+
+            attachNavigator()
+            Log.d(TAG, "::onViewCreated - done")
+            attachingNavigatorFragment = false
+        }
     }
 
     override fun onPause() {
         Log.d(TAG, "::onPause")
 
-        childFragmentManager.beginTransaction()
-            .remove(epubNavigator!!)
-            .commitNow()
+        vm?.locator = currentLocator?.value
 
-        epubNavigator?.lifecycle?.removeObserver(fragmentObserver)
+        epubNavigator?.let {
+            childFragmentManager.beginTransaction()
+                .remove(it)
+                .commitNow()
+
+            it.lifecycle.removeObserver(fragmentObserver)
+        }
+
         epubNavigator = null
         fragmentObserver.started.value = false
         attachingNavigatorFragment = false
@@ -260,42 +304,38 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         super.onStop()
     }
 
+    override fun onDetach() {
+        Log.d(TAG, "::onDetach")
+        super.onDetach()
+    }
+
+    override fun onDestroy() {
+        Log.d(TAG, "::onDestroy")
+        super.onDestroy()
+    }
+
+    override fun onDestroyView() {
+        Log.d(TAG, "::onDestroyView")
+        super.onDestroyView()
+    }
+
     private var attachingNavigatorFragment = false
-    private suspend fun attachNavigator(savedInstanceState: Bundle?) {
+    private fun attachNavigator() {
         Log.d(TAG, "::attachNavigator()")
         if (navigator != null) {
             Log.d(TAG, "::attachNavigator() - already attached")
             return
         }
 
-        var readerData = vm as? EpubReaderViewModel
-        if (readerData == null)
-        {
-            Log.d(TAG, "::attachNavigator() - restore view model.launch")
-            if (savedInstanceState != null) {
-                try {
-                    withContext(Dispatchers.IO) {
-                        val restoredVm = restoreViewModelFromState(savedInstanceState)
-                        if (restoredVm?.publication != null) {
-                            Log.d(TAG, "Restored: ${restoredVm.identifier}")
+        val readerData = vm as? EpubReaderViewModel
+        if (readerData == null) {
+            Log.e(TAG, "::attachNavigator() - missing view model")
+            return
+        }
 
-                            vm = restoredVm
-                            readerData = restoredVm
-                        } else {
-                            Log.e(TAG, "Couldn't restore view model")
-                        }
-                    }
-                } catch (error: Exception) {
-                    Log.e(TAG, "Failed to restore view model", error)
-                }
-
-                Log.d(TAG, "::attachNavigator - restore view model.launch - done")
-            }
-
-            if (readerData == null) {
-                Log.e(TAG, "::attachNavigator() - missing view model")
-                return
-            }
+        if (readerData.publication == null) {
+            Log.e(TAG, "::attachNavigator() - missing publication")
+            return
         }
 
         val me = this
@@ -307,7 +347,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         val preferences = readerData.preferences ?: EpubPreferences()
         val navigatorFactory = readerData.navigatorFactory!!
         editor = navigatorFactory.createPreferencesEditor(preferences)
-        childFragmentManager.fragmentFactory = navigatorFactory.createFragmentFactory(
+        val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
                 shouldApplyInsetsPadding = false,
                 servedAssets = listOf(
@@ -320,26 +360,30 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             initialPreferences = preferences,
         )
 
+        val fragment = fragmentFactory.instantiate(requireActivity().classLoader, EpubNavigatorFragment::class.java.name)
+
         Log.d(TAG, "::attachNavigator - add fragment")
         childFragmentManager.commitNow {
             add(
                 R.id.fragment_reader_container,
-                EpubNavigatorFragment::class.java,
-                Bundle(),
+                fragment,
                 NAVIGATOR_FRAGMENT_TAG,
             )
         }
 
         Log.d(TAG, "::attachNavigator - get navigator")
-        navigator = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
+        val nav = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment;
+        navigator = nav
         Log.d(TAG, "::attachNavigator - got navigator = $navigator")
 
-        epubNavigator!!.lifecycle.addObserver(fragmentObserver)
+        nav.lifecycle.addObserver(fragmentObserver)
+        Log.d(TAG, "::attachNavigator - addObserver")
 
-        epubNavigator!!.currentLocator.throttleLatest(Duration.parse("1s")).collect {
-                cl ->
-            me.vm?.locator = cl
-            Log.d(TAG, "::update currentLocator $cl")
+        lifecycleScope.launch {
+            nav.currentLocator.throttleLatest(Duration.parse("1s")).collect { cl ->
+                me.vm?.locator = cl
+                Log.d(TAG, "::update currentLocator $cl")
+            }
         }
     }
 

@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.os.Parcelable
 import android.util.AttributeSet
 import android.util.Log
+import android.view.View
 import android.widget.LinearLayout
 import androidx.fragment.app.FragmentActivity
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
@@ -125,6 +126,16 @@ internal class EpubNavigatorView(
   override fun onRestoreInstanceState(state: Parcelable?) {
     Log.d(TAG, "::onRestoreInstanceState")
     super.onRestoreInstanceState(state)
+  }
+
+  override fun onViewAdded(child: View?) {
+    super.onViewAdded(child)
+    Log.d(TAG, "::onViedAdded $child")
+  }
+
+  override fun onViewRemoved(child: View?) {
+    super.onViewRemoved(child)
+    Log.d(TAG, "::onViewRemoved $child")
   }
 
   override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {

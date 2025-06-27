@@ -21,6 +21,7 @@ import org.readium.r2.shared.publication.services.content.iterators.HtmlResource
 import org.readium.r2.shared.publication.services.search.StringSearchService
 import org.readium.r2.shared.publication.services.search.searchServiceFactory
 import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.ThrowableError
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
@@ -108,50 +109,65 @@ class Readium(private val context: Context) {
   private suspend fun assetToPublication(
     asset: Asset
   ): Try<Publication, OpenError> {
-    return withContext(Dispatchers.IO) {
-      val publication: Publication =
-        publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
-          container = TransformingContainer(container) { _: Url, resource: Resource ->
-            resource.injectScriptsAndStyles()
-          }
-          // TODO: Temporary fix for missing service factories for WebPubs with HTML content.
-          servicesBuilder.contentServiceFactory = DefaultContentService.createFactory(
-            resourceContentIteratorFactories = listOf(
-              HtmlResourceContentIterator.Factory()
-            )
+    val publication: Publication =
+      publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
+        container = TransformingContainer(container) { _: Url, resource: Resource ->
+          resource.injectScriptsAndStyles()
+        }
+        // TODO: Temporary fix for missing service factories for WebPubs with HTML content.
+        servicesBuilder.contentServiceFactory = DefaultContentService.createFactory(
+          resourceContentIteratorFactories = listOf(
+            HtmlResourceContentIterator.Factory()
           )
-          servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
-        })
-          .getOrElse { err: OpenError ->
-            Log.e(TAG, "Error opening publication: $err")
-            asset.close()
-            return@withContext Try.failure(err)
-          }
-      Log.d(TAG, "Open publication success: $publication")
-      return@withContext Try.success(publication)
+        )
+        servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
+      })
+        .getOrElse { err: OpenError ->
+          Log.e(TAG, "Error opening publication: $err")
+          asset.close()
+          return Try.failure(err)
+        }
+    Log.d(TAG, "Open publication success: $publication")
+    return Try.success(publication)
+  }
+
+  suspend fun openPublication(
+    pubUrl: String?
+  ): Try<Publication, PublicationError> {
+    if (pubUrl == null)
+    {
+      return Try.failure(PublicationError.Unexpected(
+        DebugError("missing argument")
+      ))
     }
+
+    return AbsoluteUrl.invoke(pubUrl)?.let { openPublication(it) } ?: Try.failure(PublicationError.Unexpected(
+      DebugError("Invalid Url")
+    ))
   }
 
   suspend fun openPublication(
     pubUrl: AbsoluteUrl
   ): Try<Publication, PublicationError> {
-    try {
-      // TODO: should client provide mediaType to assetRetriever?
-      val asset: Asset = assetRetriever.retrieve(pubUrl)
-        .getOrElse { error: AssetRetriever.RetrieveUrlError ->
-          Log.e(TAG, "Error retrieving asset: $error from url:$pubUrl")
-          return Try.failure(PublicationError.invoke(error))
+    return withContext(Dispatchers.IO) {
+      try {
+        // TODO: should client provide mediaType to assetRetriever?
+        val asset: Asset = assetRetriever.retrieve(pubUrl)
+          .getOrElse { error: AssetRetriever.RetrieveUrlError ->
+            Log.e(TAG, "Error retrieving asset: $error from url:$pubUrl")
+            return@withContext Try.failure(PublicationError.invoke(error))
+          }
+        val pub = assetToPublication(asset).getOrElse { error: OpenError ->
+          Log.e(TAG, "Error loading asset to Publication object: $error from url:$pubUrl")
+          return@withContext Try.failure(PublicationError.invoke(error))
         }
-      val pub = assetToPublication(asset).getOrElse { error: OpenError ->
-        Log.e(TAG, "Error loading asset to Publication object: $error from url:$pubUrl")
-        return Try.failure(PublicationError.invoke(error))
+        Log.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
+        publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
+        publicationUrls[pub.metadata.identifier ?: pubUrl.toString()] = pubUrl.toString()
+        return@withContext Try.success(pub)
+      } catch (e: Throwable) {
+        return@withContext Try.failure(PublicationError.Unexpected(ThrowableError(e)))
       }
-      Log.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
-      publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
-      publicationUrls[pub.metadata.identifier ?: pubUrl.toString()] = pubUrl.toString()
-      return Try.success(pub)
-    } catch (e: Throwable) {
-      return Try.failure(PublicationError.Unexpected(ThrowableError(e)))
     }
   }
 
