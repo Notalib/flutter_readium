@@ -12,6 +12,15 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   EPUBPreferences? defaultPreferences;
 
   @override
+  void setDefaultPreferences(EPUBPreferences preferences) {
+    defaultPreferences = preferences;
+  }
+
+  @override
+  Future<Publication> getPublication(String pubUrl) =>
+      Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
+
+  @override
   Future<Publication> openPublication(String pubUrl) =>
       Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
@@ -67,7 +76,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) {
+  Future<void> ttsEnable(TTSPreferences? preferences) {
     // TODO: implement ttsEnable
     throw UnimplementedError();
   }
@@ -126,6 +135,15 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement ttsStop
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> ttsSetPreferences(TTSPreferences preferences) {
+    // TODO: implement ttsSetPreferences
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
 }
 
 void main() {
