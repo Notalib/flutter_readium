@@ -178,6 +178,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             it.resume(Unit)
         }
     }
+
     internal suspend fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
@@ -242,6 +243,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
+        // Recreate/attach the navigator after soft suspend.
         attachNavigator()
         Log.d(TAG, "::onResume - ended")
         super.onResume()
@@ -257,24 +259,30 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
         Log.d(TAG, "::onViewCreated $view, $savedInstanceState")
 
+        val readerData = vm as? EpubReaderViewModel
+        if (readerData == null)
+        {
+            Log.d(TAG, "::onViewCreated - missing reader data")
+            return
+        }
+
+        // Prevent onResume from attempting to add the navigator while we work.
         attachingNavigatorFragment = true
-        if (vm?.publication == null) {
-            Log.d(TAG, "::onViewCreated - attach navigator - re-open publication: $attachingNavigatorFragment")
+        lifecycleScope.launch {
+            if (readerData.publication == null) {
+                Log.d(TAG, "::onViewCreated - re-open publication: $attachingNavigatorFragment")
 
-            lifecycleScope.launch {
-                val readerData = vm as EpubReaderViewModel
-                Log.d(TAG, "::onViewCreated - open publication $readium - $context - $readerData - ${readerData.pubUrl}")
                 readerData.publication = readium.openPublication(readerData.pubUrl).getOrNull();
-                Log.d(TAG, "::onViewCreated - open publication - done - ${readerData.publication}")
-
-                attachNavigator()
-                attachingNavigatorFragment = false
+                Log.d(TAG, "::onViewCreated - re-open publication - done - ${readerData.publication}")
             }
-        } else {
-            Log.d(TAG, "::onViewCreated - attach navigator - with existing data")
 
-            attachNavigator()
-            Log.d(TAG, "::onViewCreated - done")
+            if (readerData.publication != null) {
+                Log.d(TAG, "::onViewCreated - attach navigator")
+                attachNavigator()
+            } else {
+                Log.d(TAG, "::onViewCreated - publication is missing")
+            }
+
             attachingNavigatorFragment = false
         }
     }
