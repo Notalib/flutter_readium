@@ -1,31 +1,14 @@
 import './style.css';
 
-import {
-  BasicTextSelection,
-  FrameClickEvent,
-} from '@readium/navigator-html-injectables';
-import {
-  EpubNavigator,
-  EpubNavigatorListeners,
-  FrameManager,
-  FXLFrameManager,
-  EpubNavigatorConfiguration,
-  Preference,
-} from '@readium/navigator';
-import {
-  Locator,
-  LocatorLocations,
-  Manifest,
-  Publication,
-  Resource,
-} from '@readium/shared';
-import { Fetcher } from '@readium/shared';
-import { HttpFetcher } from '@readium/shared';
+import { EpubNavigator, EpubNavigatorConfiguration } from '@readium/navigator';
+import { Locator, Publication, Resource } from '@readium/shared';
 import { Link } from '@readium/shared';
 
 // Design
 import '@material/web/all';
-import Peripherals from './peripherals';
+
+// Helpers
+import { fetchManifest, initializeNavigatorAndPeripherals } from './helpers';
 import {
   defaults,
   initializePreferencesFromString,
@@ -49,23 +32,9 @@ class _ReadiumReader {
     Publication
   >();
 
-  private async fetchManifest(publicationURL: string) {
-    const manifestLink = new Link({ href: 'manifest.json' });
-    const fetcher: Fetcher = new HttpFetcher(undefined, publicationURL);
-    const resource = fetcher.get(manifestLink);
-    const resourceLink = await resource.link();
-    const selfLink = resourceLink.toURL(publicationURL)!;
-    const manifest = await resource.readAsJSON().then((response: unknown) => {
-      const manifest = Manifest.deserialize(response as string)!;
-      manifest.setSelfLink(selfLink);
-      return manifest;
-    });
-    return { manifest, fetcher, selfLink };
-  }
-
   public async getPublication(publicationURL: string) {
     try {
-      const { manifest, fetcher } = await this.fetchManifest(publicationURL);
+      const { manifest, fetcher } = await fetchManifest(publicationURL);
       this._publication = new Publication({ manifest, fetcher });
 
       let pubId = this._publication.metadata.identifier ?? 'unidentified';
@@ -75,25 +44,6 @@ class _ReadiumReader {
     } catch (error) {
       throw new Error('Error getting publication: ' + error);
     }
-  }
-
-  private initializeNavigator(
-    container: HTMLElement,
-    publication: Publication,
-    listeners: EpubNavigatorListeners,
-    positions: any,
-    initialPosition: Locator | undefined = undefined,
-    configuration: EpubNavigatorConfiguration
-  ) {
-    const nav = new EpubNavigator(
-      container,
-      publication,
-      listeners,
-      positions,
-      initialPosition,
-      configuration
-    );
-    return nav;
   }
 
   public goRight() {
@@ -115,134 +65,6 @@ class _ReadiumReader {
         console.log('Navigated to', link.href, link.title, link.type);
       }
     });
-  }
-
-  private async initializeNavigatorAndPeripherals(
-    container: HTMLElement,
-    publication: Publication,
-    initialPosition: Locator | undefined = undefined,
-    configuration: EpubNavigatorConfiguration
-  ) {
-    let positions = await publication.positionsFromManifest();
-
-    if (positions.length === 0) {
-      // Use readingOrder if positionListLink is undefined
-      positions = publication.manifest.readingOrder.items.map(
-        (link: Link, index: number) => {
-          return new Locator({
-            href: link.href,
-            type: link.type ?? 'text/html',
-            title: link.title,
-            locations: new LocatorLocations({
-              position: index + 1,
-            }),
-          });
-        }
-      );
-    }
-
-    const p = new Peripherals({
-      moveTo: (direction) => {
-        if (direction === 'right') {
-          nav.goRight(true, () => {});
-        } else if (direction === 'left') {
-          nav.goLeft(true, () => {});
-        } else if (direction === 'up') {
-          const iframes = document.querySelectorAll(
-            '.readium-navigator-iframe'
-          );
-          iframes.forEach((iframe) => {
-            if (iframe instanceof HTMLIFrameElement) {
-              if (iframe.style.visibility !== 'hidden') {
-                iframe.contentWindow?.scrollBy(0, -100);
-              }
-            }
-          });
-        } else if (direction === 'down') {
-          const iframes = document.querySelectorAll(
-            '.readium-navigator-iframe'
-          );
-          iframes.forEach((iframe) => {
-            if (iframe instanceof HTMLIFrameElement) {
-              if (iframe.style.visibility !== 'hidden') {
-                iframe.contentWindow?.scrollBy(0, 100);
-              }
-            }
-          });
-        }
-      },
-      menu: (_show) => {
-        // No UI that hides/shows at the moment
-      },
-      goProgression: (_shiftKey) => {
-        nav.goForward(true, () => {});
-      },
-    });
-
-    const listeners: EpubNavigatorListeners = {
-      frameLoaded: function (_wnd: Window): void {
-        nav._cframes.forEach(
-          (frameManager: FrameManager | FXLFrameManager | undefined) => {
-            if (frameManager) {
-              p.observe(frameManager.window);
-            }
-          }
-        );
-        p.observe(window);
-      },
-      positionChanged: (_locator: Locator): void => {
-        window.focus();
-
-        if ((window as any).updateLocator) {
-          (window as any).updateLocator(JSON.stringify(_locator));
-        }
-      },
-      tap: function (_e: FrameClickEvent): boolean {
-        return false;
-      },
-      click: function (_e: FrameClickEvent): boolean {
-        return false;
-      },
-      zoom: function (_scale: number): void {},
-      miscPointer: function (_amount: number): void {
-        // fires when a tap or a click was made in the middle of the iframe e.g. show/hide UI
-      },
-      customEvent: function (_key: string, _data: unknown): void {},
-      handleLocator: function (locator: Locator): boolean {
-        const href = locator.href;
-        if (
-          href.startsWith('http://') ||
-          href.startsWith('https://') ||
-          href.startsWith('mailto:') ||
-          href.startsWith('tel:')
-        ) {
-          if (confirm(`Open "${href}" ?`)) window.open(href, '_blank');
-        } else {
-          console.warn('Unhandled locator', locator);
-        }
-        return false;
-      },
-      textSelected: function (_selection: BasicTextSelection): void {},
-    };
-
-    const nav = this.initializeNavigator(
-      container,
-      publication,
-      listeners,
-      positions,
-      initialPosition,
-      configuration
-    );
-
-    try {
-      await nav.load();
-    } catch (error) {
-      throw error;
-    }
-
-    this._nav = nav;
-
-    p.observe(window);
   }
 
   public async openPublication(
@@ -280,7 +102,7 @@ class _ReadiumReader {
     try {
       this._publication = _ReadiumReader._publications.get(pubId);
       if (!this._publication) {
-        const { manifest, fetcher } = await this.fetchManifest(publicationURL);
+        const { manifest, fetcher } = await fetchManifest(publicationURL);
         this._publication = new Publication({ manifest, fetcher });
         _ReadiumReader._publications.set(pubId, this._publication);
       }
@@ -291,20 +113,26 @@ class _ReadiumReader {
 
         // If the audiobook has text, initialize the navigator for text display
         if (hasText) {
-          await this.initializeNavigatorAndPeripherals(
+          await initializeNavigatorAndPeripherals(
             container,
             this._publication,
             initialPosition,
-            configuration
+            configuration,
+            (nav) => {
+              this._nav = nav;
+            }
           );
         }
       } else {
         // Initialize EpubNavigator for ebooks
-        await this.initializeNavigatorAndPeripherals(
+        await initializeNavigatorAndPeripherals(
           container,
           this._publication,
           initialPosition,
-          configuration
+          configuration,
+          (nav) => {
+            this._nav = nav;
+          }
         );
       }
     } catch (error) {
