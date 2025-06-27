@@ -2,7 +2,7 @@
 // copied from readium ts-toolkit teastapp vanilla
 
 export interface PCallbacks {
-  moveTo: (direction: 'left' | 'right') => void;
+  moveTo: (direction: 'left' | 'right' | 'up' | 'down') => void;
   menu: (show?: boolean) => void;
   goProgression: (shiftKey?: boolean) => void;
 }
@@ -50,7 +50,24 @@ export default class Peripherals {
   }
 
   onkeydown(e: KeyboardEvent) {
-    if (e.code === 'ArrowRight') this.callbacks.moveTo('right');
-    else if (e.code === 'ArrowLeft') this.callbacks.moveTo('left');
+    // TODO: look into focus check so that we don't handle keys when the user is typing in an input field or textarea.
+    switch (e.code) {
+      case 'ArrowRight':
+        this.callbacks.moveTo('right');
+        e.preventDefault();
+        break;
+      case 'ArrowLeft':
+        this.callbacks.moveTo('left');
+        e.preventDefault();
+        break;
+      case 'ArrowUp':
+        this.callbacks.moveTo('up');
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        this.callbacks.moveTo('down');
+        e.preventDefault();
+        break;
+    }
   }
 }

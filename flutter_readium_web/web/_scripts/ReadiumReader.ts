@@ -10,6 +10,7 @@ import {
   FrameManager,
   FXLFrameManager,
   EpubNavigatorConfiguration,
+  Preference,
 } from '@readium/navigator';
 import {
   Locator,
@@ -146,6 +147,28 @@ class _ReadiumReader {
           nav.goRight(true, () => {});
         } else if (direction === 'left') {
           nav.goLeft(true, () => {});
+        } else if (direction === 'up') {
+          const iframes = document.querySelectorAll(
+            '.readium-navigator-iframe'
+          );
+          iframes.forEach((iframe) => {
+            if (iframe instanceof HTMLIFrameElement) {
+              if (iframe.style.visibility !== 'hidden') {
+                iframe.contentWindow?.scrollBy(0, -100);
+              }
+            }
+          });
+        } else if (direction === 'down') {
+          const iframes = document.querySelectorAll(
+            '.readium-navigator-iframe'
+          );
+          iframes.forEach((iframe) => {
+            if (iframe instanceof HTMLIFrameElement) {
+              if (iframe.style.visibility !== 'hidden') {
+                iframe.contentWindow?.scrollBy(0, 100);
+              }
+            }
+          });
         }
       },
       menu: (_show) => {
