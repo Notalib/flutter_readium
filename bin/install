@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+./bin/forAll flutter pub get
+
+# this is not working as expected
+if [ "$(uname)" == "Darwin" ]; then
+  (cd ./flutter_readium/example/ios; pod install --repo-update)
+fi
+
+
+./bin/build_js
