@@ -156,7 +156,7 @@ internal class EpubNavigatorView(
   }
 
   internal val currentLocator get() = navigator.currentLocator?.value
-  suspend fun getFirstVisibleLocator() = navigator.firstVisibleElementLocator()
+  suspend fun firstVisibleElementLocator() = navigator.firstVisibleElementLocator()
 
   override fun onPageLoaded() {
     Log.d(TAG, "::onPageLoaded")
@@ -172,9 +172,9 @@ internal class EpubNavigatorView(
 
   internal suspend fun go(locator: Locator, animated: Boolean) {
     Log.d(TAG, "::go ${locator.href}")
-    navigator.let {
+    navigator.apply {
       afterFragmentStarted()
-      if (it.go(locator, animated)) {
+      if (go(locator, animated)) {
         Log.d(TAG, "GO returned.")
       } else {
         Log.w(TAG, "GO FAILED!")

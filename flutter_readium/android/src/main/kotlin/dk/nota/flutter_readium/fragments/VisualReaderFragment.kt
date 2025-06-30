@@ -21,7 +21,7 @@ abstract class VisualReaderFragment : BaseReaderFragment() {
     ): View? {
         Log.d(TAG, "::onCreateView")
         binding = FragmentReaderBinding.inflate(inflater, container, false)
-
+        
         return binding.root
     }
 }

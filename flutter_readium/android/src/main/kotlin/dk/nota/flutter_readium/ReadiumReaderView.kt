@@ -136,7 +136,7 @@ internal class ReadiumReaderView(
     eventSink = null
   }
 
-  suspend fun getFirstVisibleLocator(): Locator? = this.readiumView.getFirstVisibleLocator()
+  suspend fun getFirstVisibleLocator(): Locator? = this.readiumView.firstVisibleElementLocator()
 
   @Throws(IllegalArgumentException::class)
   private suspend fun setPreferencesFromMap(prefMap: Map<String, String>) {

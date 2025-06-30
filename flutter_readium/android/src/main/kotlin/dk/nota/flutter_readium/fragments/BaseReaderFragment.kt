@@ -117,7 +117,6 @@ abstract class BaseReaderFragment : Fragment() {
     override fun onResume() {
         Log.d(TAG, "::onResume")
         super.onResume()
-        Log.d(TAG, "::onResume - ended")
     }
 
     override fun onDestroyView() {
