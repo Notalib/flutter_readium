@@ -335,6 +335,15 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
+    override fun onStart() {
+        try {
+            Log.d(TAG, "::onStart - $instance")
+            super.onStart()
+        } finally {
+            Log.d(TAG, ":: onStart - $instance - ended")
+        }
+    }
+
     override fun onStop() {
         try {
             Log.d(TAG, "::onStop - $instance")
