@@ -77,7 +77,7 @@ internal class ReadiumReaderView(
     channel.setMethodCallHandler(null)
 
     navigator.listener = null
-    navigator?.let {
+    navigator.let {
       fragmentManager.beginTransaction()
         .remove(it)
         .commitNow()
