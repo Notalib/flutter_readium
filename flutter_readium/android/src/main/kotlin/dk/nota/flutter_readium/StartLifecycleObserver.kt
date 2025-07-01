@@ -24,12 +24,11 @@ class StartLifecycleObserver(private val tag: String): DefaultLifecycleObserver 
 
   override fun onDestroy(owner: LifecycleOwner) {
       Log.d(tag, "Fragment: onDestroy")
-    started.value = false
     super.onDestroy(owner)
   }
 
   override fun onCreate(owner: LifecycleOwner) {
-      Log.d(tag, "Fragment: onCreate")
+    Log.d(tag, "Fragment: onCreate $owner")
     super.onCreate(owner)
   }
 

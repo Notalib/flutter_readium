@@ -13,6 +13,7 @@ import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -46,10 +47,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     var listener: Listener? = null
 
-    private val instance = ++instanceNo
+    val started = MutableStateFlow(false)
 
-    /// Checks when the fragment starts and is safe to use.
-    val fragmentObserver = StartLifecycleObserver(TAG)
+    private val instance = ++instanceNo
 
     private var epubNavigator
         get() = navigator as? EpubNavigatorFragment
@@ -67,7 +67,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 vm = restoreViewModelFromState(savedInstanceState)
             }
 
-            super.onCreate(savedInstanceState)
+            super.onCreate(null)
         } finally {
             Log.d(TAG, "::onCreate $instance - ended")
         }
@@ -318,15 +318,13 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             vm?.locator = currentLocator?.value
 
             epubNavigator?.let {
-                it.lifecycle.removeObserver(fragmentObserver)
-
                 childFragmentManager.beginTransaction()
                     .remove(it)
                     .commitNow()
             }
 
             epubNavigator = null
-            fragmentObserver.started.value = false
+            started.value = false
             attachingNavigatorFragment = false
 
             super.onPause()
@@ -437,8 +435,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         navigator = nav
         Log.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
-        nav.lifecycle.addObserver(fragmentObserver)
-        Log.d(TAG, "::attachNavigator() - $instance - addObserver")
+        started.value = true
 
         lifecycleScope.launch {
             nav.currentLocator.throttleLatest(Duration.parse("1s")).collect { cl ->
@@ -449,6 +446,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     companion object {
-        private const val NAVIGATOR_FRAGMENT_TAG = "navigator"
+        private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
     }
 }

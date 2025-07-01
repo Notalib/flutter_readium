@@ -6,6 +6,8 @@ import android.graphics.Color
 import android.util.AttributeSet
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
@@ -48,7 +50,7 @@ internal class ReadiumReaderView(
   private val eventChannel: EventChannel
   private var eventSink: EventChannel.EventSink? = null
 
-  private val layout: LinearLayout
+  private val layout: ViewGroup
   private val navigator: EpubReaderFragment
 
   private val activity
@@ -57,7 +59,7 @@ internal class ReadiumReaderView(
     get() = activity.supportFragmentManager
 
   /// Checks when the fragment starts and is safe to use.
-  private val fragmentObserver get() = navigator.fragmentObserver
+  private val navigatorStarted get() = navigator.started
   private val currentLocator get() = navigator.currentLocator?.value
 
   private var userPreferences = EpubPreferences()
@@ -74,9 +76,12 @@ internal class ReadiumReaderView(
     Log.d(TAG, "::dispose")
     channel.setMethodCallHandler(null)
 
-    fragmentManager.beginTransaction()
-      .remove(navigator)
-      .commitNow()
+    navigator.listener = null
+    navigator?.let {
+      fragmentManager.beginTransaction()
+        .remove(it)
+        .commitNow()
+    }
 
     layout.removeAllViews()
     initialLocations = null
@@ -96,8 +101,6 @@ internal class ReadiumReaderView(
 
   init {
     Log.d(TAG, "::init")
-    layout = LinearLayout(context, attrs)
-    layout.id = generateViewId()
 
     @Suppress("UNCHECKED_CAST")
     val initPrefsMap = creationParams["preferences"] as Map<String, String>?
@@ -106,25 +109,57 @@ internal class ReadiumReaderView(
     val pubUrl = readium.publicationUrlFromIdentifier(pubIdentifier)!!
     val locatorString = creationParams["initialLocator"] as String?
     val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
-    val initialLocator =
+    var initialLocator =
       if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
     val initialPreferences =
       if (initPrefsMap == null) null else epubPreferencesFromMap(initPrefsMap, null)
     Log.d(TAG, "publication = $publication")
     currentPublicationIdentifier = pubIdentifier
 
+    // Attempt to reuse existing fragment
+    val epubReaderFragment = fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubReaderFragment?
+    var reuseFragment = false
+    if (epubReaderFragment != null)
+    {
+      Log.d(TAG, "existing fragment, can we reuse it?")
+      val vm = epubReaderFragment.vm as? EpubReaderViewModel
+      if (vm != null && vm.identifier == pubIdentifier && vm.pubUrl == pubUrl) {
+        reuseFragment = true
+        initialLocator = vm.locator ?: initialLocator
+        epubReaderFragment.go(initialLocator!!, false)
+      } else {
+        // We can't reuse the fragment, remove it.
+        reuseFragment = false
+
+        fragmentManager.beginTransaction()
+          .remove(epubReaderFragment)
+          .commitNow()
+      }
+    }
+
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
 
-    navigator = EpubReaderFragment()
-    navigator.vm = EpubReaderViewModel().let()
-    {
-      it.identifier = pubIdentifier
-      it.pubUrl = pubUrl
-      it.publication = publication
-      it.locator = initialLocator
-      it.preferences = initialPreferences
+    if (!reuseFragment || epubReaderFragment == null) {
+      navigator = EpubReaderFragment()
+      navigator.vm = EpubReaderViewModel().let()
+      {
+        it.identifier = pubIdentifier
+        it.pubUrl = pubUrl
+        it.publication = publication
+        it.locator = initialLocator
+        it.preferences = initialPreferences
 
-      it
+        it
+      }
+      layout = LinearLayout(context, attrs)
+      layout.id = generateViewId()
+
+      fragmentManager.beginTransaction()
+        .add(layout, navigator, NAVIGATOR_FRAGMENT_TAG)
+        .commitNow()
+    } else {
+      navigator = epubReaderFragment
+      layout = epubReaderFragment.view?.rootView as FrameLayout
     }
     navigator.listener = this
 
@@ -148,10 +183,6 @@ internal class ReadiumReaderView(
     eventChannel.setStreamHandler(this)
 
     currentReadiumReaderView = this
-
-    fragmentManager.beginTransaction()
-      .add(layout, navigator, TAG)
-      .commitNow()
   }
 
   override fun onPageLoaded() {
@@ -442,10 +473,14 @@ internal class ReadiumReaderView(
   }
 
   private suspend fun afterFragmentStarted() {
-    if (!fragmentObserver.started.value) {
-      fragmentObserver.started.first { it }
+    if (!navigatorStarted.value) {
+      navigatorStarted.first { it }
       Log.d(TAG, "::afterFragmentStarted: Resuming call")
     }
+  }
+
+  companion object {
+    const val NAVIGATOR_FRAGMENT_TAG = "NAVIGATOR_READER_FRAGMENT"
   }
 }
 

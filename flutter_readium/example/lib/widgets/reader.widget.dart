@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_readium/reader_widget.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 
@@ -41,6 +42,7 @@ class ReaderWidget extends StatelessWidget {
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (state.error != null) {
+            R2Log.e('Error loading publication: ${state.error}');
             return ColoredBox(
               color: Colors.yellow.shade400,
               child: Padding(

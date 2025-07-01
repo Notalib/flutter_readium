@@ -35,13 +35,18 @@ abstract class BaseReaderFragment : Fragment() {
         Readium(requireContext())
     }
 
-    open fun go(locator: Locator, animated: Boolean): Boolean {
-        if (navigator == null) {
-            Log.d(TAG, "::go - navigator not ready.")
+    open fun go(locator: Locator?, animated: Boolean): Boolean {
+        if (locator == null) {
             return false
         }
 
-        return navigator!!.go(locator, animated)
+        navigator?.apply {
+            Log.d(TAG, "::go - to:$locator, animated:$animated")
+            return go(locator, animated)
+        }
+
+        Log.d(TAG, "::go - navigator not ready.")
+        return false
     }
 
     protected open fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {

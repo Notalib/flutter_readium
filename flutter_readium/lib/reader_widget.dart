@@ -52,6 +52,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
+  bool wasDestroyed = false;
 
   /// Locator from native readium on page changed.
   // final _nativeTextLocator = BehaviorSubject<Locator?>.seeded(null);
@@ -95,6 +96,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _lastOrientation = null;
 
     _disableWakelock();
+    wasDestroyed = true;
 
     super.dispose();
   }
@@ -375,7 +377,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   Future<void> _awaitNativeViewReady() async {
     final nativeViewStartTime = DateTime.now();
-    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady; retry++) {
+    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady && !wasDestroyed; retry++) {
       if (await _channel?.isReaderReady() == true) {
         R2Log.d(
             'Native view is ready! Time spent: ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
@@ -384,6 +386,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
       R2Log.d('Native reader not ready - retry:$retry');
       await Future.delayed(_awaitNativeViewReadyDuration);
+    }
+
+    if (wasDestroyed) {
+      R2Log.d('Widget was destroyed, skipping native view ready check.');
+      return;
     }
 
     R2Log.d('Max retry reached! After ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');

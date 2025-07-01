@@ -11,6 +11,7 @@ dependencies:
 
   file_picker:
   flutter_bloc:
+  hydrated_bloc:
   flutter_readium:
     # When depending on this package from a real application you should use:
     #   flutter_readium: ^x.y.z
