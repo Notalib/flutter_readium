@@ -102,20 +102,19 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     channel.setMethodCallHandler(onMethodCall)
     readiumViewController.delegate = self
 
-    let child: UIView = readiumViewController.view  // Must specify type `UIView`, or we end up with an `UIView?` instead…
+    let child: UIView = readiumViewController.view
     let view = _view
-
     view.addSubview(readiumViewController.view)
 
     child.translatesAutoresizingMaskIntoConstraints = false
 
     NSLayoutConstraint.activate(
-        [
-            child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            child.topAnchor.constraint(equalTo: view.topAnchor),
-            child.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ]
+      [
+        child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+        child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        child.topAnchor.constraint(equalTo: view.topAnchor),
+        child.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+      ]
     )
 
     setCurrentReadiumReaderView(self)
@@ -240,7 +239,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     if shouldGo {
       print(TAG, "goToLocator: Go to \(locator.href)")
-      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: false))
+      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
       if (goToSuccees && shouldScroll) {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
