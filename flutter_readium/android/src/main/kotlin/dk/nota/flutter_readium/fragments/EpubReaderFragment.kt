@@ -8,14 +8,12 @@ import android.view.ViewGroup
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
-import dk.nota.flutter_readium.StartLifecycleObserver
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -24,8 +22,6 @@ import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 import kotlin.time.Duration
 
 
@@ -152,20 +148,20 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        try {
-            suspendCoroutine {
-                editor?.let {
-                    it.apply {
-                        fontFamily.set(preferences.fontFamily)
-                        fontSize.set(preferences.fontSize)
-                        fontWeight.set(preferences.fontWeight)
-                        scroll.set(preferences.scroll)
-                        backgroundColor.set(preferences.backgroundColor)
-                        textColor.set(preferences.textColor)
-                    }
+        if (editor == null) {
+            return
+        }
 
-                    navigator.submitPreferences(it.preferences)
-                }
+        try {
+            editor?.apply {
+                fontFamily.set(preferences.fontFamily)
+                fontSize.set(preferences.fontSize)
+                fontWeight.set(preferences.fontWeight)
+                scroll.set(preferences.scroll)
+                backgroundColor.set(preferences.backgroundColor)
+                textColor.set(preferences.textColor)
+
+                navigator.submitPreferences(preferences)
             }
         } catch (ex: Exception) {
             Log.e(TAG, "Error applying EpubPreferences: $ex")
@@ -181,13 +177,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        suspendCoroutine {
-            if (navigator.goBackward(animated)) {
-                Log.d(TAG, "::goLeft: Went back.")
-            } else {
-                Log.d(TAG, "::goLeft: Couldn't go back.")
-            }
-            it.resume(Unit)
+        if (navigator.goBackward(animated)) {
+            Log.d(TAG, "::goLeft: Went back.")
+        } else {
+            Log.d(TAG, "::goLeft: Couldn't go back.")
         }
     }
 
@@ -200,14 +193,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        suspendCoroutine {
-            if (navigator.goForward(animated)) {
-                Log.d(TAG, "::goRight: Went forward.")
-            } else {
-                Log.d(TAG, "::goRight: Couldn't go forward.")
-            }
-
-            it.resume(Unit)
+        if (navigator.goForward(animated)) {
+            Log.d(TAG, "::goRight: Went forward.")
+        } else {
+            Log.d(TAG, "::goRight: Couldn't go forward.")
         }
     }
 

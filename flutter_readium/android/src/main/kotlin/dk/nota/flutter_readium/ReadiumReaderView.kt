@@ -140,17 +140,16 @@ internal class ReadiumReaderView(
     initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
 
     if (!reuseFragment || epubReaderFragment == null) {
-      navigator = EpubReaderFragment()
-      navigator.vm = EpubReaderViewModel().let()
-      {
-        it.identifier = pubIdentifier
-        it.pubUrl = pubUrl
-        it.publication = publication
-        it.locator = initialLocator
-        it.preferences = initialPreferences
+      val vm = EpubReaderViewModel();
+      vm.identifier = pubIdentifier
+      vm.pubUrl = pubUrl
+      vm.publication = publication
+      vm.locator = initialLocator
+      vm.preferences = initialPreferences
 
-        it
-      }
+      navigator = EpubReaderFragment()
+      navigator.vm = vm
+
       layout = LinearLayout(context, attrs)
       layout.id = generateViewId()
 
