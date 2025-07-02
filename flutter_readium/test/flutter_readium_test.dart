@@ -126,6 +126,16 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement ttsStop
     throw UnimplementedError();
   }
+
+  @override
+  // TODO: implement onAudioLocatorChanged
+  Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
+
+  @override
+  Future<void> ttsSetPreferences(TTSPreferences preferences) {
+    // TODO: implement ttsSetPreferences
+    throw UnimplementedError();
+  }
 }
 
 void main() {

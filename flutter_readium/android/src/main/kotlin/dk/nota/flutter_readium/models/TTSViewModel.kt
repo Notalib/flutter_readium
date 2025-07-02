@@ -1,9 +1,12 @@
-package dk.nota.flutter_readium
+package dk.nota.flutter_readium.models
 
 import android.app.Application
 import android.content.Context
 import android.graphics.Color
 import android.util.Log
+import dk.nota.flutter_readium.currentReadiumReaderView
+import dk.nota.flutter_readium.letIfBothNotNull
+import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

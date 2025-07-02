@@ -27,8 +27,47 @@ export interface ComicFramePosition {
 export interface Readium {
   link: any;
   isFixedLayout: boolean;
+  isReflowable: boolean;
 
-  scrollToPosition(progression: number, direction: string): void;
+  /**
+   * @param progression // Position must be in the range [0 - 1], 0-100%.
+   */
+  scrollToPosition(progression: number): void;
+
+  getColumnCountPerScreen(): void;
+
+  isScrollModeEnabled(): boolean;
+
+  isVerticalWritingMode(): boolean;
+  
+  // Scroll to the given TagId in document and snap.
+  scrollToId(id: string): void;
+
+  scrollToLocator(locator: Locator): void;
+
+  scrollToStart(): void;
+
+  scrollToEnd(): void;
+
+  scrollLeft(): void;
+
+  snapCurrentOffset(): void;
+
+  rangeFromLocator(): Range;
+
+  setCSSProperties(properties: Record<string, string>): void;
+
+  setProperty(key: string, value: string): void;
+
+  removeProperty(key: string): void;
+  
+  getCurrentSelection(): CurrentSelection;
+
+  registerDecorationTemplates(newStyles: Record<string, any>): void;
+
+  getDecorations(groupName: string): Record<string, any>;
+
+  findFirstVisibleLocator(): Locator | null;
 }
 
 export interface Locator {
@@ -73,4 +112,24 @@ export interface ICurrentHeading {
   id: string | undefined;
   text: string | undefined;
   level: number;
+}
+
+export interface CurrentSelectionText {
+  highlight: string;
+  before: string;
+  after: string;
+}
+
+export interface CurrentSelectionRect {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export interface CurrentSelection {
+  text: CurrentSelectionText;
+  rect: CurrentSelectionRect;
 }

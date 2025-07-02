@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -11,12 +13,9 @@ import io.flutter.plugin.common.MethodChannel.Result
 import java.io.File
 import java.io.IOException
 
+private const val TAG = "FlutterReadiumPlugin"
 
-//internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-
-internal var pluginAppContext: Context? = null
-
-class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
+class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
   /// The MethodChannel that will the communication between Flutter and native Android
   ///
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
@@ -26,9 +25,8 @@ class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
   private lateinit var publicationMethodCallHandler: PublicationMethodCallHandler
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPluginBinding) {
+    Log.d(TAG, "onAttachedToEngine")
     val messenger = flutterPluginBinding.binaryMessenger
-
-    pluginAppContext = flutterPluginBinding.applicationContext
 
     // Register reader view factory
     flutterPluginBinding.platformViewRegistry.registerViewFactory(
@@ -50,10 +48,12 @@ class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
+    Log.d(TAG, "onMethodCall")
     result.notImplemented()
   }
 
   override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
+    Log.d(TAG, "onDetachedFromEngine")
     publicationChannel.setMethodCallHandler(null)
   }
 
@@ -76,4 +76,19 @@ class FlutterReadiumPlugin : FlutterPlugin, MethodCallHandler {
     return files
   }
 
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    Log.d(TAG, "onAttachedToActivity")
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+    Log.d(TAG, "onDetachedFromActivityForConfigChanges")
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    Log.d(TAG, "onReattachedToActivityForConfigChanges")
+  }
+
+  override fun onDetachedFromActivity() {
+    Log.d(TAG, "onDetachedFromActivity")
+  }
 }

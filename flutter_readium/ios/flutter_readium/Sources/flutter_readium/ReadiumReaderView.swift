@@ -151,6 +151,13 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     emitOnPageChanged(locator: locator)
   }
 
+  func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
+    guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+        return
+    }
+    emitOnExternalLinkActivated(url: url)
+  }
+
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     print(TAG, "onMethodApplyDecorations: \(decorations) identifier: \(groupIdentifier)")
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
@@ -206,9 +213,21 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       }
       await MainActor.run() {
         self.channel.onPageChanged(locator: locatorWithFragments)
-        if (self.textLocatorStreamHandler != nil) {
-          self.textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+        guard let textLocatorStreamHandler = self.textLocatorStreamHandler else {
+          print(TAG, "emitOnPageChanged: textLocatorStreamHandler is nil!")
+          return
         }
+
+        textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+      }
+    }
+  }
+
+  private func emitOnExternalLinkActivated(url: URL) {
+    print(TAG, "emitOnExternalLinkActivated: \(url)")
+    Task.detached(priority: .high) {
+      await MainActor.run() {
+        self.channel.onExternalLinkActivated(url: url)
       }
     }
   }
