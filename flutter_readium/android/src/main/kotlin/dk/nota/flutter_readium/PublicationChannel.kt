@@ -1,112 +1,41 @@
+@file:OptIn(ExperimentalReadiumApi::class)
+
 package dk.nota.flutter_readium
 
-import android.app.Application
 import android.content.Context
 import android.util.Log
+import dk.nota.flutter_readium.models.TTSViewModel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
-import org.readium.r2.shared.publication.Publication
-import org.readium.r2.streamer.PublicationOpener.OpenError
+import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Try
-import org.readium.r2.shared.util.Url
-import org.readium.r2.shared.util.asset.Asset
-import org.readium.r2.shared.util.asset.AssetRetriever
-import org.readium.r2.shared.util.fromEpubHref
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
-import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
-import org.readium.r2.shared.ExperimentalReadiumApi
-import org.readium.r2.shared.publication.Locator
+import org.readium.r2.streamer.PublicationOpener.OpenError
 
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-
-private var readium: Readium? = null
-
-// TODO: Do we still want to use this?
-private var publication: Publication? = null
-internal fun publicationFromHandle(): Publication? {
-  return publication
-}
-
 internal var currentReadiumReaderView: ReadiumReaderView? = null
 
-// Collection of publications init to empty
-private var publications = mutableMapOf<String, Publication>()
-
-internal fun publicationFromIdentifier(identifier: String): Publication? {
-  return publications[identifier];
-}
-
 /// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
-private fun openingExceptionIndex(exception: OpenError): Int =
+internal fun openingExceptionIndex(exception: OpenError): Int =
   when (exception) {
     is OpenError.Reading -> 0
     is OpenError.FormatNotSupported -> 1
   }
-
-private suspend fun assetToPublication(
-  asset: Asset
-): Try<Publication, OpenError> {
-  return withContext(Dispatchers.IO) {
-    val publication: Publication =
-      readium!!.publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
-        container = TransformingContainer(container) { _: Url, resource: Resource ->
-          resource.injectScriptsAndStyles()
-        }
-      })
-        .getOrElse { err: OpenError ->
-          Log.e(TAG, "Error opening publication: $err")
-          asset.close()
-          return@withContext Try.failure(err)
-        }
-    Log.d(TAG, "Open publication success: $publication")
-    return@withContext Try.success(publication)
-  }
-}
-
-private suspend fun openPublication(
-  pubUrl: AbsoluteUrl,
-  result: MethodChannel.Result
-) {
-  try {
-    // TODO: should client provide mediaType to assetRetriever?
-    val asset: Asset = readium!!.assetRetriever.retrieve(pubUrl)
-      .getOrElse { error: AssetRetriever.RetrieveUrlError ->
-        Log.e(TAG, "Error retrieving asset: $error")
-        throw Exception()
-      }
-    val pub = assetToPublication(asset).getOrElse { e ->
-      CoroutineScope(Dispatchers.Main).launch {
-        result.error(openingExceptionIndex(e).toString(), e.toString(), null)
-      }
-      return
-    }
-    Log.d(TAG, "Opened publication = ${pub.metadata.identifier}")
-    publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
-    publication = pub
-    // Manifest must now be manually turned into JSON
-    val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
-    CoroutineScope(Dispatchers.Main).launch {
-      result.success(pubJsonManifest)
-    }
-  } catch (e: Throwable) {
-    result.error("OpenPublicationError", e.toString(), e.stackTraceToString())
-  }
-}
 
 private fun parseMediaType(mediaType: Any?): MediaType? {
   @Suppress("UNCHECKED_CAST")
@@ -114,18 +43,16 @@ private fun parseMediaType(mediaType: Any?): MediaType? {
   return MediaType(list[0]!!)
 }
 
-@OptIn(ExperimentalReadiumApi::class)
 internal class PublicationMethodCallHandler(private val context: Context) :
   MethodChannel.MethodCallHandler {
 
   private var ttsViewModel: TTSViewModel? = null
 
+  private val readium = Readium(context)
+
   @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
   override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     CoroutineScope(Dispatchers.Main).launch {
-      if (readium == null) {
-        readium = Readium(context)
-      }
       when (call.method) {
         "openPublication" -> {
           val args = call.arguments as List<Any?>
@@ -142,23 +69,47 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           }
           Log.d(TAG, "openPublication for URL: $pubUrl")
 
-          openPublication(pubUrl, result)
+          val pub = readium.openPublication(pubUrl).getOrElse {
+            error: PublicationError ->
+            result.error(error.cause.toString(), error.message.toString(), null)
+            return@launch
+          }
+
+          val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
+          result.success(pubJsonManifest)
         }
 
         "closePublication" -> {
           val pubIdentifier = call.arguments as String
           Log.d(TAG, "Close publication with identifier = $pubIdentifier")
-          publications[pubIdentifier]?.close()
-          publications.remove(pubIdentifier)
+          readium.closePublication(pubIdentifier)
         }
 
         "ttsEnable" -> {
           val args = call.arguments as Map<String, Any>?
           val ttsPrefs = if (args != null) androidTtsPreferencesFromMap(args) else AndroidTtsPreferences()
 
-          ttsViewModel = TTSViewModel(pluginAppContext as Application, publication!!, currentReadiumReaderView!!, ttsPrefs)
-          ttsViewModel?.initNavigator()
-          result.success(null)
+          val pubIdentifier = currentReadiumReaderView?.currentPublicationIdentifier
+          if (pubIdentifier == null) {
+            Log.e(TAG, "ttsEnable: no current publication identifier")
+            return@launch
+          }
+
+          val publication = readium.publicationFromIdentifier(pubIdentifier)
+          if (publication == null)
+          {
+            Log.e(TAG, "ttsEnable: Cannot enable TTS for un-opened publication. PubId=$pubIdentifier")
+            return@launch
+          }
+
+          try {
+            ttsViewModel = TTSViewModel(context, publication!!, ttsPrefs)
+            ttsViewModel?.initNavigator()
+            result.success(null)
+          } catch (e: Exception) {
+            Log.e(TAG, "ttsEnable: Failed to create TTSViewModel (likely navigator). PubId=$pubIdentifier")
+            result.error("ttsEnable", "Failed to create TTSModel", e.message)
+          }
         }
 
         "ttsSetPreferences" -> {
@@ -180,7 +131,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         "ttsStart" -> {
           val args = call.arguments as List<*>
           val fromLocatorStr = args[0] as String?
-          var fromLocator = if (fromLocatorStr != null) {
+          val fromLocator = if (fromLocatorStr != null) {
             Locator.fromJSON(JSONObject(fromLocatorStr))
           } else {
             currentReadiumReaderView?.getFirstVisibleLocator()
@@ -240,34 +191,26 @@ internal class PublicationMethodCallHandler(private val context: Context) :
           result.success(null)
         }
 
-        "get" -> {
+        "getLinkContent" -> {
           try {
             val args = call.arguments as List<Any?>
-            val isLink = args[0] as Boolean
-            val linkData = args[1] as String
-            val asString = args[2] as Boolean
-            val link: Link
-            if (isLink) {
-              link = Link.fromJSON(JSONObject(linkData))!!
-            } else {
-              val url = Url.fromEpubHref(linkData) ?: run {
-                Log.e(TAG, "get: invalid EPUB href $linkData")
-                throw Exception("get: invalid EPUB href $linkData")
-              }
-              link = Link(url)
-            }
-            Log.d(TAG, "Use publication = $publication")
-            // TODO Debug why the next line crashed with a NullPointerException one time. Probably
-            // somehow related to the server being re-indexed. Was an invalid publication somehow
-            // created, or was a valid publication disposed and then used?
+            val pubIdentifier = args[0] as String
+            val linkStr = args[1] as String
+            val asString = args[2] as? Boolean ?: true
+            val link = Link.fromJSON(JSONObject(linkStr))
+            val publication = readium.publicationFromIdentifier(pubIdentifier)
 
-            val resource = publication!!.get(link) ?: run {
-              Log.e(TAG, "get: failed to get resource via link $link")
-              throw Exception("failed to get resource via link $link")
+            if (publication == null || link == null) {
+              throw Exception("getLinkContent: failed to get resource. Missing pub or link: $publication, $link")
+            }
+
+            Log.d(TAG, "Use publication = $publication")
+
+            val resource = publication.get(link) ?: run {
+              throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
             }
             val resourceBytes = resource.read().getOrElse {
-              Log.e(TAG, "get: invalid EPUB href $linkData")
-              throw Exception("get: invalid EPUB href $linkData")
+              throw Exception("getLinkContent: failed to read resource. ${it.message}")
             }
 
             CoroutineScope(Dispatchers.Main).launch {
@@ -296,7 +239,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
 private const val READIUM_FLUTTER_PATH_PREFIX = "https://readium/assets/flutter_assets/packages/flutter_readium"
 
-private fun Resource.injectScriptsAndStyles(): Resource =
+fun Resource.injectScriptsAndStyles(): Resource =
   TransformingResource(this) { bytes ->
     val props = this.properties().getOrNull()
     val filename = props?.filename
@@ -306,7 +249,7 @@ private fun Resource.injectScriptsAndStyles(): Resource =
       return@TransformingResource Try.success(bytes)
     }
 
-    var content = bytes.toString(Charsets.UTF_8).trim()
+    val content = bytes.toString(Charsets.UTF_8).trim()
     val headEndIndex = content.indexOf("</head>", 0, true)
     if (headEndIndex == -1) {
       Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
@@ -323,7 +266,7 @@ private fun Resource.injectScriptsAndStyles(): Resource =
     val injectLines = listOf(
       """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
       """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
-      """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/is_android.js"></script>""",
+      """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
       """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
       """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
     )

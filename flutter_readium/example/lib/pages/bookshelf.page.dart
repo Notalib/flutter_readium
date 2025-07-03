@@ -92,6 +92,7 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   @override
   Widget build(final BuildContext context) => Scaffold(
+        restorationId: 'bookshelf_page',
         appBar: AppBar(
           backgroundColor: Colors.deepPurple[200],
           title: Text('Bookshelf'),
@@ -167,7 +168,7 @@ class BookshelfPageState extends State<BookshelfPage> {
               context
                   .read<PublicationBloc>()
                   .add(OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
-              Navigator.pushNamed(context, '/player');
+              Navigator.restorablePushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');
             }

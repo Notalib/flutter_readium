@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 abstract class PublicationEvent {}
 
@@ -46,9 +47,29 @@ class PublicationState {
       copyWith(publication: publication, error: error, isLoading: false);
 
   PublicationState loading() => copyWith(isLoading: true);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'publication': publication?.toJson(),
+      'initialLocator': initialLocator?.toJson(),
+      'error': error?.toString(),
+      'isLoading': isLoading,
+    };
+  }
+
+  static PublicationState? fromJson(Map<String, dynamic> json) {
+    return PublicationState(
+      publication:
+          json['publication'] != null ? Publication.fromJson(json['publication'] as Map<String, dynamic>) : null,
+      initialLocator:
+          json['initialLocator'] != null ? Locator.fromJson(json['initialLocator'] as Map<String, dynamic>) : null,
+      error: json['error'],
+      isLoading: json['isLoading'] ?? false,
+    );
+  }
 }
 
-class PublicationBloc extends Bloc<PublicationEvent, PublicationState> {
+class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   PublicationBloc() : super(PublicationState()) {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading());
@@ -65,5 +86,15 @@ class PublicationBloc extends Bloc<PublicationEvent, PublicationState> {
         emit(state.openPublicationFail(error));
       }
     });
+  }
+
+  @override
+  PublicationState? fromJson(Map<String, dynamic> json) {
+    return PublicationState.fromJson(json);
+  }
+
+  @override
+  Map<String, dynamic>? toJson(PublicationState state) {
+    return state.toJson();
   }
 }

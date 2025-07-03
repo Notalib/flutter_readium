@@ -219,7 +219,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> ttsSetVoice(String voiceIdentifier) async {
+  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {
     R2Log.d('ttsSetVoice not implemented in web version');
   }
 

@@ -22,7 +22,6 @@ private var userScripts: [WKUserScript] = []
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private let textLocatorChannel: FlutterEventChannel
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
@@ -39,8 +38,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     print(TAG, "::dispose")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
+    textLocatorStreamHandler?.dispose()
+    textLocatorStreamHandler = nil
     channel.setMethodCallHandler(nil)
-    textLocatorChannel.setStreamHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
 
@@ -65,7 +65,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
-    textLocatorChannel = FlutterEventChannel(name: "dk.nota.flutter_readium/text-locator", binaryMessenger: registrar.messenger())
+    textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -91,7 +91,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       config: config,
       httpServer: sharedReadium.httpServer!
     )
-    
+
     if userScripts.isEmpty {
       initUserScripts(registrar: registrar)
     }
@@ -100,17 +100,22 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     super.init()
 
     channel.setMethodCallHandler(onMethodCall)
-    textLocatorStreamHandler = EventStreamHandler(streamName: "text-locator")
-    textLocatorChannel.setStreamHandler(textLocatorStreamHandler)
     readiumViewController.delegate = self
 
-    let child: UIView = readiumViewController.view  // Must specify type `UIView`, or we end up with an `UIView?` instead…
+    let child: UIView = readiumViewController.view
     let view = _view
-    // Set view to match parent, otherwise it ends up bigger than the parent and overflowing.
-    // Somehow seems to work even after screen rotation, despite not being called again.
-    child.frame = view.bounds
-    print(TAG, "Fixed view bounds \(view.bounds)")
     view.addSubview(readiumViewController.view)
+
+    child.translatesAutoresizingMaskIntoConstraints = false
+
+    NSLayoutConstraint.activate(
+      [
+        child.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+        child.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        child.topAnchor.constraint(equalTo: view.topAnchor),
+        child.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+      ]
+    )
 
     setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
@@ -144,6 +149,13 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
     emitOnPageChanged(locator: locator)
+  }
+
+  func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
+    guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+        return
+    }
+    emitOnExternalLinkActivated(url: url)
   }
 
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
@@ -201,9 +213,21 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       }
       await MainActor.run() {
         self.channel.onPageChanged(locator: locatorWithFragments)
-        if (self.textLocatorStreamHandler != nil) {
-          self.textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+        guard let textLocatorStreamHandler = self.textLocatorStreamHandler else {
+          print(TAG, "emitOnPageChanged: textLocatorStreamHandler is nil!")
+          return
         }
+
+        textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+      }
+    }
+  }
+
+  private func emitOnExternalLinkActivated(url: URL) {
+    print(TAG, "emitOnExternalLinkActivated: \(url)")
+    Task.detached(priority: .high) {
+      await MainActor.run() {
+        self.channel.onExternalLinkActivated(url: url)
       }
     }
   }
@@ -234,7 +258,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     if shouldGo {
       print(TAG, "goToLocator: Go to \(locator.href)")
-      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: false))
+      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
       if (goToSuccees && shouldScroll) {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()

@@ -24,6 +24,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onGoLeft,
     this.onGoRight,
     this.onSwipe,
+    this.onExternalLinkActivated,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final VoidCallback? onGoLeft;
   final VoidCallback? onGoRight;
   final VoidCallback? onSwipe;
+  final Function(String)? onExternalLinkActivated;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -41,9 +43,16 @@ class ReadiumReaderWidget extends StatefulWidget {
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
-  static const _maxRetryAwaitNativeViewReady = 100;
+
+  /// Duration per retry to wait for native view to be ready.
+  static const _awaitNativeViewReadyDuration = Duration(milliseconds: 20);
+
+  /// Maximum number of retries to check, if native view is ready.
+  static const _maxRetryAwaitNativeViewReady = 500;
+
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
+  bool wasDestroyed = false;
 
   /// Locator from native readium on page changed.
   // final _nativeTextLocator = BehaviorSubject<Locator?>.seeded(null);
@@ -87,6 +96,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _lastOrientation = null;
 
     _disableWakelock();
+    wasDestroyed = true;
 
     super.dispose();
   }
@@ -365,20 +375,25 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     });
   }
 
-  Future<void> _awaitNativeViewReady([int retry = 0]) async {
-    R2Log.d('attempt: $retry');
+  Future<void> _awaitNativeViewReady() async {
+    final nativeViewStartTime = DateTime.now();
+    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady && !wasDestroyed; retry++) {
+      if (await _channel?.isReaderReady() == true) {
+        R2Log.d(
+            'Native view is ready! Time spent: ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
+        return;
+      }
 
-    if (retry >= _maxRetryAwaitNativeViewReady) {
-      R2Log.d('Max retry reached!');
+      R2Log.d('Native reader not ready - retry:$retry');
+      await Future.delayed(_awaitNativeViewReadyDuration);
+    }
+
+    if (wasDestroyed) {
+      R2Log.d('Widget was destroyed, skipping native view ready check.');
       return;
     }
 
-    if (await _channel?.isReaderReady() != true) {
-      R2Log.d(() => 'Native reader not ready - retry');
-
-      await Future.delayed(const Duration(milliseconds: 100));
-      return _awaitNativeViewReady(++retry);
-    }
+    R2Log.d('Max retry reached! After ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier

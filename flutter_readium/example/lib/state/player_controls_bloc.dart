@@ -117,7 +117,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       // Change to first voice matching "da-DK" language.
       final daVoice = voices.firstWhereOrNull((l) => l.language == "da-DK");
       if (daVoice != null) {
-        await instance.ttsSetVoice(daVoice.identifier);
+        await instance.ttsSetVoice(daVoice.identifier, null);
       }
     });
   }

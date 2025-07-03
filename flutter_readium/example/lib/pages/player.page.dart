@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../state/index.dart';
@@ -12,10 +13,11 @@ class PlayerPage extends StatefulWidget {
   State<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends State<PlayerPage> {
+class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
         builder: (final context, final pubState) => Scaffold(
+          restorationId: 'player_page',
           appBar: AppBar(
             backgroundColor: Colors.deepPurple[200],
             title: Semantics(
@@ -78,4 +80,15 @@ class _PlayerPageState extends State<PlayerPage> {
         right: false,
         child: PlayerControls(),
       );
+
+  @override
+  String? get restorationId => 'player_page_state';
+
+  @override
+  void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
+    // TODO: implement restoreState
+    R2Log.d("restoreState called in PlayerPage");
+    R2Log.d("RestorationBucket: $oldBucket");
+    R2Log.d("Initial restore: $initialRestore");
+  }
 }

@@ -119,7 +119,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsSetVoice(String voiceIdentifier) {
+  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) {
     // TODO: implement ttsSetVoice
     throw UnimplementedError();
   }
@@ -137,13 +137,14 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
+  // TODO: implement onAudioLocatorChanged
+  Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
+
+  @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) {
     // TODO: implement ttsSetPreferences
     throw UnimplementedError();
   }
-
-  @override
-  Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
 }
 
 void main() {
