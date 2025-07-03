@@ -1,5 +1,5 @@
 // Peripherals based on XBReader
-// copied from readium ts-toolkit teastapp vanilla
+// copied from readium ts-toolkit test app vanilla
 
 export interface PCallbacks {
   moveTo: (direction: 'left' | 'right' | 'up' | 'down') => void;

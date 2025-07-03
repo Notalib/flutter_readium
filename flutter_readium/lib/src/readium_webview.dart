@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
-import 'package:flutter_readium_web/flutter_readium_web.dart';
-import 'package:flutter_readium_web/js_publication_channel.dart';
+import 'flutter_readium_web.dart';
+import 'js_publication_channel.dart';
 
 import 'package:web/web.dart' as web;
 import 'dart:js_interop' as js_interop;
@@ -40,7 +40,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   void onLocatorUpdate(final String locatorJsonString) {
     final locatorJson = jsonDecode(locatorJsonString);
     final locator = Locator.fromJson(locatorJson);
-    FlutterReadiumWeb.addLocatorUpdate(locator);
+    FlutterReadiumWebPlugin.addLocatorUpdate(locator);
   }
 
   void registerLocatorUpdate() {

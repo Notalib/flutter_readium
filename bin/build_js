@@ -1,5 +1,5 @@
-# Build for flutter_readium_web
-echo "Building flutter_readium_web"
-cd ./flutter_readium_web/
+# Build for flutter_readium web
+echo "Building flutter_readium web"
+cd ./flutter_readium/
 npm i
 npm run build

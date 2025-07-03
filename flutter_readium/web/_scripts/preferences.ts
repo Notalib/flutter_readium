@@ -3,7 +3,6 @@ import {
   Theme,
   IEpubPreferences,
   IEpubDefaults,
-  EpubPreferences,
   EpubNavigator,
 } from '@readium/navigator';
 

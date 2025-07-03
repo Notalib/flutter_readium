@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
-import 'package:flutter_readium_web/js_publication_channel.dart';
-import 'package:flutter_readium_web/readium_webview.dart';
+import 'src/index.dart';
 
 class ReadiumReaderWidget extends StatefulWidget {
   const ReadiumReaderWidget({

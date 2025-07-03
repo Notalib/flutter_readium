@@ -18,6 +18,9 @@ flutter:
         pluginClass: FlutterReadiumPlugin
       macos:
         pluginClass: FlutterReadiumPlugin
+      web:
+        pluginClass: FlutterReadiumWebPlugin
+        fileName: src/flutter_readium_web.dart
   assets:
     - assets/helpers/
 
@@ -28,8 +31,6 @@ dependencies:
     sdk: flutter
   flutter_readium_platform_interface:
     path: ../flutter_readium_platform_interface
-  flutter_readium_web:
-    path: ../flutter_readium_web
   js_interop: ^0.0.1
   rxdart:
   wakelock_plus: ^1.2.8
@@ -40,3 +41,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   plugin_platform_interface: ^2.0.2
+
+executables:
+  copy_js_file: bin/copy_js_file.dart
