@@ -7,7 +7,10 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.toUri
 
 internal class ReadiumReaderChannel(messenger: BinaryMessenger, name: String) :
-  MethodChannel(messenger, name) {
-  fun onPageChanged(locator: Locator?) = invokeMethod("onPageChanged", locator?.toJSON().toString())
-  fun onExternalLinkActivated(url: AbsoluteUrl) = invokeMethod( "onExternalLinkActivated", url.toString())
+    MethodChannel(messenger, name) {
+    fun onPageChanged(locator: Locator?) =
+        invokeMethod("onPageChanged", locator?.toJSON().toString())
+
+    fun onExternalLinkActivated(url: AbsoluteUrl) =
+        invokeMethod("onExternalLinkActivated", url.toString())
 }

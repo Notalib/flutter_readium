@@ -57,7 +57,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     override fun onCreate(savedInstanceState: Bundle?) {
         try {
-            Log.d(TAG, "::onCreate $instance - savedInstanceState? = ${savedInstanceState != null} ")
+            Log.d(
+                TAG,
+                "::onCreate $instance - savedInstanceState? = ${savedInstanceState != null} "
+            )
 
             if (savedInstanceState != null) {
                 vm = restoreViewModelFromState(savedInstanceState)
@@ -105,8 +108,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     suspend fun firstVisibleElementLocator(): Locator? {
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::firstVisibleElementLocator. Navigator not ready.")
             return null
         }
@@ -119,8 +121,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         group: String,
     ) {
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::applyDecorations. Navigator not ready.")
             return
         }
@@ -130,8 +131,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     suspend fun evaluateJavascript(script: String): String? {
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::evaluateJavascript. Navigator not ready.")
             return null
         }
@@ -142,8 +142,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     suspend fun setPreferences(preferences: EpubPreferences) {
         Log.d(TAG, "::setPreferences")
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::setPreferences. Navigator not ready.")
             return
         }
@@ -171,8 +170,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     suspend fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::goLeft. Navigator not ready.")
             return
         }
@@ -187,8 +185,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     internal suspend fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
-        if (navigator == null)
-        {
+        if (navigator == null) {
             Log.d(TAG, "::goLeft. Navigator not ready.")
             return
         }
@@ -213,7 +210,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     override fun restoreViewModelFromState(savedInstanceState: Bundle): EpubReaderViewModel? {
-        val restoredPreferences = savedInstanceState.getString(epubPreferencesKeyName)?.let{ Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
+        val restoredPreferences = savedInstanceState.getString(epubPreferencesKeyName)
+            ?.let { Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
 
         return super.restoreViewModelFromState(savedInstanceState)?.let {
             val vm = EpubReaderViewModel().apply()
@@ -277,7 +275,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
             lifecycleScope.launch {
                 if (readerData.publication == null) {
-                    Log.d(TAG, "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment")
+                    Log.d(
+                        TAG,
+                        "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment"
+                    )
 
                     readerData.publication = readium.openPublication(readerData.pubUrl).getOrNull()
                     Log.d(
@@ -408,7 +409,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             initialPreferences = preferences,
         )
 
-        val fragment = fragmentFactory.instantiate(requireActivity().classLoader, EpubNavigatorFragment::class.java.name)
+        val fragment = fragmentFactory.instantiate(
+            requireActivity().classLoader,
+            EpubNavigatorFragment::class.java.name
+        )
 
         Log.d(TAG, "::attachNavigator - $instance - add fragment")
         childFragmentManager.commitNow {
@@ -420,7 +424,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
 
         Log.d(TAG, "::attachNavigator() - $instance - get navigator")
-        val nav = childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
+        val nav =
+            childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
         navigator = nav
         Log.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
