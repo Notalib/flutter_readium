@@ -60,8 +60,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     }
 
     // Transform 'children' key in 'toc'
-    if (publicationJson.containsKey('toc') && publicationJson['toc'] is List) {
-      final tocList = publicationJson['toc'] as List<dynamic>;
+    if (publicationJson.containsKey('toc') && publicationJson['toc'] is Map<String, dynamic>) {
+      final tocMap = publicationJson['toc'] as Map<String, dynamic>;
+      final tocList = tocMap['items'] as List<dynamic>;
       publicationJson['toc'] = _transformChildren(tocList);
     }
 

@@ -1,9 +1,9 @@
 {
   "dependencies": {
     "@material/web": "^2.3.0",
-    "@readium/navigator": "^2.0.0-beta.9",
-    "@readium/navigator-html-injectables": "^2.0.0-beta.3",
-    "@readium/shared": "^1.2.1"
+    "@readium/navigator": "^2.0.0-beta.11",
+    "@readium/navigator-html-injectables": "^2.0.0-beta.4",
+    "@readium/shared": "^1.3.0"
   },
   "devDependencies": {
     "css-loader": "^7.1.2",
