@@ -34,7 +34,7 @@ abstract class BaseReaderFragment : Fragment() {
     protected val readium: Readium by lazy {
         Readium(requireContext())
     }
-
+    
     open fun go(locator: Locator?, animated: Boolean): Boolean {
         if (locator == null) {
             return false

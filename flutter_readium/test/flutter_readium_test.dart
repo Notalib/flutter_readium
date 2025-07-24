@@ -67,7 +67,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsEnable(String? defaultLangCode, String? voiceIdentifier) {
+  Future<void> ttsEnable(TTSPreferences? preferences) {
     // TODO: implement ttsEnable
     throw UnimplementedError();
   }

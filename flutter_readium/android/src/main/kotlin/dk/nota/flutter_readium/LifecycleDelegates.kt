@@ -32,8 +32,7 @@ class LifecycleDelegates(private val fragment: Fragment) : DefaultLifecycleObser
         }
     }
 
-    private val viewLifecycleValues: MutableList<ViewLifecycleAwareVar<*>> =
-        mutableListOf()
+    private val viewLifecycleValues: MutableList<ViewLifecycleAwareVar<*>> = mutableListOf()
 
     override fun onCreate(owner: LifecycleOwner) {
         fragment.viewLifecycleOwnerLiveData.observe(fragment) { viewLifecycleOwner ->
@@ -64,5 +63,4 @@ class LifecycleDelegates(private val fragment: Fragment) : DefaultLifecycleObser
 /**
  * Make a single value automatically set to null every time the [Fragment]'s view is destroyed.
  */
-fun <T : Any> Fragment.viewLifecycle() =
-    LifecycleDelegates(this).viewLifecycleAware<T>()
+fun <T : Any> Fragment.viewLifecycle() = LifecycleDelegates(this).viewLifecycleAware<T>()

@@ -15,8 +15,7 @@ open class ReaderViewModel {
     var locator: Locator? = null
 }
 
-open class EpubReaderViewModel : ReaderViewModel()
-{
+open class EpubReaderViewModel : ReaderViewModel() {
     var preferences: EpubPreferences? = null
 
     val navigatorFactory: EpubNavigatorFactory?
