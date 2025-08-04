@@ -94,6 +94,7 @@ export async function initializeNavigatorAndPeripherals(
   });
 
   const listeners: EpubNavigatorListeners = {
+    scroll: function (_amount: number): void {},
     frameLoaded: function (_wnd: Window): void {
       nav._cframes.forEach(
         (frameManager: FrameManager | FXLFrameManager | undefined) => {
