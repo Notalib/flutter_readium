@@ -100,7 +100,7 @@ After copying the JavaScript file to your app, add Flutter's initialization JS c
 <script src="flutter.js" defer></script>
 
 <!-- Plugin JS code -->
-<script src="readiumReader.js"></script>
+<script src="readiumReader.js" defer></script>
 ```
 
 If the plugin's JS file is not saved in the same directory as `index.html`, update the source path accordingly.

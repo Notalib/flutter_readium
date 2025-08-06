@@ -61,8 +61,9 @@ class _ReadiumReader {
       throw error;
     }
     this._nav?.goLink(link, true, (ok) => {
-      if (ok) {
-        console.log('Navigated to', link.href, link.title, link.type);
+      if (!ok) {
+        let error = new Error('Failed to navigate to link ' + href);
+        throw error;
       }
     });
   }

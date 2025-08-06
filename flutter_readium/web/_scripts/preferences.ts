@@ -63,8 +63,6 @@ export function initializePreferencesFromString(
 
   preferences = normalizeTypes(preferences);
 
-  console.log('Init preferences scroll state:', preferences.scroll);
-
   return preferences;
 }
 
