@@ -68,8 +68,8 @@ dependencies {
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-tts:$readium_version"
   // implementation "androidx.compose.ui:ui:1.8.2" // UI
   // implementation "androidx.activity:activity-compose:1.10.1" // Activity Compose integration
-  // implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
-  // implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
   // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-document:$readium_version"
   // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-navigator:$readium_version"
   //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"

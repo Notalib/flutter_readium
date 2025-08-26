@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import dk.nota.flutter_readium.Readium
 import dk.nota.flutter_readium.models.ReaderViewModel
+import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.r2.navigator.Navigator
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -27,14 +28,14 @@ private fun Bundle.resetState() {
 
 abstract class BaseReaderFragment : Fragment() {
     var vm: ReaderViewModel? = null
-    protected var navigator: Navigator? = null
+    protected open var navigator: Navigator? = null
 
     val currentLocator get() = navigator?.currentLocator
 
     protected val readium: Readium by lazy {
         Readium(requireContext())
     }
-    
+
     open fun go(locator: Locator?, animated: Boolean): Boolean {
         if (locator == null) {
             return false
