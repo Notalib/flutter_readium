@@ -20,6 +20,7 @@ abstract class Metadata with _$Metadata {
     /// "additionalProperties": false,
     /// "minProperties": 1
     @localizeStringMapJson required final Map<String, String> title,
+    @stringListJson final List<String>? conformsTo,
 
     /// "format": "uri"
     @JsonKey(name: '@type') final String? type,
@@ -68,9 +69,7 @@ abstract class Metadata with _$Metadata {
     @JsonKey(name: 'x-bookshelf-added') @dateTimeLocal final DateTime? xBookshelfAdded,
     @JsonKey(name: 'x-bookshelf-last-access') final DateTime? xBookshelfLastAccess,
     @JsonKey(name: 'x-download-size-in-bytes') @Default(0) final int downloadSize,
-    @JsonKey(name: 'x-e-book-visually-impaired')
-    @Default(false)
-    final bool xIsEbookForVisuallyImpaired,
+    @JsonKey(name: 'x-e-book-visually-impaired') @Default(false) final bool xIsEbookForVisuallyImpaired,
     @JsonKey(name: 'x-edition') final String? xEdition,
     @JsonKey(name: 'x-has-text') @Default(false) final bool xHasText,
     @JsonKey(name: 'x-icon-url') final String? xIconUrl,

@@ -139,6 +139,20 @@ class BookshelfPageState extends State<BookshelfPage> {
     }
   }
 
+  String _bookFormatFromConformsTo(List<String>? conformsTo) {
+    if (conformsTo == null || conformsTo.isEmpty) {
+      return 'Unknown format';
+    }
+    switch (conformsTo.first) {
+      case 'https://readium.org/webpub-manifest/profiles/epub':
+        return 'EPUB';
+      case 'https://readium.org/webpub-manifest/profiles/audiobook':
+        return 'Audiobook';
+      default:
+        return 'Unknown format';
+    }
+  }
+
   Widget _buildPubCard(final Publication publication, final BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
@@ -169,7 +183,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       Text(_listAuthors(publication)),
-                      Text(publication.metadata.xIsAudiobook ? 'Audiobook' : 'Ebook'),
+                      Text(_bookFormatFromConformsTo(publication.metadata.conformsTo)),
                     ],
                   ),
                   // remove the if when books loaded from asset can be deleted
