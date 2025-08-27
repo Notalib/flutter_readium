@@ -221,7 +221,7 @@ internal class ReadiumReaderView(
     suspend fun getFirstVisibleLocator(): Locator? = navigator.firstVisibleElementLocator()
 
     @Throws(IllegalArgumentException::class)
-    private suspend fun setPreferencesFromMap(prefMap: Map<String, String>) {
+    private fun setPreferencesFromMap(prefMap: Map<String, String>) {
         Log.d(TAG, "::setPreferencesFromMap")
         val newPreferences = epubPreferencesFromMap(prefMap, null)
             ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
@@ -498,7 +498,7 @@ internal class ReadiumReaderView(
         return ret
     }
 
-    private suspend fun setPreferences(preferences: EpubPreferences) {
+    private fun setPreferences(preferences: EpubPreferences) {
         navigator.setPreferences(preferences)
     }
 

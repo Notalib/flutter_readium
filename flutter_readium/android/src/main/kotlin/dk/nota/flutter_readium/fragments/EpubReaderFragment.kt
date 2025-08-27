@@ -55,22 +55,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     private var editor: EpubPreferencesEditor? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        try {
-            Log.d(
-                TAG,
-                "::onCreate $instance - savedInstanceState? = ${savedInstanceState != null} "
-            )
-
-            if (savedInstanceState != null) {
-                vm = restoreViewModelFromState(savedInstanceState)
-            }
-
-            super.onCreate(null)
-        } finally {
-            Log.d(TAG, "::onCreate $instance - ended")
-        }
-    }
+    private val epubVm
+        get() = vm as EpubReaderViewModel?
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -139,7 +125,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         return navigator.evaluateJavascript(script)
     }
 
-    suspend fun setPreferences(preferences: EpubPreferences) {
+    fun setPreferences(preferences: EpubPreferences) {
         Log.d(TAG, "::setPreferences")
         val navigator = epubNavigator
         if (navigator == null) {
@@ -167,7 +153,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    suspend fun goLeft(animated: Boolean) {
+    fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
         val navigator = epubNavigator
         if (navigator == null) {
@@ -182,7 +168,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    internal suspend fun goRight(animated: Boolean) {
+    internal fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
         if (navigator == null) {
@@ -204,8 +190,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         editor?.preferences?.let {
             val jsonString = Json.encodeToString(it)
             outState.putString(epubPreferencesKeyName, jsonString)
-            val model = vm as EpubReaderViewModel
-            model.preferences = it
+            epubVm!!.preferences = it
         }
     }
 
@@ -214,7 +199,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             ?.let { Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
 
         return super.restoreViewModelFromState(savedInstanceState)?.let {
-            val vm = EpubReaderViewModel().apply()
+            return EpubReaderViewModel().apply()
             {
                 identifier = it.identifier
                 pubUrl = it.pubUrl
@@ -222,8 +207,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 locator = it.locator
                 preferences = restoredPreferences
             }
-
-            return vm
         }
     }
 
@@ -231,7 +214,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         try {
             Log.d(TAG, "::onResume - $instance - $attachingNavigatorFragment")
 
-            if (vm == null) {
+            if (epubVm == null) {
                 Log.d(TAG, "::onResume - $instance - missing view model")
                 return
             }
@@ -264,8 +247,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
             Log.d(TAG, "::onViewCreated - $instance $view, $savedInstanceState")
 
-            val readerData = vm as? EpubReaderViewModel
-            if (readerData == null) {
+            val model = epubVm
+            if (model == null) {
                 Log.d(TAG, "::onViewCreated - $instance - missing reader data")
                 return
             }
@@ -274,20 +257,20 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             attachingNavigatorFragment = true
 
             lifecycleScope.launch {
-                if (readerData.publication == null) {
+                if (model.publication == null) {
                     Log.d(
                         TAG,
                         "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment"
                     )
 
-                    readerData.publication = readium.openPublication(readerData.pubUrl).getOrNull()
+                    model.publication = readium.openPublication(model.pubUrl).getOrNull()
                     Log.d(
                         TAG,
-                        "::onViewCreated - $instance - re-open publication - done - ${readerData.publication}"
+                        "::onViewCreated - $instance - re-open publication - done - ${model.publication}"
                     )
                 }
 
-                if (readerData.publication != null) {
+                if (model.publication != null) {
                     Log.d(TAG, "::onViewCreated - $instance - attach navigator")
                     attachNavigator()
                 } else {
@@ -305,7 +288,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         try {
             Log.d(TAG, "::onPause - $instance")
 
-            vm?.locator = currentLocator?.value
+            epubVm?.locator = currentLocator?.value
 
             epubNavigator?.let {
                 childFragmentManager.beginTransaction()
@@ -376,13 +359,13 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val readerData = vm as? EpubReaderViewModel
-        if (readerData == null) {
+        val model = epubVm
+        if (model == null) {
             Log.e(TAG, "::attachNavigator() - $instance - missing view model")
             return
         }
 
-        if (readerData.publication == null) {
+        if (model.publication == null) {
             Log.e(TAG, "::attachNavigator() - $instance - missing publication")
             return
         }
@@ -392,9 +375,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         // DFG: This will be relative to your app's src/main/assets/ folder.
         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
-        readerData.preferences = readerData.preferences ?: EpubPreferences()
-        val preferences = readerData.preferences ?: EpubPreferences()
-        val navigatorFactory = readerData.navigatorFactory!!
+        model.preferences = model.preferences ?: EpubPreferences()
+        val preferences = model.preferences ?: EpubPreferences()
+        val navigatorFactory = model.navigatorFactory!!
         editor = navigatorFactory.createPreferencesEditor(preferences)
         val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
@@ -403,7 +386,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     "flutter_assets/packages/flutter_readium/assets/.*",
                 )
             ),
-            initialLocator = readerData.locator,
+            initialLocator = model.locator,
             listener = me,
             paginationListener = me,
             initialPreferences = preferences,

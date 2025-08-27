@@ -55,6 +55,8 @@ public class AudioReaderFragment : BaseReaderFragment() {
                 vm = restoreViewModelFromState(savedInstanceState)
             }
 
+            // TODO: Handle vm == null and error cases.
+
             // Create AudioNavigatorFactory
             val navigatorFactory = AudioNavigatorFactory(
                 vm?.publication!!,

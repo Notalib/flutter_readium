@@ -14,6 +14,23 @@ private const val TAG = "VisualReaderFragment"
 abstract class VisualReaderFragment : BaseReaderFragment() {
     private var binding: FragmentReaderBinding by viewLifecycle()
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        try {
+            Log.d(
+                TAG,
+                "::onCreate savedInstanceState? = ${savedInstanceState != null} "
+            )
+
+            if (savedInstanceState != null) {
+                vm = restoreViewModelFromState(savedInstanceState)
+            }
+
+            super.onCreate(null)
+        } finally {
+            Log.d(TAG, "::onCreate - ended")
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
