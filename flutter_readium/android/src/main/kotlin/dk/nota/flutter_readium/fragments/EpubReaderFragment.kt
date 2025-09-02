@@ -298,6 +298,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
             epubNavigator = null
             started.value = false
+
             attachingNavigatorFragment = false
 
             super.onPause()

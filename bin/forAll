@@ -9,9 +9,8 @@ then
 fi
 
 dir=(
-  "./flutter_readium"
+	"./flutter_readium"
 	"./flutter_readium_platform_interface"
-	"./flutter_readium_web"
 )
 for i in "${dir[@]}"; do
 	echo -e "\033[35;1m=== $@ $i ===\033[0m"
