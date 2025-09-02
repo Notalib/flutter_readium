@@ -12,51 +12,55 @@ import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.streamer.PublicationOpener
 
 sealed class PublicationError(
-  override val message: String,
-  override val cause: Error? = null,
+    override val message: String,
+    override val cause: Error? = null,
 ) : Error {
 
-  class Reading(override val cause: ReadError) :
-    PublicationError(cause.message, cause.cause)
+    class Reading(override val cause: ReadError) :
+        PublicationError(cause.message, cause.cause)
 
-  class UnsupportedScheme(cause: Error) :
-    PublicationError(cause.message, cause.cause)
+    class UnsupportedScheme(cause: Error) :
+        PublicationError(cause.message, cause.cause)
 
-  class FormatNotSupported(cause: Error) :
-    PublicationError(cause.message, cause.cause)
+    class FormatNotSupported(cause: Error) :
+        PublicationError(cause.message, cause.cause)
 
-  class InvalidPublication(cause: Error) :
-    PublicationError(cause.message, cause.cause)
+    class InvalidPublication(cause: Error) :
+        PublicationError(cause.message, cause.cause)
 
-  class Unexpected(cause: Error) :
-    PublicationError(cause.message, cause.cause)
+    class Unexpected(cause: Error) :
+        PublicationError(cause.message, cause.cause)
 
-  companion object {
+    companion object {
 
-    operator fun invoke(error: AssetRetriever.RetrieveUrlError): PublicationError =
-      when (error) {
-        is AssetRetriever.RetrieveUrlError.Reading ->
-          Reading(error.cause)
-        is AssetRetriever.RetrieveUrlError.FormatNotSupported ->
-          FormatNotSupported(error)
-        is AssetRetriever.RetrieveUrlError.SchemeNotSupported ->
-          UnsupportedScheme(error)
-      }
+        operator fun invoke(error: AssetRetriever.RetrieveUrlError): PublicationError =
+            when (error) {
+                is AssetRetriever.RetrieveUrlError.Reading ->
+                    Reading(error.cause)
 
-    operator fun invoke(error: AssetRetriever.RetrieveError): PublicationError =
-      when (error) {
-        is AssetRetriever.RetrieveError.Reading ->
-          Reading(error.cause)
-        is AssetRetriever.RetrieveError.FormatNotSupported ->
-          FormatNotSupported(error)
-      }
+                is AssetRetriever.RetrieveUrlError.FormatNotSupported ->
+                    FormatNotSupported(error)
 
-    operator fun invoke(error: PublicationOpener.OpenError): PublicationError =
-      when (error) {
-        is PublicationOpener.OpenError.Reading ->
-          Reading(error.cause)
-        is PublicationOpener.OpenError.FormatNotSupported ->
-          FormatNotSupported(error)
-      }
-  }
+                is AssetRetriever.RetrieveUrlError.SchemeNotSupported ->
+                    UnsupportedScheme(error)
+            }
+
+        operator fun invoke(error: AssetRetriever.RetrieveError): PublicationError =
+            when (error) {
+                is AssetRetriever.RetrieveError.Reading ->
+                    Reading(error.cause)
+
+                is AssetRetriever.RetrieveError.FormatNotSupported ->
+                    FormatNotSupported(error)
+            }
+
+        operator fun invoke(error: PublicationOpener.OpenError): PublicationError =
+            when (error) {
+                is PublicationOpener.OpenError.Reading ->
+                    Reading(error.cause)
+
+                is PublicationOpener.OpenError.FormatNotSupported ->
+                    FormatNotSupported(error)
+            }
+    }
 }

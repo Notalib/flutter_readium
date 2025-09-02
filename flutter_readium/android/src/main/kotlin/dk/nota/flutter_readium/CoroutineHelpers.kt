@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.flow
 import kotlin.time.Duration
 
 fun <T> Flow<T>.throttleLatest(period: Duration): Flow<T> =
-  flow {
-    conflate().collect {
-      emit(it)
-      delay(period)
+    flow {
+        conflate().collect {
+            emit(it)
+            delay(period)
+        }
     }
-  }
 
