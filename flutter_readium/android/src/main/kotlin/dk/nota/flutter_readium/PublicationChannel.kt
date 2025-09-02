@@ -54,6 +54,13 @@ internal class PublicationMethodCallHandler(private val context: Context) :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.Main).launch {
             when (call.method) {
+                "setCustomHeaders" -> {
+                    val httpHeaders = call.argument<Map<String, String>>("httpHeaders") ?: emptyMap<String, String>()
+
+                    readium.setDefaultHttpHeaders(httpHeaders)
+                    result.success(null)
+                }
+
                 "openPublication" -> {
                     val args = call.arguments as List<Any?>
                     var pubUrlStr = args[0] as String

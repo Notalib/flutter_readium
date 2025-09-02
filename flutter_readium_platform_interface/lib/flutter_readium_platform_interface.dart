@@ -43,6 +43,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   ReadiumReaderWidgetInterface? currentReaderWidget;
   EPUBPreferences? defaultPreferences;
 
+  Future<void> setCustomHeaders(Map<String, String> headers) =>
+      throw UnimplementedError('setCustomHeaders(headers) has not been implemented.');
+
   Future<Publication> openPublication(String pubUrl) =>
       throw UnimplementedError('openPublication(pubUrl) has not been implemented.');
 

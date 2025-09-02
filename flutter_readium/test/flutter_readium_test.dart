@@ -12,6 +12,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   EPUBPreferences? defaultPreferences;
 
   @override
+  Future<void> setCustomHeaders(Map<String, String> headers) {
+    // TODO: implement setCustomHeaders
+    throw UnimplementedError();
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) =>
       Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
