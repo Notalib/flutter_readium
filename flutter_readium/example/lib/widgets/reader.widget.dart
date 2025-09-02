@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
-import 'package:flutter_readium/reader_widget.dart';
+import 'package:flutter_readium/reader_widget_switch.dart';
 import 'package:native_device_orientation/native_device_orientation.dart';
 
 import '../state/index.dart';
@@ -63,7 +63,6 @@ class ReaderWidget extends StatelessWidget {
               ),
             );
           } else if (state.publication != null) {
-            context.read<TextSettingsBloc>().add(OpenPubSuccess());
             return Semantics(
               container: true,
               explicitChildNodes: true,

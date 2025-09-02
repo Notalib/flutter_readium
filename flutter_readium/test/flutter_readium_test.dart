@@ -12,6 +12,15 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   EPUBPreferences? defaultPreferences;
 
   @override
+  void setDefaultPreferences(EPUBPreferences preferences) {
+    defaultPreferences = preferences;
+  }
+
+  @override
+  Future<Publication> getPublication(String pubUrl) =>
+      Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
+
+  @override
   Future<Publication> openPublication(String pubUrl) =>
       Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
