@@ -12,3 +12,19 @@ Android and/or iOS.
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Editing on web
+
+When making changes to the TypeScript files, convert the main TypeScript file (`ReadiumReader.ts`) to JavaScript using:
+
+```bash
+npm run build
+```
+
+Run this command from the root of the plugin.
+
+To test the changes, follow the installation instructions in the example app directory.
+
+```bash
+dart run flutter_readium:copy_js_file <destination_directory>
+```

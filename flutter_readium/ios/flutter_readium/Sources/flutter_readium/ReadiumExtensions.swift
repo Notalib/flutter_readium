@@ -176,6 +176,8 @@ extension EPUBPreferences {
         if let wordSpacingValue = Double(value) {
           wordSpacing = wordSpacingValue
         }
+      case "pageMargins":
+          pageMargins = Double(value) ?? nil
       default:
         print("EPUBPreferences", "WARN: Cannot map property: \(key): \(value)")
       }

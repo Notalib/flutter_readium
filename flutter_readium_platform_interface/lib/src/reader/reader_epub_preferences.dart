@@ -11,6 +11,7 @@ class EPUBPreferences {
     required this.verticalScroll,
     required this.backgroundColor,
     required this.textColor,
+    this.pageMargins,
   });
 
   factory EPUBPreferences.fromJsonMap(final Map<String, dynamic> map) => EPUBPreferences(
@@ -28,16 +29,23 @@ class EPUBPreferences {
   bool? verticalScroll;
   Color? backgroundColor;
   Color? textColor;
+  double? pageMargins;
 
   // TODO: Add more preferences,
   //see https://github.com/readium/swift-toolkit/blob/develop/Sources/Navigator/EPUB/Preferences/EPUBPreferences.swift
 
-  Map<String, dynamic> toJson() => {
-        'fontFamily': fontFamily,
-        'fontSize': '${fontSize / 100}',
-        'fontWeight': fontWeight.toString(),
-        'verticalScroll': verticalScroll.toString(),
-        'backgroundColor': backgroundColor.toCSS(),
-        'textColor': textColor.toCSS(),
-      };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'fontFamily': fontFamily,
+      'fontSize': '${fontSize / 100}',
+      'fontWeight': fontWeight.toString(),
+      'verticalScroll': verticalScroll.toString(),
+      'backgroundColor': backgroundColor.toCSS(),
+      'textColor': textColor.toCSS(),
+    };
+    if (pageMargins != null) {
+      map['pageMargins'] = pageMargins.toString();
+    }
+    return map;
+  }
 }

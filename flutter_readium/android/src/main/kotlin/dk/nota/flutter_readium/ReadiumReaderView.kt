@@ -20,8 +20,10 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -402,13 +404,20 @@ internal class ReadiumReaderView(
                 }
 
                 "isReaderReady" -> {
-                    val jsonRes = evaluateJavascript("window.epubPage.isReaderReady();") ?: "false"
-                    try {
-                        val isReady = jsonDecode(jsonRes) as Boolean
-                        result.success(isReady)
-                    } catch (e: Error) {
-                        Log.e(TAG, "::isReaderReady - invalid response \"jsonRes\" - $e")
+                    if (!navigatorStarted.value) {
                         result.success(false)
+                    } else {
+                        val jsonRes =
+                            withTimeout(100) {
+                                evaluateJavascript("window.epubPage.isReaderReady();") ?: "false"
+                            }
+                        try {
+                            val isReady = jsonDecode(jsonRes) as Boolean
+                            result.success(isReady)
+                        } catch (e: Error) {
+                            Log.e(TAG, "::isReaderReady - invalid response \"jsonRes\" - $e")
+                            result.success(false)
+                        }
                     }
                 }
 
@@ -503,10 +512,10 @@ internal class ReadiumReaderView(
     }
 
     private suspend fun afterFragmentStarted() {
-        if (!navigatorStarted.value) {
-            navigatorStarted.first { it }
-            Log.d(TAG, "::afterFragmentStarted: Resuming call")
-        }
+        if (navigatorStarted.value) return
+
+        navigatorStarted.first { it }
+        Log.d(TAG, "::afterFragmentStarted: Resuming call")
     }
 
     companion object {

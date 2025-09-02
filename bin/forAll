@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ "x$1" == "x" ]
+then
+	echo "Possible usage:"
+	echo "  $0 dart pub outdated"
+	echo "  $0 dart pub upgrade"
+	exit 1
+fi
+
+dir=(
+	"./flutter_readium"
+	"./flutter_readium_platform_interface"
+)
+for i in "${dir[@]}"; do
+	echo -e "\033[35;1m=== $@ $i ===\033[0m"
+  (cd "$i" || exit; $@)
+done
