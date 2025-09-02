@@ -136,6 +136,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement ttsSetPreferences
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) {
+    // TODO: implement audioStart
+    throw UnimplementedError();
+  }
 }
 
 void main() {

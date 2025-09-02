@@ -98,9 +98,9 @@ PODS:
     - ReadiumInternal (~> 3.2.0)
     - ReadiumShared (~> 3.2.0)
   - ReadiumZIPFoundation (3.0.0)
-  - SDWebImage (5.21.1):
-    - SDWebImage/Core (= 5.21.1)
-  - SDWebImage/Core (5.21.1)
+  - SDWebImage (5.21.2):
+    - SDWebImage/Core (= 5.21.2)
+  - SDWebImage/Core (5.21.2)
   - SwiftSoup (2.7.6)
   - SwiftyGif (5.4.5)
   - wakelock_plus (0.0.1):
@@ -176,7 +176,7 @@ SPEC CHECKSUMS:
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
-  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_readium: 1d3f571cb9af7ac8535a85f79029e4294dca2897
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
@@ -193,7 +193,7 @@ SPEC CHECKSUMS:
   ReadiumShared: 2d72e554b5a8b09546c014c2affef0cd0ccf90a3
   ReadiumStreamer: ec39b709ab497199281f356fffe2a9c826207d52
   ReadiumZIPFoundation: 7896c617e020696566d307e2374776a080237370
-  SDWebImage: f29024626962457f3470184232766516dee8dfea
+  SDWebImage: 9f177d83116802728e122410fb25ad88f5c7608a
   SwiftSoup: 9ec2526c76ebc3fe5d3157c82b40b45a27eeb82d
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556

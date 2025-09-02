@@ -21,6 +21,9 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
 
+  /// Audiobook related variables
+  internal var audioNavigator: AudioNavigator? = nil
+  internal var audiobookModel: AudiobookViewModel? = nil
 
   /// TTS related variables
   /// TODO: Refactor into a TTSViewModel?
@@ -158,7 +161,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
-      
+
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
@@ -250,6 +253,29 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           message: "Failed to deserialize TTSPreferences: \(error.localizedDescription)",
           details: nil))
       }
+    case "audioStart":
+      // Create AudiobookViewModel
+      guard let args = call.arguments as? [Any?],
+            let pubId = args[0] as? String,
+            let publication = getPublicationByIdentifier(pubId) else {
+        return result(FlutterError.init(
+          code: "AudioStart",
+          message: "Invalid parameters to audioStart: \(call.arguments.debugDescription)",
+          details: nil))
+      }
+      Task.detached(priority: .high) {
+        
+        let playbackRate = args[1] as? Double ?? 1.0
+        var locator: Locator? = nil
+        if let locatorStr = args[2] as? String {
+          locator = try! Locator(jsonString: locatorStr, warnings: self)!
+        }
+        let prefs = AudioPreferences.init(speed: playbackRate)
+      
+        await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
+        self.play()
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }

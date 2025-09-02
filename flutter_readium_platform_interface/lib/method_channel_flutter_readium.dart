@@ -133,4 +133,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Future<String?> getLinkContent(final String pubIdentifier, final Link link) =>
       methodChannel.invokeMethod<String>('getLinkContent', [pubIdentifier, jsonEncode(link.toJson())]);
+
+  @override
+  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) =>
+      methodChannel.invokeMethod('audioStart', [pubIdentifier, speed, fromLocator]);
 }

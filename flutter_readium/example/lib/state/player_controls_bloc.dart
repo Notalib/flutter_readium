@@ -1,8 +1,17 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:flutter_readium/flutter_readium.dart';
 
 abstract class PlayerControlsEvent {}
+
+class PlayAudiobook extends PlayerControlsEvent {
+  String pubIdentifier;
+  PlayAudiobook({
+    required this.pubIdentifier,
+  });
+}
 
 class Play extends PlayerControlsEvent {}
 
@@ -61,6 +70,11 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.ttsResume();
       }
 
+      emit(await state.togglePlay(true));
+    });
+
+    on<PlayAudiobook>((final event, final emit) async {
+      await instance.audioStart(event.pubIdentifier, speed: 1.5);
       emit(await state.togglePlay(true));
     });
 

@@ -83,6 +83,11 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END
 
+  // AudioBook API - BEGIN
+  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) =>
+      throw UnimplementedError('audioStart() has not been implemented');
+  // AudioBook API - END
+
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');
   }

@@ -139,17 +139,13 @@ class BookshelfPageState extends State<BookshelfPage> {
     }
   }
 
-  String _bookFormatFromConformsTo(List<String>? conformsTo) {
-    if (conformsTo == null || conformsTo.isEmpty) {
+  String _bookFormatFromConformsTo(Publication pub) {
+    if (pub.conformsToReadiumEbook) {
+      return 'Ebook';
+    } else if (pub.conformsToReadiumAudiobook) {
+      return 'Audiobook';
+    } else {
       return 'Unknown format';
-    }
-    switch (conformsTo.first) {
-      case 'https://readium.org/webpub-manifest/profiles/epub':
-        return 'EPUB';
-      case 'https://readium.org/webpub-manifest/profiles/audiobook':
-        return 'Audiobook';
-      default:
-        return 'Unknown format';
     }
   }
 
@@ -163,6 +159,10 @@ class BookshelfPageState extends State<BookshelfPage> {
               context
                   .read<PublicationBloc>()
                   .add(OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
+
+              if (publication.conformsToReadiumAudiobook) {
+                context.read<PlayerControlsBloc>().add(PlayAudiobook(pubIdentifier: publication.identifier));
+              }
               Navigator.restorablePushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');
@@ -183,7 +183,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       Text(_listAuthors(publication)),
-                      Text(_bookFormatFromConformsTo(publication.metadata.conformsTo)),
+                      Text(_bookFormatFromConformsTo(publication)),
                     ],
                   ),
                   // remove the if when books loaded from asset can be deleted

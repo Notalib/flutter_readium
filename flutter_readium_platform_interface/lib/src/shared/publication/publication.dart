@@ -140,6 +140,12 @@ extension PublicationExtension on Publication {
 
   Uri? get coverUri => coverLink != null ? Uri.tryParse(coverLink!.href) : null;
 
+  bool get conformsToReadiumAudiobook =>
+      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/audiobook') == true;
+
+  bool get conformsToReadiumEbook =>
+      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
+
   /// Estimates total progression duration in book, based on current chapter and current progression
   /// in chapter.
   Progressions calculateProgressions({

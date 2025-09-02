@@ -32,7 +32,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             child: Column(
               children: [
                 Expanded(
-                  child: ReaderWidget(),
+                  child: pubState.publication?.conformsToReadiumAudiobook != true ? ReaderWidget() : SizedBox.shrink(),
                 ),
                 _controls(),
               ],

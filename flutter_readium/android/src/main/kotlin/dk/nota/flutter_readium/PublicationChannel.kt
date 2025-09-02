@@ -4,6 +4,7 @@ package dk.nota.flutter_readium
 
 import android.content.Context
 import android.util.Log
+import dk.nota.flutter_readium.fragments.AudioReaderFragment
 import dk.nota.flutter_readium.models.TTSViewModel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -241,6 +242,23 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                             )
                         }
                     }
+                }
+
+                "audioStart" -> {
+                    val args = call.arguments as List<*>
+                    val pubIdentifier = args[0] as String
+                    val locatorStr = args[1] as String?
+                    val publication = readium.publicationFromIdentifier(pubIdentifier)
+                    val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
+
+                    if (publication == null) {
+                        result.error("audioStart", "Publication not found", null)
+                        return@launch
+                    }
+
+                    // TODO: Create AudioReaderFragment here, or within the ReadiumReaderView?
+                    //
+                    result.success(null)
                 }
 
                 else -> {

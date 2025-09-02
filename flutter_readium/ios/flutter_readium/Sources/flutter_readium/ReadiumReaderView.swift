@@ -218,7 +218,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
           return
         }
 
-        textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+        textLocatorStreamHandler.sendEvent(locatorWithFragments.jsonString)
       }
     }
   }
