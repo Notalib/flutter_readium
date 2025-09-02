@@ -8,14 +8,16 @@ which implements both TTS and Text+Audio sync on top of the native toolkits via 
 This plugin is supposed to support both EPUB and WebPubs, with or without pre-recorded audio.
 
 ## Plans
+
 We will work on the main branch on a modernized and simple API using newest toolkits and utilize much more of the toolkit functionality.
 
 See repo Issues for up-to-date progress.
 
 General TODO:
-- [X] Use Preferences API on both platforms.
-- [X] Use Decorator API for highlighting.
-- [X] Test TTS and Audio navigators for maturity, possibly replacing our own audio handlers.
+
+- [x] Use Preferences API on both platforms.
+- [x] Use Decorator API for highlighting.
+- [x] Test TTS and Audio navigators for maturity, possibly replacing our own audio handlers.
 - [ ] Finding: Readium native toolkits do not yet support MediaOverlays, making support for "karaoke books" difficult.
       We either wait for this to be implemented, or do something similar to the `nota-lyt4` branch and use `audio_service` and `just_audio` plugins for MediaOverlay playback.
 
@@ -40,7 +42,7 @@ Also, update your Android and iOS projects as follows:
   your `android/app/src/main/AndroidManifest.xml` file:
 
 ```html
-<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.WAKE_LOCK" />
 ```
 
 ### iOS
@@ -71,6 +73,34 @@ end
 <key>NSAppTransportSecurity</key>
 <dict>
   <key>NSAllowsArbitraryLoads</key>
-  <true/>
+  <true />
 </dict>
 ```
+
+### Web
+
+To use this plugin for web, follow these steps to ensure everything works correctly:
+
+#### 1. Copy the JavaScript File
+
+To use the JavaScript file from the plugin in your Flutter web app, run the following command in your terminal from the root directory of your app:
+
+```bash
+dart run flutter_readium:copy_js_file <destination_directory>
+```
+
+It is recommended to place the destination directory within the `web` directory or a subdirectory of it. Avoid saving it outside the `web` directory.
+
+#### 2. Add Scripts to `index.html`
+
+After copying the JavaScript file to your app, add Flutter's initialization JS code and the plugin JS to the `head` section of your `index.html` file:
+
+```html
+<!-- Flutter initialization JS code -->
+<script src="flutter.js" defer></script>
+
+<!-- Plugin JS code -->
+<script src="readiumReader.js" defer></script>
+```
+
+If the plugin's JS file is not saved in the same directory as `index.html`, update the source path accordingly.

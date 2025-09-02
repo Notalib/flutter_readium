@@ -71,18 +71,18 @@ fun epubPreferencesFromMap(
     defaults: EpubPreferences?,
 ): EpubPreferences? {
     try {
-        val newPreferences = EpubPreferences(
-            fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
-            fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
-            fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
-            scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
-            backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) }
-                ?: defaults?.backgroundColor,
-            textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor
-        )
-        return newPreferences
+      val newPreferences = EpubPreferences(
+        fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
+        fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
+        fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
+        scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
+        backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.backgroundColor,
+        textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor,
+        pageMargins = prefMap["pageMargins"]?.toDoubleOrNull() ?: defaults?.pageMargins,
+      )
+      return newPreferences
     } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
-        return null
+      Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
+      return null
     }
 }

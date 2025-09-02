@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,24 +21,12 @@ class BookshelfPage extends StatefulWidget {
 
 class BookshelfPageState extends State<BookshelfPage> {
   final _flutterReadiumPlugin = FlutterReadium();
+  final ScrollController _scrollController = ScrollController();
   List<Publication> _testPublications = [];
   bool _isLoading = true;
   // Pubs loaded from assets folder should not be delete-able as they would just be re-added on restart
   // we should probably make it so they will only be loaded once
   final List<String> _identifiersFromAsset = ['dk-nota-714304'];
-
-  // TODO: find a better solution for initialLocator.
-  final initialLocator = Locator(
-    href: '/OPS/main2.xml',
-    title: 'Test',
-    // locations: Locations(cssSelector: '#chapter_245810 > div > p:nth-child(19)'),
-    locations: Locations(
-      progression: 0.38461538461538464,
-      position: 26,
-      totalProgression: 0.176056338028169,
-    ),
-    type: 'text/html',
-  );
 
   @override
   void initState() {
@@ -45,14 +35,33 @@ class BookshelfPageState extends State<BookshelfPage> {
   }
 
   Future<void> _initialize() async {
-    // should only be done first time app is started. how to do that?
-    final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
     final loadedPublications = <Publication>[];
 
-    for (String localPubPath in localPublications) {
-      Publication? publication = await openPublicationFromUrl(localPubPath);
-      if (publication != null) {
-        loadedPublications.add(publication);
+    if (kIsWeb) {
+      // Web: Load publications from JSON asset
+      final String response = await rootBundle.loadString('assets/webManifestList.json');
+      final List<dynamic> manifestHrefs = json.decode(response);
+      for (final href in manifestHrefs) {
+        try {
+          Publication? pub;
+          pub = await openPublicationFromUrl(href.toString());
+          if (pub != null) {
+            loadedPublications.add(pub);
+            await _flutterReadiumPlugin.closePublication(pub.identifier);
+          }
+        } on Exception catch (e) {
+          debugPrint('Error opening publication: $e');
+        }
+      }
+    } else {
+      // should only be done first time app is started. how to do that?
+      final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
+
+      for (String localPubPath in localPublications) {
+        Publication? publication = await openPublicationFromUrl(localPubPath);
+        if (publication != null) {
+          loadedPublications.add(publication);
+        }
       }
     }
 
@@ -64,13 +73,21 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   Future<Publication?> openPublicationFromUrl(String pubUrl) async {
     try {
-      Publication pub = await _flutterReadiumPlugin.openPublication(pubUrl);
+      Publication pub = kIsWeb
+          ? await _flutterReadiumPlugin.getPublication(pubUrl)
+          : await _flutterReadiumPlugin.openPublication(pubUrl);
       debugPrint('openPublication success: ${pub.metadata.title}');
       return pub;
     } on PlatformException catch (e) {
       debugPrint('Failed to open publication: ${e.message}');
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -87,9 +104,11 @@ class BookshelfPageState extends State<BookshelfPage> {
                   children: [
                     Expanded(
                       child: CupertinoScrollbar(
+                        controller: _scrollController,
                         thickness: 5.0,
                         thumbVisibility: true,
                         child: ListView.builder(
+                          controller: _scrollController,
                           itemCount: _testPublications.length,
                           itemBuilder: (final context, final index) {
                             final publication = _testPublications[index];
