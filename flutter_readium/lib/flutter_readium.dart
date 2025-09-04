@@ -22,16 +22,16 @@ class FlutterReadium {
     _platform.setDefaultPreferences(preferences);
   }
 
-  Future<Publication> getPublication(String pubUrl) {
-    return _platform.getPublication(pubUrl);
+  Future<Publication> loadPublication(String pubUrl) {
+    return _platform.loadPublication(pubUrl);
   }
 
   Future<Publication> openPublication(String pubUrl) {
     return _platform.openPublication(pubUrl);
   }
 
-  Future<void> closePublication(String pubUrl) {
-    return _platform.closePublication(pubUrl);
+  Future<void> closePublication() {
+    return _platform.closePublication();
   }
 
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;

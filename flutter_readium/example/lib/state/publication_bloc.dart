@@ -6,11 +6,11 @@ abstract class PublicationEvent {}
 
 class OpenPublication extends PublicationEvent {
   OpenPublication({
-    required this.publication,
+    required this.publicationUrl,
     this.initialLocator,
     this.autoPlay,
   });
-  final Publication publication;
+  final String publicationUrl;
   final Locator? initialLocator;
   final bool? autoPlay;
 }
@@ -74,14 +74,8 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading());
       try {
-        // TODO: Set which Publication is rendered on the native side.
-        // final publication = await FlutterReadium().setRenderedPublication(
-        //   event.publication.identifier,
-        // initialLocator: event.initialLocator,
-        // autoPlay: event.autoPlay ?? false,
-        // preload: false,
-        // );
-        emit(state.openPublicationSuccess(event.publication, event.initialLocator));
+        final publication = await FlutterReadium().openPublication(event.publicationUrl);
+        emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));
       }

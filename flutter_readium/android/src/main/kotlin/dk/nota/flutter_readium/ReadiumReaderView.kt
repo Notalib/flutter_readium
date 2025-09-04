@@ -108,8 +108,8 @@ internal class ReadiumReaderView(
         @Suppress("UNCHECKED_CAST")
         val initPrefsMap = creationParams["preferences"] as Map<String, String>?
         val pubIdentifier = creationParams["pubIdentifier"] as String
-        val publication = readium.publicationFromIdentifier(pubIdentifier)!!
-        val pubUrl = readium.publicationUrlFromIdentifier(pubIdentifier)!!
+        val publication = readium.getCurrentPublication()!!
+        val pubUrl = readium.getCurrentPublicationUrl()!!
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
         var initialLocator =

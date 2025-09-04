@@ -47,14 +47,19 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     defaultPreferences = preferences;
   }
 
-  Future<Publication> getPublication(String pubUrl) =>
-      throw UnimplementedError('getPublication(pubUrl) has not been implemented.');
+  /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
+  Future<Publication> loadPublication(String pubUrl) =>
+      throw UnimplementedError('loadPublication(pubUrl) has not been implemented.');
 
+  /// Opens a publication from a URL and prepares it for reading or playback.
+  /// If the URL has not already been loaded, it will implicitly do this.
   Future<Publication> openPublication(String pubUrl) =>
       throw UnimplementedError('openPublication(pubUrl) has not been implemented.');
 
-  Future<void> closePublication(String pubIdentifier) =>
-      throw UnimplementedError('closePublication(pubIdentifier) has not been implemented.');
+  /// Close the currently open publication and its related reader or playback ressources.
+  Future<void> closePublication() => throw UnimplementedError('closePublication() has not been implemented.');
+
+  Future<String?> getLinkContent(final Link link);
 
   Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
   Future<void> goRight() => throw UnimplementedError('goRight() has not been implemented.');

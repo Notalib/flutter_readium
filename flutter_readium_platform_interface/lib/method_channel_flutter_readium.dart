@@ -47,6 +47,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<Publication> loadPublication(String pubUrl) async {
+    final publicationString =
+        await methodChannel.invokeMethod<String>('loadPublication', [pubUrl]).then<String>((dynamic result) => result);
+    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString =
         await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
@@ -54,8 +61,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> closePublication(String pubIdentifier) async =>
-      await methodChannel.invokeMethod<void>('closePublication', [pubIdentifier]);
+  Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
 
   @override
   Future<void> goLeft() async => await currentReaderWidget?.goLeft();
@@ -131,8 +137,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('ttsSetPreferences', preferences.toMap());
 
   @override
-  Future<String?> getLinkContent(final String pubIdentifier, final Link link) =>
-      methodChannel.invokeMethod<String>('getLinkContent', [pubIdentifier, jsonEncode(link.toJson())]);
+  Future<String?> getLinkContent(final Link link) =>
+      methodChannel.invokeMethod<String>('getLinkContent', [jsonEncode(link.toJson())]);
 
   @override
   Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) =>

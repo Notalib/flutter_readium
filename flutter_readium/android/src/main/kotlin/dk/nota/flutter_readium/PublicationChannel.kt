@@ -17,8 +17,10 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
@@ -55,27 +57,36 @@ internal class PublicationMethodCallHandler(private val context: Context) :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.Main).launch {
             when (call.method) {
+                "loadPublication" -> {
+                    val args = call.arguments as List<Any?>
+                    var pubUrlStr = args[0] as String
+
+                    val publication = loadPublicationFromUrl(pubUrlStr).getOrElse {
+                        Log.e(
+                            TAG,
+                            "ttsEnable: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                        )
+                        return@launch result.error("openPublication", it.message, it.cause)
+                    }
+
+                    val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
+                    result.success(pubJsonManifest)
+                }
                 "openPublication" -> {
                     val args = call.arguments as List<Any?>
                     var pubUrlStr = args[0] as String
 
-                    // If URL is neither http nor file, assume it is a local file reference.
-                    if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
-                        pubUrlStr = "file://$pubUrlStr"
-                    }
-                    val pubUrl = AbsoluteUrl(pubUrlStr) ?: run {
-                        Log.e(TAG, "openPublication: Invalid URL")
-                        result.error("InvalidURLError", "Invalid publication URL", null)
-                        return@launch
-                    }
-                    Log.d(TAG, "openPublication for URL: $pubUrl")
-
-                    val pub = readium.openPublication(pubUrl).getOrElse { error: PublicationError ->
-                        result.error(error.cause.toString(), error.message.toString(), null)
-                        return@launch
+                    val publication = loadPublicationFromUrl(pubUrlStr).getOrElse {
+                        Log.e(
+                            TAG,
+                            "ttsEnable: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                        )
+                        return@launch result.error("openPublication", it.message, it.cause)
                     }
 
-                    val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
+                    // TODO: Initialize other necessary resources to prepare for reading this publication.
+
+                    val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
                     result.success(pubJsonManifest)
                 }
 
@@ -96,7 +107,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                         return@launch
                     }
 
-                    val publication = readium.publicationFromIdentifier(pubIdentifier)
+                    val publication = readium.getCurrentPublication()
                     if (publication == null) {
                         Log.e(
                             TAG,
@@ -205,11 +216,10 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                 "getLinkContent" -> {
                     try {
                         val args = call.arguments as List<Any?>
-                        val pubIdentifier = args[0] as String
-                        val linkStr = args[1] as String
-                        val asString = args[2] as? Boolean ?: true
+                        val linkStr = args[0] as String
+                        val asString = args[1] as? Boolean ?: true
                         val link = Link.fromJSON(JSONObject(linkStr))
-                        val publication = readium.publicationFromIdentifier(pubIdentifier)
+                        val publication = readium.getCurrentPublication()
 
                         if (publication == null || link == null) {
                             throw Exception("getLinkContent: failed to get resource. Missing pub or link: $publication, $link")
@@ -248,7 +258,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     val args = call.arguments as List<*>
                     val pubIdentifier = args[0] as String
                     val locatorStr = args[1] as String?
-                    val publication = readium.publicationFromIdentifier(pubIdentifier)
+                    val publication = readium.getCurrentPublication()
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
@@ -266,6 +276,23 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                 }
             }
         }
+    }
+
+    suspend fun loadPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    {
+        var pubUrlStr = urlStr
+        // If URL is neither http nor file, assume it is a local file reference.
+        if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
+            pubUrlStr = "file://$pubUrlStr"
+        }
+        // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
+        val pubUrl = AbsoluteUrl(pubUrlStr)
+        if (pubUrl == null) {
+            return failure(PublicationError.InvalidPublicationUrl(pubUrlStr))
+        }
+        Log.d(TAG, "openPublication for URL: $pubUrl")
+
+        return readium.openPublication(pubUrl)
     }
 }
 

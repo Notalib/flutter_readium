@@ -23,6 +23,7 @@ class BookshelfPageState extends State<BookshelfPage> {
   final _flutterReadiumPlugin = FlutterReadium();
   final ScrollController _scrollController = ScrollController();
   List<Publication> _testPublications = [];
+  List<String> _testPublicationURLs = [];
   bool _isLoading = true;
   // Pubs loaded from assets folder should not be delete-able as they would just be re-added on restart
   // we should probably make it so they will only be loaded once
@@ -36,6 +37,7 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   Future<void> _initialize() async {
     final loadedPublications = <Publication>[];
+    final loadedPublicationURLs = <String>[];
 
     if (kIsWeb) {
       // Web: Load publications from JSON asset
@@ -47,7 +49,7 @@ class BookshelfPageState extends State<BookshelfPage> {
           pub = await openPublicationFromUrl(href.toString());
           if (pub != null) {
             loadedPublications.add(pub);
-            await _flutterReadiumPlugin.closePublication(pub.identifier);
+            await _flutterReadiumPlugin.closePublication();
           }
         } on Exception catch (e) {
           debugPrint('Error opening publication: $e');
@@ -61,22 +63,22 @@ class BookshelfPageState extends State<BookshelfPage> {
         Publication? publication = await openPublicationFromUrl(localPubPath);
         if (publication != null) {
           loadedPublications.add(publication);
+          loadedPublicationURLs.add(localPubPath);
         }
       }
     }
 
     setState(() {
       _testPublications = loadedPublications;
+      _testPublicationURLs = loadedPublicationURLs;
       _isLoading = false;
     });
   }
 
   Future<Publication?> openPublicationFromUrl(String pubUrl) async {
     try {
-      Publication pub = kIsWeb
-          ? await _flutterReadiumPlugin.getPublication(pubUrl)
-          : await _flutterReadiumPlugin.openPublication(pubUrl);
-      debugPrint('openPublication success: ${pub.metadata.title}');
+      Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl);
+      debugPrint('loadPublication success: ${pub.metadata.title}');
       return pub;
     } on PlatformException catch (e) {
       debugPrint('Failed to open publication: ${e.message}');
@@ -112,7 +114,8 @@ class BookshelfPageState extends State<BookshelfPage> {
                           itemCount: _testPublications.length,
                           itemBuilder: (final context, final index) {
                             final publication = _testPublications[index];
-                            return _buildPubCard(publication, context);
+                            final publicationUrl = _testPublicationURLs[index];
+                            return _buildPubCard(publication, publicationUrl, context);
                           },
                         ),
                       ),
@@ -168,16 +171,17 @@ class BookshelfPageState extends State<BookshelfPage> {
     }
   }
 
-  Widget _buildPubCard(final Publication publication, final BuildContext context) => Container(
+  Widget _buildPubCard(final Publication publication, String publicationUrl, final BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
         child: InkWell(
           onTap: () {
             final fakeInitialLocator = publication.locatorFromLink(publication.readingOrder[2]);
+
             try {
               context
                   .read<PublicationBloc>()
-                  .add(OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
+                  .add(OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator));
 
               if (publication.conformsToReadiumAudiobook) {
                 context.read<PlayerControlsBloc>().add(PlayAudiobook(pubIdentifier: publication.identifier));

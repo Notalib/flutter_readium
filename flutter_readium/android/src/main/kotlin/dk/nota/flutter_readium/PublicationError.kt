@@ -28,6 +28,9 @@ sealed class PublicationError(
     class InvalidPublication(cause: Error) :
         PublicationError(cause.message, cause.cause)
 
+    class InvalidPublicationUrl(msg: String) :
+        PublicationError(msg)
+
     class Unexpected(cause: Error) :
         PublicationError(cause.message, cause.cause)
 

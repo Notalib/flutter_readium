@@ -17,7 +17,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<Publication> getPublication(String pubUrl) =>
+  Future<Publication> loadPublication(String pubUrl) =>
       Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
   @override
@@ -36,7 +36,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> closePublication(String pubIdentifier) {
+  Future<void> closePublication() {
     // TODO: implement closePublication
     throw UnimplementedError();
   }
@@ -149,6 +149,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) {
     // TODO: implement audioStart
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> getLinkContent(Link link) {
+    // TODO: implement getLinkContent
     throw UnimplementedError();
   }
 }

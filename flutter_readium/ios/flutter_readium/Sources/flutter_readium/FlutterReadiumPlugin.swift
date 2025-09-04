@@ -7,11 +7,11 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin"
 
-internal var openedReadiumPublications = Dictionary<String, Publication>()
+internal var currentPublication: Publication?
 internal var currentReaderView: ReadiumReaderView?
 
-func getPublicationByIdentifier(_ identifier: String) -> Publication? {
-  return openedReadiumPublications[identifier]
+func getCurrentPublication() -> Publication? {
+  return currentPublication
 }
 
 func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
@@ -64,9 +64,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       // TODO: Implement like this or send with openPublication??
       break
     case "dispose":
-      openedReadiumPublications.values.forEach { pub in
-        pub.close()
-      }
+      currentPublication?.close()
       self.synthesizer?.stop()
       self.synthesizer = nil
       self.audioLocatorStreamHandler?.dispose()
@@ -78,58 +76,48 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "openPublication":
       let args = call.arguments as! [Any?]
-      var pubUrlStr = args[0] as! String
+      let pubUrlStr = args[0] as! String
+      
+      Task.detached(priority: .high) {
+        guard let pub: Publication = await self.loadPublication(fromUrlStr: pubUrlStr, result: result) else {
+          // Loading publication failed and should have already called result function with an error.
+          // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
+          return
+        }
+        
+        // TODO: Do any other necessary preloading for a book we're about to read.
+        // E.g. for audiobook create AudioNavigator.
+        
+        let jsonManifest = pub.jsonManifest
 
-      if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
-        // Assume URLs without a supported prefix are local file paths.
-        pubUrlStr = "file://\(pubUrlStr)"
+        await MainActor.run {
+          result(jsonManifest)
+        }
       }
-
-      let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
-      guard let url = URL(string: encodedUrlStr!) else {
-        return result(FlutterError.init(
-          code: "InvalidArgument",
-          message: "Invalid publication URL: \(pubUrlStr)",
-          details: nil))
-      }
-      guard let absUrl = url.anyURL.absoluteURL else {
-        return result(FlutterError.init(
-          code: "InvalidArgument",
-          message: "Invalid publication absoluteURL: \(url.absoluteString)",
-          details: nil))
-      }
-
-      print("Attempting to open publication at: \(absUrl)")
+    case "loadPublication":
+      let args = call.arguments as! [Any?]
+      let pubUrlStr = args[0] as! String
 
       Task.detached(priority: .high) {
-        do {
-          let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
-          let mediaType: String = pub.1.mediaType?.string ?? "unknown"
-          print("Opened publication: identifier: \(pub.0.metadata.identifier ?? "[no-ident]") format: \(mediaType)")
+        guard let pub: Publication = await self.loadPublication(fromUrlStr: pubUrlStr, result: result) else {
+          // Loading publication failed and should have already called result function with an error.
+          // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
+          return
+        }
+        
+        let jsonManifest = pub.jsonManifest
 
-          // Save this publication for later use, so we don't have to pass it back across native bridge.
-          // TODO: should be set a random identifier if pub doesn't come with any?
-          openedReadiumPublications[pub.0.metadata.identifier ?? url.absoluteString] = pub.0
-
-          await MainActor.run {
-            result(pub.0.jsonManifest)
-          }
-        } catch {
-            await MainActor.run {
-              result(FlutterError.init(
-                code: "OpenPublicationError",
-                message: "Failed to open publication: \(error.localizedDescription)",
-                details: nil))
-            }
+        await MainActor.run {
+          result(jsonManifest)
         }
       }
     case "getLinkContent":
       let args = call.arguments as! [Any?]
-      //let asString = args[2] as? Bool ?? true
+      // TODO: Do we need asString?
+      //let asString = args[1] as? Bool ?? true
       let asString = true
-      guard let pubId = args[0] as? String,
-            let linkStr = args[1] as? String,
-            let publication = getPublicationByIdentifier(pubId),
+      guard let linkStr = args[0] as? String,
+            let publication = currentPublication,
             let link = try? Link(fromJsonString: linkStr) else {
         return result(FlutterError.init(
           code: "getLinkContent",
@@ -257,21 +245,21 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       // Create AudiobookViewModel
       guard let args = call.arguments as? [Any?],
             let pubId = args[0] as? String,
-            let publication = getPublicationByIdentifier(pubId) else {
+            let publication = currentPublication else {
         return result(FlutterError.init(
           code: "AudioStart",
           message: "Invalid parameters to audioStart: \(call.arguments.debugDescription)",
           details: nil))
       }
       Task.detached(priority: .high) {
-        
+
         let playbackRate = args[1] as? Double ?? 1.0
         var locator: Locator? = nil
         if let locatorStr = args[2] as? String {
           locator = try! Locator(jsonString: locatorStr, warnings: self)!
         }
         let prefs = AudioPreferences.init(speed: playbackRate)
-      
+
         await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
         self.play()
       }
@@ -284,6 +272,44 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
+
+  private func loadPublication (
+    fromUrlStr: String,
+    result: @escaping FlutterResult
+  ) async -> Publication? {
+    var pubUrlStr = fromUrlStr
+    if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
+      // Assume URLs without a supported prefix are local file paths.
+      pubUrlStr = "file://\(pubUrlStr)"
+    }
+
+    let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
+    guard let url = URL(string: encodedUrlStr!) else {
+      result(FlutterError.init(
+        code: "InvalidArgument",
+        message: "Invalid publication URL: \(pubUrlStr)",
+        details: nil))
+      return nil
+    }
+    guard let absUrl = url.anyURL.absoluteURL else {
+      result(FlutterError.init(
+        code: "InvalidArgument",
+        message: "Invalid publication absoluteURL: \(url.absoluteString)",
+        details: nil))
+      return nil
+    }
+
+    print("Attempting to open publication at: \(absUrl)")
+    do {
+      let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
+      let mediaType: String = pub.1.mediaType?.string ?? "unknown"
+      print("Opened publication: identifier: \(pub.0.metadata.identifier ?? "[no-ident]") format: \(mediaType)")
+      return pub.0
+    } catch {
+      print("Failed to open publication: \(error)")
+      return nil
+    }
+  }
 
   private func openPublication(
           at url: AbsoluteURL,
@@ -308,8 +334,9 @@ extension FlutterReadiumPlugin {
 
   private func closePublication(_ pubIdentifier: String) {
     // Clean-up any resources associated with this publication identifier
-    openedReadiumPublications[pubIdentifier]?.close()
-    openedReadiumPublications[pubIdentifier] = nil
+    currentPublication?.close()
+    currentPublication = nil
     synthesizer = nil
+    // TODO: If audiobook dispose AudioNavigator
   }
 }

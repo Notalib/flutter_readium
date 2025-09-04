@@ -37,9 +37,11 @@ import org.readium.r2.streamer.parser.DefaultPublicationParser
 
 private const val TAG = "ReadiumHelper"
 
-// Collection of publications init to empty
-private var publications = mutableMapOf<String, Publication>()
-private var publicationUrls = mutableMapOf<String, String>()
+// Currently open publication (if any).
+private var currentPublication: Publication? = null
+
+// URL of currently open publication.
+private var currentPublicationURL: String? = null
 
 /**
  * Holds the shared Readium objects and services used by the app.
@@ -98,12 +100,12 @@ class Readium(private val context: Context) {
     }
     */
 
-    fun publicationFromIdentifier(identifier: String): Publication? {
-        return publications[identifier]
+    fun getCurrentPublication(): Publication? {
+        return currentPublication
     }
 
-    fun publicationUrlFromIdentifier(identifier: String): String? {
-        return publicationUrls[identifier]
+    fun getCurrentPublicationUrl(): String? {
+        return currentPublicationURL
     }
 
     private suspend fun assetToPublication(
@@ -165,8 +167,8 @@ class Readium(private val context: Context) {
                     return@withContext Try.failure(PublicationError.invoke(error))
                 }
                 Log.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
-                publications[pub.metadata.identifier ?: pubUrl.toString()] = pub
-                publicationUrls[pub.metadata.identifier ?: pubUrl.toString()] = pubUrl.toString()
+                currentPublication = pub
+                currentPublicationURL = pubUrl.toString()
                 return@withContext Try.success(pub)
             } catch (e: Throwable) {
                 return@withContext Try.failure(PublicationError.Unexpected(ThrowableError(e)))
@@ -175,7 +177,8 @@ class Readium(private val context: Context) {
     }
 
     fun closePublication(pubIdentifier: String) {
-        publications[pubIdentifier]?.close()
-        publications.remove(pubIdentifier)
+        currentPublication?.close()
+        currentPublication = null
+        currentPublicationURL = null
     }
 }
