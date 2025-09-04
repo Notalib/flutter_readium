@@ -87,6 +87,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         
         // TODO: Do any other necessary preloading for a book we're about to read.
         // E.g. for audiobook create AudioNavigator.
+        currentPublication = pub
+        if (pub.conforms(to: Publication.Profile.audiobook)) {
+          //TODO: Get start locator as param.
+          //TODO: Get playback speed preference.
+          let prefs = AudioPreferences(speed: 1.0)
+          await self.initAudioPlayback(forPublication: pub, withPrefs: prefs, atLocator: nil)
+        }
         
         let jsonManifest = pub.jsonManifest
 
@@ -272,6 +279,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
+  
+  private func initAudioPlayback(
+    forPublication publication: Publication,
+    withPrefs prefs: AudioPreferences,
+    atLocator locator: Locator?,
+  ) async -> Void {
+    await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
+    self.play()
+  }
 
   private func loadPublication (
     fromUrlStr: String,
