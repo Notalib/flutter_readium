@@ -4,7 +4,6 @@ package dk.nota.flutter_readium
 
 import android.content.Context
 import android.util.Log
-import dk.nota.flutter_readium.fragments.AudioReaderFragment
 import dk.nota.flutter_readium.models.TTSViewModel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -88,6 +87,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
                     val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
                     result.success(pubJsonManifest)
+                    return@launch
                 }
 
                 "closePublication" -> {
@@ -117,8 +117,8 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     }
 
                     try {
-                        ttsViewModel = TTSViewModel(context, publication!!, ttsPrefs)
-                        ttsViewModel?.initNavigator()
+                        ttsViewModel = TTSViewModel(context, publication, ttsPrefs)
+                        ttsViewModel!!.initNavigator()
                         result.success(null)
                     } catch (e: Exception) {
                         Log.e(

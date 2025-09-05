@@ -27,7 +27,7 @@ private const val exoPlayerPreferencesKeyName = "ExoPlayerPreferences"
 private var instanceNo = 0
 
 @OptIn(ExperimentalReadiumApi::class)
-public class AudioReaderFragment : BaseReaderFragment() {
+class AudioReaderFragment : BaseReaderFragment() {
 
     private val instance = ++instanceNo
 
@@ -88,7 +88,7 @@ public class AudioReaderFragment : BaseReaderFragment() {
 
         var position = pb.index
         var currentItem = audioNavigator.readingOrder.items[position]
-        var pubCurrentItem = audioVm.publication?.readingOrder[position]
+        var pubCurrentItem = audioVm.publication?.readingOrder?.get(position)
         var chapterTitle = pubCurrentItem?.title
         var chapterDuration = currentItem.duration
         var chapterOffset = pb.offset

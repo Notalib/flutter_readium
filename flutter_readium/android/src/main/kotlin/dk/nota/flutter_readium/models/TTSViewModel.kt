@@ -40,7 +40,7 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 @OptIn(ExperimentalReadiumApi::class)
 internal class TTSViewModel(
-    private val appContext: Context,
+    private val context: Context,
     private val publication: Publication,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
 ) {
@@ -55,7 +55,7 @@ internal class TTSViewModel(
 
     suspend fun initNavigator() {
         val factory = TtsNavigatorFactory(
-            this.appContext as Application,
+            this.context as Application,
             this.publication,
             tokenizerFactory = { language ->
                 DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)

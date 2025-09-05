@@ -62,8 +62,11 @@ internal class ReadiumReaderView(
         get() = activity.supportFragmentManager
 
     /// Checks when the fragment starts and is safe to use.
-    private val navigatorStarted get() = navigator.started
-    private val currentLocator get() = navigator.currentLocator?.value
+    private val navigatorStarted
+        get() = navigator.started
+
+    private val currentLocator
+        get() = navigator.currentLocator?.value
 
     private var userPreferences = EpubPreferences()
     private var initialLocations: Locator.Locations?
@@ -525,3 +528,9 @@ internal class ReadiumReaderView(
 
 private fun canScroll(locations: Locator.Locations) =
     locations.domRange != null || locations.cssSelector != null || locations.progression != null
+
+suspend fun waitForFirstValue(flow: MutableStateFlow<Boolean>): Boolean {
+    return withTimeout(1000) { // 1 second timeout
+        flow.first()
+    }
+}
