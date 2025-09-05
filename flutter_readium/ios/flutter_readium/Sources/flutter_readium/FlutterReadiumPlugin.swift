@@ -58,8 +58,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
-      // TODO: Implement like this or send with openPublication??
-      break
+      let args = call.arguments as? [String: Any]
+      let httpHeaders = args["httpHeaders"] as? [String: String]
+      self.setDefaultHttpHeaders(httpHeaders)
+      result(nil)
     case "dispose":
       openedReadiumPublications.values.forEach { pub in
         pub.close()
@@ -258,6 +260,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
+
+  private func setDefaultHttpHeaders(headers: [String: String]) {
+    sharedReadium.httpClient!.setDefaultHttpHeaders(headers)
+  }
 
   private func openPublication(
           at url: AbsoluteURL,

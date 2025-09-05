@@ -33,12 +33,7 @@ final class Readium {
   lazy var publicationOpener: PublicationOpener? = nil
 
   func setupWithHeaders(headers: [String: String]?) {
-    self.httpClient = DefaultHTTPClient.init(
-      cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
-      additionalHeaders: headers,
-      requestTimeout: nil,  // default = 60 seconds
-      resourceTimeout: nil, // default = 7 days
-    )
+    self.httpClient = DynamicHeaderHTTPClient(headers)
     self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
     self.httpServer = GCDHTTPServer(assetRetriever: self.assetRetriever!)
     self.publicationOpener = PublicationOpener(
@@ -89,6 +84,40 @@ final class Readium {
   }
 #endif
 
+}
+
+final class DynamicHeaderHTTPClient: HTTPClient {
+  private let base: HTTPClient
+  private var defaultHttpHeaders: [String: String] = [:]
+
+  init(headers: [String: String] = [:]) {
+    self.defaultHttpHeaders = headers
+    self.base = DefaultHTTPClient(
+      cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
+      additionalHeaders: headers,
+      requestTimeout: nil,  // default = 60 seconds
+      resourceTimeout: nil, // default = 7 days
+    )
+  }
+
+  func setDefaultHttpHeaders(headers: [String: String]) {
+    defaultHttpHeaders.removeAll()
+    defaultHttpHeaders.merge(headers) { _, new in new }
+  }
+
+  func request(_ request: HTTPRequest) async throws -> HTTPResponse {
+    var req = request
+    let headersSnapshot = defaultHttpHeaders
+    headersSnapshot.forEach { req.setHeader($0.key, value: $0.value) }
+    return try await base.request(req)
+  }
+
+  func stream(_ request: HTTPRequest, consume: @escaping (HTTPResponse.Stream) async throws -> Void) async throws {
+    var req = request
+    let headersSnapshot = defaultHttpHeaders
+    headersSnapshot.forEach { req.setHeader($0.key, value: $0.value) }
+    try await base.stream(req, consume: consume)
+  }
 }
 
 extension ReadiumShared.ReadError: UserErrorConvertible {
