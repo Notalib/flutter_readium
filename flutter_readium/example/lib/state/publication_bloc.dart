@@ -74,7 +74,11 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading());
       try {
-        final publication = await FlutterReadium().openPublication(event.publicationUrl);
+        final instance = FlutterReadium();
+        final publication = await instance.openPublication(event.publicationUrl);
+        if (publication.conformsToReadiumAudiobook) {
+          await instance.audioStart(speed: 1.2);
+        }
         emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));

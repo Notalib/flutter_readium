@@ -6,22 +6,17 @@ import 'package:flutter_readium/flutter_readium.dart';
 
 abstract class PlayerControlsEvent {}
 
-class PlayAudiobook extends PlayerControlsEvent {
-  String pubIdentifier;
-  PlayAudiobook({
-    required this.pubIdentifier,
-  });
-}
+class PlayTTS extends PlayerControlsEvent {}
 
-class Play extends PlayerControlsEvent {}
+class PlayAudiobook extends PlayerControlsEvent {}
 
 class Pause extends PlayerControlsEvent {}
 
 class Stop extends PlayerControlsEvent {}
 
-class SkipToNextParagraph extends PlayerControlsEvent {}
+class SkipToNext extends PlayerControlsEvent {}
 
-class SkipToPreviousParagraph extends PlayerControlsEvent {}
+class SkipToPrevious extends PlayerControlsEvent {}
 
 class SkipToNextChapter extends PlayerControlsEvent {}
 
@@ -61,13 +56,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
             ttsEnabled: false,
           ),
         ) {
-    on<Play>((final event, final emit) async {
+    on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
         await instance.ttsStart(null);
         emit(await state.toggleTTS(true));
       } else {
-        await instance.ttsResume();
+        await instance.resume();
       }
 
       emit(await state.togglePlay(true));
@@ -80,25 +75,25 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Pause>((final event, final emit) async {
       if (state.playing) {
-        await instance.ttsPause();
+        await instance.pause();
       } else {
-        await instance.ttsResume();
+        await instance.resume();
       }
       emit(await state.togglePlay(false));
     });
 
     on<Stop>((final event, final emit) async {
-      await instance.ttsStop();
+      await instance.stop();
       emit(await state.toggleTTS(false));
       emit(await state.togglePlay(false));
     });
 
-    on<SkipToNextParagraph>((final event, final emit) {
-      instance.ttsNext();
+    on<SkipToNext>((final event, final emit) {
+      instance.next();
     });
 
-    on<SkipToPreviousParagraph>((final event, final emit) {
-      instance.ttsPrevious();
+    on<SkipToPrevious>((final event, final emit) {
+      instance.previous();
     });
 
     on<SkipToNextChapter>((final event, final emit) {

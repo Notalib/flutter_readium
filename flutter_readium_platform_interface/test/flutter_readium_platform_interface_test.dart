@@ -14,8 +14,6 @@ void main() {
       type: 'text/xhtml',
       locations: Locations(cssSelector: '#loc1'),
       text: LocatorText(before: 'a', highlight: 'b', after: 'c'),
-      xNote: 'myNote',
-      xType: XType.lastmark,
     );
 
     setUp(() async {

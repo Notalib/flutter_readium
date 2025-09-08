@@ -88,25 +88,25 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsNext() {
+  Future<void> next() {
     // TODO: implement ttsNext
     throw UnimplementedError();
   }
 
   @override
-  Future<void> ttsPause() {
+  Future<void> pause() {
     // TODO: implement ttsPause
     throw UnimplementedError();
   }
 
   @override
-  Future<void> ttsPrevious() {
+  Future<void> previous() {
     // TODO: implement ttsPrevious
     throw UnimplementedError();
   }
 
   @override
-  Future<void> ttsResume() {
+  Future<void> resume() {
     // TODO: implement ttsResume
     throw UnimplementedError();
   }
@@ -131,7 +131,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsStop() {
+  Future<void> stop() {
     // TODO: implement ttsStop
     throw UnimplementedError();
   }

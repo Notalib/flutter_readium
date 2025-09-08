@@ -11,8 +11,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     
     var engine: AVTTSEngine?
 
-    guard let ident = await currentReaderView?.publicationIdentifier,
-          let publication = getCurrentPublication() else {
+    guard let publication = getCurrentPublication() else {
       throw LibraryError.bookNotFound
     }
 
@@ -182,8 +181,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
   private func setupNowPlaying() {
       Task {
-        guard let ident = await currentReaderView?.publicationIdentifier,
-              let publication = getCurrentPublication() else {
+        guard let publication = getCurrentPublication() else {
           throw LibraryError.bookNotFound
         }
           NowPlayingInfo.shared.media = await .init(
