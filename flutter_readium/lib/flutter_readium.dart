@@ -80,6 +80,6 @@ class FlutterReadium {
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       _platform.ttsSetVoice(voiceIdentifier, forLanguage);
 
-  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) =>
+  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) =>
       _platform.audioStart(speed: speed, fromLocator: fromLocator);
 }

@@ -74,7 +74,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<PlayAudiobook>((final event, final emit) async {
-      await instance.audioStart(event.pubIdentifier, speed: 1.5);
+      await instance.audioStart(speed: 1.5);
       emit(await state.togglePlay(true));
     });
 

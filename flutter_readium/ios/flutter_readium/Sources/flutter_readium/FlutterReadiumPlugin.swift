@@ -258,10 +258,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Task.detached(priority: .high) {
-
-        let playbackRate = args[1] as? Double ?? 1.0
+        let playbackRate = args[0] as? Double ?? 1.0
         var locator: Locator? = nil
-        if let locatorStr = args[2] as? String {
+        if let locatorStr = args[1] as? String {
           locator = try! Locator(jsonString: locatorStr, warnings: self)!
         }
         let prefs = AudioPreferences.init(speed: playbackRate)
