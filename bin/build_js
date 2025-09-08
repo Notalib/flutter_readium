@@ -1,0 +1,5 @@
+# Build for flutter_readium web
+echo "Building flutter_readium web"
+cd ./flutter_readium/
+npm i
+npm run build

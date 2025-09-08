@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../state/index.dart';
 import '../widgets/index.dart';
@@ -66,7 +67,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             showModalBottomSheet(
               context: context,
               isScrollControlled: true,
-              builder: (final context) => const TextSettingsWidget(),
+              builder: (final context) => PointerInterceptor(child: const TextSettingsWidget()),
             );
           },
           tooltip: 'Open text style settings',
