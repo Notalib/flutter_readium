@@ -70,33 +70,6 @@ abstract class Properties with _$Properties, ToStringShort {
     /// Indicates the condition to be met for the linked resource to be rendered
     /// within a synthetic spread.
     final Spread? spread,
-
-    /// Properties related to subscription.
-    final Subscription? subscription,
-
-    /// TODO: Extract x-properties from core readium
-    @JsonKey(name: 'characters') final int? xCharacters,
-    @JsonKey(name: 'x-book-list-added') @dateTimeLocal final DateTime? xBooklistAdded,
-    @JsonKey(name: 'x-book-list-last-access') @dateTimeLocal final DateTime? xBooklistLastAccess,
-    @JsonKey(name: 'x-color') final String? xColor,
-    @JsonKey(name: 'x-cover') final String? xCover,
-    @JsonKey(name: 'x-favorite-type') final String? xFavoriteType,
-    @JsonKey(name: 'x-http-params') final Map<String, String>? xHttpParams,
-    @JsonKey(name: 'x-icon-url') final String? xIconUrl,
-    @JsonKey(name: 'x-identifier') final String? xIdentifier,
-    @JsonKey(name: 'x-is-active') final bool? xIsActive,
-    @JsonKey(name: 'x-is-default') final bool? xIsDefault,
-    @JsonKey(name: 'x-is-dirty') final bool? xIsDirty,
-    @JsonKey(name: 'x-subtitle') final String? xSubtitle,
-    @JsonKey(name: 'x-summary') final String? xSummary,
-    @JsonKey(name: 'x-target-audience') final String? xTargetAudience,
-    @JsonKey(name: 'x-teaser') final String? xTeaser,
-    @JsonKey(name: 'x-type') final XType? xType,
-    @JsonKey(name: 'x-value-dirty') final int? xValueDirty,
-    @JsonKey(name: 'x-value') final int? xValue,
-    @JsonKey(includeFromJson: false, includeToJson: false) final int? xTocLevel,
-    @JsonKey(includeFromJson: false, includeToJson: false, defaultValue: false)
-    final bool? xIsCurrentToc,
   }) = _Properties;
 
   factory Properties.fromJson(final Map<String, dynamic> json) => _$PropertiesFromJson(json);
