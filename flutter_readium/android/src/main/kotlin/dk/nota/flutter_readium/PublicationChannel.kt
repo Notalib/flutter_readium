@@ -256,7 +256,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
                 "audioStart" -> {
                     val args = call.arguments as List<*>
-                    val pubIdentifier = args[0] as String
+                    val speed = args[0] as Double? ?: 1.0
                     val locatorStr = args[1] as String?
                     val publication = readium.getCurrentPublication()
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }

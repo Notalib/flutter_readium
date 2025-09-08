@@ -83,14 +83,13 @@ internal class ReadiumReaderView(
         channel.setMethodCallHandler(null)
 
         navigator.listener = null
-        navigator.let {
-            fragmentManager.beginTransaction()
-                .remove(it)
-                .commitNow()
-        }
+        fragmentManager.beginTransaction()
+            .remove(navigator)
+            .commitNow()
 
         layout.removeAllViews()
         initialLocations = null
+        currentReadiumReaderView = null
     }
 
     override fun onFlutterViewAttached(flutterView: View) {

@@ -147,7 +147,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) {
+  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) {
     // TODO: implement audioStart
     throw UnimplementedError();
   }

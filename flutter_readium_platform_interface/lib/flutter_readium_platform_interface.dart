@@ -96,7 +96,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   // TTS API - END
 
   // AudioBook API - BEGIN
-  Future<void> audioStart(String pubIdentifier, {double speed = 1.0, Locator? fromLocator}) =>
+  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) =>
       throw UnimplementedError('audioStart() has not been implemented');
   // AudioBook API - END
 

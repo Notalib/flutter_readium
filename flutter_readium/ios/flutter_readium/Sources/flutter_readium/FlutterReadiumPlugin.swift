@@ -251,7 +251,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "audioStart":
       // Create AudiobookViewModel
       guard let args = call.arguments as? [Any?],
-            let pubId = args[0] as? String,
             let publication = currentPublication else {
         return result(FlutterError.init(
           code: "AudioStart",
