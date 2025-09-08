@@ -58,27 +58,31 @@ internal class PublicationMethodCallHandler(private val context: Context) :
             when (call.method) {
                 "loadPublication" -> {
                     val args = call.arguments as List<Any?>
-                    var pubUrlStr = args[0] as String
+                    val pubUrlStr = args[0] as String
 
                     val publication = loadPublicationFromUrl(pubUrlStr).getOrElse {
                         Log.e(
                             TAG,
-                            "ttsEnable: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                            "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
                         )
+                        // TODO: errorCode doesn't look right
                         return@launch result.error("openPublication", it.message, it.cause)
                     }
 
                     val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
+
+                    // Close the publication to avoid leaks.
+                    publication.close()
                     result.success(pubJsonManifest)
                 }
                 "openPublication" -> {
                     val args = call.arguments as List<Any?>
-                    var pubUrlStr = args[0] as String
+                    val pubUrlStr = args[0] as String
 
-                    val publication = loadPublicationFromUrl(pubUrlStr).getOrElse {
+                    val publication = openPublicationFromUrl(pubUrlStr).getOrElse {
                         Log.e(
                             TAG,
-                            "ttsEnable: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                            "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
                         )
                         return@launch result.error("openPublication", it.message, it.cause)
                     }
@@ -87,13 +91,11 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
                     val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
                     result.success(pubJsonManifest)
-                    return@launch
                 }
 
                 "closePublication" -> {
-                    val pubIdentifier = call.arguments as String
-                    Log.d(TAG, "Close publication with identifier = $pubIdentifier")
-                    readium.closePublication(pubIdentifier)
+                    Log.d(TAG, "Close publication")
+                    readium.closePublication()
                 }
 
                 "ttsEnable" -> {
@@ -278,7 +280,10 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         }
     }
 
-    suspend fun loadPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    /**
+     * Helper function for resolving a URL and make sure a file path is turned into a URL.
+     */
+    private fun resolvePubUrl(urlStr: String) : Try<AbsoluteUrl, PublicationError>
     {
         var pubUrlStr = urlStr
         // If URL is neither http nor file, assume it is a local file reference.
@@ -290,7 +295,37 @@ internal class PublicationMethodCallHandler(private val context: Context) :
         if (pubUrl == null) {
             return failure(PublicationError.InvalidPublicationUrl(pubUrlStr))
         }
-        Log.d(TAG, "openPublication for URL: $pubUrl")
+
+        return Try.success(pubUrl)
+    }
+
+    /**
+     * Load a publication from a URL
+     * Note: Remember to close the publication to avoid leaks.
+     */
+    suspend fun loadPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    {
+        val pubUrl = resolvePubUrl(urlStr).getOrElse {
+            return failure(PublicationError.InvalidPublicationUrl(urlStr))
+        }
+
+        Log.d(TAG, "loadPublicationFromUrl: $pubUrl")
+
+        return readium.loadPublication(pubUrl)
+    }
+
+    /**
+     * Open a publication from a URL.
+     *
+     * Note: This sets the publication as the current publication.
+     */
+    suspend fun openPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    {
+        val pubUrl = resolvePubUrl(urlStr).getOrElse {
+            return failure(PublicationError.InvalidPublicationUrl(urlStr))
+        }
+
+        Log.d(TAG, "openPublicationFromUrl: $pubUrl")
 
         return readium.openPublication(pubUrl)
     }

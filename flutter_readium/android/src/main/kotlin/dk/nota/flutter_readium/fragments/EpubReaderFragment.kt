@@ -263,7 +263,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                         "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment"
                     )
 
-                    model.publication = readium.openPublication(model.pubUrl).getOrNull()
+                    model.publication = readium.loadPublication(model.pubUrl).getOrNull()
                     Log.d(
                         TAG,
                         "::onViewCreated - $instance - re-open publication - done - ${model.publication}"

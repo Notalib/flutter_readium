@@ -8,10 +8,7 @@ package dk.nota.flutter_readium
 
 import android.content.Context
 import android.util.Log
-import io.flutter.plugin.common.MethodChannel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Publication
@@ -133,7 +130,11 @@ class Readium(private val context: Context) {
         return Try.success(publication)
     }
 
-    suspend fun openPublication(
+    /**
+     * Load a publication from a String url.
+     * Note: Remember to close the publication to avoid leaks.
+     */
+    suspend fun loadPublication(
         pubUrl: String?
     ): Try<Publication, PublicationError> {
         if (pubUrl == null) {
@@ -144,14 +145,19 @@ class Readium(private val context: Context) {
             )
         }
 
-        return AbsoluteUrl.invoke(pubUrl)?.let { openPublication(it) } ?: Try.failure(
+        return AbsoluteUrl.invoke(pubUrl)?.let { loadPublication(it) } ?: Try.failure(
             PublicationError.Unexpected(
                 DebugError("Invalid Url")
             )
         )
     }
 
-    suspend fun openPublication(
+    /**
+     * Load a publication from an AbsoluteUrl
+     *
+     * Note: Remember to close the publication to avoid leaks.
+     */
+    suspend fun loadPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
         return withContext(Dispatchers.IO) {
@@ -167,8 +173,6 @@ class Readium(private val context: Context) {
                     return@withContext Try.failure(PublicationError.invoke(error))
                 }
                 Log.d(TAG, "Opened publication = ${pub.metadata.identifier} from url:$pubUrl")
-                currentPublication = pub
-                currentPublicationURL = pubUrl.toString()
                 return@withContext Try.success(pub)
             } catch (e: Throwable) {
                 return@withContext Try.failure(PublicationError.Unexpected(ThrowableError(e)))
@@ -176,7 +180,25 @@ class Readium(private val context: Context) {
         }
     }
 
-    fun closePublication(pubIdentifier: String) {
+    /**
+     * Open a publication and set it as the current publication.
+     */
+    suspend fun openPublication(
+        pubUrl: AbsoluteUrl
+    ): Try<Publication, PublicationError> {
+        val pub = loadPublication(pubUrl).getOrElse { e -> return Try.failure(e) }
+
+        // Close previously opened publication to avoid links.
+        currentPublication?.close()
+
+        currentPublication = pub
+        currentPublicationURL = pubUrl.toString()
+
+        return Try.success(pub)
+    }
+
+
+    fun closePublication() {
         currentPublication?.close()
         currentPublication = null
         currentPublicationURL = null
