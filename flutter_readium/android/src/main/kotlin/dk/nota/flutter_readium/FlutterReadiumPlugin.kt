@@ -48,6 +48,8 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
             PublicationMethodCallHandler(flutterPluginBinding.applicationContext)
         publicationChannel = MethodChannel(messenger, publicationChannelName)
         publicationChannel.setMethodCallHandler(publicationMethodCallHandler)
+
+        ReadiumReader.init(flutterPluginBinding.applicationContext)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -58,6 +60,7 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
         Log.d(TAG, "onDetachedFromEngine")
         publicationChannel.setMethodCallHandler(null)
+        ReadiumReader.close()
     }
 
     private fun listAssetFiles(c: Context, rootPath: String): List<String> {

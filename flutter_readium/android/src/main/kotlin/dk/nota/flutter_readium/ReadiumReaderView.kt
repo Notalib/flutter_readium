@@ -49,7 +49,6 @@ internal class ReadiumReaderView(
     EpubReaderFragment.Listener {
 
     private val channel: ReadiumReaderChannel
-    private val readium = Readium(context)
     private val eventChannel: EventChannel
     private var eventSink: EventChannel.EventSink? = null
 
@@ -110,8 +109,8 @@ internal class ReadiumReaderView(
         @Suppress("UNCHECKED_CAST")
         val initPrefsMap = creationParams["preferences"] as Map<String, String>?
         val pubIdentifier = creationParams["pubIdentifier"] as String
-        val publication = readium.getCurrentPublication()!!
-        val pubUrl = readium.getCurrentPublicationUrl()!!
+        val publication = ReadiumReader.currentPublication
+        val pubUrl = ReadiumReader.currentPublicationUrl
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
         var initialLocator =
@@ -145,7 +144,7 @@ internal class ReadiumReaderView(
         initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
 
         if (!reuseFragment || epubReaderFragment == null) {
-            val vm = EpubReaderViewModel();
+            val vm = EpubReaderViewModel()
             vm.identifier = pubIdentifier
             vm.pubUrl = pubUrl
             vm.publication = publication
@@ -528,8 +527,3 @@ internal class ReadiumReaderView(
 private fun canScroll(locations: Locator.Locations) =
     locations.domRange != null || locations.cssSelector != null || locations.progression != null
 
-suspend fun waitForFirstValue(flow: MutableStateFlow<Boolean>): Boolean {
-    return withTimeout(1000) { // 1 second timeout
-        flow.first()
-    }
-}

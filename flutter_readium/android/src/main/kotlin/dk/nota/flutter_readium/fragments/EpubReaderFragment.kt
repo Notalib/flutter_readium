@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
+import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
@@ -263,7 +264,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                         "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment"
                     )
 
-                    model.publication = readium.loadPublication(model.pubUrl).getOrNull()
+                    model.publication = ReadiumReader.loadPublication(model.pubUrl).getOrNull()
                     Log.d(
                         TAG,
                         "::onViewCreated - $instance - re-open publication - done - ${model.publication}"

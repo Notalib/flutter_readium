@@ -1,12 +1,8 @@
-/*
- * Copyright 2022 Readium Foundation. All rights reserved.
- * Use of this source code is governed by the BSD-style license
- * available in the top-level LICENSE file of the project.
- */
-
 package dk.nota.flutter_readium
 
+import android.app.Application
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,79 +27,90 @@ import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
+import java.util.concurrent.atomic.AtomicReference
 
-private const val TAG = "ReadiumHelper"
+private const val TAG = "ReadiumReader"
 
-// Currently open publication (if any).
-private var currentPublication: Publication? = null
+// TODO: Support custom headers and authentication header.
 
-// URL of currently open publication.
-private var currentPublicationURL: String? = null
-
-/**
- * Holds the shared Readium objects and services used by the app.
- */
 @OptIn(ExperimentalReadiumApi::class)
-class Readium(private val context: Context) {
-    private val httpClient =
+object ReadiumReader {
+    private val appRef = AtomicReference<Application?>()
+
+    private val httpClient by lazy {
         DefaultHttpClient()
-
-    private val assetRetriever by lazy {
-        AssetRetriever(context.contentResolver, httpClient)
     }
 
-    /**
-     * The LCP service decrypts LCP-protected publication and acquire publications from a
-     * license file.
-     */
-//     val lcpService = LcpService(
-//         context,
-//         assetRetriever
-//     )?.let { Try.success(it) }
-//         ?: Try.failure(LcpError.Unknown(DebugError("liblcp is missing on the classpath")))
+    private var _assetRetriever: AssetRetriever? = null
 
-//     private val lcpDialogAuthentication = LcpDialogAuthentication()
+    private val assetRetriever: AssetRetriever
+        get() {
+            if (_assetRetriever == null) {
+                _assetRetriever  = AssetRetriever(context.contentResolver, httpClient)
+            }
 
-    private val contentProtections by lazy {
-        listOfNotNull(
-            null,
-            //lcpService.getOrNull()?.contentProtection(lcpDialogAuthentication)
-        )
-    }
+            return _assetRetriever!!
+        }
+
+    private var _publicationOpener: PublicationOpener? = null
 
     /**
      * The PublicationFactory is used to open publications.
      */
-    private val publicationOpener by lazy {
-        PublicationOpener(
-            publicationParser = DefaultPublicationParser(
-                context,
-                assetRetriever = assetRetriever,
-                httpClient = httpClient,
-                // Only required if you want to support PDF files using the PDFium adapter.
-                pdfFactory = null, //PdfiumDocumentFactory(context)
-            ),
-            contentProtections = contentProtections,
-        )
+    private val publicationOpener: PublicationOpener
+        get() {
+            if (_publicationOpener == null) {
+                _publicationOpener = PublicationOpener(
+                    publicationParser = DefaultPublicationParser(
+                        context,
+                        assetRetriever = assetRetriever,
+                        httpClient = httpClient,
+                        // Only required if you want to support PDF files using the PDFium adapter.
+                        pdfFactory = null, //PdfiumDocumentFactory(context)
+                    ),
+                )
+            }
+
+            return _publicationOpener!!
+        }
+
+    // Initialize from plugin or anywhere you have an Application or Context.
+    fun init(context: Context) {
+        val app = unwrapToApplication(context)
+        app?.let { appRef.compareAndSet(null, it) }
     }
 
-    /*
-    fun onLcpDialogAuthenticationParentAttached(view: View) {
-        lcpDialogAuthentication.onParentViewAttachedToWindow(view)
+    // Unwrap ContextWrapper chain to find Application
+    private fun unwrapToApplication(context: Context?): Application? {
+        if (context is Application) {
+            return context
+        }
+
+        var ctx = context
+        while (ctx != null && ctx !is Application) {
+            ctx = if (ctx is ContextWrapper) ctx.baseContext else null
+        }
+
+        if (ctx == null)
+        {
+            throw  IllegalStateException("Application not found.")
+        }
+        return ctx
     }
 
-    fun onLcpDialogAuthenticationParentDetached() {
-        //lcpDialogAuthentication.onParentViewDetachedFromWindow()
-    }
-    */
+    // Safe getter — returns applicationContext or throws if not available.
+    private val application: Application
+        get() = appRef.get() ?: throw IllegalStateException("Application not initialized. Call AppSingleton.init(context) first.")
 
-    fun getCurrentPublication(): Publication? {
-        return currentPublication
-    }
+    private val context: Context get() = application.applicationContext
 
-    fun getCurrentPublicationUrl(): String? {
-        return currentPublicationURL
-    }
+    private var _currentPublication: Publication? = null
+    val currentPublication: Publication?
+        get() = _currentPublication
+
+    private var _currentPublicationURL: String? = null
+    val currentPublicationUrl
+        get() =_currentPublicationURL
 
     private suspend fun assetToPublication(
         asset: Asset
@@ -189,18 +196,22 @@ class Readium(private val context: Context) {
         val pub = loadPublication(pubUrl).getOrElse { e -> return Try.failure(e) }
 
         // Close previously opened publication to avoid links.
-        currentPublication?.close()
-
-        currentPublication = pub
-        currentPublicationURL = pubUrl.toString()
+        _currentPublication?.close()
+        _currentPublication = pub
+        _currentPublicationURL = pubUrl.toString()
 
         return Try.success(pub)
     }
 
-
     fun closePublication() {
-        currentPublication?.close()
-        currentPublication = null
-        currentPublicationURL = null
+        _currentPublication?.close()
+        _currentPublication = null
+        _currentPublicationURL = null
+    }
+
+    fun close() {
+        appRef.set(null)
+        _assetRetriever = null
+        _publicationOpener = null
     }
 }

@@ -50,8 +50,6 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
     private var ttsViewModel: TTSViewModel? = null
 
-    private val readium = Readium(context)
-
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.Main).launch {
@@ -95,7 +93,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
                 "closePublication" -> {
                     Log.d(TAG, "Close publication")
-                    readium.closePublication()
+                    ReadiumReader.closePublication()
                 }
 
                 "ttsEnable" -> {
@@ -109,7 +107,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                         return@launch
                     }
 
-                    val publication = readium.getCurrentPublication()
+                    val publication = ReadiumReader.currentPublication
                     if (publication == null) {
                         Log.e(
                             TAG,
@@ -221,7 +219,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                         val linkStr = args[0] as String
                         val asString = args[1] as? Boolean ?: true
                         val link = Link.fromJSON(JSONObject(linkStr))
-                        val publication = readium.getCurrentPublication()
+                        val publication = ReadiumReader.currentPublication
 
                         if (publication == null || link == null) {
                             throw Exception("getLinkContent: failed to get resource. Missing pub or link: $publication, $link")
@@ -260,7 +258,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     val args = call.arguments as List<*>
                     val speed = args[0] as Double? ?: 1.0
                     val locatorStr = args[1] as String?
-                    val publication = readium.getCurrentPublication()
+                    val publication = ReadiumReader.currentPublication
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
@@ -311,7 +309,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
         Log.d(TAG, "loadPublicationFromUrl: $pubUrl")
 
-        return readium.loadPublication(pubUrl)
+        return ReadiumReader.loadPublication(pubUrl)
     }
 
     /**
@@ -327,7 +325,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
         Log.d(TAG, "openPublicationFromUrl: $pubUrl")
 
-        return readium.openPublication(pubUrl)
+        return ReadiumReader.openPublication(pubUrl)
     }
 }
 

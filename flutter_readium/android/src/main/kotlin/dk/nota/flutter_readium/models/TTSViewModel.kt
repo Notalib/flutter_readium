@@ -38,6 +38,10 @@ private const val TAG = "TTSViewModel"
 private const val TTS_DECORATION_ID_UTTERANCE = "tts-utterance"
 private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
+// TODO: Send audio-locator event to dart on locator change.
+// TODO: Extend locator with chapter info
+// TODO: Common interface for audio and TTS navicator.
+
 @OptIn(ExperimentalReadiumApi::class)
 internal class TTSViewModel(
     private val context: Context,
