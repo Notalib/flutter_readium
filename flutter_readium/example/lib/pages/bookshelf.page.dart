@@ -183,9 +183,6 @@ class BookshelfPageState extends State<BookshelfPage> {
                   .read<PublicationBloc>()
                   .add(OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator));
 
-              if (publication.conformsToReadiumAudiobook) {
-                context.read<PlayerControlsBloc>().add(PlayAudiobook(pubIdentifier: publication.identifier));
-              }
               Navigator.restorablePushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');

@@ -146,6 +146,7 @@ extension PublicationExtension on Publication {
   bool get conformsToReadiumEbook =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
+  // TODO: Is this needed and does it work?
   /// Estimates total progression duration in book, based on current chapter and current progression
   /// in chapter.
   Progressions calculateProgressions({
@@ -160,7 +161,7 @@ extension PublicationExtension on Publication {
     readingOrder.forEachIndexed((final i, final link) {
       // Size of chapter in seconds or characters. As long as all chapters use the same unit as each
       // other, this works.
-      final size = (link.duration ?? link.properties?.xCharacters ?? link.height ?? 1.0).toDouble();
+      final size = (link.duration ?? link.height ?? 1.0).toDouble();
       final chapterDuration = const Duration(seconds: 1) * (link.duration ?? .0);
       denominator += size;
       if (i < index) {

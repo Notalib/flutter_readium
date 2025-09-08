@@ -25,7 +25,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var audiobookVM: AudiobookViewModel? = nil
 
   /// TTS related variables
-  /// TODO: Refactor into a TTSViewModel?
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
@@ -38,7 +37,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   // TODO: Should these have defaults?
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
-  internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .red)
+  internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
@@ -159,8 +158,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
-          let args = call.arguments as! Dictionary<String, Any>,
-              ttsPrefs = (try? TTSPreferences(fromMap: args)) ?? TTSPreferences()
+          let args = call.arguments as? Dictionary<String, Any>,
+              ttsPrefs = (try? TTSPreferences(fromMap: args ?? [:])) ?? TTSPreferences()
           try await self.ttsEnable(withPreferences: ttsPrefs)
           await MainActor.run {
             result(nil)
@@ -264,7 +263,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
     case "audioStart":
-      // Create AudiobookViewModel
       guard let args = call.arguments as? [Any?],
             let publication = currentPublication else {
         return result(FlutterError.init(
