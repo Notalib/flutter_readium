@@ -94,19 +94,19 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod('ttsStart', [fromLocator?.toJson()]);
 
   @override
-  Future<void> ttsStop() async => await methodChannel.invokeMethod('ttsStop');
+  Future<void> stop() async => await methodChannel.invokeMethod('stop');
 
   @override
-  Future<void> ttsPause() async => await methodChannel.invokeMethod('ttsPause');
+  Future<void> pause() async => await methodChannel.invokeMethod('pause');
 
   @override
-  Future<void> ttsResume() async => await methodChannel.invokeMethod('ttsResume');
+  Future<void> resume() async => await methodChannel.invokeMethod('resume');
 
   @override
-  Future<void> ttsNext() async => await methodChannel.invokeMethod('ttsNext');
+  Future<void> next() async => await methodChannel.invokeMethod('next');
 
   @override
-  Future<void> ttsPrevious() async => await methodChannel.invokeMethod('ttsPrevious');
+  Future<void> previous() async => await methodChannel.invokeMethod('previous');
 
   @override
   Future<void> ttsSetDecorationStyle(

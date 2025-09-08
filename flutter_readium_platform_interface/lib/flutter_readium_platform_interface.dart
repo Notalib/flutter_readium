@@ -63,6 +63,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
   Future<void> goRight() => throw UnimplementedError('goRight() has not been implemented.');
+
+  //TODO: Consider if we need this and naming. Currently skips to next/previous chapter.
   Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
   Future<void> skipToPrevious() => throw UnimplementedError('skipToPrevious() has not been implemented.');
 
@@ -77,11 +79,11 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> ttsEnable(TTSPreferences? preferences) =>
       throw UnimplementedError('ttsEnable() has not been implemented');
   Future<void> ttsStart(Locator? fromLocator) => throw UnimplementedError('ttsStart() has not been implemented');
-  Future<void> ttsStop() => throw UnimplementedError('ttsStop() has not been implemented');
-  Future<void> ttsPause() => throw UnimplementedError('ttsPause() has not been implemented');
-  Future<void> ttsResume() => throw UnimplementedError('ttsResume() has not been implemented');
-  Future<void> ttsNext() => throw UnimplementedError('ttsNext() has not been implemented');
-  Future<void> ttsPrevious() => throw UnimplementedError('ttsPrevious() has not been implemented');
+  Future<void> stop() => throw UnimplementedError('ttsStop() has not been implemented');
+  Future<void> pause() => throw UnimplementedError('ttsPause() has not been implemented');
+  Future<void> resume() => throw UnimplementedError('ttsResume() has not been implemented');
+  Future<void> next() => throw UnimplementedError('ttsNext() has not been implemented');
+  Future<void> previous() => throw UnimplementedError('ttsPrevious() has not been implemented');
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>

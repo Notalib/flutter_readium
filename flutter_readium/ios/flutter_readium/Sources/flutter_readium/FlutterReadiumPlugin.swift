@@ -22,8 +22,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   static var registrar: FlutterPluginRegistrar? = nil
 
   /// Audiobook related variables
-  internal var audioNavigator: AudioNavigator? = nil
-  internal var audiobookModel: AudiobookViewModel? = nil
+  internal var audiobookVM: AudiobookViewModel? = nil
 
   /// TTS related variables
   /// TODO: Refactor into a TTSViewModel?
@@ -77,14 +76,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "openPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
-      
+
       Task.detached(priority: .high) {
         guard let pub: Publication = await self.loadPublication(fromUrlStr: pubUrlStr, result: result) else {
           // Loading publication failed and should have already called result function with an error.
           // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
           return
         }
-        
+
         // TODO: Do any other necessary preloading for a book we're about to read.
         // E.g. for audiobook create AudioNavigator.
         currentPublication = pub
@@ -94,7 +93,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           let prefs = AudioPreferences(speed: 1.0)
           await self.initAudioPlayback(forPublication: pub, withPrefs: prefs, atLocator: nil)
         }
-        
+
         let jsonManifest = pub.jsonManifest
 
         await MainActor.run {
@@ -111,7 +110,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
           return
         }
-        
+
         let jsonManifest = pub.jsonManifest
 
         await MainActor.run {
@@ -183,35 +182,51 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
 
       Task.detached(priority: .high) {
-          if (locator == nil) {
-            locator = await currentReaderView?.getFirstVisibleLocator()
-          }
-          self.ttsStart(fromLocator: locator)
-          await MainActor.run {
-            result(nil)
-          }
+        if (locator == nil) {
+          locator = await currentReaderView?.getFirstVisibleLocator()
+        }
+        self.ttsStart(fromLocator: locator)
+        await MainActor.run {
+          result(nil)
+        }
       }
-    case "ttsStop":
-      self.ttsStop()
+    case "stop":
+      self.audiobookVM?.navigator.pause()
+      self.synthesizer?.stop()
       result(nil)
-    case "ttsPause":
-      self.ttsPause()
+    case "pause":
+      self.audiobookVM?.navigator.pause()
+      self.synthesizer?.pause()
       result(nil)
-    case "ttsResume":
-      self.ttsResume()
+    case "resume":
+      self.audiobookVM?.navigator.play()
+      self.synthesizer?.resume()
       result(nil)
-    case "ttsToggle":
-      self.ttsPauseOrResume()
+    case "togglePlayback":
+      self.audiobookVM?.navigator.playPause()
+      self.synthesizer?.pauseOrResume()
       result(nil)
-    case "ttsNext":
-      self.ttsNext()
+    case "next":
+      if (self.audiobookVM != nil) {
+        Task {
+          // TODO: Configurable seek intervals
+          await self.audiobookVM?.navigator.seek(by: 30)
+        }
+      }
+      self.synthesizer?.next()
       result(nil)
-    case "ttsPrevious":
-      self.ttsPrevious()
+    case "previous":
+      if (self.audiobookVM != nil) {
+        Task {
+          // TODO: Configurable seek intervals
+          await self.audiobookVM?.navigator.seek(by: -30)
+        }
+      }
+      self.synthesizer?.previous()
       result(nil)
     case "ttsGetAvailableVoices":
-      let availableVocies = self.ttsGetAvailableVoices()
-      result(availableVocies.map { $0.jsonString } )
+      let availableVoices = self.ttsGetAvailableVoices()
+      result(availableVoices.map { $0.jsonString } )
     case "ttsSetVoice":
       let args = call.arguments as! [Any?]
       let voiceIdentifier = args[0] as! String
@@ -277,7 +292,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
-  
+
   private func initAudioPlayback(
     forPublication publication: Publication,
     withPrefs prefs: AudioPreferences,
@@ -351,6 +366,9 @@ extension FlutterReadiumPlugin {
     currentPublication?.close()
     currentPublication = nil
     synthesizer = nil
-    // TODO: If audiobook dispose AudioNavigator
+    if (audiobookVM != nil) {
+      audiobookVM?.navigator.pause()
+      audiobookVM = nil
+    }
   }
 }

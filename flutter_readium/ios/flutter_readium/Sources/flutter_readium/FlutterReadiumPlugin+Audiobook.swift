@@ -8,7 +8,7 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin/Audiobook"
 
-@MainActor
+//@MainActor
 class AudiobookViewModel: ObservableObject {
     let navigator: AudioNavigator
 
@@ -42,18 +42,17 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
         preferences: initialPreferences
       )
     )
-    if (audiobookModel != nil) {
+    if (audiobookVM != nil) {
       await endAudiobookNavigator()
     }
 
-    audiobookModel = AudiobookViewModel(
+    audiobookVM = AudiobookViewModel(
       navigator: navigator
     )
     navigator.delegate = self
-    self.audioNavigator = navigator
 
     /// Subscribe to changes
-    audiobookModel?.$playback
+    audiobookVM?.$playback
       .throttle(for: 1, scheduler: RunLoop.main, latest: true)
 //      .removeDuplicates { prev, current in
 //        prev.progress != current.progress
@@ -68,35 +67,31 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   }
 
   public func endAudiobookNavigator() async {
-    audioNavigator?.pause()
-    self.audiobookModel = nil
+    self.audiobookVM?.navigator.pause()
+    self.audiobookVM = nil
     clearNowPlaying()
   }
 
   public func pause() {
-    Task {
-      await audiobookModel?.navigator.pause()
-    }
+    audiobookVM?.navigator.pause()
   }
 
   public func play() {
     Task {
-      audioNavigator?.play()
+      audiobookVM?.navigator.play()
       await setupNowPlaying()
       setupCommandCenterControls()
     }
   }
 
   public func playPause() {
-    Task {
-      await audiobookModel?.navigator.playPause()
-    }
+    audiobookVM?.navigator.playPause()
   }
 
   public func goForward(animated: Bool) async -> Bool {
     let navOptions = animated ? NavigatorGoOptions.animated : NavigatorGoOptions.none
-    if (await audiobookModel?.navigator.canGoForward == true) {
-      return await audiobookModel?.navigator.goForward(options: navOptions) == true
+    if (audiobookVM?.navigator.canGoForward == true) {
+      return await audiobookVM?.navigator.goForward(options: navOptions) == true
     } else {
       return false
     }
@@ -104,19 +99,19 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   public func goBackward(animated: Bool) async -> Bool {
     let navOptions = animated ? NavigatorGoOptions.animated : NavigatorGoOptions.none
-    if (await audiobookModel?.navigator.canGoBackward == true) {
-      return await audiobookModel?.navigator.goBackward(options: navOptions) == true
+    if (audiobookVM?.navigator.canGoBackward == true) {
+      return await audiobookVM?.navigator.goBackward(options: navOptions) == true
     } else {
       return false
     }
   }
 
   public func seek(by delta: Double) async {
-    await audiobookModel?.navigator.seek(by: delta)
+    await audiobookVM?.navigator.seek(by: delta)
   }
 
   public func seek(to offset: Double) async {
-    await audiobookModel?.navigator.seek(to: offset)
+    await audiobookVM?.navigator.seek(to: offset)
   }
 
   public func navigator(_ navigator: Navigator, locationDidChange location: Locator) {
@@ -137,7 +132,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
       print(TAG, "paused")
     }
 
-    audiobookModel?.onPlaybackChanged(info: info)
+    audiobookVM?.onPlaybackChanged(info: info)
     updateNowPlaying(info: info)
     updateCommandCenterControls()
   }
@@ -167,7 +162,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   private func setupCommandCenterControls() {
     Task {
-      let publication = await audiobookModel?.navigator.publication
+      let publication = audiobookVM?.navigator.publication
         NowPlayingInfo.shared.media = await .init(
           title: publication?.metadata.title ?? "",
             artist: publication?.metadata.authors.map(\.name).joined(separator: ", "),
@@ -182,7 +177,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
             guard let self = self else {
                 return .noActionableNowPlayingItem
             }
-            block(self.audioNavigator!, event)
+            block(self.audiobookVM!.navigator, event)
           return .success
         }
     }
@@ -237,8 +232,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   private func updateCommandCenterControls() {
     let rcc = MPRemoteCommandCenter.shared()
-    rcc.previousTrackCommand.isEnabled = audioNavigator?.canGoBackward ?? false
-    rcc.nextTrackCommand.isEnabled = audioNavigator?.canGoForward ?? false
+    rcc.previousTrackCommand.isEnabled = audiobookVM?.navigator.canGoBackward ?? false
+    rcc.nextTrackCommand.isEnabled = audiobookVM?.navigator.canGoForward ?? false
   }
 
   // MARK: - Now Playing metadata
@@ -246,7 +241,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   @MainActor private func setupNowPlaying() {
     let nowPlaying = NowPlayingInfo.shared
   
-    let publication = audioNavigator?.publication
+    let publication = audiobookVM?.navigator.publication
 
     // Initial publication metadata.
     nowPlaying.media = NowPlayingInfo.Media(
@@ -256,7 +251,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     )
 
     // Update the artwork after the view model loaded it.
-    audiobookModel?.$cover
+    audiobookVM?.$cover
       .sink { cover in
         nowPlaying.media?.artwork = cover
       }
@@ -269,7 +264,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     nowPlaying.playback = NowPlayingInfo.Playback(
       duration: info.duration,
       elapsedTime: info.time,
-      rate: audioNavigator?.settings.speed
+      rate: audiobookVM?.navigator.settings.speed
     )
 
     nowPlaying.media?.chapterNumber = info.resourceIndex
