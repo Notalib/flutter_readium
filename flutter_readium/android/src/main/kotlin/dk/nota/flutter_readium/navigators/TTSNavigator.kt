@@ -8,9 +8,9 @@ import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -21,6 +21,7 @@ import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.navigator.media.tts.android.AndroidTtsPreferencesEditor
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -43,11 +44,10 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 @OptIn(ExperimentalReadiumApi::class)
 internal class TTSNavigator(
-    private val publication: Publication,
+    publication: Publication,
+    timeBaseListener: TimeBaseListener,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : Navigator {
-    private val jobs = mutableListOf<Job>()
-
+) : Navigator(publication, timeBaseListener) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -55,10 +55,12 @@ internal class TTSNavigator(
     private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice>? =
         null
 
+    private var editor: AndroidTtsPreferencesEditor? = null
+
     override suspend fun initNavigator() {
-        val factory = TtsNavigatorFactory(
+        val navigatorFactory = TtsNavigatorFactory(
             ReadiumReader.application,
-            this.publication,
+            publication,
             tokenizerFactory = { language ->
                 DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
             }
@@ -72,25 +74,25 @@ internal class TTSNavigator(
         CoroutineScope(Dispatchers.Main).async {
             val firstVisibleLocator = currentReadiumReaderView?.getFirstVisibleLocator()
 
-            val ttsNavigator =
-                factory.createNavigator(listener, firstVisibleLocator, preferences).getOrElse {
+            ttsNavigator =
+                navigatorFactory.createNavigator(listener, firstVisibleLocator, preferences).getOrElse {
                     Log.e(TAG, "ttsEnable: failed to create navigator: $it")
                     throw Exception("ttsEnable: failed to create navigator: $it")
                 }
 
-            // Setup streaming listeners for locator & decoration updates.
-            setupNavigatorListeners(ttsNavigator)
+            editor = navigatorFactory.createPreferencesEditor(preferences)
 
-            this@TTSNavigator.ttsNavigator = ttsNavigator
+            // Setup streaming listeners for locator & decoration updates.
+            setupNavigatorListeners()
         }.await()
     }
 
     fun setUtteranceStyle(style: Decoration.Style?) {
-        this.utteranceStyle = style
+        utteranceStyle = style
     }
 
     fun setCurrentRangeStyle(style: Decoration.Style?) {
-        this.currentRangeStyle = style
+        currentRangeStyle = style
     }
 
     override fun play() {
@@ -101,6 +103,7 @@ internal class TTSNavigator(
         if (fromLocator != null) {
             ttsNavigator?.go(fromLocator)
         }
+
         ttsNavigator?.play()
     }
 
@@ -111,43 +114,47 @@ internal class TTSNavigator(
         ttsNavigator?.play()
     }
     fun nextUtterance() = ttsNavigator?.skipToNextUtterance()
+
     fun previousUtterance() = ttsNavigator?.skipToPreviousUtterance()
 
     /// Updates TTS preferences, does not override current preferences if props are null
     fun updatePreferences(prefs: AndroidTtsPreferences) {
-        this.preferences = this.preferences.plus(prefs)
-        this.ttsNavigator?.submitPreferences(this.preferences)
+        editor?.apply {
+            voices.set(prefs.voices)
+            language.set(prefs.language)
+            pitch.set(prefs.pitch)
+            speed.set(prefs.speed)
+        }
     }
 
     fun setPreferredVoice(voiceId: String, lang: String?) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
-        val voices = this.preferences.voices?.toMutableMap() ?: mutableMapOf()
+        val voices = preferences.voices?.toMutableMap() ?: mutableMapOf()
         // If no lang provided, assume client wants to override currently spoken language.
         val language =
-            if (lang != null) Language(lang) else this.ttsNavigator?.settings?.value?.language
+            if (lang != null) Language(lang) else ttsNavigator?.settings?.value?.language
         if (language != null) {
             voices[language] = AndroidTtsEngine.Voice.Id(voiceId)
-            this.updatePreferences(AndroidTtsPreferences(voices = voices))
+            updatePreferences(AndroidTtsPreferences(voices = voices))
         }
     }
 
     val voices: Set<AndroidTtsEngine.Voice>
         get() = ttsNavigator?.voices ?: emptySet()
 
-    private fun setupNavigatorListeners(navigator: TtsNavigator<*, *, *, *>) {
+    override fun setupNavigatorListeners() {
+        val navigator = ttsNavigator
+        if (navigator == null)
+        {
+            return
+        }
+
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
-            .map { it.state }
+            .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
             .distinctUntilChanged()
-            .onEach { state ->
-                Log.d(TAG, "ttsPlayback: state=$state")
-                if (state is MediaNavigator.State.Failure) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        //TODO: Send to Flutter plugin state stream.
-                    }
-                }
-            }
+            .onEach { onPlaybackStateChanged(it) }
             .launchIn(CoroutineScope(Dispatchers.Main))
             .let { jobs.add(it) }
 
@@ -157,7 +164,7 @@ internal class TTSNavigator(
             .distinctUntilChanged()
             .onEach { (uttLocator, tokenLocator) ->
                 val decorations = mutableListOf<Decoration>()
-                this.utteranceStyle?.let {
+                utteranceStyle?.let {
                     decorations.add(
                         Decoration(
                             id = TTS_DECORATION_ID_UTTERANCE,
@@ -166,7 +173,7 @@ internal class TTSNavigator(
                         )
                     )
                 }
-                letIfBothNotNull(tokenLocator, this.currentRangeStyle)?.let { (locator, style) ->
+                letIfBothNotNull(tokenLocator, currentRangeStyle)?.let { (locator, style) ->
                     decorations.add(
                         Decoration(
                             id = TTS_DECORATION_ID_CURRENT_RANGE,
@@ -192,11 +199,18 @@ internal class TTSNavigator(
             }
             .launchIn(CoroutineScope(Dispatchers.Main))
             .let { jobs.add(it) }
+
+        navigator.currentLocator
+            .throttleLatest(100.milliseconds)
+            .distinctUntilChanged()
+            .onEach { onCurrentLocatorChanges(it) }
+            .launchIn(CoroutineScope(Dispatchers.Main))
+            .let { jobs.add(it) }
     }
 
-    fun dispose() {
-        jobs.forEach { it.cancel() }
-        jobs.clear()
+    override fun dispose() {
+        super.dispose()
+
         ttsNavigator?.close()
         ttsNavigator = null
     }

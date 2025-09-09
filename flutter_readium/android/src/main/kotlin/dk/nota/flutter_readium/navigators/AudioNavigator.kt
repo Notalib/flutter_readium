@@ -5,7 +5,8 @@ import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
@@ -13,6 +14,7 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.navigator.media.audio.AudioNavigatorFactory
+import org.readium.navigator.media.common.TimeBasedMediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -23,12 +25,11 @@ private const val TAG = "AudioNavigator"
 
 @OptIn(ExperimentalReadiumApi::class)
 class AudioNavigator(
-    private val publication: Publication,
+    publication: Publication,
+    timeBaseListener: TimeBaseListener,
     private val initialLocator: Locator?,
     private var preferences: ExoPlayerPreferences = ExoPlayerPreferences()
-) : Navigator {
-    private val jobs = mutableListOf<Job>()
-
+) : Navigator(publication, timeBaseListener) {
     private var audioNavigator: AudioNavigator<*, *>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
 
@@ -46,15 +47,7 @@ class AudioNavigator(
 
         editor = navigatorFactory.createAudioPreferencesEditor(preferences)
 
-        audioNavigator!!.playback
-            .throttleLatest(100.milliseconds)
-            .onEach { onPlaybackChanged(it) }
-            .launchIn(CoroutineScope(Dispatchers.Main))
-            .let { jobs.add(it) }
-    }
-
-    override fun play() {
-        play(null)
+        setupNavigatorListeners()
     }
 
     override fun play(fromLocator: Locator?) {
@@ -74,48 +67,39 @@ class AudioNavigator(
         audioNavigator?.play()
     }
 
-    fun onPlaybackChanged(pb: AudioNavigator.Playback) {
-        Log.d(TAG, "::onPlaybackChanged $pb")
+    /// Updates TTS preferences, does not override current preferences if props are null
+    fun updatePreferences(prefs: ExoPlayerPreferences) {
+        editor?.apply {
+            pitch.set(prefs.pitch)
+            speed.set(prefs.speed)
+        }
+    }
 
-        // Create locator from Playback
-
-        val an = audioNavigator
-        if (an == null) {
-            Log.e(TAG, ":onPlaybackChanged - missing audioNavigator")
+    override fun setupNavigatorListeners() {
+        val navigator = audioNavigator
+        if (navigator == null) {
             return
         }
 
-        val position = pb.index
-        val currentItem = an.readingOrder.items[position]
-        val pubCurrentItem = publication.readingOrder[position]
-        val chapterTitle = pubCurrentItem.title
-        val chapterDuration = currentItem.duration
-        val chapterOffset = pb.offset
-        val chapterOffsetSeconds = chapterOffset.inWholeSeconds
-        val chapterProgression =
-            chapterOffset.inWholeMilliseconds / chapterDuration!!.inWholeMilliseconds
+        // Listen to state changes
+        navigator.playback
+            .throttleLatest(100.milliseconds)
+            .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
+            .onEach { onPlaybackStateChanged(it) }
+            .launchIn(CoroutineScope(Dispatchers.Main))
+            .let { jobs.add(it) }
 
-        // TODO: calculate totalProgression and add to Locations.
-        val totalDuration = an.readingOrder.duration
-        val currentTotalOffset = an.readingOrder.items.slice(0..position - 1)
-            .sumOf { it.duration?.inWholeMilliseconds ?: 0 } + chapterOffset.inWholeMilliseconds
-        val totalProgression = currentTotalOffset / (totalDuration?.inWholeMilliseconds ?: 1)
-
-        val locations = Locator.Locations(
-            arrayOf("t=${chapterOffsetSeconds}").toList(),
-            progression = chapterProgression.toDouble(),
-            position,
-            totalProgression = totalProgression.toDouble()
-        )
-
-        var locator =
-            Locator(currentItem.href, pubCurrentItem.mediaType ?: MP3, chapterTitle, locations)
-        // Submit Locator to flutter channel
+        navigator.currentLocator
+            .throttleLatest(100.milliseconds)
+            .distinctUntilChanged()
+            .onEach { onCurrentLocatorChanges(it) }
+            .launchIn(CoroutineScope(Dispatchers.Main))
+            .let { jobs.add(it) }
     }
 
-    fun dispose() {
-        jobs.forEach { it.cancel() }
-        jobs.clear()
+    override fun dispose() {
+        super.dispose()
+
         audioNavigator?.close()
         audioNavigator = null
         editor = null

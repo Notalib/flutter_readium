@@ -4,6 +4,7 @@ package dk.nota.flutter_readium
 
 import android.util.Log
 import dk.nota.flutter_readium.navigators.AudioNavigator
+import dk.nota.flutter_readium.navigators.Navigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -12,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
@@ -44,7 +44,7 @@ private fun parseMediaType(mediaType: Any?): MediaType? {
 }
 
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler {
+    MethodChannel.MethodCallHandler, Navigator.TimeBaseListener {
 
     private var ttsNavigator: TTSNavigator? = null
 
@@ -111,7 +111,7 @@ internal class PublicationMethodCallHandler() :
                     }
 
                     try {
-                        ttsNavigator = TTSNavigator(publication, ttsPrefs)
+                        ttsNavigator = TTSNavigator(publication, this@PublicationMethodCallHandler,ttsPrefs)
                         ttsNavigator!!.initNavigator()
                         result.success(null)
                     } catch (e: Exception) {
@@ -258,7 +258,7 @@ internal class PublicationMethodCallHandler() :
                         return@launch
                     }
 
-                    audioNavigator = AudioNavigator(publication, locator, ExoPlayerPreferences())
+                    audioNavigator = AudioNavigator(publication, this@PublicationMethodCallHandler, locator, ExoPlayerPreferences())
                     audioNavigator?.initNavigator()
                     audioNavigator?.play()
                     // TODO: Create AudioReaderFragment here, or within the ReadiumReaderView?
@@ -271,6 +271,14 @@ internal class PublicationMethodCallHandler() :
                 }
             }
         }
+    }
+
+    override fun onTimebasePlaybackStateChanged(playbackState: Navigator.PlaybackState) {
+        Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
+    }
+
+    override fun onTimebaseCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
     }
 }
 
