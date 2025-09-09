@@ -62,15 +62,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       // TODO: Implement like this or send with openPublication??
       break
     case "dispose":
-      currentPublication?.close()
+      closePublication()
       self.synthesizer?.stop()
       self.synthesizer = nil
       self.audioLocatorStreamHandler?.dispose()
       self.audioLocatorStreamHandler = nil
       result(nil)
     case "closePublication":
-      let pubId = call.arguments as! String
-      self.closePublication(pubId)
+      self.closePublication()
       result(nil)
     case "openPublication":
       let args = call.arguments as! [Any?]
@@ -83,15 +82,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
 
-        // TODO: Do any other necessary preloading for a book we're about to read.
-        // E.g. for audiobook create AudioNavigator.
+        // TODO: Do any other necessary preloading for a book we're about to read. E.g. for audiobook create AudioNavigator?
         currentPublication = pub
-        if (pub.conforms(to: Publication.Profile.audiobook)) {
-          //TODO: Get start locator as param.
-          //TODO: Get playback speed preference.
-          let prefs = AudioPreferences(speed: 1.0)
-          await self.initAudioPlayback(forPublication: pub, withPrefs: prefs, atLocator: nil)
-        }
 
         let jsonManifest = pub.jsonManifest
 
@@ -111,6 +103,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
 
         let jsonManifest = pub.jsonManifest
+        pub.close()
 
         await MainActor.run {
           result(jsonManifest)
@@ -173,56 +166,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
-    case "ttsStart":
-      let args = call.arguments as! [Any?]
-      var locator: Locator? = nil
-      if let locatorStr = args[0] as? String {
-        locator = try! Locator(jsonString: locatorStr, warnings: self)!
-      }
-
-      Task.detached(priority: .high) {
-        if (locator == nil) {
-          locator = await currentReaderView?.getFirstVisibleLocator()
-        }
-        self.ttsStart(fromLocator: locator)
-        await MainActor.run {
-          result(nil)
-        }
-      }
-    case "stop":
-      self.audiobookVM?.navigator.pause()
-      self.synthesizer?.stop()
-      result(nil)
-    case "pause":
-      self.audiobookVM?.navigator.pause()
-      self.synthesizer?.pause()
-      result(nil)
-    case "resume":
-      self.audiobookVM?.navigator.play()
-      self.synthesizer?.resume()
-      result(nil)
-    case "togglePlayback":
-      self.audiobookVM?.navigator.playPause()
-      self.synthesizer?.pauseOrResume()
-      result(nil)
-    case "next":
-      if (self.audiobookVM != nil) {
-        Task {
-          // TODO: Configurable seek intervals
-          await self.audiobookVM?.navigator.seek(by: 30)
-        }
-      }
-      self.synthesizer?.next()
-      result(nil)
-    case "previous":
-      if (self.audiobookVM != nil) {
-        Task {
-          // TODO: Configurable seek intervals
-          await self.audiobookVM?.navigator.seek(by: -30)
-        }
-      }
-      self.synthesizer?.previous()
-      result(nil)
     case "ttsGetAvailableVoices":
       let availableVoices = self.ttsGetAvailableVoices()
       result(availableVoices.map { $0.jsonString } )
@@ -262,7 +205,61 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           message: "Failed to deserialize TTSPreferences: \(error.localizedDescription)",
           details: nil))
       }
-    case "audioStart":
+    case "play":
+      let args = call.arguments as! [Any?]
+      var locator: Locator? = nil
+      if let locatorStr = args[0] as? String {
+        locator = try! Locator(jsonString: locatorStr, warnings: self)!
+      }
+
+      Task.detached(priority: .high) {
+
+        if (self.synthesizer != nil) {
+          if (locator == nil) {
+            locator = await currentReaderView?.getFirstVisibleLocator()
+          }
+          self.ttsStart(fromLocator: locator)
+        }
+        self.audiobookVM?.navigator.play()
+        await MainActor.run {
+          result(nil)
+        }
+      }
+    case "stop":
+      self.audiobookVM?.navigator.pause()
+      self.synthesizer?.stop()
+      result(nil)
+    case "pause":
+      self.audiobookVM?.navigator.pause()
+      self.synthesizer?.pause()
+      result(nil)
+    case "resume":
+      self.audiobookVM?.navigator.play()
+      self.synthesizer?.resume()
+      result(nil)
+    case "togglePlayback":
+      self.audiobookVM?.navigator.playPause()
+      self.synthesizer?.pauseOrResume()
+      result(nil)
+    case "next":
+      if (self.audiobookVM != nil) {
+        Task {
+          // TODO: Configurable seek intervals
+          await self.audiobookVM?.navigator.seek(by: 30)
+        }
+      }
+      self.synthesizer?.next()
+      result(nil)
+    case "previous":
+      if (self.audiobookVM != nil) {
+        Task {
+          // TODO: Configurable seek intervals
+          await self.audiobookVM?.navigator.seek(by: -30)
+        }
+      }
+      self.synthesizer?.previous()
+      result(nil)
+    case "audioEnable":
       guard let args = call.arguments as? [Any?],
             let publication = currentPublication else {
         return result(FlutterError.init(
@@ -271,16 +268,34 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Task.detached(priority: .high) {
-        let playbackRate = args[0] as? Double ?? 1.0
+        // Get preferences via arg, or use defaults (empty map).
+        let prefsMap = args[0] as? Dictionary<String, Any>,
+            prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])
         var locator: Locator? = nil
         if let locatorStr = args[1] as? String {
           locator = try! Locator(jsonString: locatorStr, warnings: self)!
         }
-        let prefs = AudioPreferences.init(speed: playbackRate)
-
-        await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
+        
+        if (!publication.conforms(to: Publication.Profile.audiobook)) {
+          return result(FlutterError.init(
+            code: "AudioStart",
+            message: "Book does not conformTo AudioBook: \(call.arguments.debugDescription)",
+            details: nil))
+        }
+        await self.initAudioPlayback(forPublication: publication, withPrefs: prefs, atLocator: locator)
+        
+        // TODO: Decide on this, should clients call play after audioEnable?
         self.play()
       }
+    case "audioSetPreferences":
+      guard let prefsMap = call.arguments as? Dictionary<String, Any>,
+            let prefs = try? FlutterAudioPreferences.init(fromMap: prefsMap) else {
+        return result(FlutterError.init(
+          code: "AudioStart",
+          message: "Invalid parameters to audioSetPreferences: \(call.arguments.debugDescription)",
+          details: nil))
+      }
+      setAudioPreferences(prefs: prefs)
 
     default:
       result(FlutterMethodNotImplemented)
@@ -293,7 +308,7 @@ extension FlutterReadiumPlugin {
 
   private func initAudioPlayback(
     forPublication publication: Publication,
-    withPrefs prefs: AudioPreferences,
+    withPrefs prefs: FlutterAudioPreferences,
     atLocator locator: Locator?,
   ) async -> Void {
     await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
@@ -359,8 +374,8 @@ extension FlutterReadiumPlugin {
           }
       }
 
-  private func closePublication(_ pubIdentifier: String) {
-    // Clean-up any resources associated with this publication identifier
+  private func closePublication() {
+    // Clean-up any resources associated with the publication.
     currentPublication?.close()
     currentPublication = nil
     synthesizer = nil

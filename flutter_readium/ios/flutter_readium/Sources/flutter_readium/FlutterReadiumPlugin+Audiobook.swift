@@ -10,22 +10,24 @@ private let TAG = "ReadiumReaderPlugin/Audiobook"
 
 //@MainActor
 class AudiobookViewModel: ObservableObject {
-    let navigator: AudioNavigator
+  let navigator: AudioNavigator
+  var preferences: FlutterAudioPreferences
 
-    @Published var cover: UIImage?
-    @Published var playback: MediaPlaybackInfo = .init()
+  @Published var cover: UIImage?
+  @Published var playback: MediaPlaybackInfo = .init()
 
-    init(navigator: AudioNavigator) {
-        self.navigator = navigator
+  init(navigator: AudioNavigator, preferences: FlutterAudioPreferences) {
+    self.navigator = navigator
+    self.preferences = preferences
 
-        Task {
-            cover = try? await navigator.publication.cover().get()
-        }
+    Task {
+      cover = try? await navigator.publication.cover().get()
     }
+  }
 
-    func onPlaybackChanged(info: MediaPlaybackInfo) {
-        playback = info
-    }
+  func onPlaybackChanged(info: MediaPlaybackInfo) {
+    playback = info
+  }
 }
 
 extension FlutterReadiumPlugin : AudioNavigatorDelegate {
@@ -33,13 +35,13 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   @MainActor func setupAudiobookNavigator(
       publication: Publication,
       locator: Locator?,
-      initialPreferences: AudioPreferences,
+      initialPreferences: FlutterAudioPreferences,
   ) async {
     let navigator = AudioNavigator(
       publication: publication,
       initialLocation: locator,
       config: AudioNavigator.Configuration(
-        preferences: initialPreferences
+        preferences: AudioPreferences(fromFlutterPrefs: initialPreferences)
       )
     )
     if (audiobookVM != nil) {
@@ -47,7 +49,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     }
 
     audiobookVM = AudiobookViewModel(
-      navigator: navigator
+      navigator: navigator,
+      preferences: initialPreferences
     )
     navigator.delegate = self
 
@@ -64,6 +67,11 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
         print(TAG, "model.$playback updated. time=\(info.time),progress=\(info.progress)")
       }
       .store(in: &subscriptions)
+  }
+  
+  public func setAudioPreferences(prefs: FlutterAudioPreferences) {
+    self.audiobookVM?.preferences = prefs
+    self.audiobookVM?.navigator.submitPreferences(AudioPreferences(fromFlutterPrefs: prefs))
   }
 
   public func endAudiobookNavigator() async {

@@ -48,6 +48,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   }
 
   /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
+  /// This will NOT store a reference to the Publication and is purely meant to be used for fetching metadata/manifest
+  /// for multiple books.
   Future<Publication> loadPublication(String pubUrl) =>
       throw UnimplementedError('loadPublication(pubUrl) has not been implemented.');
 
@@ -75,15 +77,18 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
+  // COMMON PLAYBACK API - BEGIN
+  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');
+  Future<void> stop() => throw UnimplementedError('stop() has not been implemented');
+  Future<void> pause() => throw UnimplementedError('pause() has not been implemented');
+  Future<void> resume() => throw UnimplementedError('resume() has not been implemented');
+  Future<void> next() => throw UnimplementedError('next() has not been implemented');
+  Future<void> previous() => throw UnimplementedError('previous() has not been implemented');
+  // COMMON PLAYBACK API - END
+
   // TTS API - BEGIN
   Future<void> ttsEnable(TTSPreferences? preferences) =>
       throw UnimplementedError('ttsEnable() has not been implemented');
-  Future<void> ttsStart(Locator? fromLocator) => throw UnimplementedError('ttsStart() has not been implemented');
-  Future<void> stop() => throw UnimplementedError('ttsStop() has not been implemented');
-  Future<void> pause() => throw UnimplementedError('ttsPause() has not been implemented');
-  Future<void> resume() => throw UnimplementedError('ttsResume() has not been implemented');
-  Future<void> next() => throw UnimplementedError('ttsNext() has not been implemented');
-  Future<void> previous() => throw UnimplementedError('ttsPrevious() has not been implemented');
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
@@ -97,19 +102,24 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END
 
-  // AudioBook API - BEGIN
-  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) =>
-      throw UnimplementedError('audioStart() has not been implemented');
-  // AudioBook API - END
+  // AUDIOBOOK API - BEGIN
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      throw UnimplementedError('audioEnable() has not been implemented');
+  Future<void> audioSetPreferences(AudioPreferences prefs) =>
+      throw UnimplementedError('audioSetPreferences() has not been implemented');
+  // AUDIOBOOK API - END
 
+  // Stream for reader status changes
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');
   }
 
+  // Stream for text/visual position. Usually will be the top of the current page (firstVisibleLocator in Readium).
   Stream<Locator> get onTextLocatorChanged {
     throw UnimplementedError('onTextLocatorChanged stream has not been implemented.');
   }
 
+  // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
   Stream<Locator> get onAudioLocatorChanged {
     throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
   }

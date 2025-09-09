@@ -26,6 +26,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   Stream<Locator>? _onAudioLocatorChanged;
 
+  Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
+
   /// Fires whenever the Reader's current Locator changes.
   @override
   Stream<Locator> get onTextLocatorChanged {
@@ -44,6 +46,16 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       return newLocator;
     });
     return _onAudioLocatorChanged!;
+  }
+
+  /// Fires whenever the Audio Locator changes. Can be either TTS or pre-recorded.
+  @override
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged {
+    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
+      final newStatus = ReadiumReaderStatus.values.firstWhere((e) => e.name == json.decode(event) as String);
+      return newStatus;
+    });
+    return _onReaderStatusChanged!;
   }
 
   @override
@@ -90,8 +102,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod('ttsEnable', preferences?.toMap());
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) async =>
-      await methodChannel.invokeMethod('ttsStart', [fromLocator?.toJson()]);
+  Future<void> play(Locator? fromLocator) async => await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);
 
   @override
   Future<void> stop() async => await methodChannel.invokeMethod('stop');
@@ -141,6 +152,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod<String>('getLinkContent', [jsonEncode(link.toJson())]);
 
   @override
-  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) =>
-      methodChannel.invokeMethod('audioStart', [speed, fromLocator]);
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      methodChannel.invokeMethod('audioStart', [prefs, fromLocator]);
+
+  @override
+  Future<void> audioSetPreferences(AudioPreferences prefs) => methodChannel.invokeMethod('audioSetPreferences', prefs);
 }

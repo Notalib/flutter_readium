@@ -66,12 +66,6 @@ class FlutterReadium {
       _platform.applyDecorations(id, decorations);
 
   Future<void> ttsEnable(TTSPreferences? preferences) => _platform.ttsEnable(preferences);
-  Future<void> ttsStart(Locator? fromLocator) => _platform.ttsStart(fromLocator);
-  Future<void> stop() => _platform.stop();
-  Future<void> pause() => _platform.pause();
-  Future<void> resume() => _platform.resume();
-  Future<void> next() => _platform.next();
-  Future<void> previous() => _platform.previous();
   Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
   Future<void> ttsSetDecorationStyle(
           ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
@@ -80,6 +74,14 @@ class FlutterReadium {
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       _platform.ttsSetVoice(voiceIdentifier, forLanguage);
 
-  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) =>
-      _platform.audioStart(speed: speed, fromLocator: fromLocator);
+  Future<void> play(Locator? fromLocator) => _platform.play(fromLocator);
+  Future<void> stop() => _platform.stop();
+  Future<void> pause() => _platform.pause();
+  Future<void> resume() => _platform.resume();
+  Future<void> next() => _platform.next();
+  Future<void> previous() => _platform.previous();
+
+  Future<void> audioStart({AudioPreferences? prefs, Locator? fromLocator}) =>
+      _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
+  Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
 }

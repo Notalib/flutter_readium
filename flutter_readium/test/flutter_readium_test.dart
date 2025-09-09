@@ -88,30 +88,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> next() {
-    // TODO: implement ttsNext
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> pause() {
-    // TODO: implement ttsPause
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> previous() {
-    // TODO: implement ttsPrevious
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> resume() {
-    // TODO: implement ttsResume
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> ttsSetDecorationStyle(
       ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
     // TODO: implement ttsSetDecorationStyle
@@ -125,14 +101,38 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) {
-    // TODO: implement ttsStart
+  Future<void> play(Locator? fromLocator) {
+    // TODO: implement play
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> pause() {
+    // TODO: implement ttsPause
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> resume() {
+    // TODO: implement ttsResume
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> next() {
+    // TODO: implement ttsNext
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> previous() {
+    // TODO: implement ttsPrevious
     throw UnimplementedError();
   }
 
   @override
   Future<void> stop() {
-    // TODO: implement ttsStop
+    // TODO: implement stop
     throw UnimplementedError();
   }
 
@@ -147,8 +147,14 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> audioStart({double speed = 1.0, Locator? fromLocator}) {
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) {
     // TODO: implement audioStart
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> audioSetPreferences(AudioPreferences prefs) {
+    // TODO: implement audioSetPreferences
     throw UnimplementedError();
   }
 

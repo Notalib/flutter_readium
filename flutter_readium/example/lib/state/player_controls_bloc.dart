@@ -8,7 +8,11 @@ abstract class PlayerControlsEvent {}
 
 class PlayTTS extends PlayerControlsEvent {}
 
-class PlayAudiobook extends PlayerControlsEvent {}
+class Play extends PlayerControlsEvent {
+  Play({this.fromLocator});
+
+  Locator? fromLocator;
+}
 
 class Pause extends PlayerControlsEvent {}
 
@@ -59,7 +63,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
-        await instance.ttsStart(null);
+        await instance.play(null);
         emit(await state.toggleTTS(true));
       } else {
         await instance.resume();
@@ -68,8 +72,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(await state.togglePlay(true));
     });
 
-    on<PlayAudiobook>((final event, final emit) async {
-      await instance.audioStart(speed: 1.5);
+    on<Play>((final event, final emit) async {
+      await instance.play(event.fromLocator);
       emit(await state.togglePlay(true));
     });
 
