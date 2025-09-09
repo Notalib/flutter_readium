@@ -17,6 +17,7 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.ThrowableError
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
@@ -99,7 +100,7 @@ object ReadiumReader {
     }
 
     // Safe getter — returns applicationContext or throws if not available.
-    private val application: Application
+    val application: Application
         get() = appRef.get() ?: throw IllegalStateException("Application not initialized. Call AppSingleton.init(context) first.")
 
     private val context: Context get() = application.applicationContext
@@ -201,6 +202,56 @@ object ReadiumReader {
         _currentPublicationURL = pubUrl.toString()
 
         return Try.success(pub)
+    }
+
+    /**
+     * Load a publication from a URL
+     * Note: Remember to close the publication to avoid leaks.
+     */
+    suspend fun loadPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    {
+        val pubUrl = resolvePubUrl(urlStr).getOrElse {
+            return failure(PublicationError.InvalidPublicationUrl(urlStr))
+        }
+
+        Log.d(TAG, "loadPublicationFromUrl: $pubUrl")
+
+        return loadPublication(pubUrl)
+    }
+
+    /**
+     * Open a publication from a URL.
+     *
+     * Note: This sets the publication as the current publication.
+     */
+    suspend fun openPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
+    {
+        val pubUrl = resolvePubUrl(urlStr).getOrElse {
+            return failure(PublicationError.InvalidPublicationUrl(urlStr))
+        }
+
+        Log.d(TAG, "openPublicationFromUrl: $pubUrl")
+
+        return openPublication(pubUrl)
+    }
+
+    /**
+     * Helper function for resolving a URL and make sure a file path is turned into a URL.
+     */
+    private fun resolvePubUrl(urlStr: String) : Try<AbsoluteUrl, PublicationError>
+    {
+        var pubUrlStr = urlStr
+        // If URL is neither http nor file, assume it is a local file reference.
+        if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
+            pubUrlStr = "file://$pubUrlStr"
+        }
+        // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
+        val pubUrl = AbsoluteUrl(pubUrlStr)
+        if (pubUrl == null) {
+            return failure(PublicationError.InvalidPublicationUrl(pubUrlStr))
+        }
+
+        return Try.success(pubUrl)
     }
 
     fun closePublication() {

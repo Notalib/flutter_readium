@@ -1,9 +1,8 @@
-package dk.nota.flutter_readium.models
+package dk.nota.flutter_readium.navigators
 
-import android.app.Application
-import android.content.Context
 import android.graphics.Color
 import android.util.Log
+import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.currentReadiumReaderView
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
@@ -40,14 +39,13 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 // TODO: Send audio-locator event to dart on locator change.
 // TODO: Extend locator with chapter info
-// TODO: Common interface for audio and TTS navicator.
+// TODO: Common interface for audio and TTS navigator.
 
 @OptIn(ExperimentalReadiumApi::class)
-internal class TTSViewModel(
-    private val context: Context,
+internal class TTSNavigator(
     private val publication: Publication,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) {
+) : Navigator {
     private val jobs = mutableListOf<Job>()
 
     // TODO: Decision on appropriate defaults
@@ -57,9 +55,9 @@ internal class TTSViewModel(
     private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice>? =
         null
 
-    suspend fun initNavigator() {
+    override suspend fun initNavigator() {
         val factory = TtsNavigatorFactory(
-            this.context as Application,
+            ReadiumReader.application,
             this.publication,
             tokenizerFactory = { language ->
                 DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
@@ -83,7 +81,7 @@ internal class TTSViewModel(
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners(ttsNavigator)
 
-            this@TTSViewModel.ttsNavigator = ttsNavigator
+            this@TTSNavigator.ttsNavigator = ttsNavigator
         }.await()
     }
 
@@ -95,15 +93,23 @@ internal class TTSViewModel(
         this.currentRangeStyle = style
     }
 
-    fun play(fromLocator: Locator?) {
+    override fun play() {
+        play(null)
+    }
+
+    override fun play(fromLocator: Locator?) {
         if (fromLocator != null) {
             ttsNavigator?.go(fromLocator)
         }
         ttsNavigator?.play()
     }
 
-    fun pause() = ttsNavigator?.pause()
-    fun resume() = ttsNavigator?.play()
+    override fun pause() {
+        ttsNavigator?.pause()
+    }
+    override fun resume() {
+        ttsNavigator?.play()
+    }
     fun nextUtterance() = ttsNavigator?.skipToNextUtterance()
     fun previousUtterance() = ttsNavigator?.skipToPreviousUtterance()
 

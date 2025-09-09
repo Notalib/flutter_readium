@@ -2,24 +2,22 @@
 
 package dk.nota.flutter_readium
 
-import android.content.Context
 import android.util.Log
-import dk.nota.flutter_readium.models.TTSViewModel
+import dk.nota.flutter_readium.navigators.AudioNavigator
+import dk.nota.flutter_readium.navigators.TTSNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Try
-import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
@@ -45,10 +43,12 @@ private fun parseMediaType(mediaType: Any?): MediaType? {
     return MediaType(list[0]!!)
 }
 
-internal class PublicationMethodCallHandler(private val context: Context) :
+internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler {
 
-    private var ttsViewModel: TTSViewModel? = null
+    private var ttsNavigator: TTSNavigator? = null
+
+    private var audioNavigator: AudioNavigator? = null
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -58,7 +58,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
 
-                    val publication = loadPublicationFromUrl(pubUrlStr).getOrElse {
+                    val publication = ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse {
                         Log.e(
                             TAG,
                             "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
@@ -77,7 +77,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
 
-                    val publication = openPublicationFromUrl(pubUrlStr).getOrElse {
+                    val publication = ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse {
                         Log.e(
                             TAG,
                             "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
@@ -98,32 +98,26 @@ internal class PublicationMethodCallHandler(private val context: Context) :
 
                 "ttsEnable" -> {
                     val args = call.arguments as Map<String, Any>?
-                    val ttsPrefs =
-                        if (args != null) androidTtsPreferencesFromMap(args) else AndroidTtsPreferences()
-
-                    val pubIdentifier = currentReadiumReaderView?.currentPublicationIdentifier
-                    if (pubIdentifier == null) {
-                        Log.e(TAG, "ttsEnable: no current publication identifier")
-                        return@launch
-                    }
+                    val ttsPrefs = androidTtsPreferencesFromMap(args)
 
                     val publication = ReadiumReader.currentPublication
+                    val pubUrl = ReadiumReader.currentPublicationUrl
                     if (publication == null) {
                         Log.e(
                             TAG,
-                            "ttsEnable: Cannot enable TTS for un-opened publication. PubId=$pubIdentifier"
+                            "ttsEnable: Cannot enable TTS for un-opened publication. pubUrl=$pubUrl"
                         )
                         return@launch
                     }
 
                     try {
-                        ttsViewModel = TTSViewModel(context, publication, ttsPrefs)
-                        ttsViewModel!!.initNavigator()
+                        ttsNavigator = TTSNavigator(publication, ttsPrefs)
+                        ttsNavigator!!.initNavigator()
                         result.success(null)
                     } catch (e: Exception) {
                         Log.e(
                             TAG,
-                            "ttsEnable: Failed to create TTSViewModel (likely navigator). PubId=$pubIdentifier"
+                            "ttsEnable: Failed to create TTSViewModel (likely navigator). pubUrl=$pubUrl"
                         )
                         result.error("ttsEnable", "Failed to create TTSModel", e.message)
                     }
@@ -132,19 +126,17 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                 "ttsSetPreferences" -> {
                     val args = call.arguments as Map<String, Any>
                     val prefs = androidTtsPreferencesFromMap(args)
-                    ttsViewModel?.updatePreferences(prefs)
+                    ttsNavigator?.updatePreferences(prefs)
                 }
 
                 "ttsSetDecorationStyle" -> {
                     val args = call.arguments as List<*>
                     val uttDecoMap = args[0] as Map<String, String>?
                     val rangeDecoMap = args[1] as Map<String, String>?
-                    val uttStyle =
-                        if (uttDecoMap != null) decorationStyleFromMap(uttDecoMap) else null
-                    val rangeStyle =
-                        if (rangeDecoMap != null) decorationStyleFromMap(rangeDecoMap) else null
-                    ttsViewModel?.setUtteranceStyle(uttStyle)
-                    ttsViewModel?.setCurrentRangeStyle(rangeStyle)
+                    val uttStyle = decorationStyleFromMap(uttDecoMap)
+                    val rangeStyle = decorationStyleFromMap(rangeDecoMap)
+                    ttsNavigator?.setUtteranceStyle(uttStyle)
+                    ttsNavigator?.setCurrentRangeStyle(rangeStyle)
                 }
 
                 "ttsStart" -> {
@@ -155,39 +147,39 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     } else {
                         currentReadiumReaderView?.getFirstVisibleLocator()
                     }
-                    ttsViewModel?.play(fromLocator)
+                    ttsNavigator?.play(fromLocator)
                     result.success(null)
                 }
 
                 "ttsPause" -> {
-                    ttsViewModel?.pause()
+                    ttsNavigator?.pause()
                     result.success(null)
                 }
 
                 "ttsResume" -> {
-                    ttsViewModel?.resume()
+                    ttsNavigator?.resume()
                     result.success(null)
                 }
 
                 "ttsStop" -> {
-                    ttsViewModel?.dispose()
+                    ttsNavigator?.dispose()
                     // Remove any current TTS decorations
                     currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
                     result.success(null)
                 }
 
                 "ttsNext" -> {
-                    ttsViewModel?.nextUtterance()
+                    ttsNavigator?.nextUtterance()
                     result.success(null)
                 }
 
                 "ttsPrevious" -> {
-                    ttsViewModel?.previousUtterance()
+                    ttsNavigator?.previousUtterance()
                     result.success(null)
                 }
 
                 "ttsGetAvailableVoices" -> {
-                    val androidVoices = ttsViewModel?.voices
+                    val androidVoices = ttsNavigator?.voices
                     val voicesJson = androidVoices?.map {
                         JSONObject().apply {
                             put("identifier", it.id.value)
@@ -208,7 +200,7 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                     val voiceId = args[0] as String?
                     val language = args[1] as String?
                     if (voiceId != null) {
-                        ttsViewModel?.setPreferredVoice(voiceId, language)
+                        ttsNavigator?.setPreferredVoice(voiceId, language)
                     }
                     result.success(null)
                 }
@@ -266,6 +258,9 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                         return@launch
                     }
 
+                    audioNavigator = AudioNavigator(publication, locator, ExoPlayerPreferences())
+                    audioNavigator?.initNavigator()
+                    audioNavigator?.play()
                     // TODO: Create AudioReaderFragment here, or within the ReadiumReaderView?
                     //
                     result.success(null)
@@ -276,56 +271,6 @@ internal class PublicationMethodCallHandler(private val context: Context) :
                 }
             }
         }
-    }
-
-    /**
-     * Helper function for resolving a URL and make sure a file path is turned into a URL.
-     */
-    private fun resolvePubUrl(urlStr: String) : Try<AbsoluteUrl, PublicationError>
-    {
-        var pubUrlStr = urlStr
-        // If URL is neither http nor file, assume it is a local file reference.
-        if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
-            pubUrlStr = "file://$pubUrlStr"
-        }
-        // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
-        val pubUrl = AbsoluteUrl(pubUrlStr)
-        if (pubUrl == null) {
-            return failure(PublicationError.InvalidPublicationUrl(pubUrlStr))
-        }
-
-        return Try.success(pubUrl)
-    }
-
-    /**
-     * Load a publication from a URL
-     * Note: Remember to close the publication to avoid leaks.
-     */
-    suspend fun loadPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
-    {
-        val pubUrl = resolvePubUrl(urlStr).getOrElse {
-            return failure(PublicationError.InvalidPublicationUrl(urlStr))
-        }
-
-        Log.d(TAG, "loadPublicationFromUrl: $pubUrl")
-
-        return ReadiumReader.loadPublication(pubUrl)
-    }
-
-    /**
-     * Open a publication from a URL.
-     *
-     * Note: This sets the publication as the current publication.
-     */
-    suspend fun openPublicationFromUrl(urlStr: String): Try<Publication, PublicationError>
-    {
-        val pubUrl = resolvePubUrl(urlStr).getOrElse {
-            return failure(PublicationError.InvalidPublicationUrl(urlStr))
-        }
-
-        Log.d(TAG, "openPublicationFromUrl: $pubUrl")
-
-        return ReadiumReader.openPublication(pubUrl)
     }
 }
 

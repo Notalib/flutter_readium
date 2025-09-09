@@ -90,3 +90,4 @@ lib/**/*.freezed.dart
 **/.build/
 **/*.freezed.dart
 **/*.g.dart
+flutter_readium/example/devtools_options.yaml

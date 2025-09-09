@@ -44,8 +44,7 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         }
 
         // Setup publication channel
-        publicationMethodCallHandler =
-            PublicationMethodCallHandler(flutterPluginBinding.applicationContext)
+        publicationMethodCallHandler = PublicationMethodCallHandler()
         publicationChannel = MethodChannel(messenger, publicationChannelName)
         publicationChannel.setMethodCallHandler(publicationMethodCallHandler)
 

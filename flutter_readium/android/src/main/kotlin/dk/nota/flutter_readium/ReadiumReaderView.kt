@@ -20,7 +20,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -70,8 +69,6 @@ internal class ReadiumReaderView(
     private var userPreferences = EpubPreferences()
     private var initialLocations: Locator.Locations?
 
-    val currentPublicationIdentifier: String
-
     override fun getView(): View {
         //Log.d(TAG, "::getView")
         return layout
@@ -108,7 +105,6 @@ internal class ReadiumReaderView(
 
         @Suppress("UNCHECKED_CAST")
         val initPrefsMap = creationParams["preferences"] as Map<String, String>?
-        val pubIdentifier = creationParams["pubIdentifier"] as String
         val publication = ReadiumReader.currentPublication
         val pubUrl = ReadiumReader.currentPublicationUrl
         val locatorString = creationParams["initialLocator"] as String?
@@ -118,7 +114,6 @@ internal class ReadiumReaderView(
         val initialPreferences =
             if (initPrefsMap == null) null else epubPreferencesFromMap(initPrefsMap, null)
         Log.d(TAG, "publication = $publication")
-        currentPublicationIdentifier = pubIdentifier
 
         // Attempt to reuse existing fragment
         val epubReaderFragment =
@@ -127,7 +122,7 @@ internal class ReadiumReaderView(
         if (epubReaderFragment != null) {
             Log.d(TAG, "existing fragment, can we reuse it?")
             val vm = epubReaderFragment.vm as? EpubReaderViewModel
-            if (vm != null && vm.identifier == pubIdentifier && vm.pubUrl == pubUrl) {
+            if (vm != null && vm.pubUrl == pubUrl) {
                 reuseFragment = true
                 initialLocator = vm.locator ?: initialLocator
                 epubReaderFragment.go(initialLocator!!, false)
@@ -145,7 +140,6 @@ internal class ReadiumReaderView(
 
         if (!reuseFragment || epubReaderFragment == null) {
             val vm = EpubReaderViewModel()
-            vm.identifier = pubIdentifier
             vm.pubUrl = pubUrl
             vm.publication = publication
             vm.locator = initialLocator

@@ -51,7 +51,6 @@ abstract class BaseReaderFragment : Fragment() {
 
         return ReaderViewModel().let {
             it.pubUrl = publicationUrl
-            it.identifier = identifier
             it.locator = locator
 
             it
@@ -67,12 +66,6 @@ abstract class BaseReaderFragment : Fragment() {
             return
         }
 
-        val identifier = model.identifier
-        if (identifier == null) {
-            outState.resetState()
-            return
-        }
-
         val pubUrl = model.pubUrl
         if (pubUrl == null) {
             outState.resetState()
@@ -81,7 +74,6 @@ abstract class BaseReaderFragment : Fragment() {
 
         Log.d(TAG, "pubUrl:${pubUrl}")
 
-        outState.putString(identifierKeyName, identifier)
         outState.putString(publicationUrlKeyName, pubUrl)
         outState.putParcelable(currentLocatorKeyName, model.locator)
     }

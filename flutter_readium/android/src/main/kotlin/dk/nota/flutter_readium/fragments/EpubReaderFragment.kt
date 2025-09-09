@@ -202,7 +202,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         return super.restoreViewModelFromState(savedInstanceState)?.let {
             return EpubReaderViewModel().apply()
             {
-                identifier = it.identifier
                 pubUrl = it.pubUrl
                 publication = it.publication
                 locator = it.locator
