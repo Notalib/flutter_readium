@@ -28,6 +28,8 @@ import org.readium.r2.streamer.PublicationOpener.OpenError
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
+
+// TODO: Warning about memory leak from Android Studio. Find better solution.
 internal var currentReadiumReaderView: ReadiumReaderView? = null
 
 /// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
@@ -93,6 +95,12 @@ internal class PublicationMethodCallHandler() :
 
                 "closePublication" -> {
                     Log.d(TAG, "Close publication")
+                    // TODO: Should we have other ways to dispose these?
+                    ttsNavigator?.dispose()
+                    ttsNavigator = null
+                    audioNavigator?.dispose()
+                    audioNavigator = null
+
                     ReadiumReader.closePublication()
                 }
 
@@ -139,45 +147,6 @@ internal class PublicationMethodCallHandler() :
                     ttsNavigator?.setCurrentRangeStyle(rangeStyle)
                 }
 
-                "ttsStart" -> {
-                    val args = call.arguments as List<*>
-                    val fromLocatorStr = args[0] as String?
-                    val fromLocator = if (fromLocatorStr != null) {
-                        Locator.fromJSON(JSONObject(fromLocatorStr))
-                    } else {
-                        currentReadiumReaderView?.getFirstVisibleLocator()
-                    }
-                    ttsNavigator?.play(fromLocator)
-                    result.success(null)
-                }
-
-                "ttsPause" -> {
-                    ttsNavigator?.pause()
-                    result.success(null)
-                }
-
-                "ttsResume" -> {
-                    ttsNavigator?.resume()
-                    result.success(null)
-                }
-
-                "ttsStop" -> {
-                    ttsNavigator?.dispose()
-                    // Remove any current TTS decorations
-                    currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
-                    result.success(null)
-                }
-
-                "ttsNext" -> {
-                    ttsNavigator?.nextUtterance()
-                    result.success(null)
-                }
-
-                "ttsPrevious" -> {
-                    ttsNavigator?.previousUtterance()
-                    result.success(null)
-                }
-
                 "ttsGetAvailableVoices" -> {
                     val androidVoices = ttsNavigator?.voices
                     val voicesJson = androidVoices?.map {
@@ -202,6 +171,56 @@ internal class PublicationMethodCallHandler() :
                     if (voiceId != null) {
                         ttsNavigator?.setPreferredVoice(voiceId, language)
                     }
+                    result.success(null)
+                }
+
+                "play" -> {
+                    val args = call.arguments as List<*>
+                    val fromLocatorStr = args[0] as String?
+                    val fromLocator = fromLocatorStr?.let {
+                        Locator.fromJSON(JSONObject(it))
+                    }
+                    // If using TTS and no fromLocator given, start from current visible locator.
+                    if (fromLocator == null && ttsNavigator != null) {
+                        currentReadiumReaderView?.getFirstVisibleLocator()
+                    }
+                    audioNavigator?.play(fromLocator)
+                    ttsNavigator?.play(fromLocator)
+                    result.success(null)
+                }
+
+                "pause" -> {
+                    audioNavigator?.pause()
+                    ttsNavigator?.pause()
+                    result.success(null)
+                }
+
+                "resume" -> {
+                    audioNavigator?.resume()
+                    ttsNavigator?.resume()
+                    result.success(null)
+                }
+
+                "stop" -> {
+                    audioNavigator?.pause()
+                    audioNavigator?.dispose()
+                    ttsNavigator?.dispose()
+                    // Remove any current TTS decorations
+                    currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
+                    result.success(null)
+                }
+
+                "next" -> {
+                    // TODO: seek by audioPreferences.seekInterval
+                    //audioNavigator?.seekBy(audioPreferences.seekInterval)
+                    ttsNavigator?.nextUtterance()
+                    result.success(null)
+                }
+
+                "previous" -> {
+                    // TODO: seek by audioPreferences.seekInterval
+                    //audioNavigator?.seekBy(-1 * audioPreferences.seekInterval)
+                    ttsNavigator?.previousUtterance()
                     result.success(null)
                 }
 
@@ -246,11 +265,15 @@ internal class PublicationMethodCallHandler() :
                     }
                 }
 
-                "audioStart" -> {
+                "audioEnable" -> {
                     val args = call.arguments as List<*>
-                    val speed = args[0] as Double? ?: 1.0
+                    // 0 is AudioPreferences
+                    val prefsStr = args[0] as String?
                     val locatorStr = args[1] as String?
                     val publication = ReadiumReader.currentPublication
+                    val preferences = prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
+                    // TODO: Save preferences, on ReadiumReader?
+                    val exoPreferences = preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
@@ -258,12 +281,20 @@ internal class PublicationMethodCallHandler() :
                         return@launch
                     }
 
-                    audioNavigator = AudioNavigator(publication, this@PublicationMethodCallHandler, locator, ExoPlayerPreferences())
+                    audioNavigator = AudioNavigator(publication, this@PublicationMethodCallHandler, locator, exoPreferences)
                     audioNavigator?.initNavigator()
                     audioNavigator?.play()
                     // TODO: Create AudioReaderFragment here, or within the ReadiumReaderView?
                     //
                     result.success(null)
+                }
+
+                "audioSetPreferences" -> {
+                    val prefsStr = call.arguments as String?
+                    val preferences = prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
+                    // TODO: Save preferences, on ReadiumReader?
+                    val exoPreferences = preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+                    audioNavigator?.updatePreferences(exoPreferences)
                 }
 
                 else -> {

@@ -16,6 +16,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Language
 import androidx.core.graphics.toColorInt
+import org.readium.r2.navigator.preferences.Configurable
 
 private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()
@@ -80,18 +81,53 @@ fun epubPreferencesFromMap(
 ): EpubPreferences? {
     try {
       val newPreferences = EpubPreferences(
-        fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
-        fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
-        fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
-        scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
-        backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.backgroundColor,
-        textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor,
-        pageMargins = prefMap["pageMargins"]?.toDoubleOrNull() ?: defaults?.pageMargins,
+            fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
+            fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
+            fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
+            scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
+            backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.backgroundColor,
+            textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) } ?: defaults?.textColor,
+            pageMargins = prefMap["pageMargins"]?.toDoubleOrNull() ?: defaults?.pageMargins,
       )
       return newPreferences
     } catch (ex: Exception) {
       Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
       return null
+    }
+}
+
+@kotlinx.serialization.Serializable
+public data class FlutterAudioPreferences(
+    val volume: Double? = null,
+    val pitch: Double? = null,
+    val speed: Double? = null,
+    val seekInterval: Double? = 30.0,
+) : Configurable.Preferences<FlutterAudioPreferences> {
+
+    override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
+        FlutterAudioPreferences(
+            volume = other.volume ?: volume,
+            pitch = other.pitch ?: pitch,
+            speed = other.speed ?: speed,
+            seekInterval = other.seekInterval ?: seekInterval
+        )
+
+    fun toExoPlayerPreferences(): ExoPlayerPreferences {
+        return ExoPlayerPreferences(
+            pitch = this.pitch,
+            speed = this.speed
+        );
+    }
+
+    companion object {
+        fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences {
+            return FlutterAudioPreferences(
+                volume = jsonObject.getDouble("volume"),
+                pitch = jsonObject.getDouble("pitch"),
+                speed = jsonObject.getDouble("speed"),
+                seekInterval = jsonObject.getDouble("seekInterval"),
+            )
+        }
     }
 }
 
