@@ -3,7 +3,6 @@ package dk.nota.flutter_readium.navigators
 import android.graphics.Color
 import android.util.Log
 import dk.nota.flutter_readium.ReadiumReader
-import dk.nota.flutter_readium.currentReadiumReaderView
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import org.readium.navigator.media.common.MediaNavigator
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
@@ -72,7 +70,7 @@ internal class TTSNavigator(
             }
         }
         CoroutineScope(Dispatchers.Main).async {
-            val firstVisibleLocator = currentReadiumReaderView?.getFirstVisibleLocator()
+            val firstVisibleLocator = ReadiumReader.currentReaderView?.getFirstVisibleLocator()
 
             ttsNavigator =
                 navigatorFactory.createNavigator(listener, firstVisibleLocator, preferences).getOrElse {
@@ -183,7 +181,7 @@ internal class TTSNavigator(
                     )
                 }
                 CoroutineScope(Dispatchers.Main).launch {
-                    currentReadiumReaderView?.applyDecorations(decorations, group = "tts")
+                    ReadiumReader.currentReaderView?.applyDecorations(decorations, group = "tts")
                 }
             }
             .launchIn(CoroutineScope(Dispatchers.IO))
@@ -195,7 +193,8 @@ internal class TTSNavigator(
             .map { it.tokenLocator ?: it.utteranceLocator }
             .distinctUntilChanged()
             .onEach { locator ->
-                currentReadiumReaderView?.justGoToLocator(locator, animated = true)
+                // TODO: This should be handled by an event
+                ReadiumReader.currentReaderView?.justGoToLocator(locator, animated = true)
             }
             .launchIn(CoroutineScope(Dispatchers.Main))
             .let { jobs.add(it) }

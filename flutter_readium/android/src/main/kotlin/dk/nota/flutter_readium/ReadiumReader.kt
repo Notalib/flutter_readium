@@ -38,6 +38,8 @@ private const val TAG = "ReadiumReader"
 object ReadiumReader {
     private val appRef = AtomicReference<Application?>()
 
+    private val readerViewRef = AtomicReference<ReadiumReaderView?>()
+
     private val httpClient by lazy {
         DefaultHttpClient()
     }
@@ -102,6 +104,10 @@ object ReadiumReader {
     // Safe getter — returns applicationContext or throws if not available.
     val application: Application
         get() = appRef.get() ?: throw IllegalStateException("Application not initialized. Call AppSingleton.init(context) first.")
+
+    var currentReaderView: ReadiumReaderView?
+        get() = readerViewRef.get()
+        set(value) = readerViewRef.set(value)
 
     private val context: Context get() = application.applicationContext
 

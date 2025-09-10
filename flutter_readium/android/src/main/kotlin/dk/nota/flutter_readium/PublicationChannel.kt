@@ -29,9 +29,6 @@ private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
-// TODO: Warning about memory leak from Android Studio. Find better solution.
-internal var currentReadiumReaderView: ReadiumReaderView? = null
-
 /// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
 internal fun openingExceptionIndex(exception: OpenError): Int =
     when (exception) {
@@ -182,7 +179,7 @@ internal class PublicationMethodCallHandler() :
                     }
                     // If using TTS and no fromLocator given, start from current visible locator.
                     if (fromLocator == null && ttsNavigator != null) {
-                        currentReadiumReaderView?.getFirstVisibleLocator()
+                        ReadiumReader.currentReaderView?.getFirstVisibleLocator()
                     }
                     audioNavigator?.play(fromLocator)
                     ttsNavigator?.play(fromLocator)
@@ -206,7 +203,7 @@ internal class PublicationMethodCallHandler() :
                     audioNavigator?.dispose()
                     ttsNavigator?.dispose()
                     // Remove any current TTS decorations
-                    currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
+                    ReadiumReader.currentReaderView?.applyDecorations(emptyList(), "tts")
                     result.success(null)
                 }
 

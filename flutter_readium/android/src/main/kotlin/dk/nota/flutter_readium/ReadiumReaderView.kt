@@ -38,7 +38,7 @@ internal const val textLocatorEventChannelName = "dk.nota.flutter_readium/text-l
 internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 @OptIn(ExperimentalReadiumApi::class)
-internal class ReadiumReaderView(
+class ReadiumReaderView(
     private val context: Context,
     id: Int,
     creationParams: Map<String?, Any?>,
@@ -85,7 +85,7 @@ internal class ReadiumReaderView(
 
         layout.removeAllViews()
         initialLocations = null
-        currentReadiumReaderView = null
+        ReadiumReader.currentReaderView = null
     }
 
     override fun onFlutterViewAttached(flutterView: View) {
@@ -179,7 +179,7 @@ internal class ReadiumReaderView(
         eventChannel = EventChannel(messenger, textLocatorEventChannelName)
         eventChannel.setStreamHandler(this)
 
-        currentReadiumReaderView = this
+        ReadiumReader.currentReaderView = this
     }
 
     override fun onPageLoaded() {
@@ -445,7 +445,7 @@ internal class ReadiumReaderView(
                     fragmentManager.beginTransaction()
                         .remove(navigator)
                         .commitNow()
-                    currentReadiumReaderView = null
+                    ReadiumReader.currentReaderView = null
                     initialLocations = null
                     eventSink = null
                     eventChannel.setStreamHandler(null)
