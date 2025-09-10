@@ -81,7 +81,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
           return
         }
-
+        
+        // TODO: Check if a different publication is already open, and close it?
         // TODO: Do any other necessary preloading for a book we're about to read. E.g. for audiobook create AudioNavigator?
         currentPublication = pub
 
@@ -312,7 +313,7 @@ extension FlutterReadiumPlugin {
     withPrefs prefs: FlutterAudioPreferences,
     atLocator locator: Locator?,
   ) async -> Void {
-    await self.setupAudiobookNavigator(publication: publication, locator: locator, initialPreferences: prefs)
+    await self.setupAudiobookNavigator(publication: publication, initialLocator: locator, initialPreferences: prefs)
     self.play()
   }
 
@@ -379,10 +380,13 @@ extension FlutterReadiumPlugin {
     // Clean-up any resources associated with the publication.
     currentPublication?.close()
     currentPublication = nil
+    synthesizer?.stop()
     synthesizer = nil
     if (audiobookVM != nil) {
       audiobookVM?.navigator.pause()
       audiobookVM = nil
     }
+    // Cancel any locator/event subscription jobs
+    subscriptions.forEach { job in job.cancel() }
   }
 }

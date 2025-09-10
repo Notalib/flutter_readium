@@ -34,12 +34,12 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   @MainActor func setupAudiobookNavigator(
       publication: Publication,
-      locator: Locator?,
+      initialLocator: Locator?,
       initialPreferences: FlutterAudioPreferences,
   ) async {
     let navigator = AudioNavigator(
       publication: publication,
-      initialLocation: locator,
+      initialLocation: initialLocator,
       config: AudioNavigator.Configuration(
         preferences: AudioPreferences(fromFlutterPrefs: initialPreferences)
       )
@@ -57,14 +57,11 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     /// Subscribe to changes
     audiobookVM?.$playback
       .throttle(for: 1, scheduler: RunLoop.main, latest: true)
-//      .removeDuplicates { prev, current in
-//        prev.progress != current.progress
-//      }
       .sink { [weak self] info in
-        guard let _ = self else {
+        guard let self = self else {
           return
         }
-        print(TAG, "model.$playback updated. time=\(info.time),progress=\(info.progress)")
+        print(TAG, "model.$playback updated.state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
       }
       .store(in: &subscriptions)
   }
