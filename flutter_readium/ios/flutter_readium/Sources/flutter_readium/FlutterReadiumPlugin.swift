@@ -286,6 +286,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
         // TODO: Decide on this, should clients call play after audioEnable?
         self.play()
+        result(nil)
       }
     case "audioSetPreferences":
       guard let prefsMap = call.arguments as? Dictionary<String, Any>,

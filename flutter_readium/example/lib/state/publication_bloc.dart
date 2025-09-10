@@ -1,4 +1,3 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
@@ -77,7 +76,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         final instance = FlutterReadium();
         final publication = await instance.openPublication(event.publicationUrl);
         if (publication.conformsToReadiumAudiobook) {
-          await instance.audioEnable(prefs: AudioPreferences(speed: 1.8));
+          await instance.audioEnable(prefs: AudioPreferences(speed: 2.5));
         }
         emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
