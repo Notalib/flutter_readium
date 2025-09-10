@@ -263,8 +263,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       guard let args = call.arguments as? [Any?],
             let publication = currentPublication else {
         return result(FlutterError.init(
-          code: "AudioStart",
-          message: "Invalid parameters to audioStart: \(call.arguments.debugDescription)",
+          code: "audioEnable",
+          message: "Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
           details: nil))
       }
       Task.detached(priority: .high) {
@@ -275,15 +275,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let locatorStr = args[1] as? String {
           locator = try! Locator(jsonString: locatorStr, warnings: self)!
         }
-        
+
         if (!publication.conforms(to: Publication.Profile.audiobook)) {
           return result(FlutterError.init(
-            code: "AudioStart",
+            code: "audioEnable",
             message: "Book does not conformTo AudioBook: \(call.arguments.debugDescription)",
             details: nil))
         }
         await self.initAudioPlayback(forPublication: publication, withPrefs: prefs, atLocator: locator)
-        
+
         // TODO: Decide on this, should clients call play after audioEnable?
         self.play()
       }
@@ -291,7 +291,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       guard let prefsMap = call.arguments as? Dictionary<String, Any>,
             let prefs = try? FlutterAudioPreferences.init(fromMap: prefsMap) else {
         return result(FlutterError.init(
-          code: "AudioStart",
+          code: "audioSetPreferences",
           message: "Invalid parameters to audioSetPreferences: \(call.arguments.debugDescription)",
           details: nil))
       }

@@ -148,7 +148,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 
   @override
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) {
-    // TODO: implement audioStart
+    // TODO: implement audioEnable
     throw UnimplementedError();
   }
 

@@ -81,7 +81,7 @@ class FlutterReadium {
   Future<void> next() => _platform.next();
   Future<void> previous() => _platform.previous();
 
-  Future<void> audioStart({AudioPreferences? prefs, Locator? fromLocator}) =>
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
   Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
 }

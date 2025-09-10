@@ -186,8 +186,10 @@ extension EPUBPreferences {
 // Map our extended AudioPreferences to Readium version.
 extension AudioPreferences {
   public init(fromFlutterPrefs prefs: FlutterAudioPreferences) {
-    self.volume = prefs.volume
-    self.speed = prefs.speed
+    self.init(
+      volume: prefs.volume,
+      speed: prefs.speed,
+    )
   }
 }
 
@@ -217,7 +219,7 @@ public struct FlutterAudioPreferences {
     // TODO: Does audio prefs need to be clamped?
     let avRate = clamp(rate, minValue: 0.1, maxValue: 5.0)
     let avPitch = clamp(pitch, minValue: 0.5, maxValue: 2.0)
-    self.init(rate: avRate, pitch: avPitch, seekInterval: seekInterval)
+    self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval)
   }
 }
 

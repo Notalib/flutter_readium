@@ -277,7 +277,7 @@ internal class PublicationMethodCallHandler() :
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
-                        result.error("audioStart", "Publication not found", null)
+                        result.error("audioEnable", "Publication not found", null)
                         return@launch
                     }
 
