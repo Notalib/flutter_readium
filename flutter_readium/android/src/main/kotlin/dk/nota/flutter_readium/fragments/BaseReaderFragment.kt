@@ -44,7 +44,6 @@ abstract class BaseReaderFragment : Fragment() {
     }
 
     protected open fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
-        val identifier = savedInstanceState.getString(identifierKeyName) ?: return null
         val publicationUrl = savedInstanceState.getString(publicationUrlKeyName) ?: return null
 
         val locator = savedInstanceState.getParcelable(currentLocatorKeyName) as Locator?

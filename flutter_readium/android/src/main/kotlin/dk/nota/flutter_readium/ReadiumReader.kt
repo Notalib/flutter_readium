@@ -198,6 +198,27 @@ object ReadiumReader {
      * Open a publication and set it as the current publication.
      */
     suspend fun openPublication(
+        pubUrl: String?
+    ): Try<Publication, PublicationError> {
+        if (pubUrl == null) {
+            return Try.failure(
+                PublicationError.Unexpected(
+                    DebugError("missing argument")
+                )
+            )
+        }
+
+        return AbsoluteUrl.invoke(pubUrl)?.let { openPublication(it) } ?: Try.failure(
+            PublicationError.Unexpected(
+                DebugError("Invalid Url")
+            )
+        )
+    }
+
+    /**
+     * Open a publication and set it as the current publication.
+     */
+    suspend fun openPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
         val pub = loadPublication(pubUrl).getOrElse { e -> return Try.failure(e) }
