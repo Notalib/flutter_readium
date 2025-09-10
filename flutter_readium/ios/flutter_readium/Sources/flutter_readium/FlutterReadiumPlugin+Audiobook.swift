@@ -217,14 +217,14 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     rcc.skipBackwardCommand.preferredIntervals = [10]
     on(rcc.skipBackwardCommand) { audioNavigator, _ in
       Task {
-        await audioNavigator.seek(by: -10)
+        await audioNavigator.seek(by: -(self.audiobookVM?.preferences.seekInterval ?? 30))
       }
     }
 
     rcc.skipForwardCommand.preferredIntervals = [30]
     on(rcc.skipForwardCommand) { audioNavigator, _ in
       Task {
-        await audioNavigator.seek(by: +30)
+        await audioNavigator.seek(by: +(self.audiobookVM?.preferences.seekInterval ?? 30))
       }
     }
 
