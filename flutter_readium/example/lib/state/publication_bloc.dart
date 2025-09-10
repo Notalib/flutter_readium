@@ -41,7 +41,7 @@ class PublicationState {
       );
 
   PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
-      copyWith(publication: publication, initialLocator: initialLocator, isLoading: false);
+      PublicationState(publication: publication, initialLocator: initialLocator, isLoading: false, error: null);
 
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
@@ -77,7 +77,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         final instance = FlutterReadium();
         final publication = await instance.openPublication(event.publicationUrl);
         if (publication.conformsToReadiumAudiobook) {
-          await instance.audioEnable(prefs: AudioPreferences(speed: 1.5));
+          await instance.audioEnable(prefs: AudioPreferences(speed: 1.8));
         }
         emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
