@@ -121,6 +121,9 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   public func navigator(_ navigator: Navigator, locationDidChange location: Locator) {
     print(TAG, "locationDidChange: \(location.locations.progression ?? 0)")
+    
+    // Send new locator over the audio-locator stream.
+    self.audioLocatorStreamHandler?.sendEvent(location)
   }
 
   // MARK: - AudioNavigatorDelegate (MainActor)
@@ -153,16 +156,19 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   /// Warning: They may be discontinuous.
   public func navigator(_ navigator: AudioNavigator, loadedTimeRangesDidChange ranges: [Range<Double>]) {
     print(TAG, "loadedTimeRangesDidChange: \(ranges)")
+    // TODO: Notify flutter client.
   }
 
   // MARK: - AudioNavigatorDelegate
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
     print(TAG, "presentError: \(error.localizedDescription)")
+    // TODO: Notify flutter client.
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href.string), err: \(error.localizedDescription)")
+    // TODO: Notify flutter client.
   }
 
   private func setupCommandCenterControls() {
