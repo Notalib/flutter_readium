@@ -38,7 +38,7 @@ internal const val textLocatorEventChannelName = "dk.nota.flutter_readium/text-l
 internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 @OptIn(ExperimentalReadiumApi::class)
-class ReadiumReaderView(
+class ReadiumReaderWidget(
     private val context: Context,
     id: Int,
     creationParams: Map<String?, Any?>,

@@ -3,18 +3,25 @@ package dk.nota.flutter_readium
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.content.ContextWrapper
 import android.os.Bundle
 import android.util.Log
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutter_readium.navigators.AudioNavigator
+import dk.nota.flutter_readium.navigators.Navigator
+import dk.nota.flutter_readium.navigators.TTSNavigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
+import org.readium.navigator.media.tts.android.AndroidTtsEngine
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.content.DefaultContentService
 import org.readium.r2.shared.publication.services.content.contentServiceFactory
@@ -44,16 +51,22 @@ private const val TAG = "ReadiumReader"
 private const val stateKey = "dk.nota.flutter_readium.ReadiumReaderState"
 
 private const val currentPublicationUrlKey = "currentPublicationUrl"
+private const val ttsEnabledKey = "ttsEnabled"
+private const val audioEnabledKey = "audioEnabled"
+
+private const val ttsNavigatorStateKey = "ttsState"
+
+private const val audioNavigatorStateKey = "audioState"
 
 // TODO: Support custom headers and authentication header.
 
 @OptIn(ExperimentalReadiumApi::class)
-object ReadiumReader {
+object ReadiumReader : Navigator.TimeBaseListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var appRef: WeakReference<Application>? = null
 
-    private var readerViewRef: WeakReference<ReadiumReaderView>? = null
+    private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
     private var savedStateRef: WeakReference<SavedStateRegistry>? = null
 
@@ -76,6 +89,10 @@ object ReadiumReader {
         }
 
     private var _publicationOpener: PublicationOpener? = null
+
+    private var ttsNavigator: TTSNavigator? = null
+
+    private var audioNavigator: AudioNavigator? = null
 
     /**
      * The PublicationFactory is used to open publications.
@@ -106,32 +123,61 @@ object ReadiumReader {
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
             savedStateRef = WeakReference(it)
             it.registerSavedStateProvider(stateKey) {
-                Log.d(TAG, "Save State")
-                Bundle().apply {
-                    putString(currentPublicationUrlKey, currentPublicationUrl)
-                }
+                storeState()
             }
 
-            it.consumeRestoredStateForKey(stateKey)?.let { bundle ->
-                Log.d(TAG, ":consumeRestoredStateForKey $bundle")
-                currentPublicationUrl = bundle.getString(currentPublicationUrlKey)
-
-                Log.d(TAG, "consumeRestoredStateForKey - 1 - $currentPublicationUrl")
-                scope.launch {
-                    if (currentPublicationUrl != null) {
-                        openPublication(currentPublicationUrl)
-                    }
-                    Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
-                }
-
-                Log.d(TAG, "consumeRestoredStateForKey - 3 - $currentPublicationUrl")
-            }
+            restoreState(it.consumeRestoredStateForKey(stateKey))
 
             Log.d(TAG, "restored? : $currentPublicationUrl")
         }
     }
 
+    private fun storeState(): Bundle {
+        if (currentPublicationUrl == null) {
+            return Bundle()
+        }
+
+        return Bundle().apply {
+            putString(currentPublicationUrlKey, currentPublicationUrl)
+            putBoolean(ttsEnabledKey, ttsNavigator != null)
+            putBoolean(audioEnabledKey, audioNavigator != null)
+            putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
+            putBundle(audioNavigatorStateKey, audioNavigator?.storeState())
+        }
+    }
+
+    private fun restoreState(bundle: Bundle?) {
+        if (bundle == null) {
+            Log.d(TAG, ":storeState nothing to restore")
+            return
+        }
+
+        Log.d(TAG, ":storeState $bundle")
+        bundle.getString(currentPublicationUrlKey)?.let {
+            Log.d(TAG, "storeState - currentPublicationUrl - $currentPublicationUrl")
+            scope.launch {
+                openPublication(it)
+
+                if (bundle.getBoolean(ttsEnabledKey)) {
+                    // TODO: Restore TTS navigator
+                    Log.d(TAG, ":storeState - restore tts - TODO")
+                }
+
+                if (bundle.getBoolean(audioEnabledKey)) {
+                    // TODO: Restore Audio navigator
+                    Log.d(TAG, ":storeState - restore audio - TODO")
+                }
+
+                Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
+            }
+
+            Log.d(TAG, "consumeRestoredStateForKey - 3 - $currentPublicationUrl")
+        }
+    }
+
     fun detach() {
+        closePublication()
+
         appRef?.clear()
         appRef = null
 
@@ -147,33 +193,12 @@ object ReadiumReader {
         scope.coroutineContext.cancelChildren()
     }
 
-    // Unwrap ContextWrapper chain to find Application
-    private fun unwrapToApplication(context: Context?): Application? {
-        if (context is Application) {
-            return context
-        }
-
-        if (context is Activity) {
-            return context.application
-        }
-
-        var ctx = context
-        while (ctx != null && ctx !is Application) {
-            ctx = if (ctx is ContextWrapper) ctx.baseContext else null
-        }
-
-        if (ctx == null) {
-            throw IllegalStateException("Application not found. $context")
-        }
-        return ctx
-    }
-
     // Safe getter — returns applicationContext or throws if not available.
     val application: Application
         get() = appRef?.get()
             ?: throw IllegalStateException("Application not initialized. Call ReadiumReader.attach(...) first.")
 
-    var currentReaderView: ReadiumReaderView?
+    var currentReaderView: ReadiumReaderWidget?
         get() = readerViewRef?.get()
         set(value) {
             readerViewRef = value?.let { WeakReference(it) }
@@ -354,7 +379,109 @@ object ReadiumReader {
         _currentPublication?.close()
         _currentPublication = null
 
+        ttsNavigator?.dispose()
+        ttsNavigator = null
+        audioNavigator?.dispose()
+        audioNavigator = null
+
         state.clear()
+    }
+
+    override fun onTimebasePlaybackStateChanged(playbackState: Navigator.PlaybackState) {
+        Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
+    }
+
+    override fun onTimebaseCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
+    }
+
+    suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
+        currentPublication?.let {
+            TTSNavigator(it, this, ttsPrefs).apply { initNavigator() }
+        } ?: throw Exception("Publication not opened cannot enable tts")
+    }
+
+    fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences) {
+        ttsNavigator?.updatePreferences(ttsPrefs)
+            ?: throw Exception("TTS is not enabled, can't set preferences")
+    }
+
+    fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
+        ttsNavigator?.let {
+            it.setUtteranceStyle(uttStyle)
+            it.setCurrentRangeStyle(rangeStyle)
+        } ?: throw Exception("TTS is not enabled, can't set decoration style")
+    }
+
+    fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
+        return ttsNavigator?.voices
+    }
+
+    fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
+        if (voiceId != null) {
+            ttsNavigator?.setPreferredVoice(voiceId, language)
+        }
+    }
+
+    suspend fun play(fromLocator: Locator?) {
+        // If using TTS and no fromLocator given, start from current visible locator.
+        if (fromLocator == null && ttsNavigator != null) {
+            currentReaderView?.getFirstVisibleLocator()
+        }
+
+        audioNavigator?.play(fromLocator)
+        ttsNavigator?.play(fromLocator)
+    }
+
+    fun pause() {
+        audioNavigator?.pause()
+        ttsNavigator?.pause()
+    }
+
+    fun resume() {
+        audioNavigator?.resume()
+        ttsNavigator?.resume()
+    }
+
+    fun stop() {
+        audioNavigator?.pause()
+        audioNavigator?.dispose()
+        ttsNavigator?.dispose()
+
+        // Remove any current TTS decorations
+        currentReaderView?.applyDecorations(emptyList(), "tts")
+    }
+
+    fun next() {
+        // TODO: seek by audioPreferences.seekInterval
+        //audioNavigator?.seekBy(audioPreferences.seekInterval)
+        ttsNavigator?.nextUtterance()
+    }
+
+    fun previous() {
+        // TODO: seek by audioPreferences.seekInterval
+        //audioNavigator?.seekBy(-1 * audioPreferences.seekInterval)
+        ttsNavigator?.previousUtterance()
+    }
+
+    suspend fun audioEnable(initialLocator: Locator?, exoPreferences: ExoPlayerPreferences) {
+        currentPublication?.let {
+            // TODO: Handle karaoke books, this only works for plain audiobooks.
+            audioNavigator = AudioNavigator(
+                it,
+                this,
+                initialLocator,
+                exoPreferences
+            )
+
+            audioNavigator?.initNavigator()
+            audioNavigator?.play()
+        } ?: throw Exception("Publication not opened")
+    }
+
+    fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences)
+    {
+        audioNavigator?.updatePreferences(exoPreferences) ?: throw Exception("Audio not enabled, cannot update preferences")
     }
 }
 

@@ -10,12 +10,17 @@ import org.readium.navigator.media.tts.android.AndroidTtsEngine.Voice.Id
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.preferences.Configurable
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Language
+import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.resource.Resource
+import org.readium.r2.shared.util.resource.TransformingResource
+import org.readium.r2.shared.util.resource.filename
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
+
+private const val TAG = "ReadiumExtensions"
 
 private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()
@@ -95,42 +100,7 @@ fun epubPreferencesFromMap(
     }
 }
 
-@kotlinx.serialization.Serializable
-public data class FlutterAudioPreferences(
-    val volume: Double? = null,
-    val pitch: Double? = null,
-    val speed: Double? = null,
-    val seekInterval: Double? = 30.0,
-) : Configurable.Preferences<FlutterAudioPreferences> {
-
-    override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
-        FlutterAudioPreferences(
-            volume = other.volume ?: volume,
-            pitch = other.pitch ?: pitch,
-            speed = other.speed ?: speed,
-            seekInterval = other.seekInterval ?: seekInterval
-        )
-
-    fun toExoPlayerPreferences(): ExoPlayerPreferences {
-        return ExoPlayerPreferences(
-            pitch = this.pitch,
-            speed = this.speed
-        );
-    }
-
-    companion object {
-        fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences {
-            return FlutterAudioPreferences(
-                volume = jsonObject.getDouble("volume"),
-                pitch = jsonObject.getDouble("pitch"),
-                speed = jsonObject.getDouble("speed"),
-                seekInterval = jsonObject.getDouble("seekInterval"),
-            )
-        }
-    }
-}
-
-fun ExoPlayerPreferencesFromMap(
+fun exoPlayerPreferencesFromMap(
     prefMap: Map<String, String>,
     defaults: ExoPlayerPreferences?
 ): ExoPlayerPreferences? {
@@ -144,3 +114,45 @@ fun ExoPlayerPreferencesFromMap(
     }
     return null
 }
+
+private const val READIUM_FLUTTER_PATH_PREFIX =
+    "https://readium/assets/flutter_assets/packages/flutter_readium"
+
+// Helper for injecting extra files into an epub
+fun Resource.injectScriptsAndStyles(): Resource =
+    TransformingResource(this) { bytes ->
+        val props = this.properties().getOrNull()
+        val filename = props?.filename
+
+        // Skip all non-html files
+        if (filename?.endsWith("html", ignoreCase = true) != true) {
+            return@TransformingResource Try.success(bytes)
+        }
+
+        val content = bytes.toString(Charsets.UTF_8).trim()
+        val headEndIndex = content.indexOf("</head>", 0, true)
+        if (headEndIndex == -1) {
+            Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
+            return@TransformingResource Try.success(bytes)
+        }
+
+        if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
+            Log.d(TAG, "Skip injecting - already done for: $filename")
+            return@TransformingResource Try.success(bytes)
+        }
+
+        Log.d(TAG, "Injecting files into: $filename")
+
+        val injectLines = listOf(
+            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
+            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
+            """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
+            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
+            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
+        )
+        val newContent = StringBuilder(content)
+            .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
+            .toString()
+
+        Try.success(newContent.toByteArray())
+    }

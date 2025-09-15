@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.navigators
 
+import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
@@ -23,6 +24,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "AudioNavigator"
 
+private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
+
 @OptIn(ExperimentalReadiumApi::class)
 class AudioNavigator(
     publication: Publication,
@@ -32,6 +35,9 @@ class AudioNavigator(
 ) : Navigator(publication, timeBaseListener) {
     private var audioNavigator: AudioNavigator<*, *>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
+
+    // in-memory cached state
+    private val state = mutableMapOf<String, Any?>()
 
     override suspend fun initNavigator() {
         // Create AudioNavigatorFactory
@@ -101,9 +107,21 @@ class AudioNavigator(
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
-            .onEach { onCurrentLocatorChanges(it) }
+            .onEach {
+                onCurrentLocatorChanges(it)
+                state[currentTimebasedLocatorKey] = it
+            }
             .launchIn(CoroutineScope(Dispatchers.Main))
             .let { jobs.add(it) }
+    }
+
+    override fun storeState(): Bundle {
+        return Bundle().apply {
+            putString(
+                currentTimebasedLocatorKey,
+                (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
+            )
+        }
     }
 
     override fun dispose() {

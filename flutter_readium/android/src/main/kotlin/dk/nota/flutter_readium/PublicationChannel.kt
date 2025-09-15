@@ -3,9 +3,7 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.AudioNavigator
 import dk.nota.flutter_readium.navigators.Navigator
-import dk.nota.flutter_readium.navigators.TTSNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -17,13 +15,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
-import org.readium.r2.shared.util.mediatype.MediaType
-import org.readium.r2.shared.util.resource.Resource
-import org.readium.r2.shared.util.resource.TransformingResource
-import org.readium.r2.shared.util.resource.filename
-import org.readium.r2.streamer.PublicationOpener.OpenError
 
 private const val TAG = "PublicationChannel"
 
@@ -31,10 +23,6 @@ internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
 internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler, Navigator.TimeBaseListener {
-
-    private var ttsNavigator: TTSNavigator? = null
-
-    private var audioNavigator: AudioNavigator? = null
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -53,12 +41,14 @@ internal class PublicationMethodCallHandler() :
                         return@launch result.error("openPublication", it.message, it.cause)
                     }
 
-                    val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
+                    val pubJsonManifest =
+                        publication.manifest.toJSON().toString().replace("\\/", "/")
 
                     // Close the publication to avoid leaks.
                     publication.close()
                     result.success(pubJsonManifest)
                 }
+
                 "openPublication" -> {
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
@@ -73,17 +63,13 @@ internal class PublicationMethodCallHandler() :
 
                     // TODO: Initialize other necessary resources to prepare for reading this publication.
 
-                    val pubJsonManifest = publication.manifest.toJSON().toString().replace("\\/", "/")
+                    val pubJsonManifest =
+                        publication.manifest.toJSON().toString().replace("\\/", "/")
                     result.success(pubJsonManifest)
                 }
 
                 "closePublication" -> {
                     Log.d(TAG, "Close publication")
-                    // TODO: Should we have other ways to dispose these?
-                    ttsNavigator?.dispose()
-                    ttsNavigator = null
-                    audioNavigator?.dispose()
-                    audioNavigator = null
 
                     ReadiumReader.closePublication()
                 }
@@ -103,8 +89,8 @@ internal class PublicationMethodCallHandler() :
                     }
 
                     try {
-                        ttsNavigator = TTSNavigator(publication, this@PublicationMethodCallHandler,ttsPrefs)
-                        ttsNavigator!!.initNavigator()
+                        ReadiumReader.ttsEnable(ttsPrefs)
+
                         result.success(null)
                     } catch (e: Exception) {
                         Log.e(
@@ -118,7 +104,12 @@ internal class PublicationMethodCallHandler() :
                 "ttsSetPreferences" -> {
                     val args = call.arguments as Map<String, Any>
                     val prefs = androidTtsPreferencesFromMap(args)
-                    ttsNavigator?.updatePreferences(prefs)
+                    try {
+                        ReadiumReader.ttsSetPreferences(prefs)
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("ttsSetPreferences", "Failed to set preferences", e.message)
+                    }
                 }
 
                 "ttsSetDecorationStyle" -> {
@@ -127,12 +118,20 @@ internal class PublicationMethodCallHandler() :
                     val rangeDecoMap = args[1] as Map<String, String>?
                     val uttStyle = decorationStyleFromMap(uttDecoMap)
                     val rangeStyle = decorationStyleFromMap(rangeDecoMap)
-                    ttsNavigator?.setUtteranceStyle(uttStyle)
-                    ttsNavigator?.setCurrentRangeStyle(rangeStyle)
+                    try {
+                        ReadiumReader.ttsSetDecorationStyle(uttStyle, rangeStyle)
+                        result.success(null)
+                    } catch (e: Error) {
+                        result.error(
+                            "ttsSetPreferences",
+                            "Failed to set decoration style",
+                            e.message
+                        )
+                    }
                 }
 
                 "ttsGetAvailableVoices" -> {
-                    val androidVoices = ttsNavigator?.voices
+                    val androidVoices = ReadiumReader.ttsGetAvailableVoices()
                     val voicesJson = androidVoices?.map {
                         JSONObject().apply {
                             put("identifier", it.id.value)
@@ -152,9 +151,9 @@ internal class PublicationMethodCallHandler() :
                     val args = call.arguments as List<*>
                     val voiceId = args[0] as String?
                     val language = args[1] as String?
-                    if (voiceId != null) {
-                        ttsNavigator?.setPreferredVoice(voiceId, language)
-                    }
+
+                    ReadiumReader.ttsSetPreferredVoice(voiceId, language)
+
                     result.success(null)
                 }
 
@@ -164,47 +163,38 @@ internal class PublicationMethodCallHandler() :
                     val fromLocator = fromLocatorStr?.let {
                         Locator.fromJSON(JSONObject(it))
                     }
-                    // If using TTS and no fromLocator given, start from current visible locator.
-                    if (fromLocator == null && ttsNavigator != null) {
-                        ReadiumReader.currentReaderView?.getFirstVisibleLocator()
-                    }
-                    audioNavigator?.play(fromLocator)
-                    ttsNavigator?.play(fromLocator)
+
+                    ReadiumReader.play(fromLocator)
+
                     result.success(null)
                 }
 
                 "pause" -> {
-                    audioNavigator?.pause()
-                    ttsNavigator?.pause()
+                    ReadiumReader.pause()
                     result.success(null)
                 }
 
                 "resume" -> {
-                    audioNavigator?.resume()
-                    ttsNavigator?.resume()
+                    ReadiumReader.resume()
+
                     result.success(null)
                 }
 
                 "stop" -> {
-                    audioNavigator?.pause()
-                    audioNavigator?.dispose()
-                    ttsNavigator?.dispose()
-                    // Remove any current TTS decorations
-                    ReadiumReader.currentReaderView?.applyDecorations(emptyList(), "tts")
+                    ReadiumReader.stop()
+
                     result.success(null)
                 }
 
                 "next" -> {
-                    // TODO: seek by audioPreferences.seekInterval
-                    //audioNavigator?.seekBy(audioPreferences.seekInterval)
-                    ttsNavigator?.nextUtterance()
+                    ReadiumReader.next()
+
                     result.success(null)
                 }
 
                 "previous" -> {
-                    // TODO: seek by audioPreferences.seekInterval
-                    //audioNavigator?.seekBy(-1 * audioPreferences.seekInterval)
-                    ttsNavigator?.previousUtterance()
+                    ReadiumReader.previous()
+
                     result.success(null)
                 }
 
@@ -255,9 +245,11 @@ internal class PublicationMethodCallHandler() :
                     val prefsStr = args[0] as String?
                     val locatorStr = args[1] as String?
                     val publication = ReadiumReader.currentPublication
-                    val preferences = prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
+                    val preferences =
+                        prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
                     // TODO: Save preferences, on ReadiumReader?
-                    val exoPreferences = preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+                    val exoPreferences =
+                        preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
@@ -265,20 +257,19 @@ internal class PublicationMethodCallHandler() :
                         return@launch
                     }
 
-                    audioNavigator = AudioNavigator(publication, this@PublicationMethodCallHandler, locator, exoPreferences)
-                    audioNavigator?.initNavigator()
-                    audioNavigator?.play()
-                    // TODO: Create AudioReaderFragment here, or within the ReadiumReaderView?
-                    //
+                    ReadiumReader.audioEnable(locator, exoPreferences)
+
                     result.success(null)
                 }
 
                 "audioSetPreferences" -> {
                     val prefsStr = call.arguments as String?
-                    val preferences = prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
+                    val preferences =
+                        prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
                     // TODO: Save preferences, on ReadiumReader?
-                    val exoPreferences = preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
-                    audioNavigator?.updatePreferences(exoPreferences)
+                    val exoPreferences =
+                        preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+                    ReadiumReader.audioUpdatePreferences(exoPreferences)
                 }
 
                 else -> {
@@ -296,44 +287,3 @@ internal class PublicationMethodCallHandler() :
         Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
     }
 }
-
-private const val READIUM_FLUTTER_PATH_PREFIX =
-    "https://readium/assets/flutter_assets/packages/flutter_readium"
-
-fun Resource.injectScriptsAndStyles(): Resource =
-    TransformingResource(this) { bytes ->
-        val props = this.properties().getOrNull()
-        val filename = props?.filename
-
-        // Skip all non-html files
-        if (filename?.endsWith("html", ignoreCase = true) != true) {
-            return@TransformingResource Try.success(bytes)
-        }
-
-        val content = bytes.toString(Charsets.UTF_8).trim()
-        val headEndIndex = content.indexOf("</head>", 0, true)
-        if (headEndIndex == -1) {
-            Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
-            return@TransformingResource Try.success(bytes)
-        }
-
-        if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
-            Log.d(TAG, "Skip injecting - already done for: $filename")
-            return@TransformingResource Try.success(bytes)
-        }
-
-        Log.d(TAG, "Injecting files into: $filename")
-
-        val injectLines = listOf(
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
-            """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
-        )
-        val newContent = StringBuilder(content)
-            .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
-            .toString()
-
-        Try.success(newContent.toByteArray())
-    }

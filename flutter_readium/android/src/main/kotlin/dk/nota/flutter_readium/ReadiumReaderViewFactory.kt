@@ -11,6 +11,6 @@ internal class ReadiumReaderViewFactory(private val messenger: BinaryMessenger) 
     override fun create(context: Context?, viewId: Int, args: Any?): PlatformView {
         @Suppress("UNCHECKED_CAST")
         val creationParams = args as Map<String?, Any?>
-        return ReadiumReaderView(context!!, viewId, creationParams, messenger)
+        return ReadiumReaderWidget(context!!, viewId, creationParams, messenger)
     }
 }

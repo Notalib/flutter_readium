@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.navigators
 
+import android.os.Bundle
 import kotlinx.coroutines.Job
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -79,4 +80,6 @@ abstract class Navigator(val publication: Publication, val timeBaseListener: Tim
      * Setup listeners for the navigator
      */
     protected abstract fun setupNavigatorListeners()
+
+    abstract fun storeState(): Bundle
 }
