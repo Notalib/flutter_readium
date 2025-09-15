@@ -12,13 +12,11 @@ import org.readium.r2.navigator.Navigator
 import org.readium.r2.shared.publication.Locator
 
 private const val publicationUrlKeyName: String = "publicationUrl"
-private const val identifierKeyName: String = "publicationIdentifier"
 private const val currentLocatorKeyName: String = "currentLocator"
 
 private const val TAG: String = "BaseReaderFragment"
 
 private fun Bundle.resetState() {
-    this.remove(identifierKeyName)
     this.remove(publicationUrlKeyName)
     this.remove(currentLocatorKeyName)
 }

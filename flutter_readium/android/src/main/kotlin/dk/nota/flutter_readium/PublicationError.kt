@@ -6,11 +6,14 @@
 
 package dk.nota.flutter_readium
 
+import org.readium.navigator.media.audio.AudioNavigatorFactory
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.streamer.PublicationOpener
 
+@OptIn(ExperimentalReadiumApi::class)
 sealed class PublicationError(
     override val message: String,
     override val cause: Error? = null,
@@ -64,6 +67,14 @@ sealed class PublicationError(
 
                 is PublicationOpener.OpenError.FormatNotSupported ->
                     FormatNotSupported(error)
+            }
+
+        operator fun invoke(error: AudioNavigatorFactory.Error): PublicationError =
+            when (error) {
+                is AudioNavigatorFactory.Error.UnsupportedPublication
+                    -> FormatNotSupported(error)
+                is AudioNavigatorFactory.Error.EngineInitialization
+                    -> Unexpected(error)
             }
     }
 }

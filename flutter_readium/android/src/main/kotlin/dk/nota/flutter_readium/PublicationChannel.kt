@@ -29,19 +29,6 @@ private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
-/// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
-internal fun openingExceptionIndex(exception: OpenError): Int =
-    when (exception) {
-        is OpenError.Reading -> 0
-        is OpenError.FormatNotSupported -> 1
-    }
-
-private fun parseMediaType(mediaType: Any?): MediaType? {
-    @Suppress("UNCHECKED_CAST")
-    val list = mediaType as List<String?>? ?: return null
-    return MediaType(list[0]!!)
-}
-
 internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler, Navigator.TimeBaseListener {
 

@@ -1,6 +1,7 @@
 package dk.nota.flutter_readium.navigators
 
 import android.util.Log
+import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
@@ -14,11 +15,10 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.navigator.media.audio.AudioNavigatorFactory
-import org.readium.navigator.media.common.TimeBasedMediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.mediatype.MediaType.Companion.MP3
+import org.readium.r2.shared.util.getOrElse
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "AudioNavigator"
@@ -40,10 +40,19 @@ class AudioNavigator(
             ExoPlayerEngineProvider(ReadiumReader.application)
         )
 
-        audioNavigator = navigatorFactory!!.createNavigator(
+        if (navigatorFactory == null) {
+            // TODO: Better Error handling, if the book isn't an audiobook the factory is null.
+            Log.e(TAG, ":initNavigator - Couldn't create AudioNavigatorFactory")
+            throw Exception("Couldn't create AudioNavigatorFactory")
+        }
+
+        audioNavigator = navigatorFactory.createNavigator(
             initialLocator,
             preferences
-        ).getOrNull()!!
+        ).getOrElse { error ->
+            Log.e(TAG, ":initNavigator - $error")
+            throw Exception(PublicationError.invoke(error).message)
+        }
 
         editor = navigatorFactory.createAudioPreferencesEditor(preferences)
 

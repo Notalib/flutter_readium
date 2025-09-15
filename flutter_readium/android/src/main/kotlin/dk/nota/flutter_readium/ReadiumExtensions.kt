@@ -2,21 +2,20 @@
 
 package dk.nota.flutter_readium
 
-import android.graphics.Color
 import android.util.Log
+import androidx.core.graphics.toColorInt
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsEngine.Voice.Id
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.preferences.Color as ReadiumColor
+import org.readium.r2.navigator.preferences.Configurable
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Language
-import androidx.core.graphics.toColorInt
-import org.readium.r2.navigator.preferences.Configurable
+import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()
