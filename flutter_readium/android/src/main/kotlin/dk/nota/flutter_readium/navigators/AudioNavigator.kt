@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.jsonDecode
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,11 +12,14 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.serialization.json.Json
+import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.navigator.media.audio.AudioNavigatorFactory
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -26,13 +30,15 @@ private const val TAG = "AudioNavigator"
 
 private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
 
+private const val audioPreferencesKey = "audioPreferencesKey"
+
 @OptIn(ExperimentalReadiumApi::class)
 class AudioNavigator(
     publication: Publication,
     timeBaseListener: TimeBaseListener,
-    private val initialLocator: Locator?,
+    initialLocator: Locator?,
     private var preferences: ExoPlayerPreferences = ExoPlayerPreferences()
-) : Navigator(publication, timeBaseListener) {
+) : Navigator(publication, timeBaseListener, initialLocator) {
     private var audioNavigator: AudioNavigator<*, *>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
 
@@ -121,6 +127,13 @@ class AudioNavigator(
                 currentTimebasedLocatorKey,
                 (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
             )
+
+            editor?.preferences?.let {
+                putString(
+                    audioPreferencesKey,
+                    Json.encodeToString(ExoPlayerPreferences.serializer(), it)
+                )
+            }
         }
     }
 
@@ -130,5 +143,14 @@ class AudioNavigator(
         audioNavigator?.close()
         audioNavigator = null
         editor = null
+    }
+
+    companion object {
+        fun restoreState(publication: Publication, listener: TimeBaseListener, state: Bundle): dk.nota.flutter_readium.navigators.AudioNavigator? {
+            val locator = state.getString(currentTimebasedLocatorKey)?.let { Locator.fromJSON( JSONObject( it) ) }
+            val preferences = state.getString(audioPreferencesKey)?.let { Json.decodeFromString<ExoPlayerPreferences>(it) } ?: ExoPlayerPreferences()
+
+            return AudioNavigator(publication, listener, locator, preferences)
+        }
     }
 }

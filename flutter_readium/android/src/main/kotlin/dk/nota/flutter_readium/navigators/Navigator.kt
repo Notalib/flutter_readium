@@ -10,7 +10,11 @@ import org.readium.r2.shared.publication.Publication
 private const val TAG = "Navigator"
 
 @OptIn(ExperimentalReadiumApi::class)
-abstract class Navigator(val publication: Publication, val timeBaseListener: TimeBaseListener) {
+abstract class Navigator(
+    val publication: Publication,
+    val timeBaseListener: TimeBaseListener,
+    val initialLocator: Locator?
+) {
     protected val jobs = mutableListOf<Job>()
 
     interface TimeBaseListener {

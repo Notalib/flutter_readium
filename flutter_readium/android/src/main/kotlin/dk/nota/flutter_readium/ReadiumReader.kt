@@ -156,16 +156,28 @@ object ReadiumReader : Navigator.TimeBaseListener {
         bundle.getString(currentPublicationUrlKey)?.let {
             Log.d(TAG, "storeState - currentPublicationUrl - $currentPublicationUrl")
             scope.launch {
-                openPublication(it)
+                val pub = openPublication(it).getOrElse { return@launch }
 
                 if (bundle.getBoolean(ttsEnabledKey)) {
-                    // TODO: Restore TTS navigator
+                    // Restore TTS navigator
                     Log.d(TAG, ":storeState - restore tts - TODO")
+                    bundle.getBundle(ttsNavigatorStateKey)?.let {
+                        ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, it)
+                            ?.apply {
+                                initNavigator()
+                            }
+                    }
                 }
 
                 if (bundle.getBoolean(audioEnabledKey)) {
-                    // TODO: Restore Audio navigator
-                    Log.d(TAG, ":storeState - restore audio - TODO")
+                    // Restore Audio navigator
+                    Log.d(TAG, ":storeState - restore audio navigator")
+                    bundle.getBundle(audioNavigatorStateKey)?.let {
+                        audioNavigator = AudioNavigator.restoreState(pub, this@ReadiumReader, it)
+                            ?.apply {
+                                initNavigator()
+                            }
+                    }
                 }
 
                 Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
@@ -397,7 +409,8 @@ object ReadiumReader : Navigator.TimeBaseListener {
 
     suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
         currentPublication?.let {
-            TTSNavigator(it, this, ttsPrefs).apply { initNavigator() }
+            // TODO: Get initial locator
+            TTSNavigator(it, this, null, ttsPrefs).apply { initNavigator() }
         } ?: throw Exception("Publication not opened cannot enable tts")
     }
 
@@ -479,9 +492,9 @@ object ReadiumReader : Navigator.TimeBaseListener {
         } ?: throw Exception("Publication not opened")
     }
 
-    fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences)
-    {
-        audioNavigator?.updatePreferences(exoPreferences) ?: throw Exception("Audio not enabled, cannot update preferences")
+    fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences) {
+        audioNavigator?.updatePreferences(exoPreferences)
+            ?: throw Exception("Audio not enabled, cannot update preferences")
     }
 }
 

@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import org.json.JSONObject
+import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
@@ -39,6 +42,8 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
 
+private const val ttsPreferencesKey = "ttsPreferences"
+
 // TODO: Send audio-locator event to dart on locator change.
 // TODO: Extend locator with chapter info
 // TODO: Common interface for audio and TTS navigator.
@@ -47,8 +52,9 @@ private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
 class TTSNavigator(
     publication: Publication,
     timeBaseListener: TimeBaseListener,
+    initialLocator: Locator?,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : Navigator(publication, timeBaseListener) {
+) : Navigator(publication, timeBaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -224,8 +230,14 @@ class TTSNavigator(
                 currentTimebasedLocatorKey,
                 (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
             )
-        }
 
+            editor?.preferences?.let {
+                putString(
+                    ttsPreferencesKey,
+                    Json.encodeToString(AndroidTtsPreferences.serializer(), it)
+                )
+            }
+        }
     }
 
     override fun dispose() {
@@ -233,5 +245,21 @@ class TTSNavigator(
 
         ttsNavigator?.close()
         ttsNavigator = null
+    }
+
+    companion object {
+        fun restoreState(
+            publication: Publication,
+            listener: TimeBaseListener,
+            state: Bundle
+        ): TTSNavigator? {
+            val locator = state.getString(currentTimebasedLocatorKey)
+                ?.let { Locator.fromJSON(JSONObject(it)) }
+            val preferences = state.getString(ttsPreferencesKey)
+                ?.let { Json.decodeFromString<AndroidTtsPreferences>(it) }
+                ?: AndroidTtsPreferences()
+
+            return TTSNavigator(publication, listener, locator, preferences)
+        }
     }
 }
