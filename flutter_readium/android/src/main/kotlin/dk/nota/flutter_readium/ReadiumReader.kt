@@ -8,8 +8,8 @@ import android.util.Log
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
-import dk.nota.flutter_readium.navigators.Navigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
+import dk.nota.flutter_readium.navigators.TimebaseNavigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,7 +61,7 @@ private const val audioNavigatorStateKey = "audioState"
 // TODO: Support custom headers and authentication header.
 
 @OptIn(ExperimentalReadiumApi::class)
-object ReadiumReader : Navigator.TimeBaseListener {
+object ReadiumReader : TimebaseNavigator.TimeBaseListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var appRef: WeakReference<Application>? = null
@@ -152,44 +152,48 @@ object ReadiumReader : Navigator.TimeBaseListener {
         }
 
         Log.d(TAG, ":restoreState $bundle")
-        bundle.getString(currentPublicationUrlKey)?.let {
-            Log.d(TAG, ":restoreState - currentPublicationUrl - $it")
-            scope.launch {
-                val pub = openPublication(it).getOrElse {
-                    Log.d(TAG, ":restoreState - failed to restore publication")
-                    // TODO: Handle this somehow
-                    return@launch
-                }
+        val pubUrl = bundle.getString(currentPublicationUrlKey)
+        if (pubUrl == null) {
+            Log.d(TAG, ":storeState - currentPublicationUrl - not restored")
+            return
+        }
 
-                if (bundle.getBoolean(ttsEnabledKey)) {
-                    // Restore TTS navigator
-                    Log.d(TAG, ":storeState - restore tts navigator")
-                    bundle.getBundle(ttsNavigatorStateKey)?.let {
-                        ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, it)
+        Log.d(TAG, ":restoreState - currentPublicationUrl - $pubUrl")
+        scope.launch {
+            val pub = openPublication(pubUrl).getOrElse {
+                Log.d(TAG, ":restoreState - failed to restore publication")
+                // TODO: Handle this somehow
+                return@launch
+            }
+
+            // TODO: Restore EpubNavigator
+
+            if (bundle.getBoolean(ttsEnabledKey)) {
+                // Restore TTS navigator
+                Log.d(TAG, ":storeState - restore tts navigator")
+                bundle.getBundle(ttsNavigatorStateKey)?.let {
+                    ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, it)
+                        .apply {
+                            initNavigator()
+                            Log.d(TAG, ":storeState - ttsNavigator restored")
+                        }
+                }
+            }
+
+            if (bundle.getBoolean(audioEnabledKey)) {
+                // Restore Audio navigator
+                Log.d(TAG, ":storeState - restore audio navigator")
+                bundle.getBundle(audioNavigatorStateKey)?.let {
+                    audiobookNavigator =
+                        AudiobookNavigator.restoreState(pub, this@ReadiumReader, it)
                             .apply {
                                 initNavigator()
-                                Log.d(TAG, ":storeState - ttsNavigator restored")
+                                Log.d(TAG, ":storeState - audioNavigator restored")
                             }
-                    }
                 }
-
-                if (bundle.getBoolean(audioEnabledKey)) {
-                    // Restore Audio navigator
-                    Log.d(TAG, ":storeState - restore audio navigator")
-                    bundle.getBundle(audioNavigatorStateKey)?.let {
-                        audiobookNavigator =
-                            AudiobookNavigator.restoreState(pub, this@ReadiumReader, it)
-                                .apply {
-                                    initNavigator()
-                                    Log.d(TAG, ":storeState - audioNavigator restored")
-                                }
-                    }
-                }
-
-                Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
             }
-        } ?: {
-            Log.d(TAG, ":storeState - currentPublicationUrl - not restored")
+
+            Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
         }
     }
 
@@ -405,7 +409,7 @@ object ReadiumReader : Navigator.TimeBaseListener {
         state.clear()
     }
 
-    override fun onTimebasePlaybackStateChanged(playbackState: Navigator.PlaybackState) {
+    override fun onTimebasePlaybackStateChanged(playbackState: TimebaseNavigator.PlaybackState) {
         Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
     }
 

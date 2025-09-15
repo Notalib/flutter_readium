@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "AudioNavigator"
 
-private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
+private const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
 private const val audioPreferencesKey = "audioPreferencesKey"
 
@@ -36,7 +36,7 @@ class AudiobookNavigator(
     timeBaseListener: TimeBaseListener,
     initialLocator: Locator?,
     private var preferences: ExoPlayerPreferences = ExoPlayerPreferences()
-) : Navigator(publication, timeBaseListener, initialLocator) {
+) : TimebaseNavigator(publication, timeBaseListener, initialLocator) {
     private var audioNavigator: AudioNavigator<*, *>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
 
@@ -113,7 +113,7 @@ class AudiobookNavigator(
             .distinctUntilChanged()
             .onEach {
                 onCurrentLocatorChanges(it)
-                state[currentTimebasedLocatorKey] = it
+                state[currentTimebaseLocatorKey] = it
             }
             .launchIn(CoroutineScope(Dispatchers.Main))
             .let { jobs.add(it) }
@@ -122,8 +122,8 @@ class AudiobookNavigator(
     override fun storeState(): Bundle {
         return Bundle().apply {
             putString(
-                currentTimebasedLocatorKey,
-                (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
+                currentTimebaseLocatorKey,
+                (state[currentTimebaseLocatorKey] as? Locator)?.toJSON()?.toString()
             )
 
             editor?.preferences?.let {
@@ -149,7 +149,7 @@ class AudiobookNavigator(
             listener: TimeBaseListener,
             state: Bundle
         ): AudiobookNavigator {
-            val locator = state.getString(currentTimebasedLocatorKey)
+            val locator = state.getString(currentTimebaseLocatorKey)
                 ?.let { Locator.fromJSON(JSONObject(it)) }
             val preferences = state.getString(audioPreferencesKey)
                 ?.let { Json.decodeFromString<ExoPlayerPreferences>(it) } ?: ExoPlayerPreferences()

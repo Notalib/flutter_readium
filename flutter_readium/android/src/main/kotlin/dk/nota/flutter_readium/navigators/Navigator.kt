@@ -12,16 +12,9 @@ private const val TAG = "Navigator"
 @OptIn(ExperimentalReadiumApi::class)
 abstract class Navigator(
     val publication: Publication,
-    val timeBaseListener: TimeBaseListener,
     val initialLocator: Locator?
 ) {
     protected val jobs = mutableListOf<Job>()
-
-    interface TimeBaseListener {
-        fun onTimebasePlaybackStateChanged(playbackState: PlaybackState)
-
-        fun onTimebaseCurrentLocatorChanges(locator: Locator)
-    }
 
     /**
      * Start playing
@@ -55,30 +48,9 @@ abstract class Navigator(
         jobs.clear()
     }
 
-    enum class PlaybackState {
-        Unknown,
-        Playing,
-        Ready,
-        Buffering,
-        Failure,
-    }
+    abstract fun onPlaybackStateChanged(pb: MediaNavigator.Playback)
 
-    fun onPlaybackStateChanged(pb: MediaNavigator.Playback) {
-        var playbackState = PlaybackState.Unknown
-        if (pb.state is MediaNavigator.State.Ready) {
-            playbackState = if (pb.playWhenReady) PlaybackState.Playing else PlaybackState.Ready
-        } else if (pb.state is MediaNavigator.State.Buffering) {
-            playbackState = PlaybackState.Buffering
-        } else if (pb.state is MediaNavigator.State.Failure) {
-            playbackState = PlaybackState.Buffering
-        }
-
-        timeBaseListener.onTimebasePlaybackStateChanged(playbackState)
-    }
-
-    fun onCurrentLocatorChanges(locator: Locator) {
-        timeBaseListener.onTimebaseCurrentLocatorChanges(locator)
-    }
+    abstract fun onCurrentLocatorChanges(locator: Locator)
 
     /**
      * Setup listeners for the navigator
@@ -87,3 +59,4 @@ abstract class Navigator(
 
     abstract fun storeState(): Bundle
 }
+

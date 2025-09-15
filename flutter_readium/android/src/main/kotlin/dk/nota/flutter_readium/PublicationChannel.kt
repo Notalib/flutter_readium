@@ -3,7 +3,7 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.Navigator
+import dk.nota.flutter_readium.navigators.TimebaseNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +22,7 @@ private const val TAG = "PublicationChannel"
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler, Navigator.TimeBaseListener {
+    MethodChannel.MethodCallHandler, TimebaseNavigator.TimeBaseListener {
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -279,7 +279,7 @@ internal class PublicationMethodCallHandler() :
         }
     }
 
-    override fun onTimebasePlaybackStateChanged(playbackState: Navigator.PlaybackState) {
+    override fun onTimebasePlaybackStateChanged(playbackState: TimebaseNavigator.PlaybackState) {
         Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
     }
 

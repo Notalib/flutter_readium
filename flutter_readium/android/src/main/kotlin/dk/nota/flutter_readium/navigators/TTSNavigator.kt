@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
@@ -54,7 +53,7 @@ class TTSNavigator(
     timeBaseListener: TimeBaseListener,
     initialLocator: Locator?,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : Navigator(publication, timeBaseListener, initialLocator) {
+) : TimebaseNavigator(publication, timeBaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -263,3 +262,4 @@ class TTSNavigator(
         }
     }
 }
+
