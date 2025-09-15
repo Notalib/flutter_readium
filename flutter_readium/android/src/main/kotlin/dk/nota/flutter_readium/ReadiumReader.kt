@@ -7,7 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
-import dk.nota.flutter_readium.navigators.AudioNavigator
+import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.Navigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import kotlinx.coroutines.CoroutineScope
@@ -92,7 +92,7 @@ object ReadiumReader : Navigator.TimeBaseListener {
 
     private var ttsNavigator: TTSNavigator? = null
 
-    private var audioNavigator: AudioNavigator? = null
+    private var audiobookNavigator: AudiobookNavigator? = null
 
     /**
      * The PublicationFactory is used to open publications.
@@ -127,44 +127,48 @@ object ReadiumReader : Navigator.TimeBaseListener {
             }
 
             restoreState(it.consumeRestoredStateForKey(stateKey))
-
-            Log.d(TAG, "restored? : $currentPublicationUrl")
         }
     }
 
     private fun storeState(): Bundle {
         if (currentPublicationUrl == null) {
+            // No current publication, no state.
             return Bundle()
         }
 
         return Bundle().apply {
             putString(currentPublicationUrlKey, currentPublicationUrl)
             putBoolean(ttsEnabledKey, ttsNavigator != null)
-            putBoolean(audioEnabledKey, audioNavigator != null)
+            putBoolean(audioEnabledKey, audiobookNavigator != null)
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
-            putBundle(audioNavigatorStateKey, audioNavigator?.storeState())
+            putBundle(audioNavigatorStateKey, audiobookNavigator?.storeState())
         }
     }
 
     private fun restoreState(bundle: Bundle?) {
         if (bundle == null) {
-            Log.d(TAG, ":storeState nothing to restore")
+            Log.d(TAG, ":restoreState nothing to restore")
             return
         }
 
-        Log.d(TAG, ":storeState $bundle")
+        Log.d(TAG, ":restoreState $bundle")
         bundle.getString(currentPublicationUrlKey)?.let {
-            Log.d(TAG, "storeState - currentPublicationUrl - $currentPublicationUrl")
+            Log.d(TAG, ":restoreState - currentPublicationUrl - $it")
             scope.launch {
-                val pub = openPublication(it).getOrElse { return@launch }
+                val pub = openPublication(it).getOrElse {
+                    Log.d(TAG, ":restoreState - failed to restore publication")
+                    // TODO: Handle this somehow
+                    return@launch
+                }
 
                 if (bundle.getBoolean(ttsEnabledKey)) {
                     // Restore TTS navigator
-                    Log.d(TAG, ":storeState - restore tts - TODO")
+                    Log.d(TAG, ":storeState - restore tts navigator")
                     bundle.getBundle(ttsNavigatorStateKey)?.let {
                         ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, it)
-                            ?.apply {
+                            .apply {
                                 initNavigator()
+                                Log.d(TAG, ":storeState - ttsNavigator restored")
                             }
                     }
                 }
@@ -173,17 +177,19 @@ object ReadiumReader : Navigator.TimeBaseListener {
                     // Restore Audio navigator
                     Log.d(TAG, ":storeState - restore audio navigator")
                     bundle.getBundle(audioNavigatorStateKey)?.let {
-                        audioNavigator = AudioNavigator.restoreState(pub, this@ReadiumReader, it)
-                            ?.apply {
-                                initNavigator()
-                            }
+                        audiobookNavigator =
+                            AudiobookNavigator.restoreState(pub, this@ReadiumReader, it)
+                                .apply {
+                                    initNavigator()
+                                    Log.d(TAG, ":storeState - audioNavigator restored")
+                                }
                     }
                 }
 
                 Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
             }
-
-            Log.d(TAG, "consumeRestoredStateForKey - 3 - $currentPublicationUrl")
+        } ?: {
+            Log.d(TAG, ":storeState - currentPublicationUrl - not restored")
         }
     }
 
@@ -393,8 +399,8 @@ object ReadiumReader : Navigator.TimeBaseListener {
 
         ttsNavigator?.dispose()
         ttsNavigator = null
-        audioNavigator?.dispose()
-        audioNavigator = null
+        audiobookNavigator?.dispose()
+        audiobookNavigator = null
 
         state.clear()
     }
@@ -442,23 +448,23 @@ object ReadiumReader : Navigator.TimeBaseListener {
             currentReaderView?.getFirstVisibleLocator()
         }
 
-        audioNavigator?.play(fromLocator)
+        audiobookNavigator?.play(fromLocator)
         ttsNavigator?.play(fromLocator)
     }
 
     fun pause() {
-        audioNavigator?.pause()
+        audiobookNavigator?.pause()
         ttsNavigator?.pause()
     }
 
     fun resume() {
-        audioNavigator?.resume()
+        audiobookNavigator?.resume()
         ttsNavigator?.resume()
     }
 
     fun stop() {
-        audioNavigator?.pause()
-        audioNavigator?.dispose()
+        audiobookNavigator?.pause()
+        audiobookNavigator?.dispose()
         ttsNavigator?.dispose()
 
         // Remove any current TTS decorations
@@ -480,20 +486,20 @@ object ReadiumReader : Navigator.TimeBaseListener {
     suspend fun audioEnable(initialLocator: Locator?, exoPreferences: ExoPlayerPreferences) {
         currentPublication?.let {
             // TODO: Handle karaoke books, this only works for plain audiobooks.
-            audioNavigator = AudioNavigator(
+            audiobookNavigator = AudiobookNavigator(
                 it,
                 this,
                 initialLocator,
                 exoPreferences
             )
 
-            audioNavigator?.initNavigator()
-            audioNavigator?.play()
+            audiobookNavigator?.initNavigator()
+            audiobookNavigator?.play()
         } ?: throw Exception("Publication not opened")
     }
 
     fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences) {
-        audioNavigator?.updatePreferences(exoPreferences)
+        audiobookNavigator?.updatePreferences(exoPreferences)
             ?: throw Exception("Audio not enabled, cannot update preferences")
     }
 }

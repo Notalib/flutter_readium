@@ -291,9 +291,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             epubVm?.locator = currentLocator?.value
 
             epubNavigator?.let {
-                childFragmentManager.beginTransaction()
-                    .remove(it)
-                    .commitNow()
+                childFragmentManager.commitNow {
+                    remove(it)
+                }
             }
 
             epubNavigator = null

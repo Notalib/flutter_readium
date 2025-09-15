@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
-import dk.nota.flutter_readium.jsonDecode
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +18,6 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.navigator.media.audio.AudioNavigatorFactory
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -33,7 +31,7 @@ private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
 private const val audioPreferencesKey = "audioPreferencesKey"
 
 @OptIn(ExperimentalReadiumApi::class)
-class AudioNavigator(
+class AudiobookNavigator(
     publication: Publication,
     timeBaseListener: TimeBaseListener,
     initialLocator: Locator?,
@@ -146,11 +144,17 @@ class AudioNavigator(
     }
 
     companion object {
-        fun restoreState(publication: Publication, listener: TimeBaseListener, state: Bundle): dk.nota.flutter_readium.navigators.AudioNavigator? {
-            val locator = state.getString(currentTimebasedLocatorKey)?.let { Locator.fromJSON( JSONObject( it) ) }
-            val preferences = state.getString(audioPreferencesKey)?.let { Json.decodeFromString<ExoPlayerPreferences>(it) } ?: ExoPlayerPreferences()
+        fun restoreState(
+            publication: Publication,
+            listener: TimeBaseListener,
+            state: Bundle
+        ): AudiobookNavigator {
+            val locator = state.getString(currentTimebasedLocatorKey)
+                ?.let { Locator.fromJSON(JSONObject(it)) }
+            val preferences = state.getString(audioPreferencesKey)
+                ?.let { Json.decodeFromString<ExoPlayerPreferences>(it) } ?: ExoPlayerPreferences()
 
-            return AudioNavigator(publication, listener, locator, preferences)
+            return AudiobookNavigator(publication, listener, locator, preferences)
         }
     }
 }

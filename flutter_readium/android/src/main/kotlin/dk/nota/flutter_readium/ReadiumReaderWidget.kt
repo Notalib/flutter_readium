@@ -11,6 +11,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import io.flutter.plugin.common.BinaryMessenger
@@ -116,48 +117,39 @@ class ReadiumReaderWidget(
         Log.d(TAG, "publication = $publication")
 
         // Attempt to reuse existing fragment
-        val epubReaderFragment =
+        var epubReaderFragment =
             fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubReaderFragment?
-        var reuseFragment = false
-        if (epubReaderFragment != null) {
-            Log.d(TAG, "existing fragment, can we reuse it?")
-            val vm = epubReaderFragment.vm as? EpubReaderViewModel
-            if (vm != null && vm.pubUrl == pubUrl) {
-                reuseFragment = true
-                initialLocator = vm.locator ?: initialLocator
-                epubReaderFragment.go(initialLocator!!, false)
-            } else {
-                // We can't reuse the fragment, remove it.
-                reuseFragment = false
 
-                fragmentManager.beginTransaction()
-                    .remove(epubReaderFragment)
-                    .commitNow()
+        if (epubReaderFragment != null) {
+            // TODO: Move this to ReadiumReader state.
+            val vm = epubReaderFragment.vm as? EpubReaderViewModel
+            initialLocator = vm?.locator ?: initialLocator
+
+            // We have to recreate the fragment, to avoid crashes on second restore.
+            fragmentManager.commitNow {
+                remove(epubReaderFragment)
             }
+            epubReaderFragment = null
         }
 
         initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
 
-        if (!reuseFragment || epubReaderFragment == null) {
-            val vm = EpubReaderViewModel()
-            vm.pubUrl = pubUrl
-            vm.publication = publication
-            vm.locator = initialLocator
-            vm.preferences = initialPreferences
+        val vm = EpubReaderViewModel()
+        vm.pubUrl = pubUrl
+        vm.publication = publication
+        vm.locator = initialLocator
+        vm.preferences = initialPreferences
 
-            navigator = EpubReaderFragment()
-            navigator.vm = vm
+        navigator = EpubReaderFragment()
+        navigator.vm = vm
 
-            layout = LinearLayout(context, attrs)
-            layout.id = generateViewId()
+        layout = LinearLayout(context, attrs)
+        layout.id = generateViewId()
 
-            fragmentManager.beginTransaction()
-                .add(layout, navigator, NAVIGATOR_FRAGMENT_TAG)
-                .commitNow()
-        } else {
-            navigator = epubReaderFragment
-            layout = epubReaderFragment.view?.rootView as FrameLayout
+        fragmentManager.commitNow {
+            add(layout, navigator, NAVIGATOR_FRAGMENT_TAG)
         }
+
         navigator.listener = this
 
         layout.setBackgroundColor(Color.TRANSPARENT)

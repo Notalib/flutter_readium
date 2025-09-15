@@ -5,7 +5,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.viewModels
 import dk.nota.flutter_readium.databinding.FragmentReaderBinding
 import dk.nota.flutter_readium.viewLifecycle
 
@@ -22,6 +21,7 @@ abstract class VisualReaderFragment : BaseReaderFragment() {
             )
 
             if (savedInstanceState != null) {
+                // TODO: Move this to ReadiumReader state
                 vm = restoreViewModelFromState(savedInstanceState)
             }
 
@@ -38,7 +38,7 @@ abstract class VisualReaderFragment : BaseReaderFragment() {
     ): View? {
         Log.d(TAG, "::onCreateView")
         binding = FragmentReaderBinding.inflate(inflater, container, false)
-        
+
         return binding.root
     }
 }

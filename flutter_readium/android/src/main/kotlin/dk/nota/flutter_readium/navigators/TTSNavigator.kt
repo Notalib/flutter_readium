@@ -252,7 +252,7 @@ class TTSNavigator(
             publication: Publication,
             listener: TimeBaseListener,
             state: Bundle
-        ): TTSNavigator? {
+        ): TTSNavigator {
             val locator = state.getString(currentTimebasedLocatorKey)
                 ?.let { Locator.fromJSON(JSONObject(it)) }
             val preferences = state.getString(ttsPreferencesKey)
