@@ -8,10 +8,10 @@ import org.readium.r2.shared.publication.Publication
 @OptIn(ExperimentalReadiumApi::class)
 abstract class TimebaseNavigator(
     publication: Publication,
-    val timeBaseListener: TimeBaseListener,
+    val timebaseListener: TimebaseListener,
     initialLocator: Locator?
 ) : Navigator(publication, initialLocator) {
-    interface TimeBaseListener {
+    interface TimebaseListener {
         fun onTimebasePlaybackStateChanged(playbackState: PlaybackState)
 
         fun onTimebaseCurrentLocatorChanges(locator: Locator)
@@ -25,7 +25,8 @@ abstract class TimebaseNavigator(
         Failure,
     }
 
-    override fun onPlaybackStateChanged(pb: MediaNavigator.Playback) {
+    // Playback state changed
+    open fun onPlaybackStateChanged(pb: MediaNavigator.Playback) {
         var playbackState = PlaybackState.Unknown
         if (pb.state is MediaNavigator.State.Ready) {
             playbackState = if (pb.playWhenReady) PlaybackState.Playing else PlaybackState.Ready
@@ -35,10 +36,32 @@ abstract class TimebaseNavigator(
             playbackState = PlaybackState.Buffering
         }
 
-        timeBaseListener.onTimebasePlaybackStateChanged(playbackState)
+        timebaseListener.onTimebasePlaybackStateChanged(playbackState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        timeBaseListener.onTimebaseCurrentLocatorChanges(locator)
+        timebaseListener.onTimebaseCurrentLocatorChanges(locator)
     }
+
+    /**
+     * Start playing
+     */
+    open fun play() {
+        play(null)
+    }
+
+    /**
+     * Start playing. If fromLocator is provided from that position.
+     */
+    abstract fun play(fromLocator: Locator?)
+
+    /**
+     * Pause playback.
+     */
+    abstract fun pause()
+
+    /**
+     * Resume playback
+     */
+    abstract fun resume()
 }

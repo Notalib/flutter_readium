@@ -1,8 +1,11 @@
 package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import org.readium.navigator.media.common.MediaNavigator
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -16,39 +19,18 @@ abstract class Navigator(
 ) {
     protected val jobs = mutableListOf<Job>()
 
-    /**
-     * Start playing
-     */
-    open fun play() {
-        play(null)
-    }
+    protected val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * Init the navigator
      */
     abstract suspend fun initNavigator()
 
-    /**
-     * Start playing. If fromLocator is provided from that position.
-     */
-    abstract fun play(fromLocator: Locator?)
-
-    /**
-     * Pause playback.
-     */
-    abstract fun pause()
-
-    /**
-     * Resume playback
-     */
-    abstract fun resume()
-
     open fun dispose() {
         jobs.forEach { it.cancel() }
         jobs.clear()
+        mainScope.coroutineContext.cancelChildren()
     }
-
-    abstract fun onPlaybackStateChanged(pb: MediaNavigator.Playback)
 
     abstract fun onCurrentLocatorChanges(locator: Locator)
 

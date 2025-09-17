@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import org.json.JSONArray
 import org.json.JSONObject
+import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.html.domRange
 
 inline fun <T : Any> guardLet(vararg elements: T?, closure: () -> Nothing): List<T> {
     return if (elements.all { it != null }) {
@@ -61,3 +64,7 @@ fun unwrapToApplication(context: Context?): Application? {
     }
     return ctx
 }
+
+fun canScroll(locations: Locator.Locations) =
+    locations.domRange != null || locations.cssSelector != null || locations.progression != null
+

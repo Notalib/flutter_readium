@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
+import dk.nota.flutter_readium.navigators.EpubNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import dk.nota.flutter_readium.navigators.TimebaseNavigator
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +21,7 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -61,8 +63,8 @@ private const val audioNavigatorStateKey = "audioState"
 // TODO: Support custom headers and authentication header.
 
 @OptIn(ExperimentalReadiumApi::class)
-object ReadiumReader : TimebaseNavigator.TimeBaseListener {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+object ReadiumReader : TimebaseNavigator.TimebaseListener {
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var appRef: WeakReference<Application>? = null
 
@@ -93,6 +95,8 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
     private var ttsNavigator: TTSNavigator? = null
 
     private var audiobookNavigator: AudiobookNavigator? = null
+
+    private var epubNavigator: EpubNavigator? = null
 
     /**
      * The PublicationFactory is used to open publications.
@@ -159,7 +163,7 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
         }
 
         Log.d(TAG, ":restoreState - currentPublicationUrl - $pubUrl")
-        scope.launch {
+        mainScope.launch {
             val pub = openPublication(pubUrl).getOrElse {
                 Log.d(TAG, ":restoreState - failed to restore publication")
                 // TODO: Handle this somehow
@@ -212,7 +216,7 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
         readerViewRef?.clear()
         readerViewRef = null
 
-        scope.coroutineContext.cancelChildren()
+        mainScope.coroutineContext.cancelChildren()
     }
 
     // Safe getter — returns applicationContext or throws if not available.
@@ -417,6 +421,26 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
         Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
     }
 
+    suspend fun epubEnable(initialLocator: Locator?, epubPrefs: EpubPreferences): EpubNavigator {
+        epubNavigator?.dispose()
+        epubNavigator = null
+
+        val nav = currentPublication?.let {
+            EpubNavigator(it, initialLocator, epubPrefs)
+        } ?: throw Exception("Publication not opened cannot enable epub")
+
+        nav.initNavigator()
+
+        epubNavigator = nav
+
+        return nav
+    }
+
+    fun epubClose() {
+        epubNavigator?.dispose()
+        epubNavigator = null
+    }
+
     suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
         currentPublication?.let {
             // TODO: Get initial locator
@@ -472,7 +496,7 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
         ttsNavigator?.dispose()
 
         // Remove any current TTS decorations
-        currentReaderView?.applyDecorations(emptyList(), "tts")
+        epubNavigator?.applyDecorations(emptyList(), "tts")
     }
 
     fun next() {
@@ -505,6 +529,13 @@ object ReadiumReader : TimebaseNavigator.TimeBaseListener {
     fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences) {
         audiobookNavigator?.updatePreferences(exoPreferences)
             ?: throw Exception("Audio not enabled, cannot update preferences")
+    }
+
+    fun applyDecorations(
+        decorations: List<Decoration>,
+        group: String
+    ) {
+        epubNavigator?.applyDecorations(decorations, group)
     }
 }
 

@@ -50,7 +50,7 @@ private const val ttsPreferencesKey = "ttsPreferences"
 @OptIn(ExperimentalReadiumApi::class)
 class TTSNavigator(
     publication: Publication,
-    timeBaseListener: TimeBaseListener,
+    timeBaseListener: TimebaseListener,
     initialLocator: Locator?,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
 ) : TimebaseNavigator(publication, timeBaseListener, initialLocator) {
@@ -166,7 +166,7 @@ class TTSNavigator(
             .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
             .distinctUntilChanged()
             .onEach { onPlaybackStateChanged(it) }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to utterance updates and apply decorations
@@ -193,11 +193,10 @@ class TTSNavigator(
                         )
                     )
                 }
-                CoroutineScope(Dispatchers.Main).launch {
-                    ReadiumReader.currentReaderView?.applyDecorations(decorations, group = "tts")
-                }
+
+                ReadiumReader.applyDecorations(decorations, group = "tts")
             }
-            .launchIn(CoroutineScope(Dispatchers.IO))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to location changes and turn pages (throttled).
@@ -209,7 +208,7 @@ class TTSNavigator(
                 // TODO: This should be handled by an event
                 ReadiumReader.currentReaderView?.justGoToLocator(locator, animated = true)
             }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -219,7 +218,7 @@ class TTSNavigator(
                 onCurrentLocatorChanges(it)
                 state[currentTimebasedLocatorKey] = it
             }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
     }
 
@@ -249,7 +248,7 @@ class TTSNavigator(
     companion object {
         fun restoreState(
             publication: Publication,
-            listener: TimeBaseListener,
+            listener: TimebaseListener,
             state: Bundle
         ): TTSNavigator {
             val locator = state.getString(currentTimebasedLocatorKey)

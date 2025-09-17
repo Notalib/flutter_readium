@@ -22,7 +22,7 @@ private const val TAG = "PublicationChannel"
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler, TimebaseNavigator.TimeBaseListener {
+    MethodChannel.MethodCallHandler, TimebaseNavigator.TimebaseListener {
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -270,6 +270,7 @@ internal class PublicationMethodCallHandler() :
                     val exoPreferences =
                         preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
                     ReadiumReader.audioUpdatePreferences(exoPreferences)
+                    result.success(null)
                 }
 
                 else -> {

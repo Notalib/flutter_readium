@@ -7,17 +7,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.ReaderViewModel
 import org.readium.r2.navigator.Navigator
 import org.readium.r2.shared.publication.Locator
 
-private const val publicationUrlKeyName: String = "publicationUrl"
 private const val currentLocatorKeyName: String = "currentLocator"
 
 private const val TAG: String = "BaseReaderFragment"
 
 private fun Bundle.resetState() {
-    this.remove(publicationUrlKeyName)
     this.remove(currentLocatorKeyName)
 }
 
@@ -42,37 +41,24 @@ abstract class BaseReaderFragment : Fragment() {
     }
 
     protected open fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
-        val publicationUrl = savedInstanceState.getString(publicationUrlKeyName) ?: return null
-
         val locator = savedInstanceState.getParcelable(currentLocatorKeyName) as Locator?
 
         return ReaderViewModel().let {
-            it.pubUrl = publicationUrl
-            it.locator = locator
+            it.initialLocator = locator
 
             it
         }
     }
 
     protected open fun storeViewModelInState(outState: Bundle) {
-        val model = vm ?: return
-
-        val publication = model.publication
+        val publication = ReadiumReader.currentPublication
         if (publication == null) {
             outState.resetState()
             return
         }
 
-        val pubUrl = model.pubUrl
-        if (pubUrl == null) {
-            outState.resetState()
-            return
-        }
-
-        Log.d(TAG, "pubUrl:${pubUrl}")
-
-        outState.putString(publicationUrlKeyName, pubUrl)
-        outState.putParcelable(currentLocatorKeyName, model.locator)
+        // TODO: Is this still needed?
+        outState.putParcelable(currentLocatorKeyName, currentLocator?.value)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

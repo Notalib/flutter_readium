@@ -19,7 +19,6 @@ import kotlinx.serialization.json.Json
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -53,8 +52,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         set(value) {
             navigator = value
         }
-
-    private var editor: EpubPreferencesEditor? = null
 
     private val epubVm
         get() = vm as EpubReaderViewModel?
@@ -126,32 +123,13 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         return navigator.evaluateJavascript(script)
     }
 
-    fun setPreferences(preferences: EpubPreferences) {
-        Log.d(TAG, "::setPreferences")
-        val navigator = epubNavigator
-        if (navigator == null) {
-            Log.d(TAG, "::setPreferences. Navigator not ready.")
-            return
-        }
+    suspend fun isReaderReady(): Boolean {
+        return started.value && evaluateJavascript("window.epubPage.isReaderReady();") == "true"
+    }
 
-        if (editor == null) {
-            return
-        }
-
-        try {
-            editor?.apply {
-                fontFamily.set(preferences.fontFamily)
-                fontSize.set(preferences.fontSize)
-                fontWeight.set(preferences.fontWeight)
-                scroll.set(preferences.scroll)
-                backgroundColor.set(preferences.backgroundColor)
-                textColor.set(preferences.textColor)
-
-                navigator.submitPreferences(preferences)
-            }
-        } catch (ex: Exception) {
-            Log.e(TAG, "Error applying EpubPreferences: $ex")
-        }
+    fun updatePreferences(preferences: EpubPreferences) {
+        Log.d(TAG, "::updatePreferences")
+        epubNavigator?.submitPreferences(preferences)
     }
 
     fun goLeft(animated: Boolean) {
@@ -184,17 +162,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-
-    override fun storeViewModelInState(outState: Bundle) {
-        super.storeViewModelInState(outState)
-
-        editor?.preferences?.let {
-            val jsonString = Json.encodeToString(it)
-            outState.putString(epubPreferencesKeyName, jsonString)
-            epubVm!!.preferences = it
-        }
-    }
-
     override fun restoreViewModelFromState(savedInstanceState: Bundle): EpubReaderViewModel? {
         val restoredPreferences = savedInstanceState.getString(epubPreferencesKeyName)
             ?.let { Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
@@ -202,9 +169,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         return super.restoreViewModelFromState(savedInstanceState)?.let {
             return EpubReaderViewModel().apply()
             {
-                pubUrl = it.pubUrl
-                publication = it.publication
-                locator = it.locator
+                initialLocator = it.initialLocator
                 preferences = restoredPreferences
             }
         }
@@ -257,20 +222,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             attachingNavigatorFragment = true
 
             lifecycleScope.launch {
-                if (model.publication == null) {
-                    Log.d(
-                        TAG,
-                        "::onViewCreated - $instance - re-open publication: $attachingNavigatorFragment"
-                    )
-
-                    model.publication = ReadiumReader.openPublication(model.pubUrl).getOrNull()
-                    Log.d(
-                        TAG,
-                        "::onViewCreated - $instance - re-open publication - done - ${model.publication}"
-                    )
-                }
-
-                if (model.publication != null) {
+                if (ReadiumReader.currentPublication != null) {
                     Log.d(TAG, "::onViewCreated - $instance - attach navigator")
                     attachNavigator()
                 } else {
@@ -288,7 +240,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         try {
             Log.d(TAG, "::onPause - $instance")
 
-            epubVm?.locator = currentLocator?.value
+            epubVm?.initialLocator = currentLocator?.value
 
             epubNavigator?.let {
                 childFragmentManager.commitNow {
@@ -366,7 +318,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        if (model.publication == null) {
+        if (ReadiumReader.currentPublication == null) {
             Log.e(TAG, "::attachNavigator() - $instance - missing publication")
             return
         }
@@ -379,7 +331,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         model.preferences = model.preferences ?: EpubPreferences()
         val preferences = model.preferences ?: EpubPreferences()
         val navigatorFactory = model.navigatorFactory!!
-        editor = navigatorFactory.createPreferencesEditor(preferences)
         val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
                 shouldApplyInsetsPadding = false,
@@ -387,7 +338,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     "flutter_assets/packages/flutter_readium/assets/.*",
                 )
             ),
-            initialLocator = model.locator,
+            initialLocator = model.initialLocator,
             listener = me,
             paginationListener = me,
             initialPreferences = preferences,
@@ -414,13 +365,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         Log.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
         started.value = true
-
-        lifecycleScope.launch {
-            nav.currentLocator.throttleLatest(Duration.parse("1s")).collect { cl ->
-                me.vm?.locator = cl
-                Log.d(TAG, "::update currentLocator $cl")
-            }
-        }
     }
 
     companion object {
