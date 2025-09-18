@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.navigator.media.tts.TtsNavigator
@@ -81,7 +80,7 @@ class TTSNavigator(
             }
         }
         CoroutineScope(Dispatchers.Main).async {
-            val firstVisibleLocator = ReadiumReader.currentReaderView?.getFirstVisibleLocator()
+            val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
                 navigatorFactory.createNavigator(listener, firstVisibleLocator, preferences)
@@ -206,7 +205,7 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { locator ->
                 // TODO: This should be handled by an event
-                ReadiumReader.currentReaderView?.justGoToLocator(locator, animated = true)
+                ReadiumReader.currentReaderWidget?.justGoToLocator(locator, animated = true)
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }

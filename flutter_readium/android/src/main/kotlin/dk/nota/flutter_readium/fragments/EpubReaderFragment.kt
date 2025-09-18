@@ -10,24 +10,19 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
-import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
-import kotlin.time.Duration
 
 
 private const val TAG = "EpubReaderFragment"
-
-private const val epubPreferencesKeyName = "EPubPreferences"
 
 private var instanceNo = 0
 
@@ -55,22 +50,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     private val epubVm
         get() = vm as EpubReaderViewModel?
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?,
-    ): View {
-        try {
-            Log.d(TAG, "::onCreateView $instance - $savedInstanceState")
-            val view = super.onCreateView(inflater, container, savedInstanceState)
-
-            Log.d(TAG, "::onCreateView $instance - $view")
-            return view!!
-        } finally {
-            Log.d(TAG, "::onCreateView $instance - ended")
-        }
-    }
 
     @ExperimentalReadiumApi
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
@@ -159,19 +138,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             Log.d(TAG, "::goRight: Went forward.")
         } else {
             Log.d(TAG, "::goRight: Couldn't go forward.")
-        }
-    }
-
-    override fun restoreViewModelFromState(savedInstanceState: Bundle): EpubReaderViewModel? {
-        val restoredPreferences = savedInstanceState.getString(epubPreferencesKeyName)
-            ?.let { Json.decodeFromString(it) as EpubPreferences } ?: EpubPreferences()
-
-        return super.restoreViewModelFromState(savedInstanceState)?.let {
-            return EpubReaderViewModel().apply()
-            {
-                initialLocator = it.initialLocator
-                preferences = restoredPreferences
-            }
         }
     }
 

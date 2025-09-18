@@ -12,13 +12,7 @@ import dk.nota.flutter_readium.models.ReaderViewModel
 import org.readium.r2.navigator.Navigator
 import org.readium.r2.shared.publication.Locator
 
-private const val currentLocatorKeyName: String = "currentLocator"
-
 private const val TAG: String = "BaseReaderFragment"
-
-private fun Bundle.resetState() {
-    this.remove(currentLocatorKeyName)
-}
 
 abstract class BaseReaderFragment : Fragment() {
     var vm: ReaderViewModel? = null
@@ -38,33 +32,6 @@ abstract class BaseReaderFragment : Fragment() {
 
         Log.d(TAG, "::go - navigator not ready.")
         return false
-    }
-
-    protected open fun restoreViewModelFromState(savedInstanceState: Bundle): ReaderViewModel? {
-        val locator = savedInstanceState.getParcelable(currentLocatorKeyName) as Locator?
-
-        return ReaderViewModel().let {
-            it.initialLocator = locator
-
-            it
-        }
-    }
-
-    protected open fun storeViewModelInState(outState: Bundle) {
-        val publication = ReadiumReader.currentPublication
-        if (publication == null) {
-            outState.resetState()
-            return
-        }
-
-        // TODO: Is this still needed?
-        outState.putParcelable(currentLocatorKeyName, currentLocator?.value)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        Log.d(TAG, "::onSaveInstanceState")
-        storeViewModelInState(outState)
-        super.onSaveInstanceState(outState)
     }
 
     override fun onDetach() {

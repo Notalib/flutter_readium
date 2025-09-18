@@ -29,6 +29,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
 import java.lang.ref.WeakReference
+import kotlin.collections.set
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EpubNavigator"
@@ -42,10 +43,11 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     constructor(
         publication: Publication,
         initialLocator: Locator?,
+        visualListener: VisualListener,
         initialPreferences: EpubPreferences = EpubPreferences()
     ) : super(publication, initialLocator) {
         this.initialPreferences = initialPreferences
-        this.state = mutableMapOf<String, Any?>()
+        this.visualListener = visualListener
 
         this.state[currentVisualCurrentLocatorKey] = initialLocator
         this.state[epubPreferencesKey] = initialPreferences
@@ -53,26 +55,17 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
     interface VisualListener {
         fun onPageLoaded()
+
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+
         fun onExternalLinkActivated(url: AbsoluteUrl)
+
         fun onVisualCurrentLocationChanged(locator: Locator)
 
-        fun onIsReady()
+        fun onVisualReaderIsReady()
     }
 
-    private var visualListenerRef: WeakReference<VisualListener>? = null
-
-    var visualListener: VisualListener?
-        get() = visualListenerRef?.get()
-        set(value) {
-            if (value == null) {
-                visualListenerRef?.clear()
-                visualListenerRef = null
-                return
-            }
-
-            visualListenerRef = WeakReference<VisualListener>(value)
-        }
+    val visualListener: VisualListener
 
     private var epubNavigator: EpubReaderFragment? = null
     var editor: EpubPreferencesEditor? = null
@@ -90,7 +83,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         get() = epubNavigator!!.started
 
     // in-memory cached state
-    private val state: MutableMap<String, Any?>
+    private val state = mutableMapOf<String, Any?>()
 
     private val isVerticalScroll: Boolean
         get() {
@@ -109,10 +102,11 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
                 editor =
                     navigatorFactory!!.createPreferencesEditor(initialPreferences)
             }
+            listener = this@EpubNavigator
         }
     }
 
-    fun attachToFragmentManager(fragmentManager: FragmentManager, viewGroup: ViewGroup) {
+    fun attachNavigator(fragmentManager: FragmentManager, viewGroup: ViewGroup) {
         val navigator = epubNavigator ?: return
         fragmentManager.commitNow {
             add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
@@ -148,6 +142,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
                 textColor.set(epubPrefs.textColor)
 
                 epubNavigator?.updatePreferences(preferences)
+                state[epubPreferencesKey] = preferences
             }
         } catch (ex: Exception) {
             Log.e(TAG, "Error applying EpubPreferences: $ex")
@@ -186,7 +181,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
     override fun onPageLoaded() {
         Log.d(TAG, "::onPageLoaded")
-        visualListener?.onPageLoaded()
+        visualListener.onPageLoaded()
 
         mainScope.launch {
             val locations = initialLocations
@@ -195,7 +190,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
                 scrollToLocations(locations, toStart = true)
             }
 
-            visualListener?.onIsReady()
+            visualListener.onVisualReaderIsReady()
         }
     }
 
@@ -204,15 +199,16 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         totalPages: Int,
         locator: Locator
     ) {
-        visualListener?.onPageChanged(pageIndex, totalPages, locator)
+        visualListener.onPageChanged(pageIndex, totalPages, locator)
+        state[currentVisualCurrentLocatorKey] = locator
     }
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
-        visualListener?.onExternalLinkActivated(url)
+        visualListener.onExternalLinkActivated(url)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        visualListener?.onVisualCurrentLocationChanged(locator)
+        visualListener.onVisualCurrentLocationChanged(locator)
     }
 
     override fun dispose() {
@@ -223,7 +219,6 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         }
         epubNavigator = null
 
-        visualListener = null
         state.clear()
     }
 
@@ -327,6 +322,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     companion object {
         fun restoreState(
             publication: Publication,
+            listener: VisualListener,
             state: Bundle
         ): EpubNavigator {
             val locator = state.getString(currentVisualCurrentLocatorKey)
@@ -334,7 +330,9 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             val preferences = state.getString(epubPreferencesKey)
                 ?.let { Json.decodeFromString<EpubPreferences>(it) } ?: EpubPreferences()
 
-            return EpubNavigator(publication, locator, preferences)
+            Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences");
+
+            return EpubNavigator(publication, locator, listener,preferences)
         }
     }
 }

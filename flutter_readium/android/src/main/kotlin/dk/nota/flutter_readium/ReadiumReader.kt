@@ -56,14 +56,15 @@ private const val currentPublicationUrlKey = "currentPublicationUrl"
 private const val ttsEnabledKey = "ttsEnabled"
 private const val audioEnabledKey = "audioEnabled"
 
+private const val epubEnabledKey = "epubEnabled"
 private const val ttsNavigatorStateKey = "ttsState"
-
 private const val audioNavigatorStateKey = "audioState"
+private const val epubNavigatorStateKey = "epubState"
 
 // TODO: Support custom headers and authentication header.
 
 @OptIn(ExperimentalReadiumApi::class)
-object ReadiumReader : TimebaseNavigator.TimebaseListener {
+object ReadiumReader : TimebaseNavigator.TimebaseListener, EpubNavigator.VisualListener {
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var appRef: WeakReference<Application>? = null
@@ -142,9 +143,11 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
 
         return Bundle().apply {
             putString(currentPublicationUrlKey, currentPublicationUrl)
+            putBoolean(epubEnabledKey, epubNavigator != null)
+            putBundle(epubNavigatorStateKey, epubNavigator?.storeState())
             putBoolean(ttsEnabledKey, ttsNavigator != null)
-            putBoolean(audioEnabledKey, audiobookNavigator != null)
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
+            putBoolean(audioEnabledKey, audiobookNavigator != null)
             putBundle(audioNavigatorStateKey, audiobookNavigator?.storeState())
         }
     }
@@ -170,7 +173,16 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
                 return@launch
             }
 
-            // TODO: Restore EpubNavigator
+            if (bundle.getBoolean(epubEnabledKey)) {
+                Log.d(TAG, ":storeState - restore epub navigator")
+                bundle.getBundle(epubNavigatorStateKey)?.let {
+                    epubNavigator = EpubNavigator.restoreState(pub, this@ReadiumReader, it)
+                        .apply {
+                            initNavigator()
+                            Log.d(TAG, ":storeState - epubNavigator restored")
+                        }
+                }
+            }
 
             if (bundle.getBoolean(ttsEnabledKey)) {
                 // Restore TTS navigator
@@ -224,7 +236,7 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
         get() = appRef?.get()
             ?: throw IllegalStateException("Application not initialized. Call ReadiumReader.attach(...) first.")
 
-    var currentReaderView: ReadiumReaderWidget?
+    var currentReaderWidget: ReadiumReaderWidget?
         get() = readerViewRef?.get()
         set(value) {
             readerViewRef = value?.let { WeakReference(it) }
@@ -422,18 +434,17 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
     }
 
     suspend fun epubEnable(initialLocator: Locator?, epubPrefs: EpubPreferences): EpubNavigator {
-        epubNavigator?.dispose()
-        epubNavigator = null
+        val pub = currentPublication
+            ?: throw Exception("Publication not opened cannot enable epub")
 
-        val nav = currentPublication?.let {
-            EpubNavigator(it, initialLocator, epubPrefs)
-        } ?: throw Exception("Publication not opened cannot enable epub")
+        // TODO: Check if pub is an epub. -- pub.conformsTo(Publication.Profile.EPUB)
+        epubNavigator?.let { return it } // Already enabled - assume from restored state.
 
-        nav.initNavigator()
-
-        epubNavigator = nav
-
-        return nav
+        EpubNavigator(pub, initialLocator, this, epubPrefs).apply {
+            initNavigator()
+            epubNavigator = this
+            return this
+        }
     }
 
     fun epubClose() {
@@ -473,7 +484,7 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
     suspend fun play(fromLocator: Locator?) {
         // If using TTS and no fromLocator given, start from current visible locator.
         if (fromLocator == null && ttsNavigator != null) {
-            currentReaderView?.getFirstVisibleLocator()
+            currentReaderWidget?.getFirstVisibleLocator()
         }
 
         audiobookNavigator?.play(fromLocator)
@@ -536,6 +547,30 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener {
         group: String
     ) {
         epubNavigator?.applyDecorations(decorations, group)
+    }
+
+    override fun onPageLoaded() {
+        currentReaderWidget?.onPageLoaded()
+    }
+
+    override fun onPageChanged(
+        pageIndex: Int,
+        totalPages: Int,
+        locator: Locator
+    ) {
+        currentReaderWidget?.onPageChanged(pageIndex, totalPages, locator)
+    }
+
+    override fun onExternalLinkActivated(url: AbsoluteUrl) {
+        currentReaderWidget?.onExternalLinkActivated(url)
+    }
+
+    override fun onVisualCurrentLocationChanged(locator: Locator) {
+        currentReaderWidget?.onVisualCurrentLocationChanged(locator)
+    }
+
+    override fun onVisualReaderIsReady() {
+        currentReaderWidget?.onVisualReaderIsReady()
     }
 }
 

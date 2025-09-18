@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
@@ -68,7 +69,7 @@ class ReadiumReaderWidget(
         channel.setMethodCallHandler(null)
 
         ReadiumReader.epubClose()
-        ReadiumReader.currentReaderView = null
+        ReadiumReader.currentReaderWidget = null
 
         mainScope.coroutineContext.cancelChildren()
         layout.removeAllViews()
@@ -106,7 +107,7 @@ class ReadiumReaderWidget(
         layout.setBackgroundColor(Color.TRANSPARENT)
         layout.setPadding(0, 0, 0, 0)
 
-        ReadiumReader.currentReaderView = this
+        ReadiumReader.currentReaderWidget = this
 
         channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
         channel.setMethodCallHandler(this)
@@ -122,13 +123,18 @@ class ReadiumReaderWidget(
                 View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
 
+        // Remove existing fragment if any (this is to avoid crashing on restore).
+        (fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as? EpubReaderFragment)?.let {
+            fragmentManager.commitNow {
+                remove(it)
+            }
+        }
+
         mainScope.launch {
             navigator =
                 ReadiumReader.epubEnable(initialLocator, initialPreferences ?: EpubPreferences())
 
-            navigator?.attachToFragmentManager(fragmentManager, layout)
-
-            navigator!!.visualListener = this@ReadiumReaderWidget
+            navigator?.attachNavigator(fragmentManager, layout)
         }
     }
 
@@ -151,11 +157,11 @@ class ReadiumReaderWidget(
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
-        TODO("Not yet implemented")
+        Log.d(TAG, "::onVisualCurrentLocationChanged $Locator")
     }
 
-    override fun onIsReady() {
-        TODO("Not yet implemented")
+    override fun onVisualReaderIsReady() {
+        Log.d(TAG, "::onVisualReaderIsReady")
     }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -320,7 +326,7 @@ class ReadiumReaderWidget(
 
                 "dispose" -> {
                     layout.removeAllViews()
-                    ReadiumReader.currentReaderView = null
+                    ReadiumReader.currentReaderWidget = null
                     ReadiumReader.epubClose()
                     eventSink = null
                     eventChannel.setStreamHandler(null)
