@@ -3,7 +3,7 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.Navigator
+import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -21,25 +21,34 @@ private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
+internal const val audioLocatorChannelName = "dk.nota.flutter_readium/audio-locator"
+
+internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
+
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler, Navigator.TimeBaseListener {
+    MethodChannel.MethodCallHandler, TimebasedNavigator.TimebasedListener {
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        CoroutineScope(Dispatchers.Main).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             when (call.method) {
                 "loadPublication" -> {
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
 
-                    val publication = ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse {
-                        Log.e(
-                            TAG,
-                            "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
-                        )
-                        // TODO: errorCode doesn't look right
-                        return@launch result.error("openPublication", it.message, it.cause)
-                    }
+                    val publication =
+                        ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                            Log.e(
+                                TAG,
+                                "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                            )
+                            // TODO: errorCode doesn't look right
+                            return@launch result.error(
+                                "openPublication",
+                                error.message,
+                                error.cause
+                            )
+                        }
 
                     val pubJsonManifest =
                         publication.manifest.toJSON().toString().replace("\\/", "/")
@@ -53,13 +62,18 @@ internal class PublicationMethodCallHandler() :
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
 
-                    val publication = ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse {
-                        Log.e(
-                            TAG,
-                            "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
-                        )
-                        return@launch result.error("openPublication", it.message, it.cause)
-                    }
+                    val publication =
+                        ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                            Log.e(
+                                TAG,
+                                "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
+                            )
+                            return@launch result.error(
+                                "openPublication",
+                                error.message,
+                                error.cause
+                            )
+                        }
 
                     // TODO: Initialize other necessary resources to prepare for reading this publication.
 
@@ -72,6 +86,7 @@ internal class PublicationMethodCallHandler() :
                     Log.d(TAG, "Close publication")
 
                     ReadiumReader.closePublication()
+                    result.success(null)
                 }
 
                 "ttsEnable" -> {
@@ -270,6 +285,7 @@ internal class PublicationMethodCallHandler() :
                     val exoPreferences =
                         preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
                     ReadiumReader.audioUpdatePreferences(exoPreferences)
+                    result.success(null)
                 }
 
                 else -> {
@@ -279,11 +295,11 @@ internal class PublicationMethodCallHandler() :
         }
     }
 
-    override fun onTimebasePlaybackStateChanged(playbackState: Navigator.PlaybackState) {
-        Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
+    override fun onTimebasedPlaybackStateChanged(playbackState: TimebasedNavigator.PlaybackState) {
+        Log.d(TAG, ":onTimebasedPlaybackStateChanged $playbackState")
     }
 
-    override fun onTimebaseCurrentLocatorChanges(locator: Locator) {
-        Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
+    override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
     }
 }

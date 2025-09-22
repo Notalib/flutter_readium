@@ -14,10 +14,8 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
@@ -51,10 +49,10 @@ private const val ttsPreferencesKey = "ttsPreferences"
 @OptIn(ExperimentalReadiumApi::class)
 class TTSNavigator(
     publication: Publication,
-    timeBaseListener: TimeBaseListener,
+    timeBaseListener: TimebasedListener,
     initialLocator: Locator?,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : Navigator(publication, timeBaseListener, initialLocator) {
+) : TimebasedNavigator(publication, timeBaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -82,7 +80,7 @@ class TTSNavigator(
             }
         }
         CoroutineScope(Dispatchers.Main).async {
-            val firstVisibleLocator = ReadiumReader.currentReaderView?.getFirstVisibleLocator()
+            val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
                 navigatorFactory.createNavigator(listener, firstVisibleLocator, preferences)
@@ -167,7 +165,7 @@ class TTSNavigator(
             .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
             .distinctUntilChanged()
             .onEach { onPlaybackStateChanged(it) }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to utterance updates and apply decorations
@@ -194,11 +192,10 @@ class TTSNavigator(
                         )
                     )
                 }
-                CoroutineScope(Dispatchers.Main).launch {
-                    ReadiumReader.currentReaderView?.applyDecorations(decorations, group = "tts")
-                }
+
+                ReadiumReader.applyDecorations(decorations, group = "tts")
             }
-            .launchIn(CoroutineScope(Dispatchers.IO))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to location changes and turn pages (throttled).
@@ -208,9 +205,9 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { locator ->
                 // TODO: This should be handled by an event
-                ReadiumReader.currentReaderView?.justGoToLocator(locator, animated = true)
+                ReadiumReader.currentReaderWidget?.justGoToLocator(locator, animated = true)
             }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -220,7 +217,7 @@ class TTSNavigator(
                 onCurrentLocatorChanges(it)
                 state[currentTimebasedLocatorKey] = it
             }
-            .launchIn(CoroutineScope(Dispatchers.Main))
+            .launchIn(mainScope)
             .let { jobs.add(it) }
     }
 
@@ -250,7 +247,7 @@ class TTSNavigator(
     companion object {
         fun restoreState(
             publication: Publication,
-            listener: TimeBaseListener,
+            listener: TimebasedListener,
             state: Bundle
         ): TTSNavigator {
             val locator = state.getString(currentTimebasedLocatorKey)
@@ -263,3 +260,4 @@ class TTSNavigator(
         }
     }
 }
+
