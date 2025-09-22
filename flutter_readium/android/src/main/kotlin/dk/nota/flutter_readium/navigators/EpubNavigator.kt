@@ -28,7 +28,6 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
-import java.lang.ref.WeakReference
 import kotlin.collections.set
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -96,7 +95,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         epubNavigator = EpubReaderFragment().apply {
             vm = EpubReaderViewModel().apply {
                 navigatorFactory = EpubNavigatorFactory(publication)
-                initialLocator = this@EpubNavigator.initialLocator
+                locator = this@EpubNavigator.initialLocator
                 preferences = this@EpubNavigator.initialPreferences
 
                 editor =
@@ -188,9 +187,8 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             if (locations != null) {
                 initialLocations = null
                 scrollToLocations(locations, toStart = true)
+                visualListener.onVisualReaderIsReady()
             }
-
-            visualListener.onVisualReaderIsReady()
         }
     }
 

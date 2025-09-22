@@ -57,7 +57,7 @@ android {
 }
 
 dependencies {
-  implementation 'androidx.fragment:fragment-ktx:1.8.8'
+  implementation 'androidx.fragment:fragment-ktx:1.8.9'
 
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "org.readium.kotlin-toolkit:readium-shared:$readium_version"

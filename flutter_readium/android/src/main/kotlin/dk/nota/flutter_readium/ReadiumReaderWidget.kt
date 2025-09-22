@@ -103,7 +103,6 @@ class ReadiumReaderWidget(
 
         layout = LinearLayout(context, attrs)
         layout.id = generateViewId()
-
         layout.setBackgroundColor(Color.TRANSPARENT)
         layout.setPadding(0, 0, 0, 0)
 

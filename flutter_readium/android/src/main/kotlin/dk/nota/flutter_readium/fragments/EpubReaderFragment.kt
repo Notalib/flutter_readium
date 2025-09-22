@@ -2,9 +2,7 @@ package dk.nota.flutter_readium.fragments
 
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
@@ -206,7 +204,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         try {
             Log.d(TAG, "::onPause - $instance")
 
-            epubVm?.initialLocator = currentLocator?.value
+            epubVm?.locator = currentLocator?.value
 
             epubNavigator?.let {
                 childFragmentManager.commitNow {
@@ -294,8 +292,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         // DFG: This will be relative to your app's src/main/assets/ folder.
         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
-        model.preferences = model.preferences ?: EpubPreferences()
         val preferences = model.preferences ?: EpubPreferences()
+        model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
         val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
@@ -304,30 +302,27 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     "flutter_assets/packages/flutter_readium/assets/.*",
                 )
             ),
-            initialLocator = model.initialLocator,
+            initialLocator = model.locator,
             listener = me,
             paginationListener = me,
             initialPreferences = preferences,
         )
 
-        val fragment = fragmentFactory.instantiate(
+        val epubNavigator = fragmentFactory.instantiate(
             requireActivity().classLoader,
             EpubNavigatorFragment::class.java.name
-        )
+        ) as EpubNavigatorFragment
 
         Log.d(TAG, "::attachNavigator - $instance - add fragment")
         childFragmentManager.commitNow {
             add(
                 R.id.fragment_reader_container,
-                fragment,
+                epubNavigator,
                 NAVIGATOR_FRAGMENT_TAG,
             )
         }
 
-        Log.d(TAG, "::attachNavigator() - $instance - get navigator")
-        val nav =
-            childFragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as EpubNavigatorFragment
-        navigator = nav
+        navigator = epubNavigator
         Log.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
         started.value = true

@@ -21,6 +21,8 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     /// This local reference serves to register the plugin with the Flutter Engine and unregister it
     /// when the Flutter Engine is detached from the Activity
     private lateinit var publicationChannel: MethodChannel
+    private lateinit var audioLocatorChannel: MethodChannel
+    private lateinit var readerStatusChannel: MethodChannel
 
     private lateinit var publicationMethodCallHandler: PublicationMethodCallHandler
 
@@ -47,6 +49,9 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         publicationMethodCallHandler = PublicationMethodCallHandler()
         publicationChannel = MethodChannel(messenger, publicationChannelName)
         publicationChannel.setMethodCallHandler(publicationMethodCallHandler)
+
+        audioLocatorChannel = MethodChannel(messenger, audioLocatorChannelName)
+        readerStatusChannel = MethodChannel(messenger, readerStatusChannelName)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
