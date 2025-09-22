@@ -49,10 +49,10 @@ private const val ttsPreferencesKey = "ttsPreferences"
 @OptIn(ExperimentalReadiumApi::class)
 class TTSNavigator(
     publication: Publication,
-    timeBaseListener: TimebaseListener,
+    timeBaseListener: TimebasedListener,
     initialLocator: Locator?,
     private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : TimebaseNavigator(publication, timeBaseListener, initialLocator) {
+) : TimebasedNavigator(publication, timeBaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -247,7 +247,7 @@ class TTSNavigator(
     companion object {
         fun restoreState(
             publication: Publication,
-            listener: TimebaseListener,
+            listener: TimebasedListener,
             state: Bundle
         ): TTSNavigator {
             val locator = state.getString(currentTimebasedLocatorKey)

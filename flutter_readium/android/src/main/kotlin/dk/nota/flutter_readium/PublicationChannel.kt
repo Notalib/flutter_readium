@@ -3,7 +3,7 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.TimebaseNavigator
+import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +26,7 @@ internal const val audioLocatorChannelName = "dk.nota.flutter_readium/audio-loca
 internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
 
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler, TimebaseNavigator.TimebaseListener {
+    MethodChannel.MethodCallHandler, TimebasedNavigator.TimebasedListener {
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -295,11 +295,11 @@ internal class PublicationMethodCallHandler() :
         }
     }
 
-    override fun onTimebasePlaybackStateChanged(playbackState: TimebaseNavigator.PlaybackState) {
-        Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
+    override fun onTimebasedPlaybackStateChanged(playbackState: TimebasedNavigator.PlaybackState) {
+        Log.d(TAG, ":onTimebasedPlaybackStateChanged $playbackState")
     }
 
-    override fun onTimebaseCurrentLocatorChanges(locator: Locator) {
-        Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
+    override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
     }
 }

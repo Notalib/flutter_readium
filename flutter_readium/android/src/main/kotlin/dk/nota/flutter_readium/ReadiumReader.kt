@@ -10,7 +10,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
-import dk.nota.flutter_readium.navigators.TimebaseNavigator
+import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -64,7 +64,7 @@ private const val epubNavigatorStateKey = "epubState"
 // TODO: Support custom headers and authentication header.
 
 @OptIn(ExperimentalReadiumApi::class)
-object ReadiumReader : TimebaseNavigator.TimebaseListener, EpubNavigator.VisualListener {
+object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.VisualListener {
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var appRef: WeakReference<Application>? = null
@@ -425,12 +425,12 @@ object ReadiumReader : TimebaseNavigator.TimebaseListener, EpubNavigator.VisualL
         state.clear()
     }
 
-    override fun onTimebasePlaybackStateChanged(playbackState: TimebaseNavigator.PlaybackState) {
-        Log.d(TAG, ":onTimebasePlaybackStateChanged $playbackState")
+    override fun onTimebasedPlaybackStateChanged(playbackState: TimebasedNavigator.PlaybackState) {
+        Log.d(TAG, ":onTimebasedPlaybackStateChanged $playbackState")
     }
 
-    override fun onTimebaseCurrentLocatorChanges(locator: Locator) {
-        Log.d(TAG, ":onTimebaseCurrentLocatorChanges $locator")
+    override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
     }
 
     suspend fun epubEnable(initialLocator: Locator?, epubPrefs: EpubPreferences): EpubNavigator {

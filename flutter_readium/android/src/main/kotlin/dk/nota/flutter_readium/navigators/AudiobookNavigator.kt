@@ -31,10 +31,10 @@ private const val audioPreferencesKey = "audioPreferencesKey"
 @OptIn(ExperimentalReadiumApi::class)
 class AudiobookNavigator(
     publication: Publication,
-    timebaseListener: TimebaseListener,
+    timebasedListener: TimebasedListener,
     initialLocator: Locator?,
     private var initialPreferences: ExoPlayerPreferences = ExoPlayerPreferences()
-) : TimebaseNavigator(publication, timebaseListener, initialLocator) {
+) : TimebasedNavigator(publication, timebasedListener, initialLocator) {
     private var audioNavigator: AudioNavigator<*, *>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
 
@@ -147,7 +147,7 @@ class AudiobookNavigator(
     companion object {
         fun restoreState(
             publication: Publication,
-            listener: TimebaseListener,
+            listener: TimebasedListener,
             state: Bundle
         ): AudiobookNavigator {
             val locator = state.getString(currentTimebaseLocatorKey)

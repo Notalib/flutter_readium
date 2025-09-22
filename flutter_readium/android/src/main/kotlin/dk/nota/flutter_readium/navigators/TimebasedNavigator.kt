@@ -6,15 +6,15 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 
 @OptIn(ExperimentalReadiumApi::class)
-abstract class TimebaseNavigator(
+abstract class TimebasedNavigator(
     publication: Publication,
-    val timebaseListener: TimebaseListener,
+    val timebasedListener: TimebasedListener,
     initialLocator: Locator?
 ) : Navigator(publication, initialLocator) {
-    interface TimebaseListener {
-        fun onTimebasePlaybackStateChanged(playbackState: PlaybackState)
+    interface TimebasedListener {
+        fun onTimebasedPlaybackStateChanged(playbackState: PlaybackState)
 
-        fun onTimebaseCurrentLocatorChanges(locator: Locator)
+        fun onTimebasedCurrentLocatorChanges(locator: Locator)
     }
 
     enum class PlaybackState {
@@ -36,11 +36,11 @@ abstract class TimebaseNavigator(
             playbackState = PlaybackState.Buffering
         }
 
-        timebaseListener.onTimebasePlaybackStateChanged(playbackState)
+        timebasedListener.onTimebasedPlaybackStateChanged(playbackState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        timebaseListener.onTimebaseCurrentLocatorChanges(locator)
+        timebasedListener.onTimebasedCurrentLocatorChanges(locator)
     }
 
     /**
