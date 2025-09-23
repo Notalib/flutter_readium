@@ -50,8 +50,6 @@ class ReadiumReaderWidget(
 
     private val layout: ViewGroup
 
-    private var navigator: EpubNavigator? = null
-
     private val activity
         get() = (context as ContextWrapper).baseContext as FragmentActivity
     private val fragmentManager
@@ -130,10 +128,12 @@ class ReadiumReaderWidget(
         }
 
         mainScope.launch {
-            navigator =
-                ReadiumReader.epubEnable(initialLocator, initialPreferences ?: EpubPreferences())
-
-            navigator?.attachNavigator(fragmentManager, layout)
+            ReadiumReader.epubEnable(
+                initialLocator,
+                initialPreferences ?: EpubPreferences(),
+                fragmentManager,
+                layout
+            )
         }
     }
 
@@ -171,7 +171,7 @@ class ReadiumReaderWidget(
         eventSink = null
     }
 
-    suspend fun getFirstVisibleLocator(): Locator? = navigator?.firstVisibleElementLocator()
+    suspend fun getFirstVisibleLocator(): Locator? = ReadiumReader.getFirstVisibleLocator()
 
     @Throws(IllegalArgumentException::class)
     private fun setPreferencesFromMap(prefMap: Map<String, String>) {
@@ -183,7 +183,7 @@ class ReadiumReaderWidget(
 
     private suspend fun emitOnPageChanged(locator: Locator) {
         try {
-            val locatorWithFragments = navigator?.getLocatorFragments(locator)
+            val locatorWithFragments = ReadiumReader.getEpubLocatorFragments(locator)
             if (locatorWithFragments == null) {
                 Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed!")
                 return
@@ -245,7 +245,7 @@ class ReadiumReaderWidget(
                         )
                     }
                     val locator = Locator.fromJSON(locatorJson)!!
-                    navigator?.goToLocator(locator, animated)
+                    ReadiumReader.epubGoToLocator(locator, animated)
                     setLocation(locator, isAudioBookWithText)
                     result.success(null)
                 }
@@ -275,7 +275,7 @@ class ReadiumReaderWidget(
                     val args = call.arguments as String
                     val locatorJson = JSONObject(args)
                     val locator = Locator.fromJSON(locatorJson)!!
-                    var visible = locator.href == navigator?.currentLocator?.value?.href
+                    var visible = locator.href == ReadiumReader.epubCurrentLocator?.href
                     if (visible) {
                         val jsonRes =
                             evaluateJavascript("window.epubPage.isLocatorVisible($args);")
@@ -292,7 +292,7 @@ class ReadiumReaderWidget(
 
                 "isReaderReady" -> {
                     try {
-                        result.success(navigator?.isReaderReady() ?: false)
+                        result.success(ReadiumReader.epubIsReaderReady())
                     } catch (e: Error) {
                         Log.e(TAG, "::isReaderReady - error getting state - $e")
                         result.success(false)
@@ -305,7 +305,7 @@ class ReadiumReaderWidget(
                     val locatorJson = JSONObject(args!!)
                     Log.d(TAG, "::====== $locatorJson")
 
-                    val locator = navigator?.getLocatorFragments(Locator.fromJSON(locatorJson)!!)
+                    val locator = ReadiumReader.epubGetLocatorFragments(Locator.fromJSON(locatorJson)!!)
                     Log.d(TAG, "::====== $locator")
 
                     result.success(jsonEncode(locator?.toJSON()))
@@ -343,33 +343,32 @@ class ReadiumReaderWidget(
 
     private fun go(locator: Locator, animated: Boolean) {
         Log.d(TAG, "::go ${locator.href}")
-        navigator?.go(locator, animated)
+        ReadiumReader.epubGo(locator, animated)
     }
 
     private suspend fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
-        navigator?.goLeft(animated)
+        ReadiumReader.epubGoLeft(animated)
     }
 
     private suspend fun goRight(animated: Boolean) {
-        navigator?.goRight(animated)
+        ReadiumReader.epubGoRight(animated)
     }
 
     private suspend fun evaluateJavascript(script: String): String? {
-        return navigator?.let {
-            val ret = it.evaluateJavascript(script)
-            if (ret == null || ret == "null" || ret == "undefined") {
-                // Hopefully can't happen.
-                Log.e(TAG, "::evaluateJavascript($script) returned null $ret")
+        val ret = ReadiumReader.epubEvaluateJavascript(script)
+        if (ret == null || ret == "null" || ret == "undefined") {
+            // Hopefully can't happen.
+            Log.e(TAG, "::evaluateJavascript($script) returned null $ret")
 
-                return null
-            }
-            return ret
+            return null
         }
+
+        return ret
     }
 
     private fun updatePreferences(preferences: EpubPreferences) {
-        navigator?.updatePreferences(preferences)
+        ReadiumReader.epubUpdatePreferences(preferences)
     }
 
     companion object {

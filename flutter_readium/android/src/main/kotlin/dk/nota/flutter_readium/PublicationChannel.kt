@@ -8,6 +8,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
@@ -35,19 +36,21 @@ internal class PublicationMethodCallHandler() :
                 "loadPublication" -> {
                     val args = call.arguments as List<Any?>
                     val pubUrlStr = args[0] as String
-
                     val publication =
                         ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
                             Log.e(
                                 TAG,
                                 "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
                             )
+
                             // TODO: errorCode doesn't look right
-                            return@launch result.error(
+                            result.error(
                                 "openPublication",
                                 error.message,
                                 error.cause
                             )
+
+                            return@launch
                         }
 
                     val pubJsonManifest =
@@ -68,14 +71,14 @@ internal class PublicationMethodCallHandler() :
                                 TAG,
                                 "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
                             )
-                            return@launch result.error(
+                            result.error(
                                 "openPublication",
                                 error.message,
                                 error.cause
                             )
-                        }
 
-                    // TODO: Initialize other necessary resources to prepare for reading this publication.
+                            return@launch
+                        }
 
                     val pubJsonManifest =
                         publication.manifest.toJSON().toString().replace("\\/", "/")
@@ -100,6 +103,11 @@ internal class PublicationMethodCallHandler() :
                             TAG,
                             "ttsEnable: Cannot enable TTS for un-opened publication. pubUrl=$pubUrl"
                         )
+                        result.error(
+                            "ttsEnable",
+                            "ttsEnable: Cannot enable TTS for un-opened publication. pubUrl=$pubUrl",
+                            null
+                        )
                         return@launch
                     }
 
@@ -119,11 +127,16 @@ internal class PublicationMethodCallHandler() :
                 "ttsSetPreferences" -> {
                     val args = call.arguments as Map<String, Any>
                     val prefs = androidTtsPreferencesFromMap(args)
+
                     try {
                         ReadiumReader.ttsSetPreferences(prefs)
                         result.success(null)
                     } catch (e: Exception) {
-                        result.error("ttsSetPreferences", "Failed to set preferences", e.message)
+                        result.error(
+                            "ttsSetPreferences",
+                            "Failed to set preferences",
+                            e.message
+                        )
                     }
                 }
 
@@ -234,34 +247,30 @@ internal class PublicationMethodCallHandler() :
                             throw Exception("getLinkContent: failed to read resource. ${it.message}")
                         }
 
-                        CoroutineScope(Dispatchers.Main).launch {
-                            if (asString) {
-                                result.success(String(resourceBytes))
-                            } else {
-                                result.success(resourceBytes)
-                            }
+                        if (asString) {
+                            result.success(String(resourceBytes))
+                        } else {
+                            result.success(resourceBytes)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Exception: $e")
                         Log.e(TAG, "${e.stackTrace}")
-                        CoroutineScope(Dispatchers.Main).launch {
-                            result.error(
-                                e.javaClass.toString(),
-                                e.toString(),
-                                e.stackTraceToString()
-                            )
-                        }
+
+                        result.error(
+                            e.javaClass.toString(),
+                            e.toString(),
+                            e.stackTraceToString()
+                        )
                     }
                 }
 
                 "audioEnable" -> {
                     val args = call.arguments as List<*>
                     // 0 is AudioPreferences
-                    val prefsStr = args[0] as String?
+                    val prefs = args[0] as Map<String, Any>?
                     val locatorStr = args[1] as String?
                     val publication = ReadiumReader.currentPublication
-                    val preferences =
-                        prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
+                    val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
                     // TODO: Save preferences, on ReadiumReader?
                     val exoPreferences =
                         preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
@@ -273,7 +282,6 @@ internal class PublicationMethodCallHandler() :
                     }
 
                     ReadiumReader.audioEnable(locator, exoPreferences)
-
                     result.success(null)
                 }
 
@@ -284,7 +292,9 @@ internal class PublicationMethodCallHandler() :
                     // TODO: Save preferences, on ReadiumReader?
                     val exoPreferences =
                         preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+
                     ReadiumReader.audioUpdatePreferences(exoPreferences)
+
                     result.success(null)
                 }
 

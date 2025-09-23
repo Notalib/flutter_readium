@@ -5,15 +5,19 @@ import android.util.Log
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
+import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
+import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.navigator.media.audio.AudioNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -35,7 +39,7 @@ class AudiobookNavigator(
     initialLocator: Locator?,
     private var initialPreferences: ExoPlayerPreferences = ExoPlayerPreferences()
 ) : TimebasedNavigator(publication, timebasedListener, initialLocator) {
-    private var audioNavigator: AudioNavigator<*, *>? = null
+    private var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
     private var editor: ExoPlayerPreferencesEditor? = null
 
     val preferences: ExoPlayerPreferences?
@@ -46,7 +50,7 @@ class AudiobookNavigator(
 
     override suspend fun initNavigator() {
         // Create AudioNavigatorFactory
-        val navigatorFactory = AudioNavigatorFactory(
+        val navigatorFactory = ExoPlayerNavigatorFactory(
             publication,
             ExoPlayerEngineProvider(ReadiumReader.application)
         )
@@ -71,27 +75,37 @@ class AudiobookNavigator(
     }
 
     override fun play(fromLocator: Locator?) {
-        if (fromLocator != null) {
-            audioNavigator?.go(fromLocator)
-        }
+        mainScope.async {
+            if (fromLocator != null) {
+                audioNavigator?.go(fromLocator)
+            }
 
-        audioNavigator?.play()
+            audioNavigator?.play()
+        }
     }
 
     override fun pause() {
-        audioNavigator?.pause()
+        mainScope.async {
+            audioNavigator?.pause()
+        }
     }
 
     override fun resume() {
-        // TODO: Do we need to check if already playing?
-        audioNavigator?.play()
+        mainScope.async {
+            // TODO: Do we need to check if already playing?
+            audioNavigator?.play()
+        }
     }
 
     /// Updates Audio preferences, does not override current preferences if props are null
     fun updatePreferences(prefs: ExoPlayerPreferences) {
-        editor?.apply {
-            pitch.set(prefs.pitch)
-            speed.set(prefs.speed)
+        mainScope.async {
+            editor?.apply {
+                pitch.set(prefs.pitch)
+                speed.set(prefs.speed)
+
+                audioNavigator?.submitPreferences(preferences)
+            }
         }
     }
 
@@ -139,9 +153,11 @@ class AudiobookNavigator(
     override fun dispose() {
         super.dispose()
 
-        audioNavigator?.close()
-        audioNavigator = null
-        editor = null
+        mainScope.async {
+            audioNavigator?.close()
+            audioNavigator = null
+            editor = null
+        }
     }
 
     companion object {

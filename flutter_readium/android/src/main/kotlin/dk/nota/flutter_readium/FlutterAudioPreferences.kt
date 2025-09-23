@@ -37,5 +37,14 @@ data class FlutterAudioPreferences(
                 seekInterval = jsonObject.getDouble("seekInterval"),
             )
         }
+
+        fun fromMap(prefs: Map<String, Any>): FlutterAudioPreferences {
+            return FlutterAudioPreferences(
+                volume = prefs["volume"] as? Double ?: 1.0,
+                pitch = prefs["pitch"] as? Double ?: 1.0,
+                speed = prefs["speed"] as? Double ?: 1.0,
+                seekInterval = prefs["seekInterval"] as? Double ?: 30.0,
+            )
+        }
     }
 }

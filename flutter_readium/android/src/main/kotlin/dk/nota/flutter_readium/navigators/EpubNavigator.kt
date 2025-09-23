@@ -169,10 +169,10 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
                 (state[currentVisualCurrentLocatorKey] as? Locator)?.toJSON()?.toString()
             )
 
-            preferences?.let {
+            preferences?.let { prefs ->
                 putString(
                     epubPreferencesKey,
-                    Json.encodeToString(EpubPreferences.serializer(), it)
+                    Json.encodeToString(EpubPreferences.serializer(), prefs)
                 )
             }
         }
@@ -212,8 +212,8 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     override fun dispose() {
         super.dispose()
 
-        epubNavigator?.let {
-            it.parentFragmentManager.commitNow { remove(it) }
+        epubNavigator?.let { fragment ->
+            fragment.parentFragmentManager.commitNow { remove(fragment) }
         }
         epubNavigator = null
 

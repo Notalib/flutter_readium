@@ -51,7 +51,7 @@ class TTSNavigator(
     publication: Publication,
     timeBaseListener: TimebasedListener,
     initialLocator: Locator?,
-    private var preferences: AndroidTtsPreferences = AndroidTtsPreferences()
+    private var initialPreferences: AndroidTtsPreferences = AndroidTtsPreferences()
 ) : TimebasedNavigator(publication, timeBaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
@@ -61,6 +61,9 @@ class TTSNavigator(
         null
 
     private var editor: AndroidTtsPreferencesEditor? = null
+
+    private val preferences: AndroidTtsPreferences?
+        get() = editor?.preferences
 
     // in-memory cached state
     private val state = mutableMapOf<String, Any?>()
@@ -83,13 +86,13 @@ class TTSNavigator(
             val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
-                navigatorFactory.createNavigator(listener, firstVisibleLocator, preferences)
+                navigatorFactory.createNavigator(listener, firstVisibleLocator, initialPreferences)
                     .getOrElse {
                         Log.e(TAG, "ttsEnable: failed to create navigator: $it")
                         throw Exception("ttsEnable: failed to create navigator: $it")
                     }
 
-            editor = navigatorFactory.createPreferencesEditor(preferences)
+            editor = navigatorFactory.createPreferencesEditor(initialPreferences)
 
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
@@ -109,19 +112,25 @@ class TTSNavigator(
     }
 
     override fun play(fromLocator: Locator?) {
-        if (fromLocator != null) {
-            ttsNavigator?.go(fromLocator)
-        }
+        mainScope.async {
+            if (fromLocator != null) {
+                ttsNavigator?.go(fromLocator)
+            }
 
-        ttsNavigator?.play()
+            ttsNavigator?.play()
+        }
     }
 
     override fun pause() {
-        ttsNavigator?.pause()
+        mainScope.async {
+            ttsNavigator?.pause()
+        }
     }
 
     override fun resume() {
-        ttsNavigator?.play()
+        mainScope.async {
+            ttsNavigator?.play()
+        }
     }
 
     fun nextUtterance() = ttsNavigator?.skipToNextUtterance()
@@ -130,17 +139,21 @@ class TTSNavigator(
 
     /// Updates TTS preferences, does not override current preferences if props are null
     fun updatePreferences(prefs: AndroidTtsPreferences) {
-        editor?.apply {
-            voices.set(prefs.voices)
-            language.set(prefs.language)
-            pitch.set(prefs.pitch)
-            speed.set(prefs.speed)
+        mainScope.async {
+            editor?.apply {
+                voices.set(prefs.voices)
+                language.set(prefs.language)
+                pitch.set(prefs.pitch)
+                speed.set(prefs.speed)
+
+                ttsNavigator?.submitPreferences(preferences)
+            }
         }
     }
 
     fun setPreferredVoice(voiceId: String, lang: String?) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
-        val voices = preferences.voices?.toMutableMap() ?: mutableMapOf()
+        val voices = preferences?.voices?.toMutableMap() ?: mutableMapOf()
         // If no lang provided, assume client wants to override currently spoken language.
         val language =
             if (lang != null) Language(lang) else ttsNavigator?.settings?.value?.language
@@ -174,12 +187,12 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { (uttLocator, tokenLocator) ->
                 val decorations = mutableListOf<Decoration>()
-                utteranceStyle?.let {
+                utteranceStyle?.let { style ->
                     decorations.add(
                         Decoration(
                             id = TTS_DECORATION_ID_UTTERANCE,
                             locator = uttLocator,
-                            style = it,
+                            style = style,
                         )
                     )
                 }
@@ -213,9 +226,9 @@ class TTSNavigator(
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
-            .onEach {
-                onCurrentLocatorChanges(it)
-                state[currentTimebasedLocatorKey] = it
+            .onEach { locator ->
+                onCurrentLocatorChanges(locator)
+                state[currentTimebasedLocatorKey] = locator
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -228,10 +241,10 @@ class TTSNavigator(
                 (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
             )
 
-            editor?.preferences?.let {
+            preferences?.let { prefs ->
                 putString(
                     ttsPreferencesKey,
-                    Json.encodeToString(AndroidTtsPreferences.serializer(), it)
+                    Json.encodeToString(AndroidTtsPreferences.serializer(), prefs)
                 )
             }
         }
