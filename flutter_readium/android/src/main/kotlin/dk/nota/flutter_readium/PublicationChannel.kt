@@ -8,10 +8,8 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
@@ -160,7 +158,12 @@ internal class PublicationMethodCallHandler() :
 
                 "ttsGetAvailableVoices" -> {
                     val androidVoices = ReadiumReader.ttsGetAvailableVoices()
-                    val voicesJson = androidVoices?.map {
+                    if (androidVoices == null) {
+                        result.success(listOf<String>())
+                        return@launch
+                    }
+
+                    val voicesJson = androidVoices.map {
                         JSONObject().apply {
                             put("identifier", it.id.value)
                             put(
@@ -271,9 +274,7 @@ internal class PublicationMethodCallHandler() :
                     val locatorStr = args[1] as String?
                     val publication = ReadiumReader.currentPublication
                     val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
-                    // TODO: Save preferences, on ReadiumReader?
-                    val exoPreferences =
-                        preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+                        ?: FlutterAudioPreferences()
                     val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
 
                     if (publication == null) {
@@ -281,19 +282,17 @@ internal class PublicationMethodCallHandler() :
                         return@launch
                     }
 
-                    ReadiumReader.audioEnable(locator, exoPreferences)
+                    ReadiumReader.audioEnable(locator, preferences)
                     result.success(null)
                 }
 
                 "audioSetPreferences" -> {
                     val prefsStr = call.arguments as String?
                     val preferences =
-                        prefsStr?.let { FlutterAudioPreferences.fromJSON(JSONObject(it)) }
-                    // TODO: Save preferences, on ReadiumReader?
-                    val exoPreferences =
-                        preferences?.toExoPlayerPreferences() ?: ExoPlayerPreferences()
+                        prefsStr?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                            ?: FlutterAudioPreferences()
 
-                    ReadiumReader.audioUpdatePreferences(exoPreferences)
+                    ReadiumReader.audioUpdatePreferences(preferences)
 
                     result.success(null)
                 }

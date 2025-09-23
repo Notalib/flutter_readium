@@ -6,8 +6,6 @@ import android.util.Log
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -39,6 +37,10 @@ private const val TTS_DECORATION_ID_UTTERANCE = "tts-utterance"
 private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
+
+private const val utteranceStyleKey = "utteranceStyle"
+
+private const val currentRangeStyleKey = "currentRangeStyle"
 
 private const val ttsPreferencesKey = "ttsPreferences"
 
@@ -82,7 +84,7 @@ class TTSNavigator(
                 Log.d(TAG, "TtsListener::onStopRequested")
             }
         }
-        CoroutineScope(Dispatchers.Main).async {
+        mainScope.async {
             val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
@@ -99,12 +101,20 @@ class TTSNavigator(
         }.await()
     }
 
-    fun setUtteranceStyle(style: Decoration.Style?) {
-        utteranceStyle = style
-    }
+    fun setDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
+        utteranceStyle = uttStyle
+        currentRangeStyle = rangeStyle
 
-    fun setCurrentRangeStyle(style: Decoration.Style?) {
-        currentRangeStyle = style
+        val navigator = ttsNavigator
+        if (navigator == null) {
+            Log.d(TAG, ":setDecorationStyle: navigator is null")
+            return
+        }
+
+        val location = navigator.location.value
+        mainScope.async {
+            decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
+        }
     }
 
     override fun play() {
@@ -186,27 +196,7 @@ class TTSNavigator(
             .map { Pair(it.utteranceLocator, it.tokenLocator) }
             .distinctUntilChanged()
             .onEach { (uttLocator, tokenLocator) ->
-                val decorations = mutableListOf<Decoration>()
-                utteranceStyle?.let { style ->
-                    decorations.add(
-                        Decoration(
-                            id = TTS_DECORATION_ID_UTTERANCE,
-                            locator = uttLocator,
-                            style = style,
-                        )
-                    )
-                }
-                letIfBothNotNull(tokenLocator, currentRangeStyle)?.let { (locator, style) ->
-                    decorations.add(
-                        Decoration(
-                            id = TTS_DECORATION_ID_CURRENT_RANGE,
-                            locator = locator,
-                            style = style,
-                        )
-                    )
-                }
-
-                ReadiumReader.applyDecorations(decorations, group = "tts")
+                decorateCurrentUtterance(uttLocator, tokenLocator)
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -234,12 +224,44 @@ class TTSNavigator(
             .let { jobs.add(it) }
     }
 
+    private suspend fun decorateCurrentUtterance(uttLocator: Locator, tokenLocator: Locator?) {
+        val decorations = mutableListOf<Decoration>()
+        utteranceStyle?.let { style ->
+            decorations.add(
+                Decoration(
+                    id = TTS_DECORATION_ID_UTTERANCE,
+                    locator = uttLocator,
+                    style = style,
+                )
+            )
+        }
+        letIfBothNotNull(tokenLocator, currentRangeStyle)?.let { (locator, style) ->
+            decorations.add(
+                Decoration(
+                    id = TTS_DECORATION_ID_CURRENT_RANGE,
+                    locator = locator,
+                    style = style,
+                )
+            )
+        }
+
+        ReadiumReader.applyDecorations(decorations, group = "tts")
+    }
+
     override fun storeState(): Bundle {
         return Bundle().apply {
             putString(
                 currentTimebasedLocatorKey,
                 (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
             )
+
+            utteranceStyle?.let { utteranceStyle ->
+                putParcelable(utteranceStyleKey, utteranceStyle)
+            }
+
+            currentRangeStyle?.let { currentRangeStyle ->
+                putParcelable(currentRangeStyleKey, currentRangeStyle)
+            }
 
             preferences?.let { prefs ->
                 putString(
@@ -269,7 +291,13 @@ class TTSNavigator(
                 ?.let { Json.decodeFromString<AndroidTtsPreferences>(it) }
                 ?: AndroidTtsPreferences()
 
-            return TTSNavigator(publication, listener, locator, preferences)
+            val uttStyle = state.getParcelable<Decoration.Style>(utteranceStyleKey)
+            val rangeStyle = state.getParcelable<Decoration.Style>(currentRangeStyleKey)
+
+            return TTSNavigator(publication, listener, locator, preferences).apply {
+                utteranceStyle = uttStyle
+                currentRangeStyle = rangeStyle
+            }
         }
     }
 }

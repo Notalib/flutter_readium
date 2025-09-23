@@ -124,7 +124,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    internal fun goRight(animated: Boolean) {
+    fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
         if (navigator == null) {

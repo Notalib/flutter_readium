@@ -13,11 +13,14 @@ import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
@@ -28,7 +31,6 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
-import kotlin.collections.set
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EpubNavigator"
@@ -90,7 +92,8 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         }
 
     override suspend fun initNavigator() {
-        initialLocations = initialLocator?.locations?.let { if (canScroll(it)) it else null }
+        initialLocations =
+            initialLocator?.locations?.let { locations -> if (canScroll(locations)) locations else null }
 
         epubNavigator = EpubReaderFragment().apply {
             vm = EpubReaderViewModel().apply {
@@ -107,40 +110,49 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
     fun attachNavigator(fragmentManager: FragmentManager, viewGroup: ViewGroup) {
         val navigator = epubNavigator ?: return
-        fragmentManager.commitNow {
-            add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
-        }
-    }
-
-    fun go(locator: Locator, animated: Boolean) {
-        epubNavigator?.apply {
-            mainScope.launch {
-                afterFragmentStarted()
-                if (go(locator, animated)) {
-                    Log.d(TAG, "GO returned.")
-                } else {
-                    Log.w(TAG, "GO FAILED!")
-                }
+        mainScope.launch {
+            fragmentManager.commitNow {
+                add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
             }
         }
     }
 
-    fun updatePreferences(epubPrefs: EpubPreferences) {
+    fun go(locator: Locator, animated: Boolean) {
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.d(TAG, "::go - epubNavigator is null!")
+            return
+        }
+
+        mainScope.launch {
+            afterFragmentStarted()
+            if (navigator.go(locator, animated)) {
+                Log.d(TAG, "GO returned.")
+            } else {
+                Log.w(TAG, "GO FAILED!")
+            }
+        }
+    }
+
+    fun updatePreferences(preferences: EpubPreferences) {
         Log.d(TAG, "::setPreferences")
         if (editor == null) {
+            Log.e(TAG, "::setPreferences - editor is null!")
             return
         }
 
         try {
             editor?.apply {
-                fontFamily.set(epubPrefs.fontFamily)
-                fontSize.set(epubPrefs.fontSize)
-                fontWeight.set(epubPrefs.fontWeight)
-                scroll.set(epubPrefs.scroll)
-                backgroundColor.set(epubPrefs.backgroundColor)
-                textColor.set(epubPrefs.textColor)
+                fontFamily.set(preferences.fontFamily)
+                fontSize.set(preferences.fontSize)
+                fontWeight.set(preferences.fontWeight)
+                scroll.set(preferences.scroll)
+                backgroundColor.set(preferences.backgroundColor)
+                textColor.set(preferences.textColor)
 
-                epubNavigator?.updatePreferences(preferences)
+                mainScope.launch {
+                    epubNavigator?.updatePreferences(preferences)
+                }
                 state[epubPreferencesKey] = preferences
             }
         } catch (ex: Exception) {
@@ -149,7 +161,12 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     override fun setupNavigatorListeners() {
-        val navigator = epubNavigator ?: return
+        val navigator = epubNavigator
+
+        if (navigator == null) {
+            Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
+            return
+        }
 
         navigator.currentLocator!!
             .throttleLatest(100.milliseconds)
@@ -212,30 +229,48 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     override fun dispose() {
         super.dispose()
 
-        epubNavigator?.let { fragment ->
-            fragment.parentFragmentManager.commitNow { remove(fragment) }
+        mainScope.launch {
+            epubNavigator?.let { fragment ->
+                fragment.parentFragmentManager.commitNow { remove(fragment) }
+            }
+
+            mainScope.coroutineContext.cancelChildren()
+            epubNavigator = null
         }
-        epubNavigator = null
 
         state.clear()
     }
 
     suspend fun evaluateJavascript(script: String): String? {
-        val navigator = epubNavigator ?: return null
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.e(TAG, "::evaluateJavascript - epubNavigator is null!")
+            return null
+        }
 
         afterFragmentStarted()
-        return navigator.evaluateJavascript(script)
+        return withContext(mainScope.coroutineContext) {
+            navigator.evaluateJavascript(script)
+        }
     }
 
-    suspend fun goLeft(animated: Boolean) {
-        val navigator = epubNavigator ?: return
+    fun goLeft(animated: Boolean) {
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.e(TAG, "::goLeft - epubNavigator is null!")
+            return
+        }
 
         Log.d(TAG, "::goLeft")
         navigator.goLeft(animated)
     }
 
-    suspend fun goRight(animated: Boolean) {
-        val navigator = epubNavigator ?: return
+    fun goRight(animated: Boolean) {
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.e(TAG, "::goRight - epubNavigator is null!")
+            return
+        }
 
         Log.d(TAG, "::goRight")
         navigator.goRight(animated)
@@ -248,7 +283,9 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     suspend fun isReaderReady(): Boolean {
-        return epubNavigator?.isReaderReady() ?: false
+        return withContext(mainScope.coroutineContext) {
+            epubNavigator?.isReaderReady() ?: false
+        }
     }
 
     suspend fun getLocatorFragments(locator: Locator): Locator? {
@@ -276,16 +313,24 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
-        return epubNavigator?.firstVisibleElementLocator()
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.e(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
+            return null
+        }
+
+        return withContext(mainScope.coroutineContext) {
+            navigator.firstVisibleElementLocator()
+        }
     }
 
-    fun applyDecorations(
+    suspend fun applyDecorations(
         decorations: List<Decoration>,
         group: String
     ) {
-        mainScope.launch {
+        mainScope.async {
             epubNavigator?.applyDecorations(decorations, group)
-        }
+        }.await()
     }
 
     private suspend fun scrollToLocations(
@@ -300,17 +345,18 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     suspend fun goToLocator(locator: Locator, animated: Boolean) {
         val locations = locator.locations
         val shouldScroll = canScroll(locations)
+        val locatorHref = locator.href
         val currentHref = currentLocator?.value?.href
-        val shouldGo = currentHref?.isEquivalent(locator.href) == false
+        val shouldGo = currentHref?.isEquivalent(locatorHref) == false
 
         if (shouldGo) {
-            Log.d(TAG, "::goToLocator: Go to ${locator.href} from ${currentHref}")
+            Log.d(TAG, "::goToLocator: Go to $locatorHref from $currentHref")
             go(locator, animated)
         } else if (!shouldScroll) {
-            Log.w(TAG, "::goToLocator: Already at ${locator.href}, no scroll target, go to start")
+            Log.w(TAG, "::goToLocator: Already at $locatorHref, no scroll target, go to start")
             scrollToLocations(Locator.Locations(progression = 0.0), true)
         } else {
-            Log.d(TAG, "::goToLocator: Don't go to ${locator.href}, already there")
+            Log.d(TAG, "::goToLocator: Don't go to $locatorHref, already there")
         }
         if (shouldScroll) {
             scrollToLocations(locations, false)
@@ -324,13 +370,13 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             state: Bundle
         ): EpubNavigator {
             val locator = state.getString(currentVisualCurrentLocatorKey)
-                ?.let { Locator.fromJSON(JSONObject(it)) }
+                ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences = state.getString(epubPreferencesKey)
-                ?.let { Json.decodeFromString<EpubPreferences>(it) } ?: EpubPreferences()
+                ?.let { string -> Json.decodeFromString<EpubPreferences>(string) } ?: EpubPreferences()
 
-            Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences");
+            Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 
-            return EpubNavigator(publication, locator, listener,preferences)
+            return EpubNavigator(publication, locator, listener, preferences)
         }
     }
 }

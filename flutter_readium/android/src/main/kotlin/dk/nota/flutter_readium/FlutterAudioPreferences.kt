@@ -10,7 +10,7 @@ data class FlutterAudioPreferences(
     val volume: Double? = null,
     val pitch: Double? = null,
     val speed: Double? = null,
-    val seekInterval: Double? = 30.0,
+    val seekInterval: Double = 30.0,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
 
     override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
@@ -18,7 +18,7 @@ data class FlutterAudioPreferences(
             volume = other.volume ?: volume,
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
-            seekInterval = other.seekInterval ?: seekInterval
+            seekInterval = other.seekInterval
         )
 
     fun toExoPlayerPreferences(): ExoPlayerPreferences {
@@ -29,6 +29,10 @@ data class FlutterAudioPreferences(
     }
 
     companion object {
+        fun fromJSON(json: String): FlutterAudioPreferences {
+            return fromJSON(JSONObject(json))
+        }
+
         fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences {
             return FlutterAudioPreferences(
                 volume = jsonObject.getDouble("volume"),
@@ -36,6 +40,15 @@ data class FlutterAudioPreferences(
                 speed = jsonObject.getDouble("speed"),
                 seekInterval = jsonObject.getDouble("seekInterval"),
             )
+        }
+
+        fun toJSON(preferences: FlutterAudioPreferences): JSONObject {
+            val jsonObject = JSONObject()
+            jsonObject.put("volume", preferences.volume)
+            jsonObject.put("pitch", preferences.pitch)
+            jsonObject.put("speed", preferences.speed)
+            jsonObject.put("seekInterval", preferences.seekInterval)
+            return jsonObject
         }
 
         fun fromMap(prefs: Map<String, Any>): FlutterAudioPreferences {

@@ -2,6 +2,7 @@ package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
 import android.util.Log
+import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
@@ -10,21 +11,19 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferencesEditor
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
-import org.readium.navigator.media.audio.AudioNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
 
@@ -37,13 +36,9 @@ class AudiobookNavigator(
     publication: Publication,
     timebasedListener: TimebasedListener,
     initialLocator: Locator?,
-    private var initialPreferences: ExoPlayerPreferences = ExoPlayerPreferences()
+    private var preferences: FlutterAudioPreferences
 ) : TimebasedNavigator(publication, timebasedListener, initialLocator) {
     private var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
-    private var editor: ExoPlayerPreferencesEditor? = null
-
-    val preferences: ExoPlayerPreferences?
-        get() = editor?.preferences
 
     // in-memory cached state
     private val state = mutableMapOf<String, Any?>()
@@ -63,13 +58,11 @@ class AudiobookNavigator(
 
         audioNavigator = navigatorFactory.createNavigator(
             this@AudiobookNavigator.initialLocator,
-            initialPreferences
+            preferences.toExoPlayerPreferences()
         ).getOrElse { error ->
             Log.e(TAG, ":initNavigator - $error")
             throw Exception(PublicationError.invoke(error).message)
         }
-
-        editor = navigatorFactory.createAudioPreferencesEditor(initialPreferences)
 
         setupNavigatorListeners()
     }
@@ -97,15 +90,24 @@ class AudiobookNavigator(
         }
     }
 
-    /// Updates Audio preferences, does not override current preferences if props are null
-    fun updatePreferences(prefs: ExoPlayerPreferences) {
+    fun goBack() {
         mainScope.async {
-            editor?.apply {
-                pitch.set(prefs.pitch)
-                speed.set(prefs.speed)
+            audioNavigator?.skip((-preferences.seekInterval).seconds)
+        }
+    }
 
-                audioNavigator?.submitPreferences(preferences)
-            }
+    fun goForward() {
+        mainScope.async {
+            audioNavigator?.skip((preferences.seekInterval).seconds)
+        }
+    }
+
+    /// Updates Audio preferences, does not override current preferences if props are null
+    fun updatePreferences(prefs: FlutterAudioPreferences) {
+        preferences = preferences + prefs
+
+        mainScope.async {
+            audioNavigator?.submitPreferences(preferences.toExoPlayerPreferences())
         }
     }
 
@@ -141,12 +143,10 @@ class AudiobookNavigator(
                 (state[currentTimebaseLocatorKey] as? Locator)?.toJSON()?.toString()
             )
 
-            preferences?.let {
-                putString(
-                    audioPreferencesKey,
-                    Json.encodeToString(ExoPlayerPreferences.serializer(), it)
-                )
-            }
+            putString(
+                audioPreferencesKey,
+                FlutterAudioPreferences.toJSON(preferences).toString()
+            )
         }
     }
 
@@ -156,7 +156,6 @@ class AudiobookNavigator(
         mainScope.async {
             audioNavigator?.close()
             audioNavigator = null
-            editor = null
         }
     }
 
@@ -167,9 +166,10 @@ class AudiobookNavigator(
             state: Bundle
         ): AudiobookNavigator {
             val locator = state.getString(currentTimebaseLocatorKey)
-                ?.let { Locator.fromJSON(JSONObject(it)) }
+                ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences = state.getString(audioPreferencesKey)
-                ?.let { Json.decodeFromString<ExoPlayerPreferences>(it) } ?: ExoPlayerPreferences()
+                ?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                ?: FlutterAudioPreferences()
 
             return AudiobookNavigator(publication, listener, locator, preferences)
         }

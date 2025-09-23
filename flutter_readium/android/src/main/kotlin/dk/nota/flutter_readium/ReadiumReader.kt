@@ -20,7 +20,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
@@ -485,7 +484,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         mainScope.async {
             currentPublication?.let {
                 // TODO: Get initial locator
-                TTSNavigator(it, this@ReadiumReader, null, ttsPrefs).apply { initNavigator() }
+                ttsNavigator =
+                    TTSNavigator(it, this@ReadiumReader, null, ttsPrefs).apply { initNavigator() }
             } ?: throw Exception("Publication not opened cannot enable tts")
         }.await()
     }
@@ -496,10 +496,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        ttsNavigator?.let {
-            it.setUtteranceStyle(uttStyle)
-            it.setCurrentRangeStyle(rangeStyle)
-        } ?: throw Exception("TTS is not enabled, can't set decoration style")
+        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle) ?: throw Exception("TTS is not enabled, can't set decoration style")
     }
 
     fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
@@ -513,13 +510,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun play(fromLocator: Locator?) {
-        // If using TTS and no fromLocator given, start from current visible locator.
-        if (fromLocator == null && ttsNavigator != null) {
-            currentReaderWidget?.getFirstVisibleLocator()
-        }
+        mainScope.async {
+            // If using TTS and no fromLocator given, start from current visible locator.
+            if (fromLocator == null && ttsNavigator != null) {
+                currentReaderWidget?.getFirstVisibleLocator()
+            }
 
-        audiobookNavigator?.play(fromLocator)
-        ttsNavigator?.play(fromLocator)
+            audiobookNavigator?.play(fromLocator)
+            ttsNavigator?.play(fromLocator)
+        }.await()
     }
 
     fun pause() {
@@ -533,27 +532,29 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun stop() {
-        audiobookNavigator?.pause()
-        audiobookNavigator?.dispose()
-        ttsNavigator?.dispose()
+        mainScope.launch {
+            audiobookNavigator?.pause()
+            audiobookNavigator?.dispose()
+            audiobookNavigator = null
+            ttsNavigator?.dispose()
+            ttsNavigator = null
 
-        // Remove any current TTS decorations
-        epubNavigator?.applyDecorations(emptyList(), "tts")
-    }
-
-    fun next() {
-        // TODO: seek by audioPreferences.seekInterval
-        //audioNavigator?.seekBy(audioPreferences.seekInterval)
-        ttsNavigator?.nextUtterance()
+            // Remove any current TTS decorations
+            epubNavigator?.applyDecorations(emptyList(), "tts")
+        }
     }
 
     fun previous() {
-        // TODO: seek by audioPreferences.seekInterval
-        //audioNavigator?.seekBy(-1 * audioPreferences.seekInterval)
+        audiobookNavigator?.goBack()
         ttsNavigator?.previousUtterance()
     }
 
-    suspend fun audioEnable(initialLocator: Locator?, exoPreferences: ExoPlayerPreferences) {
+    fun next() {
+        audiobookNavigator?.goForward()
+        ttsNavigator?.nextUtterance()
+    }
+
+    suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         mainScope.async {
             currentPublication?.let {
                 // TODO: Handle karaoke books, this only works for plain audiobooks.
@@ -561,7 +562,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                     it,
                     this@ReadiumReader,
                     initialLocator,
-                    exoPreferences
+                    preferences
                 )
 
                 audiobookNavigator?.initNavigator()
@@ -571,9 +572,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }.await()
     }
 
-    suspend fun audioUpdatePreferences(exoPreferences: ExoPlayerPreferences) {
+    suspend fun audioUpdatePreferences(preferences: FlutterAudioPreferences) {
         mainScope.async {
-            audiobookNavigator?.updatePreferences(exoPreferences)
+            audiobookNavigator?.updatePreferences(preferences)
                 ?: throw Exception("Audio not enabled, cannot update preferences")
         }.await()
     }
@@ -582,9 +583,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         decorations: List<Decoration>,
         group: String
     ) {
-        mainScope.async {
-            epubNavigator?.applyDecorations(decorations, group)
-        }.await()
+        epubNavigator?.applyDecorations(decorations, group)
     }
 
     override fun onPageLoaded() {
@@ -635,11 +634,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         epubNavigator?.go(locator, animated)
     }
 
-    suspend fun epubGoLeft(animated: Boolean) {
+    fun epubGoLeft(animated: Boolean) {
         epubNavigator?.goLeft(animated)
     }
 
-    suspend fun epubGoRight(animated: Boolean) {
+    fun epubGoRight(animated: Boolean) {
         epubNavigator?.goRight(animated)
     }
 
