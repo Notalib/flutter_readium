@@ -44,9 +44,7 @@ private const val currentRangeStyleKey = "currentRangeStyle"
 
 private const val ttsPreferencesKey = "ttsPreferences"
 
-// TODO: Send audio-locator event to dart on locator change.
 // TODO: Extend locator with chapter info
-// TODO: Common interface for audio and TTS navigator.
 
 @OptIn(ExperimentalReadiumApi::class)
 class TTSNavigator(
@@ -186,7 +184,6 @@ class TTSNavigator(
         navigator.playback
             .throttleLatest(100.milliseconds)
             .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
-            .distinctUntilChanged()
             .onEach { onPlaybackStateChanged(it) }
             .launchIn(mainScope)
             .let { jobs.add(it) }

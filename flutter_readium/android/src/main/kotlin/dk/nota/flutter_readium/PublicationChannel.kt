@@ -19,9 +19,6 @@ import org.readium.r2.shared.util.getOrElse
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-
-internal const val audioLocatorChannelName = "dk.nota.flutter_readium/audio-locator"
-
 internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
 
 internal class PublicationMethodCallHandler() :

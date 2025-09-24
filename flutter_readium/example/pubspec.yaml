@@ -21,7 +21,6 @@ dependencies:
     # the parent directory to use the current plugin's version.
     path: ../
 
-  native_device_orientation:
   path:
   path_provider:
   pointer_interceptor:

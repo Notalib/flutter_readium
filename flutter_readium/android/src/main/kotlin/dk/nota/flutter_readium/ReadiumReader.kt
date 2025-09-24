@@ -9,10 +9,13 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutter_readium.events.AudioLocatorEventChannel
+import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import dk.nota.flutter_readium.navigators.TimebasedNavigator
+import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +74,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private var appRef: WeakReference<Application>? = null
 
+    private var audioLocatorEventChanel: AudioLocatorEventChannel? = null
+
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
     private var savedStateRef: WeakReference<SavedStateRegistry>? = null
@@ -125,9 +130,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
     // Initialize from plugin or anywhere you have an Application or Context.
-    fun attach(activity: Activity) {
+    fun attach(activity: Activity, messenger: BinaryMessenger) {
         unwrapToApplication(activity)
             ?.let { appRef = WeakReference(it) }
+
+        audioLocatorEventChanel = AudioLocatorEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -235,6 +242,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         readerViewRef?.clear()
         readerViewRef = null
 
+        audioLocatorEventChanel?.dispose()
+        audioLocatorEventChanel = null
+
         mainScope.coroutineContext.cancelChildren()
     }
 
@@ -260,6 +270,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         set(value) {
             state[currentPublicationUrlKey] = value
         }
+
+    private var isReadyEventChannel: EpubIsReadyEventChannel? = null
 
     private suspend fun assetToPublication(
         asset: Asset
@@ -440,16 +452,26 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
+
+        mainScope.launch {
+            audioLocatorEventChanel!!.sendEvent( locator)
+        }
     }
 
     suspend fun epubEnable(
         initialLocator: Locator?,
-        epubPrefs: EpubPreferences,
-        fragmentManager: FragmentManager? = null,
-        viewGroup: ViewGroup? = null
+        initialPreferences: EpubPreferences,
+        messenger: BinaryMessenger,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget
     ) {
         val pub = currentPublication
             ?: throw Exception("Publication not opened cannot enable epub")
+
+        isReadyEventChannel?.dispose()
+        isReadyEventChannel = EpubIsReadyEventChannel(messenger)
+        currentReaderWidget = readerWidget
 
         // TODO: Check if pub is an epub. -- pub.conformsTo(Publication.Profile.EPUB)
         epubNavigator?.let {
@@ -457,7 +479,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             return
         } // Already enabled - assume from restored state.
 
-        EpubNavigator(pub, initialLocator, this, epubPrefs).apply {
+        EpubNavigator(pub, initialLocator, this, initialPreferences).apply {
             initNavigator()
             epubNavigator = this
             attachEpubNavigator(fragmentManager, viewGroup)
@@ -476,8 +498,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun epubClose() {
+        currentReaderWidget = null
         epubNavigator?.dispose()
         epubNavigator = null
+
+        isReadyEventChannel?.dispose()
+        isReadyEventChannel = null
     }
 
     suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
@@ -496,7 +522,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle) ?: throw Exception("TTS is not enabled, can't set decoration style")
+        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
+            ?: throw Exception("TTS is not enabled, can't set decoration style")
     }
 
     fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
@@ -608,6 +635,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     override fun onVisualReaderIsReady() {
         currentReaderWidget?.onVisualReaderIsReady()
+
+        isReadyEventChannel?.sendEvent(true)
     }
 
     suspend fun getFirstVisibleLocator(): Locator? {

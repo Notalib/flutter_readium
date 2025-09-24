@@ -78,6 +78,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         if (publication.conformsToReadiumAudiobook) {
           await instance.audioEnable(prefs: AudioPreferences(speed: 2.5));
         }
+
         emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));

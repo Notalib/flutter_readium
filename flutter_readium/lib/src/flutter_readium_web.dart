@@ -185,36 +185,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) async {
-    R2Log.d('ttsStart not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsStop() async {
-    R2Log.d('ttsStop not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsPause() async {
-    R2Log.d('ttsPause not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsResume() async {
-    R2Log.d('ttsResume not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsNext() async {
-    R2Log.d('ttsNext not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsPrevious() async {
-    R2Log.d('ttsPrevious not implemented in web version');
-  }
-
-  @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
     R2Log.d('ttsGetAvailableVoices not implemented in web version');
     return [];

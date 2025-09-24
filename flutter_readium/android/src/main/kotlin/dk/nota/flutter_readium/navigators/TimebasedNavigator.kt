@@ -1,9 +1,12 @@
 package dk.nota.flutter_readium.navigators
 
+import android.util.Log
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+
+private const val TAG = "TimebasedNavigator"
 
 @OptIn(ExperimentalReadiumApi::class)
 abstract class TimebasedNavigator(
@@ -34,12 +37,15 @@ abstract class TimebasedNavigator(
             playbackState = PlaybackState.Buffering
         } else if (pb.state is MediaNavigator.State.Failure) {
             playbackState = PlaybackState.Buffering
+        } else if (pb.state is MediaNavigator.State.Failure) {
+            playbackState = PlaybackState.Failure
         }
 
         timebasedListener.onTimebasedPlaybackStateChanged(playbackState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, ": onCurrentLocatorChanges: $locator")
         timebasedListener.onTimebasedCurrentLocatorChanges(locator)
     }
 

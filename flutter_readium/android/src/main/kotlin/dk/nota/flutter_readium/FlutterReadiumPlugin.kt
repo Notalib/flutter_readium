@@ -6,6 +6,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -21,19 +22,18 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     /// This local reference serves to register the plugin with the Flutter Engine and unregister it
     /// when the Flutter Engine is detached from the Activity
     private lateinit var publicationChannel: MethodChannel
-    private lateinit var audioLocatorChannel: MethodChannel
-    private lateinit var readerStatusChannel: MethodChannel
-
     private lateinit var publicationMethodCallHandler: PublicationMethodCallHandler
+
+    private lateinit var binaryMessenger: BinaryMessenger
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
-        val messenger = flutterPluginBinding.binaryMessenger
+        binaryMessenger = flutterPluginBinding.binaryMessenger
 
         // Register reader view factory
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             viewTypeChannelName,
-            ReadiumReaderViewFactory(messenger)
+            ReadiumReaderViewFactory(binaryMessenger)
         )
 
         // TODO: Remove this, just for debugging.
@@ -47,11 +47,8 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
 
         // Setup publication channel
         publicationMethodCallHandler = PublicationMethodCallHandler()
-        publicationChannel = MethodChannel(messenger, publicationChannelName)
+        publicationChannel = MethodChannel(binaryMessenger, publicationChannelName)
         publicationChannel.setMethodCallHandler(publicationMethodCallHandler)
-
-        audioLocatorChannel = MethodChannel(messenger, audioLocatorChannelName)
-        readerStatusChannel = MethodChannel(messenger, readerStatusChannelName)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -87,7 +84,7 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         Log.d(TAG, "onAttachedToActivity")
 
-        ReadiumReader.attach(binding.activity)
+        ReadiumReader.attach(binding.activity, binaryMessenger)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {

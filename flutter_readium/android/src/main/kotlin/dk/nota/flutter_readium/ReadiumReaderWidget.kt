@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
+import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
+import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
@@ -23,7 +25,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -31,8 +32,6 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "ReadiumReaderView"
-
-internal const val textLocatorEventChannelName = "dk.nota.flutter_readium/text-locator"
 internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -42,13 +41,11 @@ class ReadiumReaderWidget(
     creationParams: Map<String?, Any?>,
     messenger: BinaryMessenger,
     attrs: AttributeSet? = null
-) : PlatformView, MethodChannel.MethodCallHandler, EventChannel.StreamHandler,
+) : PlatformView, MethodChannel.MethodCallHandler,
     EpubReaderFragment.Listener, EpubNavigator.VisualListener {
 
     private val channel: ReadiumReaderChannel
-    private val eventChannel: EventChannel
-    private var eventSink: EventChannel.EventSink? = null
-
+    private var textLocatorEventChannel: TextLocatorEventChannel? = null
     private val layout: ViewGroup
 
     private val activity
@@ -65,10 +62,10 @@ class ReadiumReaderWidget(
 
     override fun dispose() {
         Log.d(TAG, "::dispose")
-        channel.setMethodCallHandler(null)
-
         ReadiumReader.epubClose()
-        ReadiumReader.currentReaderWidget = null
+        textLocatorEventChannel?.dispose()
+        textLocatorEventChannel = null
+        channel.setMethodCallHandler(null)
 
         mainScope.coroutineContext.cancelChildren()
         layout.removeAllViews()
@@ -97,7 +94,7 @@ class ReadiumReaderWidget(
         var initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
         val initialPreferences =
-            if (initPrefsMap == null) null else epubPreferencesFromMap(initPrefsMap, null)
+            if (initPrefsMap == null) EpubPreferences() else epubPreferencesFromMap(initPrefsMap, null)
         Log.d(TAG, "publication = $publication")
 
         layout = LinearLayout(context, attrs)
@@ -110,8 +107,7 @@ class ReadiumReaderWidget(
         channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
         channel.setMethodCallHandler(this)
 
-        eventChannel = EventChannel(messenger, textLocatorEventChannelName)
-        eventChannel.setStreamHandler(this)
+        textLocatorEventChannel = TextLocatorEventChannel(messenger)
 
         // By default reader contents are hidden from screen-readers, as not to trap them within it.
         // This can be toggled back on via the 'allowScreenReaderNavigation' creation param.
@@ -131,9 +127,11 @@ class ReadiumReaderWidget(
         mainScope.launch {
             ReadiumReader.epubEnable(
                 initialLocator,
-                initialPreferences ?: EpubPreferences(),
+                initialPreferences,
+                messenger,
                 fragmentManager,
-                layout
+                layout,
+                this@ReadiumReaderWidget,
             )
         }
     }
@@ -164,14 +162,6 @@ class ReadiumReaderWidget(
         Log.d(TAG, "::onVisualReaderIsReady")
     }
 
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        eventSink = events
-    }
-
-    override fun onCancel(arguments: Any?) {
-        eventSink = null
-    }
-
     suspend fun getFirstVisibleLocator(): Locator? = ReadiumReader.getFirstVisibleLocator()
 
     @Throws(IllegalArgumentException::class)
@@ -191,7 +181,7 @@ class ReadiumReaderWidget(
             }
 
             channel.onPageChanged(locatorWithFragments)
-            eventSink?.success(jsonEncode(locatorWithFragments.toJSON()))
+            textLocatorEventChannel?.sendEvent(locatorWithFragments)
         } catch (e: Exception) {
             Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed! $e")
         }
@@ -306,7 +296,8 @@ class ReadiumReaderWidget(
                     val locatorJson = JSONObject(args!!)
                     Log.d(TAG, "::====== $locatorJson")
 
-                    val locator = ReadiumReader.epubGetLocatorFragments(Locator.fromJSON(locatorJson)!!)
+                    val locator =
+                        ReadiumReader.epubGetLocatorFragments(Locator.fromJSON(locatorJson)!!)
                     Log.d(TAG, "::====== $locator")
 
                     result.success(jsonEncode(locator?.toJSON()))
@@ -325,12 +316,7 @@ class ReadiumReaderWidget(
                 }
 
                 "dispose" -> {
-                    layout.removeAllViews()
-                    ReadiumReader.currentReaderWidget = null
-                    ReadiumReader.epubClose()
-                    eventSink = null
-                    eventChannel.setStreamHandler(null)
-                    channel.setMethodCallHandler(null)
+                    dispose()
                     result.success(null)
                 }
 

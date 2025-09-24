@@ -123,4 +123,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Stream<Locator> get onAudioLocatorChanged {
     throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
   }
+
+  Stream<bool> get isReadyStream {
+    throw UnimplementedError('isReadyStream has not been implemented.');
+  }
 }

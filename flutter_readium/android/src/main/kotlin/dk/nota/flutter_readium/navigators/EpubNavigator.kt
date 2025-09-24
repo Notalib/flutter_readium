@@ -162,7 +162,6 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
     override fun setupNavigatorListeners() {
         val navigator = epubNavigator
-
         if (navigator == null) {
             Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
             return

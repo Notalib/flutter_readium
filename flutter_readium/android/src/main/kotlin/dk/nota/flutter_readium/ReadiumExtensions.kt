@@ -82,7 +82,7 @@ fun decorationStyleFromMap(decoMap: Map<String, String>?): Decoration.Style? {
 fun epubPreferencesFromMap(
     prefMap: Map<String, String>,
     defaults: EpubPreferences?,
-): EpubPreferences? {
+): EpubPreferences {
     try {
         val newPreferences = EpubPreferences(
             fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
@@ -98,7 +98,7 @@ fun epubPreferencesFromMap(
         return newPreferences
     } catch (ex: Exception) {
         Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
-        return null
+        return EpubPreferences()
     }
 }
 
