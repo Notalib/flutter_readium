@@ -198,10 +198,11 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         Log.d(TAG, "::onPageLoaded")
         visualListener.onPageLoaded()
 
-        mainScope.launch {
-            val locations = initialLocations
-            if (locations != null) {
-                initialLocations = null
+        val locations = initialLocations
+        if (locations != null) {
+            initialLocations = null
+
+            mainScope.launch {
                 scrollToLocations(locations, toStart = true)
                 visualListener.onVisualReaderIsReady()
             }
@@ -371,7 +372,8 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             val locator = state.getString(currentVisualCurrentLocatorKey)
                 ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences = state.getString(epubPreferencesKey)
-                ?.let { string -> Json.decodeFromString<EpubPreferences>(string) } ?: EpubPreferences()
+                ?.let { string -> Json.decodeFromString<EpubPreferences>(string) }
+                ?: EpubPreferences()
 
             Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 

@@ -78,7 +78,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
-  Stream<bool> get isReadyStream {
+  Stream<bool> get isReadyChanged {
     _isReadyStream ??= isReadyChannel.receiveBroadcastStream().map((dynamic event) => json.decode(event) as bool);
     return _isReadyStream!;
   }
