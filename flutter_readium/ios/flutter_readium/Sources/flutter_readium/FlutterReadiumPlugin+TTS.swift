@@ -12,7 +12,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     var engine: AVTTSEngine?
 
     guard let publication = getCurrentPublication() else {
-      throw LibraryError.bookNotFound
+      throw ReadiumError.notFound("No current publication")
     }
 
     self.synthesizer = PublicationSpeechSynthesizer(
@@ -123,7 +123,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
     /// Check that voice with given identifier exists
     guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
-      throw LibraryError.voiceNotFound
+      throw ReadiumError.voiceNotFound
     }
 
     /// Changes will be applied for the next utterance.
@@ -182,7 +182,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   private func setupNowPlaying() {
       Task {
         guard let publication = getCurrentPublication() else {
-          throw LibraryError.bookNotFound
+          throw ReadiumError.notFound("No current publication")
         }
           NowPlayingInfo.shared.media = await .init(
               title: publication.metadata.title ?? "",

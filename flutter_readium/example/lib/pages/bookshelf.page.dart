@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -176,7 +177,8 @@ class BookshelfPageState extends State<BookshelfPage> {
         padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
         child: InkWell(
           onTap: () {
-            final fakeInitialLocator = publication.locatorFromLink(publication.readingOrder[2]);
+            final fakeInitialLocator =
+                publication.locatorFromLink(publication.readingOrder[math.min(2, publication.readingOrder.length)]);
 
             try {
               context

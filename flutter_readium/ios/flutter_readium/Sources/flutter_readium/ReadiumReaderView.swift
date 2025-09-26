@@ -1,7 +1,6 @@
 import ReadiumNavigator
 import ReadiumAdapterGCDWebServer
 import ReadiumShared
-import ReadiumStreamer
 import Flutter
 import UIKit
 import WebKit

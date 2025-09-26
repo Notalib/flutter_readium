@@ -52,7 +52,7 @@ class ReaderWidget extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 10),
-                      Text(state.error.toString()),
+                      Text(state.errorDebugDescription())
                     ],
                   ),
                 ),

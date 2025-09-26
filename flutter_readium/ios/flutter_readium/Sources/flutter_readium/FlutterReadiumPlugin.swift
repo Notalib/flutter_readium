@@ -76,20 +76,21 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let pubUrlStr = args[0] as! String
 
       Task.detached(priority: .high) {
-        guard let pub: Publication = await self.loadPublication(fromUrlStr: pubUrlStr, result: result) else {
-          // Loading publication failed and should have already called result function with an error.
-          // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
-          return
-        }
-        
-        // TODO: Check if a different publication is already open, and close it?
-        // TODO: Do any other necessary preloading for a book we're about to read. E.g. for audiobook create AudioNavigator?
-        currentPublication = pub
-
-        let jsonManifest = pub.jsonManifest
-
-        await MainActor.run {
-          result(jsonManifest)
+        do {
+          if (currentPublication != nil) {
+            self.closePublication()
+          }
+          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          currentPublication = pub
+          
+          let jsonManifest = pub.jsonManifest
+          await MainActor.run {
+            result(jsonManifest)
+          }
+        } catch let err as ReadiumError {
+          await MainActor.run {
+            result(err.toFlutterError())
+          }
         }
       }
     case "loadPublication":
@@ -97,17 +98,19 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let pubUrlStr = args[0] as! String
 
       Task.detached(priority: .high) {
-        guard let pub: Publication = await self.loadPublication(fromUrlStr: pubUrlStr, result: result) else {
-          // Loading publication failed and should have already called result function with an error.
-          // TODO: Consider exception handling on Flutter side, perhaps better to use Result<Publication, OpeningError>
-          return
-        }
-
-        let jsonManifest = pub.jsonManifest
-        pub.close()
-
-        await MainActor.run {
-          result(jsonManifest)
+        do {
+          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          
+          let jsonManifest = pub.jsonManifest
+          pub.close()
+          
+          await MainActor.run {
+            result(jsonManifest)
+          }
+        } catch let err as ReadiumError {
+          await MainActor.run {
+            result(err.toFlutterError())
+          }
         }
       }
     case "getLinkContent":
@@ -319,8 +322,7 @@ extension FlutterReadiumPlugin {
 
   private func loadPublication (
     fromUrlStr: String,
-    result: @escaping FlutterResult
-  ) async -> Publication? {
+  ) async -> Result<Publication, ReadiumError> {
     var pubUrlStr = fromUrlStr
     if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
       // Assume URLs without a supported prefix are local file paths.
@@ -329,18 +331,10 @@ extension FlutterReadiumPlugin {
 
     let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
     guard let url = URL(string: encodedUrlStr!) else {
-      result(FlutterError.init(
-        code: "InvalidArgument",
-        message: "Invalid publication URL: \(pubUrlStr)",
-        details: nil))
-      return nil
+      return .failure(ReadiumError.notFound("Invalid pub URL: \(pubUrlStr)"))
     }
     guard let absUrl = url.anyURL.absoluteURL else {
-      result(FlutterError.init(
-        code: "InvalidArgument",
-        message: "Invalid publication absoluteURL: \(url.absoluteString)",
-        details: nil))
-      return nil
+      return .failure(ReadiumError.notFound("Failed to get AbsoluteUrl: \(pubUrlStr)"))
     }
 
     print("Attempting to open publication at: \(absUrl)")
@@ -348,10 +342,10 @@ extension FlutterReadiumPlugin {
       let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
       let mediaType: String = pub.1.mediaType?.string ?? "unknown"
       print("Opened publication: identifier: \(pub.0.metadata.identifier ?? "[no-ident]") format: \(mediaType)")
-      return pub.0
-    } catch {
+      return .success(pub.0)
+    } catch let error {
       print("Failed to open publication: \(error)")
-      return nil
+      return .failure(error)
     }
   }
 
@@ -359,7 +353,7 @@ extension FlutterReadiumPlugin {
           at url: AbsoluteURL,
           allowUserInteraction: Bool,
           sender: UIViewController?
-      ) async throws -> (Publication, Format) {
+      ) async throws(ReadiumError) -> (Publication, Format) {
           do {
               let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
 
@@ -370,9 +364,8 @@ extension FlutterReadiumPlugin {
               ).get()
 
               return (publication, asset.format)
-
-          } catch {
-              throw LibraryError.openFailed(error)
+          } catch let err {
+            throw err.toReadiumError()
           }
       }
 

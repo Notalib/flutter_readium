@@ -47,6 +47,15 @@ class PublicationState {
 
   PublicationState loading() => copyWith(isLoading: true);
 
+  String errorDebugDescription() {
+    if (error is ReadiumException) {
+      ReadiumException re = error as ReadiumException;
+      return '${re.type}: ${re.message}';
+    } else {
+      return error.toString();
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'publication': publication?.toJson(),

@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../shared/readium_shared.dart';
+
 // TODO: use these exceptions as relevant on methodChannel failures.
 
 class ReadiumException implements Exception {
@@ -14,6 +16,19 @@ class ReadiumException implements Exception {
 
   @override
   String toString() => 'ReadiumException{$message}';
+
+  static ReadiumException fromPlatformException(PlatformException ex) {
+    final type = OpeningReadiumExceptionType.values.firstWhereOrNull((v) => v.name == ex.code);
+    return ReadiumException(ex.details ?? 'unknown', type: type);
+  }
+
+  static ReadiumException fromError(Object? err) {
+    if (err is PlatformException) {
+      return fromPlatformException(err);
+    } else {
+      return ReadiumException(err.toString(), type: err.runtimeType.toString());
+    }
+  }
 }
 
 class PublicationNotSetReadiumException extends ReadiumException {
@@ -34,12 +49,13 @@ class OfflineReadiumException extends ReadiumException {
 
 // Order must match native code.
 enum OpeningReadiumExceptionType {
-  unsupportedFormat,
+  formatNotSupported,
+  readingError,
   notFound,
-  parsingFailed,
   forbidden,
   unavailable,
   incorrectCredentials,
+  unknown,
 }
 
 class OpeningReadiumException extends ReadiumException {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
@@ -27,7 +28,10 @@ class FlutterReadium {
   }
 
   Future<Publication> openPublication(String pubUrl) {
-    return _platform.openPublication(pubUrl);
+    return _platform.openPublication(pubUrl).onError((err, _) {
+      debugPrint('OpenPublication error: ${err.toString()}');
+      throw ReadiumException.fromError(err);
+    });
   }
 
   Future<void> closePublication() {
