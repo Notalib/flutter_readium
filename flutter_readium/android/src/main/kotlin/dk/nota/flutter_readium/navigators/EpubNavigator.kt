@@ -167,15 +167,19 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             return
         }
 
-        navigator.currentLocator!!
-            .throttleLatest(100.milliseconds)
-            .distinctUntilChanged()
-            .onEach {
-                onCurrentLocatorChanges(it)
-                state[currentVisualCurrentLocatorKey] = it
-            }
-            .launchIn(CoroutineScope(Dispatchers.Main))
-            .let { jobs.add(it) }
+        val currentLocator = navigator.currentLocator
+        if (currentLocator != null) {
+            currentLocator.throttleLatest(100.milliseconds)
+                .distinctUntilChanged()
+                .onEach { locator ->
+                    onCurrentLocatorChanges(locator)
+                    state[currentVisualCurrentLocatorKey] = locator
+                }
+                .launchIn(CoroutineScope(Dispatchers.Main))
+                .let { jobs.add(it) }
+        } else {
+            Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
+        }
     }
 
     override fun storeState(): Bundle {
@@ -205,6 +209,10 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             mainScope.launch {
                 scrollToLocations(locations, toStart = true)
                 visualListener.onVisualReaderIsReady()
+
+                // Setup listeners after the reader is ready
+                // TODO: Is there a situation where we don't have initial locations, so this isn't called?
+                setupNavigatorListeners()
             }
         }
     }
@@ -223,6 +231,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
+        Log.d(TAG, "::onCurrentLocatorChanges: $locator")
         visualListener.onVisualCurrentLocationChanged(locator)
     }
 

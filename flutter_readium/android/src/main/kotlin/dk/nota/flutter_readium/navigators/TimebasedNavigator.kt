@@ -41,11 +41,28 @@ abstract class TimebasedNavigator(
             playbackState = PlaybackState.Failure
         }
 
+        Log.d(
+            TAG,
+            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$playbackState, index=${pb.index}"
+        )
+
         timebasedListener.onTimebasedPlaybackStateChanged(playbackState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
         Log.d(TAG, ": onCurrentLocatorChanges: $locator")
+        if (locator.locations.position == null) {
+            val index =
+                publication.readingOrder.indexOfFirst { it.href.toString() == locator.href.toString() }
+            if (index != -1) {
+                val newLocator = locator.copy(
+                    locations = locator.locations.copy(position = index + 1)
+                )
+                timebasedListener.onTimebasedCurrentLocatorChanges(newLocator)
+                return
+            }
+        }
+
         timebasedListener.onTimebasedCurrentLocatorChanges(locator)
     }
 

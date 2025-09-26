@@ -183,8 +183,12 @@ class TTSNavigator(
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
-            .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
-            .onEach { onPlaybackStateChanged(it) }
+            .distinctUntilChangedBy { pb ->
+                "${pb.state}|${pb.playWhenReady}"
+            }
+            .onEach { pb ->
+                onPlaybackStateChanged(pb)
+            }
             .launchIn(mainScope)
             .let { jobs.add(it) }
 

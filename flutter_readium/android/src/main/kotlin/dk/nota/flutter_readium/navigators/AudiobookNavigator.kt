@@ -120,17 +120,21 @@ class AudiobookNavigator(
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
-            .distinctUntilChangedBy { it -> "${it.state}|${it.playWhenReady}" }
-            .onEach { onPlaybackStateChanged(it) }
+            .distinctUntilChangedBy { pb ->
+                "${pb.state}|${pb.playWhenReady}"
+            }
+            .onEach { pb ->
+                onPlaybackStateChanged(pb)
+            }
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
-            .onEach {
-                onCurrentLocatorChanges(it)
-                state[currentTimebaseLocatorKey] = it
+            .onEach { locator ->
+                onCurrentLocatorChanges(locator)
+                state[currentTimebaseLocatorKey] = locator
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }

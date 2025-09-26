@@ -454,7 +454,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
 
         mainScope.launch {
-            audioLocatorEventChanel!!.sendEvent( locator)
+            audioLocatorEventChanel?.sendEvent( locator)
         }
     }
 
