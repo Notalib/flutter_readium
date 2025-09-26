@@ -52,8 +52,6 @@ PODS:
   - integration_test (0.0.1):
     - Flutter
   - Minizip (1.0.0)
-  - native_device_orientation (0.0.1):
-    - Flutter
   - package_info_plus (0.4.5):
     - Flutter
   - path_provider_foundation (0.0.1):
@@ -113,7 +111,6 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_readium (from `.symlinks/plugins/flutter_readium/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - native_device_orientation (from `.symlinks/plugins/native_device_orientation/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
@@ -150,8 +147,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_readium/ios"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
-  native_device_orientation:
-    :path: ".symlinks/plugins/native_device_orientation/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
@@ -185,7 +180,6 @@ SPEC CHECKSUMS:
   flutter_readium: 1d3f571cb9af7ac8535a85f79029e4294dca2897
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
-  native_device_orientation: e3580675687d5034770da198f6839ebf2122ef94
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   pointer_interceptor_ios: ec847ef8b0915778bed2b2cef636f4d177fa8eed
