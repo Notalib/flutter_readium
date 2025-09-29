@@ -16,12 +16,13 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
+import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.getOrElse
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -37,7 +38,7 @@ class AudiobookNavigator(
     timebasedListener: TimebasedListener,
     initialLocator: Locator?,
     private var preferences: FlutterAudioPreferences
-) : TimebasedNavigator(publication, timebasedListener, initialLocator) {
+) : TimebasedNavigator<AudioNavigator.Playback>(publication, timebasedListener, initialLocator) {
     private var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
 
     // in-memory cached state
@@ -90,13 +91,13 @@ class AudiobookNavigator(
         }
     }
 
-    fun goBack() {
+    override fun goBack() {
         mainScope.async {
             audioNavigator?.skip((-preferences.seekInterval).seconds)
         }
     }
 
-    fun goForward() {
+    override fun goForward() {
         mainScope.async {
             audioNavigator?.skip((preferences.seekInterval).seconds)
         }
@@ -138,6 +139,36 @@ class AudiobookNavigator(
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
+
+        mainScope.async {
+            navigator.settings
+                .collect { s ->
+                    Log.d(TAG, ": AudioNavigator settings changed: $s")
+                }
+        }
+    }
+
+    override fun onPlaybackStateChanged(pb: AudioNavigator.Playback) {
+        when (pb.state) {
+            is AudioNavigator.State.Failure<*> -> {
+                val audioState = pb.state as AudioNavigator.State.Failure<*>
+                val error = audioState.error
+
+                Log.e(
+                    TAG,
+                    ": onPlaybackStateChanged - audio error: Message=${error.message} cause=${error.cause}"
+                )
+
+                timebaseListener.onTimebasedPlaybackStateChanged(PlaybackState.Failure)
+                timebaseListener.onTimebasedPlaybackFailure(
+                    PublicationError.invoke(error)
+                )
+            }
+
+            else -> {
+                super.onPlaybackStateChanged(pb)
+            }
+        }
     }
 
     override fun storeState(): Bundle {

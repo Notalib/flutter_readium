@@ -187,8 +187,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
             if (bundle.getBoolean(epubEnabledKey)) {
                 Log.d(TAG, ":storeState - restore epub navigator")
-                bundle.getBundle(epubNavigatorStateKey)?.let {
-                    epubNavigator = EpubNavigator.restoreState(pub, this@ReadiumReader, it)
+                bundle.getBundle(epubNavigatorStateKey)?.let { state ->
+                    epubNavigator = EpubNavigator.restoreState(pub, this@ReadiumReader, state)
                         .apply {
                             initNavigator()
                             Log.d(TAG, ":storeState - epubNavigator restored")
@@ -199,8 +199,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             if (bundle.getBoolean(ttsEnabledKey)) {
                 // Restore TTS navigator
                 Log.d(TAG, ":storeState - restore tts navigator")
-                bundle.getBundle(ttsNavigatorStateKey)?.let {
-                    ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, it)
+                bundle.getBundle(ttsNavigatorStateKey)?.let { state ->
+                    ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, state)
                         .apply {
                             initNavigator()
                             Log.d(TAG, ":storeState - ttsNavigator restored")
@@ -211,9 +211,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             if (bundle.getBoolean(audioEnabledKey)) {
                 // Restore Audio navigator
                 Log.d(TAG, ":storeState - restore audio navigator")
-                bundle.getBundle(audioNavigatorStateKey)?.let {
+                bundle.getBundle(audioNavigatorStateKey)?.let { state ->
                     audiobookNavigator =
-                        AudiobookNavigator.restoreState(pub, this@ReadiumReader, it)
+                        AudiobookNavigator.restoreState(pub, this@ReadiumReader, state)
                             .apply {
                                 initNavigator()
                                 Log.d(TAG, ":storeState - audioNavigator restored")
@@ -313,7 +313,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             )
         }
 
-        return AbsoluteUrl.invoke(pubUrl)?.let { loadPublication(it) } ?: failure(
+        return AbsoluteUrl.invoke(pubUrl)?.let { pubUrl -> loadPublication(pubUrl) } ?: failure(
             PublicationError.Unexpected(
                 DebugError("Invalid Url")
             )
@@ -362,7 +362,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             )
         }
 
-        return AbsoluteUrl.invoke(pubUrl)?.let { openPublication(it) } ?: failure(
+        return AbsoluteUrl.invoke(pubUrl)?.let { pubUrl -> openPublication(pubUrl) } ?: failure(
             PublicationError.Unexpected(
                 DebugError("Invalid Url")
             )
@@ -450,11 +450,24 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         Log.d(TAG, ":onTimebasedPlaybackStateChanged $playbackState")
     }
 
+    override fun onTimebasedPlaybackFailure(error: PublicationError) {
+        Log.d(TAG, ":onTimebasedPlaybackFailure $error")
+        // TODO: Notify client
+    }
+
     override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
 
         mainScope.launch {
-            audioLocatorEventChanel?.sendEvent( locator)
+            audioLocatorEventChanel?.sendEvent(locator)
+        }
+    }
+
+    override fun onTimebasedLocationChanged(locator: Locator) {
+        Log.d(TAG, ":onTimebasedLocationChanged $locator")
+
+        mainScope.launch {
+            currentReaderWidget?.go(locator, true)
         }
     }
 
@@ -573,28 +586,30 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     fun previous() {
         audiobookNavigator?.goBack()
-        ttsNavigator?.previousUtterance()
+        ttsNavigator?.goBack()
     }
 
     fun next() {
         audiobookNavigator?.goForward()
-        ttsNavigator?.nextUtterance()
+        ttsNavigator?.goForward()
     }
 
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         mainScope.async {
-            currentPublication?.let {
+            currentPublication?.let { publication ->
                 // TODO: Handle karaoke books, this only works for plain audiobooks.
                 audiobookNavigator = AudiobookNavigator(
-                    it,
+                    publication,
                     this@ReadiumReader,
                     initialLocator,
                     preferences
-                )
+                ).apply {
+                    initNavigator()
 
-                audiobookNavigator?.initNavigator()
-                // TODO: Autoplay?
-                audiobookNavigator?.play()
+                    // TODO: Autoplay?
+                    play()
+                }
+
             } ?: throw Exception("Publication not opened")
         }.await()
     }

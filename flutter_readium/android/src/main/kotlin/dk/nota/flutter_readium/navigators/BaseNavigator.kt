@@ -13,7 +13,7 @@ import org.readium.r2.shared.publication.Publication
 private const val TAG = "Navigator"
 
 @OptIn(ExperimentalReadiumApi::class)
-abstract class Navigator(
+abstract class BaseNavigator(
     val publication: Publication,
     val initialLocator: Locator?
 ) {
@@ -32,6 +32,9 @@ abstract class Navigator(
         mainScope.coroutineContext.cancelChildren()
     }
 
+    /**
+     * Called when the current locator changes.
+     */
     abstract fun onCurrentLocatorChanges(locator: Locator)
 
     /**
@@ -39,6 +42,9 @@ abstract class Navigator(
      */
     protected abstract fun setupNavigatorListeners()
 
+    /**
+     * store the current state of the navigator
+     */
     abstract fun storeState(): Bundle
 }
 

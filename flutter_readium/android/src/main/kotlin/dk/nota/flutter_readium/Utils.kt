@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
@@ -68,3 +70,12 @@ fun unwrapToApplication(context: Context?): Application? {
 fun canScroll(locations: Locator.Locations) =
     locations.domRange != null || locations.cssSelector != null || locations.progression != null
 
+/**
+ * Run a suspend block with the given CoroutineScope's context.
+ */
+ suspend fun <T> withScope(
+    scope:  CoroutineScope,
+    block: suspend CoroutineScope.() -> T
+): T {
+    return withContext(scope.coroutineContext, block)
+}

@@ -22,7 +22,7 @@ internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
 
 internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler, TimebasedNavigator.TimebasedListener {
+    MethodChannel.MethodCallHandler {
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -299,13 +299,5 @@ internal class PublicationMethodCallHandler() :
                 }
             }
         }
-    }
-
-    override fun onTimebasedPlaybackStateChanged(playbackState: TimebasedNavigator.PlaybackState) {
-        Log.d(TAG, ":onTimebasedPlaybackStateChanged $playbackState")
-    }
-
-    override fun onTimebasedCurrentLocatorChanges(locator: Locator) {
-        Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator")
     }
 }

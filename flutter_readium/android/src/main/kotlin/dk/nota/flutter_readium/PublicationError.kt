@@ -6,6 +6,7 @@
 
 package dk.nota.flutter_readium
 
+import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Error
@@ -68,6 +69,12 @@ sealed class PublicationError(
                 is PublicationOpener.OpenError.FormatNotSupported ->
                     FormatNotSupported(error)
             }
+
+        operator fun invoke(error: ReadError): PublicationError =
+            Reading(error)
+
+        operator fun invoke(error: AudioEngine.Error): PublicationError =
+            Unexpected(error)
 
         operator fun invoke(error: AudioNavigatorFactory.Error): PublicationError =
             when (error) {

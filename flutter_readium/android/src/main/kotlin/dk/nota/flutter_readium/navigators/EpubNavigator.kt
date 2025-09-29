@@ -11,8 +11,7 @@ import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.jsonDecode
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
@@ -37,8 +35,12 @@ private const val TAG = "EpubNavigator"
 private const val currentVisualCurrentLocatorKey = "currentVisualCurrentLocator"
 private const val epubPreferencesKey = "epubPreferences"
 
+/**
+ * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
+ * It also listens to events from the fragment and forwards them to the VisualListener.
+ */
 @OptIn(ExperimentalReadiumApi::class)
-class EpubNavigator : Navigator, EpubReaderFragment.Listener {
+class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     private val initialPreferences: EpubPreferences
 
     constructor(
@@ -54,7 +56,13 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         this.state[epubPreferencesKey] = initialPreferences
     }
 
+    /**
+     * A VisualListener is used to listen to events from the Visual navigators like EpubNavigator.
+     */
     interface VisualListener {
+        /**
+         * Called when the page has loaded.
+         */
         fun onPageLoaded()
 
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
@@ -71,6 +79,9 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     private var epubNavigator: EpubReaderFragment? = null
     var editor: EpubPreferencesEditor? = null
 
+    /*
+     * The initial locations to scroll to when the navigator is ready.
+     */
     var initialLocations: Locator.Locations? = null
 
     val preferences: EpubPreferences?
@@ -93,7 +104,9 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
     override suspend fun initNavigator() {
         initialLocations =
-            initialLocator?.locations?.let { locations -> if (canScroll(locations)) locations else null }
+            initialLocator?.locations?.let { locations ->
+                if (canScroll(locations)) locations else null
+            }
 
         epubNavigator = EpubReaderFragment().apply {
             vm = EpubReaderViewModel().apply {
@@ -175,7 +188,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
                     onCurrentLocatorChanges(locator)
                     state[currentVisualCurrentLocatorKey] = locator
                 }
-                .launchIn(CoroutineScope(Dispatchers.Main))
+                .launchIn(mainScope)
                 .let { jobs.add(it) }
         } else {
             Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
@@ -208,13 +221,23 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
 
             mainScope.launch {
                 scrollToLocations(locations, toStart = true)
-                visualListener.onVisualReaderIsReady()
-
-                // Setup listeners after the reader is ready
-                // TODO: Is there a situation where we don't have initial locations, so this isn't called?
-                setupNavigatorListeners()
             }
         }
+
+        notifyIsReady()
+    }
+
+    private var hasNotifiedIsReady = false
+
+    /**
+     * Notify that the navigator is ready only once.
+     */
+    private fun notifyIsReady() {
+        if (hasNotifiedIsReady) return
+
+        hasNotifiedIsReady = true
+        visualListener.onVisualReaderIsReady()
+        setupNavigatorListeners()
     }
 
     override fun onPageChanged(
@@ -231,7 +254,6 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        Log.d(TAG, "::onCurrentLocatorChanges: $locator")
         visualListener.onVisualCurrentLocationChanged(locator)
     }
 
@@ -258,7 +280,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
         }
 
         afterFragmentStarted()
-        return withContext(mainScope.coroutineContext) {
+        return withScope(mainScope) {
             navigator.evaluateJavascript(script)
         }
     }
@@ -292,7 +314,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     suspend fun isReaderReady(): Boolean {
-        return withContext(mainScope.coroutineContext) {
+        return withScope(mainScope) {
             epubNavigator?.isReaderReady() ?: false
         }
     }
@@ -328,7 +350,7 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
             return null
         }
 
-        return withContext(mainScope.coroutineContext) {
+        return withScope(mainScope) {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -352,24 +374,26 @@ class EpubNavigator : Navigator, EpubReaderFragment.Listener {
     }
 
     suspend fun goToLocator(locator: Locator, animated: Boolean) {
-        val locations = locator.locations
-        val shouldScroll = canScroll(locations)
-        val locatorHref = locator.href
-        val currentHref = currentLocator?.value?.href
-        val shouldGo = currentHref?.isEquivalent(locatorHref) == false
+        mainScope.async {
+            val locations = locator.locations
+            val shouldScroll = canScroll(locations)
+            val locatorHref = locator.href
+            val currentHref = currentLocator?.value?.href
+            val shouldGo = currentHref?.isEquivalent(locatorHref) == false
 
-        if (shouldGo) {
-            Log.d(TAG, "::goToLocator: Go to $locatorHref from $currentHref")
-            go(locator, animated)
-        } else if (!shouldScroll) {
-            Log.w(TAG, "::goToLocator: Already at $locatorHref, no scroll target, go to start")
-            scrollToLocations(Locator.Locations(progression = 0.0), true)
-        } else {
-            Log.d(TAG, "::goToLocator: Don't go to $locatorHref, already there")
-        }
-        if (shouldScroll) {
-            scrollToLocations(locations, false)
-        }
+            if (shouldGo) {
+                Log.d(TAG, "::goToLocator: Go to $locatorHref from $currentHref")
+                go(locator, animated)
+            } else if (!shouldScroll) {
+                Log.w(TAG, "::goToLocator: Already at $locatorHref, no scroll target, go to start")
+                scrollToLocations(Locator.Locations(progression = 0.0), true)
+            } else {
+                Log.d(TAG, "::goToLocator: Don't go to $locatorHref, already there")
+            }
+            if (shouldScroll) {
+                scrollToLocations(locations, false)
+            }
+        }.await()
     }
 
     companion object {

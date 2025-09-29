@@ -49,10 +49,10 @@ private const val ttsPreferencesKey = "ttsPreferences"
 @OptIn(ExperimentalReadiumApi::class)
 class TTSNavigator(
     publication: Publication,
-    timeBaseListener: TimebasedListener,
+    timebaseListener: TimebasedListener,
     initialLocator: Locator?,
     private var initialPreferences: AndroidTtsPreferences = AndroidTtsPreferences()
-) : TimebasedNavigator(publication, timeBaseListener, initialLocator) {
+) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -141,9 +141,30 @@ class TTSNavigator(
         }
     }
 
-    fun nextUtterance() = ttsNavigator?.skipToNextUtterance()
+    /**
+     * Skip to previous utterance (sentence).
+     */
+    override fun goBack() {
+        val navigator = ttsNavigator ?: return
+        mainScope.async {
+            if (navigator.hasPreviousUtterance()) {
+                navigator.skipToPreviousUtterance()
+            }
+        }
+    }
 
-    fun previousUtterance() = ttsNavigator?.skipToPreviousUtterance()
+    /**
+     * Skip to next utterance (sentence).
+     */
+    override fun goForward() {
+        val navigator = ttsNavigator ?: return
+        mainScope.async {
+            if (navigator.hasNextUtterance()) {
+                navigator.skipToNextUtterance()
+            }
+        }
+    }
+
 
     /// Updates TTS preferences, does not override current preferences if props are null
     fun updatePreferences(prefs: AndroidTtsPreferences) {
@@ -159,6 +180,9 @@ class TTSNavigator(
         }
     }
 
+    /**
+     * Set preferred voice for a given language. If lang is null, override voice for currently spoken language.
+     */
     fun setPreferredVoice(voiceId: String, lang: String?) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
         val voices = preferences?.voices?.toMutableMap() ?: mutableMapOf()
@@ -171,6 +195,9 @@ class TTSNavigator(
         }
     }
 
+    /*
+     * Get available voices from TTS engine
+     */
     val voices: Set<AndroidTtsEngine.Voice>
         get() = ttsNavigator?.voices ?: emptySet()
 
@@ -208,8 +235,7 @@ class TTSNavigator(
             .map { it.tokenLocator ?: it.utteranceLocator }
             .distinctUntilChanged()
             .onEach { locator ->
-                // TODO: This should be handled by an event
-                ReadiumReader.currentReaderWidget?.justGoToLocator(locator, animated = true)
+                ReadiumReader.onTimebasedLocationChanged(locator)
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -278,6 +304,27 @@ class TTSNavigator(
 
         ttsNavigator?.close()
         ttsNavigator = null
+    }
+
+    override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
+        when (pb.state) {
+            is TtsNavigator.State.Failure -> {
+                val ttsState = pb.state as TtsNavigator.State.Failure
+                val error = ttsState.error
+
+                // TODO: Handle TTS-specific errors?
+                Log.e(
+                    TAG,
+                    ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}"
+                )
+
+                timebaseListener.onTimebasedPlaybackStateChanged(PlaybackState.Failure)
+            }
+
+            else -> {
+                super.onPlaybackStateChanged(pb)
+            }
+        }
     }
 
     companion object {

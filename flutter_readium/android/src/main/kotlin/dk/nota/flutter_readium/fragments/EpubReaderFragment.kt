@@ -206,9 +206,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
             epubVm?.locator = currentLocator?.value
 
-            epubNavigator?.let {
+            epubNavigator?.let { fragment ->
                 childFragmentManager.commitNow {
-                    remove(it)
+                    remove(fragment)
                 }
             }
 

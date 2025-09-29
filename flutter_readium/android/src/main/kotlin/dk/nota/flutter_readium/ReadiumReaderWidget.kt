@@ -11,12 +11,10 @@ import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
-import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
@@ -54,6 +52,7 @@ class ReadiumReaderWidget(
         get() = activity.supportFragmentManager
 
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun getView(): View {
         //Log.d(TAG, "::getView")
@@ -118,9 +117,11 @@ class ReadiumReaderWidget(
         }
 
         // Remove existing fragment if any (this is to avoid crashing on restore).
-        (fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as? EpubReaderFragment)?.let {
+        (fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as? EpubReaderFragment)?.let { fragment ->
+            Log.d(TAG, "::init - remove existing fragment")
+            
             fragmentManager.commitNow {
-                remove(it)
+                remove(fragment)
             }
         }
 
@@ -140,11 +141,25 @@ class ReadiumReaderWidget(
         Log.d(TAG, "::onPageLoaded")
     }
 
+    // To avoid duplicate onPageChanged events.
+    private var lastPageLoadedKey: String? = null
+
     override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
+        val currentKey = "${locator.href}@${locator.locations.progression}"
         Log.d(
             TAG,
-            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression}"
+            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression} ${locator.locations}"
         )
+
+
+        if (lastPageLoadedKey == currentKey) {
+            // Sometimes we get duplicate calls to onPageChanged with same locator.
+            // Not sure why, but ignore them.
+            return
+        }
+
+        // TODO: Should we do something with the pageIndex and totalPages?
+        lastPageLoadedKey = currentKey
 
         mainScope.launch { emitOnPageChanged(locator) }
     }
@@ -168,7 +183,6 @@ class ReadiumReaderWidget(
     private fun setPreferencesFromMap(prefMap: Map<String, String>) {
         Log.d(TAG, "::setPreferencesFromMap")
         val newPreferences = epubPreferencesFromMap(prefMap, null)
-            ?: throw IllegalArgumentException("failed to deserialize map into EpubPreferences")
         updatePreferences(newPreferences)
     }
 
@@ -189,11 +203,6 @@ class ReadiumReaderWidget(
 
     private fun emitOnExternalLinkActivated(url: AbsoluteUrl) {
         channel.onExternalLinkActivated(url)
-    }
-
-    fun justGoToLocator(locator: Locator, animated: Boolean) {
-        // TODO: Remove this function.
-        go(locator, animated)
     }
 
     private suspend fun setLocation(
@@ -328,17 +337,19 @@ class ReadiumReaderWidget(
         }
     }
 
-    private fun go(locator: Locator, animated: Boolean) {
+    fun go(locator: Locator, animated: Boolean) {
         Log.d(TAG, "::go ${locator.href}")
-        ReadiumReader.epubGo(locator, animated)
+        mainScope.launch {
+            ReadiumReader.epubGoToLocator(locator, animated)
+        }
     }
 
-    private suspend fun goLeft(animated: Boolean) {
+    private fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
         ReadiumReader.epubGoLeft(animated)
     }
 
-    private suspend fun goRight(animated: Boolean) {
+    private fun goRight(animated: Boolean) {
         ReadiumReader.epubGoRight(animated)
     }
 
