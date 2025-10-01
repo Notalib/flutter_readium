@@ -6,6 +6,10 @@ import UIKit
 import WebKit
 
 private let TAG = "ReadiumReaderView"
+private let ReadiumReaderStatusReady = "ready"
+private let ReadiumReaderStatusLoading = "loading"
+private let ReadiumReaderStatusClosed = "closed"
+private let ReadiumReaderStatusError = "error"
 
 let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
@@ -21,10 +25,12 @@ private var userScripts: [WKUserScript] = []
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
+  private var readerStatusStreamHandler: EventStreamHandler?
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var isVerticalScroll = false
+  private var hasSentReady = false
 
   var publicationIdentifier: String?
 
@@ -39,6 +45,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     readiumViewController.delegate = nil
     textLocatorStreamHandler?.dispose()
     textLocatorStreamHandler = nil
+    readerStatusStreamHandler?.dispose()
+    readerStatusStreamHandler = nil
     channel.setMethodCallHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
@@ -65,6 +73,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
     textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
+    readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
+    
+    readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusLoading)
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -147,12 +158,17 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   // override NavigatorDelegate::navigator:locationDidChange
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
+    if (!hasSentReady) {
+      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusReady)
+      hasSentReady = true
+    }
     emitOnPageChanged(locator: locator)
   }
 
   func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-        return
+      print(TAG, "skipped non-http external URL: \(url)")
+      return
     }
     emitOnExternalLinkActivated(url: url)
   }

@@ -31,10 +31,4 @@ abstract class ReadiumReaderWidgetInterface {
 
   /// Apply decorations
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations);
-
-  // TODO: Do we need a ReaderStatus as in current version?
-  //Stream<ReadiumReaderStatus> get onReaderStatusChanged;
-
-  Future<void> ttsStart(String langCode, Locator? fromLocator);
-  Future<void> ttsStop();
 }

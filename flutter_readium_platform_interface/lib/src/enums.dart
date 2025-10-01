@@ -1,16 +1,30 @@
+// class ReadiumStatus {
+//   ReadiumStatus({
+//     required this.status,
+//     this.error,
+//     this.message,
+//   });
+//   ReadiumReaderStatus readerState;
+//   PlaybackState playerState;
+//   Error? lastError;
+//   String? message;
+// }
+
 /// Indicates the current reader widget status.
 enum ReadiumReaderStatus {
-  open,
-  close,
   loading,
+  ready,
+  closed,
   reachedEndOfPublication,
+  error,
 }
 
 extension ReadiumReaderStatusExtension on ReadiumReaderStatus {
   bool get isLoading => name == ReadiumReaderStatus.loading.name;
-  bool get isOpen => name == ReadiumReaderStatus.open.name;
-  bool get isClose => name == ReadiumReaderStatus.close.name;
-  bool get isEndOfPublication => name == ReadiumReaderStatus.reachedEndOfPublication.name;
+  bool get isReady => name == ReadiumReaderStatus.ready.name;
+  bool get isClosed => name == ReadiumReaderStatus.closed.name;
+  bool get reachedEndOfPublication => name == ReadiumReaderStatus.reachedEndOfPublication.name;
+  bool get isError => name == ReadiumReaderStatus.error.name;
 }
 
 enum TTSVoiceGender { male, female, unspecified }

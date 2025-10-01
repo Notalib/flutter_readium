@@ -44,24 +44,16 @@ class ReadiumReaderWidget extends StatefulWidget {
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static const _wakelockTimerDuration = Duration(minutes: 30);
 
-  /// Duration per retry to wait for native view to be ready.
-  static const _awaitNativeViewReadyDuration = Duration(milliseconds: 20);
-
-  /// Maximum number of retries to check, if native view is ready.
-  static const _maxRetryAwaitNativeViewReady = 500;
-
   Timer? _wakelockTimer;
   ReadiumReaderChannel? _channel;
   bool wasDestroyed = false;
+  bool isReady = false;
 
-  /// Locator from native readium on page changed.
-  // final _nativeTextLocator = BehaviorSubject<Locator?>.seeded(null);
+  final _isReadyCompleter = Completer<Locator>();
 
   final _readium = FlutterReadiumPlatform.instance;
 
-  late Widget _loadingWidget;
   mq.Orientation? _lastOrientation;
-
   late Widget _readerWidget;
 
   EPUBPreferences? get _defaultPreferences {
@@ -71,25 +63,16 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   void initState() {
     super.initState();
-    R2Log.d('Widget initiated');
-
-    // TODO: state removed
+    R2Log.d('ReadiumReaderWidget initiated');
 
     _readerWidget = _buildNativeReader();
-
-    _loadingWidget = GestureDetector(
-      onTap: _onTap,
-      child: widget.loadingWidget,
-    );
-
     _enableWakelock();
-
     _setCurrentWidgetInterface();
   }
 
   @override
   void dispose() {
-    R2Log.d('Widget disposed');
+    R2Log.d('ReadiumReaderWidget disposed');
     _cleanup();
     _channel?.dispose();
     _channel = null;
@@ -109,8 +92,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     return Listener(
       onPointerDown: (final _) {
         _enableWakelock();
-
-        // TODO: state removed
       },
       onPointerMove: (final event) {
         if (userSwipe) {
@@ -145,18 +126,14 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
               goRight();
             }
           } else {
-            _onTap();
+            widget.onTap?.call();
           }
         }
 
         userSwipe = false;
-
-        // TODO: state removed
       },
       onPointerCancel: (final _) {
         userSwipe = false;
-
-        // TODO: state removed
       },
       child: _readerWidget,
     );
@@ -170,14 +147,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }) async {
     R2Log.d(() => 'Go to $locator');
 
-    _channel?.go(
+    await _channel?.go(
       locator,
       animated: animated,
       isAudioBookWithText: isAudioBookWithText,
     );
-
-    // await _awaitLocatorIsVisible();
-    // _updateCurrentLocatorVisibility();
 
     R2Log.d('Done');
   }
@@ -255,23 +229,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     await _channel?.applyDecorations(id, decorations);
   }
-
-  @override
-  Future<void> ttsStart(String langCode, Locator? fromLocator) async {
-    R2Log.d('TTS Start: $langCode');
-
-    // When fromLocator is null => use firstVisibleLocator
-    await _channel?.ttsStart(langCode, fromLocator);
-  }
-
-  @override
-  Future<void> ttsStop() async {
-    R2Log.d('TTS Stop');
-
-    await _channel?.ttsStop();
-  }
-
-  void _onTap() => widget.onTap?.call();
 
   Widget _buildNativeReader() {
     final publication = widget.publication;
@@ -359,41 +316,29 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       onPageChanged: (final locator) {
         debugPrint('onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
+
+        if (isReady == false) {
+          setState(() {
+            isReady = true;
+          });
+          _isReadyCompleter.complete(locator);
+        }
       },
     );
 
     R2Log.d('New widget is: ${_channel?.name}');
 
-    _awaitNativeViewReady().then((final _) {
-      // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
-      final nativeLocatorStream =
-          _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
+    // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
+    // final nativeLocatorStream =
+    //     _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
 
-      nativeLocatorStream.listen((locator) {
-        R2Log.d('LocatorChanged - $locator');
-      });
-    });
+    // nativeLocatorStream.listen((locator) {
+    //   R2Log.d('ReaderWidget.LocatorChanged - $locator');
+    // });
   }
 
-  Future<void> _awaitNativeViewReady() async {
-    final nativeViewStartTime = DateTime.now();
-    for (int retry = 0; retry < _maxRetryAwaitNativeViewReady && !wasDestroyed; retry++) {
-      if (await _channel?.isReaderReady() == true) {
-        R2Log.d(
-            'Native view is ready! Time spent: ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
-        return;
-      }
-
-      R2Log.d('Native reader not ready - retry:$retry');
-      await Future.delayed(_awaitNativeViewReadyDuration);
-    }
-
-    if (wasDestroyed) {
-      R2Log.d('Widget was destroyed, skipping native view ready check.');
-      return;
-    }
-
-    R2Log.d('Max retry reached! After ${DateTime.now().difference(nativeViewStartTime).inMilliseconds} ms');
+  Future _awaitNativeViewReady() {
+    return _isReadyCompleter.future;
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier
@@ -410,6 +355,40 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${tocFragment.substring(4)}';
   }
 
+  /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
+  ///
+  /// If orientation changes, fix page alignment, so it doesn't stay on a weird-looking page 5½.
+  void _onOrientationChangeWorkaround(final mq.Orientation orientation) async {
+    if (_lastOrientation == null) {
+      _lastOrientation = orientation;
+
+      return;
+    }
+
+    if (!isReady) {
+      return;
+    }
+
+    if (orientation != _lastOrientation) {
+      // Remove domRange/cssSelector, so it navigates to a progression, which will always
+      // trigger scrolling to the nearest page.
+      if (_lastOrientation != null && _currentLocator != null) {
+        Future.delayed(const Duration(milliseconds: 500)).then((final value) {
+          R2Log.d('Orientation changed. Re-navigating to current locator to re-align page.');
+          R2Log.d('locator = $_currentLocator');
+          _channel?.go(
+            _currentLocator!,
+            animated: false,
+            isAudioBookWithText: false, // TODO: isAudioBookWithText - we don't know atm.
+          );
+        });
+      }
+
+      _lastOrientation = orientation;
+    }
+  }
+
+  // TODO: Is this still useful or should we delete it?
   Future<void> _setLocation(final Locator locator, final bool isAudioBookWithText) async {
     R2Log.d('Set highlight');
 
@@ -438,36 +417,5 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       ),
       isAudioBookWithText,
     );
-  }
-
-  /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
-  ///
-  /// If orientation changes, fix page alignment, so it doesn't stay on a weird-looking page 5½.
-  void _onOrientationChangeWorkaround(final mq.Orientation orientation) async {
-    if (_lastOrientation == null) {
-      _lastOrientation = orientation;
-
-      return;
-    }
-
-    // TODO: state removed
-    await _awaitNativeViewReady();
-    if (orientation != _lastOrientation) {
-      // Remove domRange/cssSelector, so it navigates to a progression, which will always
-      // trigger scrolling to the nearest page.
-      if (_lastOrientation != null && _currentLocator != null) {
-        Future.delayed(const Duration(milliseconds: 500)).then((final value) {
-          R2Log.d('Orientation changed. Re-navigating to current locator to re-align page.');
-          R2Log.d('locator = $_currentLocator');
-          _channel?.go(
-            _currentLocator!,
-            animated: false,
-            isAudioBookWithText: false, // TODO: isAudioBookWithText - we don't know atm.
-          );
-        });
-      }
-
-      _lastOrientation = orientation;
-    }
   }
 }
