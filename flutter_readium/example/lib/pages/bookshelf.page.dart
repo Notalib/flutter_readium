@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -121,8 +119,8 @@ class BookshelfPageState extends State<BookshelfPage> {
                         ),
                       ),
                     ),
-                    Divider(),
-                    _buildAddBookCard(context),
+                    // Divider(),
+                    // _buildAddBookCard(context),
                   ],
                 ),
         ),
@@ -142,25 +140,25 @@ class BookshelfPageState extends State<BookshelfPage> {
     return authorNames ?? 'Unknown author';
   }
 
-  Future<String?> _pickAndImportPubFromFile() async {
-    final result = await FilePicker.platform.pickFiles();
+  // Future<String?> _pickAndImportPubFromFile() async {
+  //   final result = await FilePicker.platform.pickFiles();
 
-    if (result != null) {
-      final platformFile = result.files.first;
+  //   if (result != null) {
+  //     final platformFile = result.files.first;
 
-      // Convert PlatformFile to File
-      final file = File(platformFile.path!);
+  //     // Convert PlatformFile to File
+  //     final file = File(platformFile.path!);
 
-      // Validate the file
-      // PublicationUtils.validateFile(file);
-      R2Log.d('Picked file: ${file.path}');
+  //     // Validate the file
+  //     // PublicationUtils.validateFile(file);
+  //     R2Log.d('Picked file: ${file.path}');
 
-      return await PublicationUtils.copyFileToReadiumPubStorage(file);
-    } else {
-      R2Log.d('User canceled the picker');
-      return null;
-    }
-  }
+  //     return await PublicationUtils.copyFileToReadiumPubStorage(file);
+  //   } else {
+  //     R2Log.d('User canceled the picker');
+  //     return null;
+  //   }
+  // }
 
   String _bookFormatFromConformsTo(Publication pub) {
     if (pub.conformsToReadiumEbook) {
@@ -230,40 +228,40 @@ class BookshelfPageState extends State<BookshelfPage> {
         ),
       );
 
-  Widget _buildAddBookCard(final BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
-        child: InkWell(
-          onTap: () async {
-            try {
-              String? importedPubPath = await _pickAndImportPubFromFile();
-              if (importedPubPath == null) return;
-              Publication? importedPublication = await openPublicationFromUrl(importedPubPath);
-              if (importedPublication != null) {
-                setState(() {
-                  _testPublications.add(importedPublication);
-                });
-              }
-            } on Object catch (e) {
-              R2Log.e('error picking file: $e');
-              _toast('Error picking file $e');
-            }
-          },
-          child: Card(
-            color: Colors.blue[200],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 5.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, size: 30, color: Colors.blue),
-                  Text(
-                    'Add Book',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+  // Widget _buildAddBookCard(final BuildContext context) => Container(
+  //       padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
+  //       child: InkWell(
+  //         onTap: () async {
+  //           try {
+  //             String? importedPubPath = await _pickAndImportPubFromFile();
+  //             if (importedPubPath == null) return;
+  //             Publication? importedPublication = await openPublicationFromUrl(importedPubPath);
+  //             if (importedPublication != null) {
+  //               setState(() {
+  //                 _testPublications.add(importedPublication);
+  //               });
+  //             }
+  //           } on Object catch (e) {
+  //             R2Log.e('error picking file: $e');
+  //             _toast('Error picking file $e');
+  //           }
+  //         },
+  //         child: Card(
+  //           color: Colors.blue[200],
+  //           child: Padding(
+  //             padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 5.0),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Icon(Icons.add, size: 30, color: Colors.blue),
+  //                 Text(
+  //                   'Add Book',
+  //                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     );
 }
