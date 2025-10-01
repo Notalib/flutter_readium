@@ -1,6 +1,8 @@
+// TODO: Find place for this and send updates over bridge
 // class ReadiumStatus {
 //   ReadiumStatus({
-//     required this.status,
+//     required this.readerState,
+//     this.playerState,
 //     this.error,
 //     this.message,
 //   });
