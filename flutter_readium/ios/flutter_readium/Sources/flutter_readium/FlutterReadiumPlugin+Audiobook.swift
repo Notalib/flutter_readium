@@ -112,11 +112,19 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   }
 
   public func seek(by delta: Double) async {
+    let wasTryingToPlay = audiobookVM?.navigator.state != .paused
     await audiobookVM?.navigator.seek(by: delta)
+    if (wasTryingToPlay) {
+      play()
+    }
   }
 
   public func seek(to offset: Double) async {
+    let wasTryingToPlay = audiobookVM?.navigator.state != .paused
     await audiobookVM?.navigator.seek(to: offset)
+    if (wasTryingToPlay) {
+      play()
+    }
   }
 
   public func navigator(_ navigator: Navigator, locationDidChange location: Locator) {
@@ -271,11 +279,16 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
   private func updateNowPlaying(info: MediaPlaybackInfo) {
     let nowPlaying = NowPlayingInfo.shared
+    
+    let actualRate = switch info.state {
+    case .paused, .loading: 0.0
+    case .playing: audiobookVM?.navigator.settings.speed ?? 1.0
+    }
 
     nowPlaying.playback = NowPlayingInfo.Playback(
       duration: info.duration,
       elapsedTime: info.time,
-      rate: audiobookVM?.navigator.settings.speed
+      rate: actualRate
     )
 
     nowPlaying.media?.chapterNumber = info.resourceIndex

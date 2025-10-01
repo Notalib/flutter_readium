@@ -54,7 +54,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         print(TAG, "tts navigate reader to locator")
         isMoving = true
         Task {
-          await currentReaderView?.justGoToLocator(locator, animated: true)
+          let _ = await currentReaderView?.justGoToLocator(locator, animated: true)
           self.isMoving = false
         }
       }
@@ -87,7 +87,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   func ttsStart(fromLocator: Locator?) {
     print(TAG, "ttsStart: fromLocator=\(fromLocator?.jsonString ?? "nil")")
     self.synthesizer?.start(from: fromLocator)
-    setupNowPlaying()
+    setupTTSNowPlaying()
   }
 
   func ttsStop() {
@@ -160,7 +160,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
       }
       updateDecorations(uttLocator: utt.locator, rangeLocator: wordRange)
     case let .paused(utt):
-      print(TAG, "tts paused at: \(utt.text)")
+      print(TAG, "tts paused at utterance: \(utt.text)")
       playingUtterance = utt.locator
     case .stopped:
       playingUtterance = nil
@@ -179,24 +179,35 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   // This will display the publication in the Control Center and support
   // external controls.
 
-  private func setupNowPlaying() {
-      Task {
-        guard let publication = getCurrentPublication() else {
-          throw ReadiumError.notFound("No current publication")
-        }
-          NowPlayingInfo.shared.media = await .init(
-              title: publication.metadata.title ?? "",
-              artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
-              artwork: try? publication.cover().get()
-          )
+  private func setupTTSNowPlaying() {
+    Task {
+      guard let publication = getCurrentPublication() else {
+        throw ReadiumError.notFound("No current publication")
       }
-
-      let commandCenter = MPRemoteCommandCenter.shared()
-
-      commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-          self?.ttsPauseOrResume()
-          return .success
-      }
+      NowPlayingInfo.shared.media = .init(
+        title: publication.metadata.title ?? "",
+        artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
+      )
+      
+      // Async load the cover.
+      let cover = try? await publication.cover().get()
+      NowPlayingInfo.shared.media?.artwork = cover
+    }
+    
+    let commandCenter = MPRemoteCommandCenter.shared()
+    
+    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+      self?.ttsPauseOrResume()
+      return .success
+    }
+    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      self?.ttsNext()
+      return .success
+    }
+    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      self?.ttsPrevious()
+      return .success
+    }
   }
 
   private func clearNowPlaying() {
