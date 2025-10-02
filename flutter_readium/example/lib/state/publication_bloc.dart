@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 abstract class PublicationEvent {}
+
+class ClosePublication extends PublicationEvent {}
 
 class OpenPublication extends PublicationEvent {
   OpenPublication({
@@ -92,6 +95,15 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));
       }
+    });
+
+    on<ClosePublication>((final event, final emit) async {
+      try {
+        await FlutterReadium().closePublication();
+      } on Exception catch (error) {
+        debugPrint('Exception while closing publication: ${error.toString()}');
+      }
+      emit(PublicationState());
     });
   }
 

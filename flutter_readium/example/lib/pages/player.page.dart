@@ -16,27 +16,35 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
-        builder: (final context, final pubState) => Scaffold(
-          restorationId: 'player_page',
-          appBar: AppBar(
-            backgroundColor: Colors.deepPurple[200],
-            title: Semantics(
-              header: true,
-              child: Text(
-                pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
-              ),
-            ),
-            actions: _buildActionButtons(context),
-          ),
-          body: Container(
-            color: Colors.pinkAccent[100],
-            child: Column(
-              children: [
-                Expanded(
-                  child: pubState.publication?.conformsToReadiumAudiobook != true ? ReaderWidget() : SizedBox.shrink(),
+        builder: (final context, final pubState) => PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, result) {
+            // When Player page is popped, make sure to close current publication.
+            context.read<PublicationBloc>().add(ClosePublication());
+          },
+          child: Scaffold(
+            restorationId: 'player_page',
+            appBar: AppBar(
+              backgroundColor: Colors.deepPurple[200],
+              title: Semantics(
+                header: true,
+                child: Text(
+                  pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
                 ),
-                _controls(),
-              ],
+              ),
+              actions: _buildActionButtons(context),
+            ),
+            body: Container(
+              color: Colors.pinkAccent[100],
+              child: Column(
+                children: [
+                  Expanded(
+                    child:
+                        pubState.publication?.conformsToReadiumAudiobook != true ? ReaderWidget() : SizedBox.shrink(),
+                  ),
+                  _controls(),
+                ],
+              ),
             ),
           ),
         ),
