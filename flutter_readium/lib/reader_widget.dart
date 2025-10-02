@@ -329,12 +329,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     R2Log.d('New widget is: ${_channel?.name}');
 
     // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
-    // final nativeLocatorStream =
-    //     _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
+    final nativeLocatorStream =
+        _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
 
-    // nativeLocatorStream.listen((locator) {
-    //   R2Log.d('ReaderWidget.LocatorChanged - $locator');
-    // });
+    nativeLocatorStream.listen((locator) {
+      R2Log.d('ReaderWidget.LocatorChanged - $locator');
+    });
   }
 
   Future _awaitNativeViewReady() {

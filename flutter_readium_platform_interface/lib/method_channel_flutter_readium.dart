@@ -22,17 +22,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @visibleForTesting
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
 
-  /// The event channel used to receive text Locator changes from the native platform.
-  @visibleForTesting
-  EventChannel isReadyChannel = const EventChannel('dk.nota.flutter_readium/is-ready');
-
   Stream<Locator>? _onTextLocatorChanged;
 
   Stream<Locator>? _onAudioLocatorChanged;
 
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
-
-  Stream<bool>? _isReadyStream;
 
   /// Fires whenever the Reader's current Locator changes.
   @override
@@ -75,12 +69,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     final publicationString =
         await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
     return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
-  }
-
-  @override
-  Stream<bool> get isReadyChanged {
-    _isReadyStream ??= isReadyChannel.receiveBroadcastStream().map((dynamic event) => json.decode(event) as bool);
-    return _isReadyStream!;
   }
 
   @override

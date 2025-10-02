@@ -13,7 +13,6 @@ enum _ReaderChannelMethodInvoke {
   getLocatorFragments,
   setLocation,
   isLocatorVisible,
-  isReaderReady,
   dispose,
   setPreferences,
 }
@@ -93,22 +92,6 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
-
-  Future<bool> isReaderReady() async => _invokeMethod(
-        _ReaderChannelMethodInvoke.isReaderReady,
-      ).timeout(const Duration(seconds: 5)).then((final value) {
-        if (value is bool) {
-          return value;
-        }
-
-        return bool.tryParse(value) ?? false;
-      }).onError(
-        (final error, final _) {
-          R2Log.d(error.toString());
-
-          return false;
-        },
-      );
 
   Future<Locator?> getCurrentLocator() async =>
       await _invokeMethod<dynamic>(_ReaderChannelMethodInvoke.getCurrentLocator, [])

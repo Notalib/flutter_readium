@@ -26,7 +26,7 @@ export 'src/enums.dart';
 /// platform implementations that `implements` this interface will be broken by newly added
 /// [FlutterReadiumPlatform] methods.
 abstract class FlutterReadiumPlatform extends PlatformInterface {
-  /// Constructs a BatteryPlatform.
+  /// Constructs a FlutterReadiumPlatform.
   FlutterReadiumPlatform() : super(token: _token);
 
   static final Object _token = Object();
@@ -70,7 +70,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
   Future<void> skipToPrevious() => throw UnimplementedError('skipToPrevious() has not been implemented.');
 
-  /// Sets the default EPUB rendering preferences and updates preferences for any current ReaderWidgetViews.
+  /// Sets the default EPUB rendering preferences and updates preferences for the ReaderWidgetView.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
@@ -122,9 +122,5 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
   Stream<Locator> get onAudioLocatorChanged {
     throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
-  }
-
-  Stream<bool> get isReadyChanged {
-    throw UnimplementedError('isReadyStream has not been implemented.');
   }
 }

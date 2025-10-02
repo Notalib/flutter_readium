@@ -163,10 +163,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement getLinkContent
     throw UnimplementedError();
   }
-  
-  @override
-  // TODO: implement isReadyChanged
-  Stream<bool> get isReadyChanged => throw UnimplementedError();
 }
 
 void main() {
