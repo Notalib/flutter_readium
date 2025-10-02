@@ -209,8 +209,4 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
       return .success
     }
   }
-
-  private func clearNowPlaying() {
-      NowPlayingInfo.shared.clear()
-  }
 }

@@ -82,7 +82,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           currentPublication = pub
-          
+
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
             result(jsonManifest)
@@ -100,10 +100,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task.detached(priority: .high) {
         do {
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
-          
+
           let jsonManifest = pub.jsonManifest
           pub.close()
-          
+
           await MainActor.run {
             result(jsonManifest)
           }
@@ -320,6 +320,10 @@ extension FlutterReadiumPlugin {
     self.play()
   }
 
+  func clearNowPlaying() {
+    NowPlayingInfo.shared.clear()
+  }
+
   private func loadPublication (
     fromUrlStr: String,
   ) async -> Result<Publication, ReadiumError> {
@@ -371,15 +375,17 @@ extension FlutterReadiumPlugin {
 
   private func closePublication() {
     // Clean-up any resources associated with the publication.
-    currentPublication?.close()
-    currentPublication = nil
     synthesizer?.stop()
+    synthesizer?.delegate = nil
     synthesizer = nil
     if (audiobookVM != nil) {
       audiobookVM?.navigator.pause()
+      audiobookVM?.navigator.delegate = nil
       audiobookVM = nil
     }
     // Cancel any locator/event subscription jobs
     subscriptions.forEach { job in job.cancel() }
+    currentPublication?.close()
+    currentPublication = nil
   }
 }

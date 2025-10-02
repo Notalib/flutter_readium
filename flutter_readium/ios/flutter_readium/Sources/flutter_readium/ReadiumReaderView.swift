@@ -59,8 +59,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   ) {
     print(TAG, "::init")
     let creationParams = args as! Dictionary<String, Any?>
-
-    let pubIdentifier = creationParams["pubIdentifier"] as! String
+    
     let publication = getCurrentPublication()!
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
@@ -91,6 +90,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     config.preloadPreviousPositionCount = 1
     config.preloadNextPositionCount = 1
     config.debugState = true
+    
     if (defaultPreferences != nil) {
       config.preferences = defaultPreferences!
     }
