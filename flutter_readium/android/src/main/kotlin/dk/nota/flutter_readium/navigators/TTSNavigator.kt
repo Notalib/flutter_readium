@@ -3,12 +3,15 @@ package dk.nota.flutter_readium.navigators
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -60,6 +63,8 @@ class TTSNavigator(
     private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice>? =
         null
 
+    private var mediaServiceFacade: PluginMediaServiceFacade? = null
+
     private var editor: AndroidTtsPreferencesEditor? = null
 
     private val preferences: AndroidTtsPreferences?
@@ -80,6 +85,7 @@ class TTSNavigator(
         val listener = object : Listener {
             override fun onStopRequested() {
                 Log.d(TAG, "TtsListener::onStopRequested")
+                mediaServiceFacade?.closeSession()
             }
         }
         mainScope.async {
@@ -97,6 +103,28 @@ class TTSNavigator(
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
         }.await()
+
+
+        mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application)
+        mediaServiceFacade?.session
+            ?.flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
+            ?.onEach { playback ->
+                when (val state = (playback?.state as? TtsNavigator.State)) {
+                    null, TtsNavigator.State.Ready -> {
+                        // Do nothing
+                    }
+
+                    is TtsNavigator.State.Ended -> {
+                        mediaServiceFacade?.closeSession()
+                    }
+
+                    is TtsNavigator.State.Failure -> {
+                        Log.e(TAG, "TTSNavigator failure: ${state.error}")
+                        //onPlaybackError(state.error)
+                    }
+                }
+            }
+            ?.launchIn(mainScope)
     }
 
     fun setDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
@@ -123,6 +151,15 @@ class TTSNavigator(
         mainScope.async {
             if (fromLocator != null) {
                 ttsNavigator?.go(fromLocator)
+            }
+
+            try {
+                Log.d(TAG, "Opening MediaSession")
+                val identifier = publication.metadata.identifier ?: "TODO: CHANGE_ME"
+                mediaServiceFacade?.openSession(identifier, ttsNavigator!!)
+            } catch (e: Exception) {
+                ttsNavigator?.close()
+                return@async
             }
 
             ttsNavigator?.play()
