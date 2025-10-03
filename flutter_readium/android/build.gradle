@@ -3,7 +3,7 @@ version '1.0-SNAPSHOT'
 
 buildscript {
   ext.kotlin_version = '2.2.20'
-  ext.readium_version = '3.1.1'
+  ext.readium_version = '3.1.2'
 
   repositories {
     google()
@@ -77,9 +77,8 @@ dependencies {
   implementation "androidx.media3:media3-common:$media_version"
   implementation "androidx.media3:media3-session:$media_version"
   implementation "androidx.media3:media3-exoplayer:$media_version"
-  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2"
 
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
-  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1"
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 }
