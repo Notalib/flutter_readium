@@ -15,7 +15,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.util.CoroutineQueue
 
 /**
- * Enables to try to close a session without starting the [MediaService] if it is not started.
+ * Enables to try to close a session without starting the [PluginMediaService] if it is not started.
  */
 @OptIn(ExperimentalReadiumApi::class, InternalReadiumApi::class)
 class PluginMediaServiceFacade(
@@ -43,7 +43,6 @@ class PluginMediaServiceFacade(
      * Throws an IllegalStateException if binding to the MyMediaService fails.
      */
     suspend fun <N> openSession(
-        bookIdentifier: String,
         navigator: N,
     ) where N : AnyMediaNavigator, N : Media3Adapter {
         coroutineQueue.await {
@@ -59,7 +58,7 @@ class PluginMediaServiceFacade(
             bindingJob = binder!!.session
                 .onEach { sessionMutable.value = it }
                 .launchIn(coroutineScope)
-            binder!!.openSession(navigator, bookIdentifier)
+            binder!!.openSession(navigator)
         }
     }
 

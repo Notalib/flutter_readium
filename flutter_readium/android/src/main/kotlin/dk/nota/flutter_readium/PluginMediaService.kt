@@ -18,13 +18,22 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.media3.common.ForwardingSimpleBasePlayer
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.readium.navigator.media.common.Media3Adapter
@@ -36,25 +45,96 @@ typealias AnyMediaNavigator = MediaNavigator<*, *, *>
 
 private const val TAG = "Flutter_Readium.MediaService"
 
+private const val CUSTOM_COMMAND_REWIND_ACTION_ID = "REWIND_CUSTOM"
+private const val CUSTOM_COMMAND_FORWARD_ACTION_ID = "FORWARD_CUSTOM"
+
+@UnstableApi
+enum class NotificationPlayerCustomCommandButton(
+    val customAction: String,
+    val commandButton: CommandButton,
+) {
+    REWIND(
+        customAction = CUSTOM_COMMAND_REWIND_ACTION_ID,
+        commandButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK)
+            .setDisplayName("Rewind")
+            .setSlots(CommandButton.SLOT_BACK)
+            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REWIND_ACTION_ID, Bundle()))
+            .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_back)
+            .build(),
+    ),
+    FORWARD(
+        customAction = CUSTOM_COMMAND_FORWARD_ACTION_ID,
+        commandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD)
+            .setDisplayName("Forward")
+            .setSlots(CommandButton.SLOT_FORWARD)
+            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_FORWARD_ACTION_ID, Bundle()))
+            .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_forward)
+            .build(),
+    );
+}
+
 @OptIn(ExperimentalReadiumApi::class)
 @androidx.annotation.OptIn(UnstableApi::class)
-class PluginMediaService : MediaSessionService() {
+class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 
     class Session(
-        val bookIdentifier: String,
         val navigator: AnyMediaNavigator,
         val mediaSession: MediaSession,
     ) {
         val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     }
 
+    private val notificationPlayerCustomCommandButtons =
+        NotificationPlayerCustomCommandButton.entries.map { command -> command.commandButton }
+
+    override fun onConnect(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo
+    ): MediaSession.ConnectionResult {
+        val connectionResult = super.onConnect(session, controller)
+        val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
+
+        /* Registering custom player command buttons for player notification. */
+        notificationPlayerCustomCommandButtons.forEach { commandButton ->
+            commandButton.sessionCommand?.let(availableSessionCommands::add)
+        }
+
+        return MediaSession.ConnectionResult.accept(
+            availableSessionCommands.build(),
+            connectionResult.availablePlayerCommands,
+        )
+    }
+
+    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        super.onPostConnect(session, controller)
+        if (notificationPlayerCustomCommandButtons.isNotEmpty()) {
+            /* Setting custom player command buttons to mediaLibrarySession for player notification. */
+            /* Set media-button preferences, so that skip buttons are replaces with seek */
+            session.setCustomLayout(notificationPlayerCustomCommandButtons)
+            session.setMediaButtonPreferences(notificationPlayerCustomCommandButtons)
+        }
+    }
+
+    override fun onCustomCommand(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        customCommand: SessionCommand,
+        args: Bundle
+    ): ListenableFuture<SessionResult> {
+        /* Handle custom command buttons from player notification. */
+        if (customCommand.customAction == NotificationPlayerCustomCommandButton.REWIND.customAction) {
+            ReadiumReader.previous()
+        }
+        if (customCommand.customAction == NotificationPlayerCustomCommandButton.FORWARD.customAction) {
+            ReadiumReader.next()
+        }
+        return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+    }
+
     /**
      * The service interface to be used by the app.
      */
     inner class Binder : android.os.Binder() {
-
-        //private val app: org.readium.r2.testapp.Application
-        //    get() = application as org.readium.r2.testapp.Application
 
         private val sessionMutable: MutableStateFlow<Session?> =
             MutableStateFlow(null)
@@ -75,19 +155,21 @@ class PluginMediaService : MediaSessionService() {
         @OptIn(FlowPreview::class)
         fun <N> openSession(
             navigator: N,
-            bookIdentifier: String,
         ) where N : AnyMediaNavigator, N : Media3Adapter {
             Log.d(TAG, "openSession")
+
             val activityIntent = createSessionActivityIntent()
-            val mediaSession = MediaSession.Builder(applicationContext, navigator.asMedia3Player())
+            val player = navigator.asMedia3Player()
+
+            val mediaSession = MediaSession.Builder(applicationContext, player)
                 .setSessionActivity(activityIntent)
-                .setId(bookIdentifier)
+                .setCallback(this@PluginMediaService)
+                .setCustomLayout(notificationPlayerCustomCommandButtons)
                 .build()
 
             addSession(mediaSession)
 
             val session = Session(
-                bookIdentifier,
                 navigator,
                 mediaSession
             )
@@ -101,7 +183,7 @@ class PluginMediaService : MediaSessionService() {
             navigator.currentLocator
                 .sample(5000)
                 .onEach { locator ->
-                    Log.d(TAG, "Saving progression $locator")
+                    Log.d(TAG, "Progression update: $locator")
                     // TODO: Submit on the plugin audio-locator stream?
                     //app.bookRepository.saveProgression(locator, bookId)
                 }.launchIn(session.coroutineScope)

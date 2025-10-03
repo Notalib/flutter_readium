@@ -104,8 +104,7 @@ class AudiobookNavigator(
 
             try {
                 Log.d(TAG, "Opening MediaSession")
-                val identifier = publication.metadata.identifier ?: "TODO: CHANGE_ME"
-                mediaServiceFacade?.openSession(identifier, audioNavigator!!)
+                mediaServiceFacade?.openSession(audioNavigator!!)
             } catch (e: Exception) {
                 audioNavigator?.close()
                 return@async
@@ -227,10 +226,8 @@ class AudiobookNavigator(
 
         mediaServiceFacade?.closeSession()
 
-        mainScope.async {
-            audioNavigator?.close()
-            audioNavigator = null
-        }
+        audioNavigator?.close()
+        audioNavigator = null
     }
 
     companion object {

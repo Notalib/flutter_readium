@@ -155,8 +155,7 @@ class TTSNavigator(
 
             try {
                 Log.d(TAG, "Opening MediaSession")
-                val identifier = publication.metadata.identifier ?: "TODO: CHANGE_ME"
-                mediaServiceFacade?.openSession(identifier, ttsNavigator!!)
+                mediaServiceFacade?.openSession(ttsNavigator!!)
             } catch (e: Exception) {
                 ttsNavigator?.close()
                 return@async
@@ -338,6 +337,8 @@ class TTSNavigator(
 
     override fun dispose() {
         super.dispose()
+
+        mediaServiceFacade?.closeSession()
 
         ttsNavigator?.close()
         ttsNavigator = null
