@@ -31,4 +31,4 @@ extension ReadiumReaderStatusExtension on ReadiumReaderStatus {
 
 enum TTSVoiceGender { male, female, unspecified }
 
-enum TTSVoiceQuality { lowest, low, medium, high, highest }
+enum TTSVoiceQuality { lowest, low, normal, high, highest }

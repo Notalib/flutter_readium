@@ -82,13 +82,26 @@ extension Decoration.Style {
   }
 }
 
+extension TTSVoice.Quality {
+  // Returns string matching TTSVoiceQuality enum on Flutter side.
+  // Biggest difference is that medium = normal.
+  public var toFlutterString: String {
+    switch self {
+    case .low: return "low"
+    case .medium: return "normal"
+    case .high: return "high"
+    @unknown default: return "normal"
+    }
+  }
+}
+
 extension TTSVoice {
   public var json: JSONDictionary.Wrapped {
       makeJSON([
         "identifier": identifier,
         "name": name,
         "gender": String.init(describing: gender),
-        "quality": quality != nil ? String.init(describing: quality!) : nil,
+        "quality": quality?.toFlutterString ?? "normal",
         "language": language.description,
       ])
   }
