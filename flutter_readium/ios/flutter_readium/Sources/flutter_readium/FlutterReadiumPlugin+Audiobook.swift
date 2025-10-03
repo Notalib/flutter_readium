@@ -149,7 +149,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     }
 
     audiobookVM?.onPlaybackChanged(info: info)
-    updateNowPlaying(info: info)
+      let controlPanelInfoType =  audiobookVM?.preferences.controlPanelInfoType ?? .standard
+      updateNowPlaying(info: info, infoType: controlPanelInfoType)
     updateCommandCenterControls()
   }
 
@@ -282,7 +283,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
       .store(in: &subscriptions)
   }
 
-  private func updateNowPlaying(info: MediaPlaybackInfo) {
+    private func updateNowPlaying(info: MediaPlaybackInfo, infoType: ControlPanelInfoType) {
     let nowPlaying = NowPlayingInfo.shared
 
     let actualRate = switch info.state {
@@ -300,9 +301,47 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
 
     // TODO: Show current chapter title?
     let publication = audiobookVM?.navigator.publication
-    let currentChapter = publication?.readingOrder[info.resourceIndex].title
-    var title = publication?.metadata.title ?? ""
-    title += currentChapter != nil ? " - \(currentChapter!)" : ""
-    nowPlaying.media?.title = title
+        if(infoType == .standard || infoType == .standardWCh){
+            standardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+        } else {
+            nonStandardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+        }
   }
+    
+    private func standardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?){
+        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+        var title = publication?.metadata.title ?? ""
+        
+        NowPlayingInfo.shared.media?.artist = authors
+        
+        if (infoType == .standardWCh){
+            let currentChapter = publication?.readingOrder[info.resourceIndex].title
+            title += currentChapter != nil ? " - \(currentChapter!)" : ""
+            NowPlayingInfo.shared.media?.title = title
+        } else {
+            NowPlayingInfo.shared.media?.title = title
+        }
+        
+    }
+    
+    private func nonStandardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?){
+        let currentChapter = publication?.readingOrder[info.resourceIndex].title
+        let title = publication?.metadata.title ?? ""
+        
+        if(infoType == .chapterTitleAuthor || infoType == .chapterTitle){
+            NowPlayingInfo.shared.media?.title = currentChapter ?? ""
+            
+            if(infoType == .chapterTitle){
+                NowPlayingInfo.shared.media?.artist = title
+            } else {
+                let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+                let artist = "\(title) - \(authors)"
+                NowPlayingInfo.shared.media?.artist = artist
+            }
+                
+        } else {
+            NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
+            NowPlayingInfo.shared.media?.title = title
+        }
+    }
 }

@@ -201,12 +201,15 @@ public struct FlutterAudioPreferences {
   public var pitch: Double?
   
   public var seekInterval: Double?
+    
+  public var controlPanelInfoType: ControlPanelInfoType?
   
-  public init(volume: Double = 1.0, rate: Double = 1.0, pitch: Double = 1.0, seekInterval: Double = 30) {
+  public init(volume: Double = 1.0, rate: Double = 1.0, pitch: Double = 1.0, seekInterval: Double = 30, controlPanelInfoType: ControlPanelInfoType = ControlPanelInfoType.standard) {
     self.volume = volume
     self.speed = rate
     self.pitch = pitch
     self.seekInterval = seekInterval
+    self.controlPanelInfoType = controlPanelInfoType
   }
   
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
@@ -216,11 +219,32 @@ public struct FlutterAudioPreferences {
         pitch = map["pitch"] as? Double ?? 1.0,
         seekInterval = map["seekInterval"] as? Double ?? 30
 
+    let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
+    let mapControlPanelInfoType = controlPanelInfoTypeStr != nil ? ControlPanelInfoType(from: controlPanelInfoTypeStr!) : nil
     // TODO: Does audio prefs need to be clamped?
     let avRate = clamp(rate, minValue: 0.1, maxValue: 5.0)
     let avPitch = clamp(pitch, minValue: 0.5, maxValue: 2.0)
-    self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval)
+      self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval, controlPanelInfoType: mapControlPanelInfoType ?? .standard)
   }
+}
+
+public enum ControlPanelInfoType {
+    case standard
+    case standardWCh
+    case chapterTitleAuthor
+    case chapterTitle
+    case titleChapter
+
+    init?(from string: String) {
+        switch string {
+        case "standard": self = .standard
+        case "standardWCh": self = .standardWCh
+        case "chapterTitleAuthor": self = .chapterTitleAuthor
+        case "chapterTitle": self = .chapterTitle
+        case "titleChapter": self = .titleChapter
+        default: return nil
+        }
+    }
 }
 
 public struct TTSPreferences {
