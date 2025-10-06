@@ -153,6 +153,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
   func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
+    
+    // TODO: Should we send resource-load error like this?
+    self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
   }
 
   // override NavigatorDelegate::navigator:locationDidChange
