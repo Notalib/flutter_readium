@@ -33,20 +33,27 @@ class SkipToPreviousPage extends PlayerControlsEvent {}
 class GetAvailableVoices extends PlayerControlsEvent {}
 
 class PlayerControlsState {
-  PlayerControlsState({required this.playing, required this.ttsEnabled});
+  PlayerControlsState({required this.playing, required this.ttsEnabled, required this.audioEnabled});
   final bool playing;
   final bool ttsEnabled;
+  final bool audioEnabled;
 
   final FlutterReadium readium = FlutterReadium();
 
   Future<PlayerControlsState> togglePlay(final bool playing) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
+    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
 
     return newState;
   }
 
-  Future<PlayerControlsState> toggleTTS(final bool ttsEnabled) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled);
+  Future<PlayerControlsState> toggleTTSEnabled(final bool ttsEnabled) async {
+    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
+
+    return newState;
+  }
+
+  Future<PlayerControlsState> toggleAudioEnabled(final bool audioEnabled) async {
+    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
 
     return newState;
   }
@@ -58,13 +65,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           PlayerControlsState(
             playing: false,
             ttsEnabled: false,
+            audioEnabled: false,
           ),
         ) {
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
         await instance.play(null);
-        emit(await state.toggleTTS(true));
+        emit(await state.toggleTTSEnabled(true));
       } else {
         await instance.resume();
       }
@@ -73,7 +81,11 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<Play>((final event, final emit) async {
-      await instance.play(event.fromLocator);
+      if (!state.audioEnabled) {
+        await instance.audioEnable(prefs: AudioPreferences(speed: 1.5, seekInterval: 10));
+        emit(await state.toggleAudioEnabled(true));
+      }
+      // await instance.play(event.fromLocator);
       emit(await state.togglePlay(true));
     });
 
@@ -88,7 +100,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Stop>((final event, final emit) async {
       await instance.stop();
-      emit(await state.toggleTTS(false));
+      emit(await state.toggleTTSEnabled(false));
+      emit(await state.toggleAudioEnabled(false));
       emit(await state.togglePlay(false));
     });
 
