@@ -31,7 +31,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.*
@@ -160,8 +159,25 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 
             val activityIntent = createSessionActivityIntent()
             val player = navigator.asMedia3Player()
+            val forwardingPlayer = object : ForwardingSimpleBasePlayer(player) {
 
-            val mediaSession = MediaSession.Builder(applicationContext, player)
+                override fun handleSeek(
+                    mediaItemIndex: Int,
+                    positionMs: Long,
+                    seekCommand: Int
+                ): ListenableFuture<*> {
+                    // NOTE: Maps seek to next/previous track, to seek forward/backward.
+                    if (seekCommand == COMMAND_SEEK_TO_NEXT) {
+                        return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_FORWARD)
+                    } else if (seekCommand == COMMAND_SEEK_TO_PREVIOUS) {
+                        return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_BACK)
+                    }
+                    return super.handleSeek(mediaItemIndex, positionMs, seekCommand)
+                }
+            }
+
+
+            val mediaSession = MediaSession.Builder(applicationContext, forwardingPlayer)
                 .setSessionActivity(activityIntent)
                 .setCallback(this@PluginMediaService)
                 .setCustomLayout(notificationPlayerCustomCommandButtons)
