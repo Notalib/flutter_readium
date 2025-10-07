@@ -2,6 +2,7 @@ package dk.nota.flutter_readium.navigators
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
 import android.util.Log
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.ReadiumReader
@@ -9,6 +10,7 @@ import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -155,17 +157,15 @@ class TTSNavigator(
             if (fromLocator != null) {
                 ttsNavigator?.go(fromLocator)
             }
-
             try {
                 Log.d(TAG, "Opening MediaSession")
                 mediaServiceFacade?.openSession(ttsNavigator!!)
+                ttsNavigator?.play()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to open MediaSession: $e")
                 ttsNavigator?.close()
                 return@async
             }
-
-            ttsNavigator?.play()
         }.await()
     }
 
@@ -409,4 +409,3 @@ class TTSNavigator(
         }
     }
 }
-

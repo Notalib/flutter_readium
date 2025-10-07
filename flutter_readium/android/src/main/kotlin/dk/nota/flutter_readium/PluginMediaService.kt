@@ -23,8 +23,9 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.media3.common.C
 import androidx.media3.common.ForwardingSimpleBasePlayer
-import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
@@ -33,8 +34,18 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.sample
 import org.readium.navigator.media.common.Media3Adapter
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -162,6 +173,79 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             val player = navigator.asMedia3Player()
             val forwardingPlayer = object : ForwardingSimpleBasePlayer(player) {
 
+                // FIX: Hacky way to fix missing COMMAND_GET_TIMELINE from TtsSessionAdapter
+                override fun getState(): State {
+                    // Ordered alphabetically by State.Builder setters.
+                    val state = State.Builder()
+                    //val positionSuppliers = livePositionSuppliers
+//                    if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
+//                        state.setAdBufferedPositionMs(positionSuppliers.bufferedPositionSupplier)
+//                        state.setAdPositionMs(positionSuppliers.currentPositionSupplier)
+//                    }
+                    if (player.isCommandAvailable(COMMAND_GET_AUDIO_ATTRIBUTES)) {
+                        state.setAudioAttributes(player.getAudioAttributes())
+                    }
+                    state.setAvailableCommands(player.getAvailableCommands())
+                    if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
+                        state.setContentPositionMs { player.contentPosition }
+                        state.setContentBufferedPositionMs { player.contentBufferedPosition }
+//                        state.setContentBufferedPositionMs(positionSuppliers.contentBufferedPositionSupplier)
+//                        state.setContentPositionMs(positionSuppliers.contentPositionSupplier)
+                    }
+                    if (player.isCommandAvailable(COMMAND_GET_TEXT)) {
+                        state.setCurrentCues(player.getCurrentCues())
+                    }
+                    //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
+                        state.setCurrentMediaItemIndex(player.getCurrentMediaItemIndex())
+                    //}
+                    state.setDeviceInfo(player.getDeviceInfo())
+                    if (player.isCommandAvailable(COMMAND_GET_DEVICE_VOLUME)) {
+                        state.setDeviceVolume(player.getDeviceVolume())
+                        state.setIsDeviceMuted(player.isDeviceMuted())
+                    }
+                    state.setIsLoading(player.isLoading())
+                    state.setMaxSeekToPreviousPositionMs(player.getMaxSeekToPreviousPosition())
+                    state.setPlaybackParameters(player.getPlaybackParameters())
+                    state.setPlaybackState(player.getPlaybackState())
+                    state.setPlaybackSuppressionReason(player.getPlaybackSuppressionReason())
+                    state.setPlayerError(player.getPlayerError())
+                    //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
+                        val tracks =
+                            if (player.isCommandAvailable(COMMAND_GET_TRACKS))
+                                player.getCurrentTracks()
+                            else
+                                Tracks.EMPTY
+                        val mediaMetadata =
+                            if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.getMediaMetadata() else null
+                        state.setPlaylist(player.getCurrentTimeline(), tracks, mediaMetadata)
+                    //}
+                    if (player.isCommandAvailable(COMMAND_GET_METADATA)) {
+                        state.setPlaylistMetadata(player.getPlaylistMetadata())
+                    }
+                    state.setPlayWhenReady(player.getPlayWhenReady(), PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)
+//                    if (pendingPositionDiscontinuityNewPositionMs != C.TIME_UNSET) {
+//                        state.setPositionDiscontinuity(
+//                            pendingDiscontinuityReason, pendingPositionDiscontinuityNewPositionMs
+//                        )
+//                        pendingPositionDiscontinuityNewPositionMs = C.TIME_UNSET
+//                    }
+                    state.setRepeatMode(player.getRepeatMode())
+                    state.setSeekBackIncrementMs(player.getSeekBackIncrement())
+                    state.setSeekForwardIncrementMs(player.getSeekForwardIncrement())
+                    state.setShuffleModeEnabled(player.getShuffleModeEnabled())
+                    state.setSurfaceSize(player.getSurfaceSize())
+                    //state.setTimedMetadata(lastTimedMetadata)
+                    if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
+                        state.setTotalBufferedDurationMs { player.totalBufferedDuration }
+                    }
+                    state.setTrackSelectionParameters(player.getTrackSelectionParameters())
+                    state.setVideoSize(player.getVideoSize())
+                    if (player.isCommandAvailable(COMMAND_GET_VOLUME)) {
+                        state.setVolume(player.getVolume())
+                    }
+                    return state.build()
+                }
+
                 override fun handleSeek(
                     mediaItemIndex: Int,
                     positionMs: Long,
@@ -181,7 +265,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             val mediaSession = MediaSession.Builder(applicationContext, forwardingPlayer)
                 .setSessionActivity(activityIntent)
                 .setCallback(this@PluginMediaService)
-                .setCustomLayout(notificationPlayerCustomCommandButtons)
+                //.setCustomLayout(notificationPlayerCustomCommandButtons)
                 .build()
 
             addSession(mediaSession)

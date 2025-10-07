@@ -578,6 +578,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             audiobookNavigator?.pause()
             audiobookNavigator?.dispose()
             audiobookNavigator = null
+            ttsNavigator?.pause()
             ttsNavigator?.dispose()
             ttsNavigator = null
 
