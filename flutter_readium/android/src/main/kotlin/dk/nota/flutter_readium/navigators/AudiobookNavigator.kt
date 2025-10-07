@@ -2,6 +2,7 @@ package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
 import android.util.Log
+import dk.nota.flutter_readium.ControlPanelInfoType
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.PluginMediaService
 import dk.nota.flutter_readium.PluginMediaServiceFacade
@@ -55,7 +56,13 @@ class AudiobookNavigator(
         // Create AudioNavigatorFactory
         val navigatorFactory = ExoPlayerNavigatorFactory(
             publication,
-            ExoPlayerEngineProvider(ReadiumReader.application)
+            ExoPlayerEngineProvider(ReadiumReader.application, metadataProvider = { pub ->
+                DatabaseMediaMetadataFactory(
+                    context = ReadiumReader.application,
+                    publication = publication,
+                    trackCount = pub.readingOrder.size,
+                    controlPanelInfoType = preferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
+                )})
         )
 
         if (navigatorFactory == null) {

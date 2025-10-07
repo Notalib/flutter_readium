@@ -519,7 +519,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         isReadyEventChannel = null
     }
 
-    suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
+    suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         mainScope.async {
             currentPublication?.let {
                 // TODO: Get initial locator

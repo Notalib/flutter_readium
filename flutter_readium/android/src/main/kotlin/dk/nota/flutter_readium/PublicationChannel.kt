@@ -3,7 +3,6 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -89,7 +88,7 @@ internal class PublicationMethodCallHandler() :
 
                 "ttsEnable" -> {
                     val args = call.arguments as Map<String, Any>?
-                    val ttsPrefs = androidTtsPreferencesFromMap(args)
+                    val ttsPrefs = FlutterTtsPreferences.fromMap(args)
 
                     val publication = ReadiumReader.currentPublication
                     val pubUrl = ReadiumReader.currentPublicationUrl

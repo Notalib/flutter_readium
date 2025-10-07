@@ -3,6 +3,8 @@ package dk.nota.flutter_readium.navigators
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import dk.nota.flutter_readium.ControlPanelInfoType
+import dk.nota.flutter_readium.FlutterTtsPreferences
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.letIfBothNotNull
@@ -54,7 +56,7 @@ class TTSNavigator(
     publication: Publication,
     timebaseListener: TimebasedListener,
     initialLocator: Locator?,
-    private var initialPreferences: AndroidTtsPreferences = AndroidTtsPreferences()
+    private var initialPreferences: FlutterTtsPreferences = FlutterTtsPreferences()
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
@@ -79,6 +81,14 @@ class TTSNavigator(
             publication,
             tokenizerFactory = { language ->
                 DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
+            },
+            metadataProvider = { pub ->
+                DatabaseMediaMetadataFactory(
+                    context = ReadiumReader.application,
+                    publication = publication,
+                    trackCount = pub.readingOrder.size,
+                    controlPanelInfoType = initialPreferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
+                )
             }
         ) ?: throw Exception("This publication cannot be played with the TTS navigator")
 
@@ -88,17 +98,19 @@ class TTSNavigator(
                 mediaServiceFacade?.closeSession()
             }
         }
+
+        val initialAndroidPreferences = initialPreferences.toAndroidTtsPreferences()
         mainScope.async {
             val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
-                navigatorFactory.createNavigator(listener, firstVisibleLocator, initialPreferences)
+                navigatorFactory.createNavigator(listener, firstVisibleLocator, initialAndroidPreferences)
                     .getOrElse {
                         Log.e(TAG, "ttsEnable: failed to create navigator: $it")
                         throw Exception("ttsEnable: failed to create navigator: $it")
                     }
 
-            editor = navigatorFactory.createPreferencesEditor(initialPreferences)
+            editor = navigatorFactory.createPreferencesEditor(initialAndroidPreferences)
 
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
@@ -374,8 +386,8 @@ class TTSNavigator(
             val locator = state.getString(currentTimebasedLocatorKey)
                 ?.let { Locator.fromJSON(JSONObject(it)) }
             val preferences = state.getString(ttsPreferencesKey)
-                ?.let { Json.decodeFromString<AndroidTtsPreferences>(it) }
-                ?: AndroidTtsPreferences()
+                ?.let { Json.decodeFromString< FlutterTtsPreferences>(it) }
+                ?: FlutterTtsPreferences()
 
             val uttStyle = state.getParcelable<Decoration.Style>(utteranceStyleKey)
             val rangeStyle = state.getParcelable<Decoration.Style>(currentRangeStyleKey)
