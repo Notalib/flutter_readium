@@ -72,6 +72,7 @@ enum class NotificationPlayerCustomCommandButton(
     );
 }
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 @androidx.annotation.OptIn(UnstableApi::class)
 class PluginMediaService : MediaSessionService(), MediaSession.Callback {
@@ -221,7 +222,10 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 
         fun stop() {
             closeSession()
-            ServiceCompat.stopForeground(this@PluginMediaService, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            ServiceCompat.stopForeground(
+                this@PluginMediaService,
+                ServiceCompat.STOP_FOREGROUND_REMOVE
+            )
             this@PluginMediaService.stopSelf()
         }
     }

@@ -8,6 +8,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -21,6 +22,7 @@ private const val TAG = "PublicationChannel"
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
 
+@ExperimentalCoroutinesApi
 internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler {
 

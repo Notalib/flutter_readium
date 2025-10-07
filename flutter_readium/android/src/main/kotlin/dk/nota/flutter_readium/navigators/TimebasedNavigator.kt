@@ -95,32 +95,32 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     /**
      * Start playing
      */
-    open fun play() {
+    open suspend fun play() {
         play(null)
     }
 
     /**
      * Start playing. If fromLocator is provided from that position.
      */
-    abstract fun play(fromLocator: Locator?)
+    abstract suspend fun play(fromLocator: Locator?)
 
     /**
      * Pause playback.
      */
-    abstract fun pause()
+    abstract suspend fun pause()
 
     /**
      * Resume playback
      */
-    abstract fun resume()
+    abstract suspend fun resume()
 
     /**
      * Go back in the playback.
      */
-    abstract fun goBack();
+    abstract suspend fun goBack();
 
     /**
      * Go forward in the playback.
      */
-    abstract fun goForward();
+    abstract suspend fun goForward();
 }

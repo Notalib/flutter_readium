@@ -8,6 +8,7 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -37,6 +38,7 @@ private const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
 private const val audioPreferencesKey = "audioPreferencesKey"
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class AudiobookNavigator(
     publication: Publication,
@@ -72,31 +74,31 @@ class AudiobookNavigator(
             throw Exception(PublicationError.invoke(error).message)
         }
 
-        mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application)
-        mediaServiceFacade?.session
-            ?.flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
-            ?.onEach { playback ->
-                when (val state = (playback?.state as? AudioNavigator.State)) {
-                    null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
-                        // Do nothing
-                    }
+        mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application).apply {
+            session
+                .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
+                .onEach { playback ->
+                    when (val state = (playback?.state as? AudioNavigator.State)) {
+                        null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
+                            // Do nothing
+                        }
 
-                    is AudioNavigator.State.Ended -> {
-                        mediaServiceFacade?.closeSession()
-                    }
+                        is AudioNavigator.State.Ended -> {
+                            mediaServiceFacade?.closeSession()
+                        }
 
-                    is AudioNavigator.State.Failure<*> -> {
-                        Log.e(TAG, "AudioNavigator failure: ${state.error}")
-                        //onPlaybackError(state.error)
+                        is AudioNavigator.State.Failure<*> -> {
+                            Log.e(TAG, "AudioNavigator failure: ${state.error}")
+                            //onPlaybackError(state.error)
+                        }
                     }
-                }
-            }
-            ?.launchIn(mainScope)
+                }.launchIn(mainScope)
+        }
 
         setupNavigatorListeners()
     }
 
-    override fun play(fromLocator: Locator?) {
+    override suspend fun play(fromLocator: Locator?) {
         mainScope.async {
             if (fromLocator != null) {
                 audioNavigator?.go(fromLocator)
@@ -111,32 +113,32 @@ class AudiobookNavigator(
             }
 
             audioNavigator?.play()
-        }
+        }.await()
     }
 
-    override fun pause() {
+    override suspend fun pause() {
         mainScope.async {
             audioNavigator?.pause()
-        }
+        }.await()
     }
 
-    override fun resume() {
+    override suspend fun resume() {
         mainScope.async {
             // TODO: Do we need to check if already playing?
             audioNavigator?.play()
-        }
+        }.await()
     }
 
-    override fun goBack() {
+    override suspend fun goBack() {
         mainScope.async {
             audioNavigator?.skip((-preferences.seekInterval).seconds)
-        }
+        }.await()
     }
 
-    override fun goForward() {
+    override suspend fun goForward() {
         mainScope.async {
             audioNavigator?.skip((preferences.seekInterval).seconds)
-        }
+        }.await()
     }
 
     /// Updates Audio preferences, does not override current preferences if props are null
@@ -151,6 +153,7 @@ class AudiobookNavigator(
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
         if (navigator == null) {
+            Log.e(TAG, ": setupNavigatorListeners - navigator is null")
             return
         }
 

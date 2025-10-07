@@ -18,6 +18,7 @@ import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
@@ -68,6 +69,7 @@ private const val epubNavigatorStateKey = "epubState"
 
 // TODO: Support custom headers and authentication header.
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.VisualListener {
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -561,12 +563,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }.await()
     }
 
-    fun pause() {
+    suspend fun pause() {
         audiobookNavigator?.pause()
         ttsNavigator?.pause()
     }
 
-    fun resume() {
+    suspend fun resume() {
         audiobookNavigator?.resume()
         ttsNavigator?.resume()
     }
@@ -585,13 +587,17 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun previous() {
-        audiobookNavigator?.goBack()
-        ttsNavigator?.goBack()
+        mainScope.launch {
+            audiobookNavigator?.goBack()
+            ttsNavigator?.goBack()
+        }
     }
 
     fun next() {
-        audiobookNavigator?.goForward()
-        ttsNavigator?.goForward()
+        mainScope.launch {
+            audiobookNavigator?.goForward()
+            ttsNavigator?.goForward()
+        }
     }
 
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {

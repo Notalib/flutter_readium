@@ -20,6 +20,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
@@ -32,6 +33,7 @@ import org.readium.r2.shared.util.AbsoluteUrl
 private const val TAG = "ReadiumReaderView"
 internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class ReadiumReaderWidget(
     private val context: Context,
@@ -93,7 +95,10 @@ class ReadiumReaderWidget(
         var initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
         val initialPreferences =
-            if (initPrefsMap == null) EpubPreferences() else epubPreferencesFromMap(initPrefsMap, null)
+            if (initPrefsMap == null) EpubPreferences() else epubPreferencesFromMap(
+                initPrefsMap,
+                null
+            )
         Log.d(TAG, "publication = $publication")
 
         layout = LinearLayout(context, attrs)
@@ -119,7 +124,7 @@ class ReadiumReaderWidget(
         // Remove existing fragment if any (this is to avoid crashing on restore).
         (fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as? EpubReaderFragment)?.let { fragment ->
             Log.d(TAG, "::init - remove existing fragment")
-            
+
             fragmentManager.commitNow {
                 remove(fragment)
             }

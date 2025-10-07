@@ -7,7 +7,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.ReaderViewModel
 import org.readium.r2.navigator.Navigator
 import org.readium.r2.shared.publication.Locator

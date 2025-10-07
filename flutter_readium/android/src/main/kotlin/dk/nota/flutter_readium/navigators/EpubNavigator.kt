@@ -12,6 +12,7 @@ import dk.nota.flutter_readium.jsonDecode
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -39,6 +40,7 @@ private const val epubPreferencesKey = "epubPreferences"
  * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
  * It also listens to events from the fragment and forwards them to the VisualListener.
  */
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     private val initialPreferences: EpubPreferences
