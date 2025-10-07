@@ -18,6 +18,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @visibleForTesting
   EventChannel audioLocatorChannel = const EventChannel('dk.nota.flutter_readium/audio-locator');
 
+  @visibleForTesting
+  EventChannel timebasedStateChannel = const EventChannel('dk.nota.flutter_readium/timebased-state');
+
   /// The event channel used to receive text Locator changes from the native platform.
   @visibleForTesting
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
@@ -25,6 +28,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator>? _onTextLocatorChanged;
 
   Stream<Locator>? _onAudioLocatorChanged;
+
+  Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
 
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
 
@@ -46,6 +51,16 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       return newLocator;
     });
     return _onAudioLocatorChanged!;
+  }
+
+  /// Fires whenever the Audio Locator changes. Can be either TTS or pre-recorded.
+  @override
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
+      final state = ReadiumTimebasedState.fromJsonMap(json.decode(event) as Map<String, dynamic>);
+      return state;
+    });
+    return _onTimebasedPlayerStateChanged!;
   }
 
   @override

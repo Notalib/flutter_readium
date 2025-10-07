@@ -8,6 +8,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
 import 'src/enums.dart';
+import 'src/state_model.dart';
 import 'src/reader/index.dart';
 import 'src/shared/index.dart';
 
@@ -17,6 +18,7 @@ export 'src/reader/index.dart';
 export 'src/shared/index.dart';
 export 'src/utils/index.dart';
 export 'src/enums.dart';
+export 'src/state_model.dart';
 
 /// The interface that implementations of FlutterReadium must implement.
 ///
@@ -122,5 +124,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
   Stream<Locator> get onAudioLocatorChanged {
     throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
+  }
+
+  // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    throw UnimplementedError('onTimebasedPlayerStateChanged stream has not been implemented.');
   }
 }
