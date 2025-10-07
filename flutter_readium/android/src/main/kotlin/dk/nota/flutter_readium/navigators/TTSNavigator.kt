@@ -2,15 +2,14 @@ package dk.nota.flutter_readium.navigators
 
 import android.graphics.Color
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import dk.nota.flutter_readium.PluginMediaServiceFacade
+import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.throttleLatest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -35,6 +34,7 @@ import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
+import java.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -107,7 +107,6 @@ class TTSNavigator(
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
 
-
             mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application)
                 .apply {
                     session
@@ -157,6 +156,8 @@ class TTSNavigator(
             if (fromLocator != null) {
                 ttsNavigator?.go(fromLocator)
             }
+
+            // TODO: Handle multiple calls to this function
             try {
                 Log.d(TAG, "Opening MediaSession")
                 mediaServiceFacade?.openSession(ttsNavigator!!)
@@ -273,6 +274,7 @@ class TTSNavigator(
             }
             .onEach { pb ->
                 onPlaybackStateChanged(pb)
+                timebaseListener.onTimebasedBufferChanged(null)
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -378,7 +380,11 @@ class TTSNavigator(
                     ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}"
                 )
 
-                timebaseListener.onTimebasedPlaybackStateChanged(PlaybackState.Failure)
+                timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
+                timebaseListener.onTimebasedPlaybackFailure(
+                    PublicationError.invoke(error)
+                )
+
             }
 
             else -> {

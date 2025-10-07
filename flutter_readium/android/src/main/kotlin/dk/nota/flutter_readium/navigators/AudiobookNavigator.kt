@@ -3,7 +3,6 @@ package dk.nota.flutter_readium.navigators
 import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
-import dk.nota.flutter_readium.PluginMediaService
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
@@ -21,14 +20,12 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
-import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigator
-import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.getOrElse
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -169,6 +166,15 @@ class AudiobookNavigator(
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
+        navigator.playback
+            .throttleLatest(250.milliseconds)
+            .distinctUntilChangedBy { pb -> pb.buffered }
+            .onEach { pb ->
+                timebaseListener.onTimebasedBufferChanged(pb.buffered)
+            }
+            .launchIn(mainScope)
+            .let { jobs.add(it) }
+
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
@@ -198,7 +204,7 @@ class AudiobookNavigator(
                     ": onPlaybackStateChanged - audio error: Message=${error.message} cause=${error.cause}"
                 )
 
-                timebaseListener.onTimebasedPlaybackStateChanged(PlaybackState.Failure)
+                timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
                 timebaseListener.onTimebasedPlaybackFailure(
                     PublicationError.invoke(error)
                 )

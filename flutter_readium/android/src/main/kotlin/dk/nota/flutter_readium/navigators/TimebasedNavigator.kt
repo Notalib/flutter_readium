@@ -4,8 +4,10 @@ import android.util.Log
 import dk.nota.flutter_readium.PublicationError
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import kotlin.time.Duration
 
 private const val TAG = "TimebasedNavigator"
 
@@ -19,7 +21,12 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         /**
          * Called when the playback state changes.
          */
-        fun onTimebasedPlaybackStateChanged(playbackState: PlaybackState)
+        fun onTimebasedPlaybackStateChanged(timebasedState: TimebasedState)
+
+        /**
+         * Called when the time-based buffer changes.
+         */
+        fun onTimebasedBufferChanged(buffer: Duration?)
 
         /**
          * Called when there is a playback error.
@@ -29,7 +36,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         /**
          * Called when the current locator changes.
          */
-        fun onTimebasedCurrentLocatorChanges(locator: Locator)
+        fun onTimebasedCurrentLocatorChanges(locator: Locator, currentReadingOrderLink: Link?)
 
         /**
          * Called when there is a time-based location change, this is used to highlight text while reading.
@@ -37,11 +44,16 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         fun onTimebasedLocationChanged(locator: Locator)
     }
 
-    enum class PlaybackState {
+    // Possible states for a time-based navigator.
+    enum class TimebasedState {
         Playing,
-        Ready,
-        Buffering,
+
+        Paused,
+
+        Loading,
+
         Failure,
+
         Ended,
     }
 
@@ -49,47 +61,54 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
      * Called when the playback state changes.
      */
     open fun onPlaybackStateChanged(pb: P) {
-        var playbackState: PlaybackState
+        var timebasedState: TimebasedState
         when (pb.state) {
             is MediaNavigator.State.Ready -> {
-                playbackState = if (pb.playWhenReady) PlaybackState.Playing else PlaybackState.Ready
+                timebasedState = if (pb.playWhenReady) TimebasedState.Playing else TimebasedState.Paused
             }
 
             is MediaNavigator.State.Buffering -> {
-                playbackState = PlaybackState.Buffering
+                timebasedState = TimebasedState.Loading
             }
 
             is MediaNavigator.State.Failure -> {
-                playbackState = PlaybackState.Failure
+                timebasedState = TimebasedState.Failure
             }
 
             is MediaNavigator.State.Ended -> {
-                playbackState = PlaybackState.Ended
+                timebasedState = TimebasedState.Ended
             }
         }
 
         Log.d(
             TAG,
-            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$playbackState, index=${pb.index}"
+            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}"
         )
 
-        timebaseListener.onTimebasedPlaybackStateChanged(playbackState)
+        timebaseListener.onTimebasedPlaybackStateChanged(timebasedState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
+        val readingOrderLink =
+            publication.readingOrder.find { link ->
+                link.href.toString() == locator.href.toString()
+            }
+
         if (locator.locations.position == null) {
             val index =
-                publication.readingOrder.indexOfFirst { it.href.toString() == locator.href.toString() }
+                publication.readingOrder.indexOfFirst { link ->
+                    link == readingOrderLink
+                }
             if (index != -1) {
                 val newLocator = locator.copy(
                     locations = locator.locations.copy(position = index + 1)
                 )
-                timebaseListener.onTimebasedCurrentLocatorChanges(newLocator)
+                timebaseListener.onTimebasedCurrentLocatorChanges(newLocator, readingOrderLink)
                 return
             }
         }
 
-        timebaseListener.onTimebasedCurrentLocatorChanges(locator)
+        timebaseListener.onTimebasedCurrentLocatorChanges(locator, readingOrderLink)
     }
 
     /**

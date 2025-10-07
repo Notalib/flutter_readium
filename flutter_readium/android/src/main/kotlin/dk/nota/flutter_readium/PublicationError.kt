@@ -8,6 +8,7 @@ package dk.nota.flutter_readium
 
 import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigatorFactory
+import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.asset.AssetRetriever
@@ -39,7 +40,6 @@ sealed class PublicationError(
         PublicationError(cause.message, cause.cause)
 
     companion object {
-
         operator fun invoke(error: AssetRetriever.RetrieveUrlError): PublicationError =
             when (error) {
                 is AssetRetriever.RetrieveUrlError.Reading ->
@@ -82,6 +82,14 @@ sealed class PublicationError(
                     -> FormatNotSupported(error)
                 is AudioNavigatorFactory.Error.EngineInitialization
                     -> Unexpected(error)
+            }
+
+        operator fun invoke(error: TtsNavigator.Error): PublicationError =
+            when (error) {
+                is TtsNavigator.Error.EngineError<*>
+                    -> Unexpected(error)
+                is TtsNavigator.Error.ContentError
+                    -> FormatNotSupported(error)
             }
     }
 }
