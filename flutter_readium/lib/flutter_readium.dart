@@ -48,6 +48,10 @@ class FlutterReadium {
     return _platform.onAudioLocatorChanged;
   }
 
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    return _platform.onTimebasedPlayerStateChanged;
+  }
+
   Future<void> goLeft() {
     return _platform.goLeft();
   }
