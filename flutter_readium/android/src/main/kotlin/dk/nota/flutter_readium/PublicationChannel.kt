@@ -131,8 +131,7 @@ internal class PublicationMethodCallHandler() :
 
             "play" -> {
                 val args = arguments as List<*>
-                val fromLocatorStr = args[0] as String?
-                val fromLocator = fromLocatorStr?.let {
+                val fromLocator = (args[0] as? Map<*, *>)?.let {
                     Locator.fromJSON(JSONObject(it))
                 }
 
@@ -173,11 +172,12 @@ internal class PublicationMethodCallHandler() :
 
             "goToLocator" -> {
                 val args = arguments as List<*>
-                val locatorStr = args[0] as String
-                val locator = Locator.fromJSON(JSONObject(locatorStr))
+                val locator = (args[0] as? Map<*, *>)?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
 
                 if (locator == null) {
-                    throw Exception("goToLocator: failed to go to locator. Missing locator: $locatorStr")
+                    throw Exception("goToLocator: failed to go to locator. Missing locator: ${args[0]} ")
                 }
 
                 ReadiumReader.goToLocator(locator)
@@ -202,11 +202,13 @@ internal class PublicationMethodCallHandler() :
                 val args = arguments as List<*>
                 // 0 is AudioPreferences
                 val prefs = args[0] as Map<*, *>?
-                val locatorStr = args[1] as String?
 
                 val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
                     ?: FlutterAudioPreferences()
-                val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
+
+                val locator = (args[1] as? Map<*, *>)?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
 
                 return audioEnable(locator, preferences)
             }
@@ -228,6 +230,9 @@ internal class PublicationMethodCallHandler() :
         }
     }
 
+    /**
+     * Load and return the publication manifest from a URL without opening it.
+     */
     private suspend fun loadPublication(pubUrlStr: String): Try<String, PublicationError> {
         val publication =
             ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
@@ -242,6 +247,11 @@ internal class PublicationMethodCallHandler() :
         return Try.success(pubJsonManifest)
     }
 
+    /**
+     * Open a publication from a URL. If another publication is already opened, it will be closed first.
+     *
+     * There can be only one... opened publication at a time.
+     */
     private suspend fun openPublication(pubUrlStr: String): Try<String, PublicationError> {
         val publication =
             ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse { error ->
@@ -254,6 +264,9 @@ internal class PublicationMethodCallHandler() :
         return Try.success(pubJsonManifest)
     }
 
+    /**
+     * Enable TTS reading with the provided preferences.
+     */
     private suspend fun ttsEnable(prefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
         val publication = ReadiumReader.currentPublication
         if (publication == null) {
@@ -266,6 +279,9 @@ internal class PublicationMethodCallHandler() :
         return Try.success(null)
     }
 
+    /**
+     * Update the TTS preferences. The TTS must be enabled first.
+     */
     private suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
         val publication = ReadiumReader.currentPublication
         if (publication == null) {
@@ -278,6 +294,10 @@ internal class PublicationMethodCallHandler() :
         return Try.success(null)
     }
 
+    /**
+     * Set the TTS decoration styles for the utterance and the range.
+     * If null is provided the default style will be used.
+     */
     suspend fun ttsSetDecorationStyle(
         uttStyle: Decoration.Style?,
         rangeStyle: Decoration.Style?
@@ -290,6 +310,9 @@ internal class PublicationMethodCallHandler() :
         }
     }
 
+    /**
+     * Get the list of available TTS voices on the device.
+     */
     fun ttsGetAvailableVoices(): List<String> {
         val androidVoices = ReadiumReader.ttsGetAvailableVoices()
         if (androidVoices == null) {
@@ -312,6 +335,10 @@ internal class PublicationMethodCallHandler() :
         return voicesJson
     }
 
+    /**
+     * Get the content of a publication resource via a Link.
+     * If asString is true the content is returned as a String, otherwise as ByteArray
+     */
     private suspend fun getLinkContent(link: Link, asString: Boolean): Try<Any, PublicationError> {
         val publication = ReadiumReader.currentPublication
             ?: return Try.failure(
@@ -330,6 +357,9 @@ internal class PublicationMethodCallHandler() :
         return Try.success(if (asString) String(resourceBytes) else resourceBytes)
     }
 
+    /**
+     * Enable audio (audiobook) reading with optional locator to start from and audio preferences.
+     */
     private suspend fun audioEnable(
         locator: Locator?,
         preferences: FlutterAudioPreferences
@@ -346,6 +376,9 @@ internal class PublicationMethodCallHandler() :
     }
 }
 
+/**
+ * Send a PublicationError back to Flutter via MethodChannel.Result
+ */
 fun MethodChannel.Result.publicationError(method: String, error: PublicationError) {
     Log.e(
         TAG,

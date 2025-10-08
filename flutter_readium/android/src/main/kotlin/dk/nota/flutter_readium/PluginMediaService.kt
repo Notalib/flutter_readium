@@ -40,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.launch
 import org.readium.navigator.media.common.Media3Adapter
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -135,10 +137,14 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
     ): ListenableFuture<SessionResult> {
         /* Handle custom command buttons from player notification. */
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.REWIND.customAction) {
-            ReadiumReader.previous()
+            CoroutineScope(Dispatchers.Main).async {
+                ReadiumReader.previous()
+            }
         }
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.FORWARD.customAction) {
-            ReadiumReader.next()
+            CoroutineScope(Dispatchers.Main).async {
+                ReadiumReader.next()
+            }
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }

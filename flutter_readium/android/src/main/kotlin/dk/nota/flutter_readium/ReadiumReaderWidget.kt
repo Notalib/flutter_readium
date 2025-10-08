@@ -182,7 +182,7 @@ class ReadiumReaderWidget(
         Log.d(TAG, "::onVisualReaderIsReady")
     }
 
-    suspend fun getFirstVisibleLocator(): Locator? = ReadiumReader.getFirstVisibleLocator()
+    suspend fun getFirstVisibleLocator(): Locator? = withScope(mainScope) { ReadiumReader.getFirstVisibleLocator() }
 
     @Throws(IllegalArgumentException::class)
     private fun setPreferencesFromMap(prefMap: Map<String, String>) {

@@ -563,9 +563,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         currentTimebasedDuration.value = duration?.let { it * 1000 }
         currentTimebasedLocator.value = locator
 
-        mainScope.launch {
-            audioLocatorEventChanel?.sendEvent(locator)
-        }
+        audioLocatorEventChanel?.sendEvent(locator)
     }
 
     override fun onTimebasedLocationChanged(locator: Locator) {
@@ -595,16 +593,18 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
 
-        epubNavigator?.let {
-            attachEpubNavigator(fragmentManager, viewGroup)
-            return
-        } // Already enabled - assume from restored state.
+        withScope(mainScope) {
+            epubNavigator?.let {
+                attachEpubNavigator(fragmentManager, viewGroup)
+                return@withScope
+            } // Already enabled - assume from restored state.
 
-        EpubNavigator(pub, initialLocator, this, initialPreferences).apply {
-            initNavigator()
-            epubNavigator = this
-            attachEpubNavigator(fragmentManager, viewGroup)
-            return
+            EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
+                initNavigator()
+                epubNavigator = this
+                attachEpubNavigator(fragmentManager, viewGroup)
+                return@withScope
+            }
         }
     }
 
@@ -629,27 +629,23 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
-        mainScope.async {
-            currentPublication?.let {
-                // TODO: Get initial locator
-                ttsNavigator =
-                    TTSNavigator(it, this@ReadiumReader, null, ttsPrefs).apply { initNavigator() }
-            } ?: throw Exception("Publication not opened cannot enable tts")
-        }.await()
+        currentPublication?.let {
+            // TODO: Get initial locator
+            ttsNavigator =
+                TTSNavigator(it, this@ReadiumReader, null, ttsPrefs).apply {
+                    initNavigator()
+                }
+        } ?: throw Exception("Publication not opened cannot enable tts")
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences) {
-        mainScope.async {
-            ttsNavigator?.updatePreferences(ttsPrefs)
-                ?: throw Exception("TTS is not enabled, can't set preferences")
-        }.await()
+        ttsNavigator?.updatePreferences(ttsPrefs)
+            ?: throw Exception("TTS is not enabled, can't set preferences")
     }
 
     suspend fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        mainScope.async {
-            ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
-                ?: throw Exception("TTS is not enabled, can't set decoration style")
-        }.await()
+        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
+            ?: throw Exception("TTS is not enabled, can't set decoration style")
     }
 
     fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
@@ -657,23 +653,19 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
-        mainScope.async {
-            if (voiceId != null) {
-                ttsNavigator?.setPreferredVoice(voiceId, language)
-            }
-        }.await()
+        if (voiceId != null) {
+            ttsNavigator?.setPreferredVoice(voiceId, language)
+        }
     }
 
     suspend fun play(fromLocator: Locator?) {
-        mainScope.async {
-            // If using TTS and no fromLocator given, start from current visible locator.
-            if (fromLocator == null && ttsNavigator != null) {
-                currentReaderWidget?.getFirstVisibleLocator()
-            }
+        // If using TTS and no fromLocator given, start from current visible locator.
+        if (fromLocator == null && ttsNavigator != null) {
+            currentReaderWidget?.getFirstVisibleLocator()
+        }
 
-            audiobookNavigator?.play(fromLocator)
-            ttsNavigator?.play(fromLocator)
-        }.await()
+        audiobookNavigator?.play(fromLocator)
+        ttsNavigator?.play(fromLocator)
     }
 
     suspend fun pause() {
@@ -686,60 +678,47 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         ttsNavigator?.resume()
     }
 
-    fun stop() {
-        mainScope.launch {
-            audiobookNavigator?.pause()
-            audiobookNavigator?.dispose()
-            audiobookNavigator = null
-            ttsNavigator?.pause()
-            ttsNavigator?.dispose()
-            ttsNavigator = null
+    suspend fun stop() {
+        audiobookNavigator?.pause()
+        audiobookNavigator?.dispose()
+        audiobookNavigator = null
+        ttsNavigator?.pause()
+        ttsNavigator?.dispose()
+        ttsNavigator = null
 
-            // Remove any current TTS decorations
-            epubNavigator?.applyDecorations(emptyList(), "tts")
-        }
+        // Remove any current TTS decorations
+        epubNavigator?.applyDecorations(emptyList(), "tts")
     }
 
-    fun previous() {
-        mainScope.launch {
-            audiobookNavigator?.goBack()
-            ttsNavigator?.goBack()
-        }
+    suspend fun previous() {
+        audiobookNavigator?.goBack()
+        ttsNavigator?.goBack()
     }
 
-    fun next() {
-        mainScope.launch {
-            audiobookNavigator?.goForward()
-            ttsNavigator?.goForward()
-        }
+    suspend fun next() {
+        audiobookNavigator?.goForward()
+        ttsNavigator?.goForward()
     }
 
-    fun goToLocator(locator: Locator) {
-        mainScope.launch {
-            audiobookNavigator?.goToLocator(locator)
-            ttsNavigator?.goToLocator(locator)
-            epubNavigator?.goToLocator(locator, true)
-        }
+    suspend fun goToLocator(locator: Locator) {
+        audiobookNavigator?.goToLocator(locator)
+        ttsNavigator?.goToLocator(locator)
+        epubGoToLocator(locator, true)
     }
 
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
-        mainScope.async {
-            currentPublication?.let { publication ->
-                // TODO: Handle karaoke books, this only works for plain audiobooks.
-                audiobookNavigator = AudiobookNavigator(
-                    publication,
-                    this@ReadiumReader,
-                    initialLocator,
-                    preferences
-                ).apply {
-                    initNavigator()
+        currentPublication?.let { publication ->
+            // TODO: Handle karaoke books, this only works for plain audiobooks.
+            audiobookNavigator = AudiobookNavigator(
+                publication,
+                this@ReadiumReader,
+                initialLocator,
+                preferences
+            ).apply {
+                initNavigator()
+            }
 
-                    // TODO: Autoplay?
-                    play()
-                }
-
-            } ?: throw Exception("Publication not opened")
-        }.await()
+        } ?: throw Exception("Publication not opened")
     }
 
     suspend fun audioUpdatePreferences(preferences: FlutterAudioPreferences) {
