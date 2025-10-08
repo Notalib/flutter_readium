@@ -79,8 +79,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.resume();
       }
 
-      subscribeToStateStreams();
-
       emit(await state.togglePlay(true));
     });
 
@@ -92,8 +90,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       } else {
         await instance.resume();
       }
-
-      subscribeToStateStreams();
 
       emit(await state.togglePlay(true));
     });
@@ -112,10 +108,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(await state.toggleTTSEnabled(false));
       emit(await state.toggleAudioEnabled(false));
       emit(await state.togglePlay(false));
-
-      for (var sub in subscriptions) {
-        sub.cancel();
-      }
     });
 
     on<SkipToNext>((final event, final emit) {
@@ -161,19 +153,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
   }
 
-  final FlutterReadium instance = FlutterReadium();
-  final List<StreamSubscription> subscriptions = List<StreamSubscription>.empty();
+  Stream<ReadiumTimebasedState> get timebasedStateChanges => instance.onTimebasedPlayerStateChanged;
 
-  void subscribeToStateStreams() {
-    if (subscriptions.isNotEmpty) {
-      return;
-    }
-    final audioStreamSub = instance.onAudioLocatorChanged.listen((state) {
-      debugPrint('AudioLocator changed: ${state.toString()}');
-    });
-    final timedStreamSub = instance.onTimebasedPlayerStateChanged.listen((state) {
-      debugPrint('TimebasedPlayer state: ${state.toString()}');
-    });
-    subscriptions.addAll([audioStreamSub, timedStreamSub]);
-  }
+  final FlutterReadium instance = FlutterReadium();
 }
