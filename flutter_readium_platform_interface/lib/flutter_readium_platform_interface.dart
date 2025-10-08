@@ -14,6 +14,7 @@ import 'src/reader/index.dart';
 import 'src/shared/index.dart';
 
 export 'src/exceptions/index.dart';
+export 'src/extensions/index.dart';
 export 'src/reader/index.dart';
 export 'src/shared/index.dart';
 export 'src/utils/index.dart';
