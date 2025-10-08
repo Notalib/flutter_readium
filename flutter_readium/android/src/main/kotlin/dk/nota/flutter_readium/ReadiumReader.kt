@@ -11,6 +11,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutter_readium.events.AudioLocatorEventChannel
 import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
+import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
@@ -20,20 +21,18 @@ import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
@@ -88,9 +87,13 @@ private const val epubNavigatorStateKey = "epubState"
 object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.VisualListener {
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val jobs = mutableListOf<Job>()
+
     private var appRef: WeakReference<Application>? = null
 
     private var audioLocatorEventChanel: AudioLocatorEventChannel? = null
+
+    private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
@@ -109,7 +112,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private val currentTimebasedLocator = MutableStateFlow<Locator?>(null)
 
-    suspend fun createCurrentTimebasedReaderState(): StateFlow<ReadiumTimebasedState?> {
+    fun createCurrentTimebasedReaderState(): Flow<ReadiumTimebasedState?> {
         return combine(
             currentTimebasedLocator
                 .throttleLatest(100.milliseconds)
@@ -135,7 +138,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
-            .stateIn(mainScope)
     }
 
     private val httpClient by lazy {
@@ -189,7 +191,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         unwrapToApplication(activity)
             ?.let { appRef = WeakReference(it) }
 
+        audioLocatorEventChanel?.dispose()
+        timedBasedStateEventChannel?.dispose()
+
         audioLocatorEventChanel = AudioLocatorEventChannel(messenger)
+        timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -201,12 +207,22 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             restoreState(it.consumeRestoredStateForKey(stateKey))
         }
 
-        mainScope.launch {
-            createCurrentTimebasedReaderState()
-                .collect {
-                    Log.d(TAG, "currentTimebasedReaderState: ${it}")
+        createCurrentTimebasedReaderState()
+            .onEach {
+                Log.d(
+                    TAG, "currentTimebasedReaderState: ${
+                        jsonEncode(
+                            it?.toJSON()
+                        )
+                    }"
+                )
+
+                if (it != null) {
+                    timedBasedStateEventChannel?.sendEvent(it)
                 }
-        }
+            }
+            .launchIn(mainScope)
+            .let { jobs.add(it) }
     }
 
     private fun storeState(): Bundle {
@@ -307,6 +323,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         audioLocatorEventChanel?.dispose()
         audioLocatorEventChanel = null
 
+        timedBasedStateEventChannel?.dispose()
+        timedBasedStateEventChannel = null
+
+        jobs.forEach { it.cancel() }
+        jobs.clear()
         mainScope.coroutineContext.cancelChildren()
     }
 
