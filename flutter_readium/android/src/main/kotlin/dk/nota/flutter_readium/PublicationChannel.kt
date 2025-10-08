@@ -3,7 +3,6 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
-import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -11,16 +10,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
 
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-internal const val readerStatusChannelName = "dk.nota.flutter_readium/reader-status"
 
 @ExperimentalCoroutinesApi
 internal class PublicationMethodCallHandler() :
@@ -29,277 +30,317 @@ internal class PublicationMethodCallHandler() :
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
-            when (call.method) {
-                "loadPublication" -> {
-                    val args = call.arguments as List<Any?>
-                    val pubUrlStr = args[0] as String
-                    val publication =
-                        ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
-                            Log.e(
-                                TAG,
-                                "loadPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
-                            )
-
-                            // TODO: errorCode doesn't look right
-                            result.error(
-                                "openPublication",
-                                error.message,
-                                error.cause
-                            )
-
-                            return@launch
-                        }
-
-                    val pubJsonManifest =
-                        publication.manifest.toJSON().toString().replace("\\/", "/")
-
-                    // Close the publication to avoid leaks.
-                    publication.close()
-                    result.success(pubJsonManifest)
+            try {
+                val res = handleMethodCallsQueue(
+                    call.method,
+                    call.arguments
+                ).getOrElse { error ->
+                    result.publicationError(call.method, error)
+                    return@launch
                 }
 
-                "openPublication" -> {
-                    val args = call.arguments as List<Any?>
-                    val pubUrlStr = args[0] as String
-
-                    val publication =
-                        ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse { error ->
-                            Log.e(
-                                TAG,
-                                "openPublication: Failed to load publication from URL. pubUrlStr=$pubUrlStr"
-                            )
-                            result.error(
-                                "openPublication",
-                                error.message,
-                                error.cause
-                            )
-
-                            return@launch
-                        }
-
-                    val pubJsonManifest =
-                        publication.manifest.toJSON().toString().replace("\\/", "/")
-                    result.success(pubJsonManifest)
-                }
-
-                "closePublication" -> {
-                    Log.d(TAG, "Close publication")
-
-                    ReadiumReader.closePublication()
+                if (res is Unit) {
                     result.success(null)
+                    return@launch
                 }
 
-                "ttsEnable" -> {
-                    val args = call.arguments as Map<String, Any>?
-                    val ttsPrefs = androidTtsPreferencesFromMap(args)
+                result.success(res)
+            } catch (e: NotImplementedError) {
+                result.notImplemented()
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: $e")
+                Log.e(TAG, "${e.stackTrace}")
 
-                    val publication = ReadiumReader.currentPublication
-                    val pubUrl = ReadiumReader.currentPublicationUrl
-                    if (publication == null) {
-                        Log.e(
-                            TAG,
-                            "ttsEnable: Cannot enable TTS for un-opened publication. pubUrl=$pubUrl"
-                        )
-                        result.error(
-                            "ttsEnable",
-                            "ttsEnable: Cannot enable TTS for un-opened publication. pubUrl=$pubUrl",
-                            null
-                        )
-                        return@launch
-                    }
-
-                    try {
-                        ReadiumReader.ttsEnable(ttsPrefs)
-
-                        result.success(null)
-                    } catch (e: Exception) {
-                        Log.e(
-                            TAG,
-                            "ttsEnable: Failed to create TTSViewModel (likely navigator). pubUrl=$pubUrl"
-                        )
-                        result.error("ttsEnable", "Failed to create TTSModel", e.message)
-                    }
-                }
-
-                "ttsSetPreferences" -> {
-                    val args = call.arguments as Map<String, Any>
-                    val prefs = androidTtsPreferencesFromMap(args)
-
-                    try {
-                        ReadiumReader.ttsSetPreferences(prefs)
-                        result.success(null)
-                    } catch (e: Exception) {
-                        result.error(
-                            "ttsSetPreferences",
-                            "Failed to set preferences",
-                            e.message
-                        )
-                    }
-                }
-
-                "ttsSetDecorationStyle" -> {
-                    val args = call.arguments as List<*>
-                    val uttDecoMap = args[0] as Map<String, String>?
-                    val rangeDecoMap = args[1] as Map<String, String>?
-                    val uttStyle = decorationStyleFromMap(uttDecoMap)
-                    val rangeStyle = decorationStyleFromMap(rangeDecoMap)
-                    try {
-                        ReadiumReader.ttsSetDecorationStyle(uttStyle, rangeStyle)
-                        result.success(null)
-                    } catch (e: Error) {
-                        result.error(
-                            "ttsSetPreferences",
-                            "Failed to set decoration style",
-                            e.message
-                        )
-                    }
-                }
-
-                "ttsGetAvailableVoices" -> {
-                    val androidVoices = ReadiumReader.ttsGetAvailableVoices()
-                    if (androidVoices == null) {
-                        result.success(listOf<String>())
-                        return@launch
-                    }
-
-                    val voicesJson = androidVoices.map {
-                        JSONObject().apply {
-                            put("identifier", it.id.value)
-                            put(
-                                "name",
-                                it.id.value
-                            ) // ID should be mapped to a readable name on Flutter side.
-                            put("quality", it.quality.name.lowercase())
-                            put("requiresNetwork", it.requiresNetwork)
-                            put("language", it.language.code)
-                        }.toString()
-                    }
-                    result.success(voicesJson)
-                }
-
-                "ttsSetVoice" -> {
-                    val args = call.arguments as List<*>
-                    val voiceId = args[0] as String?
-                    val language = args[1] as String?
-
-                    ReadiumReader.ttsSetPreferredVoice(voiceId, language)
-
-                    result.success(null)
-                }
-
-                "play" -> {
-                    val args = call.arguments as List<*>
-                    val fromLocatorStr = args[0] as String?
-                    val fromLocator = fromLocatorStr?.let {
-                        Locator.fromJSON(JSONObject(it))
-                    }
-
-                    ReadiumReader.play(fromLocator)
-
-                    result.success(null)
-                }
-
-                "pause" -> {
-                    ReadiumReader.pause()
-                    result.success(null)
-                }
-
-                "resume" -> {
-                    ReadiumReader.resume()
-
-                    result.success(null)
-                }
-
-                "stop" -> {
-                    ReadiumReader.stop()
-
-                    result.success(null)
-                }
-
-                "next" -> {
-                    ReadiumReader.next()
-
-                    result.success(null)
-                }
-
-                "previous" -> {
-                    ReadiumReader.previous()
-
-                    result.success(null)
-                }
-
-                "getLinkContent" -> {
-                    try {
-                        val args = call.arguments as List<Any?>
-                        val linkStr = args[0] as String
-                        val asString = args[1] as? Boolean ?: true
-                        val link = Link.fromJSON(JSONObject(linkStr))
-                        val publication = ReadiumReader.currentPublication
-
-                        if (publication == null || link == null) {
-                            throw Exception("getLinkContent: failed to get resource. Missing pub or link: $publication, $link")
-                        }
-
-                        Log.d(TAG, "Use publication = $publication")
-
-                        val resource = publication.get(link) ?: run {
-                            throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
-                        }
-                        val resourceBytes = resource.read().getOrElse {
-                            throw Exception("getLinkContent: failed to read resource. ${it.message}")
-                        }
-
-                        if (asString) {
-                            result.success(String(resourceBytes))
-                        } else {
-                            result.success(resourceBytes)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Exception: $e")
-                        Log.e(TAG, "${e.stackTrace}")
-
-                        result.error(
-                            e.javaClass.toString(),
-                            e.toString(),
-                            e.stackTraceToString()
-                        )
-                    }
-                }
-
-                "audioEnable" -> {
-                    val args = call.arguments as List<*>
-                    // 0 is AudioPreferences
-                    val prefs = args[0] as Map<String, Any>?
-                    val locatorStr = args[1] as String?
-                    val publication = ReadiumReader.currentPublication
-                    val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
-                        ?: FlutterAudioPreferences()
-                    val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
-
-                    if (publication == null) {
-                        result.error("audioEnable", "Publication not found", null)
-                        return@launch
-                    }
-
-                    ReadiumReader.audioEnable(locator, preferences)
-                    result.success(null)
-                }
-
-                "audioSetPreferences" -> {
-                    val prefsStr = call.arguments as String?
-                    val preferences =
-                        prefsStr?.let { json -> FlutterAudioPreferences.fromJSON(json) }
-                            ?: FlutterAudioPreferences()
-
-                    ReadiumReader.audioUpdatePreferences(preferences)
-
-                    result.success(null)
-                }
-
-                else -> {
-                    result.notImplemented()
-                }
+                // TODO: Handle unknown errors better.
+                result.error(
+                    e.javaClass.toString(),
+                    e.toString(),
+                    e.stackTraceToString()
+                )
             }
         }
     }
+
+    /**
+     * This function can be used to handle method calls sequentially if needed.
+     */
+    private suspend fun handleMethodCallsQueue(
+        method: String,
+        arguments: Any?
+    ): Try<Any?, PublicationError> {
+        when (method) {
+            "loadPublication" -> {
+                val args = arguments as List<Any?>
+                val pubUrlStr = args[0] as String
+                return loadPublication(pubUrlStr)
+            }
+
+            "openPublication" -> {
+                val args = arguments as List<Any?>
+                val pubUrlStr = args[0] as String
+
+                return openPublication(pubUrlStr)
+            }
+
+            "closePublication" -> {
+                Log.d(TAG, "Close publication")
+
+                ReadiumReader.closePublication()
+                return Try.success(null)
+            }
+
+            "ttsEnable" -> {
+                val args = arguments as Map<*, *>?
+                val ttsPrefs = androidTtsPreferencesFromMap(args)
+
+                return ttsEnable(ttsPrefs)
+            }
+
+            "ttsSetPreferences" -> {
+                val args = arguments as Map<*, *>?
+                val ttsPrefs = androidTtsPreferencesFromMap(args)
+
+                return ttsSetPreferences(ttsPrefs)
+            }
+
+            "ttsSetDecorationStyle" -> {
+                val args = arguments as List<*>
+                val uttDecoMap = args[0] as Map<*, *>?
+                val rangeDecoMap = args[1] as Map<*, *>?
+                val uttStyle = decorationStyleFromMap(uttDecoMap)
+                val rangeStyle = decorationStyleFromMap(rangeDecoMap)
+
+                return ttsSetDecorationStyle(uttStyle, rangeStyle)
+            }
+
+            "ttsGetAvailableVoices" -> {
+                ttsGetAvailableVoices().let { voices ->
+                    return Try.success(voices)
+                }
+            }
+
+            "ttsSetVoice" -> {
+                val args = arguments as List<*>
+                val voiceId = args[0] as String?
+                val language = args[1] as String?
+
+                ReadiumReader.ttsSetPreferredVoice(voiceId, language)
+
+                return Try.success(null)
+            }
+
+            "play" -> {
+                val args = arguments as List<*>
+                val fromLocatorStr = args[0] as String?
+                val fromLocator = fromLocatorStr?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
+
+                ReadiumReader.play(fromLocator)
+
+                return Try.success(null)
+            }
+
+            "pause" -> {
+                ReadiumReader.pause()
+
+                return Try.success(null)
+            }
+
+            "resume" -> {
+                ReadiumReader.resume()
+
+                return Try.success(null)
+            }
+
+            "stop" -> {
+                ReadiumReader.stop()
+
+                return Try.success(null)
+            }
+
+            "next" -> {
+                ReadiumReader.next()
+
+                return Try.success(null)
+            }
+
+            "previous" -> {
+                ReadiumReader.previous()
+
+                return Try.success(null)
+            }
+
+            "getLinkContent" -> {
+                val args = arguments as List<Any?>
+                val linkStr = args[0] as String
+                val asString = args[1] as? Boolean ?: true
+                val link = Link.fromJSON(JSONObject(linkStr))
+
+                if (link == null) {
+                    throw Exception("getLinkContent: failed to get resource. Missing link: $link")
+                }
+
+                return getLinkContent(link, asString)
+            }
+
+            "audioEnable" -> {
+                val args = arguments as List<*>
+                // 0 is AudioPreferences
+                val prefs = args[0] as Map<*, *>?
+                val locatorStr = args[1] as String?
+
+                val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
+                    ?: FlutterAudioPreferences()
+                val locator = locatorStr?.let { Locator.fromJSON(JSONObject(it)) }
+
+                return audioEnable(locator, preferences)
+            }
+
+            "audioSetPreferences" -> {
+                val prefsStr = arguments as String?
+                val preferences =
+                    prefsStr?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                        ?: FlutterAudioPreferences()
+
+                ReadiumReader.audioUpdatePreferences(preferences)
+
+                return Try.success(null)
+            }
+
+            else -> {
+                throw NotImplementedError()
+            }
+        }
+    }
+
+    private suspend fun loadPublication(pubUrlStr: String): Try<String, PublicationError> {
+        val publication =
+            ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                return Try.failure(error)
+            }
+
+        val pubJsonManifest =
+            publication.manifest.toJSON().toString().replace("\\/", "/")
+
+        // Close the publication to avoid leaks.
+        publication.close()
+        return Try.success(pubJsonManifest)
+    }
+
+    private suspend fun openPublication(pubUrlStr: String): Try<String, PublicationError> {
+        val publication =
+            ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                return Try.failure(error)
+            }
+
+        val pubJsonManifest =
+            publication.manifest.toJSON().toString().replace("\\/", "/")
+
+        return Try.success(pubJsonManifest)
+    }
+
+    private suspend fun ttsEnable(prefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.ttsEnable(prefs)
+        return Try.success(null)
+    }
+
+    private suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.ttsSetPreferences(ttsPrefs)
+        return Try.success(null)
+    }
+
+    suspend fun ttsSetDecorationStyle(
+        uttStyle: Decoration.Style?,
+        rangeStyle: Decoration.Style?
+    ): Try<Any?, PublicationError> {
+        try {
+            ReadiumReader.ttsSetDecorationStyle(uttStyle, rangeStyle)
+            return Try.success(null)
+        } catch (e: Error) {
+            return Try.failure(PublicationError.Unknown("Failed to set decoration style"))
+        }
+    }
+
+    fun ttsGetAvailableVoices(): List<String> {
+        val androidVoices = ReadiumReader.ttsGetAvailableVoices()
+        if (androidVoices == null) {
+            return listOf()
+        }
+
+        val voicesJson = androidVoices.map {
+            JSONObject().apply {
+                put("identifier", it.id.value)
+                put(
+                    "name",
+                    it.id.value
+                ) // ID should be mapped to a readable name on Flutter side.
+                put("quality", it.quality.name.lowercase())
+                put("requiresNetwork", it.requiresNetwork)
+                put("language", it.language.code)
+            }.toString()
+        }
+
+        return voicesJson
+    }
+
+    private suspend fun getLinkContent(link: Link, asString: Boolean): Try<Any, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+            ?: return Try.failure(
+                PublicationError.Unavailable()
+            )
+
+        Log.d(TAG, "Use publication = $publication")
+
+        val resource = publication.get(link) ?: run {
+            throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
+        }
+        val resourceBytes = resource.read().getOrElse {
+            throw Exception("getLinkContent: failed to read resource. ${it.message}")
+        }
+
+        return Try.success(if (asString) String(resourceBytes) else resourceBytes)
+    }
+
+    private suspend fun audioEnable(
+        locator: Locator?,
+        preferences: FlutterAudioPreferences
+    ): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.audioEnable(locator, preferences)
+        return Try.success(null)
+    }
+}
+
+fun MethodChannel.Result.publicationError(method: String, error: PublicationError) {
+    Log.e(
+        TAG,
+        "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}"
+    )
+
+    this.error(
+        error.errorCode.name,
+        error.message,
+        error.cause
+    )
 }

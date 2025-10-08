@@ -51,7 +51,7 @@ data class FlutterAudioPreferences(
             return jsonObject
         }
 
-        fun fromMap(prefs: Map<String, Any>): FlutterAudioPreferences {
+        fun fromMap(prefs: Map<*, *>): FlutterAudioPreferences {
             return FlutterAudioPreferences(
                 volume = prefs["volume"] as? Double ?: 1.0,
                 pitch = prefs["pitch"] as? Double ?: 1.0,
