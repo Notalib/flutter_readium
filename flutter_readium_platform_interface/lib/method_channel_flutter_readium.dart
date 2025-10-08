@@ -53,7 +53,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     return _onAudioLocatorChanged!;
   }
 
-  /// Fires whenever the Audio Locator changes. Can be either TTS or pre-recorded.
+  /// Fires whenever the TimebasedNavigator changes state
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {

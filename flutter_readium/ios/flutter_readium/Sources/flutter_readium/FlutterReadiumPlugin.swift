@@ -31,6 +31,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var isMoving = false
 
   internal var audioLocatorStreamHandler: EventStreamHandler?
+  internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
 
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
@@ -44,6 +45,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
     instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
+    instance.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
@@ -67,6 +69,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       self.synthesizer = nil
       self.audioLocatorStreamHandler?.dispose()
       self.audioLocatorStreamHandler = nil
+      self.timebasedPlayerStateStreamHandler?.dispose()
+      self.timebasedPlayerStateStreamHandler = nil
       result(nil)
     case "closePublication":
       self.closePublication()
