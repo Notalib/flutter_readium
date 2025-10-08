@@ -21,6 +21,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @visibleForTesting
   EventChannel timebasedStateChannel = const EventChannel('dk.nota.flutter_readium/timebased-state');
 
+  @visibleForTesting
+  EventChannel errorEventChannel = const EventChannel('dk.nota.flutter_readium/error');
+
   /// The event channel used to receive text Locator changes from the native platform.
   @visibleForTesting
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
@@ -32,6 +35,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
 
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
+
+  Stream<ReadiumError>? _onErrorEvent;
 
   /// Fires whenever the Reader's current Locator changes.
   @override
@@ -70,6 +75,15 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       return newStatus;
     });
     return _onReaderStatusChanged!;
+  }
+
+  @override
+  Stream<ReadiumError> get onErrorEvent {
+    _onErrorEvent ??= errorEventChannel.receiveBroadcastStream().map((dynamic event) {
+      final errorEvent = json.decode(event) as ReadiumError;
+      return errorEvent;
+    });
+    return _onErrorEvent!;
   }
 
   @override

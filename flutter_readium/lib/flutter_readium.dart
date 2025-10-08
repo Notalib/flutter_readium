@@ -52,6 +52,10 @@ class FlutterReadium {
     return _platform.onTimebasedPlayerStateChanged;
   }
 
+  Stream<ReadiumError> get onErrorEvent {
+    return _platform.onErrorEvent;
+  }
+
   Future<void> goLeft() {
     return _platform.goLeft();
   }
