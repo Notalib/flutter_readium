@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.navigator.media.tts.TtsNavigator
@@ -34,7 +35,6 @@ import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
-import java.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -131,7 +131,7 @@ class TTSNavigator(
         }.await()
     }
 
-    fun setDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
+    suspend fun setDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
         utteranceStyle = uttStyle
         currentRangeStyle = rangeStyle
 
@@ -144,7 +144,7 @@ class TTSNavigator(
         val location = navigator.location.value
         mainScope.async {
             decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
-        }
+        }.await()
     }
 
     override suspend fun play() {
@@ -233,7 +233,7 @@ class TTSNavigator(
 
 
     /// Updates TTS preferences, does not override current preferences if props are null
-    fun updatePreferences(prefs: AndroidTtsPreferences) {
+    suspend fun updatePreferences(prefs: AndroidTtsPreferences) {
         mainScope.async {
             editor?.apply {
                 voices.set(prefs.voices)
@@ -243,13 +243,13 @@ class TTSNavigator(
 
                 ttsNavigator?.submitPreferences(preferences)
             }
-        }
+        }.await()
     }
 
     /**
      * Set preferred voice for a given language. If lang is null, override voice for currently spoken language.
      */
-    fun setPreferredVoice(voiceId: String, lang: String?) {
+    suspend fun setPreferredVoice(voiceId: String, lang: String?) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
         val voices = preferences?.voices?.toMutableMap() ?: mutableMapOf()
         // If no lang provided, assume client wants to override currently spoken language.
@@ -369,10 +369,12 @@ class TTSNavigator(
     override fun dispose() {
         super.dispose()
 
-        mediaServiceFacade?.closeSession()
+        mainScope.async {
+            mediaServiceFacade?.closeSession()
 
-        ttsNavigator?.close()
-        ttsNavigator = null
+            ttsNavigator?.close()
+            ttsNavigator = null
+        }
     }
 
     override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
