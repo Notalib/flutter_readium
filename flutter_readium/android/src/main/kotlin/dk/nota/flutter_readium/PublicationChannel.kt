@@ -171,6 +171,20 @@ internal class PublicationMethodCallHandler() :
                 return Try.success(null)
             }
 
+            "goToLocator" -> {
+                val args = arguments as List<*>
+                val locatorStr = args[0] as String
+                val locator = Locator.fromJSON(JSONObject(locatorStr))
+
+                if (locator == null) {
+                    throw Exception("goToLocator: failed to go to locator. Missing locator: $locatorStr")
+                }
+
+                ReadiumReader.goToLocator(locator)
+
+                return Try.success(null)
+            }
+
             "getLinkContent" -> {
                 val args = arguments as List<Any?>
                 val linkStr = args[0] as String

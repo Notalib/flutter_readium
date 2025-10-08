@@ -142,4 +142,9 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
      * Go forward in the playback.
      */
     abstract suspend fun goForward();
+
+    /**
+     * Seek to a specific position in the playback.
+     */
+    abstract suspend fun goToLocator(locator: Locator)
 }
