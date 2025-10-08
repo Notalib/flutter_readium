@@ -9,7 +9,7 @@ class TimebasedStateWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: context.read<PlayerControlsBloc>().timebasedStateChanges,
+        stream: context.read<PlayerControlsBloc>().timebasedStateStream,
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             return Column(

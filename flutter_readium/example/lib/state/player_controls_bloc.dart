@@ -116,29 +116,19 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(await state.togglePlay(false));
     });
 
-    on<SkipToNext>((final event, final emit) {
-      instance.next();
-    });
+    on<SkipToNext>((final event, final emit) => instance.next());
 
-    on<SkipToPrevious>((final event, final emit) {
-      instance.previous();
-    });
+    on<SkipToPrevious>((final event, final emit) => instance.previous());
 
-    on<SkipToNextChapter>((final event, final emit) {
-      instance.skipToNext();
-    });
+    on<SkipToNextChapter>((final event, final emit) => instance.skipToNext());
 
-    on<SkipToPreviousChapter>((final event, final emit) {
-      instance.skipToPrevious();
-    });
+    on<SkipToPreviousChapter>((final event, final emit) => instance.skipToPrevious());
 
-    on<SkipToNextPage>((final event, final emit) {
-      instance.goRight();
-    });
+    on<SkipToNextPage>((final event, final emit) => instance.goRight());
 
-    on<SkipToPreviousPage>((final event, final emit) {
-      instance.goLeft();
-    });
+    on<SkipToPreviousPage>((final event, final emit) => instance.goLeft());
+
+    on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
@@ -159,7 +149,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
   }
 
-  Stream<ReadiumTimebasedState> get timebasedStateChanges => instance.onTimebasedPlayerStateChanged;
+  Stream<Locator> get audioLocatorStream => instance.onAudioLocatorChanged;
+
+  Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
 
   final FlutterReadium instance = FlutterReadium();
 }
