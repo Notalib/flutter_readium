@@ -8,7 +8,11 @@ import 'package:flutter_readium/flutter_readium.dart';
 
 abstract class PlayerControlsEvent {}
 
-class PlayTTS extends PlayerControlsEvent {}
+class PlayTTS extends PlayerControlsEvent {
+  PlayTTS({this.fromLocator});
+
+  Locator? fromLocator;
+}
 
 class Play extends PlayerControlsEvent {
   Play({this.fromLocator});
@@ -79,7 +83,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
-        await instance.play(null);
+        await instance.play(event.fromLocator);
         emit(await state.toggleTTSEnabled(true));
       } else {
         await instance.resume();
@@ -90,7 +94,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
-        await instance.audioEnable(prefs: AudioPreferences(speed: 1.5, seekInterval: 10));
+        await instance.audioEnable(
+            prefs: AudioPreferences(speed: 1.5, seekInterval: 10), fromLocator: event.fromLocator);
         emit(await state.toggleAudioEnabled(true));
         await instance.play(event.fromLocator);
       } else {

@@ -97,33 +97,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
-    case "goToLocator":
-      Task.detached(priority: .high) {
-        do {
-          let locatorStr = call.arguments as! String,
-              locator = try Locator(jsonString: locatorStr, warnings: self)!
-          if (self.audiobookVM != nil) {
-            let navigated = await self.audiobookVM!.navigator.go(to: locator, options: NavigatorGoOptions.animated)
-            await MainActor.run {
-              result(navigated)
-            }
-          }
-          if (self.synthesizer != nil) {
-            self.synthesizer?.start(from: locator)
-            await MainActor.run {
-              result(true)
-            }
-          }
-          
-        } catch {
-          await MainActor.run {
-            result(FlutterError.init(
-              code: "GoToLocator",
-              message: "Failed to parse locator: \(error.localizedDescription)",
-              details: nil))
-          }
-        }
-      }
     case "loadPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
@@ -243,8 +216,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "play":
       let args = call.arguments as! [Any?]
       var locator: Locator? = nil
-      if let locatorStr = args[0] as? String {
-        locator = try! Locator(jsonString: locatorStr, warnings: self)!
+      if let locatorJson = args.first as? Dictionary<String, Any> {
+        locator = try? Locator(json: locatorJson, warnings: self)
       }
 
       Task.detached(priority: .high) {
@@ -254,6 +227,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             locator = await currentReaderView?.getFirstVisibleLocator()
           }
           self.ttsStart(fromLocator: locator)
+        }
+        if (locator != nil) {
+          await self.audiobookVM?.navigator.go(to: locator!)
         }
         self.audiobookVM?.navigator.play()
         await MainActor.run {
@@ -294,6 +270,32 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       self.synthesizer?.previous()
       result(nil)
+    case "goToLocator":
+      Task.detached(priority: .high) {
+        guard let args = call.arguments as? [Any?],
+              let locatorJson = args.first as? Dictionary<String, Any>,
+              let locator = try? Locator(json: locatorJson, warnings: self)
+        else {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "GoToLocator",
+              message: "Failed to parse locator",
+              details: nil))
+          }
+          return
+        }
+        var navigated = false
+        if (self.audiobookVM != nil) {
+          navigated = await self.audiobookVM!.navigator.go(to: locator)
+        }
+        if (self.synthesizer != nil) {
+          self.synthesizer!.start(from: locator)
+          navigated = true
+        }
+        await MainActor.run { [navigated] in
+          result(navigated)
+        }
+      }
     case "audioEnable":
       guard let args = call.arguments as? [Any?],
             let publication = currentPublication else {
