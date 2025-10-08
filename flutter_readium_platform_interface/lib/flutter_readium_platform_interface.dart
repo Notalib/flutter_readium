@@ -87,6 +87,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> resume() => throw UnimplementedError('resume() has not been implemented');
   Future<void> next() => throw UnimplementedError('next() has not been implemented');
   Future<void> previous() => throw UnimplementedError('previous() has not been implemented');
+  Future<bool> goToLocator(Locator locator) => throw UnimplementedError('goToLocator() has not been implemented.');
   // COMMON PLAYBACK API - END
 
   // TTS API - BEGIN

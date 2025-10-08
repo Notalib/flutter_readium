@@ -32,6 +32,12 @@ class SkipToNextPage extends PlayerControlsEvent {}
 
 class SkipToPreviousPage extends PlayerControlsEvent {}
 
+class GoToLocator extends PlayerControlsEvent {
+  GoToLocator(this.locator);
+
+  final Locator locator;
+}
+
 class GetAvailableVoices extends PlayerControlsEvent {}
 
 class PlayerControlsState {

@@ -97,6 +97,33 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
+    case "goToLocator":
+      Task.detached(priority: .high) {
+        do {
+          let locatorStr = call.arguments as! String,
+              locator = try Locator(jsonString: locatorStr, warnings: self)!
+          if (self.audiobookVM != nil) {
+            let navigated = await self.audiobookVM!.navigator.go(to: locator, options: NavigatorGoOptions.animated)
+            await MainActor.run {
+              result(navigated)
+            }
+          }
+          if (self.synthesizer != nil) {
+            self.synthesizer?.start(from: locator)
+            await MainActor.run {
+              result(true)
+            }
+          }
+          
+        } catch {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "GoToLocator",
+              message: "Failed to parse locator: \(error.localizedDescription)",
+              details: nil))
+          }
+        }
+      }
     case "loadPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
