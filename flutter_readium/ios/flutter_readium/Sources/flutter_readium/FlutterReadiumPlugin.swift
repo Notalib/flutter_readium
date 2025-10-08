@@ -309,20 +309,17 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         let prefsMap = args[0] as? Dictionary<String, Any>,
             prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])
         var locator: Locator? = nil
-        if let locatorStr = args[1] as? String {
-          locator = try! Locator(jsonString: locatorStr, warnings: self)!
+        if let locatorJson = args[1] as? Dictionary<String, Any> {
+          locator = try? Locator(json: locatorJson, warnings: self)
         }
 
         if (!publication.conforms(to: Publication.Profile.audiobook)) {
           return result(FlutterError.init(
-            code: "audioEnable",
-            message: "Book does not conformTo AudioBook: \(call.arguments.debugDescription)",
+            code: "ArgumentError",
+            message: "Publication does not conformTo AudioBook: \(call.arguments.debugDescription)",
             details: nil))
         }
         await self.initAudioPlayback(forPublication: publication, withPrefs: prefs, atLocator: locator)
-
-        // TODO: Decide on this, should clients call play after audioEnable?
-        self.play()
         result(nil)
       }
     case "audioSetPreferences":
