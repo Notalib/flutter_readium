@@ -714,6 +714,14 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
     }
 
+    fun goToLocator(locator: Locator) {
+        mainScope.launch {
+            audiobookNavigator?.goToLocator(locator)
+            ttsNavigator?.goToLocator(locator)
+            epubNavigator?.goToLocator(locator, true)
+        }
+    }
+
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         mainScope.async {
             currentPublication?.let { publication ->

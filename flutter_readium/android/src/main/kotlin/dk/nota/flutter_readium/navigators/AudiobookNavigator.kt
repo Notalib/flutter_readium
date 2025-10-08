@@ -138,6 +138,13 @@ class AudiobookNavigator(
         }.await()
     }
 
+    override suspend fun goToLocator(locator: Locator) {
+        val navigator = audioNavigator ?: return
+        mainScope.async {
+            navigator.go(locator)
+        }
+    }
+
     /// Updates Audio preferences, does not override current preferences if props are null
     fun updatePreferences(prefs: FlutterAudioPreferences) {
         preferences = preferences + prefs

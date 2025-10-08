@@ -31,17 +31,14 @@ sealed class PublicationError(
     class FormatNotSupported(cause: Error) :
         PublicationError(ReadiumExceptionType.formatNotSupported,cause.message, cause.cause)
 
-    class InvalidPublication(cause: Error) :
-        PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
-
     class InvalidPublicationUrl(msg: String) :
         PublicationError(ReadiumExceptionType.notFound, msg)
 
     class Unexpected(cause: Error) :
         PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
 
-    class Unavailable() :
-        PublicationError(ReadiumExceptionType.unavailable, "Resource unavailable")
+    class Unavailable(message: String = "Resource unavailable") :
+        PublicationError(ReadiumExceptionType.unavailable, message)
 
     class Unknown(message: String = "Unknown error") :
         PublicationError(ReadiumExceptionType.unknown, message)
