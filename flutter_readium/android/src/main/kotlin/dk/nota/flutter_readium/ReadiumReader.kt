@@ -638,24 +638,30 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }.await()
     }
 
-    fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences) {
-        ttsNavigator?.updatePreferences(ttsPrefs)
-            ?: throw Exception("TTS is not enabled, can't set preferences")
+    suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences) {
+        mainScope.async {
+            ttsNavigator?.updatePreferences(ttsPrefs)
+                ?: throw Exception("TTS is not enabled, can't set preferences")
+        }.await()
     }
 
-    fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
-            ?: throw Exception("TTS is not enabled, can't set decoration style")
+    suspend fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
+        mainScope.async {
+            ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
+                ?: throw Exception("TTS is not enabled, can't set decoration style")
+        }.await()
     }
 
     fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
         return ttsNavigator?.voices
     }
 
-    fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
-        if (voiceId != null) {
-            ttsNavigator?.setPreferredVoice(voiceId, language)
-        }
+    suspend fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
+        mainScope.async {
+            if (voiceId != null) {
+                ttsNavigator?.setPreferredVoice(voiceId, language)
+            }
+        }.await()
     }
 
     suspend fun play(fromLocator: Locator?) {
