@@ -20,7 +20,7 @@ private let TAG = "Readium"
 
 let sharedReadium = Readium(withHeaders: nil)
 
-final class Readium {
+final class Readium : DefaultHTTPClientDelegate {
 
   init(withHeaders headers: [String: String]?) {
     self.setupWithHeaders(headers: headers)
@@ -31,14 +31,15 @@ final class Readium {
   lazy var formatSniffer: FormatSniffer = DefaultFormatSniffer()
   lazy var assetRetriever: AssetRetriever? = nil
   lazy var publicationOpener: PublicationOpener? = nil
+  var additionalHeaders = Dictionary<String, String>()
 
   func setupWithHeaders(headers: [String: String]?) {
-    self.httpClient = DefaultHTTPClient.init(
-      cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
-      additionalHeaders: headers,
-      requestTimeout: nil,  // default = 60 seconds
-      resourceTimeout: nil, // default = 7 days
-    )
+    self.httpClient = DefaultHTTPClient(
+        cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
+        additionalHeaders: headers,
+        requestTimeout: nil,  // default = 60 seconds
+        resourceTimeout: nil, // default = 7 days
+        delegate: self)
     self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
     self.httpServer = GCDHTTPServer(assetRetriever: self.assetRetriever!)
     self.publicationOpener = PublicationOpener(
@@ -52,8 +53,26 @@ final class Readium {
   }
 
   func setAdditionalHeaders(_ headers: [String: String]) -> Void {
-    self.setupWithHeaders(headers: headers)
+    self.additionalHeaders = headers
   }
+  
+  //--- MARK: DefaultHTTPClientDelegate
+  
+  /// You can modify the `request`, for example by adding additional HTTP headers or redirecting to a different URL,
+  /// before calling the `completion` handler with the new request.
+  func httpClient(_ httpClient: DefaultHTTPClient, willStartRequest request: HTTPRequest) async -> HTTPResult<HTTPRequestConvertible>? {
+    var req = request // make a mutable copy
+    var merged = additionalHeaders
+    for (k, v) in request.headers { merged[k] = v } // per-request wins
+    req.headers = merged
+    return .success(req)
+  }
+  
+  func httpClient(_ httpClient: DefaultHTTPClient, request: HTTPRequest, didReceiveResponse response: HTTPResponse) {
+    debugPrint("\(TAG): HTTP response: \(response)")
+  }
+  
+  //--- MARK: LCP
 
 #if !LCP
   let contentProtections: [ContentProtection] = []
@@ -90,6 +109,8 @@ final class Readium {
 #endif
 
 }
+
+//--- MARK: Error mapping
 
 extension ReadiumShared.ReadError: UserErrorConvertible {
   func userError() -> UserError {
@@ -298,20 +319,3 @@ extension LCPError: UserErrorConvertible {
 }
 
 #endif
-
-private extension String {
-  func endIndex(of string: String, options: CompareOptions = .literal) -> Index? {
-    return range(of: string, options: options)?.upperBound
-  }
-
-  func startIndex(of string: String, options: CompareOptions = .literal) -> Index? {
-    return range(of: string, options: options)?.lowerBound
-  }
-
-  func insert(string: String, at index: String.Index) -> String {
-    let prefix = self[..<index] //substring(to: index)
-    let suffix = self[index...] //substring(from: index)
-
-    return  prefix + string + suffix
-  }
-}

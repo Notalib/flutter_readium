@@ -47,6 +47,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setCustomHeaders(Map<String, String> headers) async {
+    await methodChannel.invokeMethod<void>('setCustomHeaders', {'httpHeaders': headers});
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString =
         await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);

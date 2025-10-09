@@ -29,6 +29,8 @@ import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
+import org.readium.r2.shared.util.http.HttpRequest
+import org.readium.r2.shared.util.http.HttpTry
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.streamer.PublicationOpener
@@ -46,8 +48,21 @@ private var publicationUrls = mutableMapOf<String, String>()
  */
 @OptIn(ExperimentalReadiumApi::class)
 class Readium(private val context: Context) {
-    private val httpClient =
-        DefaultHttpClient()
+
+    private var defaultHttpHeaders = mutableMapOf<String, String>()
+
+    private var httpClient = DefaultHttpClient(
+        callback = object : DefaultHttpClient.Callback {
+            override suspend fun onStartRequest(request: HttpRequest): HttpTry<HttpRequest> {
+                val requestWithHeaders = request.copy {
+                    defaultHttpHeaders.toMap().forEach { (key, value) ->
+                        setHeader(key, value)
+                    }
+                }
+                return Try.success(requestWithHeaders)
+            }
+        }
+    )
 
     private val assetRetriever by lazy {
         AssetRetriever(context.contentResolver, httpClient)
@@ -97,6 +112,17 @@ class Readium(private val context: Context) {
         //lcpDialogAuthentication.onParentViewDetachedFromWindow()
     }
     */
+
+    /**
+     * Sets the headers used in the HTTP requests for fetching publication resources, including
+     * resources in already created `Publication` objects.
+     *
+     * @param headers a map of HTTP header key value pairs.
+     */
+    fun setDefaultHttpHeaders(headers: Map<String, String>) {
+        defaultHttpHeaders.clear()
+        defaultHttpHeaders.putAll(headers)
+    }
 
     fun publicationFromIdentifier(identifier: String): Publication? {
         return publications[identifier]

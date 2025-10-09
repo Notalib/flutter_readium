@@ -18,6 +18,10 @@ class FlutterReadium {
     return FlutterReadiumPlatform.instance;
   }
 
+  Future<void> setCustomHeaders(Map<String, String> headers) {
+    return _platform.setCustomHeaders(headers);
+  }
+
   void setDefaultPreferences(EPUBPreferences preferences) {
     _platform.setDefaultPreferences(preferences);
   }
