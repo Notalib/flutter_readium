@@ -58,9 +58,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
-      let args = call.arguments as? [String: Any]
-      let httpHeaders = args["httpHeaders"] as? [String: String]
-      self.setDefaultHttpHeaders(httpHeaders)
+      guard let args = call.arguments as? [String: Any],
+            let httpHeaders = args["httpHeaders"] as? [String: String] else {
+        return result(FlutterError.init(
+          code: "InvalidArgument",
+          message: "Invalid custom headers map",
+          details: nil))
+      }
+      sharedReadium.setAdditionalHeaders(httpHeaders)
       result(nil)
     case "dispose":
       openedReadiumPublications.values.forEach { pub in
@@ -260,10 +265,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
-
-  private func setDefaultHttpHeaders(headers: [String: String]) {
-    sharedReadium.httpClient!.setDefaultHttpHeaders(headers)
-  }
 
   private func openPublication(
           at url: AbsoluteURL,
