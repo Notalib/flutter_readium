@@ -17,6 +17,7 @@ import org.readium.r2.shared.util.CoroutineQueue
 /**
  * Enables to try to close a session without starting the [PluginMediaService] if it is not started.
  */
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class, InternalReadiumApi::class)
 class PluginMediaServiceFacade(
     private val application: Application,

@@ -1,4 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -6,7 +8,11 @@ import 'package:flutter_readium/flutter_readium.dart';
 
 abstract class PlayerControlsEvent {}
 
-class PlayTTS extends PlayerControlsEvent {}
+class PlayTTS extends PlayerControlsEvent {
+  PlayTTS({this.fromLocator});
+
+  Locator? fromLocator;
+}
 
 class Play extends PlayerControlsEvent {
   Play({this.fromLocator});
@@ -29,6 +35,12 @@ class SkipToPreviousChapter extends PlayerControlsEvent {}
 class SkipToNextPage extends PlayerControlsEvent {}
 
 class SkipToPreviousPage extends PlayerControlsEvent {}
+
+class GoToLocator extends PlayerControlsEvent {
+  GoToLocator(this.locator);
+
+  final Locator locator;
+}
 
 class GetAvailableVoices extends PlayerControlsEvent {}
 
@@ -71,7 +83,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
-        await instance.play(null);
+        await instance.play(event.fromLocator);
         emit(await state.toggleTTSEnabled(true));
       } else {
         await instance.resume();
@@ -82,10 +94,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
-        await instance.audioEnable(prefs: AudioPreferences(speed: 1.5, seekInterval: 10));
+        await instance.audioEnable(
+            prefs: AudioPreferences(speed: 1.5, seekInterval: 10), fromLocator: event.fromLocator);
         emit(await state.toggleAudioEnabled(true));
+        await instance.play(event.fromLocator);
+      } else {
+        await instance.resume();
       }
-      // await instance.play(event.fromLocator);
+
       emit(await state.togglePlay(true));
     });
 
@@ -105,29 +121,19 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(await state.togglePlay(false));
     });
 
-    on<SkipToNext>((final event, final emit) {
-      instance.next();
-    });
+    on<SkipToNext>((final event, final emit) => instance.next());
 
-    on<SkipToPrevious>((final event, final emit) {
-      instance.previous();
-    });
+    on<SkipToPrevious>((final event, final emit) => instance.previous());
 
-    on<SkipToNextChapter>((final event, final emit) {
-      instance.skipToNext();
-    });
+    on<SkipToNextChapter>((final event, final emit) => instance.skipToNext());
 
-    on<SkipToPreviousChapter>((final event, final emit) {
-      instance.skipToPrevious();
-    });
+    on<SkipToPreviousChapter>((final event, final emit) => instance.skipToPrevious());
 
-    on<SkipToNextPage>((final event, final emit) {
-      instance.goRight();
-    });
+    on<SkipToNextPage>((final event, final emit) => instance.goRight());
 
-    on<SkipToPreviousPage>((final event, final emit) {
-      instance.goLeft();
-    });
+    on<SkipToPreviousPage>((final event, final emit) => instance.goLeft());
+
+    on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
@@ -147,5 +153,10 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       }
     });
   }
+
+  Stream<Locator> get audioLocatorStream => instance.onAudioLocatorChanged;
+
+  Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
+
   final FlutterReadium instance = FlutterReadium();
 }

@@ -2,8 +2,6 @@ import 'package:flutter/services.dart';
 
 import '../shared/readium_shared.dart';
 
-// TODO: use these exceptions as relevant on methodChannel failures.
-
 class ReadiumException implements Exception {
   const ReadiumException(
     this.message, {
@@ -109,13 +107,4 @@ class ReadiumError implements Error {
         data: map['data'] != null ? map['data'] as Object : null,
         stackTrace: map['stackTrace'] != null ? StackTrace.fromString(map['stackTrace'] as String) : null,
       );
-}
-
-class MaxRetryReadiumError extends ReadiumError {
-  MaxRetryReadiumError({
-    super.data,
-  }) : super(
-          'Max retry attempts to recover from error reached',
-          code: '10001',
-        );
 }

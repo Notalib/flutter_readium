@@ -31,6 +31,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var isMoving = false
 
   internal var audioLocatorStreamHandler: EventStreamHandler?
+  internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
 
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
@@ -44,6 +45,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
     instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
+    instance.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
@@ -67,6 +69,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       self.synthesizer = nil
       self.audioLocatorStreamHandler?.dispose()
       self.audioLocatorStreamHandler = nil
+      self.timebasedPlayerStateStreamHandler?.dispose()
+      self.timebasedPlayerStateStreamHandler = nil
       result(nil)
     case "closePublication":
       self.closePublication()
@@ -212,8 +216,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "play":
       let args = call.arguments as! [Any?]
       var locator: Locator? = nil
-      if let locatorStr = args[0] as? String {
-        locator = try! Locator(jsonString: locatorStr, warnings: self)!
+      if let locatorJson = args.first as? Dictionary<String, Any> {
+        locator = try? Locator(json: locatorJson, warnings: self)
       }
 
       Task.detached(priority: .high) {
@@ -223,6 +227,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             locator = await currentReaderView?.getFirstVisibleLocator()
           }
           self.ttsStart(fromLocator: locator)
+        }
+        if (locator != nil) {
+          await self.audiobookVM?.navigator.go(to: locator!)
         }
         self.audiobookVM?.navigator.play()
         await MainActor.run {
@@ -263,6 +270,32 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       self.synthesizer?.previous()
       result(nil)
+    case "goToLocator":
+      Task.detached(priority: .high) {
+        guard let args = call.arguments as? [Any?],
+              let locatorJson = args.first as? Dictionary<String, Any>,
+              let locator = try? Locator(json: locatorJson, warnings: self)
+        else {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "GoToLocator",
+              message: "Failed to parse locator",
+              details: nil))
+          }
+          return
+        }
+        var navigated = false
+        if (self.audiobookVM != nil) {
+          navigated = await self.audiobookVM!.navigator.go(to: locator)
+        }
+        if (self.synthesizer != nil) {
+          self.synthesizer!.start(from: locator)
+          navigated = true
+        }
+        await MainActor.run { [navigated] in
+          result(navigated)
+        }
+      }
     case "audioEnable":
       guard let args = call.arguments as? [Any?],
             let publication = currentPublication else {
@@ -276,20 +309,17 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         let prefsMap = args[0] as? Dictionary<String, Any>,
             prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])
         var locator: Locator? = nil
-        if let locatorStr = args[1] as? String {
-          locator = try! Locator(jsonString: locatorStr, warnings: self)!
+        if let locatorJson = args[1] as? Dictionary<String, Any> {
+          locator = try? Locator(json: locatorJson, warnings: self)
         }
 
         if (!publication.conforms(to: Publication.Profile.audiobook)) {
           return result(FlutterError.init(
-            code: "audioEnable",
-            message: "Book does not conformTo AudioBook: \(call.arguments.debugDescription)",
+            code: "ArgumentError",
+            message: "Publication does not conformTo AudioBook: \(call.arguments.debugDescription)",
             details: nil))
         }
         await self.initAudioPlayback(forPublication: publication, withPrefs: prefs, atLocator: locator)
-
-        // TODO: Decide on this, should clients call play after audioEnable?
-        self.play()
         result(nil)
       }
     case "audioSetPreferences":

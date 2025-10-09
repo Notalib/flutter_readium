@@ -27,7 +27,7 @@ private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     return ReadiumColor(color)
 }
 
-fun androidTtsPreferencesFromMap(ttsPrefsMap: Map<String, Any>?): AndroidTtsPreferences {
+fun androidTtsPreferencesFromMap(ttsPrefsMap: Map<*, *>?): AndroidTtsPreferences {
     try {
         if (ttsPrefsMap == null) {
             return AndroidTtsPreferences()
@@ -61,12 +61,12 @@ fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     }
 }
 
-fun decorationStyleFromMap(decoMap: Map<String, String>?): Decoration.Style? {
+fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
     try {
         if (decoMap == null) return null
 
-        val styleStr = decoMap["style"]
-        val tintColorStr = decoMap["tint"]!!
+        val styleStr = decoMap["style"] as String
+        val tintColorStr = decoMap["tint"] as String
         val style = when (styleStr) {
             "underline" -> Decoration.Style.Underline(readiumColorFromCSS(tintColorStr).int)
             "highlight" -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)

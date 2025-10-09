@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -22,26 +24,28 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             canPop: true,
             onPopInvokedWithResult: (didPop, result) {
               // When Player page is popped, make sure to close current publication.
+              context.read<PlayerControlsBloc>().add(Stop());
               context.read<PublicationBloc>().add(ClosePublication());
             },
             child: Scaffold(
               restorationId: 'player_page',
               appBar: AppBar(
-                backgroundColor: Colors.deepPurple[200],
+                backgroundColor: Colors.amber,
                 title: Semantics(
                   header: true,
                   child: Text(
                     pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
                   ),
                 ),
-                actions: _buildActionButtons(context),
+                actions: _buildActionButtons(),
               ),
               body: Container(
-                color: Colors.pinkAccent[100],
+                // color: Colors.pinkAccent[100],
+                padding: EdgeInsets.all(12.0),
                 child: Column(
                   children: [
                     Expanded(
-                      child: isAudioBook ? SizedBox.shrink() : ReaderWidget(),
+                      child: isAudioBook ? TimebasedStateWidget() : ReaderWidget(),
                     ),
                     _controls(isAudioBook),
                   ],
@@ -52,7 +56,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         },
       );
 
-  List<Widget> _buildActionButtons(final BuildContext context) => <Widget>[
+  List<Widget> _buildActionButtons() => <Widget>[
         // IconButton(
         //   icon: const Icon(Icons.headphones),
         //   onPressed: () {
@@ -81,6 +85,22 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             );
           },
           tooltip: 'Open text style settings',
+        ),
+        IconButton(
+          icon: const Icon(Icons.toc),
+          onPressed: () async {
+            final result = await Navigator.pushNamed<dynamic>(context, '/toc');
+            if (!context.mounted) return;
+            final publication = context.read<PublicationBloc>().state.publication;
+            if (publication != null && result != null && result is Link) {
+              final tocLink = result;
+              final locator = publication.locatorFromLink(tocLink);
+              if (locator != null && context.mounted) {
+                context.read<PlayerControlsBloc>().add(GoToLocator(locator));
+              }
+            }
+          },
+          tooltip: 'Open table of contents',
         ),
       ];
 

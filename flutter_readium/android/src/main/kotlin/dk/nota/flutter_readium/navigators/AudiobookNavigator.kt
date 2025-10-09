@@ -4,11 +4,11 @@ import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.ControlPanelInfoType
 import dk.nota.flutter_readium.FlutterAudioPreferences
-import dk.nota.flutter_readium.PluginMediaService
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.throttleLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -16,19 +16,18 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
-import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigator
-import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.getOrElse
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -38,6 +37,7 @@ private const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
 private const val audioPreferencesKey = "audioPreferencesKey"
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class AudiobookNavigator(
     publication: Publication,
@@ -71,39 +71,41 @@ class AudiobookNavigator(
             throw Exception("Couldn't create AudioNavigatorFactory")
         }
 
-        audioNavigator = navigatorFactory.createNavigator(
-            this@AudiobookNavigator.initialLocator,
-            preferences.toExoPlayerPreferences()
-        ).getOrElse { error ->
-            Log.e(TAG, ":initNavigator - $error")
-            throw Exception(PublicationError.invoke(error).message)
-        }
-
-        mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application)
-        mediaServiceFacade?.session
-            ?.flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
-            ?.onEach { playback ->
-                when (val state = (playback?.state as? AudioNavigator.State)) {
-                    null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
-                        // Do nothing
-                    }
-
-                    is AudioNavigator.State.Ended -> {
-                        mediaServiceFacade?.closeSession()
-                    }
-
-                    is AudioNavigator.State.Failure<*> -> {
-                        Log.e(TAG, "AudioNavigator failure: ${state.error}")
-                        //onPlaybackError(state.error)
-                    }
-                }
+        mainScope.async {
+            audioNavigator = navigatorFactory.createNavigator(
+                this@AudiobookNavigator.initialLocator,
+                preferences.toExoPlayerPreferences()
+            ).getOrElse { error ->
+                Log.e(TAG, ":initNavigator - $error")
+                throw Exception(PublicationError.invoke(error).message)
             }
-            ?.launchIn(mainScope)
 
-        setupNavigatorListeners()
+            mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application).apply {
+                session
+                    .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
+                    .onEach { playback ->
+                        when (val state = (playback?.state as? AudioNavigator.State)) {
+                            null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
+                                // Do nothing
+                            }
+
+                            is AudioNavigator.State.Ended -> {
+                                mediaServiceFacade?.closeSession()
+                            }
+
+                            is AudioNavigator.State.Failure<*> -> {
+                                Log.e(TAG, "AudioNavigator failure: ${state.error}")
+                                //onPlaybackError(state.error)
+                            }
+                        }
+                    }.launchIn(mainScope)
+            }
+
+            setupNavigatorListeners()
+        }.await()
     }
 
-    override fun play(fromLocator: Locator?) {
+    override suspend fun play(fromLocator: Locator?) {
         mainScope.async {
             if (fromLocator != null) {
                 audioNavigator?.go(fromLocator)
@@ -118,31 +120,38 @@ class AudiobookNavigator(
             }
 
             audioNavigator?.play()
-        }
+        }.await()
     }
 
-    override fun pause() {
+    override suspend fun pause() {
         mainScope.async {
             audioNavigator?.pause()
-        }
+        }.await()
     }
 
-    override fun resume() {
+    override suspend fun resume() {
         mainScope.async {
             // TODO: Do we need to check if already playing?
             audioNavigator?.play()
-        }
+        }.await()
     }
 
-    override fun goBack() {
+    override suspend fun goBack() {
         mainScope.async {
             audioNavigator?.skip((-preferences.seekInterval).seconds)
-        }
+        }.await()
     }
 
-    override fun goForward() {
+    override suspend fun goForward() {
         mainScope.async {
             audioNavigator?.skip((preferences.seekInterval).seconds)
+        }.await()
+    }
+
+    override suspend fun goToLocator(locator: Locator) {
+        val navigator = audioNavigator ?: return
+        mainScope.async {
+            navigator.go(locator)
         }
     }
 
@@ -158,6 +167,7 @@ class AudiobookNavigator(
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
         if (navigator == null) {
+            Log.e(TAG, ": setupNavigatorListeners - navigator is null")
             return
         }
 
@@ -169,6 +179,15 @@ class AudiobookNavigator(
             }
             .onEach { pb ->
                 onPlaybackStateChanged(pb)
+            }
+            .launchIn(mainScope)
+            .let { jobs.add(it) }
+
+        navigator.playback
+            .throttleLatest(250.milliseconds)
+            .distinctUntilChangedBy { pb -> pb.buffered }
+            .onEach { pb ->
+                timebaseListener.onTimebasedBufferChanged(pb.buffered)
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -202,7 +221,7 @@ class AudiobookNavigator(
                     ": onPlaybackStateChanged - audio error: Message=${error.message} cause=${error.cause}"
                 )
 
-                timebaseListener.onTimebasedPlaybackStateChanged(PlaybackState.Failure)
+                timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
                 timebaseListener.onTimebasedPlaybackFailure(
                     PublicationError.invoke(error)
                 )
@@ -231,10 +250,12 @@ class AudiobookNavigator(
     override fun dispose() {
         super.dispose()
 
-        mediaServiceFacade?.closeSession()
+        mainScope.launch {
+            mediaServiceFacade?.closeSession()
 
-        audioNavigator?.close()
-        audioNavigator = null
+            audioNavigator?.close()
+            audioNavigator = null
+        }
     }
 
     companion object {

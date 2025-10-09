@@ -11,11 +11,13 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.io.File
 import java.io.IOException
 
 private const val TAG = "FlutterReadiumPlugin"
 
+@ExperimentalCoroutinesApi
 class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     /// The MethodChannel that will the communication between Flutter and native Android
     ///

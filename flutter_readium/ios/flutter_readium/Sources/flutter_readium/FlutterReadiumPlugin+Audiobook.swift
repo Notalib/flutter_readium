@@ -72,6 +72,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   }
   
   public func endAudiobookNavigator() async {
+    self.audiobookVM?.navigator.delegate = nil
     self.audiobookVM?.navigator.pause()
     self.audiobookVM = nil
     clearNowPlaying()
@@ -132,6 +133,18 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     
     // Send new locator over the audio-locator stream.
     self.audioLocatorStreamHandler?.sendEvent(location)
+    
+    // Create TimebasedState and send it over the timebased-state stream.
+    guard let navigator = audiobookVM?.navigator else {
+      return
+    }
+    let state = ReadiumTimebasedState(
+      state: navigator.playbackInfo.state.asTimebasedState,
+      currentOffset: navigator.playbackInfo.time,
+      currentDuration: navigator.playbackInfo.duration ?? nil,
+      //currentBuffered: navigator.lastLoadedTimeRanges,
+      currentLocator: location)
+    self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
   }
   
   // MARK: - AudioNavigatorDelegate (MainActor)

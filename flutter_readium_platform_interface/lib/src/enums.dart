@@ -1,16 +1,10 @@
-// TODO: Find place for this and send updates over bridge
-// class ReadiumStatus {
-//   ReadiumStatus({
-//     required this.readerState,
-//     this.playerState,
-//     this.error,
-//     this.message,
-//   });
-//   ReadiumReaderStatus readerState;
-//   PlaybackState playerState;
-//   Error? lastError;
-//   String? message;
-// }
+enum TimebasedState {
+  playing,
+  loading,
+  paused,
+  ended,
+  failure,
+}
 
 /// Indicates the current reader widget status.
 enum ReadiumReaderStatus {

@@ -9,6 +9,7 @@ import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ private const val TAG = "EpubReaderFragment"
 
 private var instanceNo = 0
 
+@ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listener,
     EpubNavigatorFragment.PaginationListener, CoroutineScope by MainScope() {
@@ -287,8 +289,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val me = this
-
         // DFG: This will be relative to your app's src/main/assets/ folder.
         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
@@ -303,8 +303,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 )
             ),
             initialLocator = model.locator,
-            listener = me,
-            paginationListener = me,
+            listener = this,
+            paginationListener = this,
             initialPreferences = preferences,
         )
 
