@@ -76,7 +76,7 @@ data class FlutterTtsPreferences(
             return jsonObject
         }
 
-        fun fromMap(prefs: Map<String, Any>?): FlutterTtsPreferences {
+        fun fromMap(prefs: Map<*, *>?): FlutterTtsPreferences {
             val voices = (prefs?.get("voices") as? Map<*, *>)?.mapNotNull {
                 val key = it.key as? String
                 val value = it.value as? String

@@ -19,21 +19,17 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
 import org.readium.navigator.media.tts.TtsNavigatorFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
-import org.readium.navigator.media.tts.android.AndroidTtsPreferencesEditor
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
@@ -60,7 +56,7 @@ class TTSNavigator(
     publication: Publication,
     timebaseListener: TimebasedListener,
     initialLocator: Locator?,
-    private var initialPreferences: FlutterTtsPreferences = FlutterTtsPreferences()
+    private var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
@@ -70,11 +66,6 @@ class TTSNavigator(
         null
 
     private var mediaServiceFacade: PluginMediaServiceFacade? = null
-
-    private var editor: AndroidTtsPreferencesEditor? = null
-
-    private val preferences: AndroidTtsPreferences?
-        get() = editor?.preferences
 
     // in-memory cached state
     private val state = mutableMapOf<String, Any?>()
@@ -91,7 +82,8 @@ class TTSNavigator(
                     context = ReadiumReader.application,
                     publication = publication,
                     trackCount = pub.readingOrder.size,
-                    controlPanelInfoType = initialPreferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
+                    controlPanelInfoType = preferences.controlPanelInfoType
+                        ?: ControlPanelInfoType.STANDARD
                 )
             }
         ) ?: throw Exception("This publication cannot be played with the TTS navigator")
@@ -103,18 +95,20 @@ class TTSNavigator(
             }
         }
 
-        val initialAndroidPreferences = initialPreferences.toAndroidTtsPreferences()
+        val initialAndroidPreferences = preferences.toAndroidTtsPreferences()
         mainScope.async {
             val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
 
             ttsNavigator =
-                navigatorFactory.createNavigator(listener, firstVisibleLocator, initialAndroidPreferences)
+                navigatorFactory.createNavigator(
+                    listener,
+                    firstVisibleLocator,
+                    initialAndroidPreferences
+                )
                     .getOrElse {
                         Log.e(TAG, "ttsEnable: failed to create navigator: $it")
                         throw Exception("ttsEnable: failed to create navigator: $it")
                     }
-
-            editor = navigatorFactory.createPreferencesEditor(initialAndroidPreferences)
 
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
@@ -245,16 +239,11 @@ class TTSNavigator(
 
 
     /// Updates TTS preferences, does not override current preferences if props are null
-    suspend fun updatePreferences(prefs: AndroidTtsPreferences) {
+    suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
         mainScope.async {
-            editor?.apply {
-                voices.set(prefs.voices)
-                language.set(prefs.language)
-                pitch.set(prefs.pitch)
-                speed.set(prefs.speed)
+            preferences = preferences.plus(prefs)
 
-                ttsNavigator?.submitPreferences(preferences)
-            }
+            ttsNavigator?.submitPreferences(preferences.toAndroidTtsPreferences())
         }.await()
     }
 
@@ -263,14 +252,12 @@ class TTSNavigator(
      */
     suspend fun setPreferredVoice(voiceId: String, lang: String?) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
-        val voices = preferences?.voices?.toMutableMap() ?: mutableMapOf()
-        // If no lang provided, assume client wants to override currently spoken language.
-        val language =
-            if (lang != null) Language(lang) else ttsNavigator?.settings?.value?.language
-        if (language != null) {
-            voices[language] = AndroidTtsEngine.Voice.Id(voiceId)
-            updatePreferences(AndroidTtsPreferences(voices = voices))
-        }
+        val voices = preferences.voices?.toMutableMap() ?: mutableMapOf()
+
+        if (lang == null) return
+
+        voices[lang] = voiceId
+        updatePreferences(FlutterTtsPreferences(voices = voices))
     }
 
     /*
@@ -369,12 +356,10 @@ class TTSNavigator(
                 putParcelable(currentRangeStyleKey, currentRangeStyle)
             }
 
-            preferences?.let { prefs ->
-                putString(
-                    ttsPreferencesKey,
-                    Json.encodeToString(AndroidTtsPreferences.serializer(), prefs)
-                )
-            }
+            putString(
+                ttsPreferencesKey,
+                FlutterTtsPreferences.toJSON(preferences).toString()
+            )
         }
     }
 
@@ -423,7 +408,7 @@ class TTSNavigator(
             val locator = state.getString(currentTimebasedLocatorKey)
                 ?.let { Locator.fromJSON(JSONObject(it)) }
             val preferences = state.getString(ttsPreferencesKey)
-                ?.let { Json.decodeFromString< FlutterTtsPreferences>(it) }
+                ?.let { FlutterTtsPreferences.fromJSON(it) }
                 ?: FlutterTtsPreferences()
 
             val uttStyle = state.getParcelable<Decoration.Style>(utteranceStyleKey)
