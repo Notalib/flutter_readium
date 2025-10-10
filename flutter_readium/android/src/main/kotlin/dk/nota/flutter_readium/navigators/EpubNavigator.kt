@@ -82,9 +82,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     var editor: EpubPreferencesEditor? = null
 
     /*
-     * The initial locations to scroll to when the navigator is ready.
+     * Pending scroll target to be applied when the page is loaded.
      */
-    var initialLocations: Locator.Locations? = null
+    var pendingScrollToLocations: Locator.Locations? = null
 
     val preferences: EpubPreferences?
         get() = editor?.preferences
@@ -104,14 +104,8 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             return editor?.preferences?.scroll ?: false
         }
 
-    /**
-     * If a scrollTo is requested while a go() is in progress we store the locator here and process it
-     * when the page change event is received.
-     */
-    private var pendingScrollToLocator: Locator? = null
-
     override suspend fun initNavigator() {
-        initialLocations =
+        pendingScrollToLocations =
             initialLocator?.locations?.let { locations ->
                 if (canScroll(locations)) locations else null
             }
@@ -226,13 +220,15 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         Log.d(TAG, "::onPageLoaded")
         visualListener.onPageLoaded()
 
-        val locations = initialLocations
-        if (locations != null) {
-            initialLocations = null
+        pendingScrollToLocations?.let { locations ->
+            Log.d(TAG, "::onPageLoaded - pendingScrollToLocations: $locations")
 
-            mainScope.launch {
+            mainScope.async {
                 scrollToLocations(locations, toStart = true)
             }
+
+            pendingScrollToLocations = null
+
         }
 
         notifyIsReady()
@@ -258,22 +254,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     ) {
         visualListener.onPageChanged(pageIndex, totalPages, locator)
         state[currentVisualCurrentLocatorKey] = locator
-
-        pendingScrollToLocator?.let { scrollTo ->
-                Log.d(TAG, "::onPageChanged - processing pendingScrollToLocator: ${scrollTo.href}")
-                if (locator.href.isEquivalent(scrollTo.href)) {
-                    mainScope.launch {
-                        scrollToLocations(scrollTo.locations, false)
-                    }
-                } else {
-                    Log.w(
-                        TAG,
-                        "::onPageChanged - pendingScrollToLocation href does not match current locator href!"
-                    )
-                }
-
-                pendingScrollToLocator = null
-        }
     }
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
@@ -410,7 +390,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
 
             if (shouldGo) {
                 Log.d(TAG, "::goToLocator: Go to $locatorHref from $currentHref")
-                pendingScrollToLocator = locator
+                pendingScrollToLocations = locations
                 go(locator, animated)
             } else if (!shouldScroll) {
                 Log.w(TAG, "::goToLocator: Already at $locatorHref, no scroll target, go to start")
