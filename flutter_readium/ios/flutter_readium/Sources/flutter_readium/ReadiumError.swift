@@ -9,6 +9,36 @@ import ReadiumShared
 import ReadiumStreamer
 import Flutter
 
+class FlutterReadiumError {
+  let message: String
+  let code: String?
+  let data: Any?
+  let stack: [String: Any]?
+  
+  init(
+    message: String,
+    code: String? = nil,
+    data: Any? = nil,
+    details: [String: Any]? = nil
+  ) {
+    self.message = message
+    self.code = code
+    self.data = data
+    self.stack = details
+  }
+  
+  func toJson() -> [String: Any?] {
+    var map: [String: Any?] = [
+      "message": message,
+      "code": code,
+      "data": data,
+      "stack": stack
+    ]
+    
+    return map
+  }
+}
+
 enum ReadiumError: Error {
   case formatNotSupported(String)
   case readingError(Error)

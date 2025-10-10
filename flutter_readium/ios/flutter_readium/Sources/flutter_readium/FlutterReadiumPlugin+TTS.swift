@@ -5,10 +5,10 @@ import ReadiumShared
 private let TAG = "ReadiumReaderPlugin/TTS"
 
 extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate {
-  
+
   fileprivate func setupSynthesizer(withPreferences prefs: TTSPreferences?) async throws {
     print(TAG, "setupSynthesizer")
-    
+
     var engine: AVTTSEngine?
 
     guard let publication = getCurrentPublication() else {
@@ -29,7 +29,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     engine?.delegate = self
     self.ttsPrefs = prefs
     self.synthesizer?.delegate = self
-    
+
     $playingUtterance
       .removeDuplicates()
       .sink { [weak self] locator in
@@ -40,7 +40,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         audioLocatorStreamHandler?.sendEvent(locator)
       }
       .store(in: &subscriptions)
-    
+
     playingWordRangeSubject
       .removeDuplicates()
       //  Improve performances by throttling the moves to maximum one per second.
@@ -60,7 +60,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
       }
       .store(in: &subscriptions)
   }
-  
+
   @MainActor func updateDecorations(uttLocator: Locator?, rangeLocator: Locator?) {
     // Update Reader text decorations
     var decorations: [Decoration] = []
@@ -78,7 +78,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     }
     currentReaderView?.applyDecorations(decorations, forGroup: "tts")
   }
-  
+
   func ttsEnable(withPreferences ttsPrefs: TTSPreferences) async throws {
     print(TAG, "ttsEnable")
     try await setupSynthesizer(withPreferences: ttsPrefs)
@@ -117,7 +117,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   func ttsGetAvailableVoices() -> [TTSVoice] {
     return self.synthesizer?.availableVoices ?? []
   }
-  
+
   func ttsSetVoice(voiceIdentifier: String) throws {
     print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
 
@@ -129,7 +129,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     /// Changes will be applied for the next utterance.
     synthesizer?.config.voiceIdentifier = voiceIdentifier
   }
-  
+
   func ttsSetPreferences(prefs: TTSPreferences) {
     self.ttsPrefs?.rate = prefs.rate ?? self.ttsPrefs?.rate
     self.ttsPrefs?.pitch = prefs.pitch ?? self.ttsPrefs?.pitch
@@ -138,14 +138,14 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     self.synthesizer?.config.voiceIdentifier = prefs.voiceIdentifier
     self.synthesizer?.config.defaultLanguage = prefs.overrideLanguage
   }
-  
+
   // MARK: - Protocol impl.
-  
+
   public func avTTSEngine(_ engine: AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
     utterance.rate = self.ttsPrefs?.rate ?? AVSpeechUtteranceDefaultSpeechRate
     utterance.pitchMultiplier = self.ttsPrefs?.pitch ?? 1.0
   }
-  
+
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
     print(TAG, "publicationSpeechSynthesizerStateDidChange")
@@ -172,6 +172,10 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
+
+    //TODO: How can both Reader and Plugin submit on this channel?
+    //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)
+    //self.errorStreamHandler?.sendEvent(error)
   }
 
   // MARK: - Now Playing
@@ -188,14 +192,14 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         title: publication.metadata.title ?? "",
         artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
       )
-      
+
       // Async load the cover.
       let cover = try? await publication.cover().get()
       NowPlayingInfo.shared.media?.artwork = cover
     }
-    
+
     let commandCenter = MPRemoteCommandCenter.shared()
-    
+
     commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
       self?.ttsPauseOrResume()
       return .success

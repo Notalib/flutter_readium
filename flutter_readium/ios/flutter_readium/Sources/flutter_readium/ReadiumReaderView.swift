@@ -25,6 +25,7 @@ private var userScripts: [WKUserScript] = []
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
+  private var errorStreamHandler: EventStreamHandler?
   private var readerStatusStreamHandler: EventStreamHandler?
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
@@ -47,6 +48,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     textLocatorStreamHandler = nil
     readerStatusStreamHandler?.dispose()
     readerStatusStreamHandler = nil
+    errorStreamHandler?.dispose()
+    errorStreamHandler = nil
     channel.setMethodCallHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
@@ -73,6 +76,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
     textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
     readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
+    errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
     
     readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusLoading)
 
@@ -156,6 +160,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     
     // TODO: Should we send resource-load error like this?
     self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
+    
+    let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
+    self.errorStreamHandler?.sendEvent(error)
   }
 
   // override NavigatorDelegate::navigator:locationDidChange
