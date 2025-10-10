@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -91,14 +90,13 @@ internal class PublicationMethodCallHandler() :
 
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = androidTtsPreferencesFromMap(args)
-
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = androidTtsPreferencesFromMap(args)
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
 
                 return ttsSetPreferences(ttsPrefs)
             }
@@ -267,7 +265,7 @@ internal class PublicationMethodCallHandler() :
     /**
      * Enable TTS reading with the provided preferences.
      */
-    private suspend fun ttsEnable(prefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
+    private suspend fun ttsEnable(prefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         val publication = ReadiumReader.currentPublication
         if (publication == null) {
             return Try.failure(
@@ -282,7 +280,7 @@ internal class PublicationMethodCallHandler() :
     /**
      * Update the TTS preferences. The TTS must be enabled first.
      */
-    private suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences): Try<Any?, PublicationError> {
+    private suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         val publication = ReadiumReader.currentPublication
         if (publication == null) {
             return Try.failure(

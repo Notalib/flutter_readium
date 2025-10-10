@@ -11,6 +11,7 @@ data class FlutterAudioPreferences(
     val pitch: Double? = null,
     val speed: Double? = null,
     val seekInterval: Double = 30.0,
+    val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
 
     override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
@@ -18,7 +19,8 @@ data class FlutterAudioPreferences(
             volume = other.volume ?: volume,
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
-            seekInterval = other.seekInterval
+            seekInterval = other.seekInterval,
+            controlPanelInfoType = other.controlPanelInfoType
         )
 
     fun toExoPlayerPreferences(): ExoPlayerPreferences {
@@ -39,6 +41,7 @@ data class FlutterAudioPreferences(
                 pitch = jsonObject.getDouble("pitch"),
                 speed = jsonObject.getDouble("speed"),
                 seekInterval = jsonObject.getDouble("seekInterval"),
+                controlPanelInfoType = ControlPanelInfoType.fromString( jsonObject.getString("controlPanelInfoType"))
             )
         }
 
@@ -48,6 +51,7 @@ data class FlutterAudioPreferences(
             jsonObject.put("pitch", preferences.pitch)
             jsonObject.put("speed", preferences.speed)
             jsonObject.put("seekInterval", preferences.seekInterval)
+            jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
             return jsonObject
         }
 
@@ -57,6 +61,8 @@ data class FlutterAudioPreferences(
                 pitch = prefs["pitch"] as? Double ?: 1.0,
                 speed = prefs["speed"] as? Double ?: 1.0,
                 seekInterval = prefs["seekInterval"] as? Double ?: 30.0,
+                // TODO: Not sure if this is correct
+                controlPanelInfoType = ControlPanelInfoType.fromString( prefs["controlPanelInfoType"] as? String ?: "standard"),
             )
         }
     }

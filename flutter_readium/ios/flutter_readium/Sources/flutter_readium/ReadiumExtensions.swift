@@ -5,7 +5,7 @@ import ReadiumShared
 import ReadiumInternal
 
 func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
-    return min(max(value, minValue), maxValue)
+  return min(max(value, minValue), maxValue)
 }
 
 extension MediaPlaybackState {
@@ -81,8 +81,8 @@ extension Link {
       let jsonObj = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!)
       try self.init(json: jsonObj)
     } catch {
-        print("Invalid Link object: \(error)")
-        throw JSONError.parsing(Self.self)
+      print("Invalid Link object: \(error)")
+      throw JSONError.parsing(Self.self)
     }
   }
 }
@@ -91,14 +91,14 @@ extension Decoration {
   init(fromJson jsonString: String) throws {
     let jsonMap: Dictionary<String, String>?
     do {
-        jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
+      jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-        print("Invalid Decoration object: \(error)")
-        throw JSONError.parsing(Self.self)
+      print("Invalid Decoration object: \(error)")
+      throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
   }
-
+  
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let jsonObject = jsonMap,
           let idString = jsonObject["id"],
@@ -111,9 +111,9 @@ extension Decoration {
       throw JSONError.parsing(Self.self)
     }
     self.init(
-        id: idString as Id,
-        locator: locator,
-        style: style,
+      id: idString as Id,
+      locator: locator,
+      style: style,
     )
   }
 }
@@ -123,26 +123,26 @@ extension Decoration.Style {
     let styleId = Decoration.Style.Id(rawValue: style)
     self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor))
   }
-
+  
   init(fromJson jsonString: String) throws {
     let jsonMap: Dictionary<String, String>?
     do {
       jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-        print("Invalid Decoration.Style json map: \(error)")
-        throw JSONError.parsing(Self.self)
+      print("Invalid Decoration.Style json map: \(error)")
+      throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
   }
-
+  
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let map = jsonMap,
           let styleStr = map["style"],
           let tintHexStr = map["tint"],
           let tintColor = Color(hex: tintHexStr)
     else {
-        print("Decoration parse error: `style` and `tint` required")
-        throw JSONError.parsing(Self.self)
+      print("Decoration parse error: `style` and `tint` required")
+      throw JSONError.parsing(Self.self)
     }
     try self.init(withStyle: styleStr, tintColor: tintColor)
   }
@@ -163,23 +163,23 @@ extension TTSVoice.Quality {
 
 extension TTSVoice {
   public var json: JSONDictionary.Wrapped {
-      makeJSON([
-        "identifier": identifier,
-        "name": name,
-        "gender": String.init(describing: gender),
-        "quality": quality?.toFlutterString ?? "normal",
-        "language": language.description,
-      ])
+    makeJSON([
+      "identifier": identifier,
+      "name": name,
+      "gender": String.init(describing: gender),
+      "quality": quality?.toFlutterString ?? "normal",
+      "language": language.description,
+    ])
   }
   public var jsonString: String? {
-      serializeJSONString(json)
+    serializeJSONString(json)
   }
 }
 
 extension EPUBPreferences {
   init(fromMap jsonMap: Dictionary<String, String>) {
     self.init()
-
+    
     for (key, value) in jsonMap {
       switch key {
       case "backgroundColor":
@@ -190,7 +190,7 @@ extension EPUBPreferences {
         }
       case "fontFamily":
         fontFamily = FontFamily(rawValue: value)
-
+        
       case "fontSize":
         if let fontSizeValue = Double(value) {
           fontSize = fontSizeValue
@@ -281,11 +281,14 @@ public struct FlutterAudioPreferences {
   
   public var seekInterval: Double?
   
-  public init(volume: Double = 1.0, rate: Double = 1.0, pitch: Double = 1.0, seekInterval: Double = 30) {
+  public var controlPanelInfoType: ControlPanelInfoType?
+  
+  public init(volume: Double = 1.0, rate: Double = 1.0, pitch: Double = 1.0, seekInterval: Double = 30, controlPanelInfoType: ControlPanelInfoType = ControlPanelInfoType.standard) {
     self.volume = volume
     self.speed = rate
     self.pitch = pitch
     self.seekInterval = seekInterval
+    self.controlPanelInfoType = controlPanelInfoType
   }
   
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
@@ -294,39 +297,64 @@ public struct FlutterAudioPreferences {
         rate = map["speed"] as? Double ?? 1.0,
         pitch = map["pitch"] as? Double ?? 1.0,
         seekInterval = map["seekInterval"] as? Double ?? 30
-
+    
+    let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
+    let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
     // TODO: Does audio prefs need to be clamped?
     let avRate = clamp(rate, minValue: 0.1, maxValue: 5.0)
     let avPitch = clamp(pitch, minValue: 0.5, maxValue: 2.0)
-    self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval)
+    self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval, controlPanelInfoType: mapControlPanelInfoType )
+  }
+}
+
+public enum ControlPanelInfoType {
+  case standard
+  case standardWCh
+  case chapterTitleAuthor
+  case chapterTitle
+  case titleChapter
+  
+  init(from string: String?) {
+    switch string {
+    case "standard": self = .standard
+    case "standardWCh": self = .standardWCh
+    case "chapterTitleAuthor": self = .chapterTitleAuthor
+    case "chapterTitle": self = .chapterTitle
+    case "titleChapter": self = .titleChapter
+    default: self = .standard
+    }
   }
 }
 
 public struct TTSPreferences {
   /// Rate at which utterances should be spoken. Defaults to 0.5
   public var rate: Float?
-
+  
   /// Pitch at which utterances should be spoken. Defaults to 1.0 and should be in range 0.5 to 2.0
   public var pitch: Float?
-
+  
   /// Language overriding the publication one.
   public var overrideLanguage: Language?
-
+  
   /// Identifier for the voice used to speak the utterances.
   public var voiceIdentifier: String?
-
+  
+  public var controlPanelInfoType: ControlPanelInfoType?
+  
   public init(
     rate: Float? = nil,
     pitch: Float? = nil,
     overrideLanguage: Language? = nil,
-    voiceIdentifier: String? = nil
+    voiceIdentifier: String? = nil,
+    controlPanelInfoType: ControlPanelInfoType = .standard
   ) {
     self.rate = rate
     self.pitch = pitch
     self.overrideLanguage = overrideLanguage
     self.voiceIdentifier = voiceIdentifier
+    self.controlPanelInfoType = controlPanelInfoType
   }
-
+  
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
     let map = jsonMap,
         rate = map["speed"] as? Double ?? 1.0,
@@ -334,7 +362,9 @@ public struct TTSPreferences {
         langCode = map["languageOverride"] as? String,
         overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil,
         voiceIdentifier = map["voiceIdentifier"] as? String
-
+    
+    let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
+    let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
     /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
     /// Rate is also clamped between allowed values.
     let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,
@@ -344,6 +374,6 @@ public struct TTSPreferences {
     let avPitch = clamp(Float(pitch),
                         minValue: 0.5,
                         maxValue: 2.0)
-    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier)
+    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType)
   }
 }

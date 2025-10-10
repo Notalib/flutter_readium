@@ -628,7 +628,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         isReadyEventChannel = null
     }
 
-    suspend fun ttsEnable(ttsPrefs: AndroidTtsPreferences) {
+    suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
             // TODO: Get initial locator
             ttsNavigator =
@@ -638,7 +638,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         } ?: throw Exception("Publication not opened cannot enable tts")
     }
 
-    suspend fun ttsSetPreferences(ttsPrefs: AndroidTtsPreferences) {
+    suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
         ttsNavigator?.updatePreferences(ttsPrefs)
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }
@@ -653,9 +653,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
-        if (voiceId != null) {
-            ttsNavigator?.setPreferredVoice(voiceId, language)
-        }
+        if (voiceId == null) return
+
+        ttsNavigator?.setPreferredVoice(voiceId, language)
     }
 
     suspend fun play(fromLocator: Locator?) {
