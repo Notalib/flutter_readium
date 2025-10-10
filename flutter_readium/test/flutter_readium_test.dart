@@ -12,6 +12,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   EPUBPreferences? defaultPreferences;
 
   @override
+  Future<void> setCustomHeaders(Map<String, String> headers) {
+    // TODO: implement setCustomHeaders
+    throw UnimplementedError();
+  }
+
+  @override
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }

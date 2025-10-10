@@ -1,6 +1,5 @@
 import {
   TextAlignment,
-  Theme,
   IEpubPreferences,
   IEpubDefaults,
   EpubNavigator,
@@ -12,10 +11,6 @@ export function initializePreferencesFromString(
   const prefs = JSON.parse(preferencesString);
 
   convertVerticalScroll(prefs);
-
-  if (prefs.theme != null) {
-    prefs.theme = _themeFromJson(prefs.theme);
-  }
 
   if (prefs.textAlign != null) {
     prefs.textAlign = _textAlignFromJson(prefs.textAlign);
@@ -56,7 +51,6 @@ export function initializePreferencesFromString(
     textAlign: prefs.textAlign ?? null,
     textColor: prefs.textColor ?? null,
     textNormalization: prefs.textNormalization ?? null,
-    theme: prefs.theme ?? null,
     visitedColor: prefs.visitedColor ?? null,
     wordSpacing: prefs.wordSpacing ?? null,
   };
@@ -87,22 +81,9 @@ export const defaults: IEpubDefaults = {
   textAlign: TextAlignment.justify,
   textColor: null,
   textNormalization: true,
-  theme: Theme.custom,
   visitedColor: '#551a8b',
   wordSpacing: 0,
 };
-
-function _themeFromJson(themeString: string): Theme {
-  switch (themeString) {
-    case 'sepia':
-      return Theme.sepia;
-    case 'night':
-      return Theme.night;
-    case 'custom':
-    default:
-      return Theme.custom;
-  }
-}
 
 function _textAlignFromJson(textAlignString: string): TextAlignment {
   switch (textAlignString) {
@@ -160,9 +141,6 @@ export function setPreferencesFromString(
 
   convertVerticalScroll(newPreferences);
 
-  if (newPreferences.theme != null) {
-    newPreferences.theme = _themeFromJson(newPreferences.theme);
-  }
   if (newPreferences.textAlign != null) {
     newPreferences.textAlign = _textAlignFromJson(newPreferences.textAlign);
   }

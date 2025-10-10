@@ -68,6 +68,15 @@ internal class PublicationMethodCallHandler() :
         arguments: Any?
     ): Try<Any?, PublicationError> {
         when (method) {
+            "setCustomHeaders" -> {
+                @Suppress("UNCHECKED_CAST")
+                val args = arguments as? Map<String, Map<String, String>> ?: emptyMap()
+                val httpHeaders = args["httpHeaders"] ?: emptyMap()
+
+                ReadiumReader.setDefaultHttpHeaders(httpHeaders)
+                return Try.success(null)
+            }
+
             "loadPublication" -> {
                 val args = arguments as List<Any?>
                 val pubUrlStr = args[0] as String

@@ -61,8 +61,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
-      // TODO: Implement like this or send with openPublication??
-      break
+      guard let args = call.arguments as? [String: Any],
+            let httpHeaders = args["httpHeaders"] as? [String: String] else {
+        return result(FlutterError.init(
+          code: "InvalidArgument",
+          message: "Invalid custom headers map",
+          details: nil))
+      }
+      sharedReadium.setAdditionalHeaders(httpHeaders)
+      result(nil)
     case "dispose":
       closePublication()
       self.synthesizer?.stop()

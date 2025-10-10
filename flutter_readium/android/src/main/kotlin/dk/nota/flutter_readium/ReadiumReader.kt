@@ -57,6 +57,8 @@ import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
+import org.readium.r2.shared.util.http.HttpRequest
+import org.readium.r2.shared.util.http.HttpTry
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
@@ -112,6 +114,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private val currentTimebasedLocator = MutableStateFlow<Locator?>(null)
 
+    private var defaultHttpHeaders = mutableMapOf<String, String>()
+
     fun createCurrentTimebasedReaderState(): Flow<ReadiumTimebasedState?> {
         return combine(
             currentTimebasedLocator
@@ -141,7 +145,17 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     private val httpClient by lazy {
-        DefaultHttpClient()
+        DefaultHttpClient(
+            callback = object : DefaultHttpClient.Callback {
+                override suspend fun onStartRequest(request: HttpRequest): HttpTry<HttpRequest> {
+                    val requestWithHeaders = request.copy {
+                        defaultHttpHeaders.toMap().forEach { (key, value) ->
+                            setHeader(key, value)
+                        }
+                    }
+                    return Try.success(requestWithHeaders)
+                }
+            })
     }
 
     private var _assetRetriever: AssetRetriever? = null
@@ -353,6 +367,17 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         set(value) {
             state[currentPublicationUrlKey] = value
         }
+
+    /**
+     * Sets the headers used in the HTTP requests for fetching publication resources, including
+     * resources in already created `Publication` objects.
+     *
+     * @param headers a map of HTTP header key value pairs.
+     */
+    fun setDefaultHttpHeaders(headers: Map<String, String>) {
+        defaultHttpHeaders.clear()
+        defaultHttpHeaders.putAll(headers)
+    }
 
     private var isReadyEventChannel: EpubIsReadyEventChannel? = null
 
