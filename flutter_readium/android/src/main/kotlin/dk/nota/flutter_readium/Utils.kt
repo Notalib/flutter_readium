@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -78,4 +79,8 @@ fun canScroll(locations: Locator.Locations) =
     block: suspend CoroutineScope.() -> T
 ): T {
     return withContext(scope.coroutineContext, block)
+}
+
+fun <T> MutableStateFlow<T>.update(new: T) {
+    if (this.value != new) this.value = new
 }

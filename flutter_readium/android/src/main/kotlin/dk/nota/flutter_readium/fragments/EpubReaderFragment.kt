@@ -130,7 +130,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::goLeft. Navigator not ready.")
+            Log.d(TAG, "::goRight. Navigator not ready.")
             return
         }
 
@@ -289,15 +289,16 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        // DFG: This will be relative to your app's src/main/assets/ folder.
-        // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
-        // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
         val preferences = model.preferences ?: EpubPreferences()
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
         val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
                 shouldApplyInsetsPadding = false,
+
+                // DFG: This will be relative to your app's src/main/assets/ folder.
+                // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
+                // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                 servedAssets = listOf(
                     "flutter_assets/packages/flutter_readium/assets/.*",
                 )
