@@ -27,12 +27,6 @@ abstract class Locator with _$Locator {
 
     /// Textual context of the locator.
     final LocatorText? text,
-
-    /// TODO: extract x-properties
-    @JsonKey(name: 'x-type') final XType? xType,
-    @JsonKey(name: 'x-timestamp') @dateTimeLocal final DateTime? xTimestamp,
-    @JsonKey(name: 'x-uuid') final String? xUuid,
-    @JsonKey(name: 'x-note') final String? xNote,
   }) = _Locator;
 
   factory Locator.fromJson(final JsonObject json) => _$LocatorFromJson(json);

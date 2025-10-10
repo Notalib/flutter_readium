@@ -50,6 +50,7 @@
     "kotlinx",
     "podfile",
     "podspec",
+    "prefs",
     "Prefs",
     "readium"
   ]

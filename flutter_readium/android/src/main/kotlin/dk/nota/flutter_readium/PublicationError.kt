@@ -6,33 +6,55 @@
 
 package dk.nota.flutter_readium
 
+import org.readium.navigator.media.audio.AudioEngine
+import org.readium.navigator.media.audio.AudioNavigatorFactory
+import org.readium.navigator.media.tts.TtsNavigator
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.streamer.PublicationOpener
 
+@OptIn(ExperimentalReadiumApi::class)
 sealed class PublicationError(
+    val errorCode: ReadiumExceptionType,
+
     override val message: String,
     override val cause: Error? = null,
 ) : Error {
-
     class Reading(override val cause: ReadError) :
-        PublicationError(cause.message, cause.cause)
+        PublicationError(ReadiumExceptionType.readingError, cause.message, cause.cause)
 
     class UnsupportedScheme(cause: Error) :
-        PublicationError(cause.message, cause.cause)
+        PublicationError( ReadiumExceptionType.unsupportedScheme, cause.message, cause.cause)
 
     class FormatNotSupported(cause: Error) :
-        PublicationError(cause.message, cause.cause)
+        PublicationError(ReadiumExceptionType.formatNotSupported,cause.message, cause.cause)
 
-    class InvalidPublication(cause: Error) :
-        PublicationError(cause.message, cause.cause)
+    class InvalidPublicationUrl(msg: String) :
+        PublicationError(ReadiumExceptionType.notFound, msg)
 
     class Unexpected(cause: Error) :
-        PublicationError(cause.message, cause.cause)
+        PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
+
+    class Unavailable(message: String = "Resource unavailable") :
+        PublicationError(ReadiumExceptionType.unavailable, message)
+
+    class Unknown(message: String = "Unknown error") :
+        PublicationError(ReadiumExceptionType.unknown, message)
+
+    enum class ReadiumExceptionType {
+        formatNotSupported,
+        unsupportedScheme,
+        readingError,
+        notFound,
+        forbidden,
+        unavailable,
+        incorrectCredentials,
+        unknown,
+    }
 
     companion object {
-
         operator fun invoke(error: AssetRetriever.RetrieveUrlError): PublicationError =
             when (error) {
                 is AssetRetriever.RetrieveUrlError.Reading ->
@@ -61,6 +83,30 @@ sealed class PublicationError(
 
                 is PublicationOpener.OpenError.FormatNotSupported ->
                     FormatNotSupported(error)
+            }
+
+        operator fun invoke(error: ReadError): PublicationError =
+            Reading(error)
+
+        operator fun invoke(error: AudioEngine.Error): PublicationError =
+            Unexpected(error)
+
+        operator fun invoke(error: AudioNavigatorFactory.Error): PublicationError =
+            when (error) {
+                is AudioNavigatorFactory.Error.UnsupportedPublication
+                    -> FormatNotSupported(error)
+
+                is AudioNavigatorFactory.Error.EngineInitialization
+                    -> Unexpected(error)
+            }
+
+        operator fun invoke(error: TtsNavigator.Error): PublicationError =
+            when (error) {
+                is TtsNavigator.Error.EngineError<*>
+                    -> Unexpected(error)
+
+                is TtsNavigator.Error.ContentError
+                    -> FormatNotSupported(error)
             }
     }
 }

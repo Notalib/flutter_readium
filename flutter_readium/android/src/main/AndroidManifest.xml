@@ -11,7 +11,22 @@
   <uses-permission android:name="android.permission.DOWNLOAD_WITHOUT_NOTIFICATION" />
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
-  <application android:usesCleartextTraffic="true" tools:targetApi="m" />
+  <application android:usesCleartextTraffic="true" tools:targetApi="m">
+
+    <service android:name=".PluginMediaService"
+        android:enabled="true"
+        android:exported="true"
+        android:foregroundServiceType="mediaPlayback"
+        tools:ignore="ExportedService"
+        >
+
+        <intent-filter>
+            <action android:name="androidx.media3.session.MediaSessionService"/>
+            <action android:name="androidx.media2.session.MediaSessionService"/>
+            <action android:name="android.media.session.MediaSessionService" />
+        </intent-filter>
+    </service>
+  </application>
 
   <queries>
     <intent>

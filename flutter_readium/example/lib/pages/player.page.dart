@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -16,33 +18,46 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
-        builder: (final context, final pubState) => Scaffold(
-          restorationId: 'player_page',
-          appBar: AppBar(
-            backgroundColor: Colors.deepPurple[200],
-            title: Semantics(
-              header: true,
-              child: Text(
-                pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
+        builder: (final context, final pubState) {
+          final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
+          return PopScope(
+            canPop: true,
+            onPopInvokedWithResult: (didPop, result) {
+              // When Player page is popped, make sure to close current publication.
+              context.read<PlayerControlsBloc>().add(Stop());
+              context.read<PublicationBloc>().add(ClosePublication());
+            },
+            child: Scaffold(
+              restorationId: 'player_page',
+              appBar: AppBar(
+                backgroundColor: Colors.amber,
+                title: Semantics(
+                  header: true,
+                  child: Text(
+                    pubState.error != null ? 'Error' : pubState.publication?.metadata.title.values.first ?? 'Unknown',
+                  ),
+                ),
+                actions: _buildActionButtons(),
+              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: isAudioBook
+                        ? Container(
+                            padding: EdgeInsets.all(12.0),
+                            child: TimebasedStateWidget(),
+                          )
+                        : ReaderWidget(),
+                  ),
+                  _controls(isAudioBook),
+                ],
               ),
             ),
-            actions: _buildActionButtons(context),
-          ),
-          body: Container(
-            color: Colors.pinkAccent[100],
-            child: Column(
-              children: [
-                Expanded(
-                  child: ReaderWidget(),
-                ),
-                _controls(),
-              ],
-            ),
-          ),
-        ),
+          );
+        },
       );
 
-  List<Widget> _buildActionButtons(final BuildContext context) => <Widget>[
+  List<Widget> _buildActionButtons() => <Widget>[
         // IconButton(
         //   icon: const Icon(Icons.headphones),
         //   onPressed: () {
@@ -72,13 +87,29 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
           },
           tooltip: 'Open text style settings',
         ),
+        IconButton(
+          icon: const Icon(Icons.toc),
+          onPressed: () async {
+            final result = await Navigator.pushNamed<dynamic>(context, '/toc');
+            if (!context.mounted) return;
+            final publication = context.read<PublicationBloc>().state.publication;
+            if (publication != null && result != null && result is Link) {
+              final tocLink = result;
+              final locator = publication.locatorFromLink(tocLink);
+              if (locator != null && context.mounted) {
+                context.read<PlayerControlsBloc>().add(GoToLocator(locator));
+              }
+            }
+          },
+          tooltip: 'Open table of contents',
+        ),
       ];
 
-  Widget _controls() => const SafeArea(
+  Widget _controls(final bool isAudioBook) => SafeArea(
         top: false,
         left: false,
         right: false,
-        child: PlayerControls(),
+        child: PlayerControls(isAudioBook: isAudioBook),
       );
 
   @override

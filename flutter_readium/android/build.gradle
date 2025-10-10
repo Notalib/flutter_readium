@@ -2,8 +2,8 @@ group 'dk.nota.lyt.flutter_readium'
 version '1.0-SNAPSHOT'
 
 buildscript {
-  ext.kotlin_version = '2.1.20'
-  ext.readium_version = '3.1.1'
+  ext.kotlin_version = '2.2.20'
+  ext.readium_version = '3.1.2'
 
   repositories {
     google()
@@ -11,7 +11,7 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:8.11.0'
+    classpath 'com.android.tools.build:gradle:8.13.0'
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
@@ -57,7 +57,7 @@ android {
 }
 
 dependencies {
-  implementation 'androidx.fragment:fragment-ktx:1.8.8'
+  implementation 'androidx.fragment:fragment-ktx:1.8.9'
 
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "org.readium.kotlin-toolkit:readium-shared:$readium_version"
@@ -66,15 +66,19 @@ dependencies {
   implementation "org.readium.kotlin-toolkit:readium-navigator:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-common:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-tts:$readium_version"
-  // implementation "androidx.compose.ui:ui:1.8.2" // UI
-  // implementation "androidx.activity:activity-compose:1.10.1" // Activity Compose integration
-  // implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
-  // implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
   // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-document:$readium_version"
   // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-navigator:$readium_version"
   //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
 
+  // Used for media-session controls
+  def media_version = "1.7.1"
+  implementation "androidx.media3:media3-common:$media_version"
+  implementation "androidx.media3:media3-session:$media_version"
+  implementation "androidx.media3:media3-exoplayer:$media_version"
+
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
-  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1"
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 }

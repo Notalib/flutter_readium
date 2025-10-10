@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
@@ -26,16 +27,19 @@ class FlutterReadium {
     _platform.setDefaultPreferences(preferences);
   }
 
-  Future<Publication> getPublication(String pubUrl) {
-    return _platform.getPublication(pubUrl);
+  Future<Publication> loadPublication(String pubUrl) {
+    return _platform.loadPublication(pubUrl);
   }
 
   Future<Publication> openPublication(String pubUrl) {
-    return _platform.openPublication(pubUrl);
+    return _platform.openPublication(pubUrl).onError((err, _) {
+      debugPrint('OpenPublication error: ${err.toString()}');
+      throw ReadiumException.fromError(err);
+    });
   }
 
-  Future<void> closePublication(String pubUrl) {
-    return _platform.closePublication(pubUrl);
+  Future<void> closePublication() {
+    return _platform.closePublication();
   }
 
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;
@@ -46,6 +50,14 @@ class FlutterReadium {
 
   Stream<Locator> get onAudioLocatorChanged {
     return _platform.onAudioLocatorChanged;
+  }
+
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    return _platform.onTimebasedPlayerStateChanged;
+  }
+
+  Stream<ReadiumError> get onErrorEvent {
+    return _platform.onErrorEvent;
   }
 
   Future<void> goLeft() {
@@ -70,16 +82,23 @@ class FlutterReadium {
       _platform.applyDecorations(id, decorations);
 
   Future<void> ttsEnable(TTSPreferences? preferences) => _platform.ttsEnable(preferences);
-  Future<void> ttsStart(Locator? fromLocator) => _platform.ttsStart(fromLocator);
-  Future<void> ttsStop() => _platform.ttsStop();
-  Future<void> ttsPause() => _platform.ttsPause();
-  Future<void> ttsResume() => _platform.ttsResume();
-  Future<void> ttsNext() => _platform.ttsNext();
-  Future<void> ttsPrevious() => _platform.ttsPrevious();
   Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
   Future<void> ttsSetDecorationStyle(
           ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       _platform.ttsSetDecorationStyle(utteranceDecoration, rangeDecoration);
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() => _platform.ttsGetAvailableVoices();
-  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) => _platform.ttsSetVoice(voiceIdentifier, forLanguage);
+  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
+      _platform.ttsSetVoice(voiceIdentifier, forLanguage);
+
+  Future<void> play(Locator? fromLocator) => _platform.play(fromLocator);
+  Future<void> stop() => _platform.stop();
+  Future<void> pause() => _platform.pause();
+  Future<void> resume() => _platform.resume();
+  Future<void> next() => _platform.next();
+  Future<void> previous() => _platform.previous();
+  Future<bool> goToLocator(Locator locator) => _platform.goToLocator(locator);
+
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
+  Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
 }

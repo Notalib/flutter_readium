@@ -17,7 +17,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<Publication> getPublication(String pubUrl) async {
+  Future<Publication> loadPublication(String pubUrl) async {
     Publication publication;
 
     try {
@@ -116,17 +116,18 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    // TODO: This needs better handling
+    // NOTE: For web, loadPublication and openPublication does the same thing,
+    //
     // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
     // additionally the openPublication method does currently not return a publication object
     R2Log.d(
         'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.');
-    final publication = await getPublication(pubUrl);
+    final publication = await loadPublication(pubUrl);
     return publication;
   }
 
   @override
-  Future<void> closePublication(String pubUrl) async {
+  Future<void> closePublication() async {
     JsPublicationChannel().closePublication();
     return;
   }
@@ -184,36 +185,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) async {
-    R2Log.d('ttsStart not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsStop() async {
-    R2Log.d('ttsStop not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsPause() async {
-    R2Log.d('ttsPause not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsResume() async {
-    R2Log.d('ttsResume not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsNext() async {
-    R2Log.d('ttsNext not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsPrevious() async {
-    R2Log.d('ttsPrevious not implemented in web version');
-  }
-
-  @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
     R2Log.d('ttsGetAvailableVoices not implemented in web version');
     return [];
@@ -252,5 +223,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Stream<Locator> get onAudioLocatorChanged {
     R2Log.d('onAudioLocatorChanged not implemented in web version');
     return const Stream.empty();
+  }
+
+  @override
+  Future<String?> getLinkContent(Link link) {
+    return getString(link);
   }
 }

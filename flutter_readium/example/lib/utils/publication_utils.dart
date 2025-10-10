@@ -11,8 +11,7 @@ class PublicationUtils {
   static Future<Iterable<String>> getAssetPubFiles() async {
     final manifestContent = await rootBundle.loadString('AssetManifest.json');
     final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-    final pubAssets =
-        manifestMap.keys.where((final assetPath) => assetPath.startsWith('assets/pubs/'));
+    final pubAssets = manifestMap.keys.where((final assetPath) => assetPath.startsWith('assets/pubs/'));
     return pubAssets;
   }
 
@@ -28,9 +27,11 @@ class PublicationUtils {
     final pubAssets = await getAssetPubFiles();
     final pubs = <String>[];
 
+    final allowedExts = ['.webpub', '.epub', '.audiobook', '.zip'];
+
     // Loop through the filtered assets
     for (final assetPath in pubAssets) {
-      if (!assetPath.endsWith('.webpub') && !assetPath.endsWith('.epub')) {
+      if (!allowedExts.any((ext) => assetPath.endsWith(ext))) {
         debugPrint('Skip asset path: $assetPath');
         continue;
       }

@@ -18,6 +18,12 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @visibleForTesting
   EventChannel audioLocatorChannel = const EventChannel('dk.nota.flutter_readium/audio-locator');
 
+  @visibleForTesting
+  EventChannel timebasedStateChannel = const EventChannel('dk.nota.flutter_readium/timebased-state');
+
+  @visibleForTesting
+  EventChannel errorEventChannel = const EventChannel('dk.nota.flutter_readium/error');
+
   /// The event channel used to receive text Locator changes from the native platform.
   @visibleForTesting
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
@@ -25,6 +31,12 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator>? _onTextLocatorChanged;
 
   Stream<Locator>? _onAudioLocatorChanged;
+
+  Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
+
+  Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
+
+  Stream<ReadiumError>? _onErrorEvent;
 
   /// Fires whenever the Reader's current Locator changes.
   @override
@@ -46,6 +58,41 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     return _onAudioLocatorChanged!;
   }
 
+  /// Fires whenever the TimebasedNavigator changes state
+  @override
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
+      final state = ReadiumTimebasedState.fromJsonMap(json.decode(event) as Map<String, dynamic>);
+      return state;
+    });
+    return _onTimebasedPlayerStateChanged!;
+  }
+
+  @override
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged {
+    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
+      final newStatus = ReadiumReaderStatus.values.firstWhere((e) => e.name == json.decode(event) as String);
+      return newStatus;
+    });
+    return _onReaderStatusChanged!;
+  }
+
+  @override
+  Stream<ReadiumError> get onErrorEvent {
+    _onErrorEvent ??= errorEventChannel.receiveBroadcastStream().map((dynamic event) {
+      final errorEvent = json.decode(event) as ReadiumError;
+      return errorEvent;
+    });
+    return _onErrorEvent!;
+  }
+
+  @override
+  Future<Publication> loadPublication(String pubUrl) async {
+    final publicationString =
+        await methodChannel.invokeMethod<String>('loadPublication', [pubUrl]).then<String>((dynamic result) => result);
+    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
+  }
+
   @override
   Future<void> setCustomHeaders(Map<String, String> headers) async {
     await methodChannel.invokeMethod<void>('setCustomHeaders', {'httpHeaders': headers});
@@ -59,8 +106,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> closePublication(String pubIdentifier) async =>
-      await methodChannel.invokeMethod<void>('closePublication', [pubIdentifier]);
+  Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
 
   @override
   Future<void> goLeft() async => await currentReaderWidget?.goLeft();
@@ -73,6 +119,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> skipToPrevious() async => await currentReaderWidget?.skipToPrevious();
+
+  @override
+  Future<bool> goToLocator(Locator locator) async =>
+      await methodChannel.invokeMethod<bool>('goToLocator', [locator.toJson()]) ?? false;
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
@@ -89,23 +139,22 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod('ttsEnable', preferences?.toMap());
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) async =>
-      await methodChannel.invokeMethod('ttsStart', [fromLocator?.toJson()]);
+  Future<void> play(Locator? fromLocator) async => await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);
 
   @override
-  Future<void> ttsStop() async => await methodChannel.invokeMethod('ttsStop');
+  Future<void> stop() async => await methodChannel.invokeMethod('stop');
 
   @override
-  Future<void> ttsPause() async => await methodChannel.invokeMethod('ttsPause');
+  Future<void> pause() async => await methodChannel.invokeMethod('pause');
 
   @override
-  Future<void> ttsResume() async => await methodChannel.invokeMethod('ttsResume');
+  Future<void> resume() async => await methodChannel.invokeMethod('resume');
 
   @override
-  Future<void> ttsNext() async => await methodChannel.invokeMethod('ttsNext');
+  Future<void> next() async => await methodChannel.invokeMethod('next');
 
   @override
-  Future<void> ttsPrevious() async => await methodChannel.invokeMethod('ttsPrevious');
+  Future<void> previous() async => await methodChannel.invokeMethod('previous');
 
   @override
   Future<void> ttsSetDecorationStyle(
@@ -136,6 +185,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('ttsSetPreferences', preferences.toMap());
 
   @override
-  Future<String?> getLinkContent(final String pubIdentifier, final Link link) =>
-      methodChannel.invokeMethod<String>('getLinkContent', [pubIdentifier, jsonEncode(link.toJson())]);
+  Future<String?> getLinkContent(final Link link) =>
+      methodChannel.invokeMethod<String>('getLinkContent', [jsonEncode(link.toJson())]);
+
+  @override
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      methodChannel.invokeMethod('audioEnable', [prefs?.toMap(), fromLocator?.toJson()]);
+
+  @override
+  Future<void> audioSetPreferences(AudioPreferences prefs) => methodChannel.invokeMethod('audioSetPreferences', prefs);
 }

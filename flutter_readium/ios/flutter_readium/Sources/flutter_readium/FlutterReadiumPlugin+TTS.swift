@@ -5,15 +5,14 @@ import ReadiumShared
 private let TAG = "ReadiumReaderPlugin/TTS"
 
 extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate {
-  
+
   fileprivate func setupSynthesizer(withPreferences prefs: TTSPreferences?) async throws {
     print(TAG, "setupSynthesizer")
-    
+
     var engine: AVTTSEngine?
 
-    guard let ident = await currentReaderView?.publicationIdentifier,
-          let publication = openedReadiumPublications[ident] else {
-      throw LibraryError.bookNotFound
+    guard let publication = getCurrentPublication() else {
+      throw ReadiumError.notFound("No current publication")
     }
 
     self.synthesizer = PublicationSpeechSynthesizer(
@@ -30,7 +29,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     engine?.delegate = self
     self.ttsPrefs = prefs
     self.synthesizer?.delegate = self
-    
+
     $playingUtterance
       .removeDuplicates()
       .sink { [weak self] locator in
@@ -41,7 +40,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         audioLocatorStreamHandler?.sendEvent(locator)
       }
       .store(in: &subscriptions)
-    
+
     playingWordRangeSubject
       .removeDuplicates()
       //  Improve performances by throttling the moves to maximum one per second.
@@ -55,13 +54,13 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         print(TAG, "tts navigate reader to locator")
         isMoving = true
         Task {
-          await currentReaderView?.justGoToLocator(locator, animated: true)
+          let _ = await currentReaderView?.justGoToLocator(locator, animated: true)
           self.isMoving = false
         }
       }
       .store(in: &subscriptions)
   }
-  
+
   @MainActor func updateDecorations(uttLocator: Locator?, rangeLocator: Locator?) {
     // Update Reader text decorations
     var decorations: [Decoration] = []
@@ -79,7 +78,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     }
     currentReaderView?.applyDecorations(decorations, forGroup: "tts")
   }
-  
+
   func ttsEnable(withPreferences ttsPrefs: TTSPreferences) async throws {
     print(TAG, "ttsEnable")
     try await setupSynthesizer(withPreferences: ttsPrefs)
@@ -88,7 +87,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   func ttsStart(fromLocator: Locator?) {
     print(TAG, "ttsStart: fromLocator=\(fromLocator?.jsonString ?? "nil")")
     self.synthesizer?.start(from: fromLocator)
-    setupNowPlaying()
+    setupTTSNowPlaying()
   }
 
   func ttsStop() {
@@ -118,19 +117,19 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   func ttsGetAvailableVoices() -> [TTSVoice] {
     return self.synthesizer?.availableVoices ?? []
   }
-  
+
   func ttsSetVoice(voiceIdentifier: String) throws {
     print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
 
     /// Check that voice with given identifier exists
     guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
-      throw LibraryError.voiceNotFound
+      throw ReadiumError.voiceNotFound
     }
 
     /// Changes will be applied for the next utterance.
     synthesizer?.config.voiceIdentifier = voiceIdentifier
   }
-  
+
   func ttsSetPreferences(prefs: TTSPreferences) {
     self.ttsPrefs?.rate = prefs.rate ?? self.ttsPrefs?.rate
     self.ttsPrefs?.pitch = prefs.pitch ?? self.ttsPrefs?.pitch
@@ -139,14 +138,14 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     self.synthesizer?.config.voiceIdentifier = prefs.voiceIdentifier
     self.synthesizer?.config.defaultLanguage = prefs.overrideLanguage
   }
-  
+
   // MARK: - Protocol impl.
-  
+
   public func avTTSEngine(_ engine: AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
     utterance.rate = self.ttsPrefs?.rate ?? AVSpeechUtteranceDefaultSpeechRate
     utterance.pitchMultiplier = self.ttsPrefs?.pitch ?? 1.0
   }
-  
+
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
     print(TAG, "publicationSpeechSynthesizerStateDidChange")
@@ -161,7 +160,7 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
       }
       updateDecorations(uttLocator: utt.locator, rangeLocator: wordRange)
     case let .paused(utt):
-      print(TAG, "tts paused at: \(utt.text)")
+      print(TAG, "tts paused at utterance: \(utt.text)")
       playingUtterance = utt.locator
     case .stopped:
       playingUtterance = nil
@@ -173,6 +172,10 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
+
+    //TODO: How can both Reader and Plugin submit on this channel?
+    //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)
+    //self.errorStreamHandler?.sendEvent(error)
   }
 
   // MARK: - Now Playing
@@ -180,28 +183,34 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
   // This will display the publication in the Control Center and support
   // external controls.
 
-  private func setupNowPlaying() {
-      Task {
-        guard let ident = await currentReaderView?.publicationIdentifier,
-              let publication = openedReadiumPublications[ident] else {
-          throw LibraryError.bookNotFound
-        }
-          NowPlayingInfo.shared.media = await .init(
-              title: publication.metadata.title ?? "",
-              artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
-              artwork: try? publication.cover().get()
-          )
+  private func setupTTSNowPlaying() {
+    Task {
+      guard let publication = getCurrentPublication() else {
+        throw ReadiumError.notFound("No current publication")
       }
+      NowPlayingInfo.shared.media = .init(
+        title: publication.metadata.title ?? "",
+        artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
+      )
 
-      let commandCenter = MPRemoteCommandCenter.shared()
+      // Async load the cover.
+      let cover = try? await publication.cover().get()
+      NowPlayingInfo.shared.media?.artwork = cover
+    }
 
-      commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-          self?.ttsPauseOrResume()
-          return .success
-      }
-  }
+    let commandCenter = MPRemoteCommandCenter.shared()
 
-  private func clearNowPlaying() {
-      NowPlayingInfo.shared.clear()
+    commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+      self?.ttsPauseOrResume()
+      return .success
+    }
+    commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+      self?.ttsNext()
+      return .success
+    }
+    commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+      self?.ttsPrevious()
+      return .success
+    }
   }
 }

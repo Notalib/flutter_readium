@@ -13,11 +13,8 @@ enum _ReaderChannelMethodInvoke {
   getLocatorFragments,
   setLocation,
   isLocatorVisible,
-  isReaderReady,
   dispose,
   setPreferences,
-  ttsStart,
-  ttsStop,
 }
 
 /// Internal use only.
@@ -73,18 +70,14 @@ class ReadiumReaderChannel extends MethodChannel {
     return _invokeMethod(
       _ReaderChannelMethodInvoke.getLocatorFragments,
       json.encode(locator.toJson()),
-    )
-        .then((final value) => Locator.fromJson(json.decode(value)))
-        .onError((final error, final _) {
+    ).then((final value) => Locator.fromJson(json.decode(value))).onError((final error, final _) {
       R2Log.e(error ?? 'Unknown Error');
 
       throw ReadiumException('getLocatorFragments failed $locator');
     });
   }
 
-  Future<void> setLocation(
-          final Locator locator, final bool isAudioBookWithText) async =>
-      _invokeMethod(
+  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async => _invokeMethod(
         _ReaderChannelMethodInvoke.setLocation,
         [
           json.encode(locator),
@@ -92,57 +85,22 @@ class ReadiumReaderChannel extends MethodChannel {
         ],
       );
 
-  Future<void> ttsStart(final String lang, final Locator? fromLocator) async =>
-      _invokeMethod(
-        _ReaderChannelMethodInvoke.ttsStart,
-        [
-          lang,
-          fromLocator?.toJson(),
-        ],
-      );
-
-  Future<void> ttsStop() async =>
-      _invokeMethod(_ReaderChannelMethodInvoke.ttsStop, []);
-
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    await _invokeMethod(
-        _ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
+    await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
   }
 
-  Future<void> applyDecorations(
-      String id, List<ReaderDecoration> decorations) async {
-    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations,
-        [id, decorations.map((d) => d.toJson())]);
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
 
-  Future<bool> isReaderReady() async => _invokeMethod(
-        _ReaderChannelMethodInvoke.isReaderReady,
-      ).timeout(const Duration(seconds: 5)).then((final value) {
-        if (value is bool) {
-          return value;
-        }
-
-        return bool.tryParse(value) ?? false;
-      }).onError(
-        (final error, final _) {
-          R2Log.d(error.toString());
-
-          return false;
-        },
-      );
-
-  Future<Locator?> getCurrentLocator() async => await _invokeMethod<dynamic>(
-          _ReaderChannelMethodInvoke.getCurrentLocator, [])
-      .then((locStr) => locStr != null
-          ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>)
-          : null);
+  Future<Locator?> getCurrentLocator() async =>
+      await _invokeMethod<dynamic>(_ReaderChannelMethodInvoke.getCurrentLocator, [])
+          .then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
 
   Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(
         _ReaderChannelMethodInvoke.isLocatorVisible,
         json.encode(locator),
-      )
-          .then((final isVisible) => isVisible!)
-          .onError((final error, final _) => true);
+      ).then((final isVisible) => isVisible!).onError((final error, final _) => true);
 
   Future<void> dispose() async {
     try {
@@ -179,8 +137,7 @@ class ReadiumReaderChannel extends MethodChannel {
     }
   }
 
-  Future<T?> _invokeMethod<T>(final _ReaderChannelMethodInvoke method,
-      [final dynamic arguments]) {
+  Future<T?> _invokeMethod<T>(final _ReaderChannelMethodInvoke method, [final dynamic arguments]) {
     R2Log.d(() => arguments == null ? '$method' : '$method: $arguments');
 
     return invokeMethod<T>(method.name, arguments);
@@ -192,6 +149,5 @@ class ReadiumReaderChannel extends MethodChannel {
 /// The original Readium UserProperty::getJson leaves out the quotes around "name" and "value".
 /// There are plans to clean up the Readium user settings API.
 /// TODO: Nuke this function from orbit if/when that happens.
-String _readiumEncode(final Map<String, String> map) => json.encode(map.entries
-    .map((final e) => json.encode({'name': e.key, 'value': e.value}))
-    .toList());
+String _readiumEncode(final Map<String, String> map) =>
+    json.encode(map.entries.map((final e) => json.encode({'name': e.key, 'value': e.value})).toList());

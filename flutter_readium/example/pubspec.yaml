@@ -10,7 +10,7 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  file_picker:
+  # file_picker: # Removed temporarily since it does not compile with latest Kotlin version.
   flutter_bloc:
   hydrated_bloc:
   flutter_readium:
@@ -20,8 +20,7 @@ dependencies:
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
-
-  native_device_orientation:
+  package_info_plus:
   path:
   path_provider:
   pointer_interceptor:

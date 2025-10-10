@@ -1,16 +1,18 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 
 abstract class PublicationEvent {}
 
+class ClosePublication extends PublicationEvent {}
+
 class OpenPublication extends PublicationEvent {
   OpenPublication({
-    required this.publication,
+    required this.publicationUrl,
     this.initialLocator,
     this.autoPlay,
   });
-  final Publication publication;
+  final String publicationUrl;
   final Locator? initialLocator;
   final bool? autoPlay;
 }
@@ -41,12 +43,21 @@ class PublicationState {
       );
 
   PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
-      copyWith(publication: publication, initialLocator: initialLocator, isLoading: false);
+      PublicationState(publication: publication, initialLocator: initialLocator, isLoading: false, error: null);
 
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
 
   PublicationState loading() => copyWith(isLoading: true);
+
+  String errorDebugDescription() {
+    if (error is ReadiumException) {
+      ReadiumException re = error as ReadiumException;
+      return '${re.type}: ${re.message}';
+    } else {
+      return error.toString();
+    }
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -74,17 +85,22 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading());
       try {
-        // TODO: Set which Publication is rendered on the native side.
-        // final publication = await FlutterReadium().setRenderedPublication(
-        //   event.publication.identifier,
-        // initialLocator: event.initialLocator,
-        // autoPlay: event.autoPlay ?? false,
-        // preload: false,
-        // );
-        emit(state.openPublicationSuccess(event.publication, event.initialLocator));
+        final instance = FlutterReadium();
+        final publication = await instance.openPublication(event.publicationUrl);
+
+        emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
         emit(state.openPublicationFail(error));
       }
+    });
+
+    on<ClosePublication>((final event, final emit) async {
+      try {
+        await FlutterReadium().closePublication();
+      } on Exception catch (error) {
+        debugPrint('Exception while closing publication: ${error.toString()}');
+      }
+      emit(PublicationState());
     });
   }
 

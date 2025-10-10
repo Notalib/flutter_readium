@@ -42,15 +42,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     super.dispose();
 
     // Close the publication when the widget is disposed
-    FlutterReadium().closePublication(
-      widget.publication.identifier,
-    );
+    FlutterReadium().closePublication();
   }
 
   @override
   Widget build(final BuildContext context) {
     // TODO: move initialPositionJsonString to flutter_readium_web when shared is implemented
-    final initialLocator = widget.initialLocator ?? null;
+    final initialLocator = widget.initialLocator;
     final initialPositionJsonString = initialLocator != null ? json.encode(widget.initialLocator) : null;
 
     return SizedBox.expand(

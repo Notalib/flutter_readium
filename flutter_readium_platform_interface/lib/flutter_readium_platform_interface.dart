@@ -8,6 +8,8 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
 import 'src/enums.dart';
+import 'src/exceptions/index.dart';
+import 'src/state_model.dart';
 import 'src/reader/index.dart';
 import 'src/shared/index.dart';
 
@@ -17,6 +19,7 @@ export 'src/reader/index.dart';
 export 'src/shared/index.dart';
 export 'src/utils/index.dart';
 export 'src/enums.dart';
+export 'src/state_model.dart';
 
 /// The interface that implementations of FlutterReadium must implement.
 ///
@@ -26,7 +29,7 @@ export 'src/enums.dart';
 /// platform implementations that `implements` this interface will be broken by newly added
 /// [FlutterReadiumPlatform] methods.
 abstract class FlutterReadiumPlatform extends PlatformInterface {
-  /// Constructs a BatteryPlatform.
+  /// Constructs a FlutterReadiumPlatform.
   FlutterReadiumPlatform() : super(token: _token);
 
   static final Object _token = Object();
@@ -50,36 +53,49 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     defaultPreferences = preferences;
   }
 
-  Future<Publication> getPublication(String pubUrl) =>
-      throw UnimplementedError('getPublication(pubUrl) has not been implemented.');
+  /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
+  /// This will NOT store a reference to the Publication and is purely meant to be used for fetching metadata/manifest
+  /// for multiple books.
+  Future<Publication> loadPublication(String pubUrl) =>
+      throw UnimplementedError('loadPublication(pubUrl) has not been implemented.');
 
+  /// Opens a publication from a URL and prepares it for reading or playback.
+  /// If the URL has not already been loaded, it will implicitly do this.
   Future<Publication> openPublication(String pubUrl) =>
       throw UnimplementedError('openPublication(pubUrl) has not been implemented.');
 
-  Future<void> closePublication(String pubIdentifier) =>
-      throw UnimplementedError('closePublication(pubIdentifier) has not been implemented.');
+  /// Close the currently open publication and its related reader or playback ressources.
+  Future<void> closePublication() => throw UnimplementedError('closePublication() has not been implemented.');
+
+  Future<String?> getLinkContent(final Link link);
 
   Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
   Future<void> goRight() => throw UnimplementedError('goRight() has not been implemented.');
+
+  //TODO: Consider if we need this and naming. Currently skips to next/previous chapter.
   Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
   Future<void> skipToPrevious() => throw UnimplementedError('skipToPrevious() has not been implemented.');
 
-  /// Sets the default EPUB rendering preferences and updates preferences for any current ReaderWidgetViews.
+  /// Sets the default EPUB rendering preferences and updates preferences for the ReaderWidgetView.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
       throw UnimplementedError('applyDecorations() has not been implemented');
 
+  // COMMON PLAYBACK API - BEGIN
+  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');
+  Future<void> stop() => throw UnimplementedError('stop() has not been implemented');
+  Future<void> pause() => throw UnimplementedError('pause() has not been implemented');
+  Future<void> resume() => throw UnimplementedError('resume() has not been implemented');
+  Future<void> next() => throw UnimplementedError('next() has not been implemented');
+  Future<void> previous() => throw UnimplementedError('previous() has not been implemented');
+  Future<bool> goToLocator(Locator locator) => throw UnimplementedError('goToLocator() has not been implemented.');
+  // COMMON PLAYBACK API - END
+
   // TTS API - BEGIN
   Future<void> ttsEnable(TTSPreferences? preferences) =>
       throw UnimplementedError('ttsEnable() has not been implemented');
-  Future<void> ttsStart(Locator? fromLocator) => throw UnimplementedError('ttsStart() has not been implemented');
-  Future<void> ttsStop() => throw UnimplementedError('ttsStop() has not been implemented');
-  Future<void> ttsPause() => throw UnimplementedError('ttsPause() has not been implemented');
-  Future<void> ttsResume() => throw UnimplementedError('ttsResume() has not been implemented');
-  Future<void> ttsNext() => throw UnimplementedError('ttsNext() has not been implemented');
-  Future<void> ttsPrevious() => throw UnimplementedError('ttsPrevious() has not been implemented');
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
@@ -93,15 +109,34 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END
 
+  // AUDIOBOOK API - BEGIN
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      throw UnimplementedError('audioEnable() has not been implemented');
+  Future<void> audioSetPreferences(AudioPreferences prefs) =>
+      throw UnimplementedError('audioSetPreferences() has not been implemented');
+  // AUDIOBOOK API - END
+
+  // Stream for reader status changes
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');
   }
 
+  // Stream for text/visual position. Usually will be the top of the current page (firstVisibleLocator in Readium).
   Stream<Locator> get onTextLocatorChanged {
     throw UnimplementedError('onTextLocatorChanged stream has not been implemented.');
   }
 
+  // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
   Stream<Locator> get onAudioLocatorChanged {
     throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
+  }
+
+  // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    throw UnimplementedError('onTimebasedPlayerStateChanged stream has not been implemented.');
+  }
+
+  Stream<ReadiumError> get onErrorEvent {
+    throw UnimplementedError('onErrorEvent stream has not been implemented.');
   }
 }

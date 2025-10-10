@@ -1,12 +1,15 @@
 import ReadiumNavigator
 import ReadiumAdapterGCDWebServer
 import ReadiumShared
-import ReadiumStreamer
 import Flutter
 import UIKit
 import WebKit
 
 private let TAG = "ReadiumReaderView"
+private let ReadiumReaderStatusReady = "ready"
+private let ReadiumReaderStatusLoading = "loading"
+private let ReadiumReaderStatusClosed = "closed"
+private let ReadiumReaderStatusError = "error"
 
 let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
@@ -22,10 +25,13 @@ private var userScripts: [WKUserScript] = []
 class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
+  private var errorStreamHandler: EventStreamHandler?
+  private var readerStatusStreamHandler: EventStreamHandler?
   private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var isVerticalScroll = false
+  private var hasSentReady = false
 
   var publicationIdentifier: String?
 
@@ -40,6 +46,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     readiumViewController.delegate = nil
     textLocatorStreamHandler?.dispose()
     textLocatorStreamHandler = nil
+    readerStatusStreamHandler?.dispose()
+    readerStatusStreamHandler = nil
+    errorStreamHandler?.dispose()
+    errorStreamHandler = nil
     channel.setMethodCallHandler(nil)
     setCurrentReadiumReaderView(nil)
   }
@@ -52,9 +62,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   ) {
     print(TAG, "::init")
     let creationParams = args as! Dictionary<String, Any?>
-
-    let pubIdentifier = creationParams["pubIdentifier"] as! String
-    let publication = getPublicationByIdentifier(pubIdentifier)!
+    
+    let publication = getCurrentPublication()!
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
     let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
@@ -66,6 +75,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
     textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
+    readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
+    errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
+    
+    readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusLoading)
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -81,6 +94,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     config.preloadPreviousPositionCount = 1
     config.preloadNextPositionCount = 1
     config.debugState = true
+    
     if (defaultPreferences != nil) {
       config.preferences = defaultPreferences!
     }
@@ -143,17 +157,28 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
   func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
+    
+    // TODO: Should we send resource-load error like this?
+    self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
+    
+    let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
+    self.errorStreamHandler?.sendEvent(error)
   }
 
   // override NavigatorDelegate::navigator:locationDidChange
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
+    if (!hasSentReady) {
+      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusReady)
+      hasSentReady = true
+    }
     emitOnPageChanged(locator: locator)
   }
 
   func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-        return
+      print(TAG, "skipped non-http external URL: \(url)")
+      return
     }
     emitOnExternalLinkActivated(url: url)
   }
@@ -218,7 +243,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
           return
         }
 
-        textLocatorStreamHandler?.sendEvent(locatorWithFragments.jsonString)
+        textLocatorStreamHandler.sendEvent(locatorWithFragments.jsonString)
       }
     }
   }

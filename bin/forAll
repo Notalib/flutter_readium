@@ -9,7 +9,7 @@ then
 fi
 
 dir=(
-  "./flutter_readium"
+	"./flutter_readium"
 	"./flutter_readium_platform_interface"
 )
 for i in "${dir[@]}"; do

@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-// TODO: use these exceptions as relevant on methodChannel failures.
+import '../shared/readium_shared.dart';
 
 class ReadiumException implements Exception {
   const ReadiumException(
@@ -14,6 +14,19 @@ class ReadiumException implements Exception {
 
   @override
   String toString() => 'ReadiumException{$message}';
+
+  static ReadiumException fromPlatformException(PlatformException ex) {
+    final type = OpeningReadiumExceptionType.values.firstWhereOrNull((v) => v.name == ex.code);
+    return ReadiumException(ex.details ?? 'unknown', type: type);
+  }
+
+  static ReadiumException fromError(Object? err) {
+    if (err is PlatformException) {
+      return fromPlatformException(err);
+    } else {
+      return ReadiumException(err.toString(), type: err.runtimeType.toString());
+    }
+  }
 }
 
 class PublicationNotSetReadiumException extends ReadiumException {
@@ -34,12 +47,13 @@ class OfflineReadiumException extends ReadiumException {
 
 // Order must match native code.
 enum OpeningReadiumExceptionType {
-  unsupportedFormat,
+  formatNotSupported,
+  readingError,
   notFound,
-  parsingFailed,
   forbidden,
   unavailable,
   incorrectCredentials,
+  unknown,
 }
 
 class OpeningReadiumException extends ReadiumException {
@@ -93,13 +107,4 @@ class ReadiumError implements Error {
         data: map['data'] != null ? map['data'] as Object : null,
         stackTrace: map['stackTrace'] != null ? StackTrace.fromString(map['stackTrace'] as String) : null,
       );
-}
-
-class MaxRetryReadiumError extends ReadiumError {
-  MaxRetryReadiumError({
-    super.data,
-  }) : super(
-          'Max retry attempts to recover from error reached',
-          code: '10001',
-        );
 }

@@ -23,7 +23,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<Publication> getPublication(String pubUrl) =>
+  Future<Publication> loadPublication(String pubUrl) =>
       Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
 
   @override
@@ -42,7 +42,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> closePublication(String pubIdentifier) {
+  Future<void> closePublication() {
     // TODO: implement closePublication
     throw UnimplementedError();
   }
@@ -94,30 +94,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsNext() {
-    // TODO: implement ttsNext
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> ttsPause() {
-    // TODO: implement ttsPause
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> ttsPrevious() {
-    // TODO: implement ttsPrevious
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> ttsResume() {
-    // TODO: implement ttsResume
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> ttsSetDecorationStyle(
       ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
     // TODO: implement ttsSetDecorationStyle
@@ -131,14 +107,38 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsStart(Locator? fromLocator) {
-    // TODO: implement ttsStart
+  Future<void> play(Locator? fromLocator) {
+    // TODO: implement play
     throw UnimplementedError();
   }
 
   @override
-  Future<void> ttsStop() {
-    // TODO: implement ttsStop
+  Future<void> pause() {
+    // TODO: implement ttsPause
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> resume() {
+    // TODO: implement ttsResume
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> next() {
+    // TODO: implement ttsNext
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> previous() {
+    // TODO: implement ttsPrevious
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> stop() {
+    // TODO: implement stop
     throw UnimplementedError();
   }
 
@@ -147,8 +147,40 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
 
   @override
+  // TODO: implement onTimebasedPlayerStateChanged
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => throw UnimplementedError();
+
+  @override
+  // TODO: implement onErrorEvent
+  Stream<ReadiumError> get onErrorEvent => throw UnimplementedError();
+
+  @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) {
     // TODO: implement ttsSetPreferences
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) {
+    // TODO: implement audioEnable
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> audioSetPreferences(AudioPreferences prefs) {
+    // TODO: implement audioSetPreferences
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String?> getLinkContent(Link link) {
+    // TODO: implement getLinkContent
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> goToLocator(Locator locator) {
+    // TODO: implement goToLocator
     throw UnimplementedError();
   }
 }

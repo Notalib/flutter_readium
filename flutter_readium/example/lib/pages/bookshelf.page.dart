@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:math' as math;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +22,7 @@ class BookshelfPageState extends State<BookshelfPage> {
   final _flutterReadiumPlugin = FlutterReadium();
   final ScrollController _scrollController = ScrollController();
   List<Publication> _testPublications = [];
+  List<String> _testPublicationURLs = [];
   bool _isLoading = true;
   // Pubs loaded from assets folder should not be delete-able as they would just be re-added on restart
   // we should probably make it so they will only be loaded once
@@ -36,6 +36,7 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   Future<void> _initialize() async {
     final loadedPublications = <Publication>[];
+    final loadedPublicationURLs = <String>[];
 
     if (kIsWeb) {
       // Web: Load publications from JSON asset
@@ -47,7 +48,7 @@ class BookshelfPageState extends State<BookshelfPage> {
           pub = await openPublicationFromUrl(href.toString());
           if (pub != null) {
             loadedPublications.add(pub);
-            await _flutterReadiumPlugin.closePublication(pub.identifier);
+            await _flutterReadiumPlugin.closePublication();
           }
         } on Exception catch (e) {
           debugPrint('Error opening publication: $e');
@@ -61,22 +62,22 @@ class BookshelfPageState extends State<BookshelfPage> {
         Publication? publication = await openPublicationFromUrl(localPubPath);
         if (publication != null) {
           loadedPublications.add(publication);
+          loadedPublicationURLs.add(localPubPath);
         }
       }
     }
 
     setState(() {
       _testPublications = loadedPublications;
+      _testPublicationURLs = loadedPublicationURLs;
       _isLoading = false;
     });
   }
 
   Future<Publication?> openPublicationFromUrl(String pubUrl) async {
     try {
-      Publication pub = kIsWeb
-          ? await _flutterReadiumPlugin.getPublication(pubUrl)
-          : await _flutterReadiumPlugin.openPublication(pubUrl);
-      debugPrint('openPublication success: ${pub.metadata.title}');
+      Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl);
+      debugPrint('loadPublication success: ${pub.metadata.title}');
       return pub;
     } on PlatformException catch (e) {
       debugPrint('Failed to open publication: ${e.message}');
@@ -112,13 +113,14 @@ class BookshelfPageState extends State<BookshelfPage> {
                           itemCount: _testPublications.length,
                           itemBuilder: (final context, final index) {
                             final publication = _testPublications[index];
-                            return _buildPubCard(publication, context);
+                            final publicationUrl = _testPublicationURLs[index];
+                            return _buildPubCard(publication, publicationUrl, context);
                           },
                         ),
                       ),
                     ),
-                    Divider(),
-                    _buildAddBookCard(context),
+                    // Divider(),
+                    // _buildAddBookCard(context),
                   ],
                 ),
         ),
@@ -138,36 +140,49 @@ class BookshelfPageState extends State<BookshelfPage> {
     return authorNames ?? 'Unknown author';
   }
 
-  Future<String?> _pickAndImportPubFromFile() async {
-    final result = await FilePicker.platform.pickFiles();
+  // Future<String?> _pickAndImportPubFromFile() async {
+  //   final result = await FilePicker.platform.pickFiles();
 
-    if (result != null) {
-      final platformFile = result.files.first;
+  //   if (result != null) {
+  //     final platformFile = result.files.first;
 
-      // Convert PlatformFile to File
-      final file = File(platformFile.path!);
+  //     // Convert PlatformFile to File
+  //     final file = File(platformFile.path!);
 
-      // Validate the file
-      // PublicationUtils.validateFile(file);
-      R2Log.d('Picked file: ${file.path}');
+  //     // Validate the file
+  //     // PublicationUtils.validateFile(file);
+  //     R2Log.d('Picked file: ${file.path}');
 
-      return await PublicationUtils.copyFileToReadiumPubStorage(file);
+  //     return await PublicationUtils.copyFileToReadiumPubStorage(file);
+  //   } else {
+  //     R2Log.d('User canceled the picker');
+  //     return null;
+  //   }
+  // }
+
+  String _bookFormatFromConformsTo(Publication pub) {
+    if (pub.conformsToReadiumEbook) {
+      return 'Ebook';
+    } else if (pub.conformsToReadiumAudiobook) {
+      return 'Audiobook';
     } else {
-      R2Log.d('User canceled the picker');
-      return null;
+      return 'Unknown format';
     }
   }
 
-  Widget _buildPubCard(final Publication publication, final BuildContext context) => Container(
+  Widget _buildPubCard(final Publication publication, String publicationUrl, final BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
         child: InkWell(
           onTap: () {
-            final fakeInitialLocator = publication.locatorFromLink(publication.readingOrder[2]);
+            final fakeInitialLocator =
+                publication.locatorFromLink(publication.readingOrder[math.min(2, publication.readingOrder.length)]);
+
             try {
               context
                   .read<PublicationBloc>()
-                  .add(OpenPublication(publication: publication, initialLocator: fakeInitialLocator));
+                  .add(OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator));
+
               Navigator.restorablePushNamed(context, '/player');
             } on Object catch (e) {
               _toast('Error opening publication: $e');
@@ -188,7 +203,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       Text(_listAuthors(publication)),
-                      Text(publication.metadata.xIsAudiobook ? 'Audiobook' : 'Ebook'),
+                      Text(_bookFormatFromConformsTo(publication)),
                     ],
                   ),
                   // remove the if when books loaded from asset can be deleted
@@ -213,40 +228,40 @@ class BookshelfPageState extends State<BookshelfPage> {
         ),
       );
 
-  Widget _buildAddBookCard(final BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
-        child: InkWell(
-          onTap: () async {
-            try {
-              String? importedPubPath = await _pickAndImportPubFromFile();
-              if (importedPubPath == null) return;
-              Publication? importedPublication = await openPublicationFromUrl(importedPubPath);
-              if (importedPublication != null) {
-                setState(() {
-                  _testPublications.add(importedPublication);
-                });
-              }
-            } on Object catch (e) {
-              R2Log.e('error picking file: $e');
-              _toast('Error picking file $e');
-            }
-          },
-          child: Card(
-            color: Colors.blue[200],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 5.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, size: 30, color: Colors.blue),
-                  Text(
-                    'Add Book',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+  // Widget _buildAddBookCard(final BuildContext context) => Container(
+  //       padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
+  //       child: InkWell(
+  //         onTap: () async {
+  //           try {
+  //             String? importedPubPath = await _pickAndImportPubFromFile();
+  //             if (importedPubPath == null) return;
+  //             Publication? importedPublication = await openPublicationFromUrl(importedPubPath);
+  //             if (importedPublication != null) {
+  //               setState(() {
+  //                 _testPublications.add(importedPublication);
+  //               });
+  //             }
+  //           } on Object catch (e) {
+  //             R2Log.e('error picking file: $e');
+  //             _toast('Error picking file $e');
+  //           }
+  //         },
+  //         child: Card(
+  //           color: Colors.blue[200],
+  //           child: Padding(
+  //             padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 5.0),
+  //             child: Row(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Icon(Icons.add, size: 30, color: Colors.blue),
+  //                 Text(
+  //                   'Add Book',
+  //                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     );
 }

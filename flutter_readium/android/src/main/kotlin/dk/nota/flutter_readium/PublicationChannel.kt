@@ -2,299 +2,399 @@
 
 package dk.nota.flutter_readium
 
-import android.content.Context
 import android.util.Log
-import dk.nota.flutter_readium.models.TTSViewModel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
-import org.readium.r2.shared.util.mediatype.MediaType
-import org.readium.r2.shared.util.resource.Resource
-import org.readium.r2.shared.util.resource.TransformingResource
-import org.readium.r2.shared.util.resource.filename
-import org.readium.r2.streamer.PublicationOpener.OpenError
 
 private const val TAG = "PublicationChannel"
 
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
-internal var currentReadiumReaderView: ReadiumReaderView? = null
 
-/// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
-internal fun openingExceptionIndex(exception: OpenError): Int =
-    when (exception) {
-        is OpenError.Reading -> 0
-        is OpenError.FormatNotSupported -> 1
-    }
-
-private fun parseMediaType(mediaType: Any?): MediaType? {
-    @Suppress("UNCHECKED_CAST")
-    val list = mediaType as List<String?>? ?: return null
-    return MediaType(list[0]!!)
-}
-
-internal class PublicationMethodCallHandler(private val context: Context) :
+@ExperimentalCoroutinesApi
+internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler {
-
-    private var ttsViewModel: TTSViewModel? = null
-
-    private val readium = Readium(context)
 
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        CoroutineScope(Dispatchers.Main).launch {
-            when (call.method) {
-                "setCustomHeaders" -> {
-                    val httpHeaders = call.argument<Map<String, String>>("httpHeaders") ?: emptyMap<String, String>()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val res = handleMethodCallsQueue(
+                    call.method,
+                    call.arguments
+                ).getOrElse { error ->
+                    result.publicationError(call.method, error)
+                    return@launch
+                }
 
-                    readium.setDefaultHttpHeaders(httpHeaders)
+                if (res is Unit) {
                     result.success(null)
+                    return@launch
                 }
 
-                "openPublication" -> {
-                    val args = call.arguments as List<Any?>
-                    var pubUrlStr = args[0] as String
+                result.success(res)
+            } catch (e: NotImplementedError) {
+                result.notImplemented()
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: $e")
+                Log.e(TAG, "${e.stackTrace}")
 
-                    // If URL is neither http nor file, assume it is a local file reference.
-                    if (!pubUrlStr.startsWith("http") && !pubUrlStr.startsWith("file")) {
-                        pubUrlStr = "file://$pubUrlStr"
-                    }
-                    val pubUrl = AbsoluteUrl(pubUrlStr) ?: run {
-                        Log.e(TAG, "openPublication: Invalid URL")
-                        result.error("InvalidURLError", "Invalid publication URL", null)
-                        return@launch
-                    }
-                    Log.d(TAG, "openPublication for URL: $pubUrl")
-
-                    val pub = readium.openPublication(pubUrl).getOrElse { error: PublicationError ->
-                        result.error(error.cause.toString(), error.message.toString(), null)
-                        return@launch
-                    }
-
-                    val pubJsonManifest = pub.manifest.toJSON().toString().replace("\\/", "/")
-                    result.success(pubJsonManifest)
-                }
-
-                "closePublication" -> {
-                    val pubIdentifier = call.arguments as String
-                    Log.d(TAG, "Close publication with identifier = $pubIdentifier")
-                    readium.closePublication(pubIdentifier)
-                }
-
-                "ttsEnable" -> {
-                    val args = call.arguments as Map<String, Any>?
-                    val ttsPrefs =
-                        if (args != null) androidTtsPreferencesFromMap(args) else AndroidTtsPreferences()
-
-                    val pubIdentifier = currentReadiumReaderView?.currentPublicationIdentifier
-                    if (pubIdentifier == null) {
-                        Log.e(TAG, "ttsEnable: no current publication identifier")
-                        return@launch
-                    }
-
-                    val publication = readium.publicationFromIdentifier(pubIdentifier)
-                    if (publication == null) {
-                        Log.e(
-                            TAG,
-                            "ttsEnable: Cannot enable TTS for un-opened publication. PubId=$pubIdentifier"
-                        )
-                        return@launch
-                    }
-
-                    try {
-                        ttsViewModel = TTSViewModel(context, publication!!, ttsPrefs)
-                        ttsViewModel?.initNavigator()
-                        result.success(null)
-                    } catch (e: Exception) {
-                        Log.e(
-                            TAG,
-                            "ttsEnable: Failed to create TTSViewModel (likely navigator). PubId=$pubIdentifier"
-                        )
-                        result.error("ttsEnable", "Failed to create TTSModel", e.message)
-                    }
-                }
-
-                "ttsSetPreferences" -> {
-                    val args = call.arguments as Map<String, Any>
-                    val prefs = androidTtsPreferencesFromMap(args)
-                    ttsViewModel?.updatePreferences(prefs)
-                }
-
-                "ttsSetDecorationStyle" -> {
-                    val args = call.arguments as List<*>
-                    val uttDecoMap = args[0] as Map<String, String>?
-                    val rangeDecoMap = args[1] as Map<String, String>?
-                    val uttStyle =
-                        if (uttDecoMap != null) decorationStyleFromMap(uttDecoMap) else null
-                    val rangeStyle =
-                        if (rangeDecoMap != null) decorationStyleFromMap(rangeDecoMap) else null
-                    ttsViewModel?.setUtteranceStyle(uttStyle)
-                    ttsViewModel?.setCurrentRangeStyle(rangeStyle)
-                }
-
-                "ttsStart" -> {
-                    val args = call.arguments as List<*>
-                    val fromLocatorStr = args[0] as String?
-                    val fromLocator = if (fromLocatorStr != null) {
-                        Locator.fromJSON(JSONObject(fromLocatorStr))
-                    } else {
-                        currentReadiumReaderView?.getFirstVisibleLocator()
-                    }
-                    ttsViewModel?.play(fromLocator)
-                    result.success(null)
-                }
-
-                "ttsPause" -> {
-                    ttsViewModel?.pause()
-                    result.success(null)
-                }
-
-                "ttsResume" -> {
-                    ttsViewModel?.resume()
-                    result.success(null)
-                }
-
-                "ttsStop" -> {
-                    ttsViewModel?.dispose()
-                    // Remove any current TTS decorations
-                    currentReadiumReaderView?.applyDecorations(emptyList(), "tts")
-                    result.success(null)
-                }
-
-                "ttsNext" -> {
-                    ttsViewModel?.nextUtterance()
-                    result.success(null)
-                }
-
-                "ttsPrevious" -> {
-                    ttsViewModel?.previousUtterance()
-                    result.success(null)
-                }
-
-                "ttsGetAvailableVoices" -> {
-                    val androidVoices = ttsViewModel?.voices
-                    val voicesJson = androidVoices?.map {
-                        JSONObject().apply {
-                            put("identifier", it.id.value)
-                            put(
-                                "name",
-                                it.id.value
-                            ) // ID should be mapped to a readable name on Flutter side.
-                            put("quality", it.quality.name.lowercase())
-                            put("requiresNetwork", it.requiresNetwork)
-                            put("language", it.language.code)
-                        }.toString()
-                    }
-                    result.success(voicesJson)
-                }
-
-                "ttsSetVoice" -> {
-                    val args = call.arguments as List<*>
-                    val voiceId = args[0] as String?
-                    val language = args[1] as String?
-                    if (voiceId != null) {
-                        ttsViewModel?.setPreferredVoice(voiceId, language)
-                    }
-                    result.success(null)
-                }
-
-                "getLinkContent" -> {
-                    try {
-                        val args = call.arguments as List<Any?>
-                        val pubIdentifier = args[0] as String
-                        val linkStr = args[1] as String
-                        val asString = args[2] as? Boolean ?: true
-                        val link = Link.fromJSON(JSONObject(linkStr))
-                        val publication = readium.publicationFromIdentifier(pubIdentifier)
-
-                        if (publication == null || link == null) {
-                            throw Exception("getLinkContent: failed to get resource. Missing pub or link: $publication, $link")
-                        }
-
-                        Log.d(TAG, "Use publication = $publication")
-
-                        val resource = publication.get(link) ?: run {
-                            throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
-                        }
-                        val resourceBytes = resource.read().getOrElse {
-                            throw Exception("getLinkContent: failed to read resource. ${it.message}")
-                        }
-
-                        CoroutineScope(Dispatchers.Main).launch {
-                            if (asString) {
-                                result.success(String(resourceBytes))
-                            } else {
-                                result.success(resourceBytes)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Exception: $e")
-                        Log.e(TAG, "${e.stackTrace}")
-                        CoroutineScope(Dispatchers.Main).launch {
-                            result.error(
-                                e.javaClass.toString(),
-                                e.toString(),
-                                e.stackTraceToString()
-                            )
-                        }
-                    }
-                }
-
-                else -> {
-                    result.notImplemented()
-                }
+                // TODO: Handle unknown errors better.
+                result.error(
+                    e.javaClass.toString(),
+                    e.toString(),
+                    e.stackTraceToString()
+                )
             }
         }
     }
+
+    /**
+     * This function can be used to handle method calls sequentially if needed.
+     */
+    private suspend fun handleMethodCallsQueue(
+        method: String,
+        arguments: Any?
+    ): Try<Any?, PublicationError> {
+        when (method) {
+            "setCustomHeaders" -> {
+                @Suppress("UNCHECKED_CAST")
+                val args = arguments as? Map<String, Map<String, String>> ?: emptyMap()
+                val httpHeaders = args["httpHeaders"] ?: emptyMap()
+
+                ReadiumReader.setDefaultHttpHeaders(httpHeaders)
+                return Try.success(null)
+            }
+
+            "loadPublication" -> {
+                val args = arguments as List<Any?>
+                val pubUrlStr = args[0] as String
+                return loadPublication(pubUrlStr)
+            }
+
+            "openPublication" -> {
+                val args = arguments as List<Any?>
+                val pubUrlStr = args[0] as String
+
+                return openPublication(pubUrlStr)
+            }
+
+            "closePublication" -> {
+                Log.d(TAG, "Close publication")
+
+                ReadiumReader.closePublication()
+                return Try.success(null)
+            }
+
+            "ttsEnable" -> {
+                val args = arguments as Map<*, *>?
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
+                return ttsEnable(ttsPrefs)
+            }
+
+            "ttsSetPreferences" -> {
+                val args = arguments as Map<*, *>?
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
+
+                return ttsSetPreferences(ttsPrefs)
+            }
+
+            "ttsSetDecorationStyle" -> {
+                val args = arguments as List<*>
+                val uttDecoMap = args[0] as Map<*, *>?
+                val rangeDecoMap = args[1] as Map<*, *>?
+                val uttStyle = decorationStyleFromMap(uttDecoMap)
+                val rangeStyle = decorationStyleFromMap(rangeDecoMap)
+
+                return ttsSetDecorationStyle(uttStyle, rangeStyle)
+            }
+
+            "ttsGetAvailableVoices" -> {
+                ttsGetAvailableVoices().let { voices ->
+                    return Try.success(voices)
+                }
+            }
+
+            "ttsSetVoice" -> {
+                val args = arguments as List<*>
+                val voiceId = args[0] as String?
+                val language = args[1] as String?
+
+                ReadiumReader.ttsSetPreferredVoice(voiceId, language)
+
+                return Try.success(null)
+            }
+
+            "play" -> {
+                val args = arguments as List<*>
+                val fromLocator = (args[0] as? Map<*, *>)?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
+
+                ReadiumReader.play(fromLocator)
+
+                return Try.success(null)
+            }
+
+            "pause" -> {
+                ReadiumReader.pause()
+
+                return Try.success(null)
+            }
+
+            "resume" -> {
+                ReadiumReader.resume()
+
+                return Try.success(null)
+            }
+
+            "stop" -> {
+                ReadiumReader.stop()
+
+                return Try.success(null)
+            }
+
+            "next" -> {
+                ReadiumReader.next()
+
+                return Try.success(null)
+            }
+
+            "previous" -> {
+                ReadiumReader.previous()
+
+                return Try.success(null)
+            }
+
+            "goToLocator" -> {
+                val args = arguments as List<*>
+                val locator = (args[0] as? Map<*, *>)?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
+
+                if (locator == null) {
+                    throw Exception("goToLocator: failed to go to locator. Missing locator: ${args[0]} ")
+                }
+
+                ReadiumReader.goToLocator(locator)
+
+                return Try.success(null)
+            }
+
+            "getLinkContent" -> {
+                val args = arguments as List<Any?>
+                val linkStr = args[0] as String
+                val asString = args[1] as? Boolean ?: true
+                val link = Link.fromJSON(JSONObject(linkStr))
+
+                if (link == null) {
+                    throw Exception("getLinkContent: failed to get resource. Missing link: $link")
+                }
+
+                return getLinkContent(link, asString)
+            }
+
+            "audioEnable" -> {
+                val args = arguments as List<*>
+                // 0 is AudioPreferences
+                val prefs = args[0] as Map<*, *>?
+
+                val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
+                    ?: FlutterAudioPreferences()
+
+                val locator = (args[1] as? Map<*, *>)?.let {
+                    Locator.fromJSON(JSONObject(it))
+                }
+
+                return audioEnable(locator, preferences)
+            }
+
+            "audioSetPreferences" -> {
+                val prefsStr = arguments as String?
+                val preferences =
+                    prefsStr?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                        ?: FlutterAudioPreferences()
+
+                ReadiumReader.audioUpdatePreferences(preferences)
+
+                return Try.success(null)
+            }
+
+            else -> {
+                throw NotImplementedError()
+            }
+        }
+    }
+
+    /**
+     * Load and return the publication manifest from a URL without opening it.
+     */
+    private suspend fun loadPublication(pubUrlStr: String): Try<String, PublicationError> {
+        val publication =
+            ReadiumReader.loadPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                return Try.failure(error)
+            }
+
+        val pubJsonManifest =
+            publication.manifest.toJSON().toString().replace("\\/", "/")
+
+        // Close the publication to avoid leaks.
+        publication.close()
+        return Try.success(pubJsonManifest)
+    }
+
+    /**
+     * Open a publication from a URL. If another publication is already opened, it will be closed first.
+     *
+     * There can be only one... opened publication at a time.
+     */
+    private suspend fun openPublication(pubUrlStr: String): Try<String, PublicationError> {
+        val publication =
+            ReadiumReader.openPublicationFromUrl(pubUrlStr).getOrElse { error ->
+                return Try.failure(error)
+            }
+
+        val pubJsonManifest =
+            publication.manifest.toJSON().toString().replace("\\/", "/")
+
+        return Try.success(pubJsonManifest)
+    }
+
+    /**
+     * Enable TTS reading with the provided preferences.
+     */
+    private suspend fun ttsEnable(prefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.ttsEnable(prefs)
+        return Try.success(null)
+    }
+
+    /**
+     * Update the TTS preferences. The TTS must be enabled first.
+     */
+    private suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.ttsSetPreferences(ttsPrefs)
+        return Try.success(null)
+    }
+
+    /**
+     * Set the TTS decoration styles for the utterance and the range.
+     * If null is provided the default style will be used.
+     */
+    suspend fun ttsSetDecorationStyle(
+        uttStyle: Decoration.Style?,
+        rangeStyle: Decoration.Style?
+    ): Try<Any?, PublicationError> {
+        try {
+            ReadiumReader.ttsSetDecorationStyle(uttStyle, rangeStyle)
+            return Try.success(null)
+        } catch (e: Error) {
+            return Try.failure(PublicationError.Unknown("Failed to set decoration style"))
+        }
+    }
+
+    /**
+     * Get the list of available TTS voices on the device.
+     */
+    fun ttsGetAvailableVoices(): List<String> {
+        val androidVoices = ReadiumReader.ttsGetAvailableVoices()
+        if (androidVoices == null) {
+            return listOf()
+        }
+
+        val voicesJson = androidVoices.map {
+            JSONObject().apply {
+                put("identifier", it.id.value)
+                put(
+                    "name",
+                    it.id.value
+                ) // ID should be mapped to a readable name on Flutter side.
+                put("quality", it.quality.name.lowercase())
+                put("requiresNetwork", it.requiresNetwork)
+                put("language", it.language.code)
+            }.toString()
+        }
+
+        return voicesJson
+    }
+
+    /**
+     * Get the content of a publication resource via a Link.
+     * If asString is true the content is returned as a String, otherwise as ByteArray
+     */
+    private suspend fun getLinkContent(link: Link, asString: Boolean): Try<Any, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+            ?: return Try.failure(
+                PublicationError.Unavailable()
+            )
+
+        Log.d(TAG, "Use publication = $publication")
+
+        val resource = publication.get(link) ?: run {
+            throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
+        }
+        val resourceBytes = resource.read().getOrElse {
+            throw Exception("getLinkContent: failed to read resource. ${it.message}")
+        }
+
+        return Try.success(if (asString) String(resourceBytes) else resourceBytes)
+    }
+
+    /**
+     * Enable audio (audiobook) reading with optional locator to start from and audio preferences.
+     */
+    private suspend fun audioEnable(
+        locator: Locator?,
+        preferences: FlutterAudioPreferences
+    ): Try<Any?, PublicationError> {
+        val publication = ReadiumReader.currentPublication
+        if (publication == null) {
+            return Try.failure(
+                PublicationError.Unavailable()
+            )
+        }
+
+        ReadiumReader.audioEnable(locator, preferences)
+        return Try.success(null)
+    }
 }
 
-private const val READIUM_FLUTTER_PATH_PREFIX =
-    "https://readium/assets/flutter_assets/packages/flutter_readium"
+/**
+ * Send a PublicationError back to Flutter via MethodChannel.Result
+ */
+fun MethodChannel.Result.publicationError(method: String, error: PublicationError) {
+    Log.e(
+        TAG,
+        "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}"
+    )
 
-fun Resource.injectScriptsAndStyles(): Resource =
-    TransformingResource(this) { bytes ->
-        val props = this.properties().getOrNull()
-        val filename = props?.filename
-
-        // Skip all non-html files
-        if (filename?.endsWith("html", ignoreCase = true) != true) {
-            return@TransformingResource Try.success(bytes)
-        }
-
-        val content = bytes.toString(Charsets.UTF_8).trim()
-        val headEndIndex = content.indexOf("</head>", 0, true)
-        if (headEndIndex == -1) {
-            Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
-            return@TransformingResource Try.success(bytes)
-        }
-
-        if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
-            Log.d(TAG, "Skip injecting - already done for: $filename")
-            return@TransformingResource Try.success(bytes)
-        }
-
-        Log.d(TAG, "Injecting files into: $filename")
-
-        val injectLines = listOf(
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
-            """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
-        )
-        val newContent = StringBuilder(content)
-            .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
-            .toString()
-
-        Try.success(newContent.toByteArray())
-    }
+    this.error(
+        error.errorCode.name,
+        error.message,
+        error.cause
+    )
+}

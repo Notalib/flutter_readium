@@ -2,17 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_readium/reader_widget_switch.dart';
-import 'package:native_device_orientation/native_device_orientation.dart';
 
 import '../state/index.dart';
-import '../extensions/index.dart';
 
 class ReaderWidget extends StatelessWidget {
   ReaderWidget({super.key});
 
   final ValueNotifier<bool> loadingNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<NativeDeviceOrientation> orientationNotifier =
-      ValueNotifier<NativeDeviceOrientation>(NativeDeviceOrientation.portraitUp);
 
   @override
   Widget build(final BuildContext context) => BlocBuilder<TextSettingsBloc, TextSettingsState>(
@@ -56,7 +52,7 @@ class ReaderWidget extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 10),
-                      Text(state.error.toString()),
+                      Text(state.errorDebugDescription())
                     ],
                   ),
                 ),
@@ -112,30 +108,18 @@ class ReaderWidget extends StatelessWidget {
     required final bool toNextPage,
     required final bool verticalScroll,
   }) =>
-      _buildOnReady(
-        _buildReaderSafeArea(
-          ValueListenableBuilder<NativeDeviceOrientation>(
-            valueListenable: orientationNotifier,
-            builder: (final context, final orientation, final _) {
-              final isPortrait = orientation == NativeDeviceOrientation.portraitUp ||
-                  orientation == NativeDeviceOrientation.portraitDown;
-              final width = context.isSmallDownScreen && isPortrait ? 70.0 : 100.0;
-              final height = context.isSmallDownScreen && !isPortrait ? 70.0 : 50.0;
-              //TODO: find out why on iPhone the height is not the actual height, it is smaller.
-              return SizedBox(
-                width: verticalScroll ? null : width,
-                height: verticalScroll ? height : null,
-                child: Semantics(
-                  button: true,
-                  container: true,
-                  label: label,
-                  onTap: () => toNextPage
-                      ? context.read<PlayerControlsBloc>().add(SkipToNextPage())
-                      : context.read<PlayerControlsBloc>().add(SkipToPreviousPage()),
-                ),
-              );
-            },
+      _buildOnReady(_buildReaderSafeArea(Builder(builder: (context) {
+        return SizedBox(
+          width: verticalScroll ? null : 70,
+          height: verticalScroll ? 100 : null,
+          child: Semantics(
+            button: true,
+            container: true,
+            label: label,
+            onTap: () => toNextPage
+                ? context.read<PlayerControlsBloc>().add(SkipToNextPage())
+                : context.read<PlayerControlsBloc>().add(SkipToPreviousPage()),
           ),
-        ),
-      );
+        );
+      })));
 }
