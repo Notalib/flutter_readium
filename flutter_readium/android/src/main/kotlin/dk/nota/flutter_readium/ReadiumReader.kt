@@ -781,7 +781,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         return epubNavigator?.isReaderReady() ?: false
     }
 
-    fun epubGo(locator: Locator, animated: Boolean) {
+    suspend fun epubGo(locator: Locator, animated: Boolean) {
         epubNavigator?.go(locator, animated)
     }
 

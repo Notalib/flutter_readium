@@ -175,7 +175,7 @@ class ReadiumReaderWidget(
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
-        Log.d(TAG, "::onVisualCurrentLocationChanged $Locator")
+        Log.d(TAG, "::onVisualCurrentLocationChanged $locator")
     }
 
     override fun onVisualReaderIsReady() {
