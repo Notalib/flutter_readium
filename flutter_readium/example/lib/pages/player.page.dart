@@ -30,7 +30,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             child: Scaffold(
               restorationId: 'player_page',
               appBar: AppBar(
-                backgroundColor: Colors.deepPurple[200],
+                backgroundColor: Colors.amber,
                 title: Semantics(
                   header: true,
                   child: Text(
@@ -40,7 +40,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 actions: _buildActionButtons(),
               ),
               body: Container(
-                color: Colors.pinkAccent[100],
+                // color: Colors.pinkAccent[100],
+                padding: EdgeInsets.all(12.0),
                 child: Column(
                   children: [
                     Expanded(

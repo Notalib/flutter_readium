@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart' show Locator;
 import 'package:flutter_readium_example/state/index.dart';
 
 import '../state/player_controls_bloc.dart';
@@ -31,10 +32,11 @@ class PlayerControls extends StatelessWidget {
               onPressed: state.playing
                   ? () => context.read<PlayerControlsBloc>().add(Pause())
                   : () {
-                      // TODO: For demo purposes, we pick the 3rd item from readingOrder to play from.
-                      final pub = context.read<PublicationBloc>().state.publication;
-                      final fakeInitialLink = pub?.readingOrder[2];
-                      final fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
+                      Locator? fakeInitialLocator;
+                      // DEMO: Start from the 3rd item in readingOrder.
+                      // final pub = context.read<PublicationBloc>().state.publication;
+                      // final fakeInitialLink = pub?.readingOrder[2];
+                      // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                       isAudioBook
                           ? context.read<PlayerControlsBloc>().add(Play(fromLocator: fakeInitialLocator))
                           : context.read<PlayerControlsBloc>().add(PlayTTS(fromLocator: fakeInitialLocator));

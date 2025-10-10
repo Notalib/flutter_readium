@@ -141,6 +141,14 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
 
   @override
+  // TODO: implement onTimebasedPlayerStateChanged
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => throw UnimplementedError();
+
+  @override
+  // TODO: implement onErrorEvent
+  Stream<ReadiumError> get onErrorEvent => throw UnimplementedError();
+
+  @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) {
     // TODO: implement ttsSetPreferences
     throw UnimplementedError();
@@ -161,6 +169,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   Future<String?> getLinkContent(Link link) {
     // TODO: implement getLinkContent
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> goToLocator(Locator locator) {
+    // TODO: implement goToLocator
     throw UnimplementedError();
   }
 }
