@@ -204,6 +204,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                       ),
                       Text(_listAuthors(publication)),
                       Text(_bookFormatFromConformsTo(publication)),
+                      Text(publicationUrl.split('/').last),
                     ],
                   ),
                   // remove the if when books loaded from asset can be deleted
