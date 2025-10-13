@@ -1,13 +1,12 @@
 package dk.nota.flutter_readium.models
 
-import kotlinx.serialization.Serializable
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
+import java.io.Serializable
 
-@Serializable
-class FlutterMediaOverlayItem(val audio: String, val text: String) {
+class FlutterMediaOverlayItem(val audio: String, val text: String): Serializable {
     val audioFile = audio.substringBefore("#")
     private val audioFragment = audio.substringAfter("#", "")
     private val audioTime =

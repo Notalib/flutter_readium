@@ -75,6 +75,7 @@ import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
+import java.util.ArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -91,7 +92,9 @@ private const val ttsNavigatorStateKey = "ttsState"
 private const val audioNavigatorStateKey = "audioState"
 private const val epubNavigatorStateKey = "epubState"
 
-// TODO: Support custom headers and authentication header.
+private const val mediaOverlaysKey = "MediaOverlays"
+
+// TODO: Support custom headers and authentication header for content files.
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -176,6 +179,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     val epubCurrentLocator: Locator?
         get() = epubNavigator?.currentLocator?.value
 
+    var mediaOverlays: List<FlutterMediaOverlay>?
+        get() = state[mediaOverlaysKey] as? List<FlutterMediaOverlay>
+        set(value) {
+            state[mediaOverlaysKey] = value
+        }
+
     /**
      * The PublicationFactory is used to open publications.
      */
@@ -245,6 +254,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
             putBoolean(audioEnabledKey, audiobookNavigator != null)
             putBundle(audioNavigatorStateKey, audiobookNavigator?.storeState())
+            mediaOverlays?.let { mo ->
+                putSerializable(mediaOverlaysKey, ArrayList(mo))
+            }
         }
     }
 
@@ -301,6 +313,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                                 Log.d(TAG, ":storeState - audioNavigator restored")
                             }
                 }
+
+                (bundle.getSerializable(mediaOverlaysKey) as? ArrayList<FlutterMediaOverlay>)?.let { mo ->
+                    mediaOverlays = mo
+                } ?: { mediaOverlays = null }
             }
 
             Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
@@ -329,6 +345,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
+
+        mediaOverlays = null
 
         jobs.forEach { it.cancel() }
         jobs.clear()
@@ -603,25 +621,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
 
-        val hasMediaOverlays = pub.readingOrder.any { r ->
-            r.alternates.any { a ->
-                a.mediaType == MediaType("application/vnd.syncnarr+json")
-            } || r.properties["media-overlay"] != null
-        }
-
-        if (hasMediaOverlays) {
-            val mediaOverlays: List<FlutterMediaOverlay> = pub.readingOrder.mapNotNull { r ->
-                r.alternates.find { a ->
-                    a.mediaType == MediaType("application/vnd.syncnarr+json")
-                } ?: r.properties["media-overlay"] as? Link
-            }.mapNotNull {
-                val json = pub.get(it)?.read()?.getOrNull() ?: return@mapNotNull null
-                FlutterMediaOverlay.fromJson(JSONObject(String(json)))
-            }
-
-            Log.w(TAG, "EPUB has Media Overlays: $mediaOverlays - not supported in this version")
-        }
-
         withScope(mainScope) {
             epubNavigator?.let {
                 attachEpubNavigator(fragmentManager, viewGroup)
@@ -743,6 +742,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 initNavigator()
             }
 
+            mediaOverlays = publication.getMediaOverlays()
         } ?: throw Exception("Publication not opened")
     }
 

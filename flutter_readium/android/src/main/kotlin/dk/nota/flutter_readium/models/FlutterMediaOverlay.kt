@@ -1,14 +1,13 @@
 package dk.nota.flutter_readium.models
 
 import android.util.Log
-import kotlinx.serialization.Serializable
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.Serializable
 
 private const val TAG = "FlutterMediaOverlay"
 
-@Serializable
-class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) {
+class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Serializable {
     companion object {
         fun fromJson(json: JSONObject): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null

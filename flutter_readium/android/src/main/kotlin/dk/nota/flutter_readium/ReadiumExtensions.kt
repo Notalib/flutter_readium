@@ -4,6 +4,7 @@ package dk.nota.flutter_readium
 
 import android.util.Log
 import androidx.core.graphics.toColorInt
+import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsEngine.Voice.Id
@@ -12,9 +13,13 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.mediatype.MediaType
+import org.readium.r2.shared.util.mediatype.MediaType.Companion.invoke
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
@@ -158,3 +163,24 @@ fun Resource.injectScriptsAndStyles(): Resource =
 
         Try.success(newContent.toByteArray())
     }
+
+val syncNarrationsMediaType = MediaType("application/vnd.syncnarr+json")
+
+fun Publication.hasMediaOverlays() = this.readingOrder.any { r ->
+    r.alternates.any { a ->
+        a.mediaType == syncNarrationsMediaType
+    } || r.properties["media-overlay"] != null
+}
+
+suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay>? {
+    if (!hasMediaOverlays()) return null
+
+    return this.readingOrder.mapNotNull { r ->
+        r.alternates.find { a ->
+            a.mediaType == MediaType("application/vnd.syncnarr+json")
+        } ?: r.properties["media-overlay"] as? Link
+    }.mapNotNull {
+        val json = this.get(it)?.read()?.getOrNull() ?: return@mapNotNull null
+        FlutterMediaOverlay.fromJson(JSONObject(String(json)))
+    }
+}
