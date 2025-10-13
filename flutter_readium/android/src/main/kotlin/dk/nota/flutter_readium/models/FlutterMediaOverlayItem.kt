@@ -23,12 +23,24 @@ class FlutterMediaOverlayItem(val audio: String, val text: String) {
         return time in start..end
     }
 
-    val textLocator :Locator? by lazy {
+    val textLocator: Locator? by lazy {
         Url.invoke(text.substringBefore("#"))?.let { href ->
             Locator(
                 href,
                 mediaType = MediaType.XHTML,
-                locations = Locator.Locations(listOf("#" + text.substringAfter("#")) ),
+                locations = Locator.Locations(listOf("#" + text.substringAfter("#"))),
+            )
+        }
+    }
+
+    val audioLocator: Locator? by lazy {
+        Url.invoke(audioFile)?.let { href ->
+            Locator(
+                href,
+                mediaType = MediaType.MPEG,
+                locations = Locator.Locations(
+                    fragments = listOf("t=${audioStart ?: 0.0}"),
+                ),
             )
         }
     }
