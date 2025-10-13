@@ -45,8 +45,10 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.MediaOverlayNode
 import org.readium.r2.shared.MediaOverlays
+import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
 import org.readium.r2.shared.publication.services.content.DefaultContentService
@@ -226,18 +228,18 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         createCurrentTimebasedReaderState().onEach {
-                Log.d(
-                    TAG, "currentTimebasedReaderState: ${
-                        jsonEncode(
-                            it?.toJSON()
-                        )
-                    }"
-                )
+            Log.d(
+                TAG, "currentTimebasedReaderState: ${
+                    jsonEncode(
+                        it?.toJSON()
+                    )
+                }"
+            )
 
-                if (it != null) {
-                    timedBasedStateEventChannel?.sendEvent(it)
-                }
-            }.launchIn(mainScope).let { jobs.add(it) }
+            if (it != null) {
+                timedBasedStateEventChannel?.sendEvent(it)
+            }
+        }.launchIn(mainScope).let { jobs.add(it) }
     }
 
     private fun storeState(): Bundle {
@@ -286,9 +288,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 bundle.getBundle(epubNavigatorStateKey)?.let { state ->
                     epubNavigator =
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
-                                initNavigator()
-                                Log.d(TAG, ":storeState - epubNavigator restored")
-                            }
+                            initNavigator()
+                            Log.d(TAG, ":storeState - epubNavigator restored")
+                        }
                 }
             }
 
@@ -297,9 +299,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 Log.d(TAG, ":storeState - restore tts navigator")
                 bundle.getBundle(ttsNavigatorStateKey)?.let { state ->
                     ttsNavigator = TTSNavigator.restoreState(pub, this@ReadiumReader, state).apply {
-                            initNavigator()
-                            Log.d(TAG, ":storeState - ttsNavigator restored")
-                        }
+                        initNavigator()
+                        Log.d(TAG, ":storeState - ttsNavigator restored")
+                    }
                 }
             }
 
@@ -309,9 +311,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 bundle.getBundle(audioNavigatorStateKey)?.let { state ->
                     audiobookNavigator =
                         AudiobookNavigator.restoreState(pub, this@ReadiumReader, state).apply {
-                                initNavigator()
-                                Log.d(TAG, ":storeState - audioNavigator restored")
-                            }
+                            initNavigator()
+                            Log.d(TAG, ":storeState - audioNavigator restored")
+                        }
                 }
 
                 (bundle.getSerializable(mediaOverlaysKey) as? ArrayList<FlutterMediaOverlay>)?.let { mo ->
@@ -405,10 +407,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 )
                 servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
             }).getOrElse { err: OpenError ->
-                    Log.e(TAG, "Error opening publication: $err")
-                    asset.close()
-                    return failure(err)
-                }
+                Log.e(TAG, "Error opening publication: $err")
+                asset.close()
+                return failure(err)
+            }
         Log.d(TAG, "Open publication success: $publication")
         return Try.success(publication)
     }
@@ -735,14 +737,27 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         currentPublication?.let { publication ->
+            mediaOverlays = publication.getMediaOverlays()
+            val ap = mediaOverlays?.let { mo ->
+                val manifest = Manifest(
+                    context = publication.context,
+                    metadata = publication.metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
+                    resources = publication.resources,
+                    links = publication.links,
+                    readingOrder = mo.mapNotNull {
+                        Href.invoke(it.items.first().audio)
+                            ?.let { href -> Link(href, MediaType.MP3) }
+                    }
+                )
+
+                Publication(manifest)
+            } ?: publication
             // TODO: Handle karaoke books, this only works for plain audiobooks.
             audiobookNavigator = AudiobookNavigator(
-                publication, this@ReadiumReader, initialLocator, preferences
+                ap, this@ReadiumReader, initialLocator, preferences
             ).apply {
                 initNavigator()
             }
-
-            mediaOverlays = publication.getMediaOverlays()
         } ?: throw Exception("Publication not opened")
     }
 
