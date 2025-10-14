@@ -134,6 +134,28 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     // Send new locator over the audio-locator stream.
     self.audioLocatorStreamHandler?.sendEvent(location)
     
+    if (mediaOverlays != nil) {
+      if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
+         let timeOffset = Double(timeOffsetStr),
+         let mediaOverlay = mediaOverlays?.first(where: { $0.itemInRange(audioIn: location.href.string, time: timeOffset) }),
+         var textLocator = mediaOverlay.textLocator {
+        if (mediaOverlay != lastMediaOverlayItem) {
+          lastMediaOverlayItem = mediaOverlay
+          textLocator.locations.progression = location.locations.progression
+          textLocator.locations.position = location.locations.position
+          Task.detached(priority: .background, operation: {
+            let _ = await self.syncWithAudioLocator(textLocator)
+            await self.updateDecorations(uttLocator: textLocator, rangeLocator: nil)
+          })
+        } else {
+          debugPrint(TAG, "Skip MediaOverlay update")
+        }
+        
+      } else {
+        debugPrint(TAG, "Could not find MediaOverlay for Audio Locator: \(location)")
+      }
+    }
+    
     // Create TimebasedState and send it over the timebased-state stream.
     guard let navigator = audiobookVM?.navigator else {
       return
