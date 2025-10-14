@@ -20,6 +20,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
         builder: (final context, final pubState) {
           final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
+          final hasMediaOverlays = pubState.publication?.containsMediaOverlays == true;
           return PopScope(
             canPop: true,
             onPopInvokedWithResult: (didPop, result) {
@@ -49,7 +50,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                           )
                         : ReaderWidget(),
                   ),
-                  _controls(isAudioBook),
+                  _controls(isAudioBook || hasMediaOverlays),
                 ],
               ),
             ),
