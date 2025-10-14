@@ -6,7 +6,12 @@ import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
 import java.io.Serializable
 
-data class FlutterMediaOverlayItem(val audio: String, val text: String, val position: Int, val title: String): Serializable {
+data class FlutterMediaOverlayItem(
+    val audio: String,
+    val text: String,
+    val position: Int,
+    val title: String
+) : Serializable {
     val audioFile = audio.substringBefore("#")
     val textFile = text.substringBefore("#")
     val textId = text.substringAfter("#", "")
@@ -30,7 +35,11 @@ data class FlutterMediaOverlayItem(val audio: String, val text: String, val posi
                 href,
                 mediaType = MediaType.XHTML,
                 title = title,
-                locations = Locator.Locations(listOf("#" + text.substringAfter("#"))),
+                locations = Locator.Locations(
+                    listOf("#" + text.substringAfter("#")),
+                    otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
+                    position = position,
+                ),
             )
         }
     }

@@ -3,6 +3,7 @@ package dk.nota.flutter_readium
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
@@ -585,6 +586,14 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 mediaOverlay.textLocator?.let { textLocator ->
                     mainScope.async {
                         epubNavigator?.goToLocator(textLocator, false)
+
+                        val decorations = mutableListOf(
+                            Decoration(
+                                id = "DID",
+                                locator = textLocator,
+                                style = Decoration.Style.Highlight(tint = Color.YELLOW),
+                            ))
+                        applyDecorations(decorations, group = "tts")
                     }
                 }
 
