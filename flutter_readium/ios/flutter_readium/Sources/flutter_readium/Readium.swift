@@ -35,7 +35,7 @@ final class Readium : DefaultHTTPClientDelegate {
 
   func setupWithHeaders(headers: [String: String]?) {
     self.httpClient = DefaultHTTPClient(
-        cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
+        cachePolicy: .useProtocolCachePolicy, // default = useProtocolCachePolicy
         additionalHeaders: headers,
         requestTimeout: nil,  // default = 60 seconds
         resourceTimeout: nil, // default = 7 days

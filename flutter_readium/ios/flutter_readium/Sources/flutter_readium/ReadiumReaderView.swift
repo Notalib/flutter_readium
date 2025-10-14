@@ -91,8 +91,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       .regular: (top: 0, bottom: 0),
     ]
     // TODO: Make this config configurable from Flutter
-    config.preloadPreviousPositionCount = 1
-    config.preloadNextPositionCount = 1
+    // Might want it to be higher for a local publication than remote.
+    config.preloadPreviousPositionCount = 2
+    config.preloadNextPositionCount = 4
     config.debugState = true
     
     if (defaultPreferences != nil) {
