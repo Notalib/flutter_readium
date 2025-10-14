@@ -27,30 +27,29 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
 
-private const val currentTimebaseLocatorKey = "currentTimebaseLocator"
+const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
-private const val audioPreferencesKey = "audioPreferencesKey"
+const val audioPreferencesKey = "audioPreferencesKey"
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
-class AudiobookNavigator(
+open class AudiobookNavigator(
     publication: Publication,
     timebasedListener: TimebasedListener,
     initialLocator: Locator?,
     private var preferences: FlutterAudioPreferences
 ) : TimebasedNavigator<AudioNavigator.Playback>(publication, timebasedListener, initialLocator) {
-    private var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
+    protected var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
 
-    private var mediaServiceFacade: PluginMediaServiceFacade? = null
+    protected var mediaServiceFacade: PluginMediaServiceFacade? = null
 
     // in-memory cached state
-    private val state = mutableMapOf<String, Any?>()
+    protected val state = mutableMapOf<String, Any?>()
 
     override suspend fun initNavigator() {
         // Create AudioNavigatorFactory
@@ -274,3 +273,4 @@ class AudiobookNavigator(
         }
     }
 }
+

@@ -58,6 +58,8 @@ class TTSNavigator(
     initialLocator: Locator?,
     private var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
+    val decorationGroup = "tts"
+
     // TODO: Decision on appropriate defaults
     private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
     private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
@@ -338,7 +340,7 @@ class TTSNavigator(
             )
         }
 
-        ReadiumReader.applyDecorations(decorations, group = "tts")
+        ReadiumReader.applyDecorations(decorations, group = decorationGroup)
     }
 
     override fun storeState(): Bundle {
@@ -368,6 +370,8 @@ class TTSNavigator(
 
         mainScope.async {
             mediaServiceFacade?.closeSession()
+
+            ReadiumReader.applyDecorations(emptyList(), decorationGroup)
 
             ttsNavigator?.close()
             ttsNavigator = null

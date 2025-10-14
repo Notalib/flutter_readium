@@ -3,7 +3,6 @@ package dk.nota.flutter_readium
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
@@ -13,11 +12,10 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutter_readium.events.AudioLocatorEventChannel
 import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
-import dk.nota.flutter_readium.models.FlutterMediaOverlay
-import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
+import dk.nota.flutter_readium.navigators.SyncAudiobookNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import dk.nota.flutter_readium.navigators.TimebasedNavigator
 import io.flutter.plugin.common.BinaryMessenger
@@ -41,10 +39,8 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
-import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -59,7 +55,6 @@ import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.shared.util.http.HttpRequest
 import org.readium.r2.shared.util.http.HttpTry
-import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.streamer.PublicationOpener
@@ -76,13 +71,13 @@ private const val stateKey = "dk.nota.flutter_readium.ReadiumReaderState"
 private const val currentPublicationUrlKey = "currentPublicationUrl"
 private const val ttsEnabledKey = "ttsEnabled"
 private const val audioEnabledKey = "audioEnabled"
+private const val syncAudioEnabledKey = "syncAudioEnabled"
 
 private const val epubEnabledKey = "epubEnabled"
 private const val ttsNavigatorStateKey = "ttsState"
 private const val audioNavigatorStateKey = "audioState"
+private const val syncAudioNavigatorStateKey = "syncAudioState"
 private const val epubNavigatorStateKey = "epubState"
-
-private const val mediaOverlaysKey = "MediaOverlays"
 
 // TODO: Support custom headers and authentication header for content files.
 
@@ -163,20 +158,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var ttsNavigator: TTSNavigator? = null
 
     private var audiobookNavigator: AudiobookNavigator? = null
+    private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
     private var epubNavigator: EpubNavigator? = null
 
     val epubCurrentLocator: Locator?
         get() = epubNavigator?.currentLocator?.value
-
-    // The media overlays for the current publication, if any. These are used to map between the audio narration and the text
-    var mediaOverlays: List<FlutterMediaOverlay?>?
-        get() = state[mediaOverlaysKey] as? List<FlutterMediaOverlay?>
-        set(value) {
-            state[mediaOverlaysKey] = value
-        }
-
-    var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
 
     /**
      * The PublicationFactory is used to open publications.
@@ -247,9 +234,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
             putBoolean(audioEnabledKey, audiobookNavigator != null)
             putBundle(audioNavigatorStateKey, audiobookNavigator?.storeState())
-            mediaOverlays?.let { mo ->
-                putSerializable(mediaOverlaysKey, ArrayList(mo))
-            }
+            putBoolean(syncAudioEnabledKey, syncAudiobookNavigator != null)
+            putBundle(syncAudioNavigatorStateKey, syncAudiobookNavigator?.storeState())
         }
     }
 
@@ -306,10 +292,27 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                             Log.d(TAG, ":storeState - audioNavigator restored")
                         }
                 }
-
-                (bundle.getSerializable(mediaOverlaysKey) as? ArrayList<FlutterMediaOverlay>)?.let { mo ->
-                    mediaOverlays = mo
-                } ?: { mediaOverlays = null }
+            } else if (bundle.getBoolean(syncAudioEnabledKey)) {
+                // Restore Sync Audio navigator
+                Log.d(TAG, ":storeState - restore sync audio navigator")
+                val (ap, mediaOverlays) = pub.makeSyncAudiobook()
+                if (mediaOverlays != null) {
+                    bundle.getBundle(syncAudioNavigatorStateKey)?.let { state ->
+                        syncAudiobookNavigator =
+                            SyncAudiobookNavigator.restoreState(
+                                ap,
+                                mediaOverlays,
+                                this@ReadiumReader,
+                                state
+                            )
+                                .apply {
+                                    initNavigator()
+                                    Log.d(TAG, ":storeState - syncAudioNavigator restored")
+                                }
+                    }
+                } else {
+                    Log.e(TAG, ":storeState - no media overlays for sync audio navigator")
+                }
             }
 
             Log.d(TAG, "consumeRestoredStateForKey - 2 - $currentPublication")
@@ -338,8 +341,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
-
-        mediaOverlays = null
 
         jobs.forEach { it.cancel() }
         jobs.clear()
@@ -542,6 +543,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             ttsNavigator = null
             audiobookNavigator?.dispose()
             audiobookNavigator = null
+            syncAudiobookNavigator?.dispose()
+            syncAudiobookNavigator = null
 
             state.clear()
         }.await()
@@ -565,8 +568,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     override fun onTimebasedCurrentLocatorChanges(
         locator: Locator, currentReadingOrderLink: Link?
     ) {
-        var audioLocator = locator
-
         val duration = currentReadingOrderLink?.duration
         val timeOffset =
             locator.locations.fragments.find { it.startsWith("t=") }?.substring(2)?.toDoubleOrNull()
@@ -574,42 +575,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                     locator.locations.progression?.let { prog -> duration * prog }
                 })
 
-        if (mediaOverlays != null) {
-            val mediaOverlay = mediaOverlays?.firstNotNullOf { it?.findItemInRange(locator.href.toString(), timeOffset ?: 0.0) }
-            if (mediaOverlay == null) {
-                Log.d(TAG, ":onTimebasedCurrentLocatorChanges no mo item found for locator=$locator, timeOffset=$timeOffset")
-                return
-            }
-
-            Log.d(TAG, ":onTimebasedCurrentLocatorChanges mo=$mediaOverlay")
-            if (mediaOverlay != lastMediaOverlayItem) {
-                mediaOverlay.textLocator?.let { textLocator ->
-                    mainScope.async {
-                        epubNavigator?.goToLocator(textLocator, false)
-
-                        val decorations = mutableListOf(
-                            Decoration(
-                                id = "DID",
-                                locator = textLocator,
-                                style = Decoration.Style.Highlight(tint = Color.YELLOW),
-                            ))
-                        applyDecorations(decorations, group = "tts")
-                    }
-                }
-
-                lastMediaOverlayItem = mediaOverlay
-            }
-
-            audioLocator = mediaOverlay.audioLocator ?: locator
-        }
-
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator, timeOffset=$timeOffset")
 
         currentTimebasedOffset.value = timeOffset?.let { it * 1000 }
         currentTimebasedDuration.value = duration?.let { it * 1000 }
-        currentTimebasedLocator.value = audioLocator
+        currentTimebasedLocator.value = locator
 
-        audioLocatorEventChanel?.sendEvent(audioLocator)
+        audioLocatorEventChanel?.sendEvent(locator)
     }
 
     override fun onTimebasedLocationChanged(locator: Locator) {
@@ -709,43 +681,60 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         audiobookNavigator?.play(fromLocator)
+        syncAudiobookNavigator?.play(fromLocator)
         ttsNavigator?.play(fromLocator)
     }
 
     suspend fun pause() {
         audiobookNavigator?.pause()
+        syncAudiobookNavigator?.pause()
         ttsNavigator?.pause()
     }
 
     suspend fun resume() {
         audiobookNavigator?.resume()
+        syncAudiobookNavigator?.resume()
         ttsNavigator?.resume()
     }
 
     suspend fun stop() {
-        audiobookNavigator?.pause()
-        audiobookNavigator?.dispose()
-        audiobookNavigator = null
-        ttsNavigator?.pause()
-        ttsNavigator?.dispose()
-        ttsNavigator = null
+        audiobookNavigator?.apply {
+            pause()
+            dispose()
 
-        // Remove any current TTS decorations
-        epubNavigator?.applyDecorations(emptyList(), "tts")
+            audiobookNavigator = null
+        }
+
+        syncAudiobookNavigator?.apply {
+            pause()
+            dispose()
+
+            audiobookNavigator = null
+        }
+
+        ttsNavigator?.apply {
+            pause()
+            dispose()
+
+            ttsNavigator = null
+        }
     }
 
     suspend fun previous() {
         audiobookNavigator?.goBack()
+        syncAudiobookNavigator?.goBack()
         ttsNavigator?.goBack()
     }
 
     suspend fun next() {
         audiobookNavigator?.goForward()
+        syncAudiobookNavigator?.goForward()
         ttsNavigator?.goForward()
     }
 
     suspend fun goToLocator(locator: Locator) {
         audiobookNavigator?.goToLocator(locator)
+        syncAudiobookNavigator?.goToLocator(locator)
         ttsNavigator?.goToLocator(locator)
         epubGoToLocator(locator, true)
     }
@@ -754,26 +743,26 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         currentPublication?.let { publication ->
             // Handle karaoke books - by creating a pseudo audio publication from the media overlays.
-            val ap = publication.getMediaOverlays()?.let { mo ->
-                mediaOverlays = mo
+            val (ap, overlays) = publication.makeSyncAudiobook()
 
-                val manifest = Manifest(
-                    context = publication.context,
-                    metadata = publication.metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
-                    resources = publication.resources,
-                    links = publication.links,
-                    readingOrder = mo.mapNotNull { mo ->
-                        Href.invoke(mo?.items?.first()?.audioFile ?: "")
-                            ?.let { href -> Link(href, MediaType.MP3, duration = mo?.duration, title = mo?.items?.first()?.title ) }
-                    }
-                )
+            audiobookNavigator?.dispose()
+            syncAudiobookNavigator?.dispose()
+            audiobookNavigator = null
+            syncAudiobookNavigator = null
 
-                Publication.Builder(manifest, publication.container).build()
-            } ?: publication
-            audiobookNavigator = AudiobookNavigator(
-                ap, this@ReadiumReader, initialLocator, preferences
-            ).apply {
-                initNavigator()
+            if (overlays == null) {
+                audiobookNavigator = AudiobookNavigator(
+                    ap, this@ReadiumReader, initialLocator, preferences
+                ).apply {
+                    initNavigator()
+                }
+            } else {
+                syncAudiobookNavigator = SyncAudiobookNavigator(
+                    ap, overlays, this@ReadiumReader, initialLocator, preferences
+                ).apply {
+                    initNavigator()
+                }
+
             }
         } ?: throw Exception("Publication not opened")
     }
@@ -781,6 +770,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun audioUpdatePreferences(preferences: FlutterAudioPreferences) {
         mainScope.async {
             audiobookNavigator?.updatePreferences(preferences)
+                ?: syncAudiobookNavigator?.updatePreferences(preferences)
                 ?: throw Exception("Audio not enabled, cannot update preferences")
         }.await()
     }
@@ -811,7 +801,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     override fun onVisualReaderIsReady() {
         currentReaderWidget?.onVisualReaderIsReady()
-
         isReadyEventChannel?.sendEvent(true)
     }
 
@@ -854,16 +843,4 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
         return epubNavigator?.getLocatorFragments(locator)
     }
-
-}
-
-/// Values must match order of OpeningReadiumExceptionType in readium_exceptions.dart.
-internal fun openingExceptionIndex(exception: OpenError): Int = when (exception) {
-    is OpenError.Reading -> 0
-    is OpenError.FormatNotSupported -> 1
-}
-
-private fun parseMediaType(mediaType: Any?): MediaType? {
-    @Suppress("UNCHECKED_CAST") val list = mediaType as List<String?>? ?: return null
-    return MediaType(list[0]!!)
 }

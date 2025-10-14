@@ -13,8 +13,11 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.copy
 import org.readium.r2.shared.publication.flatten
@@ -215,4 +218,31 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
 
         return@map FlutterMediaOverlay(items)
     }
+}
+
+@OptIn(InternalReadiumApi::class)
+suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMediaOverlay?>?> {
+    if (!hasMediaOverlays()) {
+        return Pair(this, null)
+    }
+
+    val mo = getMediaOverlays()
+    if (mo == null) {
+        return Pair(this, null)
+    }
+
+    val manifest = Manifest(
+        context = context,
+        metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
+        resources = resources,
+        links = links,
+        readingOrder = mo.mapNotNull { mo ->
+            Href.invoke(mo?.items?.first()?.audioFile ?: "")
+                ?.let { href -> Link(href, MediaType.MP3, duration = mo?.duration, title = mo?.items?.first()?.title ) }
+        }
+    )
+
+    val newPub = Publication.Builder(manifest, container).build()
+
+    return Pair(newPub, mo)
 }

@@ -14,12 +14,12 @@ private const val TAG = "Navigator"
 
 @OptIn(ExperimentalReadiumApi::class)
 abstract class BaseNavigator(
-    val publication: Publication,
-    val initialLocator: Locator?
+    protected var publication: Publication,
+    protected val initialLocator: Locator?
 ) {
-    protected val jobs = mutableListOf<Job>()
+    protected val jobs: MutableList<Job> = mutableListOf<Job>()
 
-    protected val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    protected val mainScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * Init the navigator

@@ -14,7 +14,7 @@ private const val TAG = "TimebasedNavigator"
 @OptIn(ExperimentalReadiumApi::class)
 abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     publication: Publication,
-    val timebaseListener: TimebasedListener,
+    protected val timebaseListener: TimebasedListener,
     initialLocator: Locator?
 ) : BaseNavigator(publication, initialLocator) {
     interface TimebasedListener {
