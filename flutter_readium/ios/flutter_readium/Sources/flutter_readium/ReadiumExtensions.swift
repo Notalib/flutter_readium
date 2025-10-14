@@ -8,6 +8,26 @@ func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
   return min(max(value, minValue), maxValue)
 }
 
+extension Sequence {
+  func asyncCompactMap<T>(
+    _ transform: (Element) async -> T?
+  ) async -> [T] {
+    var results: [T] = []
+    for element in self {
+      if let value = await transform(element) {
+        results.append(value)
+      }
+    }
+    return results
+  }
+}
+
+extension Publication {
+  var containsMediaOverlays: Bool {
+    self.readingOrder.contains(where: { $0.alternates.contains(where: { $0.mediaType?.matches(MediaType("application/vnd.syncnarr+json")) == true })})
+  }
+}
+
 extension MediaPlaybackState {
   var asTimebasedState: TimebasedState {
     switch self {
@@ -32,7 +52,7 @@ class ReadiumTimebasedState {
   var currentBuffered: TimeInterval?
   var currentDuration: TimeInterval?
   var currentLocator: Locator?
-
+  
   init(
     state: TimebasedState,
     currentOffset: TimeInterval? = nil,

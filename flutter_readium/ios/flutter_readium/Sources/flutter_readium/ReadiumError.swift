@@ -28,7 +28,7 @@ class FlutterReadiumError {
   }
   
   func toJson() -> [String: Any?] {
-    var map: [String: Any?] = [
+    let map: [String: Any?] = [
       "message": message,
       "code": code,
       "data": data,

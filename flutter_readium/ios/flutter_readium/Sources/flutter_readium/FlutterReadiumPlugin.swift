@@ -23,10 +23,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   /// Audiobook related variables
   internal var audiobookVM: AudiobookViewModel? = nil
+  
+  internal var mediaOverlays: [FlutterMediaOverlay]? = nil
+  internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
 
   /// TTS related variables
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
+  internal let playingAudioSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
 
@@ -293,6 +297,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
         var navigated = false
         if (self.audiobookVM != nil) {
+          // TODO: Handle active media-overlay navigator, should map ToC item to audio position
           navigated = await self.audiobookVM!.navigator.go(to: locator)
         }
         if (self.synthesizer != nil) {
@@ -305,7 +310,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "audioEnable":
       guard let args = call.arguments as? [Any?],
-            let publication = currentPublication else {
+            var publication = currentPublication else {
         return result(FlutterError.init(
           code: "audioEnable",
           message: "Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
@@ -318,6 +323,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         var locator: Locator? = nil
         if let locatorJson = args[1] as? Dictionary<String, Any> {
           locator = try? Locator(json: locatorJson, warnings: self)
+        }
+      
+        if (publication.containsMediaOverlays) {
+          print("Publication with Synchronized Narration reading-order found!")
+          let newPub = await self.openAsMediaOverlayAudiobook(publication)
+          // Assign the publication, it should now conform to AudioBook.
+          publication = newPub
         }
 
         if (!publication.conforms(to: Publication.Profile.audiobook)) {
@@ -354,7 +366,13 @@ extension FlutterReadiumPlugin {
     atLocator locator: Locator?,
   ) async -> Void {
     await self.setupAudiobookNavigator(publication: publication, initialLocator: locator, initialPreferences: prefs)
+    // TODO: Should we still auto-play on iOS?
     self.play()
+  }
+  
+  @MainActor
+  func syncWithAudioLocator(_ locator: Locator) async -> Bool? {
+    return await currentReaderView?.justGoToLocator(locator, animated: false)
   }
 
   func clearNowPlaying() {

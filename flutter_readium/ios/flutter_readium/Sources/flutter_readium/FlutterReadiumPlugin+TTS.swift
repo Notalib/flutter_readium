@@ -54,14 +54,15 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
         print(TAG, "tts navigate reader to locator")
         isMoving = true
         Task {
-          let _ = await currentReaderView?.justGoToLocator(locator, animated: true)
+          let _ = await self.syncWithAudioLocator(locator)
           self.isMoving = false
         }
       }
       .store(in: &subscriptions)
   }
 
-  @MainActor func updateDecorations(uttLocator: Locator?, rangeLocator: Locator?) {
+  @MainActor
+  func updateDecorations(uttLocator: Locator?, rangeLocator: Locator?) {
     // Update Reader text decorations
     var decorations: [Decoration] = []
     if let uttLocator = uttLocator,
