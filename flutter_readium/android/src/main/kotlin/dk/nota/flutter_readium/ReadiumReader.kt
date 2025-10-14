@@ -13,6 +13,7 @@ import dk.nota.flutter_readium.events.AudioLocatorEventChannel
 import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
@@ -34,28 +35,17 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonDecoder
-import org.json.JSONObject
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
-import org.readium.r2.shared.MediaOverlayNode
-import org.readium.r2.shared.MediaOverlays
 import org.readium.r2.shared.publication.Href
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
-import org.readium.r2.shared.publication.services.content.DefaultContentService
-import org.readium.r2.shared.publication.services.content.contentServiceFactory
-import org.readium.r2.shared.publication.services.content.iterators.HtmlResourceContentIterator
-import org.readium.r2.shared.publication.services.search.StringSearchService
-import org.readium.r2.shared.publication.services.search.searchServiceFactory
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.ThrowableError
@@ -64,8 +54,6 @@ import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
-import org.readium.r2.shared.util.data.readDecodeOrElse
-import org.readium.r2.shared.util.data.readDecodeOrNull
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.shared.util.http.HttpRequest
@@ -77,7 +65,6 @@ import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
-import java.util.ArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -181,11 +168,14 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     val epubCurrentLocator: Locator?
         get() = epubNavigator?.currentLocator?.value
 
-    var mediaOverlays: List<FlutterMediaOverlay>?
-        get() = state[mediaOverlaysKey] as? List<FlutterMediaOverlay>
+    // The media overlays for the current publication, if any. These are used to map between the audio narration and the text
+    var mediaOverlays: List<FlutterMediaOverlay?>?
+        get() = state[mediaOverlaysKey] as? List<FlutterMediaOverlay?>
         set(value) {
             state[mediaOverlaysKey] = value
         }
+
+    var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
 
     /**
      * The PublicationFactory is used to open publications.
@@ -399,13 +389,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 container = TransformingContainer(container) { _: Url, resource: Resource ->
                     resource.injectScriptsAndStyles()
                 }
-                // TODO: Temporary fix for missing service factories for WebPubs with HTML content.
-                servicesBuilder.contentServiceFactory = DefaultContentService.createFactory(
-                    resourceContentIteratorFactories = listOf(
-                        HtmlResourceContentIterator.Factory()
-                    )
-                )
-                servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")
                 asset.close()
@@ -581,6 +564,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     override fun onTimebasedCurrentLocatorChanges(
         locator: Locator, currentReadingOrderLink: Link?
     ) {
+        var audioLocator = locator
+
         val duration = currentReadingOrderLink?.duration
         val timeOffset =
             locator.locations.fragments.find { it.startsWith("t=") }?.substring(2)?.toDoubleOrNull()
@@ -588,13 +573,34 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                     locator.locations.progression?.let { prog -> duration * prog }
                 })
 
+        if (mediaOverlays != null) {
+            val mediaOverlay = mediaOverlays?.firstNotNullOf { it?.findItemInRange(locator.href.toString(), timeOffset ?: 0.0) }
+            if (mediaOverlay == null) {
+                Log.d(TAG, ":onTimebasedCurrentLocatorChanges no mo item found for locator=$locator, timeOffset=$timeOffset")
+                return
+            }
+
+            Log.d(TAG, ":onTimebasedCurrentLocatorChanges mo=$mediaOverlay")
+            if (mediaOverlay != lastMediaOverlayItem) {
+                mediaOverlay.textLocator?.let { textLocator ->
+                    mainScope.async {
+                        epubNavigator?.goToLocator(textLocator, false)
+                    }
+                }
+
+                lastMediaOverlayItem = mediaOverlay
+            }
+
+            audioLocator = mediaOverlay.audioLocator ?: locator
+        }
+
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator, timeOffset=$timeOffset")
 
         currentTimebasedOffset.value = timeOffset?.let { it * 1000 }
         currentTimebasedDuration.value = duration?.let { it * 1000 }
-        currentTimebasedLocator.value = locator
+        currentTimebasedLocator.value = audioLocator
 
-        audioLocatorEventChanel?.sendEvent(locator)
+        audioLocatorEventChanel?.sendEvent(audioLocator)
     }
 
     override fun onTimebasedLocationChanged(locator: Locator) {
@@ -735,24 +741,26 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         epubGoToLocator(locator, true)
     }
 
+    @OptIn(InternalReadiumApi::class)
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
         currentPublication?.let { publication ->
-            mediaOverlays = publication.getMediaOverlays()
-            val ap = mediaOverlays?.let { mo ->
+            // Handle karaoke books - by creating a pseudo audio publication from the media overlays.
+            val ap = publication.getMediaOverlays()?.let { mo ->
+                mediaOverlays = mo
+
                 val manifest = Manifest(
                     context = publication.context,
                     metadata = publication.metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
                     resources = publication.resources,
                     links = publication.links,
-                    readingOrder = mo.mapNotNull {
-                        Href.invoke(it.items.first().audio)
-                            ?.let { href -> Link(href, MediaType.MP3) }
+                    readingOrder = mo.mapNotNull { mo ->
+                        Href.invoke(mo?.items?.first()?.audioFile ?: "")
+                            ?.let { href -> Link(href, MediaType.MP3, duration = mo?.duration, title = mo?.items?.first()?.title ) }
                     }
                 )
 
-                Publication(manifest)
+                Publication.Builder(manifest, publication.container).build()
             } ?: publication
-            // TODO: Handle karaoke books, this only works for plain audiobooks.
             audiobookNavigator = AudiobookNavigator(
                 ap, this@ReadiumReader, initialLocator, preferences
             ).apply {

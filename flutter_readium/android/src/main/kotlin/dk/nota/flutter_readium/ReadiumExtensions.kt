@@ -16,10 +16,11 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.copy
+import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.mediatype.MediaType
-import org.readium.r2.shared.util.mediatype.MediaType.Companion.invoke
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
@@ -172,15 +173,46 @@ fun Publication.hasMediaOverlays() = this.readingOrder.any { r ->
     } || r.properties["media-overlay"] != null
 }
 
-suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay>? {
+suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 
-    return this.readingOrder.mapNotNull { r ->
+    // Flatten TOC for title lookup
+    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it.title) }
+
+    // Remember last matched TOC item for titles
+    var lastTocMatch: Pair<String, String?>? = null
+
+    return this.readingOrder.map { r ->
         r.alternates.find { a ->
             a.mediaType == MediaType("application/vnd.syncnarr+json")
-        } ?: r.properties["media-overlay"] as? Link
-    }.mapNotNull {
-        val json = this.get(it)?.read()?.getOrNull() ?: return@mapNotNull null
-        FlutterMediaOverlay.fromJson(JSONObject(String(json)))
+        }?.copy(title = r.title)
+    }.mapIndexed { index, link ->
+        if (link == null) return@mapIndexed null
+
+        val jsonString =
+            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexed null
+        val jsonObject = JSONObject(jsonString)
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
+    }
+    .map { mo ->
+        if (mo == null) return@map null
+
+        val items = mo.items.map { item ->
+            // Find best matching title from TOC
+            val match = toc.find { tocItem ->
+                tocItem.first == item.text
+            }
+
+            if (match?.second != null) {
+                lastTocMatch = match
+                item.copy(title = match.second ?: "")
+            } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
+                item.copy(title = lastTocMatch.second ?: "")
+            } else {
+                item
+            }
+        }
+
+        return@map FlutterMediaOverlay(items)
     }
 }

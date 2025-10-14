@@ -6,8 +6,10 @@ import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
 import java.io.Serializable
 
-class FlutterMediaOverlayItem(val audio: String, val text: String): Serializable {
+data class FlutterMediaOverlayItem(val audio: String, val text: String, val position: Int, val title: String): Serializable {
     val audioFile = audio.substringBefore("#")
+    val textFile = text.substringBefore("#")
+    val textId = text.substringAfter("#", "")
     private val audioFragment = audio.substringAfter("#", "")
     private val audioTime =
         if (audioFragment.startsWith("t=")) audioFragment.substringAfter("t=") else null
@@ -27,29 +29,33 @@ class FlutterMediaOverlayItem(val audio: String, val text: String): Serializable
             Locator(
                 href,
                 mediaType = MediaType.XHTML,
+                title = title,
                 locations = Locator.Locations(listOf("#" + text.substringAfter("#"))),
             )
         }
     }
 
     val audioLocator: Locator? by lazy {
-        Url.invoke(audioFile)?.let { href ->
+        Url.invoke(textFile)?.let { href ->
             Locator(
                 href,
-                mediaType = MediaType.MPEG,
+                title = title,
+                mediaType = MediaType.MP3,
                 locations = Locator.Locations(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
+                    otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
+                    position = position,
                 ),
             )
         }
     }
 
     companion object {
-        fun fromJson(json: JSONObject): FlutterMediaOverlayItem? {
+        fun fromJson(json: JSONObject, position: Int, title: String): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
             return if (audio != "" && text != "") {
-                FlutterMediaOverlayItem(audio, text)
+                FlutterMediaOverlayItem(audio, text, position, title)
             } else {
                 null
             }
