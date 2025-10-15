@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.getTimeOffset
 import dk.nota.flutter_readium.makeSyncAudiobook
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
@@ -15,6 +16,7 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.MediaOverlays
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.mediatype.MediaType
 
 private const val TAG = "SyncAudiobookNavigator"
 
@@ -44,11 +46,9 @@ class SyncAudiobookNavigator(
             }
 
         val duration = readingOrderLink?.duration
-        val timeOffset =
-            locator.locations.fragments.find { it.startsWith("t=") }?.substring(2)?.toDoubleOrNull()
-                ?: (duration?.let { duration ->
-                    locator.locations.progression?.let { prog -> duration * prog }
-                })
+        val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
+            locator.locations.progression?.let { prog -> duration * prog }
+        })
 
         val mediaOverlay = mediaOverlays.firstNotNullOfOrNull {
             it?.findItemInRange(
@@ -65,12 +65,14 @@ class SyncAudiobookNavigator(
             return
         }
 
-        Log.d(TAG, ":onTimebasedCurrentLocatorChanges mo=$mediaOverlay")
         if (mediaOverlay != lastMediaOverlayItem) {
             mediaOverlay.textLocator?.let { textLocator ->
                 mainScope.async {
-                    ReadiumReader.goToLocator(textLocator)
+                    // IMPORTANT: We use epubGoToLocator here, NOT goToLocator, as the latter
+                    // triggers an infinite loop
+                    ReadiumReader.epubGoToLocator(textLocator, false)
 
+                    // TODO: Hardcoded, this needs to be configurable from Flutter like for TTS
                     val decorations = mutableListOf(
                         Decoration(
                             id = "DID",
@@ -117,6 +119,18 @@ class SyncAudiobookNavigator(
                 locator,
                 preferences
             )
+        }
+    }
+
+    override suspend fun goToLocator(locator: Locator) {
+        val audioLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+            mo?.findItemFromLocator(locator)
+        }?.skipToLocator
+
+        if (audioLocator != null) {
+            super.goToLocator(audioLocator)
+        } else {
+            Log.d(TAG, "goToLocator: no audio locator found for $locator")
         }
     }
 }

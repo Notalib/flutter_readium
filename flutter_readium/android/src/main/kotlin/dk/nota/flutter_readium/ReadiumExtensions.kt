@@ -19,8 +19,8 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.copy
 import org.readium.r2.shared.publication.flatten
+import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.mediatype.MediaType
@@ -220,6 +220,12 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     }
 }
 
+/**
+ * Create a new Publication containing only the audio files from the media overlays.
+ * This is used for the Sync Audiobook navigator.
+ * Returns the new Publication and the list of media overlays, if any.
+ * If there are no media overlays, returns the original publication and null.
+ */
 @OptIn(InternalReadiumApi::class)
 suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMediaOverlay?>?> {
     if (!hasMediaOverlays()) {
@@ -242,7 +248,22 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         }
     )
 
-    val newPub = Publication.Builder(manifest, container).build()
+    val pseudoPublication = Publication.Builder(manifest, container).build()
+    return Pair(pseudoPublication, mo)
+}
 
-    return Pair(newPub, mo)
+/**
+ * Get the time offset from a Locator's fragments, if any.
+ */
+fun Locator.getTimeOffset(): Double? {
+    val timeFragment = locations.fragments.find { it.startsWith("t=") } ?: return null
+    return timeFragment.substringAfter("t=").toDoubleOrNull()
+}
+
+/**
+ * Get the text id from a Locator's fragments or css selector, if any.
+ */
+fun Locator.getTextId(): String? {
+    val cssFragment = locations.fragments.find { it.startsWith("#") } ?: locations.cssSelector ?: return null
+    return cssFragment.removePrefix("#")
 }
