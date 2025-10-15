@@ -38,6 +38,16 @@ class SyncAudiobookNavigator(
 
     private var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
 
+    override suspend fun initNavigator() {
+        this.initialLocator = this.initialLocator?.let { locator ->
+            mediaOverlays.firstNotNullOfOrNull { mo ->
+                mo?.findItemFromLocator(locator)
+            }?.skipToLocator ?: initialLocator
+        }
+
+        super.initNavigator()
+    }
+
     override fun onCurrentLocatorChanges(locator: Locator) {
         var audioLocator = locator
         val readingOrderLink =
@@ -99,6 +109,18 @@ class SyncAudiobookNavigator(
         }
     }
 
+    override suspend fun goToLocator(locator: Locator) {
+        val audioLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+            mo?.findItemFromLocator(locator)
+        }?.skipToLocator
+
+        if (audioLocator != null) {
+            super.goToLocator(audioLocator)
+        } else {
+            Log.d(TAG, "goToLocator: no audio locator found for $locator")
+        }
+    }
+
     companion object {
         fun restoreState(
             publication: Publication,
@@ -119,18 +141,6 @@ class SyncAudiobookNavigator(
                 locator,
                 preferences
             )
-        }
-    }
-
-    override suspend fun goToLocator(locator: Locator) {
-        val audioLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
-            mo?.findItemFromLocator(locator)
-        }?.skipToLocator
-
-        if (audioLocator != null) {
-            super.goToLocator(audioLocator)
-        } else {
-            Log.d(TAG, "goToLocator: no audio locator found for $locator")
         }
     }
 }

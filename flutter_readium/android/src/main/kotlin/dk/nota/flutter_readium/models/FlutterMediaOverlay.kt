@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.mediatype.MediaType
 import java.io.Serializable
 
 private const val TAG = "FlutterMediaOverlay"
@@ -77,6 +78,13 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
 
         locator.getTextId()?.let { textId ->
             return findItemFromTextId(href, textId)
+        }
+
+        if (locator.locations.fragments.isEmpty() && (locator.mediaType == MediaType.HTML || locator.mediaType == MediaType.XHTML)) {
+            // If there is no fragment, and it is a HTML locator, we return the first item for the href
+            return items.firstOrNull { item ->
+                item.textFile == href.path
+            }
         }
 
         return null

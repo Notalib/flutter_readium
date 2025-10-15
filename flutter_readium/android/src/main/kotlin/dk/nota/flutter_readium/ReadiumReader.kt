@@ -757,8 +757,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                     initNavigator()
                 }
             } else {
+                val ail = initialLocator ?: epubNavigator?.currentLocator?.value
                 syncAudiobookNavigator = SyncAudiobookNavigator(
-                    ap, overlays, this@ReadiumReader, initialLocator, preferences
+                    ap, overlays, this@ReadiumReader, ail, preferences
                 ).apply {
                     initNavigator()
                 }

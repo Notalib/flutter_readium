@@ -15,7 +15,7 @@ private const val TAG = "Navigator"
 @OptIn(ExperimentalReadiumApi::class)
 abstract class BaseNavigator(
     protected var publication: Publication,
-    protected val initialLocator: Locator?
+    protected var initialLocator: Locator?
 ) {
     protected val jobs: MutableList<Job> = mutableListOf<Job>()
 
