@@ -121,9 +121,7 @@ internal class PublicationMethodCallHandler() :
             }
 
             "ttsGetAvailableVoices" -> {
-                ttsGetAvailableVoices().let { voices ->
-                    return Try.success(voices)
-                }
+                return Try.success(ttsGetAvailableVoices())
             }
 
             "ttsSetVoice" -> {

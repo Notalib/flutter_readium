@@ -674,10 +674,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         ttsNavigator?.setPreferredVoice(voiceId, language)
     }
 
-    suspend fun play(fromLocator: Locator?) {
+    suspend fun play(locator: Locator?) {
+        var fromLocator = locator
+
         // If using TTS and no fromLocator given, start from current visible locator.
-        if (fromLocator == null && ttsNavigator != null) {
-            currentReaderWidget?.getFirstVisibleLocator()
+        if (fromLocator == null && (ttsNavigator != null || syncAudiobookNavigator != null)) {
+            fromLocator = currentReaderWidget?.getFirstVisibleLocator()
         }
 
         audiobookNavigator?.play(fromLocator)
