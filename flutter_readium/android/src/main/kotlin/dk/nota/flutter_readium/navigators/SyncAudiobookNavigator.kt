@@ -1,28 +1,27 @@
 package dk.nota.flutter_readium.navigators
 
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.getTimeOffset
-import dk.nota.flutter_readium.makeSyncAudiobook
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
-import org.readium.r2.shared.MediaOverlays
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.util.mediatype.MediaType
 
 private const val TAG = "SyncAudiobookNavigator"
 
 private const val mediaOverlaysKey = "MediaOverlays"
 
-@OptIn(ExperimentalCoroutinesApi::class)
+private const val SYNC_AUDIO_DECORATION_ID_UTTERANCE = "synced-utterance"
+
+@OptIn(ExperimentalCoroutinesApi::class, ExperimentalReadiumApi::class)
 class SyncAudiobookNavigator(
     publication: Publication,
 
@@ -39,17 +38,18 @@ class SyncAudiobookNavigator(
     private var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
 
     override suspend fun initNavigator() {
+        // We need to translate the epub based locator to an audio based locator
         this.initialLocator = this.initialLocator?.let { locator ->
             mediaOverlays.firstNotNullOfOrNull { mo ->
                 mo?.findItemFromLocator(locator)
-            }?.skipToLocator ?: initialLocator
+            }?.skipToAudioLocator ?: initialLocator
         }
 
         super.initNavigator()
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        var audioLocator = locator
+        var audioLocator: Locator
         val readingOrderLink =
             publication.readingOrder.find { link ->
                 link.href.toString() == locator.href.toString()
@@ -82,16 +82,7 @@ class SyncAudiobookNavigator(
                     // triggers an infinite loop
                     ReadiumReader.epubGoToLocator(textLocator, false)
 
-                    // TODO: Hardcoded, this needs to be configurable from Flutter like for TTS
-                    val decorations = mutableListOf(
-                        Decoration(
-                            id = "DID",
-                            locator = textLocator,
-                            style = Decoration.Style.Highlight(tint = Color.YELLOW),
-                        )
-                    )
-
-                    ReadiumReader.applyDecorations(decorations, group = decorationGroup)
+                    decorateCurrentUtterance(textLocator)
                 }
             }
 
@@ -112,13 +103,48 @@ class SyncAudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val audioLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
-        }?.skipToLocator
+        }?.skipToAudioLocator
 
         if (audioLocator != null) {
             super.goToLocator(audioLocator)
         } else {
             Log.d(TAG, "goToLocator: no audio locator found for $locator")
         }
+    }
+
+    private suspend fun decorateCurrentUtterance(uttLocator: Locator) {
+        val decorations = mutableListOf<Decoration>()
+        val utteranceStyle = ReadiumReader.decorationStyle.utteranceStyle
+        utteranceStyle?.let { style ->
+            decorations.add(
+                Decoration(
+                    id = SYNC_AUDIO_DECORATION_ID_UTTERANCE,
+                    locator = uttLocator,
+                    style = style,
+                )
+            )
+        }
+
+        ReadiumReader.applyDecorations(decorations, group = decorationGroup)
+    }
+
+    /**
+     * Called when decorations (e.g., highlights) need to be updated.
+     */
+    suspend fun decorationsUpdated() {
+        val navigator = audioNavigator
+        if (navigator == null) {
+            Log.d(TAG, ":setDecorationStyle: navigator is null")
+            return
+        }
+
+        val locator = navigator.currentLocator.value
+        val textLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+            mo?.findItemFromLocator(locator)
+        }?.textLocator ?: return
+        mainScope.async {
+            decorateCurrentUtterance(textLocator)
+        }.await()
     }
 
     companion object {

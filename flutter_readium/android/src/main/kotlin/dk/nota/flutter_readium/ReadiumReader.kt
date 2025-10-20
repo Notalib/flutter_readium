@@ -78,6 +78,7 @@ private const val ttsNavigatorStateKey = "ttsState"
 private const val audioNavigatorStateKey = "audioState"
 private const val syncAudioNavigatorStateKey = "syncAudioState"
 private const val epubNavigatorStateKey = "epubState"
+private const val decorationStyleKey = "decorationStyle"
 
 // TODO: Support custom headers and authentication header for content files.
 
@@ -112,6 +113,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private val currentTimebasedLocator = MutableStateFlow<Locator?>(null)
 
     private var defaultHttpHeaders = mutableMapOf<String, String>()
+
+    var decorationStyle: FlutterDecorationPreferences
+        get() = state[decorationStyleKey] as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
+        set(value) {
+            state[decorationStyleKey] = value
+        }
 
     fun createCurrentTimebasedReaderState(): Flow<ReadiumTimebasedState?> {
         return combine(
@@ -236,6 +243,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             putBundle(audioNavigatorStateKey, audiobookNavigator?.storeState())
             putBoolean(syncAudioEnabledKey, syncAudiobookNavigator != null)
             putBundle(syncAudioNavigatorStateKey, syncAudiobookNavigator?.storeState())
+            putSerializable(decorationStyleKey, decorationStyle)
         }
     }
 
@@ -259,6 +267,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 // TODO: Handle this somehow
                 return@launch
             }
+
+            decorationStyle = bundle.getSerializable(decorationStyleKey) as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
 
             if (bundle.getBoolean(epubEnabledKey)) {
                 Log.d(TAG, ":storeState - restore epub navigator")
@@ -659,9 +669,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }
 
-    suspend fun ttsSetDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        ttsNavigator?.setDecorationStyle(uttStyle, rangeStyle)
-            ?: throw Exception("TTS is not enabled, can't set decoration style")
+    suspend fun setDecorationStyle(style: FlutterDecorationPreferences) {
+        decorationStyle = style
+
+        ttsNavigator?.decorationsUpdated()
+        syncAudiobookNavigator?.decorationsUpdated()
     }
 
     fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {

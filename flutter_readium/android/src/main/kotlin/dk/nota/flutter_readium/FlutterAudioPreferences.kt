@@ -67,3 +67,4 @@ data class FlutterAudioPreferences(
         }
     }
 }
+

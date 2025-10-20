@@ -114,6 +114,7 @@ open class AudiobookNavigator(
                 Log.d(TAG, "Opening MediaSession")
                 mediaServiceFacade?.openSession(audioNavigator!!)
             } catch (e: Exception) {
+                Log.e(TAG, "Error opening MediaSession: ${e.message}")
                 audioNavigator?.close()
                 return@async
             }

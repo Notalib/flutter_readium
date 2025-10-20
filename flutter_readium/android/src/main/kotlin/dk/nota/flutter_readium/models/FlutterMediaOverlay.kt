@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.models
 
+import android.util.Log
 import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.getTimeOffset
 import org.json.JSONArray
@@ -82,10 +83,13 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
 
         if (locator.locations.fragments.isEmpty() && (locator.mediaType == MediaType.HTML || locator.mediaType == MediaType.XHTML)) {
             // If there is no fragment, and it is a HTML locator, we return the first item for the href
+            Log.d(TAG, "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}")
             return items.firstOrNull { item ->
                 item.textFile == href.path
             }
         }
+
+        Log.d(TAG, "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator")
 
         return null
     }
@@ -93,8 +97,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     companion object {
         fun fromJson(json: JSONObject, position: Int, title: String): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
-            val role = json.optString("role")
-            val items = mutableListOf<FlutterMediaOverlayItem>();
+            val items = mutableListOf<FlutterMediaOverlayItem>()
             for (i in 0 until topNarration.length()) {
                 val itemJson = topNarration.getJSONObject(i)
                 FlutterMediaOverlayItem.fromJson(itemJson, position, title)?.let { items.add(it) }

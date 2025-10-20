@@ -6,9 +6,6 @@ import android.util.Log
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import org.json.JSONObject
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
-import org.readium.navigator.media.tts.android.AndroidTtsEngine.Voice.Id
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.FontFamily
@@ -21,7 +18,6 @@ import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.publication.html.cssSelector
-import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
@@ -36,31 +32,12 @@ private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     return ReadiumColor(color)
 }
 
-fun androidTtsPreferencesFromMap(ttsPrefsMap: Map<*, *>?): AndroidTtsPreferences {
-    try {
-        if (ttsPrefsMap == null) {
-            return AndroidTtsPreferences()
-        }
-
-        val speed = ttsPrefsMap["speed"] as Double?
-        val pitch = ttsPrefsMap["pitch"] as Double?
-        val voiceId = ttsPrefsMap["voiceIdentifier"] as String?
-        val langOverrideStr = ttsPrefsMap["languageOverride"] as String?
-        val langOverride = if (langOverrideStr != null) Language(langOverrideStr) else null
-        val overrideMap = if (langOverride != null && voiceId != null)
-            mapOf(langOverride to Id(voiceId)) else emptyMap()
-        return AndroidTtsPreferences(langOverride, pitch, speed, overrideMap)
-    } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping Map to AndroidTtsPreferences: $ex")
-        return AndroidTtsPreferences()
-    }
-}
-
 fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     try {
         val id = decoMap["decorationId"] as String
         val locator = Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
             ?: throw Exception("Failed to deserialize locator")
+        @Suppress("UNCHECKED_CAST")
         val style = decorationStyleFromMap(decoMap["style"] as Map<String, String>)
             ?: throw Exception("Failed to deserialize decoration")
         return Decoration(id, locator, style)
@@ -109,21 +86,6 @@ fun epubPreferencesFromMap(
         Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
         return EpubPreferences()
     }
-}
-
-fun exoPlayerPreferencesFromMap(
-    prefMap: Map<String, String>,
-    defaults: ExoPlayerPreferences?
-): ExoPlayerPreferences? {
-    try {
-        return ExoPlayerPreferences(
-            pitch = prefMap["pitch"]?.toDoubleOrNull() ?: defaults?.pitch,
-            speed = prefMap["speed"]?.toDoubleOrNull() ?: defaults?.speed
-        )
-    } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to ExoPlayerPreferences: $ex")
-    }
-    return null
 }
 
 private const val READIUM_FLUTTER_PATH_PREFIX =

@@ -113,7 +113,7 @@ data class FlutterMediaOverlayItem(
     /**
      * AudioLocator meant to be used for skipping to this item in the audio player.
      */
-    val skipToLocator: Locator? by lazy {
+    val skipToAudioLocator: Locator? by lazy {
         Url.invoke(audioFile)?.let { href ->
             Locator(
                 href,

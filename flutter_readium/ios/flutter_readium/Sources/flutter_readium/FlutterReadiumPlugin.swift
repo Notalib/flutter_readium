@@ -23,7 +23,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   /// Audiobook related variables
   internal var audiobookVM: AudiobookViewModel? = nil
-  
+
   internal var mediaOverlays: [FlutterMediaOverlay]? = nil
   internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
 
@@ -201,7 +201,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           message: "Invalid voice identifier: \(error.localizedDescription)",
           details: nil))
       }
-    case "ttsSetDecorationStyle":
+    case "setDecorationStyle":
       let args = call.arguments as! [Any?]
 
       if let uttDecorationMap = args[0] as? Dictionary<String, String> {
@@ -324,7 +324,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let locatorJson = args[1] as? Dictionary<String, Any> {
           locator = try? Locator(json: locatorJson, warnings: self)
         }
-      
+
         if (publication.containsMediaOverlays) {
           print("Publication with Synchronized Narration reading-order found!")
           let newPub = await self.openAsMediaOverlayAudiobook(publication)
@@ -369,7 +369,7 @@ extension FlutterReadiumPlugin {
     // TODO: Should we still auto-play on iOS?
     self.play()
   }
-  
+
   @MainActor
   func syncWithAudioLocator(_ locator: Locator) async -> Bool? {
     return await currentReaderView?.justGoToLocator(locator, animated: false)
