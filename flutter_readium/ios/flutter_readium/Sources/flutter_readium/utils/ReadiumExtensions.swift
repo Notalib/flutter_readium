@@ -4,21 +4,17 @@ import ReadiumNavigator
 import ReadiumShared
 import ReadiumInternal
 
-func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
-  return min(max(value, minValue), maxValue)
-}
+extension Locator {
+  var timeOffset: TimeInterval? {
+    // Get time offset
+    let fragment: String? = locations.fragments.first(where: { $0.hasPrefix("t=") })
+    let offsetStr = fragment?.removingPrefix("t=")
+    return offsetStr != nil ? TimeInterval(offsetStr!) : nil
+  }
 
-extension Sequence {
-  func asyncCompactMap<T>(
-    _ transform: (Element) async -> T?
-  ) async -> [T] {
-    var results: [T] = []
-    for element in self {
-      if let value = await transform(element) {
-        results.append(value)
-      }
-    }
-    return results
+  var textId: String? {
+    let cssFragment = locations.fragments.first(where: { $0.hasPrefix("#") }) ?? locations.cssSelector
+    return cssFragment?.removingPrefix("#")
   }
 }
 
@@ -35,63 +31,6 @@ extension MediaPlaybackState {
     case .playing: return .playing
     case .loading: return .loading
     }
-  }
-}
-
-enum TimebasedState: String {
-  case playing
-  case loading
-  case paused
-  case ended
-  case failure
-}
-
-class ReadiumTimebasedState {
-  var state: TimebasedState
-  var currentOffset: TimeInterval?
-  var currentBuffered: TimeInterval?
-  var currentDuration: TimeInterval?
-  var currentLocator: Locator?
-  
-  init(
-    state: TimebasedState,
-    currentOffset: TimeInterval? = nil,
-    currentBuffered: TimeInterval? = nil,
-    currentDuration: TimeInterval? = nil,
-    currentLocator: Locator? = nil
-  ) {
-    self.state = state
-    self.currentOffset = currentOffset
-    self.currentBuffered = currentBuffered
-    self.currentDuration = currentDuration
-    self.currentLocator = currentLocator
-  }
-  
-  func toJson() -> [String: Any] {
-    var map: [String: Any] = [
-      "state": state.rawValue
-    ]
-    
-    if let currentOffset = currentOffset {
-      map["currentOffset"] = Int(currentOffset * 1000)
-    }
-    if let currentBuffered = currentBuffered {
-      map["currentBuffered"] = Int(currentBuffered * 1000)
-    }
-    if let currentDuration = currentDuration {
-      map["currentDuration"] = Int(currentDuration * 1000)
-    }
-    if let locator = currentLocator {
-      map["currentLocator"] = locator.jsonString
-    }
-    
-    return map
-  }
-  
-  func toJsonString(pretty: Bool = false) -> String? {
-    let options: JSONSerialization.WritingOptions = pretty ? [.prettyPrinted] : []
-    guard let data = try? JSONSerialization.data(withJSONObject: toJson(), options: options) else { return nil }
-    return String(data: data, encoding: .utf8)
   }
 }
 
@@ -118,7 +57,7 @@ extension Decoration {
     }
     try self.init(fromMap: jsonMap)
   }
-  
+
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let jsonObject = jsonMap,
           let idString = jsonObject["id"],
@@ -143,7 +82,7 @@ extension Decoration.Style {
     let styleId = Decoration.Style.Id(rawValue: style)
     self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor))
   }
-  
+
   init(fromJson jsonString: String) throws {
     let jsonMap: Dictionary<String, String>?
     do {
@@ -154,7 +93,7 @@ extension Decoration.Style {
     }
     try self.init(fromMap: jsonMap)
   }
-  
+
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let map = jsonMap,
           let styleStr = map["style"],
@@ -199,7 +138,7 @@ extension TTSVoice {
 extension EPUBPreferences {
   init(fromMap jsonMap: Dictionary<String, String>) {
     self.init()
-    
+
     for (key, value) in jsonMap {
       switch key {
       case "backgroundColor":
@@ -210,7 +149,7 @@ extension EPUBPreferences {
         }
       case "fontFamily":
         fontFamily = FontFamily(rawValue: value)
-        
+
       case "fontSize":
         if let fontSizeValue = Double(value) {
           fontSize = fontSizeValue
@@ -289,111 +228,5 @@ extension AudioPreferences {
       volume: prefs.volume,
       speed: prefs.speed,
     )
-  }
-}
-
-public struct FlutterAudioPreferences {
-  public var volume: Double?
-  
-  public var speed: Double?
-  
-  public var pitch: Double?
-  
-  public var seekInterval: Double?
-  
-  public var controlPanelInfoType: ControlPanelInfoType?
-  
-  public init(volume: Double = 1.0, rate: Double = 1.0, pitch: Double = 1.0, seekInterval: Double = 30, controlPanelInfoType: ControlPanelInfoType = ControlPanelInfoType.standard) {
-    self.volume = volume
-    self.speed = rate
-    self.pitch = pitch
-    self.seekInterval = seekInterval
-    self.controlPanelInfoType = controlPanelInfoType
-  }
-  
-  init(fromMap jsonMap: Dictionary<String, Any>) throws {
-    let map = jsonMap,
-        volume = map["volume"] as? Double ?? 1.0,
-        rate = map["speed"] as? Double ?? 1.0,
-        pitch = map["pitch"] as? Double ?? 1.0,
-        seekInterval = map["seekInterval"] as? Double ?? 30
-    
-    let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
-    let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
-    // TODO: Does audio prefs need to be clamped?
-    let avRate = clamp(rate, minValue: 0.1, maxValue: 5.0)
-    let avPitch = clamp(pitch, minValue: 0.5, maxValue: 2.0)
-    self.init(volume: volume, rate: avRate, pitch: avPitch, seekInterval: seekInterval, controlPanelInfoType: mapControlPanelInfoType )
-  }
-}
-
-public enum ControlPanelInfoType {
-  case standard
-  case standardWCh
-  case chapterTitleAuthor
-  case chapterTitle
-  case titleChapter
-  
-  init(from string: String?) {
-    switch string {
-    case "standard": self = .standard
-    case "standardWCh": self = .standardWCh
-    case "chapterTitleAuthor": self = .chapterTitleAuthor
-    case "chapterTitle": self = .chapterTitle
-    case "titleChapter": self = .titleChapter
-    default: self = .standard
-    }
-  }
-}
-
-public struct TTSPreferences {
-  /// Rate at which utterances should be spoken. Defaults to 0.5
-  public var rate: Float?
-  
-  /// Pitch at which utterances should be spoken. Defaults to 1.0 and should be in range 0.5 to 2.0
-  public var pitch: Float?
-  
-  /// Language overriding the publication one.
-  public var overrideLanguage: Language?
-  
-  /// Identifier for the voice used to speak the utterances.
-  public var voiceIdentifier: String?
-  
-  public var controlPanelInfoType: ControlPanelInfoType?
-  
-  public init(
-    rate: Float? = nil,
-    pitch: Float? = nil,
-    overrideLanguage: Language? = nil,
-    voiceIdentifier: String? = nil,
-    controlPanelInfoType: ControlPanelInfoType = .standard
-  ) {
-    self.rate = rate
-    self.pitch = pitch
-    self.overrideLanguage = overrideLanguage
-    self.voiceIdentifier = voiceIdentifier
-    self.controlPanelInfoType = controlPanelInfoType
-  }
-  
-  init(fromMap jsonMap: Dictionary<String, Any>) throws {
-    let map = jsonMap,
-        rate = map["speed"] as? Double ?? 1.0,
-        pitch = map["pitch"] as? Double ?? 1.0,
-        langCode = map["languageOverride"] as? String,
-        overrideLanguage = langCode != nil ? Language(stringLiteral: langCode!) : nil,
-        voiceIdentifier = map["voiceIdentifier"] as? String
-    
-    let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
-    let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
-    /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
-    /// Rate is also clamped between allowed values.
-    let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,
-                       minValue: AVSpeechUtteranceMinimumSpeechRate,
-                       maxValue: AVSpeechUtteranceMaximumSpeechRate)
-    /// Pitch is clamped between allowed values according to AVSpeechUtterance docs.
-    let avPitch = clamp(Float(pitch),
-                        minValue: 0.5,
-                        maxValue: 2.0)
-    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType)
   }
 }

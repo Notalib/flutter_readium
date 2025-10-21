@@ -61,7 +61,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
         guard let _ = self else {
           return
         }
-        print(TAG, "model.$playback updated.state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
+        debugPrint(TAG, "model.$playback updated.state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
       }
       .store(in: &subscriptions)
   }
@@ -129,7 +129,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   }
   
   public func navigator(_ navigator: Navigator, locationDidChange location: Locator) {
-    print(TAG, "locationDidChange: \(location.locations.progression ?? 0)")
+    debugPrint(TAG, "locationDidChange")
     
     // Send new locator over the audio-locator stream.
     self.audioLocatorStreamHandler?.sendEvent(location)
@@ -137,22 +137,19 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     if (mediaOverlays != nil) {
       if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
          let timeOffset = Double(timeOffsetStr),
-         let mediaOverlay = mediaOverlays?.first(where: { $0.itemInRange(audioIn: location.href.string, time: timeOffset) }),
+         let mediaOverlay = mediaOverlays?.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
          var textLocator = mediaOverlay.textLocator {
         if (mediaOverlay != lastMediaOverlayItem) {
           lastMediaOverlayItem = mediaOverlay
           textLocator.locations.progression = location.locations.progression
           textLocator.locations.position = location.locations.position
-          Task.detached(priority: .background, operation: {
+          Task.detached(priority: .background) {
             let _ = await self.syncWithAudioLocator(textLocator)
             await self.updateDecorations(uttLocator: textLocator, rangeLocator: nil)
-          })
-        } else {
-          debugPrint(TAG, "Skip MediaOverlay update")
+          }
         }
-        
       } else {
-        debugPrint(TAG, "Could not find MediaOverlay for Audio Locator: \(location)")
+        debugPrint(TAG, "Did not find MediaOverlay matching audio Locator: \(location)")
       }
     }
     
@@ -173,15 +170,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   
   /// Called when the playback updates.
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
-    print(TAG, "playbackDidChange: \(info)")
-    switch info.state {
-    case .loading:
-      print(TAG, "loading")
-    case .playing:
-      print(TAG, "playing")
-    case .paused:
-      print(TAG, "paused")
-    }
+    debugPrint(TAG, "playbackDidChange: \(info)")
     
     audiobookVM?.onPlaybackChanged(info: info)
     let controlPanelInfoType =  audiobookVM?.preferences.controlPanelInfoType ?? .standard
@@ -192,26 +181,26 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   /// Called when the navigator finished playing the current resource.
   /// Returns whether the next resource should be played. Default is true.
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
-    print(TAG, "shouldPlayNextResource? (true)")
+    debugPrint(TAG, "shouldPlayNextResource? (true)")
     return true
   }
   
   /// Called when the ranges of buffered media data change.
   /// Warning: They may be discontinuous.
   public func navigator(_ navigator: AudioNavigator, loadedTimeRangesDidChange ranges: [Range<Double>]) {
-    print(TAG, "loadedTimeRangesDidChange: \(ranges)")
+    debugPrint(TAG, "loadedTimeRangesDidChange: \(ranges)")
     // TODO: Notify flutter client.
   }
   
   // MARK: - AudioNavigatorDelegate
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
-    print(TAG, "presentError: \(error.localizedDescription)")
+    debugPrint(TAG, "presentError: \(error.localizedDescription)")
     // TODO: Notify flutter client.
   }
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
-    print(TAG, "didFailToLoadResourceAt: \(href.string), err: \(error.localizedDescription)")
+    debugPrint(TAG, "didFailToLoadResourceAt: \(href.string), err: \(error.localizedDescription)")
     // TODO: Notify flutter client.
   }
   

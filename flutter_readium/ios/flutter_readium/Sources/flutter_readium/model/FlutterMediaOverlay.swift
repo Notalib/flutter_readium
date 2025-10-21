@@ -6,16 +6,54 @@ struct FlutterMediaOverlay {
   var audioFile: String? {
     items.first?.audioFile
   }
+  
+  var textFile: String? {
+    items.first?.textFile
+  }
+  
   var duration: Double? {
     items.last?.audioEnd ?? 0.0
   }
 
-  func itemInRange(audioIn: String, time: Double) -> FlutterMediaOverlayItem? {
-    if (audioIn.substringBeforeLast("#") != audioFile) {
+  func itemInRangeOfTime(_ time: Double, inHref href: String) -> FlutterMediaOverlayItem? {
+    if (href != audioFile && href != textFile) {
       return nil
     }
 
-    return items.first(where: { $0.isInRange(audioIn: audioIn, time: time) })
+    return items.first(where: { $0.isAudioInRangeOfTime(time, inHref: href) })
+  }
+  
+  func itemFromTextId(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {
+    if (textFile != href && audioFile != href) {
+      return nil
+    }
+    
+    return items.first(where: { $0.textId == textId })
+  }
+  
+  func itemFromLocator(_ locator: Locator) -> FlutterMediaOverlayItem? {
+    let href = locator.href.string
+    if (textFile != href && audioFile != href) {
+      return nil
+    }
+    
+    // Get time offset
+    let timeOffset = locator.timeOffset
+    if (timeOffset != nil) {
+      return itemInRangeOfTime(timeOffset!, inHref: href)
+    }
+    
+    let textId = locator.textId
+    if (textId != nil) {
+      return itemFromTextId(textId!, inHref: href)
+    }
+    
+    if (locator.locations.fragments.isEmpty && [MediaType.html, MediaType.xhtml].contains(locator.mediaType)) {
+      // No fragments found, find first item matching just the href.
+      return items.first(where: { $0.textFile == href })
+    }
+    
+    return nil
   }
   
   static func fromJson(_ json: [String: Any], atPosition position: Int) -> FlutterMediaOverlay? {
@@ -52,6 +90,9 @@ final class FlutterMediaOverlayItem: NSObject {
     return max(0, audioEnd - audioStart)
   }()
   
+  let textFile: String
+  let textId: String
+  
   init(audio: String, text: String, position: Int) {
     self.audio = audio
     self.text = text
@@ -59,6 +100,8 @@ final class FlutterMediaOverlayItem: NSObject {
     self.audioFile = audio.split(separator: "#", maxSplits: 1).first.map(String.init) ?? audio
     self.audioFragment = audio.split(separator: "#", maxSplits: 1).last.map(String.init) ?? ""
     self.audioTime = audioFragment.hasPrefix("t=") ? String(audioFragment.dropFirst(2)) : nil
+    self.textFile = text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+    self.textId = text.split(separator: "#", maxSplits: 1).last.map(String.init) ?? ""
     
     if let t = self.audioTime {
       let parts = t.split(separator: ",", maxSplits: 1).map(String.init)
@@ -71,8 +114,8 @@ final class FlutterMediaOverlayItem: NSObject {
     super.init()
   }
   
-  func isInRange(audioIn: String, time: Double) -> Bool {
-    if (audioIn.split(separator: "#", maxSplits: 1).first.map(String.init) ?? audioIn) != audioFile {
+  func isAudioInRangeOfTime(_ time: Double, inHref href: String) -> Bool {
+    if (textFile != href && audioFile != href) {
       return false
     }
     guard let start = audioStart else { return false }

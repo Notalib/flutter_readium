@@ -11,7 +11,7 @@ private let TAG = "ReadiumReaderPlugin/MediaOverlays"
 extension FlutterReadiumPlugin {
   
   func openAsMediaOverlayAudiobook(_ publication: Publication) async -> Publication {
-    print("Publication with Synchronized Narration reading-order found!")
+    debugPrint("Publication with Synchronized Narration reading-order found!")
     let narrationLinks = publication.readingOrder.compactMap {
       var link = $0.alternates.filterByMediaType(MediaType("application/vnd.syncnarr+json")!).first
       link?.title = $0.title
@@ -40,10 +40,11 @@ extension FlutterReadiumPlugin {
     audioPubManifest.readingOrder = audioReadingOrder
     audioPubManifest.metadata.conformsTo = [Publication.Profile.audiobook]
     
+    // TODO: This modifies the existing Publication reference !!!
     var newPub = publication
     newPub.manifest = audioPubManifest
     
-    print("New audio readingOrder found: \(audioReadingOrder)")
+    debugPrint("New audio readingOrder found: \(audioReadingOrder)")
     // Save the media-overlays for later position matching.
     self.mediaOverlays = mediaOverlays
     // Assign the publication, it should now conform to AudioBook.
