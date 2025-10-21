@@ -12,6 +12,9 @@ import java.io.Serializable
 
 private const val TAG = "FlutterMediaOverlay"
 
+/**
+ * Simple media overlay mapping.
+ */
 data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Serializable {
     /**
      * The audio file name (without fragment).

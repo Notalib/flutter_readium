@@ -5,6 +5,9 @@ import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.r2.navigator.preferences.Configurable
 
+/**
+ * Audio preferences for Flutter Readium with extra properties.
+ */
 @Serializable
 data class FlutterAudioPreferences(
     val volume: Double? = null,
@@ -23,6 +26,9 @@ data class FlutterAudioPreferences(
             controlPanelInfoType = other.controlPanelInfoType
         )
 
+    /**
+     * Converts FlutterAudioPreferences to ExoPlayerPreferences.
+     */
     fun toExoPlayerPreferences(): ExoPlayerPreferences {
         return ExoPlayerPreferences(
             pitch = this.pitch,
@@ -31,10 +37,16 @@ data class FlutterAudioPreferences(
     }
 
     companion object {
+        /**
+         * Creates FlutterAudioPreferences from a JSON string.
+         */
         fun fromJSON(json: String): FlutterAudioPreferences {
             return fromJSON(JSONObject(json))
         }
 
+        /**
+         * Creates FlutterAudioPreferences from a JSON object.
+         */
         fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences {
             return FlutterAudioPreferences(
                 volume = jsonObject.getDouble("volume"),
@@ -45,6 +57,9 @@ data class FlutterAudioPreferences(
             )
         }
 
+        /**
+         * Converts FlutterAudioPreferences to a JSON object.
+         */
         fun toJSON(preferences: FlutterAudioPreferences): JSONObject {
             val jsonObject = JSONObject()
             jsonObject.put("volume", preferences.volume)
@@ -55,6 +70,9 @@ data class FlutterAudioPreferences(
             return jsonObject
         }
 
+        /**
+         * Creates FlutterAudioPreferences from a Map.
+         */
         fun fromMap(prefs: Map<*, *>): FlutterAudioPreferences {
             return FlutterAudioPreferences(
                 volume = prefs["volume"] as? Double ?: 1.0,

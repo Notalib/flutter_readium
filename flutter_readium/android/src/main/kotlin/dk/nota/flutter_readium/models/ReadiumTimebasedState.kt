@@ -34,6 +34,9 @@ data class ReadiumTimebasedState(
      */
     val currentDuration: Double
 ) : JSONable {
+    /**
+     * Convert to JSON object
+     */
     override fun toJSON(): JSONObject = JSONObject().apply {
         put("currentLocator", currentLocator?.toJSON())
         put("state", state.name)

@@ -132,12 +132,19 @@ fun Resource.injectScriptsAndStyles(): Resource =
 
 val syncNarrationsMediaType = MediaType("application/vnd.syncnarr+json")
 
+/**
+ * Check if the publication has any media overlays.
+ */
 fun Publication.hasMediaOverlays() = this.readingOrder.any { r ->
     r.alternates.any { a ->
         a.mediaType == syncNarrationsMediaType
     } || r.properties["media-overlay"] != null
 }
 
+/**
+ * Get the media overlays for the publication, if any.
+ * Note: If an item in the reading order does not have a media overlay, it will be represented by null
+ */
 suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 

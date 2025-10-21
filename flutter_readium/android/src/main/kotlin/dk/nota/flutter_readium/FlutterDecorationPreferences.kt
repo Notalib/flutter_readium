@@ -10,11 +10,24 @@ import java.io.Serializable
 private val defaultUtteranceStyle = Decoration.Style.Highlight(tint = Color.YELLOW)
 private val defaultCurrentRangeStyle = Decoration.Style.Underline(tint = Color.RED)
 
+/**
+ * Decoration preferences used in the Flutter Readium plugin.
+ */
 data class FlutterDecorationPreferences(
+    /**
+     * Style for utterance decoration.
+     */
     var utteranceStyle: Decoration.Style? = defaultUtteranceStyle,
+
+    /**
+     * Style for current reading range decoration.
+     */
     var currentRangeStyle: Decoration.Style? = defaultCurrentRangeStyle
 ) : Serializable {
     companion object {
+        /**
+         * Create Decoration.Style from map.
+         */
         fun fromMap(
             uttDecoMap: Map<*, *>?,
             rangeDecoMap: Map<*, *>?

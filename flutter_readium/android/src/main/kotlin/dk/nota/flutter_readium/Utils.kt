@@ -68,6 +68,9 @@ fun unwrapToApplication(context: Context?): Application? {
     return ctx
 }
 
+/**
+ * Check if a Locator has scrollable locations.
+ */
 fun canScroll(locations: Locator.Locations) =
     locations.domRange != null || locations.cssSelector != null || locations.progression != null
 
@@ -81,6 +84,9 @@ fun canScroll(locations: Locator.Locations) =
     return withContext(scope.coroutineContext, block)
 }
 
+/**
+ * Update the value of a MutableStateFlow only if it is different from the current value.
+ */
 fun <T> MutableStateFlow<T>.update(new: T) {
     if (this.value != new) this.value = new
 }

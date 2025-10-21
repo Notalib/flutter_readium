@@ -63,42 +63,71 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
      */
     interface VisualListener {
         /**
-         * Called when the page has loaded.
+         * Called when a page has loaded. Note: not necessarily the visible content, since
+         * the Readium Navigator preloads neighboring charters.
          */
         fun onPageLoaded()
 
+        /**
+         * Called when the current page has changed. Can be a new file or a new page in the
+         * same file.
+         */
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
 
+        /**
+         * Called when an external link has been tapped.
+         */
         fun onExternalLinkActivated(url: AbsoluteUrl)
 
+        /**
+         * Called when the current locator has changed.
+         */
         fun onVisualCurrentLocationChanged(locator: Locator)
 
+        /**
+         * Called when the visual reader is ready.
+         */
         fun onVisualReaderIsReady()
     }
 
     val visualListener: VisualListener
 
+    /**
+     * EpubReaderFragment instance used as navigator.
+     */
     private var epubNavigator: EpubReaderFragment? = null
-    var editor: EpubPreferencesEditor? = null
 
-    /*
+    /**
+     * Editor to modify EPUB preferences.
+     */
+    private var editor: EpubPreferencesEditor? = null
+
+    /**
      * Pending scroll target to be applied when the page is loaded.
      */
     var pendingScrollToLocations: Locator.Locations? = null
 
+    /**
+     * Current EPUB preferences.
+     */
     val preferences: EpubPreferences?
         get() = editor?.preferences
 
+    /**
+     * Current locator in the EPUB navigator.
+     */
     val currentLocator
         get() = epubNavigator?.currentLocator
 
-    /// Checks when the fragment starts and is safe to use.
+    /**
+     * Checks when the fragment starts and is safe to use.
+     */
     private val navigatorStarted
         get() = epubNavigator!!.started
 
-    // in-memory cached state
-    private val state = mutableMapOf<String, Any?>()
-
+    /**
+     * Whether the EPUB navigator is in vertical scroll mode.
+     */
     private val isVerticalScroll: Boolean
         get() {
             return editor?.preferences?.scroll ?: false
@@ -123,6 +152,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
+    /**
+     * Attach the EPUB navigator fragment to the given FragmentManager and ViewGroup.
+     */
     fun attachNavigator(fragmentManager: FragmentManager, viewGroup: ViewGroup) {
         val navigator = epubNavigator ?: return
         mainScope.launch {
@@ -132,6 +164,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
+    /**
+     * Go to a specific locator in the EPUB navigator, this does not scroll to the locator position.
+     */
     suspend fun go(locator: Locator, animated: Boolean): Boolean {
         val navigator = epubNavigator
         if (navigator == null) {
@@ -152,12 +187,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
+    /**
+     * Update EPUB navigator preferences.
+     */
     fun updatePreferences(preferences: EpubPreferences) {
         Log.d(TAG, "::setPreferences")
-        if (editor == null) {
-            Log.e(TAG, "::setPreferences - editor is null!")
-            return
-        }
 
         try {
             editor?.apply {
@@ -380,6 +414,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         evaluateJavascript("window.epubPage.scrollToLocations($json,$isVerticalScroll,$toStart);")
     }
 
+    /**
+     * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
+     */
     suspend fun goToLocator(locator: Locator, animated: Boolean) {
         mainScope.async {
             val locations = locator.locations

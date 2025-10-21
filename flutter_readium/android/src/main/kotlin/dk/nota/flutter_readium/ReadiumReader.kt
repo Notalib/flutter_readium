@@ -734,18 +734,27 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
     }
 
+    /**
+     * Skip backwards.
+     */
     suspend fun previous() {
         audiobookNavigator?.goBack()
         syncAudiobookNavigator?.goBack()
         ttsNavigator?.goBack()
     }
 
+    /**
+     * Skip forwards.
+     */
     suspend fun next() {
         audiobookNavigator?.goForward()
         syncAudiobookNavigator?.goForward()
         ttsNavigator?.goForward()
     }
 
+    /**
+     * Go to a specific locator.
+     */
     suspend fun goToLocator(locator: Locator) {
         audiobookNavigator?.goToLocator(locator)
         syncAudiobookNavigator?.goToLocator(locator)
@@ -831,30 +840,51 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         return epubNavigator?.evaluateJavascript(script)
     }
 
+    /**
+     * Update EPUB navigator preferences.
+     */
     fun epubUpdatePreferences(preferences: EpubPreferences) {
         epubNavigator?.updatePreferences(preferences)
     }
 
+    /**
+     * Check if the EPUB navigator is ready.
+     */
     suspend fun epubIsReaderReady(): Boolean {
         return epubNavigator?.isReaderReady() ?: false
     }
 
+    /**
+     * Go to a specific locator in the EPUB navigator, without scrolling to the locator position.
+     */
     suspend fun epubGo(locator: Locator, animated: Boolean) {
         epubNavigator?.go(locator, animated)
     }
 
+    /**
+     * Go left (previous page) in the EPUB navigator.
+     */
     fun epubGoLeft(animated: Boolean) {
         epubNavigator?.goLeft(animated)
     }
 
+    /**
+     * Go right (next page) in the EPUB navigator.
+     */
     fun epubGoRight(animated: Boolean) {
         epubNavigator?.goRight(animated)
     }
 
+    /**
+     * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
+     */
     suspend fun epubGoToLocator(locator: Locator, animated: Boolean) {
         epubNavigator?.goToLocator(locator, animated)
     }
 
+    /**
+     * Get locator fragments from EPUB navigator.
+     */
     suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
         return epubNavigator?.getLocatorFragments(locator)
     }

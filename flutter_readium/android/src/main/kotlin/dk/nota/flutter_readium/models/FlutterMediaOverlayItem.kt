@@ -6,6 +6,9 @@ import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
 import java.io.Serializable
 
+/**
+ * A single media overlay item mapping audio to text.
+ */
 data class FlutterMediaOverlayItem(
     /**
      * The audio reference, e.g. "chapter1.mp3#t=12.34,15.67" or "chapter1.mp3"

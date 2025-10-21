@@ -36,6 +36,9 @@ const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
 const val audioPreferencesKey = "audioPreferencesKey"
 
+/**
+ * Navigator for pure Audiobook publications using Readium's AudioNavigator.
+ */
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 open class AudiobookNavigator(
@@ -44,12 +47,15 @@ open class AudiobookNavigator(
     initialLocator: Locator?,
     private var preferences: FlutterAudioPreferences
 ) : TimebasedNavigator<AudioNavigator.Playback>(publication, timebasedListener, initialLocator) {
+    /**
+     * The AudioNavigator provided by Readium..
+     */
     protected var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
 
+    /**
+     * The MediaServiceFacade to manage MediaSession interactions, notifications, etc.
+     */
     protected var mediaServiceFacade: PluginMediaServiceFacade? = null
-
-    // in-memory cached state
-    protected val state = mutableMapOf<String, Any?>()
 
     override suspend fun initNavigator() {
         // Create AudioNavigatorFactory
@@ -155,7 +161,9 @@ open class AudiobookNavigator(
         }
     }
 
-    /// Updates Audio preferences, does not override current preferences if props are null
+    /**
+     * Updates Audio preferences, does not override current preferences if props are null
+     */
     fun updatePreferences(prefs: FlutterAudioPreferences) {
         preferences = preferences + prefs
 
@@ -183,6 +191,7 @@ open class AudiobookNavigator(
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
+        // Handle buffered changes
         navigator.playback
             .throttleLatest(250.milliseconds)
             .distinctUntilChangedBy { pb -> pb.buffered }
@@ -192,6 +201,7 @@ open class AudiobookNavigator(
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
+        // Handle current locator changes
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()

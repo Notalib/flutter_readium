@@ -14,11 +14,29 @@ private const val TAG = "Navigator"
 
 @OptIn(ExperimentalReadiumApi::class)
 abstract class BaseNavigator(
+    /**
+     * The publication to navigate.
+     */
     protected var publication: Publication,
+
+    /**
+     * The initial locator to open the publication at.
+     */
     protected var initialLocator: Locator?
 ) {
+    /**
+     * List of active jobs, to be cancelled on dispose
+     */
     protected val jobs: MutableList<Job> = mutableListOf<Job>()
 
+    /**
+     * The state map for storing navigator-specific state
+     */
+    protected val state = mutableMapOf<String, Any?>()
+
+    /**
+     * The main coroutine scope for the navigator. Most operations should be done on the main thread.
+     */
     protected val mainScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
@@ -26,6 +44,9 @@ abstract class BaseNavigator(
      */
     abstract suspend fun initNavigator()
 
+    /**
+     * Dispose the navigator and cancel all active jobs
+     */
     open fun dispose() {
         jobs.forEach { it.cancel() }
         jobs.clear()

@@ -11,12 +11,23 @@ import kotlin.time.Duration
 
 private const val TAG = "TimebasedNavigator"
 
+/**
+ * Base class for time-based navigators, such as audiobook or TTS navigators.
+ */
 @OptIn(ExperimentalReadiumApi::class)
 abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     publication: Publication,
+
+    /**
+     * Listener for time-based navigator events.
+     */
     protected val timebaseListener: TimebasedListener,
     initialLocator: Locator?
 ) : BaseNavigator(publication, initialLocator) {
+
+    /**
+     * Listener interface for time-based navigator events.
+     */
     interface TimebasedListener {
         /**
          * Called when the playback state changes.

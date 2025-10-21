@@ -62,9 +62,6 @@ class TTSNavigator(
 
     private var mediaServiceFacade: PluginMediaServiceFacade? = null
 
-    // in-memory cached state
-    private val state = mutableMapOf<String, Any?>()
-
     override suspend fun initNavigator() {
         val navigatorFactory = TtsNavigatorFactory(
             ReadiumReader.application,
@@ -312,6 +309,9 @@ class TTSNavigator(
             .let { jobs.add(it) }
     }
 
+    /**
+     * Apply decorations for the current utterance and token (word).
+     */
     private suspend fun decorateCurrentUtterance(uttLocator: Locator, tokenLocator: Locator?) {
         val decorations = mutableListOf<Decoration>()
         val utteranceStyle = ReadiumReader.decorationStyle.utteranceStyle
@@ -367,6 +367,7 @@ class TTSNavigator(
 
     override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
         when (pb.state) {
+            // Handle TTS-specific failure state
             is TtsNavigator.State.Failure -> {
                 val ttsState = pb.state as TtsNavigator.State.Failure
                 val error = ttsState.error
