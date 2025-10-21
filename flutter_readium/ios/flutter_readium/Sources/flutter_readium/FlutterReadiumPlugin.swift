@@ -296,11 +296,19 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
         var navigated = false
-        if (self.audiobookVM != nil) {
-          // TODO: Handle active media-overlay navigator, should map ToC item to audio position
+        if (self.mediaOverlays != nil && self.audiobookVM != nil) {
+          if let navigator = self.audiobookVM?.navigator,
+             let matchingItem = self.mediaOverlays!.firstMap({ $0.itemFromLocator(locator)}),
+             let audioLocator = matchingItem.audioLocator {
+            navigated = await navigator.go(to: audioLocator)
+            // Go will sometimes result in a pause
+            self.audiobookVM?.navigator.play()
+          }
+        }
+        else if (self.audiobookVM != nil) {
           navigated = await self.audiobookVM!.navigator.go(to: locator)
         }
-        if (self.synthesizer != nil) {
+        else if (self.synthesizer != nil) {
           self.synthesizer!.start(from: locator)
           navigated = true
         }
