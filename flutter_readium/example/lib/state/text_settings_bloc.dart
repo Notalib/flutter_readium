@@ -98,8 +98,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
             verticalScroll: false,
             fontSize: 120,
             theme: TextSettingsTheme(
-              textColor: themes[8].textColor,
-              backgroundColor: themes[8].backgroundColor,
+              textColor: themes[1].textColor,
+              backgroundColor: themes[1].backgroundColor,
             ),
             highlight: TextSettingsTheme(
               textColor: highlights[0].textColor,
