@@ -71,7 +71,6 @@ class TTSNavigator(
             },
             metadataProvider = { pub ->
                 DatabaseMediaMetadataFactory(
-                    context = ReadiumReader.application,
                     publication = publication,
                     trackCount = pub.readingOrder.size,
                     controlPanelInfoType = preferences.controlPanelInfoType

@@ -63,7 +63,6 @@ open class AudiobookNavigator(
             publication,
             ExoPlayerEngineProvider(ReadiumReader.application, metadataProvider = { pub ->
                 DatabaseMediaMetadataFactory(
-                    context = ReadiumReader.application,
                     publication = publication,
                     trackCount = pub.readingOrder.size,
                     controlPanelInfoType = preferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD

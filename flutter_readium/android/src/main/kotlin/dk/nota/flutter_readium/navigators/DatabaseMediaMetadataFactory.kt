@@ -1,38 +1,39 @@
 package dk.nota.flutter_readium.navigators
 
-import android.content.Context
+import android.util.Size
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaMetadata.PICTURE_TYPE_FRONT_COVER
 import dk.nota.flutter_readium.ControlPanelInfoType
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
 import org.readium.navigator.media.common.MediaMetadataFactory
-import org.readium.r2.shared.publication.Link
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.extensions.toPng
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.coverFitting
 
-
+@OptIn(InternalReadiumApi::class)
 class DatabaseMediaMetadataFactory(
-    private val context: Context,
     private val publication: Publication,
     private val trackCount: Int,
     private val controlPanelInfoType: ControlPanelInfoType
 ) : MediaMetadataFactory {
-    private class Metadata(
-        val title: String,
-        val authors: String,
-        val cover: Link?
-    )
 
+    /**
+     * The title of the publication.
+     */
+    private val publicationTitle: String by lazy {
+        publication.metadata.title ?: ""
+    }
 
-    private val metadata: Metadata = Metadata(
-        title = publication.metadata.title ?: "",
-        authors = publication.metadata.authors.joinToString(", ") { it.name }.ifEmpty { "" },
-        cover = publication.links.firstOrNull() { l -> l.rels.contains("cover") }
-    )
+    /**
+     * The authors of the publication, joined as a single string.
+     */
+    private val authors: String by lazy {
+        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString { ", " }
+    }
 
-    // Remember byte arrays will go cross processes and should be kept small so use .scaleToFit(400, 400).toPng()
-    // TODO: Load cover image asynchronously and cache it
+    /**
+     * The cover image as a byte array, cached after first load. Use [loadCoverImage] to load it.
+     */
     private var coverImage: ByteArray? = null
 
     override suspend fun publicationMetadata(): MediaMetadata =
@@ -41,9 +42,18 @@ class DatabaseMediaMetadataFactory(
     override suspend fun resourceMetadata(index: Int): MediaMetadata =
         builder(index)?.build() ?: MediaMetadata.EMPTY
 
+    /**
+     * Load the cover image as a byte array. Handles resizing.
+     */
+    private suspend fun loadCoverImage(): ByteArray? {
+        if (coverImage != null) return coverImage
+
+        coverImage = publication.coverFitting(Size(400, 400))?.toPng()
+
+        return coverImage
+    }
+
     private suspend fun builder(index: Int? = null): MediaMetadata.Builder? {
-        val publicationTitle = metadata.title
-        val authors = metadata.authors
         val currentChapterTitle = index?.let {
             publication.readingOrder.getOrNull(it)?.title ?: ""
         } ?: ""
@@ -77,7 +87,7 @@ class DatabaseMediaMetadataFactory(
         }
 
         index?.let { builder.setTrackNumber(it) }
-        coverImage?.let {
+        loadCoverImage()?.let {
             // We can't yet directly use a `content://` or `file://` URI with `setArtworkUri`.
             // See https://github.com/androidx/media/issues/271
             builder.setArtworkData(it, PICTURE_TYPE_FRONT_COVER)
