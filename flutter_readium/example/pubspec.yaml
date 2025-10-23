@@ -24,6 +24,7 @@ dependencies:
   path:
   path_provider:
   pointer_interceptor:
+  rxdart: ^0.28.0
 
 dev_dependencies:
   integration_test:
