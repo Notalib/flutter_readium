@@ -264,19 +264,17 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       self.synthesizer?.pauseOrResume()
       result(nil)
     case "next":
-      if (self.audiobookVM != nil) {
+      if let vm = self.audiobookVM {
         Task {
-          // TODO: Configurable seek intervals
-          await self.audiobookVM?.navigator.seek(by: 30)
+          await vm.next()
         }
       }
       self.synthesizer?.next()
       result(nil)
     case "previous":
-      if (self.audiobookVM != nil) {
+      if let vm = self.audiobookVM {
         Task {
-          // TODO: Configurable seek intervals
-          await self.audiobookVM?.navigator.seek(by: -30)
+          await vm.previous()
         }
       }
       self.synthesizer?.previous()

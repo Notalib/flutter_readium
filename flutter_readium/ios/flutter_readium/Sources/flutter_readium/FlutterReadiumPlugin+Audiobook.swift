@@ -28,6 +28,16 @@ class AudiobookViewModel: ObservableObject {
   func onPlaybackChanged(info: MediaPlaybackInfo) {
     playback = info
   }
+  
+  func next() async {
+    let seekInterval = self.preferences.seekInterval ?? 30
+    await self.navigator.seek(by: seekInterval)
+  }
+  
+  func previous() async {
+    let seekInterval = self.preferences.seekInterval ?? 30
+    await self.navigator.seek(by: -1 * seekInterval)
+  }
 }
 
 extension FlutterReadiumPlugin : AudioNavigatorDelegate {
