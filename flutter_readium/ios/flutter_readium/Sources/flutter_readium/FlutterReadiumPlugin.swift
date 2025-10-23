@@ -306,6 +306,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
         else if (self.audiobookVM != nil) {
           navigated = await self.audiobookVM!.navigator.go(to: locator)
+          // Go will sometimes result in a pause, if buffering was necessary.
+          // So we actively ensure we resume playing.
+          self.audiobookVM?.navigator.play()
         }
         else if (self.synthesizer != nil) {
           self.synthesizer!.start(from: locator)
