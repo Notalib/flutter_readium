@@ -301,7 +301,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
              let matchingItem = self.mediaOverlays!.firstMap({ $0.itemFromLocator(locator)}),
              let audioLocator = matchingItem.audioLocator {
             navigated = await navigator.go(to: audioLocator)
-            // Go will sometimes result in a pause
+            // Go will sometimes result in a pause, if buffering was necessary.
+            // So we actively ensure we resume playing.
             self.audiobookVM?.navigator.play()
           }
         }
@@ -311,6 +312,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         else if (self.synthesizer != nil) {
           self.synthesizer!.start(from: locator)
           navigated = true
+        }
+        else if (currentReaderView != nil) {
+          await currentReaderView?.goToLocator(locator: locator, animated: false)
         }
         await MainActor.run { [navigated] in
           result(navigated)
