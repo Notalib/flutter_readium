@@ -33,11 +33,12 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
     $playingUtterance
       .removeDuplicates()
       .sink { [weak self] locator in
-        guard let self = self else {
+        guard let self = self, let locator = locator else {
           return
         }
         print(TAG, "tts send audio-locator")
         audioLocatorStreamHandler?.sendEvent(locator)
+        updateNowPlaying(locator: locator, infoType: prefs?.controlPanelInfoType ?? ControlPanelInfoType.standard, publication: publication)
       }
       .store(in: &subscriptions)
     
@@ -213,5 +214,56 @@ extension FlutterReadiumPlugin : PublicationSpeechSynthesizerDelegate, AVTTSEngi
       self?.ttsPrevious()
       return .success
     }
+  }
+}
+
+private func updateNowPlaying(locator: Locator, infoType: ControlPanelInfoType, publication: Publication?) {
+  let nowPlaying = NowPlayingInfo.shared
+  
+  let chapterNo = publication?.readingOrder.firstIndexWithHREF(locator.href)
+  nowPlaying.media?.chapterNumber = chapterNo
+  
+  if(infoType == .standard || infoType == .standardWCh || chapterNo == nil) {
+    standardNowPlayingInfo(chapterNo: chapterNo, infoType: infoType, publication: publication)
+  } else {
+    nonStandardNowPlayingInfo(chapterNo: chapterNo!, infoType: infoType, publication: publication)
+  }
+}
+
+private func standardNowPlayingInfo(chapterNo: Int?, infoType: ControlPanelInfoType, publication: Publication?) {
+  let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+  var title = publication?.metadata.title ?? ""
+  
+  NowPlayingInfo.shared.media?.artist = authors
+  
+  if (infoType == .standardWCh && chapterNo != nil){
+    let currentChapter = publication?.readingOrder[chapterNo!].title
+    title += currentChapter != nil ? " - \(currentChapter!)" : ""
+    NowPlayingInfo.shared.media?.title = title
+  } else {
+    NowPlayingInfo.shared.media?.title = title
+  }
+  
+}
+
+private func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
+  let currentChapter = publication?.readingOrder[chapterNo].title
+  let title = publication?.metadata.title ?? ""
+  
+  if(infoType == .chapterTitleAuthor || infoType == .chapterTitle){
+    
+    NowPlayingInfo.shared.media?.title = currentChapter ?? ""
+    
+    if(infoType == .chapterTitle){
+      NowPlayingInfo.shared.media?.artist = title
+    } else {
+      let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+      let titleWithAuthors = "\(title) - \(authors)"
+      NowPlayingInfo.shared.media?.artist = titleWithAuthors
+    }
+    
+  } else {
+    NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
+    NowPlayingInfo.shared.media?.title = title
   }
 }
