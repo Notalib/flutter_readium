@@ -93,9 +93,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         ) {
     timebasedStateSub = FlutterReadium()
         .onTimebasedPlayerStateChanged
-        .debounceTime(const Duration(milliseconds: 50))
         .map((state) => state.state)
         .distinct()
+        .debounceTime(const Duration(milliseconds: 50))
         .listen((playerState) {
       debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
 
