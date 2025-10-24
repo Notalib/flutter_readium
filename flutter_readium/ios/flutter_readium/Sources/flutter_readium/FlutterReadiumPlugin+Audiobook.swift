@@ -28,16 +28,6 @@ class AudiobookViewModel: ObservableObject {
   func onPlaybackChanged(info: MediaPlaybackInfo) {
     playback = info
   }
-  
-  func next() async {
-    let seekInterval = self.preferences.seekInterval ?? 30
-    await self.navigator.seek(by: seekInterval)
-  }
-  
-  func previous() async {
-    let seekInterval = self.preferences.seekInterval ?? 30
-    await self.navigator.seek(by: -1 * seekInterval)
-  }
 }
 
 extension FlutterReadiumPlugin : AudioNavigatorDelegate {
@@ -149,7 +139,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
          let timeOffset = Double(timeOffsetStr),
          let mediaOverlay = mediaOverlays?.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
          var textLocator = mediaOverlay.textLocator {
-        if (mediaOverlay != lastMediaOverlayItem) {
+        if (!mediaOverlay.isEqual(lastMediaOverlayItem)) {
+          // Matched a new MediaOverlayItem -> sync reader with its textLocator.
           lastMediaOverlayItem = mediaOverlay
           textLocator.locations.progression = location.locations.progression
           textLocator.locations.position = location.locations.position
@@ -173,6 +164,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
       currentDuration: navigator.playbackInfo.duration ?? nil,
       //currentBuffered: navigator.lastLoadedTimeRanges,
       currentLocator: location)
+    lastTimebasedPlayerState = state
     self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
   }
   

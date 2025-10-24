@@ -36,6 +36,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   internal var audioLocatorStreamHandler: EventStreamHandler?
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
+  internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
 
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
@@ -266,7 +267,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "next":
       if let vm = self.audiobookVM {
         Task {
-          await vm.next()
+          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          await self.seek(by: seekInterval)
         }
       }
       self.synthesizer?.next()
@@ -274,7 +276,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "previous":
       if let vm = self.audiobookVM {
         Task {
-          await vm.previous()
+          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          await self.seek(by: -1 * seekInterval)
         }
       }
       self.synthesizer?.previous()
