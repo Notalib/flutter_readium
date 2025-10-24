@@ -81,8 +81,8 @@ class DatabaseMediaMetadataFactory(
             }
 
             else -> {
-                builder.setArtist(currentChapterTitle)
-                builder.setTitle(publicationTitle)
+                builder.setArtist(publicationTitle)
+                builder.setTitle(authors)
             }
         }
 
