@@ -274,7 +274,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "next":
       if let vm = self.audiobookVM {
         Task {
-          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          let seekInterval = vm.preferences.seekInterval ?? 30
           await self.seek(by: seekInterval)
         }
       }
@@ -283,7 +283,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "previous":
       if let vm = self.audiobookVM {
         Task {
-          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          let seekInterval = vm.preferences.seekInterval ?? 30
           await self.seek(by: -1 * seekInterval)
         }
       }
@@ -474,8 +474,8 @@ extension FlutterReadiumPlugin {
     NowPlayingInfo.shared.media?.artist = authors
     
     if (infoType == .standardWCh && chapterNo != nil) {
-      let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
-      title += " - \(currentChapter!)" : ""
+      let currentChapter = publication?.readingOrder[chapterNo!].title ?? "\(fallbackChapterTitle) \(chapterNo! + 1)"
+      title += " - \(currentChapter)"
       
       NowPlayingInfo.shared.media?.title = title
     } else {
@@ -485,14 +485,14 @@ extension FlutterReadiumPlugin {
   }
   
   func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
-    let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
+    let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo + 1)"
     let title = publication?.metadata.title ?? ""
     
     if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
       
-      NowPlayingInfo.shared.media?.title = currentChapter ?? ""
+      NowPlayingInfo.shared.media?.title = currentChapter
       
-      if(infoType == .chapterTitle){
+      if (infoType == .chapterTitle) {
         NowPlayingInfo.shared.media?.artist = title
       } else {
         let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
@@ -501,7 +501,7 @@ extension FlutterReadiumPlugin {
       }
       
     } else {
-      NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
+      NowPlayingInfo.shared.media?.artist = currentChapter
       NowPlayingInfo.shared.media?.title = title
     }
   }

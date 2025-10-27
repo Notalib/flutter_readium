@@ -364,7 +364,7 @@ class PluginSimpleBasePlayer(player: Player) : ForwardingSimpleBasePlayer(player
         positionMs: Long,
         seekCommand: Int
     ): ListenableFuture<*> {
-        // NOTE: Maps seek to next/previous track, to seek forward/backward.
+        // NOTE: Maps seek to next/previous track, to seek forward/backward in current track.
         if (seekCommand == COMMAND_SEEK_TO_NEXT) {
             return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_FORWARD)
         } else if (seekCommand == COMMAND_SEEK_TO_PREVIOUS) {

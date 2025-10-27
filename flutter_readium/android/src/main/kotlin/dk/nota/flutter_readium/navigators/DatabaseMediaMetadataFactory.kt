@@ -8,7 +8,6 @@ import org.readium.navigator.media.common.MediaMetadataFactory
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.toPng
 import org.readium.r2.shared.publication.LocalizedString
-import org.readium.r2.shared.publication.LocalizedString.Companion.UNDEFINED_LANGUAGE
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.coverFitting
 
@@ -42,7 +41,7 @@ class DatabaseMediaMetadataFactory(
                 "no" to "Kapittel",
                 "is" to "Kafli",
             )
-        )
+        ).getOrFallback(null)
     }
 
     /**
@@ -68,9 +67,13 @@ class DatabaseMediaMetadataFactory(
     }
 
     private suspend fun builder(index: Int? = null): MediaMetadata.Builder? {
-        val currentChapterTitle = index?.let {
+        var currentChapterTitle = index?.let {
             publication.readingOrder.getOrNull(it)?.title
-        } ?: "${chapterTitleFallback.getOrFallback(null)} $index"
+        }
+
+        if (currentChapterTitle == null && index != null) {
+            currentChapterTitle = "$chapterTitleFallback ${index + 1}"
+        }
 
         val builder = MediaMetadata.Builder()
             .setTotalTrackCount(trackCount)
@@ -78,7 +81,7 @@ class DatabaseMediaMetadataFactory(
         when (controlPanelInfoType) {
             ControlPanelInfoType.STANDARD, ControlPanelInfoType.STANDARD_WCH -> {
                 builder.setArtist(authors)
-                if (controlPanelInfoType == ControlPanelInfoType.STANDARD_WCH && !currentChapterTitle.isEmpty()) {
+                if (controlPanelInfoType == ControlPanelInfoType.STANDARD_WCH && !currentChapterTitle.isNullOrEmpty()) {
                     builder.setTitle("$publicationTitle - $currentChapterTitle")
                 } else {
                     builder.setTitle(publicationTitle)
