@@ -41,9 +41,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
 
-  // TODO: Should these have defaults?
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
+  
+  lazy var fallbackChapterTitle: String = LocalizedString.localized([
+    "en": "Chapter",
+    "da": "Kapitel",
+    "sv:": "Kapitel",
+    "no": "Kapittel",
+    "is": "Kafli",
+  ]).string(forLanguageCode: nil)
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
