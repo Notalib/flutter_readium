@@ -456,4 +456,47 @@ extension FlutterReadiumPlugin {
     currentPublication?.close()
     currentPublication = nil
   }
+  
+  func standardNowPlayingInfo(chapterNo: Int?, infoType: ControlPanelInfoType, publication: Publication?) {
+    let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+    var title = publication?.metadata.title ?? ""
+    
+    NowPlayingInfo.shared.media?.artist = authors
+    
+    if (infoType == .standardWCh && chapterNo != nil){
+      let currentChapter = publication?.readingOrder[chapterNo!].title
+      if (currentChapter == nil ) {debugPrint(TAG, "---@ No chapterTitle found")}
+      title += currentChapter != nil ? " - \(currentChapter!)" : ""
+      
+      NowPlayingInfo.shared.media?.title = title
+    } else {
+      NowPlayingInfo.shared.media?.title = title
+    }
+    
+  }
+  
+  func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
+    let currentChapter = publication?.readingOrder[chapterNo].title
+    let title = publication?.metadata.title ?? ""
+    
+    if (currentChapter == nil ) {debugPrint(TAG, "---@ No chapterTitle found")}
+    
+    
+    if(infoType == .chapterTitleAuthor || infoType == .chapterTitle){
+      
+      NowPlayingInfo.shared.media?.title = currentChapter ?? ""
+      
+      if(infoType == .chapterTitle){
+        NowPlayingInfo.shared.media?.artist = title
+      } else {
+        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+        let titleWithAuthors = "\(title) - \(authors)"
+        NowPlayingInfo.shared.media?.artist = titleWithAuthors
+      }
+      
+    } else {
+      NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
+      NowPlayingInfo.shared.media?.title = title
+    }
+  }
 }
