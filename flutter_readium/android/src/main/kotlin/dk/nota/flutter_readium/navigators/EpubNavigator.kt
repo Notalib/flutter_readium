@@ -425,6 +425,8 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             val currentHref = currentLocator?.value?.href
             val shouldGo = currentHref?.isEquivalent(locatorHref) == false
 
+            // TODO: Figure out why we can't just use rely on Readium's own go-function to scroll
+            // the locator.
             if (shouldGo) {
                 Log.d(TAG, "::goToLocator: Go to $locatorHref from $currentHref")
                 pendingScrollToLocations = locations
