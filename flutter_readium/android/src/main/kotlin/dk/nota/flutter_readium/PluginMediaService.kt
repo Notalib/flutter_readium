@@ -48,7 +48,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.launch
 import org.readium.navigator.media.common.Media3Adapter
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -376,17 +375,17 @@ class PluginSimpleBasePlayer(player: Player) : ForwardingSimpleBasePlayer(player
 
     // FIX: Hacky way to fix missing COMMAND_GET_TIMELINE from TtsSessionAdapter
     override fun getState(): State {
+        // This is a copy & override of the super implementation, due to assert on empty playlist,
+        // which Readium TTSPlayer sometimes provides during active states.
+        // See https://github.com/readium/kotlin-toolkit/pull/716
+
         // Ordered alphabetically by State.Builder setters.
         val state = State.Builder()
-        //val positionSuppliers = livePositionSuppliers
-//        if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
-//            state.setAdBufferedPositionMs(positionSuppliers.bufferedPositionSupplier)
-//            state.setAdPositionMs(positionSuppliers.currentPositionSupplier)
-//        }
+//      val positionSuppliers = livePositionSuppliers
         if (player.isCommandAvailable(COMMAND_GET_AUDIO_ATTRIBUTES)) {
-            state.setAudioAttributes(player.getAudioAttributes())
+            state.setAudioAttributes(player.audioAttributes)
         }
-        state.setAvailableCommands(player.getAvailableCommands())
+        state.setAvailableCommands(player.availableCommands)
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
             state.setContentPositionMs { player.contentPosition }
             state.setContentBufferedPositionMs { player.contentBufferedPosition }
@@ -394,55 +393,49 @@ class PluginSimpleBasePlayer(player: Player) : ForwardingSimpleBasePlayer(player
 //          state.setContentPositionMs(positionSuppliers.contentPositionSupplier)
         }
         if (player.isCommandAvailable(COMMAND_GET_TEXT)) {
-            state.setCurrentCues(player.getCurrentCues())
+            state.setCurrentCues(player.currentCues)
         }
         //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
-        state.setCurrentMediaItemIndex(player.getCurrentMediaItemIndex())
+        state.setCurrentMediaItemIndex(player.currentMediaItemIndex)
         //}
         state.setDeviceInfo(player.getDeviceInfo())
         if (player.isCommandAvailable(COMMAND_GET_DEVICE_VOLUME)) {
-            state.setDeviceVolume(player.getDeviceVolume())
-            state.setIsDeviceMuted(player.isDeviceMuted())
+            state.setDeviceVolume(player.deviceVolume)
+            state.setIsDeviceMuted(player.isDeviceMuted)
         }
-        state.setIsLoading(player.isLoading())
-        state.setMaxSeekToPreviousPositionMs(player.getMaxSeekToPreviousPosition())
-        state.setPlaybackParameters(player.getPlaybackParameters())
-        state.setPlaybackState(player.getPlaybackState())
-        state.setPlaybackSuppressionReason(player.getPlaybackSuppressionReason())
-        state.setPlayerError(player.getPlayerError())
+        state.setIsLoading(player.isLoading)
+        state.setMaxSeekToPreviousPositionMs(player.maxSeekToPreviousPosition)
+        state.setPlaybackParameters(player.playbackParameters)
+        state.setPlaybackState(player.playbackState)
+        state.setPlaybackSuppressionReason(player.playbackSuppressionReason)
+        state.setPlayerError(player.playerError)
         //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
         val tracks =
             if (player.isCommandAvailable(COMMAND_GET_TRACKS))
-                player.getCurrentTracks()
+                player.currentTracks
             else
                 Tracks.EMPTY
         val mediaMetadata =
-            if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.getMediaMetadata() else null
-        state.setPlaylist(player.getCurrentTimeline(), tracks, mediaMetadata)
+            if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
+        state.setPlaylist(player.currentTimeline, tracks, mediaMetadata)
         //}
         if (player.isCommandAvailable(COMMAND_GET_METADATA)) {
-            state.setPlaylistMetadata(player.getPlaylistMetadata())
+            state.setPlaylistMetadata(player.playlistMetadata)
         }
-        state.setPlayWhenReady(player.getPlayWhenReady(), PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)
-//        if (pendingPositionDiscontinuityNewPositionMs != C.TIME_UNSET) {
-//            state.setPositionDiscontinuity(
-//                pendingDiscontinuityReason, pendingPositionDiscontinuityNewPositionMs
-//            )
-//            pendingPositionDiscontinuityNewPositionMs = C.TIME_UNSET
-//        }
-        state.setRepeatMode(player.getRepeatMode())
-        state.setSeekBackIncrementMs(player.getSeekBackIncrement())
-        state.setSeekForwardIncrementMs(player.getSeekForwardIncrement())
-        state.setShuffleModeEnabled(player.getShuffleModeEnabled())
-        state.setSurfaceSize(player.getSurfaceSize())
+        state.setPlayWhenReady(player.playWhenReady, PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM)
+        state.setRepeatMode(player.repeatMode)
+        state.setSeekBackIncrementMs(player.seekBackIncrement)
+        state.setSeekForwardIncrementMs(player.seekForwardIncrement)
+        state.setShuffleModeEnabled(player.shuffleModeEnabled)
+        state.setSurfaceSize(player.surfaceSize)
         //state.setTimedMetadata(lastTimedMetadata)
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
             state.setTotalBufferedDurationMs { player.totalBufferedDuration }
         }
-        state.setTrackSelectionParameters(player.getTrackSelectionParameters())
-        state.setVideoSize(player.getVideoSize())
+        state.setTrackSelectionParameters(player.trackSelectionParameters)
+        state.setVideoSize(player.videoSize)
         if (player.isCommandAvailable(COMMAND_GET_VOLUME)) {
-            state.setVolume(player.getVolume())
+            state.setVolume(player.volume)
         }
         return state.build()
     }

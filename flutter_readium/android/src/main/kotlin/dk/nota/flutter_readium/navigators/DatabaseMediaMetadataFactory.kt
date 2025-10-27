@@ -28,7 +28,7 @@ class DatabaseMediaMetadataFactory(
      * The authors of the publication, joined as a single string.
      */
     private val authors: String by lazy {
-        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString { ", " }
+        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString(", ")
     }
 
     /**
