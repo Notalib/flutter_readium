@@ -20,20 +20,20 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
   static var registrar: FlutterPluginRegistrar? = nil
-
+  
   /// Audiobook related variables
   internal var audiobookVM: AudiobookViewModel? = nil
-
+  
   internal var mediaOverlays: [FlutterMediaOverlay]? = nil
   internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
-
+  
   /// TTS related variables
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
   internal let playingAudioSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
-
+  
   internal var audioLocatorStreamHandler: EventStreamHandler?
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
@@ -58,18 +58,18 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     registrar.addMethodCallDelegate(instance, channel: channel)
     instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
     instance.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
-
+    
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
     registrar.register(factory, withId: readiumReaderViewType)
-
+    
     self.registrar = registrar
   }
-
+  
   public func log(_ warning: Warning) {
     print(TAG, "Error in Readium: \(warning)")
   }
-
+  
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
@@ -97,7 +97,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "openPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
-
+      
       Task.detached(priority: .high) {
         do {
           if (currentPublication != nil) {
@@ -105,7 +105,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           currentPublication = pub
-
+          
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
             result(jsonManifest)
@@ -119,14 +119,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "loadPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
-
+      
       Task.detached(priority: .high) {
         do {
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
-
+          
           let jsonManifest = pub.jsonManifest
           pub.close()
-
+          
           await MainActor.run {
             result(jsonManifest)
           }
@@ -174,7 +174,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
-
+      
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
@@ -211,11 +211,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "setDecorationStyle":
       let args = call.arguments as! [Any?]
-
+      
       if let uttDecorationMap = args[0] as? Dictionary<String, String> {
         ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
       }
-
+      
       if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
         ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
@@ -238,9 +238,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       if let locatorJson = args.first as? Dictionary<String, Any> {
         locator = try? Locator(json: locatorJson, warnings: self)
       }
-
+      
       Task.detached(priority: .high) {
-
+        
         if (self.synthesizer != nil) {
           if (locator == nil) {
             locator = await currentReaderView?.getFirstVisibleLocator()
@@ -347,14 +347,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let locatorJson = args[1] as? Dictionary<String, Any> {
           locator = try? Locator(json: locatorJson, warnings: self)
         }
-
+        
         if (publication.containsMediaOverlays) {
           print("Publication with Synchronized Narration reading-order found!")
           let newPub = await self.openAsMediaOverlayAudiobook(publication)
           // Assign the publication, it should now conform to AudioBook.
           publication = newPub
         }
-
+        
         if (!publication.conforms(to: Publication.Profile.audiobook)) {
           return result(FlutterError.init(
             code: "ArgumentError",
@@ -373,7 +373,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       setAudioPreferences(prefs: prefs)
-
+      
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -382,7 +382,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
-
+  
   private func initAudioPlayback(
     forPublication publication: Publication,
     withPrefs prefs: FlutterAudioPreferences,
@@ -392,16 +392,16 @@ extension FlutterReadiumPlugin {
     // TODO: Should we still auto-play on iOS?
     self.play()
   }
-
+  
   @MainActor
   func syncWithAudioLocator(_ locator: Locator) async -> Bool? {
     return await currentReaderView?.justGoToLocator(locator, animated: false)
   }
-
+  
   func clearNowPlaying() {
     NowPlayingInfo.shared.clear()
   }
-
+  
   private func loadPublication (
     fromUrlStr: String,
   ) async -> Result<Publication, ReadiumError> {
@@ -410,7 +410,7 @@ extension FlutterReadiumPlugin {
       // Assume URLs without a supported prefix are local file paths.
       pubUrlStr = "file://\(pubUrlStr)"
     }
-
+    
     let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
     guard let url = URL(string: encodedUrlStr!) else {
       return .failure(ReadiumError.notFound("Invalid pub URL: \(pubUrlStr)"))
@@ -418,7 +418,7 @@ extension FlutterReadiumPlugin {
     guard let absUrl = url.anyURL.absoluteURL else {
       return .failure(ReadiumError.notFound("Failed to get AbsoluteUrl: \(pubUrlStr)"))
     }
-
+    
     print("Attempting to open publication at: \(absUrl)")
     do {
       let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
@@ -430,27 +430,27 @@ extension FlutterReadiumPlugin {
       return .failure(error)
     }
   }
-
+  
   private func openPublication(
-          at url: AbsoluteURL,
-          allowUserInteraction: Bool,
-          sender: UIViewController?
-      ) async throws(ReadiumError) -> (Publication, Format) {
-          do {
-              let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
-
-              let publication = try await sharedReadium.publicationOpener!.open(
-                  asset: asset,
-                  allowUserInteraction: allowUserInteraction,
-                  sender: sender
-              ).get()
-
-              return (publication, asset.format)
-          } catch let err {
-            throw err.toReadiumError()
-          }
-      }
-
+    at url: AbsoluteURL,
+    allowUserInteraction: Bool,
+    sender: UIViewController?
+  ) async throws(ReadiumError) -> (Publication, Format) {
+    do {
+      let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
+      
+      let publication = try await sharedReadium.publicationOpener!.open(
+        asset: asset,
+        allowUserInteraction: allowUserInteraction,
+        sender: sender
+      ).get()
+      
+      return (publication, asset.format)
+    } catch let err {
+      throw err.toReadiumError()
+    }
+  }
+  
   private func closePublication() {
     // Clean-up any resources associated with the publication.
     synthesizer?.stop()
@@ -465,5 +465,44 @@ extension FlutterReadiumPlugin {
     subscriptions.forEach { job in job.cancel() }
     currentPublication?.close()
     currentPublication = nil
+  }
+  
+  func standardNowPlayingInfo(chapterNo: Int?, infoType: ControlPanelInfoType, publication: Publication?) {
+    let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+    var title = publication?.metadata.title ?? ""
+    
+    NowPlayingInfo.shared.media?.artist = authors
+    
+    if (infoType == .standardWCh && chapterNo != nil) {
+      let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
+      title += " - \(currentChapter!)" : ""
+      
+      NowPlayingInfo.shared.media?.title = title
+    } else {
+      NowPlayingInfo.shared.media?.title = title
+    }
+    
+  }
+  
+  func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
+    let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
+    let title = publication?.metadata.title ?? ""
+    
+    if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
+      
+      NowPlayingInfo.shared.media?.title = currentChapter ?? ""
+      
+      if(infoType == .chapterTitle){
+        NowPlayingInfo.shared.media?.artist = title
+      } else {
+        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
+        let titleWithAuthors = "\(title) - \(authors)"
+        NowPlayingInfo.shared.media?.artist = titleWithAuthors
+      }
+      
+    } else {
+      NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
+      NowPlayingInfo.shared.media?.title = title
+    }
   }
 }

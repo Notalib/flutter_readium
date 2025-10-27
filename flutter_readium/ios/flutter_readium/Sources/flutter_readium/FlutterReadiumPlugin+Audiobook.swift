@@ -329,47 +329,10 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     
     let publication = audiobookVM?.navigator.publication
     if (infoType == .standard || infoType == .standardWCh) {
-      standardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+      standardNowPlayingInfo(chapterNo: info.resourceIndex, infoType: infoType, publication: publication)
     } else {
-      nonStandardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+      nonStandardNowPlayingInfo(chapterNo: info.resourceIndex, infoType: infoType, publication: publication)
     }
   }
   
-  private func standardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?) {
-    let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-    var title = publication?.metadata.title ?? ""
-    
-    NowPlayingInfo.shared.media?.artist = authors
-    
-    if (infoType == .standardWCh) {
-      let currentChapter = publication?.readingOrder[info.resourceIndex].title
-      title += currentChapter != nil ? " - \(currentChapter!)" : ""
-      NowPlayingInfo.shared.media?.title = title
-    } else {
-      NowPlayingInfo.shared.media?.title = title
-    }
-    
-  }
-  
-  private func nonStandardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?) {
-    let idx = info.resourceIndex
-    let currentChapter = publication?.readingOrder[idx].title ?? "\(fallbackChapterTitle) \(idx)"
-    let title = publication?.metadata.title ?? ""
-    
-    if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
-      NowPlayingInfo.shared.media?.title = currentChapter
-      
-      if (infoType == .chapterTitle) {
-        NowPlayingInfo.shared.media?.artist = title
-      } else {
-        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-        let titleWithAuthors = "\(title) - \(authors)"
-        NowPlayingInfo.shared.media?.artist = titleWithAuthors
-      }
-      
-    } else {
-      NowPlayingInfo.shared.media?.artist = currentChapter
-      NowPlayingInfo.shared.media?.title = title
-    }
-  }
 }
