@@ -44,13 +44,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
   
-  lazy var fallbackChapterTitle: String = LocalizedString.localized([
+  lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
     "da": "Kapitel",
     "sv:": "Kapitel",
     "no": "Kapittel",
     "is": "Kafli",
-  ]).string(forLanguageCode: nil)
+  ])
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
@@ -474,7 +474,7 @@ extension FlutterReadiumPlugin {
     NowPlayingInfo.shared.media?.artist = authors
     
     if (infoType == .standardWCh && chapterNo != nil) {
-      let currentChapter = publication?.readingOrder[chapterNo!].title ?? "\(fallbackChapterTitle) \(chapterNo! + 1)"
+      let currentChapter = publication?.readingOrder[chapterNo!].title ?? "\(generatedFallbackChapterTitle) \(chapterNo! + 1)"
       title += " - \(currentChapter)"
       
       NowPlayingInfo.shared.media?.title = title
@@ -485,12 +485,16 @@ extension FlutterReadiumPlugin {
   }
   
   func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
-    let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo + 1)"
+    var currentChapter = publication?.readingOrder[chapterNo].title
     let title = publication?.metadata.title ?? ""
     
     if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
       
-      NowPlayingInfo.shared.media?.title = currentChapter
+      if (currentChapter == nil) {
+        currentChapter = "\(generatedFallbackChapterTitle) \(chapterNo + 1)"
+      }
+      
+      NowPlayingInfo.shared.media?.title = currentChapter!
       
       if (infoType == .chapterTitle) {
         NowPlayingInfo.shared.media?.artist = title
@@ -504,5 +508,10 @@ extension FlutterReadiumPlugin {
       NowPlayingInfo.shared.media?.artist = currentChapter
       NowPlayingInfo.shared.media?.title = title
     }
+  }
+  
+  var generatedFallbackChapterTitle: String {
+    let code = currentPublication?.metadata.language?.code.bcp47
+    return fallbackChapterTitle.string(forLanguageCode: code)
   }
 }

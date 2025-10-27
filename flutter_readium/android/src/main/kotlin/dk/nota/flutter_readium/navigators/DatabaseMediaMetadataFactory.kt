@@ -41,7 +41,7 @@ class DatabaseMediaMetadataFactory(
                 "no" to "Kapittel",
                 "is" to "Kafli",
             )
-        ).getOrFallback(null)
+        ).getOrFallback(publication.metadata.language?.code)
     }
 
     /**
