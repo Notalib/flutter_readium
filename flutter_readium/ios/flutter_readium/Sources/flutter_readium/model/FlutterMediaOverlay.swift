@@ -114,6 +114,13 @@ final class FlutterMediaOverlayItem: NSObject {
     super.init()
   }
   
+  override func isEqual(_ other: Any?) -> Bool {
+    guard let other = other as? FlutterMediaOverlayItem else {
+      return false
+    }
+    return audio == other.audio && text == other.text && position == other.position
+  }
+  
   func isAudioInRangeOfTime(_ time: Double, inHref href: String) -> Bool {
     if (textFile != href && audioFile != href) {
       return false

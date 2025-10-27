@@ -7,6 +7,8 @@ import dk.nota.flutter_readium.ControlPanelInfoType
 import org.readium.navigator.media.common.MediaMetadataFactory
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.toPng
+import org.readium.r2.shared.publication.LocalizedString
+import org.readium.r2.shared.publication.LocalizedString.Companion.UNDEFINED_LANGUAGE
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.coverFitting
 
@@ -28,7 +30,19 @@ class DatabaseMediaMetadataFactory(
      * The authors of the publication, joined as a single string.
      */
     private val authors: String by lazy {
-        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString { ", " }
+        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString(", ")
+    }
+
+    private val chapterTitleFallback by lazy {
+        LocalizedString.fromStrings(
+            mapOf(
+                "en" to "Chapter",
+                "da" to "Kapitel",
+                "sv" to "Kapitel",
+                "no" to "Kapittel",
+                "is" to "Kafli",
+            )
+        )
     }
 
     /**
@@ -55,8 +69,8 @@ class DatabaseMediaMetadataFactory(
 
     private suspend fun builder(index: Int? = null): MediaMetadata.Builder? {
         val currentChapterTitle = index?.let {
-            publication.readingOrder.getOrNull(it)?.title ?: ""
-        } ?: ""
+            publication.readingOrder.getOrNull(it)?.title
+        } ?: "${chapterTitleFallback.getOrFallback(null)} $index"
 
         val builder = MediaMetadata.Builder()
             .setTotalTrackCount(trackCount)
@@ -64,7 +78,7 @@ class DatabaseMediaMetadataFactory(
         when (controlPanelInfoType) {
             ControlPanelInfoType.STANDARD, ControlPanelInfoType.STANDARD_WCH -> {
                 builder.setArtist(authors)
-                if (controlPanelInfoType == ControlPanelInfoType.STANDARD_WCH && currentChapterTitle.isNotEmpty()) {
+                if (controlPanelInfoType == ControlPanelInfoType.STANDARD_WCH && !currentChapterTitle.isEmpty()) {
                     builder.setTitle("$publicationTitle - $currentChapterTitle")
                 } else {
                     builder.setTitle(publicationTitle)

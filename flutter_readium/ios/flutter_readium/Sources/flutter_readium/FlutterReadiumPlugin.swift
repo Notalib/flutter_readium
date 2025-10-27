@@ -36,14 +36,22 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   
   internal var audioLocatorStreamHandler: EventStreamHandler?
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
-  
+  internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
+
   internal var synthesizer: PublicationSpeechSynthesizer? = nil
   internal var ttsPrefs: TTSPreferences? = nil
-  
-  // TODO: Should these have defaults?
+
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
   
+  lazy var fallbackChapterTitle: String = LocalizedString.localized([
+    "en": "Chapter",
+    "da": "Kapitel",
+    "sv:": "Kapitel",
+    "no": "Kapittel",
+    "is": "Kafli",
+  ]).string(forLanguageCode: nil)
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
     let instance = FlutterReadiumPlugin()
@@ -266,7 +274,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "next":
       if let vm = self.audiobookVM {
         Task {
-          await vm.next()
+          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          await self.seek(by: seekInterval)
         }
       }
       self.synthesizer?.next()
@@ -274,7 +283,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "previous":
       if let vm = self.audiobookVM {
         Task {
-          await vm.previous()
+          let seekInterval = self.audiobookVM?.preferences.seekInterval ?? 30
+          await self.seek(by: -1 * seekInterval)
         }
       }
       self.synthesizer?.previous()
@@ -463,10 +473,9 @@ extension FlutterReadiumPlugin {
     
     NowPlayingInfo.shared.media?.artist = authors
     
-    if (infoType == .standardWCh && chapterNo != nil){
-      let currentChapter = publication?.readingOrder[chapterNo!].title
-      if (currentChapter == nil ) {debugPrint(TAG, "---@ No chapterTitle found")}
-      title += currentChapter != nil ? " - \(currentChapter!)" : ""
+    if (infoType == .standardWCh && chapterNo != nil) {
+      let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
+      title += " - \(currentChapter!)" : ""
       
       NowPlayingInfo.shared.media?.title = title
     } else {
@@ -476,13 +485,10 @@ extension FlutterReadiumPlugin {
   }
   
   func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
-    let currentChapter = publication?.readingOrder[chapterNo].title
+    let currentChapter = publication?.readingOrder[chapterNo].title ?? "\(fallbackChapterTitle) \(chapterNo)"
     let title = publication?.metadata.title ?? ""
     
-    if (currentChapter == nil ) {debugPrint(TAG, "---@ No chapterTitle found")}
-    
-    
-    if(infoType == .chapterTitleAuthor || infoType == .chapterTitle){
+    if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
       
       NowPlayingInfo.shared.media?.title = currentChapter ?? ""
       
