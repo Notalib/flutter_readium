@@ -289,10 +289,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
       }
-      // TODO: Check result and actually respond to Flutter with it.
     } else {
       print(TAG, "goToLocator: Already there, Scroll to \(locator.href)")
-      if(shouldScroll) {
+      if (shouldScroll) {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
       }

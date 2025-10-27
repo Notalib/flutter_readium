@@ -139,7 +139,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
          let timeOffset = Double(timeOffsetStr),
          let mediaOverlay = mediaOverlays?.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
          var textLocator = mediaOverlay.textLocator {
-        if (mediaOverlay != lastMediaOverlayItem) {
+        if (!mediaOverlay.isEqual(lastMediaOverlayItem)) {
+          // Matched a new MediaOverlayItem -> sync reader with its textLocator.
           lastMediaOverlayItem = mediaOverlay
           textLocator.locations.progression = location.locations.progression
           textLocator.locations.position = location.locations.position
@@ -163,6 +164,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
       currentDuration: navigator.playbackInfo.duration ?? nil,
       //currentBuffered: navigator.lastLoadedTimeRanges,
       currentLocator: location)
+    lastTimebasedPlayerState = state
     self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
   }
   
@@ -287,7 +289,8 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
   
   // MARK: - Now Playing metadata
   
-  @MainActor private func setupNowPlaying() {
+  @MainActor
+  private func setupNowPlaying() {
     let nowPlaying = NowPlayingInfo.shared
     
     let publication = audiobookVM?.navigator.publication
@@ -307,6 +310,7 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
       .store(in: &subscriptions)
   }
   
+  @MainActor
   private func updateNowPlaying(info: MediaPlaybackInfo, infoType: ControlPanelInfoType) {
     let nowPlaying = NowPlayingInfo.shared
     
@@ -323,49 +327,12 @@ extension FlutterReadiumPlugin : AudioNavigatorDelegate {
     
     nowPlaying.media?.chapterNumber = info.resourceIndex
     
-    // TODO: Show current chapter title?
     let publication = audiobookVM?.navigator.publication
-    if(infoType == .standard || infoType == .standardWCh){
-      standardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+    if (infoType == .standard || infoType == .standardWCh) {
+      standardNowPlayingInfo(chapterNo: info.resourceIndex, infoType: infoType, publication: publication)
     } else {
-      nonStandardNowPlayingInfo(info: info, infoType: infoType, publication: publication)
+      nonStandardNowPlayingInfo(chapterNo: info.resourceIndex, infoType: infoType, publication: publication)
     }
   }
   
-  private func standardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?){
-    let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-    var title = publication?.metadata.title ?? ""
-    
-    NowPlayingInfo.shared.media?.artist = authors
-    
-    if (infoType == .standardWCh){
-      let currentChapter = publication?.readingOrder[info.resourceIndex].title
-      title += currentChapter != nil ? " - \(currentChapter!)" : ""
-      NowPlayingInfo.shared.media?.title = title
-    } else {
-      NowPlayingInfo.shared.media?.title = title
-    }
-    
-  }
-  
-  private func nonStandardNowPlayingInfo(info: MediaPlaybackInfo, infoType: ControlPanelInfoType, publication: Publication?){
-    let currentChapter = publication?.readingOrder[info.resourceIndex].title
-    let title = publication?.metadata.title ?? ""
-    
-    if(infoType == .chapterTitleAuthor || infoType == .chapterTitle){
-      NowPlayingInfo.shared.media?.title = currentChapter ?? ""
-      
-      if(infoType == .chapterTitle){
-        NowPlayingInfo.shared.media?.artist = title
-      } else {
-        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-        let titleWithAuthors = "\(title) - \(authors)"
-        NowPlayingInfo.shared.media?.artist = titleWithAuthors
-      }
-      
-    } else {
-      NowPlayingInfo.shared.media?.artist = currentChapter ?? ""
-      NowPlayingInfo.shared.media?.title = title
-    }
-  }
 }

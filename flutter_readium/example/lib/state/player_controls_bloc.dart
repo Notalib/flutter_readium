@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -23,6 +24,13 @@ class Play extends PlayerControlsEvent {
 class Pause extends PlayerControlsEvent {}
 
 class Stop extends PlayerControlsEvent {}
+
+class TogglePlayingState extends PlayerControlsEvent {
+  TogglePlayingState({
+    required this.isPlaying,
+  });
+  bool isPlaying;
+}
 
 class SkipToNext extends PlayerControlsEvent {}
 
@@ -46,6 +54,7 @@ class GetAvailableVoices extends PlayerControlsEvent {}
 
 class PlayerControlsState {
   PlayerControlsState({required this.playing, required this.ttsEnabled, required this.audioEnabled});
+
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
@@ -72,6 +81,8 @@ class PlayerControlsState {
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
+  StreamSubscription? timebasedStateSub;
+
   PlayerControlsBloc()
       : super(
           PlayerControlsState(
@@ -80,6 +91,31 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
             audioEnabled: false,
           ),
         ) {
+    timebasedStateSub = FlutterReadium()
+        .onTimebasedPlayerStateChanged
+        .map((state) => state.state)
+        .distinct()
+        .debounceTime(const Duration(milliseconds: 50))
+        .listen((playerState) {
+      debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
+
+      switch (playerState) {
+        case TimebasedState.playing:
+        case TimebasedState.loading:
+          if (state.playing != true) {
+            add(TogglePlayingState(isPlaying: true));
+          }
+        case TimebasedState.paused:
+        case TimebasedState.ended:
+        case TimebasedState.failure:
+          add(TogglePlayingState(isPlaying: false));
+      }
+    });
+
+    on<TogglePlayingState>((final event, final emit) async {
+      emit(await state.togglePlay(event.isPlaying));
+    });
+
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
@@ -88,8 +124,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       } else {
         await instance.resume();
       }
-
-      emit(await state.togglePlay(true));
     });
 
     on<Play>((final event, final emit) async {
@@ -101,8 +135,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       } else {
         await instance.resume();
       }
-
-      emit(await state.togglePlay(true));
     });
 
     on<Pause>((final event, final emit) async {
@@ -111,14 +143,12 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       } else {
         await instance.resume();
       }
-      emit(await state.togglePlay(false));
     });
 
     on<Stop>((final event, final emit) async {
       await instance.stop();
       emit(await state.toggleTTSEnabled(false));
       emit(await state.toggleAudioEnabled(false));
-      emit(await state.togglePlay(false));
     });
 
     on<SkipToNext>((final event, final emit) => instance.next());
@@ -152,6 +182,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.ttsSetVoice(daVoice.identifier, null);
       }
     });
+
+    @override
+    // ignore: unused_element
+    Future<void> close() async {
+      await timebasedStateSub?.cancel();
+      super.close();
+    }
   }
 
   Stream<Locator> get audioLocatorStream => instance.onAudioLocatorChanged;
