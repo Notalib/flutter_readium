@@ -1,6 +1,6 @@
-﻿import ReadiumShared
+import ReadiumShared
 
-enum TimebasedState: String {
+public enum TimebasedState: String {
   case playing
   case loading
   case paused
@@ -8,7 +8,7 @@ enum TimebasedState: String {
   case failure
 }
 
-class ReadiumTimebasedState {
+public class ReadiumTimebasedState {
   var state: TimebasedState
   var currentOffset: TimeInterval?
   var currentBuffered: TimeInterval?

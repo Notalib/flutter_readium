@@ -1,0 +1,197 @@
+import Combine
+import AVFAudio
+import ReadiumShared
+import ReadiumNavigator
+
+public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate
+{
+  private let TAG = "FlutterTTSNavigator"
+  private var _publication: Publication
+  private var _initialLocator: Locator?
+  
+  internal var synthesizer: PublicationSpeechSynthesizer?
+  internal var engine: AVTTSEngine?
+  internal var preferences: TTSPreferences
+  internal var nowPlayingUpdater: NowPlayingInfoUpdater
+  
+  /// TTS related variables
+  @Published internal var playingUtterance: Locator?
+  internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
+  internal var subscriptions: Set<AnyCancellable> = []
+  internal var isMoving = false
+  
+  public var publication: Publication {
+    get {
+      return self._publication
+    }
+  }
+  public var initialLocator: Locator? {
+    get {
+      return self._initialLocator
+    }
+  }
+  
+  public var listener: (any TimebasedListener)?
+  
+  public init(
+    publication: Publication,
+    initialLocator: Locator?,
+    preferences: TTSPreferences = TTSPreferences.init()
+  ) {
+    self._publication = publication
+    self._initialLocator = initialLocator
+    self.preferences = preferences
+    self.nowPlayingUpdater = .init(withPublication: publication)
+  }
+
+  public func initNavigator() -> Void {
+    self.engine = AVTTSEngine()
+    self.synthesizer = PublicationSpeechSynthesizer(
+      publication: publication,
+      config: PublicationSpeechSynthesizer.Configuration(
+        defaultLanguage: preferences.overrideLanguage,
+        voiceIdentifier: preferences.voiceIdentifier,
+      ),
+      engineFactory: {
+        return self.engine!
+      }
+    )!
+    engine?.delegate = self
+    self.synthesizer?.delegate = self
+  }
+  
+  public func setupNavigatorListeners() -> Void {
+    $playingUtterance
+      .removeDuplicates()
+      .sink { [weak self] locator in
+        guard let self = self, let locator = locator else {
+          return
+        }
+        print(TAG, "tts send audio-locator")
+        let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
+        let href = self.publication.readingOrder.firstWithHREF(locator.href)
+        
+        self.nowPlayingUpdater.updateNowPlaying(chapterNo: chapterNo)
+        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: href)
+      }
+      .store(in: &subscriptions)
+    
+    playingWordRangeSubject
+      .removeDuplicates()
+    //  Improve performances by throttling the reader sync to max one per second.
+      .throttle(for: 1, scheduler: RunLoop.main, latest: true)
+      .drop(while: { [weak self] _ in self?.isMoving ?? true })
+      .sink { [weak self] locator in
+        guard let self = self else {
+          return
+        }
+        
+        print(TAG, "tts navigate reader to locator")
+        //isMoving = true
+        //Task {
+          //let _ = await self.syncWithAudioLocator(locator)
+          //self.isMoving = false
+        //}
+      }
+      .store(in: &subscriptions)
+  }
+
+  public func dispose() -> Void {
+    self.subscriptions.forEach { $0.cancel() }
+    self.synthesizer?.stop()
+    self.synthesizer?.delegate = nil
+    self.engine?.delegate = nil
+  }
+
+  public func play() async -> Void {
+    self.synthesizer?.start()
+  }
+
+  public func play(fromLocator: Locator) async -> Void {
+    self.synthesizer?.start(from: fromLocator)
+  }
+
+  public func pause() async -> Void {
+    self.synthesizer?.pause()
+  }
+
+  public func resume() async -> Void {
+    self.synthesizer?.resume()
+  }
+
+  public func seek(toLocator: Locator) async -> Void {
+    self.synthesizer?.start(from: toLocator)
+  }
+  
+  // MARK: TTS Specific APIs
+  
+  func ttsSetPreferences(prefs: TTSPreferences) {
+    preferences.rate = prefs.rate
+    preferences.pitch = prefs.pitch
+    preferences.voiceIdentifier = prefs.voiceIdentifier
+    preferences.overrideLanguage = prefs.overrideLanguage
+    self.synthesizer?.config.voiceIdentifier = preferences.voiceIdentifier
+    self.synthesizer?.config.defaultLanguage = preferences.overrideLanguage
+  }
+  
+  func ttsGetAvailableVoices() -> [TTSVoice] {
+    return self.synthesizer?.availableVoices ?? []
+  }
+  
+  func ttsSetVoice(voiceIdentifier: String) throws {
+    print(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
+    
+    /// Check that voice with given identifier exists
+    guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
+      throw ReadiumError.voiceNotFound
+    }
+    
+    /// Changes will be applied for the next utterance.
+    synthesizer?.config.voiceIdentifier = voiceIdentifier
+  }
+  
+  // MARK: PublicationSpeechSynthesizerDelegate
+  
+  public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
+    print(TAG, "publicationSpeechSynthesizerStateDidChange")
+    
+    switch state {
+    case let .playing(utt, wordRange):
+      print(TAG, "tts playing")
+      /// utterance is a full sentence/paragraph, while range is the currently spoken part.
+      playingUtterance = utt.locator
+      if let wordRange = wordRange {
+        playingWordRangeSubject.send(wordRange)
+      }
+      self.listener?.timebasedNavigator(self, requestsHighlightChangeAt: utt.locator, withWordLocator: wordRange)
+      //updateDecorations(uttLocator: utt.locator, rangeLocator: wordRange)
+    case let .paused(utt):
+      print(TAG, "tts paused at utterance: \(utt.text)")
+      playingUtterance = utt.locator
+    case .stopped:
+      playingUtterance = nil
+      print(TAG, "tts stopped")
+      self.listener?.timebasedNavigator(self, requestsHighlightChangeAt: nil, withWordLocator: nil)
+      //updateDecorations(uttLocator: nil, rangeLocator: nil)
+      self.nowPlayingUpdater.clearNowPlaying()
+    }
+  }
+  
+  public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
+    print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
+    
+    self.listener?.timebasedNavigator(self, encounteredError: error)
+    
+    //TODO: How can both Reader and Plugin submit on this channel?
+    //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)
+    //self.errorStreamHandler?.sendEvent(error)
+  }
+  
+  // MARK: AVTTSEngineDelegate
+  
+  public func avTTSEngine(_ engine: ReadiumNavigator.AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
+    // This is the place to hook into, in order to change rate & pitch for TTS.
+    utterance.rate = preferences.rate ?? AVSpeechUtteranceDefaultSpeechRate
+    utterance.pitchMultiplier = preferences.pitch ?? 1.0
+  }
+}
