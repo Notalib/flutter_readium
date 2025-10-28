@@ -47,7 +47,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
     "da": "Kapitel",
-    "sv:": "Kapitel",
+    "sv": "Kapitel",
     "no": "Kapittel",
     "is": "Kafli",
   ])
