@@ -18,31 +18,21 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
   currentReaderView = readerView
 }
 
-public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger {
+public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
+
   static var registrar: FlutterPluginRegistrar? = nil
   
-  /// Audiobook related variables
-  internal var audiobookVM: AudiobookViewModel? = nil
+  /// TTS Decoration style
+  internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
+  internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
   
-  internal var mediaOverlays: [FlutterMediaOverlay]? = nil
-  internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
-  
-  /// TTS related variables
-  @Published internal var playingUtterance: Locator?
-  internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
-  internal let playingAudioSubject = PassthroughSubject<Locator, Never>()
-  internal var subscriptions: Set<AnyCancellable> = []
-  internal var isMoving = false
-  
+  /// Timebased player events & state
   internal var audioLocatorStreamHandler: EventStreamHandler?
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
-
-  internal var synthesizer: PublicationSpeechSynthesizer? = nil
-  internal var ttsPrefs: TTSPreferences? = nil
-
-  internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
-  internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
+  
+  /// Timebased Navigator. Can be TTS, Audio or MediaOverlay implementations.
+  internal var timebasedNavigator: FlutterTimebasedNavigator? = nil
   
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
@@ -84,8 +74,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "dispose":
       closePublication()
-      self.synthesizer?.stop()
-      self.synthesizer = nil
       self.audioLocatorStreamHandler?.dispose()
       self.audioLocatorStreamHandler = nil
       self.timebasedPlayerStateStreamHandler?.dispose()
@@ -180,12 +168,24 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         do {
           let args = call.arguments as? Dictionary<String, Any>,
               ttsPrefs = (try? TTSPreferences(fromMap: args ?? [:])) ?? TTSPreferences()
-          try await self.ttsEnable(withPreferences: ttsPrefs)
-          await MainActor.run {
+          //try await self.ttsEnable(withPreferences: ttsPrefs)
+          
+          guard let publication = getCurrentPublication() else {
+            throw ReadiumError.notFound("No publication opened")
+          }
+          
+          Task { @MainActor in
+            // Start TTS from the reader's current location
+            let currentLocation = currentReaderView?.getCurrentLocation()
+            self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
+            self.timebasedNavigator?.listener = self
+            Task {
+              await self.timebasedNavigator?.initNavigator()
+            }
             result(nil)
           }
         } catch {
-          await MainActor.run {
+          Task { @MainActor in
             result(FlutterError.init(
               code: "TTSEnableFailed",
               message: "Failed to enable TTS: \(error.localizedDescription)",
@@ -194,14 +194,28 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
       }
     case "ttsGetAvailableVoices":
-      let availableVoices = self.ttsGetAvailableVoices()
+      guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
+        return result(FlutterError.init(
+          code: "TTSError",
+          message: "TTS Navigator not initialized",
+          details: nil))
+      }
+      let availableVoices = ttsNavigator.ttsGetAvailableVoices()
       result(availableVoices.map { $0.jsonString } )
     case "ttsSetVoice":
       let args = call.arguments as! [Any?]
       let voiceIdentifier = args[0] as! String
       // TODO: language might be supplied as args[1], ignored on iOS for now.
+      
+      guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
+        return result(FlutterError.init(
+          code: "TTSError",
+          message: "TTS Navigator not initialized",
+          details: nil))
+      }
+      
       do {
-        try self.ttsSetVoice(voiceIdentifier: voiceIdentifier)
+        try ttsNavigator.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
       } catch {
         result(FlutterError.init(
@@ -222,9 +236,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "ttsSetPreferences":
       let args = call.arguments as! Dictionary<String, String>
+      guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
+        return result(FlutterError.init(
+          code: "TTSError",
+          message: "TTS Navigator not initialized",
+          details: nil))
+      }
       do {
         let ttsPrefs = try TTSPreferences(fromMap: args)
-        ttsSetPreferences(prefs: ttsPrefs)
+        ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {
         result(FlutterError.init(
@@ -240,54 +260,47 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       
       Task.detached(priority: .high) {
+        // If no locator provided, try to start from current ReaderView position.
+        if (locator == nil) {
+          locator = await currentReaderView?.getFirstVisibleLocator()
+        }
+        await self.timebasedNavigator?.play(fromLocator: locator)
         
-        if (self.synthesizer != nil) {
-          if (locator == nil) {
-            locator = await currentReaderView?.getFirstVisibleLocator()
-          }
-          self.ttsStart(fromLocator: locator)
-        }
-        if (locator != nil) {
-          await self.audiobookVM?.navigator.go(to: locator!)
-        }
-        self.audiobookVM?.navigator.play()
         await MainActor.run {
           result(nil)
         }
       }
     case "stop":
-      self.audiobookVM?.navigator.pause()
-      self.synthesizer?.stop()
+      Task { @MainActor in
+        self.timebasedNavigator?.dispose()
+        self.timebasedNavigator = nil
+        self.updateReaderViewTimebasedDecorations([])
+      }
       result(nil)
     case "pause":
-      self.audiobookVM?.navigator.pause()
-      self.synthesizer?.pause()
+      Task { @MainActor in
+        await self.timebasedNavigator?.pause()
+      }
       result(nil)
     case "resume":
-      self.audiobookVM?.navigator.play()
-      self.synthesizer?.resume()
+      Task { @MainActor in
+        await self.timebasedNavigator?.resume()
+      }
       result(nil)
     case "togglePlayback":
-      self.audiobookVM?.navigator.playPause()
-      self.synthesizer?.pauseOrResume()
+      Task { @MainActor in
+        await self.timebasedNavigator?.togglePlayPause()
+      }
       result(nil)
     case "next":
-      if let vm = self.audiobookVM {
-        Task {
-          let seekInterval = vm.preferences.seekInterval ?? 30
-          await self.seek(by: seekInterval)
-        }
+      Task { @MainActor in
+        await self.timebasedNavigator?.seekForward()
       }
-      self.synthesizer?.next()
       result(nil)
     case "previous":
-      if let vm = self.audiobookVM {
-        Task {
-          let seekInterval = vm.preferences.seekInterval ?? 30
-          await self.seek(by: -1 * seekInterval)
-        }
+      Task { @MainActor in
+        await self.timebasedNavigator?.seekBackward()
       }
-      self.synthesizer?.previous()
       result(nil)
     case "goToLocator":
       Task.detached(priority: .high) {
@@ -304,28 +317,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
         var navigated = false
-        if (self.mediaOverlays != nil && self.audiobookVM != nil) {
-          if let navigator = self.audiobookVM?.navigator,
-             let matchingItem = self.mediaOverlays!.firstMap({ $0.itemFromLocator(locator)}),
-             let audioLocator = matchingItem.audioLocator {
-            navigated = await navigator.go(to: audioLocator)
-            // Go will sometimes result in a pause, if buffering was necessary.
-            // So we actively ensure we resume playing.
-            self.audiobookVM?.navigator.play()
-          }
+        
+        // Timebased Naviagor seek
+        if (self.timebasedNavigator != nil) {
+          navigated = await self.timebasedNavigator?.seek(toLocator: locator) ?? false
         }
-        else if (self.audiobookVM != nil) {
-          navigated = await self.audiobookVM!.navigator.go(to: locator)
-          // Go will sometimes result in a pause, if buffering was necessary.
-          // So we actively ensure we resume playing.
-          self.audiobookVM?.navigator.play()
-        }
-        else if (self.synthesizer != nil) {
-          self.synthesizer!.start(from: locator)
-          navigated = true
-        }
+        // ReaderView goTo
         else if (currentReaderView != nil) {
           await currentReaderView?.goToLocator(locator: locator, animated: false)
+          navigated = true
         }
         await MainActor.run { [navigated] in
           result(navigated)
@@ -333,7 +333,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "audioEnable":
       guard let args = call.arguments as? [Any?],
-            var publication = currentPublication else {
+            let publication = currentPublication else {
         return result(FlutterError.init(
           code: "audioEnable",
           message: "Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
@@ -349,33 +349,80 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
         
         if (publication.containsMediaOverlays) {
-          print("Publication with Synchronized Narration reading-order found!")
-          let newPub = await self.openAsMediaOverlayAudiobook(publication)
-          // Assign the publication, it should now conform to AudioBook.
-          publication = newPub
+          // TODO: May have to re-load publication from URL and pass the new copy of Publication here.
+          self.timebasedNavigator = await FlutterMediaOverlayNavigator(publication: publication, preferences: prefs, initialLocator: locator)
+        } else {
+          if (!publication.conforms(to: Publication.Profile.audiobook)) {
+            return result(FlutterError.init(
+              code: "ArgumentError",
+              message: "Publication does not contain MediaOverlays or conformTo AudioBook: \(call.arguments.debugDescription)",
+              details: nil))
+          }
+          self.timebasedNavigator = await FlutterAudioNavigator(publication: publication, preferences: prefs, initialLocator: locator)
         }
         
-        if (!publication.conforms(to: Publication.Profile.audiobook)) {
-          return result(FlutterError.init(
-            code: "ArgumentError",
-            message: "Publication does not conformTo AudioBook: \(call.arguments.debugDescription)",
-            details: nil))
-        }
-        await self.initAudioPlayback(forPublication: publication, withPrefs: prefs, atLocator: locator)
+        self.timebasedNavigator?.listener = self
+        await self.timebasedNavigator?.initNavigator()
+        
         result(nil)
       }
     case "audioSetPreferences":
-      guard let prefsMap = call.arguments as? Dictionary<String, Any>,
-            let prefs = try? FlutterAudioPreferences.init(fromMap: prefsMap) else {
-        return result(FlutterError.init(
-          code: "audioSetPreferences",
-          message: "Invalid parameters to audioSetPreferences: \(call.arguments.debugDescription)",
-          details: nil))
+      Task.detached(priority: .high) {
+        guard let audioNavigator = self.timebasedNavigator as? FlutterAudioNavigator,
+              let prefsMap = call.arguments as? Dictionary<String, Any>,
+              let prefs = try? FlutterAudioPreferences.init(fromMap: prefsMap) else {
+          return result(FlutterError.init(
+            code: "audioSetPreferences",
+            message: "AudioNavigator not initialized or Invalid parameters to audioSetPreferences: \(call.arguments.debugDescription)",
+            details: nil))
+        }
+        Task { @MainActor in
+          audioNavigator.setAudioPreferences(prefs)
+        }
       }
-      setAudioPreferences(prefs: prefs)
       
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+  
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
+    print(TAG, "TimebasedNavigator state: \(state)")
+    timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
+  }
+  
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
+    print(TAG, "TimebasedNavigator error: \(error), description: \(String(describing: description))")
+    // TODO: submit on error stream
+  }
+  
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, readingOrderLink: ReadiumShared.Link?) {
+    print(TAG, "TimebasedNavigator reachedLocator: \(locator), readingOrderLink: \(String(describing: readingOrderLink))")
+    
+    Task { @MainActor [locator] in
+      await currentReaderView?.goToLocator(locator: locator, animated: false)
+    }
+  }
+  
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, requestsHighlightAt locator: ReadiumShared.Locator?, withWordLocator wordLocator: ReadiumShared.Locator?) {
+    print(TAG, "TimebasedNavigator requestsHighlightAt: \(String(describing: locator)), withWordLocator: \(String(describing: wordLocator))")
+    
+    // Update Reader text decorations
+    var decorations: [Decoration] = []
+    if let uttLocator = locator,
+       let uttDecorationStyle = ttsUtteranceDecorationStyle {
+      decorations.append(Decoration(
+        id: "tts-utt", locator: uttLocator, style: uttDecorationStyle
+      ))
+    }
+    if let rangeLocator = wordLocator,
+       let rangeDecorationStyle = ttsRangeDecorationStyle {
+      decorations.append(Decoration(
+        id: "tts-range", locator: rangeLocator, style: rangeDecorationStyle
+      ))
+    }
+    Task { @MainActor [decorations] in
+      updateReaderViewTimebasedDecorations(decorations)
     }
   }
 }
@@ -383,19 +430,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
   
-  private func initAudioPlayback(
-    forPublication publication: Publication,
-    withPrefs prefs: FlutterAudioPreferences,
-    atLocator locator: Locator?,
-  ) async -> Void {
-    await self.setupAudiobookNavigator(publication: publication, initialLocator: locator, initialPreferences: prefs)
-    // TODO: Should we still auto-play on iOS?
-    self.play()
-  }
-  
   @MainActor
-  func syncWithAudioLocator(_ locator: Locator) async -> Bool? {
-    return await currentReaderView?.justGoToLocator(locator, animated: false)
+  func updateReaderViewTimebasedDecorations(_ decorations: [Decoration]) {
+    currentReaderView?.applyDecorations(decorations, forGroup: "timebased-highlight")
   }
   
   func clearNowPlaying() {
@@ -453,65 +490,11 @@ extension FlutterReadiumPlugin {
   
   private func closePublication() {
     // Clean-up any resources associated with the publication.
-    synthesizer?.stop()
-    synthesizer?.delegate = nil
-    synthesizer = nil
-    if (audiobookVM != nil) {
-      audiobookVM?.navigator.pause()
-      audiobookVM?.navigator.delegate = nil
-      audiobookVM = nil
+    Task { @MainActor in
+      self.timebasedNavigator?.dispose()
+      self.timebasedNavigator = nil
+      currentPublication?.close()
+      currentPublication = nil
     }
-    // Cancel any locator/event subscription jobs
-    subscriptions.forEach { job in job.cancel() }
-    currentPublication?.close()
-    currentPublication = nil
-  }
-  
-  func standardNowPlayingInfo(chapterNo: Int?, infoType: ControlPanelInfoType, publication: Publication?) {
-    let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-    var title = publication?.metadata.title ?? ""
-    
-    NowPlayingInfo.shared.media?.artist = authors
-    
-    if (infoType == .standardWCh && chapterNo != nil) {
-      let currentChapter = publication?.readingOrder[chapterNo!].title ?? "\(generatedFallbackChapterTitle) \(chapterNo! + 1)"
-      title += " - \(currentChapter)"
-      
-      NowPlayingInfo.shared.media?.title = title
-    } else {
-      NowPlayingInfo.shared.media?.title = title
-    }
-    
-  }
-  
-  func nonStandardNowPlayingInfo(chapterNo: Int, infoType: ControlPanelInfoType, publication: Publication?) {
-    var currentChapter = publication?.readingOrder[chapterNo].title
-    let title = publication?.metadata.title ?? ""
-    
-    if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {
-      
-      if (currentChapter == nil) {
-        currentChapter = "\(generatedFallbackChapterTitle) \(chapterNo + 1)"
-      }
-      
-      NowPlayingInfo.shared.media?.title = currentChapter!
-      
-      if (infoType == .chapterTitle) {
-        NowPlayingInfo.shared.media?.artist = title
-      } else {
-        let authors = publication?.metadata.authors.map(\.name).joined(separator: ", ") ?? ""
-        let titleWithAuthors = "\(title) - \(authors)"
-        NowPlayingInfo.shared.media?.artist = titleWithAuthors
-      }
-      
-    } else {
-      NowPlayingInfo.shared.media?.artist = currentChapter
-      NowPlayingInfo.shared.media?.title = title
-    }
-  }
-  
-  var generatedFallbackChapterTitle: String {
-    let code = currentPublication?.metadata.language?.code.bcp47
-    return fallbackChapterTitle.string(forLanguageCode: code)
   }
 }

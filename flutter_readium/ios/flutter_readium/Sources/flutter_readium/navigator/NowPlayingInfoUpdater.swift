@@ -6,6 +6,7 @@
 //
 import Combine
 import ReadiumShared
+import MediaPlayer
 
 public class NowPlayingInfoUpdater {
   
@@ -116,6 +117,101 @@ public class NowPlayingInfoUpdater {
     } else {
       NowPlayingInfo.shared.media?.artist = currentChapter
       NowPlayingInfo.shared.media?.title = title
+    }
+  }
+  
+  // MARK: Control Center
+
+  public func setupCommandCenterControls(
+    preferredIntervals: [Double],
+    skipTrackEnabled: Bool = false,
+    seekToEnabled: Bool = false,
+    timebasedNavigator: FlutterTimebasedNavigator? = nil)
+  {
+    let rcc = MPRemoteCommandCenter.shared()
+
+    func on(_ command: MPRemoteCommand, _ block: @escaping (FlutterTimebasedNavigator, MPRemoteCommandEvent) -> Void) {
+      command.addTarget { [weak self] event in
+        guard let self = self,
+              let navigator = timebasedNavigator else {
+          return .noActionableNowPlayingItem
+        }
+        block(navigator, event)
+        return .success
+      }
+    }
+
+    on(rcc.playCommand) { navigator, _ in
+      Task { @MainActor in
+        await navigator.resume()
+      }
+    }
+
+    on(rcc.pauseCommand) { navigator, _ in
+      Task { @MainActor in
+        await navigator.pause()
+      }
+    }
+
+    on(rcc.togglePlayPauseCommand) { navigator, _ in
+      Task { @MainActor in
+        await navigator.togglePlayPause()
+      }
+    }
+
+    if (skipTrackEnabled) {
+      on(rcc.previousTrackCommand) { navigator, _ in
+        Task { @MainActor in
+          // TODO: Should these actually skip a full track?
+          await navigator.seekBackward()
+        }
+      }
+      
+      on(rcc.nextTrackCommand) { navigator, _ in
+        Task { @MainActor in
+          // TODO: Should these actually skip a full track?
+          await navigator.seekForward()
+        }
+      }
+    }
+
+    rcc.skipBackwardCommand.preferredIntervals = preferredIntervals as [NSNumber]
+    rcc.skipForwardCommand.preferredIntervals = preferredIntervals as [NSNumber]
+    
+    if (!preferredIntervals.isEmpty) {
+      on(rcc.skipBackwardCommand) { navigator, _ in
+        Task {
+          await navigator.seekBackward()
+        }
+      }
+      
+      on(rcc.skipForwardCommand) { navigator, _ in
+        Task {
+          await navigator.seekForward()
+        }
+      }
+    }
+
+    if (seekToEnabled) {
+      on(rcc.changePlaybackPositionCommand) { navigator, event in
+        guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+          return
+        }
+        Task {
+          await navigator.seek(toOffset: event.positionTime)
+        }
+      }
+    }
+  }
+
+  public func updateCommandCenterControls(timebasedNavigator: FlutterTimebasedNavigator? = nil) {
+    let rcc = MPRemoteCommandCenter.shared()
+    
+    if let audioNavigator = timebasedNavigator as? FlutterAudioNavigator {
+      Task { @MainActor in
+        rcc.previousTrackCommand.isEnabled = audioNavigator.canGoBackward
+        rcc.nextTrackCommand.isEnabled = audioNavigator.canGoForward
+      }
     }
   }
 }

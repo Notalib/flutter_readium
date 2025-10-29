@@ -8,7 +8,8 @@ public enum TimebasedState: String {
   case failure
 }
 
-public class ReadiumTimebasedState {
+public class ReadiumTimebasedState : Equatable {
+  
   var state: TimebasedState
   var currentOffset: TimeInterval?
   var currentBuffered: TimeInterval?
@@ -54,5 +55,13 @@ public class ReadiumTimebasedState {
     let options: JSONSerialization.WritingOptions = pretty ? [.prettyPrinted] : []
     guard let data = try? JSONSerialization.data(withJSONObject: toJson(), options: options) else { return nil }
     return String(data: data, encoding: .utf8)
+  }
+
+  public static func == (lhs: ReadiumTimebasedState, rhs: ReadiumTimebasedState) -> Bool {
+    return lhs.state == rhs.state &&
+    lhs.currentOffset == rhs.currentOffset &&
+    lhs.currentBuffered == rhs.currentBuffered &&
+    lhs.currentDuration == rhs.currentDuration &&
+    lhs.currentLocator == rhs.currentLocator
   }
 }

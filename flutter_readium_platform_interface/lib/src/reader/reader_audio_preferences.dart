@@ -11,6 +11,7 @@ class AudioPreferences {
   double? speed;
   double? pitch;
   double? seekInterval;
+  double? updateIntervalSecs;
   ControlPanelInfoType? controlPanelInfoType;
 
   Map<String, dynamic> toMap() => {
@@ -18,6 +19,7 @@ class AudioPreferences {
         'speed': speed,
         'pitch': pitch,
         'seekInterval': seekInterval,
+        'updateIntervalSecs': updateIntervalSecs,
         'controlPanelInfoType': controlPanelInfoType?.toString().split('.').last,
       };
 }

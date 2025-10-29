@@ -3,16 +3,18 @@ import MediaPlayer
 import ReadiumShared
 import ReadiumNavigator
 
-public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDelegate
+public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDelegate
 {
-  private let TAG = "FlutterAudioNavigator"
-  private var _publication: Publication
-  private var _initialLocator: Locator?
-  private var _preferences: FlutterAudioPreferences
-  private var _audioNavigator: AudioNavigator?
+  internal let TAG = "FlutterAudioNavigator"
+  
+  internal var _publication: Publication
+  internal var _initialLocator: Locator?
+  internal var _preferences: FlutterAudioPreferences
+  internal var _lastTimebasedPlayerState: ReadiumTimebasedState?
+  internal var _nowPlayingUpdater: NowPlayingInfoUpdater
+  @MainActor internal var _audioNavigator: AudioNavigator?
   
   internal var subscriptions: Set<AnyCancellable> = []
-  internal var nowPlayingUpdater: NowPlayingInfoUpdater
   
   @Published var cover: UIImage?
   @Published var playback: MediaPlaybackInfo = .init()
@@ -34,10 +36,13 @@ public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDel
     self._publication = publication
     self._preferences = preferences
     self._initialLocator = initialLocator
-    self.nowPlayingUpdater = NowPlayingInfoUpdater(withPublication: publication)
+    self._nowPlayingUpdater = NowPlayingInfoUpdater(
+      withPublication: publication,
+      infoType: preferences.controlPanelInfoType
+    )
   }
 
-  public func initNavigator() -> Void {
+  public func initNavigator() async -> Void {
     _audioNavigator = AudioNavigator(
       publication: publication,
       initialLocation: initialLocator,
@@ -47,6 +52,9 @@ public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDel
     )
     _audioNavigator?.delegate = self
     
+    // TODO: Why is this public, if always called from itself?
+    self.setupNavigatorListeners()
+    
     Task {
       cover = try? await publication.cover().get()
     }
@@ -55,32 +63,39 @@ public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDel
   public func setupNavigatorListeners() {
     /// Subscribe to changes
     $playback
-      .throttle(for: 1, scheduler: RunLoop.main, latest: true)
+      .throttle(for: .seconds(self._preferences.updateIntervalSecs), scheduler: RunLoop.main, latest: true)
       .sink { [weak self, TAG] info in
         guard let self = self else {
           return
         }
-        debugPrint(TAG, "$playback updated.state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
+        debugPrint(TAG, "$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
+        
+        if let location = _audioNavigator?.currentLocation {
+          self.submitTimebasedPlayerStateToListener(info: info, location: location)
+        }
       }
       .store(in: &subscriptions)
   }
 
   public func dispose() -> Void {
-    _audioNavigator?.pause()
-    _audioNavigator?.delegate = nil
-    _audioNavigator = nil
+    self._audioNavigator?.pause()
+    self._audioNavigator?.delegate = nil
+    self._audioNavigator = nil
+    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .ended))
+    self.listener = nil
   }
 
-  public func play() async -> Void {
+  public func play(fromLocator: Locator?) async -> Void {
+    if (fromLocator != nil) {
+      let _ = await seek(toLocator: fromLocator!)
+    }
     _audioNavigator?.play()
-    nowPlayingUpdater.setupNowPlayingInfo()
-    setupCommandCenterControls()
-  }
-
-  public func play(fromLocator: Locator) async -> Void {
-    // TODO: This
-    //await _audioNavigator?.seek(to: )
-    await play()
+    _nowPlayingUpdater.setupNowPlayingInfo()
+    _nowPlayingUpdater.setupCommandCenterControls(
+      preferredIntervals: [_preferences.seekInterval],
+      seekToEnabled: true,
+      timebasedNavigator: self
+    )
   }
 
   public func pause() async -> Void {
@@ -90,26 +105,72 @@ public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDel
   public func resume() async -> Void {
     _audioNavigator?.play()
   }
+  
+  public func togglePlayPause() async -> Void {
+    if (playback.state == .playing) {
+      await pause()
+    } else {
+      await resume()
+    }
+  }
+  
+  public func seekForward() async -> Bool {
+    await _audioNavigator?.seek(by: self._preferences.seekInterval)
+    return true
+  }
+  
+  public func seekBackward() async -> Bool {
+    await _audioNavigator?.seek(by: -1 * self._preferences.seekInterval)
+    return true
+  }
 
-  public func seek(toLocator: Locator) async -> Void {
-    // Seek to the specified locator
+  public func seek(toLocator: Locator) async -> Bool {
+    let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
+    let navigated = await _audioNavigator?.go(to: toLocator) ?? false
+    if (wasPlaying && navigated) {
+      _audioNavigator?.play()
+    }
+    return navigated
+  }
+  
+  public func seek(toOffset: Double) async -> Bool {
+    let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
+    await _audioNavigator?.seek(to: toOffset)
+    if (wasPlaying) {
+      _audioNavigator?.play()
+    }
+    return true
   }
   
   // MARK: AudioNavigatorDelegate
   
   /// Called when the playback updates.
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
-    //
+    self._nowPlayingUpdater.updateNowPlaying(chapterNo: info.resourceIndex)
+    self._nowPlayingUpdater.updateCommandCenterControls()
+    self.playback = info
   }
   
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    //
+    // Submit new locator to the listener
+    self.submitAudioLocatorToListener(locator)
+    
+    if let info = _audioNavigator?.playbackInfo {
+      self.submitTimebasedPlayerStateToListener(info: info, location: locator)
+    }
   }
 
   /// Called when the ranges of buffered media data change.
   /// Warning: They may be discontinuous.
   public func navigator(_ navigator: AudioNavigator, loadedTimeRangesDidChange ranges: [Range<Double>]) {
-    //
+    // Simplified buffer range to TimeInterval, by just taking highest upper bound.
+    // May be too optimistic if ranges are discontinuous.
+    let highestUpperBound: TimeInterval = ranges.map(\.upperBound).max() ?? 0
+    
+    if let info = _audioNavigator?.playbackInfo,
+       let location = _audioNavigator?.currentLocation {
+      self.submitTimebasedPlayerStateToListener(info: info, location: location, bufferedInterval: highestUpperBound)
+    }
   }
   
   /// Called when the navigator finished playing the current resource.
@@ -119,88 +180,65 @@ public class FlutterAudioNavigator: FlutterTimeBasedNavigator, AudioNavigatorDel
   }
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
-    //
+    print(TAG, "presentError: \(error)")
   }
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
-    //
+    self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "DidFailToLoadResourceAt: \(href)")
   }
   
-  // MARK: Control Center
-
-  private func setupCommandCenterControls() {
-    NowPlayingInfo.shared.media = .init(
-      title: publication.metadata.title ?? "",
-      artist: publication.metadata.authors.map(\.name).joined(separator: ", "),
-      artwork: cover
-    )
-
-    let rcc = MPRemoteCommandCenter.shared()
-
-    func on(_ command: MPRemoteCommand, _ block: @escaping (AudioNavigator, MPRemoteCommandEvent) -> Void) {
-      command.addTarget { [weak self] event in
-        guard let self = self,
-              let navigator = self._audioNavigator else {
-          return .noActionableNowPlayingItem
-        }
-        block(navigator, event)
-        return .success
-      }
-    }
-
-    on(rcc.playCommand) { audioNavigator, _ in
-      audioNavigator.play()
-    }
-
-    on(rcc.pauseCommand) { audioNavigator, _ in
-      audioNavigator.pause()
-    }
-
-    on(rcc.togglePlayPauseCommand) { audioNavigator, _ in
-      audioNavigator.playPause()
-    }
-
-    on(rcc.previousTrackCommand) { audioNavigator, _ in
-      Task {
-        await audioNavigator.goBackward()
-      }
-    }
-
-    on(rcc.nextTrackCommand) { audioNavigator, _ in
-      Task {
-        await audioNavigator.goForward()
-      }
-    }
-
-    let seekInterval = self._preferences.seekInterval ?? 30
-
-    rcc.skipBackwardCommand.preferredIntervals = [seekInterval as NSNumber]
-    on(rcc.skipBackwardCommand) { [seekInterval] audioNavigator, _ in
-      Task {
-        await audioNavigator.seek(by: -(seekInterval))
-      }
-    }
-
-    rcc.skipForwardCommand.preferredIntervals = [seekInterval as NSNumber]
-    on(rcc.skipForwardCommand) { [seekInterval] audioNavigator, _ in
-      Task {
-        await audioNavigator.seek(by: +(seekInterval))
-      }
-    }
-
-    on(rcc.changePlaybackPositionCommand) { audioNavigator, event in
-      guard let event = event as? MPChangePlaybackPositionCommandEvent else {
-        return
-      }
-      Task {
-        await audioNavigator.seek(to: event.positionTime)
-      }
-    }
+  // MARK: AudioNavigator specific API
+  
+  func setAudioPreferences(_ preferences: FlutterAudioPreferences) {
+    self._preferences = preferences
+    self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
   }
-
-  private func updateCommandCenterControls() {
-    let rcc = MPRemoteCommandCenter.shared()
-    rcc.previousTrackCommand.isEnabled = _audioNavigator?.canGoBackward ?? false
-    rcc.nextTrackCommand.isEnabled = _audioNavigator?.canGoForward ?? false
+  
+  var canGoBackward: Bool {
+    self._audioNavigator?.canGoBackward ?? false
+  }
+  
+  var canGoForward: Bool {
+    self._audioNavigator?.canGoForward ?? false
+  }
+  
+  public func skipForward() async -> Bool {
+    if _audioNavigator?.canGoForward != true {
+      return false
+    }
+    return await _audioNavigator?.goForward() ?? false
+  }
+  
+  public func skipBackward() async -> Bool {
+    if _audioNavigator?.canGoBackward != true {
+      return false
+    }
+    return await _audioNavigator?.goBackward() ?? false
+  }
+  
+  // MARK: Internal AudioNavigator API
+  
+  internal func submitAudioLocatorToListener(_ locator: Locator) {
+    let readingOrderLink = self.publication.readingOrder.firstWithHREF(locator.href)
+    self.listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: readingOrderLink)
+  }
+  
+  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+    // Create TimebasedState and send it over the timebased-state stream.
+    let state = ReadiumTimebasedState(
+      state: info.state.asTimebasedState,
+      currentOffset: info.time,
+      currentBuffered: bufferedInterval,
+      currentDuration: info.duration ?? nil,
+      currentLocator: location
+    )
+    
+    // If state has changed, submit it to listener.
+    if (state != self._lastTimebasedPlayerState) {
+      self._lastTimebasedPlayerState = state
+      self.listener?.timebasedNavigator(self, didChangeState: state)
+    } else {
+      print(TAG, "Skipped state submission - duplicate")
+    }
   }
 }

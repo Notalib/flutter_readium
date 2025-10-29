@@ -3,7 +3,7 @@ import AVFAudio
 import ReadiumShared
 import ReadiumNavigator
 
-public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate
+public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate
 {
   private let TAG = "FlutterTTSNavigator"
   private var _publication: Publication
@@ -35,8 +35,8 @@ public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSy
   
   public init(
     publication: Publication,
-    initialLocator: Locator?,
-    preferences: TTSPreferences = TTSPreferences.init()
+    preferences: TTSPreferences = TTSPreferences.init(),
+    initialLocator: Locator?
   ) {
     self._publication = publication
     self._initialLocator = initialLocator
@@ -58,6 +58,9 @@ public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSy
     )!
     engine?.delegate = self
     self.synthesizer?.delegate = self
+    
+    // TODO: Why is this public, if always called from itself?
+    self.setupNavigatorListeners()
   }
   
   public func setupNavigatorListeners() -> Void {
@@ -69,46 +72,48 @@ public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSy
         }
         print(TAG, "tts send audio-locator")
         let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
-        let href = self.publication.readingOrder.firstWithHREF(locator.href)
+        let link = self.publication.readingOrder.firstWithHREF(locator.href)
         
         self.nowPlayingUpdater.updateNowPlaying(chapterNo: chapterNo)
-        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: href)
+        self.nowPlayingUpdater.updateCommandCenterControls()
+        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
       }
       .store(in: &subscriptions)
     
     playingWordRangeSubject
       .removeDuplicates()
-    //  Improve performances by throttling the reader sync to max one per second.
-      .throttle(for: 1, scheduler: RunLoop.main, latest: true)
-      .drop(while: { [weak self] _ in self?.isMoving ?? true })
+      // Improve performances by throttling the reader sync
+      .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
       .sink { [weak self] locator in
         guard let self = self else {
           return
         }
         
-        print(TAG, "tts navigate reader to locator")
-        //isMoving = true
-        //Task {
-          //let _ = await self.syncWithAudioLocator(locator)
-          //self.isMoving = false
-        //}
+        print(TAG, "sync reader to locator")
+        let link = self.publication.readingOrder.firstWithHREF(locator.href)
+        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
       }
       .store(in: &subscriptions)
   }
 
   public func dispose() -> Void {
+    nowPlayingUpdater.clearNowPlaying()
     self.subscriptions.forEach { $0.cancel() }
     self.synthesizer?.stop()
     self.synthesizer?.delegate = nil
     self.engine?.delegate = nil
+    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .ended))
+    self.listener = nil
   }
 
-  public func play() async -> Void {
-    self.synthesizer?.start()
-  }
-
-  public func play(fromLocator: Locator) async -> Void {
+  public func play(fromLocator: Locator?) async -> Void {
     self.synthesizer?.start(from: fromLocator)
+    nowPlayingUpdater.setupNowPlayingInfo()
+    nowPlayingUpdater.setupCommandCenterControls(
+      preferredIntervals: [],
+      skipTrackEnabled: true,
+      timebasedNavigator: self
+    )
   }
 
   public func pause() async -> Void {
@@ -118,9 +123,37 @@ public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSy
   public func resume() async -> Void {
     self.synthesizer?.resume()
   }
+  
+  public func togglePlayPause() async -> Void {
+    guard let synth = self.synthesizer else {
+      return
+    }
+    if case .playing(_,_) = synth.state {
+      await self.pause()
+    } else {
+      await self.play(fromLocator: nil)
+    }
+  }
+  
+  public func seekForward() async -> Bool {
+    self.synthesizer?.next()
+    return true
+  }
+  
+  public func seekBackward() async -> Bool {
+    self.synthesizer?.previous()
+    return true
+  }
 
-  public func seek(toLocator: Locator) async -> Void {
+  public func seek(toLocator: Locator) async -> Bool {
     self.synthesizer?.start(from: toLocator)
+    return true
+  }
+  
+  @MainActor
+  public func seek(toOffset: Double) async -> Bool {
+    // Cannot be implemented for TTS
+    return false
   }
   
   // MARK: TTS Specific APIs
@@ -163,24 +196,26 @@ public class FlutterTTSNavigator: FlutterTimeBasedNavigator, PublicationSpeechSy
       if let wordRange = wordRange {
         playingWordRangeSubject.send(wordRange)
       }
-      self.listener?.timebasedNavigator(self, requestsHighlightChangeAt: utt.locator, withWordLocator: wordRange)
-      //updateDecorations(uttLocator: utt.locator, rangeLocator: wordRange)
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: utt.locator, withWordLocator: wordRange)
     case let .paused(utt):
       print(TAG, "tts paused at utterance: \(utt.text)")
       playingUtterance = utt.locator
     case .stopped:
       playingUtterance = nil
       print(TAG, "tts stopped")
-      self.listener?.timebasedNavigator(self, requestsHighlightChangeAt: nil, withWordLocator: nil)
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: nil, withWordLocator: nil)
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
+    
+    let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
+    self.listener?.timebasedNavigator(self, didChangeState: state)
   }
   
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     print(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
     
-    self.listener?.timebasedNavigator(self, encounteredError: error)
+    self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
     
     //TODO: How can both Reader and Plugin submit on this channel?
     //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)

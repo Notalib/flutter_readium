@@ -446,6 +446,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       print(TAG, "Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
+      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusClosed)
       result(nil)
       break
     default:
