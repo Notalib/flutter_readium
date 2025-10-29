@@ -88,7 +88,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
        let timeOffset = Double(timeOffsetStr),
        let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
-       var textLocator = mediaOverlay.textLocator {
+       var textLocator = mediaOverlay.asTextLocator {
       if (!mediaOverlay.isEqual(lastMediaOverlayItem)) {
         // Matched a new MediaOverlayItem -> sync reader with its textLocator.
         lastMediaOverlayItem = mediaOverlay
@@ -107,7 +107,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   internal func mapTextLocatorToMediaOverlayLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator,
           let matchingItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
-          let audioLocator = matchingItem.audioLocator else {
+          let audioLocator = matchingItem.asAudioLocator else {
       return nil
     }
     return audioLocator

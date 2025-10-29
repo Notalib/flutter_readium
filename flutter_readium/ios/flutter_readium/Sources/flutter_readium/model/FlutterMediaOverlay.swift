@@ -131,7 +131,7 @@ final class FlutterMediaOverlayItem: NSObject {
   }
   
   // MARK: Locators
-  var textLocator: Locator? {
+  var asTextLocator: Locator? {
     guard
       let href = URL(string: text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? "")
     else { return nil }
@@ -150,7 +150,7 @@ final class FlutterMediaOverlayItem: NSObject {
     return locator
   }
   
-  var audioLocator: Locator? {
+  var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
     return Locator(
