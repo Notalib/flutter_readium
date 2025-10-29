@@ -22,7 +22,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
 
   public override func initNavigator() async -> Void {
-    debugPrint("Publication with Synchronized Narration reading-order found!")
+    debugPrint(OTAG, "Publication with Synchronized Narration reading-order found!")
     let narrationLinks = publication.readingOrder.compactMap {
       var link = $0.alternates.filterByMediaType(MediaType("application/vnd.syncnarr+json")!).first
       link?.title = $0.title
@@ -55,7 +55,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     var newPub = publication
     newPub.manifest = audioPubManifest
     
-    debugPrint("New audio readingOrder found: \(audioReadingOrder)")
+    debugPrint(OTAG, "New audio readingOrder found: \(audioReadingOrder)")
     // Save the media-overlays for later position matching.
     self.mediaOverlays = mediaOverlays
     // Assign the publication, it should now conform to AudioBook.
@@ -100,7 +100,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
         self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
       }
     } else {
-      debugPrint(TAG, "Did not find MediaOverlay matching audio Locator: \(location)")
+      debugPrint(OTAG, "Did not find MediaOverlay matching audio Locator: \(location)")
     }
   }
   
