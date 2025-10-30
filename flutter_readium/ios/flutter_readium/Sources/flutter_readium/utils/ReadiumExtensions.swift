@@ -34,6 +34,16 @@ extension MediaPlaybackState {
   }
 }
 
+extension PublicationSpeechSynthesizer.State {
+  var asTimebasedState: TimebasedState {
+    switch self {
+    case .paused: return .paused
+    case .playing: return .playing
+    case .stopped: return .ended
+    }
+  }
+}
+
 extension Link {
   init(fromJsonString jsonString: String) throws {
     do {

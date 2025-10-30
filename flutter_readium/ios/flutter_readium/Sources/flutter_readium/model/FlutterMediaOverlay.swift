@@ -131,7 +131,7 @@ final class FlutterMediaOverlayItem: NSObject {
   }
   
   // MARK: Locators
-  var textLocator: Locator? {
+  var asTextLocator: Locator? {
     guard
       let href = URL(string: text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? "")
     else { return nil }
@@ -150,7 +150,7 @@ final class FlutterMediaOverlayItem: NSObject {
     return locator
   }
   
-  var audioLocator: Locator? {
+  var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
     return Locator(
@@ -158,6 +158,16 @@ final class FlutterMediaOverlayItem: NSObject {
       mediaType: MediaType.mpegAudio,
       locations: .init(fragments: ["t=\(start)"])
     )
+  }
+  
+  func toCombinedLocator(fromPlaybackLocator audioLocator: Locator) -> Locator? {
+    guard var textLocator = self.asTextLocator else { return nil }
+    textLocator.mediaType = .mpegAudio
+    textLocator.locations.progression = audioLocator.locations.progression
+    textLocator.locations.totalProgression = audioLocator.locations.totalProgression
+    textLocator.locations.position = audioLocator.locations.position
+    textLocator.locations.fragments = textLocator.locations.fragments + audioLocator.locations.fragments
+    return textLocator
   }
   
   // MARK: JSON
