@@ -7,6 +7,7 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin"
 
+internal var currentPublicationUrlStr: String?
 internal var currentPublication: Publication?
 internal var currentReaderView: ReadiumReaderView?
 
@@ -93,6 +94,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           currentPublication = pub
+          currentPublicationUrlStr = pubUrlStr
           
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
@@ -333,10 +335,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "audioEnable":
       guard let args = call.arguments as? [Any?],
-            let publication = currentPublication else {
+            let publication = currentPublication,
+            let pubUrlStr = currentPublicationUrlStr else {
         return result(FlutterError.init(
           code: "audioEnable",
-          message: "Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
+          message: "No publication open or Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
           details: nil))
       }
       Task.detached(priority: .high) {
@@ -349,13 +352,23 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
         
         if (publication.containsMediaOverlays) {
-          // TODO: May have to re-load publication from URL and pass the new copy of Publication here.
-          self.timebasedNavigator = await FlutterMediaOverlayNavigator(publication: publication, preferences: prefs, initialLocator: locator)
+          do {
+            // MediaOverlayNavigator will modify the Publication readingOrder, so we first load a modifiable copy.
+            let modifiablePublicationCopy = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+            await MainActor.run { [locator] in
+              self.timebasedNavigator = FlutterMediaOverlayNavigator(publication: modifiablePublicationCopy, preferences: prefs, initialLocator: locator)
+            }
+          } catch (let err) {
+            return result(FlutterError.init(
+              code: "Error",
+              message: "Failed to reload a modifiable publication copy from: \(pubUrlStr)",
+              details: err))
+          }
         } else {
           if (!publication.conforms(to: Publication.Profile.audiobook)) {
             return result(FlutterError.init(
               code: "ArgumentError",
-              message: "Publication does not contain MediaOverlays or conformTo AudioBook: \(call.arguments.debugDescription)",
+              message: "Publication does not contain MediaOverlays or conforms to AudioBook profile. Args: \(call.arguments.debugDescription)",
               details: nil))
           }
           self.timebasedNavigator = await FlutterAudioNavigator(publication: publication, preferences: prefs, initialLocator: locator)
@@ -364,7 +377,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         self.timebasedNavigator?.listener = self
         await self.timebasedNavigator?.initNavigator()
         
-        result(nil)
+        await MainActor.run {
+          result(nil)
+        }
       }
     case "audioSetPreferences":
       Task.detached(priority: .high) {
@@ -495,6 +510,7 @@ extension FlutterReadiumPlugin {
       self.timebasedNavigator = nil
       currentPublication?.close()
       currentPublication = nil
+      currentPublicationUrlStr = nil
     }
   }
 }

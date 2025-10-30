@@ -17,8 +17,9 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   public override init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     super.init(publication: publication, preferences: preferences, initialLocator: initialLocator)
+    
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
-    self._initialLocator = self.mapTextLocatorToMediaOverlayLocator(initialLocator)
+    self._initialLocator = self.mapTextLocatorToMediaOverlayAudioLocator(initialLocator)
   }
 
   public override func initNavigator() async -> Void {
@@ -50,29 +51,26 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     audioPubManifest.readingOrder = audioReadingOrder
     audioPubManifest.metadata.conformsTo = [Publication.Profile.audiobook]
     
-    // TODO: This modifies the existing Publication reference !!!
-    // Instead we may need to re-load the Publication from same URL, to get a separate reference.
-    var newPub = publication
-    newPub.manifest = audioPubManifest
+    // Note: This modifies the Publication reference !!!
+    // For now caller must re-load the Publication from same URL, to get a separate reference.
+    publication.manifest = audioPubManifest
     
     debugPrint(OTAG, "New audio readingOrder found: \(audioReadingOrder)")
     // Save the media-overlays for later position matching.
     self.mediaOverlays = mediaOverlays
-    // Assign the publication, it should now conform to AudioBook.
-    self._publication = newPub
     
     await super.initNavigator()
   }
   
   override public func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
-    let audioFromLocator = mapTextLocatorToMediaOverlayLocator(fromLocator)
+    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
     await super.play(fromLocator: audioFromLocator)
   }
   
   override public func seek(toLocator: Locator) async -> Bool {
     guard let navigator = _audioNavigator,
-          let audioLocator = mapTextLocatorToMediaOverlayLocator(toLocator) else {
+          let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       return false
     }
     // Found a matching Audio Locator from given Text-based Locator.
@@ -88,27 +86,28 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
        let timeOffset = Double(timeOffsetStr),
        let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
-       var textLocator = mediaOverlay.asTextLocator {
-      if (!mediaOverlay.isEqual(lastMediaOverlayItem)) {
-        // Matched a new MediaOverlayItem -> sync reader with its textLocator.
-        lastMediaOverlayItem = mediaOverlay
-        textLocator.locations.progression = location.locations.progression
-        textLocator.locations.position = location.locations.position
-        
-        // TextLocator matching the audio position is created and should be sent back.
-        self.listener?.timebasedNavigator(self, reachedLocator: textLocator, readingOrderLink: nil)
-        self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
-      }
+       let combinedLocator = mediaOverlay.toCombinedLocator(fromPlaybackLocator: location) {
+
+      // Combined Text/Audio Locator matching the audio position is created and should be sent back.
+      self.listener?.timebasedNavigator(self, reachedLocator: combinedLocator, readingOrderLink: nil)
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: combinedLocator, withWordLocator: nil)
     } else {
       debugPrint(OTAG, "Did not find MediaOverlay matching audio Locator: \(location)")
     }
   }
   
-  internal func mapTextLocatorToMediaOverlayLocator(_ textLocator: Locator?) -> Locator? {
+  internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator,
           let matchingItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
-          let audioLocator = matchingItem.asAudioLocator else {
+          var audioLocator = matchingItem.asAudioLocator else {
       return nil
+    }
+    // If the input Text Locator, is a combined locator with a time fragment
+    // we use this, as it can be more precise than the MediaOverlayItem fragment.
+    if let textLocatorTime = textLocator.locations.time,
+       let textLocatorTimeBegin = textLocatorTime.begin {
+      debugPrint(OTAG, "TextLocator had more precise time offset: \(textLocatorTimeBegin)")
+      audioLocator.locations.fragments = ["t=\(textLocatorTimeBegin)"]
     }
     return audioLocator
   }

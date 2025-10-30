@@ -160,6 +160,16 @@ final class FlutterMediaOverlayItem: NSObject {
     )
   }
   
+  func toCombinedLocator(fromPlaybackLocator audioLocator: Locator) -> Locator? {
+    guard var textLocator = self.asTextLocator else { return nil }
+    textLocator.mediaType = .mpegAudio
+    textLocator.locations.progression = audioLocator.locations.progression
+    textLocator.locations.totalProgression = audioLocator.locations.totalProgression
+    textLocator.locations.position = audioLocator.locations.position
+    textLocator.locations.fragments = textLocator.locations.fragments + audioLocator.locations.fragments
+    return textLocator
+  }
+  
   // MARK: JSON
   static func fromJson(_ json: [String: Any], atPosition position: Int) -> FlutterMediaOverlayItem? {
     guard

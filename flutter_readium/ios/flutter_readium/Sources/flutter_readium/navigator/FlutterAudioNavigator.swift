@@ -180,7 +180,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
-    print(TAG, "presentError: \(error)")
+    debugPrint(TAG, "presentError: \(error)")
+    // TODO: Only relevant when supporting LCP, error can only be copyForbidden.
   }
   
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
@@ -189,6 +190,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   
   // MARK: AudioNavigator specific API
   
+  @MainActor
   func setAudioPreferences(_ preferences: FlutterAudioPreferences) {
     self._preferences = preferences
     self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
@@ -202,6 +204,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._audioNavigator?.canGoForward ?? false
   }
   
+  @MainActor
   public func skipForward() async -> Bool {
     if _audioNavigator?.canGoForward != true {
       return false
@@ -209,6 +212,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return await _audioNavigator?.goForward() ?? false
   }
   
+  @MainActor
   public func skipBackward() async -> Bool {
     if _audioNavigator?.canGoBackward != true {
       return false
@@ -238,7 +242,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       self._lastTimebasedPlayerState = state
       self.listener?.timebasedNavigator(self, didChangeState: state)
     } else {
-      print(TAG, "Skipped state submission - duplicate")
+      debugPrint(TAG, "Skipped state submission - duplicate")
     }
   }
 }
