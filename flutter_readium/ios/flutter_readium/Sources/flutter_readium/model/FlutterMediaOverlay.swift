@@ -73,7 +73,7 @@ struct FlutterMediaOverlay {
   }
 }
 
-final class FlutterMediaOverlayItem: NSObject {
+struct FlutterMediaOverlayItem {
   let audio: String
   let text: String
   let position: Int
@@ -85,10 +85,10 @@ final class FlutterMediaOverlayItem: NSObject {
   let audioStart: Double?
   let audioEnd: Double?
   
-  lazy var audioDuration: Double? = {
+  var audioDuration: Double? {
     guard let audioStart, let audioEnd else { return nil }
     return max(0, audioEnd - audioStart)
-  }()
+  }
   
   let textFile: String
   let textId: String
@@ -111,16 +111,13 @@ final class FlutterMediaOverlayItem: NSObject {
       self.audioStart = nil
       self.audioEnd = nil
     }
-    super.init()
   }
   
-  override func isEqual(_ other: Any?) -> Bool {
-    guard let other = other as? FlutterMediaOverlayItem else {
-      return false
-    }
-    return audio == other.audio && text == other.text && position == other.position
+  static func == (lhs: FlutterMediaOverlayItem, rhs: FlutterMediaOverlayItem) -> Bool {
+    return lhs.audio == rhs.audio && lhs.text == rhs.text && lhs.position == rhs.position
   }
   
+  /// Check if this MediaOverlayItem matched href and has time-fragment range matching a given time.
   func isAudioInRangeOfTime(_ time: Double, inHref href: String) -> Bool {
     if (textFile != href && audioFile != href) {
       return false
@@ -131,6 +128,8 @@ final class FlutterMediaOverlayItem: NSObject {
   }
   
   // MARK: Locators
+  
+  /// Create a Text-based Locator representing this MediaOverlayItem
   var asTextLocator: Locator? {
     guard
       let href = URL(string: text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? "")
@@ -150,6 +149,7 @@ final class FlutterMediaOverlayItem: NSObject {
     return locator
   }
   
+  /// Create an Audio-based Locator representing this MediaOverlayItem
   var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
@@ -160,12 +160,19 @@ final class FlutterMediaOverlayItem: NSObject {
     )
   }
   
+  /// Combine this MediaOverlayItem as a Text-based Locator, with an Audio-based Locator.
+  /// This is generally used to report back a synchronizable Locator to Flutter client and backends.
   func toCombinedLocator(fromPlaybackLocator audioLocator: Locator) -> Locator? {
     guard var textLocator = self.asTextLocator else { return nil }
-    textLocator.locations.progression = audioLocator.locations.progression
-    textLocator.locations.totalProgression = audioLocator.locations.totalProgression
-    textLocator.locations.position = audioLocator.locations.position
-    textLocator.locations.fragments = textLocator.locations.fragments + audioLocator.locations.fragments
+    // Combine the text-locator with given audio-locator's locations.
+    // We keep the otherLocations("cssSelector") from text-locator.
+    textLocator.locations = Locator.Locations(
+      fragments: audioLocator.locations.fragments,
+      progression: audioLocator.locations.progression,
+      totalProgression: audioLocator.locations.totalProgression,
+      position: audioLocator.locations.position,
+      otherLocations: textLocator.locations.otherLocations,
+    )
     return textLocator
   }
   
