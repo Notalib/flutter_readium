@@ -37,6 +37,7 @@ fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
         val id = decoMap["decorationId"] as String
         val locator = Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
             ?: throw Exception("Failed to deserialize locator")
+
         @Suppress("UNCHECKED_CAST")
         val style = decorationStyleFromMap(decoMap["style"] as Map<String, String>)
             ?: throw Exception("Failed to deserialize decoration")
@@ -166,27 +167,27 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonObject = JSONObject(jsonString)
         FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
     }
-    .map { mo ->
-        if (mo == null) return@map null
+        .map { mo ->
+            if (mo == null) return@map null
 
-        val items = mo.items.map { item ->
-            // Find best matching title from TOC
-            val match = toc.find { tocItem ->
-                tocItem.first == item.text
+            val items = mo.items.map { item ->
+                // Find best matching title from TOC
+                val match = toc.find { tocItem ->
+                    tocItem.first == item.text
+                }
+
+                if (match?.second != null) {
+                    lastTocMatch = match
+                    item.copy(title = match.second ?: "")
+                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
+                    item.copy(title = lastTocMatch.second ?: "")
+                } else {
+                    item
+                }
             }
 
-            if (match?.second != null) {
-                lastTocMatch = match
-                item.copy(title = match.second ?: "")
-            } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                item.copy(title = lastTocMatch.second ?: "")
-            } else {
-                item
-            }
+            return@map FlutterMediaOverlay(items)
         }
-
-        return@map FlutterMediaOverlay(items)
-    }
 }
 
 /**
@@ -213,7 +214,14 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         links = links,
         readingOrder = mo.mapNotNull { mo ->
             Href.invoke(mo?.items?.first()?.audioFile ?: "")
-                ?.let { href -> Link(href, MediaType.MP3, duration = mo?.duration, title = mo?.items?.first()?.title ) }
+                ?.let { href ->
+                    Link(
+                        href,
+                        MediaType.MP3,
+                        duration = mo?.duration,
+                        title = mo?.items?.first()?.title
+                    )
+                }
         }
     )
 
@@ -233,6 +241,18 @@ fun Locator.getTimeOffset(): Double? {
  * Get the text id from a Locator's fragments or css selector, if any.
  */
 fun Locator.getTextId(): String? {
-    val cssFragment = locations.fragments.find { it.startsWith("#") } ?: locations.cssSelector ?: return null
+    val cssFragment =
+        locations.fragments.find { it.startsWith("#") } ?: locations.cssSelector ?: return null
     return cssFragment.removePrefix("#")
+}
+
+/**
+ * Make a new copy with a new time fragment
+ */
+fun Locator.copyWithTimeFragment(time: Double): Locator {
+    return copy(
+        locations = locations.copy(
+            fragments = listOf("${time}")
+        )
+    )
 }
