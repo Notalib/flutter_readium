@@ -10,7 +10,6 @@ import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
@@ -48,7 +47,6 @@ class SyncAudiobookNavigator(
     private var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
 
     override fun onCurrentLocatorChanges(locator: Locator) {
-        var audioLocator: Locator
         val readingOrderLink =
             publication.readingOrder.find { link ->
                 link.href.toString() == locator.href.toString()
@@ -89,13 +87,23 @@ class SyncAudiobookNavigator(
             lastMediaOverlayItem = mediaOverlay
         }
 
-        audioLocator = mediaOverlay.syncAudioLocator?.copy(
-            locations = mediaOverlay.syncAudioLocator!!.locations.copy(
-                fragments = locator.locations.fragments,
-                progression = locator.locations.progression,
-                totalProgression = locator.locations.totalProgression,
+        // Get the flutter audio locator from the media-overlay and enrich it with progression
+        // total progression from the player's locator.
+        val audioLocator = mediaOverlay.flutterAudioLocator?.let { fal ->
+            fal.copy(
+                locations = fal.locations.copy(
+                    fragments = locator.locations.fragments,
+                    progression = locator.locations.progression,
+                    totalProgression = locator.locations.totalProgression,
+                )
             )
-        ) ?: locator
+        }
+
+        if (audioLocator == null) {
+            Log.d(TAG, "::Couldn't resolve currentLocator $locator to audio-locator")
+
+            return
+        }
 
         super.onCurrentLocatorChanges(audioLocator)
     }

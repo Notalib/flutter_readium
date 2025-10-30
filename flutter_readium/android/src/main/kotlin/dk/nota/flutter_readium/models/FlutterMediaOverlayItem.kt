@@ -100,16 +100,11 @@ data class FlutterMediaOverlayItem(
      *
      * NOTE: You might need to update the time fragment.
      */
-    val syncAudioLocator: Locator? by lazy {
-        Url.invoke(textFile)?.let { href ->
-            Locator(
-                href,
-                title = title,
-                mediaType = MediaType.MP3,
-                locations = Locator.Locations(
+    val flutterAudioLocator: Locator? by lazy {
+        syncTextLocator?.let() { textLocator ->
+            textLocator.copy(
+                locations = textLocator.locations.copy(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
-                    otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
-                    position = position,
                 ),
             )
         }
