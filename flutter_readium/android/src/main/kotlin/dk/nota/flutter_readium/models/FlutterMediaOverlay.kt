@@ -45,19 +45,26 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
      * Find the media overlay item for the given file and time.
      * Returns null if no item is found.
      */
+    fun findItemInRange(fileHref: Url, time: Double): FlutterMediaOverlayItem? =
+        findItemInRange(fileHref.toString(), time)
+
+    /**
+     * Find the media overlay item for the given file and time.
+     * Returns null if no item is found.
+     */
     fun findItemInRange(fileHref: String, time: Double): FlutterMediaOverlayItem? {
         val href = Url.invoke(fileHref) ?: return null
         if (!href.isEquivalent(textUrl) && !href.isEquivalent(audioUrl)) {
             return null
         }
 
-        return items.find { item -> item.isInRange(href, time) }
+        return items.firstOrNull { item -> item.isInRange(href, time) }
     }
 
     /**
      * Find the media overlay item from the text reference.
      */
-    fun findItemFromTextId(href: Url, textId: String) : FlutterMediaOverlayItem? {
+    fun findItemFromTextId(href: Url, textId: String): FlutterMediaOverlayItem? {
         if (!href.isEquivalent(textUrl) && !href.isEquivalent(audioUrl)) {
             return null
         }
@@ -70,14 +77,14 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
      * A locator can either be an audio+time based locator or a text+id based locator.
      * This allows us to map back and forth between audio and text.
      */
-    fun findItemFromLocator(locator: Locator) : FlutterMediaOverlayItem? {
+    fun findItemFromLocator(locator: Locator): FlutterMediaOverlayItem? {
         val href = locator.href
         if (!href.isEquivalent(Url.invoke(textFile)) && !href.isEquivalent(Url.invoke(audioFile))) {
             return null
         }
 
         locator.getTimeOffset()?.let { timeOffset ->
-            return findItemInRange(href.toString(), timeOffset)
+            return findItemInRange(href, timeOffset)
         }
 
         locator.getTextId()?.let { textId ->
@@ -86,13 +93,19 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
 
         if (locator.locations.fragments.isEmpty() && (locator.mediaType == MediaType.HTML || locator.mediaType == MediaType.XHTML)) {
             // If there is no fragment, and it is a HTML locator, we return the first item for the href
-            Log.d(TAG, "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}")
+            Log.d(
+                TAG,
+                "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}"
+            )
             return items.firstOrNull { item ->
                 item.textFile == href.path
             }
         }
 
-        Log.d(TAG, "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator")
+        Log.d(
+            TAG,
+            "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator"
+        )
 
         return null
     }

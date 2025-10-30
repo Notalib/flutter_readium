@@ -4,10 +4,13 @@ import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.getTimeOffset
+import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
@@ -33,20 +36,16 @@ class SyncAudiobookNavigator(
     initialLocator: Locator?,
     preferences: FlutterAudioPreferences,
 ) : AudiobookNavigator(publication, timebasedListener, initialLocator, preferences) {
+
+    init {
+        // We need to translate the epub based locator to an audio based locator
+        this.initialLocator =
+            initialLocator?.let { locator -> mapTextLocatorToMediaOverlayLocator(locator) }
+    }
+
     val decorationGroup = "sync-audio"
 
     private var lastMediaOverlayItem: FlutterMediaOverlayItem? = null
-
-    override suspend fun initNavigator() {
-        // We need to translate the epub based locator to an audio based locator
-        this.initialLocator = this.initialLocator?.let { locator ->
-            mediaOverlays.firstNotNullOfOrNull { mo ->
-                mo?.findItemFromLocator(locator)
-            }?.skipToAudioLocator ?: initialLocator
-        }
-
-        super.initNavigator()
-    }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
         var audioLocator: Locator
@@ -62,7 +61,7 @@ class SyncAudiobookNavigator(
 
         val mediaOverlay = mediaOverlays.firstNotNullOfOrNull {
             it?.findItemInRange(
-                locator.href.toString(),
+                locator.href,
                 timeOffset ?: 0.0
             )
         }
@@ -76,7 +75,8 @@ class SyncAudiobookNavigator(
         }
 
         if (mediaOverlay != lastMediaOverlayItem) {
-            mediaOverlay.textLocator?.let { textLocator ->
+            // MediaOverlayItem changed, notify EPUB reader to navigate to element and decorate it.
+            mediaOverlay.syncTextLocator?.let { textLocator ->
                 mainScope.async {
                     // IMPORTANT: We use epubGoToLocator here, NOT goToLocator, as the latter
                     // triggers an infinite loop
@@ -89,7 +89,13 @@ class SyncAudiobookNavigator(
             lastMediaOverlayItem = mediaOverlay
         }
 
-        audioLocator = mediaOverlay.audioLocator ?: locator
+        audioLocator = mediaOverlay.syncAudioLocator?.copy(
+            locations = mediaOverlay.syncAudioLocator!!.locations.copy(
+                fragments = locator.locations.fragments,
+                progression = locator.locations.progression,
+                totalProgression = locator.locations.totalProgression,
+            )
+        ) ?: locator
 
         super.onCurrentLocatorChanges(audioLocator)
     }
@@ -100,11 +106,21 @@ class SyncAudiobookNavigator(
         }
     }
 
-    override suspend fun goToLocator(locator: Locator) {
-        val audioLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
-            mo?.findItemFromLocator(locator)
-        }?.skipToAudioLocator
+    override suspend fun play(fromLocator: Locator?) {
+        if (fromLocator == null) {
+            return super.play(fromLocator)
+        }
 
+        val audioLocator = mapTextLocatorToMediaOverlayLocator(fromLocator)
+        if (audioLocator != null) {
+            super.play(audioLocator)
+        } else {
+            Log.d(TAG, "goToLocator: no audio locator found for $fromLocator")
+        }
+    }
+
+    override suspend fun goToLocator(locator: Locator) {
+        val audioLocator = mapTextLocatorToMediaOverlayLocator(locator)
         if (audioLocator != null) {
             super.goToLocator(audioLocator)
         } else {
@@ -141,10 +157,20 @@ class SyncAudiobookNavigator(
         val locator = navigator.currentLocator.value
         val textLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
-        }?.textLocator ?: return
+        }?.syncTextLocator ?: return
         mainScope.async {
             decorateCurrentUtterance(textLocator)
         }.await()
+    }
+
+    private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
+        val newLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+            mo?.findItemFromLocator(locator)
+        }?.skipToAudioLocator ?: return null
+
+        return letIfBothNotNull(newLocator, locator.getTimeOffset())?.let { (nl, timeOffset) ->
+            nl.copyWithTimeFragment(timeOffset)
+        } ?: newLocator
     }
 
     companion object {

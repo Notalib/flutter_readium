@@ -74,20 +74,20 @@ data class FlutterMediaOverlayItem(
 
         val start = audioStart ?: return false
         val end = audioEnd ?: return time >= start
-        return time in start..end
+        return time in start..end || time < start
     }
 
     /**
-     * TextLocator used to navigate to and highlight the text in the publication
+     * Locator used to navigate to and highlight the text in the publication
      */
-    val textLocator: Locator? by lazy {
-        Url.invoke(text.substringBefore("#"))?.let { href ->
+    val syncTextLocator: Locator? by lazy {
+        Url.invoke(textFile)?.let { href ->
             Locator(
                 href,
                 mediaType = MediaType.XHTML,
                 title = title,
                 locations = Locator.Locations(
-                    listOf("#" + text.substringAfter("#")),
+                    listOf("#$textId"),
                     otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
                     position = position,
                 ),
@@ -96,9 +96,11 @@ data class FlutterMediaOverlayItem(
     }
 
     /**
-     * AudioLocator meant to be sent via the audio-locator channel to the Flutter side
+     * Locator meant to be sent via the audio-locator channel to the Flutter side
+     *
+     * NOTE: You might need to update the time fragment.
      */
-    val audioLocator: Locator? by lazy {
+    val syncAudioLocator: Locator? by lazy {
         Url.invoke(textFile)?.let { href ->
             Locator(
                 href,
@@ -115,6 +117,8 @@ data class FlutterMediaOverlayItem(
 
     /**
      * AudioLocator meant to be used for skipping to this item in the audio player.
+     *
+     * NOTE: You might need to update the time fragment.
      */
     val skipToAudioLocator: Locator? by lazy {
         Url.invoke(audioFile)?.let { href ->
