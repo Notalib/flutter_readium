@@ -18,8 +18,9 @@ General TODO:
 - [x] Use Preferences API on both platforms.
 - [x] Use Decorator API for highlighting.
 - [x] Test TTS and Audio navigators for maturity, possibly replacing our own audio handlers.
-- [ ] Finding: Readium native toolkits do not yet support MediaOverlays, making support for "karaoke books" difficult.
-      We either wait for this to be implemented, or do something similar to the `nota-lyt4` branch and use `audio_service` and `just_audio` plugins for MediaOverlay playback.
+- [x] Simplified support for MediaOverlays. Assumptions: Continuous audio playlist /w 1 overlay file per mp3.
+- [ ] Support for custom Decoration styles
+- [ ] Full support for Sync Narration and Guided Navigation
 
 ## Adding flutter_readium to your project
 
