@@ -13,13 +13,17 @@ class ReadiumTimebasedState {
   });
 
   factory ReadiumTimebasedState.fromJsonMap(final Map<String, dynamic> map) => ReadiumTimebasedState(
-        state: TimebasedState.values.firstWhereOrNull((v) => v.name == map['state']) ?? TimebasedState.failure,
+        state: TimebasedState.values
+                .firstWhereOrNull((v) => v.name.toLowerCase() == map['state'].toString().toLowerCase()) ??
+            TimebasedState.failure,
         currentOffset: map['currentOffset'] is int ? Duration(milliseconds: map['currentOffset']) : null,
         currentBuffered: map['currentBuffered'] is int ? Duration(milliseconds: map['currentBuffered']) : null,
         currentDuration: map['currentDuration'] is int ? Duration(milliseconds: map['currentDuration']) : null,
         currentLocator: map['currentLocator'] is String
             ? Locator.fromJson(json.decode(map['currentLocator']) as Map<String, dynamic>)
-            : null,
+            : (map['currentLocator'] is Map<String, dynamic>
+                ? Locator.fromJson(map['currentLocator'] as Map<String, dynamic>)
+                : null),
       );
 
   @override

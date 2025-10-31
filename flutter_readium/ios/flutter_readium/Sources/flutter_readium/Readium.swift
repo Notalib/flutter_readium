@@ -35,7 +35,7 @@ final class Readium : DefaultHTTPClientDelegate {
 
   func setupWithHeaders(headers: [String: String]?) {
     self.httpClient = DefaultHTTPClient(
-        cachePolicy: URLRequest.CachePolicy.useProtocolCachePolicy, // default = useProtocolCachePolicy
+        cachePolicy: .useProtocolCachePolicy, // default = useProtocolCachePolicy
         additionalHeaders: headers,
         requestTimeout: nil,  // default = 60 seconds
         resourceTimeout: nil, // default = 7 days
@@ -55,9 +55,9 @@ final class Readium : DefaultHTTPClientDelegate {
   func setAdditionalHeaders(_ headers: [String: String]) -> Void {
     self.additionalHeaders = headers
   }
-  
+
   //--- MARK: DefaultHTTPClientDelegate
-  
+
   /// You can modify the `request`, for example by adding additional HTTP headers or redirecting to a different URL,
   /// before calling the `completion` handler with the new request.
   func httpClient(_ httpClient: DefaultHTTPClient, willStartRequest request: HTTPRequest) async -> HTTPResult<HTTPRequestConvertible>? {
@@ -67,11 +67,11 @@ final class Readium : DefaultHTTPClientDelegate {
     req.headers = merged
     return .success(req)
   }
-  
+
   func httpClient(_ httpClient: DefaultHTTPClient, request: HTTPRequest, didReceiveResponse response: HTTPResponse) {
     debugPrint("\(TAG): HTTP response: \(response)")
   }
-  
+
   //--- MARK: LCP
 
 #if !LCP

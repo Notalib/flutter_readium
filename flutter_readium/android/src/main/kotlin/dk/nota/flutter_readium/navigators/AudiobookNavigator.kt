@@ -27,30 +27,35 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
 
-private const val currentTimebaseLocatorKey = "currentTimebaseLocator"
+const val currentTimebaseLocatorKey = "currentTimebaseLocator"
 
-private const val audioPreferencesKey = "audioPreferencesKey"
+const val audioPreferencesKey = "audioPreferencesKey"
 
+/**
+ * Navigator for pure Audiobook publications using Readium's AudioNavigator.
+ */
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
-class AudiobookNavigator(
+open class AudiobookNavigator(
     publication: Publication,
     timebasedListener: TimebasedListener,
     initialLocator: Locator?,
     private var preferences: FlutterAudioPreferences
 ) : TimebasedNavigator<AudioNavigator.Playback>(publication, timebasedListener, initialLocator) {
-    private var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
+    /**
+     * The AudioNavigator provided by Readium..
+     */
+    protected var audioNavigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? = null
 
-    private var mediaServiceFacade: PluginMediaServiceFacade? = null
-
-    // in-memory cached state
-    private val state = mutableMapOf<String, Any?>()
+    /**
+     * The MediaServiceFacade to manage MediaSession interactions, notifications, etc.
+     */
+    protected var mediaServiceFacade: PluginMediaServiceFacade? = null
 
     override suspend fun initNavigator() {
         // Create AudioNavigatorFactory
@@ -58,7 +63,6 @@ class AudiobookNavigator(
             publication,
             ExoPlayerEngineProvider(ReadiumReader.application, metadataProvider = { pub ->
                 DatabaseMediaMetadataFactory(
-                    context = ReadiumReader.application,
                     publication = publication,
                     trackCount = pub.readingOrder.size,
                     controlPanelInfoType = preferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
@@ -115,6 +119,7 @@ class AudiobookNavigator(
                 Log.d(TAG, "Opening MediaSession")
                 mediaServiceFacade?.openSession(audioNavigator!!)
             } catch (e: Exception) {
+                Log.e(TAG, "Error opening MediaSession: ${e.message}")
                 audioNavigator?.close()
                 return@async
             }
@@ -155,7 +160,9 @@ class AudiobookNavigator(
         }
     }
 
-    /// Updates Audio preferences, does not override current preferences if props are null
+    /**
+     * Updates Audio preferences, does not override current preferences if props are null
+     */
     fun updatePreferences(prefs: FlutterAudioPreferences) {
         preferences = preferences + prefs
 
@@ -183,6 +190,7 @@ class AudiobookNavigator(
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
+        // Handle buffered changes
         navigator.playback
             .throttleLatest(250.milliseconds)
             .distinctUntilChangedBy { pb -> pb.buffered }
@@ -192,6 +200,7 @@ class AudiobookNavigator(
             .launchIn(mainScope)
             .let { jobs.add(it) }
 
+        // Handle current locator changes
         navigator.currentLocator
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
@@ -274,3 +283,4 @@ class AudiobookNavigator(
         }
     }
 }
+

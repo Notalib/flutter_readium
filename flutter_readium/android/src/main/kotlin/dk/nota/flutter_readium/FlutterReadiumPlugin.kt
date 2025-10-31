@@ -19,11 +19,14 @@ private const val TAG = "FlutterReadiumPlugin"
 
 @ExperimentalCoroutinesApi
 class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
-    /// The MethodChannel that will the communication between Flutter and native Android
-    ///
-    /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-    /// when the Flutter Engine is detached from the Activity
+    /**
+      * The MethodChannel that will the communication between Flutter and native Android
+      *
+      * This local reference serves to register the plugin with the Flutter Engine and unregister it
+      * when the Flutter Engine is detached from the Activity
+      */
     private lateinit var publicationChannel: MethodChannel
+
     private lateinit var publicationMethodCallHandler: PublicationMethodCallHandler
 
     private lateinit var binaryMessenger: BinaryMessenger
@@ -64,6 +67,9 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         publicationChannel.setMethodCallHandler(null)
     }
 
+    /**
+     * Recursively list all asset files in the given root path.
+     */
     private fun listAssetFiles(c: Context, rootPath: String): List<String> {
         Log.i("ListAssetFiles", "Listing assets in $rootPath")
         val files: MutableList<String> = ArrayList()

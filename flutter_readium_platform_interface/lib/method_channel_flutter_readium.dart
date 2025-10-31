@@ -157,11 +157,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> previous() async => await methodChannel.invokeMethod('previous');
 
   @override
-  Future<void> ttsSetDecorationStyle(
+  Future<void> setDecorationStyle(
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) =>
-      methodChannel.invokeMethod('ttsSetDecorationStyle', [utteranceDecoration?.toJson(), rangeDecoration?.toJson()]);
+      methodChannel.invokeMethod('setDecorationStyle', [utteranceDecoration?.toJson(), rangeDecoration?.toJson()]);
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {

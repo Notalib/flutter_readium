@@ -10,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
@@ -44,7 +43,7 @@ internal class PublicationMethodCallHandler() :
                 }
 
                 result.success(res)
-            } catch (e: NotImplementedError) {
+            } catch (_: NotImplementedError) {
                 result.notImplemented()
             } catch (e: Exception) {
                 Log.e(TAG, "Exception: $e")
@@ -110,20 +109,17 @@ internal class PublicationMethodCallHandler() :
                 return ttsSetPreferences(ttsPrefs)
             }
 
-            "ttsSetDecorationStyle" -> {
+            "setDecorationStyle" -> {
                 val args = arguments as List<*>
                 val uttDecoMap = args[0] as Map<*, *>?
                 val rangeDecoMap = args[1] as Map<*, *>?
-                val uttStyle = decorationStyleFromMap(uttDecoMap)
-                val rangeStyle = decorationStyleFromMap(rangeDecoMap)
+                val decorationPreferences = FlutterDecorationPreferences.fromMap(uttDecoMap, rangeDecoMap)
 
-                return ttsSetDecorationStyle(uttStyle, rangeStyle)
+                return setDecorationStyle(decorationPreferences)
             }
 
             "ttsGetAvailableVoices" -> {
-                ttsGetAvailableVoices().let { voices ->
-                    return Try.success(voices)
-                }
+                return Try.success(ttsGetAvailableVoices())
             }
 
             "ttsSetVoice" -> {
@@ -301,18 +297,13 @@ internal class PublicationMethodCallHandler() :
         return Try.success(null)
     }
 
-    /**
-     * Set the TTS decoration styles for the utterance and the range.
-     * If null is provided the default style will be used.
-     */
-    suspend fun ttsSetDecorationStyle(
-        uttStyle: Decoration.Style?,
-        rangeStyle: Decoration.Style?
+    suspend fun setDecorationStyle(
+        decorationPreferences: FlutterDecorationPreferences
     ): Try<Any?, PublicationError> {
         try {
-            ReadiumReader.ttsSetDecorationStyle(uttStyle, rangeStyle)
+            ReadiumReader.setDecorationStyle(decorationPreferences)
             return Try.success(null)
-        } catch (e: Error) {
+        } catch (_: Error) {
             return Try.failure(PublicationError.Unknown("Failed to set decoration style"))
         }
     }

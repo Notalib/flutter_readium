@@ -42,6 +42,9 @@ abstract class EventChannelWrapper<T>(messenger: BinaryMessenger, name: String) 
         mainScope.coroutineContext.cancelChildren()
     }
 
+    /**
+     * Sends an event with the given data.
+     */
     abstract fun sendEvent(data: T)
 }
 

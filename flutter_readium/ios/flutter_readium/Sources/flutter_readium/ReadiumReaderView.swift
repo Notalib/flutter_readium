@@ -91,8 +91,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       .regular: (top: 0, bottom: 0),
     ]
     // TODO: Make this config configurable from Flutter
-    config.preloadPreviousPositionCount = 1
-    config.preloadNextPositionCount = 1
+    // Might want it to be higher for a local publication than remote.
+    config.preloadPreviousPositionCount = 2
+    config.preloadNextPositionCount = 4
     config.debugState = true
     
     if (defaultPreferences != nil) {
@@ -288,10 +289,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
       }
-      // TODO: Check result and actually respond to Flutter with it.
     } else {
       print(TAG, "goToLocator: Already there, Scroll to \(locator.href)")
-      if(shouldScroll) {
+      if (shouldScroll) {
         await self.scrollTo(locations: locations, toStart: false)
         self.emitOnPageChanged()
       }
@@ -446,6 +446,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       print(TAG, "Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
+      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusClosed)
       result(nil)
       break
     default:

@@ -4,17 +4,22 @@ package dk.nota.flutter_readium
 
 import android.util.Log
 import androidx.core.graphics.toColorInt
+import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import org.json.JSONObject
-import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
-import org.readium.navigator.media.tts.android.AndroidTtsEngine.Voice.Id
-import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Href
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.util.Language
+import org.readium.r2.shared.publication.Manifest
+import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.flatten
+import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
@@ -27,31 +32,13 @@ private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     return ReadiumColor(color)
 }
 
-fun androidTtsPreferencesFromMap(ttsPrefsMap: Map<*, *>?): AndroidTtsPreferences {
-    try {
-        if (ttsPrefsMap == null) {
-            return AndroidTtsPreferences()
-        }
-
-        val speed = ttsPrefsMap["speed"] as Double?
-        val pitch = ttsPrefsMap["pitch"] as Double?
-        val voiceId = ttsPrefsMap["voiceIdentifier"] as String?
-        val langOverrideStr = ttsPrefsMap["languageOverride"] as String?
-        val langOverride = if (langOverrideStr != null) Language(langOverrideStr) else null
-        val overrideMap = if (langOverride != null && voiceId != null)
-            mapOf(langOverride to Id(voiceId)) else emptyMap()
-        return AndroidTtsPreferences(langOverride, pitch, speed, overrideMap)
-    } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping Map to AndroidTtsPreferences: $ex")
-        return AndroidTtsPreferences()
-    }
-}
-
 fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     try {
         val id = decoMap["decorationId"] as String
         val locator = Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
             ?: throw Exception("Failed to deserialize locator")
+
+        @Suppress("UNCHECKED_CAST")
         val style = decorationStyleFromMap(decoMap["style"] as Map<String, String>)
             ?: throw Exception("Failed to deserialize decoration")
         return Decoration(id, locator, style)
@@ -102,21 +89,6 @@ fun epubPreferencesFromMap(
     }
 }
 
-fun exoPlayerPreferencesFromMap(
-    prefMap: Map<String, String>,
-    defaults: ExoPlayerPreferences?
-): ExoPlayerPreferences? {
-    try {
-        return ExoPlayerPreferences(
-            pitch = prefMap["pitch"]?.toDoubleOrNull() ?: defaults?.pitch,
-            speed = prefMap["speed"]?.toDoubleOrNull() ?: defaults?.speed
-        )
-    } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to ExoPlayerPreferences: $ex")
-    }
-    return null
-}
-
 private const val READIUM_FLUTTER_PATH_PREFIX =
     "https://readium/assets/flutter_assets/packages/flutter_readium"
 
@@ -158,3 +130,129 @@ fun Resource.injectScriptsAndStyles(): Resource =
 
         Try.success(newContent.toByteArray())
     }
+
+val syncNarrationsMediaType = MediaType("application/vnd.syncnarr+json")
+
+/**
+ * Check if the publication has any media overlays.
+ */
+fun Publication.hasMediaOverlays() = this.readingOrder.any { r ->
+    r.alternates.any { a ->
+        a.mediaType == syncNarrationsMediaType
+    } || r.properties["media-overlay"] != null
+}
+
+/**
+ * Get the media overlays for the publication, if any.
+ * Note: If an item in the reading order does not have a media overlay, it will be represented by null
+ */
+suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
+    if (!hasMediaOverlays()) return null
+
+    // Flatten TOC for title lookup
+    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it.title) }
+
+    // Remember last matched TOC item for titles
+    var lastTocMatch: Pair<String, String?>? = null
+
+    return this.readingOrder.map { r ->
+        r.alternates.find { a ->
+            a.mediaType == MediaType("application/vnd.syncnarr+json")
+        }?.copy(title = r.title)
+    }.mapIndexed { index, link ->
+        if (link == null) return@mapIndexed null
+
+        val jsonString =
+            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexed null
+        val jsonObject = JSONObject(jsonString)
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
+    }
+        .map { mo ->
+            if (mo == null) return@map null
+
+            val items = mo.items.map { item ->
+                // Find best matching title from TOC
+                val match = toc.find { tocItem ->
+                    tocItem.first == item.text
+                }
+
+                if (match?.second != null) {
+                    lastTocMatch = match
+                    item.copy(title = match.second ?: "")
+                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
+                    item.copy(title = lastTocMatch.second ?: "")
+                } else {
+                    item
+                }
+            }
+
+            return@map FlutterMediaOverlay(items)
+        }
+}
+
+/**
+ * Create a new Publication containing only the audio files from the media overlays.
+ * This is used for the Sync Audiobook navigator.
+ * Returns the new Publication and the list of media overlays, if any.
+ * If there are no media overlays, returns the original publication and null.
+ */
+@OptIn(InternalReadiumApi::class)
+suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMediaOverlay?>?> {
+    if (!hasMediaOverlays()) {
+        return Pair(this, null)
+    }
+
+    val mo = getMediaOverlays()
+    if (mo == null) {
+        return Pair(this, null)
+    }
+
+    val manifest = Manifest(
+        context = context,
+        metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
+        resources = resources,
+        links = links,
+        readingOrder = mo.mapNotNull { mo ->
+            Href.invoke(mo?.items?.first()?.audioFile ?: "")
+                ?.let { href ->
+                    Link(
+                        href,
+                        MediaType.MP3,
+                        duration = mo?.duration,
+                        title = mo?.items?.first()?.title
+                    )
+                }
+        }
+    )
+
+    val pseudoPublication = Publication.Builder(manifest, container).build()
+    return Pair(pseudoPublication, mo)
+}
+
+/**
+ * Get the time offset from a Locator's fragments, if any.
+ */
+fun Locator.getTimeOffset(): Double? {
+    val timeFragment = locations.fragments.find { it.startsWith("t=") } ?: return null
+    return timeFragment.substringAfter("t=").toDoubleOrNull()
+}
+
+/**
+ * Get the text id from a Locator's fragments or css selector, if any.
+ */
+fun Locator.getTextId(): String? {
+    val cssFragment =
+        locations.fragments.find { it.startsWith("#") } ?: locations.cssSelector ?: return null
+    return cssFragment.removePrefix("#")
+}
+
+/**
+ * Make a new copy with a new time fragment
+ */
+fun Locator.copyWithTimeFragment(time: Double): Locator {
+    return copy(
+        locations = locations.copy(
+            fragments = listOf("${time}")
+        )
+    )
+}

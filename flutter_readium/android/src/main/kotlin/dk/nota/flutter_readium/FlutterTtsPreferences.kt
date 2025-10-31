@@ -7,6 +7,9 @@ import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Language
 
+/**
+ * TTS preferences used in the Flutter Readium plugin.
+ */
 @Serializable
 data class FlutterTtsPreferences(
     val language: String? = null,
@@ -15,6 +18,9 @@ data class FlutterTtsPreferences(
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
 ) {
+    /**
+     * Convert to AndroidTtsPreferences.
+     */
     @OptIn(ExperimentalReadiumApi::class)
     fun toAndroidTtsPreferences(): AndroidTtsPreferences {
         return AndroidTtsPreferences(
@@ -36,10 +42,16 @@ data class FlutterTtsPreferences(
         )
 
     companion object {
+        /**
+         * Create FlutterTtsPreferences from JSON string.
+         */
         fun fromJSON(json: String): FlutterTtsPreferences {
             return fromJSON(JSONObject(json))
         }
 
+        /**
+         * Create FlutterTtsPreferences from JSON object.
+         */
         fun fromJSON(jsonObject: JSONObject): FlutterTtsPreferences {
             val voicesMap = mutableMapOf<String, String>()
             if (jsonObject.has("voices")) {
@@ -62,6 +74,9 @@ data class FlutterTtsPreferences(
             )
         }
 
+        /**
+         * Convert FlutterTtsPreferences to JSON object.
+         */
         fun toJSON(preferences: FlutterTtsPreferences): JSONObject {
             val jsonObject = JSONObject()
             jsonObject.put("language", preferences.language)
@@ -76,6 +91,9 @@ data class FlutterTtsPreferences(
             return jsonObject
         }
 
+        /**
+         * Create FlutterTtsPreferences from a map.
+         */
         fun fromMap(prefs: Map<*, *>?): FlutterTtsPreferences {
             val voices = (prefs?.get("voices") as? Map<*, *>)?.mapNotNull {
                 val key = it.key as? String

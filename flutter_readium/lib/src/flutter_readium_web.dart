@@ -196,11 +196,11 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> ttsSetDecorationStyle(
+  Future<void> setDecorationStyle(
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    R2Log.d('ttsSetDecorationStyle not implemented in web version');
+    R2Log.d('setDecorationStyle not implemented in web version');
   }
 
   @override

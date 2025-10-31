@@ -156,14 +156,12 @@ class ReadiumReaderWidget(
             "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression} ${locator.locations}"
         )
 
-
         if (lastPageLoadedKey == currentKey) {
             // Sometimes we get duplicate calls to onPageChanged with same locator.
             // Not sure why, but ignore them.
             return
         }
 
-        // TODO: Should we do something with the pageIndex and totalPages?
         lastPageLoadedKey = currentKey
 
         mainScope.launch { emitOnPageChanged(locator) }

@@ -100,11 +100,11 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       throw UnimplementedError('ttsSetVoice() has not been implemented');
-  Future<void> ttsSetDecorationStyle(
+  Future<void> setDecorationStyle(
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) =>
-      throw UnimplementedError('ttsSetDecorationStyle() has not been implemented');
+      throw UnimplementedError('setDecorationStyle() has not been implemented');
   Future<void> ttsSetPreferences(TTSPreferences preferences) =>
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END

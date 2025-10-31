@@ -94,9 +94,8 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> ttsSetDecorationStyle(
-      ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
-    // TODO: implement ttsSetDecorationStyle
+  Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
+    // TODO: implement setDecorationStyle
     throw UnimplementedError();
   }
 

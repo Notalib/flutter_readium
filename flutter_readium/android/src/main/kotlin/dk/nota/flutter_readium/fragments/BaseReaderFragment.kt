@@ -13,6 +13,9 @@ import org.readium.r2.shared.publication.Locator
 
 private const val TAG: String = "BaseReaderFragment"
 
+/**
+ * Base class for reader fragments.
+ */
 abstract class BaseReaderFragment : Fragment() {
     var vm: ReaderViewModel? = null
     protected open var navigator: Navigator? = null

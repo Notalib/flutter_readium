@@ -1,6 +1,5 @@
 package dk.nota.flutter_readium.navigators
 
-import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
 import dk.nota.flutter_readium.ControlPanelInfoType
@@ -36,15 +35,13 @@ import org.readium.r2.shared.util.tokenizer.TextUnit
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-private const val TAG = "TTSViewModel"
+private const val TAG = "TTSNavigator"
+
 private const val TTS_DECORATION_ID_UTTERANCE = "tts-utterance"
+
 private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
 private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
-
-private const val utteranceStyleKey = "utteranceStyle"
-
-private const val currentRangeStyleKey = "currentRangeStyle"
 
 private const val ttsPreferencesKey = "ttsPreferences"
 
@@ -58,17 +55,12 @@ class TTSNavigator(
     initialLocator: Locator?,
     private var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
-    // TODO: Decision on appropriate defaults
-    private var utteranceStyle: Decoration.Style? = Decoration.Style.Highlight(tint = Color.YELLOW)
-    private var currentRangeStyle: Decoration.Style? = Decoration.Style.Underline(tint = Color.RED)
+    val decorationGroup = "tts"
 
     private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice>? =
         null
 
     private var mediaServiceFacade: PluginMediaServiceFacade? = null
-
-    // in-memory cached state
-    private val state = mutableMapOf<String, Any?>()
 
     override suspend fun initNavigator() {
         val navigatorFactory = TtsNavigatorFactory(
@@ -79,7 +71,6 @@ class TTSNavigator(
             },
             metadataProvider = { pub ->
                 DatabaseMediaMetadataFactory(
-                    context = ReadiumReader.application,
                     publication = publication,
                     trackCount = pub.readingOrder.size,
                     controlPanelInfoType = preferences.controlPanelInfoType
@@ -134,22 +125,6 @@ class TTSNavigator(
                             }
                         }.launchIn(mainScope)
                 }
-        }.await()
-    }
-
-    suspend fun setDecorationStyle(uttStyle: Decoration.Style?, rangeStyle: Decoration.Style?) {
-        utteranceStyle = uttStyle
-        currentRangeStyle = rangeStyle
-
-        val navigator = ttsNavigator
-        if (navigator == null) {
-            Log.d(TAG, ":setDecorationStyle: navigator is null")
-            return
-        }
-
-        val location = navigator.location.value
-        mainScope.async {
-            decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
         }.await()
     }
 
@@ -237,6 +212,22 @@ class TTSNavigator(
         }
     }
 
+    /**
+     * Called when decorations (e.g., highlights) need to be updated.
+     */
+    suspend fun decorationsUpdated() {
+        val navigator = ttsNavigator
+        if (navigator == null) {
+            Log.d(TAG, ":setDecorationStyle: navigator is null")
+            return
+        }
+
+        val location = navigator.location.value
+        mainScope.async {
+            decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
+        }.await()
+    }
+
 
     /// Updates TTS preferences, does not override current preferences if props are null
     suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
@@ -317,8 +308,13 @@ class TTSNavigator(
             .let { jobs.add(it) }
     }
 
+    /**
+     * Apply decorations for the current utterance and token (word).
+     */
     private suspend fun decorateCurrentUtterance(uttLocator: Locator, tokenLocator: Locator?) {
         val decorations = mutableListOf<Decoration>()
+        val utteranceStyle = ReadiumReader.decorationStyle.utteranceStyle
+        val currentRangeStyle = ReadiumReader.decorationStyle.currentRangeStyle
         utteranceStyle?.let { style ->
             decorations.add(
                 Decoration(
@@ -338,7 +334,7 @@ class TTSNavigator(
             )
         }
 
-        ReadiumReader.applyDecorations(decorations, group = "tts")
+        ReadiumReader.applyDecorations(decorations, group = decorationGroup)
     }
 
     override fun storeState(): Bundle {
@@ -347,14 +343,6 @@ class TTSNavigator(
                 currentTimebasedLocatorKey,
                 (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
             )
-
-            utteranceStyle?.let { utteranceStyle ->
-                putParcelable(utteranceStyleKey, utteranceStyle)
-            }
-
-            currentRangeStyle?.let { currentRangeStyle ->
-                putParcelable(currentRangeStyleKey, currentRangeStyle)
-            }
 
             putString(
                 ttsPreferencesKey,
@@ -369,6 +357,8 @@ class TTSNavigator(
         mainScope.async {
             mediaServiceFacade?.closeSession()
 
+            ReadiumReader.applyDecorations(emptyList(), decorationGroup)
+
             ttsNavigator?.close()
             ttsNavigator = null
         }
@@ -376,6 +366,7 @@ class TTSNavigator(
 
     override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
         when (pb.state) {
+            // Handle TTS-specific failure state
             is TtsNavigator.State.Failure -> {
                 val ttsState = pb.state as TtsNavigator.State.Failure
                 val error = ttsState.error
@@ -411,13 +402,7 @@ class TTSNavigator(
                 ?.let { FlutterTtsPreferences.fromJSON(it) }
                 ?: FlutterTtsPreferences()
 
-            val uttStyle = state.getParcelable<Decoration.Style>(utteranceStyleKey)
-            val rangeStyle = state.getParcelable<Decoration.Style>(currentRangeStyleKey)
-
-            return TTSNavigator(publication, listener, locator, preferences).apply {
-                utteranceStyle = uttStyle
-                currentRangeStyle = rangeStyle
-            }
+            return TTSNavigator(publication, listener, locator, preferences)
         }
     }
 }

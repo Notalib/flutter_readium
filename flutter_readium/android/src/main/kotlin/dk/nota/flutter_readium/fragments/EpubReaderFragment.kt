@@ -31,8 +31,19 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     EpubNavigatorFragment.PaginationListener, CoroutineScope by MainScope() {
 
     interface Listener {
+        /**
+         * Called when a page has finished loading.
+         */
         fun onPageLoaded()
+
+        /**
+         * Called when the current page has changed.
+         */
         fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+
+        /**
+         * Called when an external link is activated.
+         */
         fun onExternalLinkActivated(url: AbsoluteUrl)
     }
 
@@ -92,6 +103,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         navigator.applyDecorations(decorations, group)
     }
 
+    /**
+     * Evaluate JavaScript in the context of the navigator's WebView.
+     * NOTE: Returns null on error and if script returns null/undefined.
+     */
     suspend fun evaluateJavascript(script: String): String? {
         val navigator = epubNavigator
         if (navigator == null) {
@@ -102,15 +117,24 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         return navigator.evaluateJavascript(script)
     }
 
+    /**
+     * Check if the reader is ready.
+     */
     suspend fun isReaderReady(): Boolean {
         return started.value && evaluateJavascript("window.epubPage.isReaderReady();") == "true"
     }
 
+    /**
+     * Update the reader preferences.
+     */
     fun updatePreferences(preferences: EpubPreferences) {
         Log.d(TAG, "::updatePreferences")
         epubNavigator?.submitPreferences(preferences)
     }
 
+    /**
+     * Navigate left (previous page).
+     */
     fun goLeft(animated: Boolean) {
         Log.d(TAG, "::goLeft")
         val navigator = epubNavigator
@@ -126,6 +150,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
+    /**
+     * Navigate right (next page).
+     */
     fun goRight(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
@@ -141,6 +168,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
+    /**
+     * Android lifecycle resume method, reattaches the navigator if needed.
+     */
     override fun onResume() {
         try {
             Log.d(TAG, "::onResume - $instance - $attachingNavigatorFragment")
@@ -163,15 +193,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    override fun onViewStateRestored(savedInstanceState: Bundle?) {
-        try {
-            Log.d(TAG, "::onViewStateRestored - $instance")
-            super.onViewStateRestored(savedInstanceState)
-        } finally {
-            Log.d(TAG, "::onViewStateRestored - $instance - ended")
-        }
-    }
-
+    /**
+     * Android lifecycle view created method, creates and attaches the navigator.
+     */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         try {
             super.onViewCreated(view, savedInstanceState)
@@ -202,6 +226,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
+    /**
+     * Android lifecycle pause method, detaches the navigator to save resources and prevent caches.
+     */
     override fun onPause() {
         try {
             Log.d(TAG, "::onPause - $instance")
@@ -225,52 +252,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
     }
 
-    override fun onStart() {
-        try {
-            Log.d(TAG, "::onStart - $instance")
-            super.onStart()
-        } finally {
-            Log.d(TAG, ":: onStart - $instance - ended")
-        }
-    }
-
-    override fun onStop() {
-        try {
-            Log.d(TAG, "::onStop - $instance")
-            super.onStop()
-        } finally {
-            Log.d(TAG, ":: onStop - $instance - ended")
-        }
-    }
-
-    override fun onDetach() {
-        try {
-            Log.d(TAG, "::onDetach - $instance")
-            super.onDetach()
-        } finally {
-            Log.d(TAG, "::onDetach - $instance - ended")
-        }
-    }
-
-    override fun onDestroy() {
-        try {
-            Log.d(TAG, "::onDestroy - $instance")
-            super.onDestroy()
-        } finally {
-            Log.d(TAG, "::onDestroy - $instance - ended")
-        }
-    }
-
-    override fun onDestroyView() {
-        try {
-            Log.d(TAG, "::onDestroyView - $instance")
-            super.onDestroyView()
-        } finally {
-            Log.d(TAG, "::onDestroyView - $instance - ended")
-        }
-    }
-
     private var attachingNavigatorFragment = false
+
+    /**
+     * Attach the navigator fragment to this reader fragment.
+     */
     private fun attachNavigator() {
         Log.d(TAG, "::attachNavigator() - $instance")
         if (navigator != null) {

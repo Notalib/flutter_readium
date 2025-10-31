@@ -146,6 +146,9 @@ extension PublicationExtension on Publication {
   bool get conformsToReadiumEbook =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
+  bool get containsMediaOverlays =>
+      readingOrder.any((link) => link.alternate?.any((alt) => alt.type == MediaType.syncMediaNarration.value) ?? false);
+
   // TODO: Is this needed and does it work?
   /// Estimates total progression duration in book, based on current chapter and current progression
   /// in chapter.

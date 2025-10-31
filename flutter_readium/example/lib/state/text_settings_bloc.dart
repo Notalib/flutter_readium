@@ -98,8 +98,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
             verticalScroll: false,
             fontSize: 120,
             theme: TextSettingsTheme(
-              textColor: themes[8].textColor,
-              backgroundColor: themes[8].backgroundColor,
+              textColor: themes[1].textColor,
+              backgroundColor: themes[1].backgroundColor,
             ),
             highlight: TextSettingsTheme(
               textColor: highlights[0].textColor,
@@ -126,7 +126,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     on<ChangeHighlight>((final event, final emit) async {
       emit(state.copyWith(highlight: event.highlight));
 
-      await FlutterReadium().ttsSetDecorationStyle(
+      await FlutterReadium().setDecorationStyle(
         ReaderDecorationStyle(style: DecorationStyle.highlight, tint: event.highlight.backgroundColor),
         ReaderDecorationStyle(style: DecorationStyle.underline, tint: event.highlight.textColor),
       );
