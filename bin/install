@@ -10,4 +10,4 @@ if [ "$(uname)" == "Darwin" ]; then
 fi
 
 
-./bin/build_js
+./bin/update_web_example

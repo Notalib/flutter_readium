@@ -1,0 +1,10 @@
+#!/bin/bash
+
+./bin/build_js
+
+cd flutter_readium/example
+dart run flutter_readium:copy_js_file web
+
+cd ../..
+
+echo "Finished at $(date +'%H:%M')"
