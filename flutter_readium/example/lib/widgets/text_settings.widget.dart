@@ -73,6 +73,33 @@ class TextSettingsWidget extends StatelessWidget {
                     isHighlight: true,
                   ),
                 ),
+                const Divider(),
+                TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: ButtonStyle(
+                      padding: WidgetStateProperty.all<EdgeInsets>(
+                        const EdgeInsets.symmetric(vertical: 16.0),
+                      ),
+                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                        RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0.0),
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      spacing: 8.0,
+                      children: [
+                        Icon(Icons.close, size: 20),
+                        // SizedBox(width: 10),
+                        Text(
+                          'Close',
+                          style: TextStyle(fontSize: 20),
+                        ),
+                      ],
+                    ))
               ],
             ),
           ),
