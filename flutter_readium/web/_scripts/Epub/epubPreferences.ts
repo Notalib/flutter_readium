@@ -2,10 +2,14 @@ import {
   TextAlignment,
   IEpubPreferences,
   IEpubDefaults,
-  EpubNavigator,
-} from '@readium/navigator';
+} from "@readium/navigator";
+import {
+  convertVerticalScroll,
+  normalizeTypes,
+  textAlignFromJson,
+} from "../helpers";
 
-export function initializePreferencesFromString(
+export function initializeEpubPreferencesFromString(
   preferencesString: string
 ): IEpubPreferences {
   const prefs = JSON.parse(preferencesString);
@@ -13,7 +17,7 @@ export function initializePreferencesFromString(
   convertVerticalScroll(prefs);
 
   if (prefs.textAlign != null) {
-    prefs.textAlign = _textAlignFromJson(prefs.textAlign);
+    prefs.textAlign = textAlignFromJson(prefs.textAlign);
   }
 
   let preferences: IEpubPreferences = {
@@ -65,7 +69,7 @@ export const defaults: IEpubDefaults = {
   blendFilter: true,
   columnCount: 2,
   darkenFilter: 0.5,
-  fontFamily: 'Arial',
+  fontFamily: "Arial",
   fontSize: 1,
   fontWeight: 400,
   fontWidth: 100,
@@ -73,83 +77,14 @@ export const defaults: IEpubDefaults = {
   letterSpacing: 0,
   ligatures: true,
   lineHeight: 1.5,
-  linkColor: '#0000ff',
+  linkColor: "#0000ff",
   pageGutter: 10,
   scroll: false,
-  selectionBackgroundColor: '#cccccc',
-  selectionTextColor: '#000000',
+  selectionBackgroundColor: "#cccccc",
+  selectionTextColor: "#000000",
   textAlign: TextAlignment.justify,
   textColor: null,
   textNormalization: true,
-  visitedColor: '#551a8b',
+  visitedColor: "#551a8b",
   wordSpacing: 0,
 };
-
-function _textAlignFromJson(textAlignString: string): TextAlignment {
-  switch (textAlignString) {
-    case 'left':
-      return TextAlignment.left;
-    case 'right':
-      return TextAlignment.right;
-    case 'start':
-      return TextAlignment.start;
-    case 'justify':
-      return TextAlignment.justify;
-    default:
-      return TextAlignment.left;
-  }
-}
-
-function convertVerticalScroll(prefs: any) {
-  if ('verticalScroll' in prefs) {
-    prefs.scroll = prefs.verticalScroll;
-    delete prefs.verticalScroll;
-  }
-}
-
-function normalizeTypes(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(normalizeTypes);
-  } else if (obj !== null && typeof obj === 'object') {
-    for (const key in obj) {
-      if (!obj.hasOwnProperty(key)) continue;
-      const value = obj[key];
-      if (typeof value === 'string') {
-        if (value === 'true') {
-          obj[key] = true;
-        } else if (value === 'false') {
-          obj[key] = false;
-        } else if (/^-?\d+(\.\d+)?$/.test(value)) {
-          // Only convert if the string is a pure number (int or float)
-          obj[key] = value.includes('.')
-            ? parseFloat(value)
-            : parseInt(value, 10);
-        }
-      } else if (typeof value === 'object' && value !== null) {
-        obj[key] = normalizeTypes(value);
-      }
-    }
-  }
-  return obj;
-}
-
-export function setPreferencesFromString(
-  newPreferencesString: string,
-  nav: EpubNavigator
-) {
-  let newPreferences = JSON.parse(newPreferencesString);
-
-  convertVerticalScroll(newPreferences);
-
-  if (newPreferences.textAlign != null) {
-    newPreferences.textAlign = _textAlignFromJson(newPreferences.textAlign);
-  }
-  if (newPreferences.pageMargins != null) {
-    newPreferences.pageGutter = newPreferences.pageMargins;
-    delete newPreferences.pageMargins;
-  }
-
-  newPreferences = normalizeTypes(newPreferences);
-
-  nav.submitPreferences(newPreferences);
-}
