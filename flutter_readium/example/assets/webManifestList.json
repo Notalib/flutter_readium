@@ -1,4 +1,6 @@
 [
   "https://merkur.live.dbb.dk/opds2/publication/free/merkur:libraryid:37881/manifest.json",
-  "https://publication-server.readium.org/bW9ieS1kaWNrLmVwdWI/manifest.json"
+  "https://readium.org/css/docs/manifest.json",
+  "https://readium.org/webpub-manifest/examples/MobyDick/manifest.json",
+  "https://publication-server.readium.org/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9tb2xseS1ob3BwZXItdjEuMS53ZWJwdWI/manifest.json"
 ]
