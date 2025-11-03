@@ -12,11 +12,11 @@ class ReadiumWebView extends StatefulWidget {
   const ReadiumWebView({
     super.key,
     required this.publication,
-    this.currentLocatorString,
+    this.currentLocator,
   });
 
   final Publication publication;
-  final String? currentLocatorString;
+  final Locator? currentLocator;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -60,8 +60,9 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
       final pubId = widget.publication.identifier;
       final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
+      final currentLocatorString = widget.currentLocator != null ? json.encode(widget.currentLocator) : null;
       await JsPublicationChannel().openPublication(publicationUrl,
-          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: widget.currentLocatorString);
+          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: currentLocatorString);
       updateLocator = onLocatorUpdate.toJS;
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails
