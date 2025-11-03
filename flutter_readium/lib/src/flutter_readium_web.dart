@@ -17,6 +17,15 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setCustomHeaders(Map<String, String> headers) =>
+      throw UnimplementedError('setCustomHeaders is not implemented on web platform');
+
+  @override
+  void setDefaultPreferences(EPUBPreferences preferences) {
+    defaultPreferences = preferences;
+  }
+
+  @override
   Future<Publication> loadPublication(String pubUrl) async {
     Publication publication;
 
@@ -132,6 +141,11 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return;
   }
 
+  @override
+  Future<String?> getLinkContent(Link link) {
+    return getString(link);
+  }
+
   static Future<String> getString(final Link link) async {
     // Get HTML string for full chapters, for example
     final linkString = json.encode(link);
@@ -140,8 +154,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static Future<Uint8List> getBytes(final Link link) async {
-    // this is needed for audio books
-    // TODO: This needs more testing
+    // TODO: Is this still needed for audio books with the new implementation
     final linkString = json.encode(link);
     final resourceBytesString = await JsPublicationChannel().getResource(linkString, asBytes: true);
     final byteList = jsonDecode(resourceBytesString).cast<int>();
@@ -160,12 +173,12 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> skipToNext() async {
-    R2Log.d('skipToNext not implemented in web version');
+    R2Log.d('skipToNext is not implemented on web platform');
   }
 
   @override
   Future<void> skipToPrevious() async {
-    R2Log.d('skipToPrevious not implemented in web version');
+    R2Log.d('skipToPrevious is not implemented on web platform');
   }
 
   @override
@@ -176,23 +189,60 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    R2Log.d('applyDecorations not implemented in web version');
+    R2Log.d('applyDecorations is not implemented on web platform');
   }
 
+  // COMMON PLAYBACK API - BEGIN
+  @override
+  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play is not implemented on web platform');
+
+  @override
+  Future<void> stop() => throw UnimplementedError('stop is not implemented on web platform');
+
+  @override
+  Future<void> pause() => throw UnimplementedError('pause is not implemented on web platform');
+
+  @override
+  Future<void> resume() => throw UnimplementedError('resume is not implemented on web platform');
+
+  @override
+  Future<void> next() => throw UnimplementedError('next is not implemented on web platform');
+
+  @override
+  Future<void> previous() => throw UnimplementedError('previous is not implemented on web platform');
+
+  @override
+  Future<bool> goToLocator(final Locator locator) async {
+    try {
+      await JsPublicationChannel.goToLocation(locator.hrefPath);
+      return true;
+    } on PlatformException catch (e, stackTrace) {
+      final pubID = 'unknown';
+      throw ReadiumError(
+        'Error when navigating to locator: ${e.message}',
+        code: e.code,
+        data: 'publication id: $pubID. locator: $locator',
+        stackTrace: stackTrace,
+      );
+    }
+  }
+  // COMMON PLAYBACK API - END
+
+  // TTS API - BEGIN
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async {
-    R2Log.d('ttsEnable not implemented in web version');
+    R2Log.d('ttsEnable is not implemented on web platform');
   }
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    R2Log.d('ttsGetAvailableVoices not implemented in web version');
+    R2Log.d('ttsGetAvailableVoices is not implemented on web platform');
     return [];
   }
 
   @override
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {
-    R2Log.d('ttsSetVoice not implemented in web version');
+    R2Log.d('ttsSetVoice is not implemented on web platform');
   }
 
   @override
@@ -200,17 +250,28 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    R2Log.d('setDecorationStyle not implemented in web version');
+    R2Log.d('setDecorationStyle is not implemented on web platform');
   }
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) async {
-    R2Log.d('ttsSetPreferences not implemented in web version');
+    R2Log.d('ttsSetPreferences is not implemented on web platform');
   }
+  // TTS API - END
+
+  // AUDIOBOOK API - BEGIN
+  @override
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
+      throw UnimplementedError('audioEnable is not implemented on web platform');
+
+  @override
+  Future<void> audioSetPreferences(AudioPreferences prefs) =>
+      throw UnimplementedError('audioSetPreferences is not implemented on web platform');
+  // AUDIOBOOK API - END
 
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
-    R2Log.d('onReaderStatusChanged not implemented in web version');
+    R2Log.d('onReaderStatusChanged is not implemented on web platform');
     return const Stream.empty();
   }
 
@@ -221,12 +282,19 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Stream<Locator> get onAudioLocatorChanged {
-    R2Log.d('onAudioLocatorChanged not implemented in web version');
+    R2Log.d('onAudioLocatorChanged is not implemented on web platform');
     return const Stream.empty();
   }
 
   @override
-  Future<String?> getLinkContent(Link link) {
-    return getString(link);
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    // TODO: Implement when karaoke books are supported
+    // throw UnimplementedError('get onTimebasedPlayerStateChanged is not implemented on web platform');
+    return const Stream.empty();
+  }
+
+  @override
+  Stream<ReadiumError> get onErrorEvent {
+    throw UnimplementedError('get onErrorEvent is not implemented on web platform');
   }
 }
