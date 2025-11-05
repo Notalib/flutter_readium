@@ -8,12 +8,14 @@
   "devDependencies": {
     "css-loader": "^7.1.2",
     "style-loader": "^4.0.0",
+    "terser-webpack-plugin": "^5.3.14",
     "ts-loader": "^9.5.1",
     "typescript": "^5.7.2",
     "webpack": "^5.97.0",
     "webpack-cli": "^5.1.4"
   },
   "scripts": {
-    "build": "webpack --config ./web/_scripts/webpack.config.js"
+    "build_dev": "webpack --config ./web/_scripts/webpack.config.js --mode development",
+    "build": "webpack --config ./web/_scripts/webpack.config.js --mode production"
   }
 }

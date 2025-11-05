@@ -3,7 +3,7 @@
 ./bin/build_js
 
 cd flutter_readium/example
-dart run flutter_readium:copy_js_file web
+dart run flutter_readium:copy_js_file web dev
 
 cd ../..
 

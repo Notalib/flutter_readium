@@ -2,4 +2,6 @@
 echo "Building flutter_readium web"
 cd ./flutter_readium/
 npm i
-npm run build
+npm run build_dev
+### this is for when production build is ready
+# npm run build

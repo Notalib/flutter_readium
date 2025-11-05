@@ -8,7 +8,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "Node"
+    "moduleResolution": "Node",
+    "removeComments": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]

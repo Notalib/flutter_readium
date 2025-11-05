@@ -5,7 +5,7 @@ import 'dart:isolate';
 
 void main(List<String> args) async {
   if (args.isEmpty) {
-    print('Usage: dart run flutter_readium:copy_js_file <destination_directory>');
+    print('Usage: dart run flutter_readium:copy_js_file <destination_directory> [dev|prod]');
     return;
   }
 
