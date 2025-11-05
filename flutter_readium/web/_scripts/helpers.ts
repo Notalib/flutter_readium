@@ -81,6 +81,8 @@ export function normalizeTypes(obj: any): any {
         }
       } else if (typeof value === "object" && value !== null) {
         obj[key] = normalizeTypes(value);
+      } else if (value === "null" || value == null) {
+        delete obj[key];
       }
     }
   }
