@@ -10,9 +10,6 @@ import {
 } from "@readium/shared";
 import { Link } from "@readium/shared";
 
-// Design
-import "@material/web/all";
-
 // Helpers
 import { fetchManifest, mediaTypes, setPreferencesFromString } from "./helpers";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";

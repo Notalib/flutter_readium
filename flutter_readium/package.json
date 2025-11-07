@@ -1,7 +1,6 @@
 {
   "dependencies": {
-    "@material/web": "^2.3.0",
-    "@readium/navigator": "^2.2.3",
+    "@readium/navigator": "^2.2.4",
     "@readium/navigator-html-injectables": "^2.2.1",
     "@readium/shared": "^2.1.1"
   },
