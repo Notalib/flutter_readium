@@ -105,3 +105,9 @@ After copying the JavaScript file to your app, add Flutter's initialization JS c
 ```
 
 If the plugin's JS file is not saved in the same directory as `index.html`, update the source path accordingly.
+
+#### Additional information
+
+##### Preferences
+
+For which value ranges preferences accept please look at this [page](https://github.com/readium/ts-toolkit/blob/develop/navigator/src/preferences/Types.ts), and for other information on what they do and how they work please refer to [Readium CSS official documentation](https://github.com/readium/css?tab=readme-ov-file#docs).
