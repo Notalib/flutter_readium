@@ -37,7 +37,8 @@ export function initializeWebPubPreferencesFromString(
     hyphens: prefs.hyphens ?? null,
     // invertFilter: prefs.invertFilter ?? null,
     // invertGaijiFilter: prefs.invertGaijiFilter ?? null,
-    // iPadOSPatch: prefs.iPadOSPatch ?? null,
+    iOSPatch: prefs.iOSPatch ?? null,
+    iPadOSPatch: prefs.iPadOSPatch ?? null,
     letterSpacing: prefs.letterSpacing ?? null,
     ligatures: prefs.ligatures ?? null,
     lineHeight: prefs.lineHeight ?? null,
@@ -55,7 +56,8 @@ export function initializeWebPubPreferencesFromString(
     textNormalization: prefs.textNormalization ?? null,
     // visitedColor: prefs.visitedColor ?? null,
     wordSpacing: prefs.wordSpacing ?? null,
-    zoom: prefs.zoom ?? 1,
+    // It appears to me that zoom functions similarly to fontSize in EpubPreferences, but it also used on spacing not just text size
+    zoom: prefs.zoom ?? null,
   };
 
   preferences = normalizeTypes(preferences);
