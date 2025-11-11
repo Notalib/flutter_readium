@@ -1,6 +1,8 @@
 import {
   BasicTextSelection,
   FrameClickEvent,
+  Width,
+  Layout,
 } from "@readium/navigator-html-injectables";
 import {
   EpubNavigator,
@@ -10,12 +12,19 @@ import {
   FrameManager,
   FXLFrameManager,
 } from "@readium/navigator";
-import { Publication, Locator, LocatorLocations, Link } from "@readium/shared";
+import {
+  Publication,
+  Locator,
+  LocatorLocations,
+  Link,
+  LocatorText,
+} from "@readium/shared";
 import Peripherals from "../peripherals";
 import {
   defaults,
   initializeEpubPreferencesFromString,
 } from "./epubPreferences";
+import { highlightSelection } from "../helpers";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
 
 export async function initializeEpubNavigatorAndPeripherals(
@@ -130,7 +139,9 @@ export async function initializeEpubNavigatorAndPeripherals(
       }
       return false;
     },
-    textSelected: function (_selection: BasicTextSelection): void {},
+    textSelected: function (_selection: BasicTextSelection): void {
+      highlightSelection(nav, publication, _selection);
+    },
   };
 
   const nav = new EpubNavigator(

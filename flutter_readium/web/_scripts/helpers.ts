@@ -4,12 +4,19 @@ import {
   WebPubNavigator,
 } from "@readium/navigator";
 import {
+  BasicTextSelection,
+  Width,
+  Layout,
+} from "@readium/navigator-html-injectables";
+import {
   Publication,
   Manifest,
   Link,
   Fetcher,
   HttpFetcher,
   MediaType,
+  Locator,
+  LocatorText,
 } from "@readium/shared";
 
 export async function fetchManifest(publicationURL: string) {
@@ -110,4 +117,47 @@ export function setPreferencesFromString(
   // if (nav instanceof EpubNavigator) {
   nav.submitPreferences(newPreferences);
   // }
+}
+
+export function highlightSelection(
+  nav: EpubNavigator | WebPubNavigator,
+  publication: Publication,
+  selection: BasicTextSelection
+) {
+  // TODO: Save decoration state to re-apply after reload
+  // Should probably be handled by the Flutter side
+  // TODO:  Make optional and configurable decoration style
+  // For now, hardcode a simple highlight style that always happens on textSelection
+  const currentLocator = nav.currentLocator;
+  const locator = new Locator({
+    href: currentLocator.href,
+    type: currentLocator.type,
+    locations: currentLocator.locations,
+    text: {
+      highlight: selection.text,
+    } as LocatorText,
+  });
+
+  const decorationId = [selection.text, selection.x, selection.y].join("_");
+
+  const decoration = {
+    id: decorationId,
+    locator,
+    style: {
+      tint: "#ff9fff55",
+      layout: Layout.Bounds,
+      width: Width.Wrap,
+    },
+  };
+
+  const frameComms = nav._cframes[0]?.msg;
+  if (frameComms) {
+    frameComms.send("decorate", {
+      group: "selection_" + publication.metadata.identifier,
+      action: "add",
+      decoration,
+    });
+  } else {
+    throw new Error("Could not find frame comms to send decoration");
+  }
 }

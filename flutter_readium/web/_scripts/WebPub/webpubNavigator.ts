@@ -14,6 +14,7 @@ import {
   defaults,
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
+import { highlightSelection } from "../helpers";
 
 // TODO:
 // There is a webpub from readiums publication-server called molly hopper that is an accessible epub and it doesn't quite work
@@ -113,7 +114,9 @@ export async function initializeWebPubNavigatorAndPeripherals(
       }
       return false;
     },
-    textSelected: function (_selection: BasicTextSelection): void {},
+    textSelected: function (_selection: BasicTextSelection): void {
+      highlightSelection(nav, publication, _selection);
+    },
   };
 
   const nav = new WebPubNavigator(
