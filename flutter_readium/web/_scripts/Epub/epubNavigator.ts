@@ -39,7 +39,8 @@ export async function initializeEpubNavigatorAndPeripherals(
 
   if (positions.length === 0) {
     // Use readingOrder if positionListLink is undefined
-    // TODO: this is a workaround, consider using initializeWebPubPreferencesFromString as fallback instead
+    // TODO: this is a workaround, consider using initializeWebPubNavigatorAndPeripherals as fallback instead
+    // webpub does not required a position list
     positions = publication.manifest.readingOrder.items.map(
       (link: Link, index: number) => {
         return new Locator({
@@ -68,6 +69,7 @@ export async function initializeEpubNavigatorAndPeripherals(
       } else if (direction === "left") {
         nav.goLeft(true, () => {});
       } else if (direction === "up") {
+        // TODO: check for scroll mode first
         const iframes = document.querySelectorAll(".readium-navigator-iframe");
         iframes.forEach((iframe) => {
           if (iframe instanceof HTMLIFrameElement) {
@@ -110,9 +112,7 @@ export async function initializeEpubNavigatorAndPeripherals(
     positionChanged: (_locator: Locator): void => {
       window.focus();
 
-      if ((window as any).updateLocator) {
-        (window as any).updateLocator(JSON.stringify(_locator));
-      }
+      (window as any).updateTextLocator?.(JSON.stringify(_locator));
     },
     tap: function (_e: FrameClickEvent): boolean {
       return false;
@@ -156,6 +156,7 @@ export async function initializeEpubNavigatorAndPeripherals(
   try {
     await nav.load();
   } catch (error) {
+    // TODO: check if necessary to rethrow
     throw error;
   }
 

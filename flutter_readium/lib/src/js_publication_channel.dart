@@ -18,7 +18,10 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
 }
 
 @JS()
-external set updateLocator(JSFunction f);
+external set updateTextLocator(JSFunction f);
+
+@JS()
+external set updateReaderStatus(JSFunction f);
 
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();

@@ -10,10 +10,36 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
   }
 
-  static final StreamController<Locator> _locatorController = StreamController<Locator>.broadcast();
+  static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
+  static final StreamController<Locator> _locatorAudioController = StreamController<Locator>.broadcast();
+  static final StreamController<ReadiumReaderStatus> _readerStatusController =
+      StreamController<ReadiumReaderStatus>.broadcast();
 
-  static void addLocatorUpdate(Locator locator) {
-    _locatorController.add(locator);
+  static void addTextLocatorUpdate(Locator locator) {
+    _locatorTextController.add(locator);
+  }
+
+  static void addAudioLocatorUpdate(Locator locator) {
+    _locatorAudioController.add(locator);
+  }
+
+  static void addReaderStatusUpdate(ReadiumReaderStatus status) {
+    _readerStatusController.add(status);
+  }
+
+  @override
+  Stream<Locator> get onTextLocatorChanged {
+    return _locatorTextController.stream;
+  }
+
+  @override
+  Stream<Locator> get onAudioLocatorChanged {
+    return _locatorAudioController.stream;
+  }
+
+  @override
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged {
+    return _readerStatusController.stream;
   }
 
   @override
@@ -305,23 +331,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Future<void> audioSetPreferences(AudioPreferences prefs) =>
       throw UnimplementedError('audioSetPreferences is not implemented on web platform');
   // AUDIOBOOK API - END
-
-  @override
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged {
-    R2Log.d('onReaderStatusChanged is not implemented on web platform');
-    return const Stream.empty();
-  }
-
-  @override
-  Stream<Locator> get onTextLocatorChanged {
-    return _locatorController.stream;
-  }
-
-  @override
-  Stream<Locator> get onAudioLocatorChanged {
-    R2Log.d('onAudioLocatorChanged is not implemented on web platform');
-    return const Stream.empty();
-  }
 
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {

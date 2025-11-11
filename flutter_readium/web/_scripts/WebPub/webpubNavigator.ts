@@ -44,6 +44,7 @@ export async function initializeWebPubNavigatorAndPeripherals(
       } else if (direction === "left") {
         nav.goLeft(true, () => {});
       } else if (direction === "up") {
+        // TODO: check for scroll mode first
         const iframes = document.querySelectorAll(".readium-navigator-iframe");
         iframes.forEach((iframe) => {
           if (iframe instanceof HTMLIFrameElement) {
@@ -85,9 +86,7 @@ export async function initializeWebPubNavigatorAndPeripherals(
     positionChanged: (_locator: Locator): void => {
       window.focus();
 
-      if ((window as any).updateLocator) {
-        (window as any).updateLocator(JSON.stringify(_locator));
-      }
+      (window as any).updateTextLocator?.(JSON.stringify(_locator));
     },
     tap: function (_e: FrameClickEvent): boolean {
       console.log("tap event received in WebPubNavigator");

@@ -12,6 +12,7 @@ import { Link } from "@readium/shared";
 
 // Helpers
 import { fetchManifest, mediaTypes, setPreferencesFromString } from "./helpers";
+import { ReadiumReaderStatus } from "./enums";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 
@@ -81,11 +82,14 @@ class _ReadiumReader {
     initialPositionJson: string | undefined,
     preferencesJson: string | undefined
   ) {
+    // TODO: create ReadiumReaderStatus enum to match native
+    (window as any).updateReaderStatus?.(ReadiumReaderStatus.loading);
     const container: HTMLElement | null =
       document.body.querySelector("#container");
 
     if (!container) {
       console.error("Container element not found");
+      (window as any).updateReaderStatus?.("error");
       throw new Error("Container element not found");
     }
 
@@ -99,6 +103,7 @@ class _ReadiumReader {
       !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
 
     try {
+      // TODO: match native
       this._publication = _ReadiumReader._publications.get(pubId);
       if (!this._publication) {
         const { manifest, fetcher } = await fetchManifest(publicationURL);
@@ -130,6 +135,7 @@ class _ReadiumReader {
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
+              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
             }
           );
         } else {
@@ -140,12 +146,13 @@ class _ReadiumReader {
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
+              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
             }
           );
         }
       }
     } catch (error) {
-      this.closePublication();
+      this.closePublication(error);
       throw new Error("Error opening publication: " + error);
     }
   }
@@ -157,14 +164,21 @@ class _ReadiumReader {
     setPreferencesFromString(newPreferencesString, this._nav);
   }
 
-  public closePublication() {
+  public closePublication(error?: any) {
     this._publication = undefined;
     this._nav?.destroy(); // Clean up the navigator instance
     const container = document.getElementById("container");
     if (container) {
       container.innerHTML = ""; // Clear the container
     }
-    delete (window as any)._updateLocator;
+    if (error) {
+      (window as any).updateReaderStatus?.(ReadiumReaderStatus.error);
+    } else {
+      (window as any).updateReaderStatus?.(ReadiumReaderStatus.closed);
+    }
+
+    delete (window as any).updateTextLocator;
+    delete (window as any).updateReaderStatus;
   }
 
   public async getResource(linkString: String, asBytes: boolean = false) {
