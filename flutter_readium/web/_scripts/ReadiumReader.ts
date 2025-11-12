@@ -11,7 +11,7 @@ import {
 import { Link } from "@readium/shared";
 
 // Helpers
-import { fetchManifest, mediaTypes, setPreferencesFromString } from "./helpers";
+import { fetchManifest, setPreferencesFromString } from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
@@ -110,24 +110,24 @@ class _ReadiumReader {
         this._publication = new Publication({ manifest, fetcher });
         _ReadiumReader._publications.set(pubId, this._publication);
       }
-      // Was hoping to use this instead of checking media types, but conformsTo does not distinguish WebPub from EPUB
       let conformsToArray = this._publication.manifest.metadata.conformsTo;
-      let isEpub =
-        conformsToArray?.some((profile) => {
-          return profile == Profile.EPUB;
-        }) ?? false;
-      let mediaTypesArray = mediaTypes(this._publication);
 
       if (
-        mediaTypesArray.some((mt) =>
-          mt.equals(MediaType.READIUM_AUDIOBOOK_MANIFEST)
-        )
+        conformsToArray?.some((profile) => {
+          return profile == Profile.AUDIOBOOK;
+        }) ??
+        false
       ) {
         // Initialize WebAudioEngine for audiobooks
         // TODO: wip
       } else {
         // Initialize EpubNavigator for ebooks
-        if (mediaTypesArray.some((mt) => mt.equals(MediaType.EPUB))) {
+        if (
+          conformsToArray?.some((profile) => {
+            return profile == Profile.EPUB;
+          }) ??
+          false
+        ) {
           await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,
