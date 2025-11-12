@@ -8,13 +8,14 @@ import {
   WebPubNavigatorConfiguration,
   WebPubNavigatorListeners,
 } from "@readium/navigator";
-import { Publication, Locator } from "@readium/shared";
+import { Locator } from "@readium/shared";
 import Peripherals from "../peripherals";
 import {
   defaults,
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
 import { highlightSelection } from "../helpers";
+import { ReadiumPublication } from "../extensions/ReadiumPublication";
 
 // TODO:
 // There is a webpub from readiums publication-server called molly hopper that is an accessible epub and it doesn't quite work
@@ -22,7 +23,7 @@ import { highlightSelection } from "../helpers";
 
 export async function initializeWebPubNavigatorAndPeripherals(
   container: HTMLElement,
-  publication: Publication,
+  publication: ReadiumPublication,
   initialPosition: Locator | undefined = undefined,
   preferencesJsonString: string,
   setNav: (nav: WebPubNavigator) => void

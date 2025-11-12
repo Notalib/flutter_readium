@@ -1,18 +1,13 @@
 import "./style.css";
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import {
-  Locator,
-  MediaType,
-  Profile,
-  Publication,
-  Resource,
-} from "@readium/shared";
+import { Locator, Profile, Publication, Resource } from "@readium/shared";
 import { Link } from "@readium/shared";
 
-// Helpers
+// Helpers and extensions
 import { fetchManifest, setPreferencesFromString } from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
+import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 
@@ -21,22 +16,22 @@ class _ReadiumReader {
     console.log("R2Navigator initialized");
   }
 
-  private _publication: Publication | undefined;
+  private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
   }
 
-  private static _publications: Map<string, Publication> = new Map<
+  private static _publications: Map<string, ReadiumPublication> = new Map<
     string,
-    Publication
+    ReadiumPublication
   >();
 
   public async getPublication(publicationURL: string) {
     try {
       const { manifest, fetcher } = await fetchManifest(publicationURL);
-      this._publication = new Publication({ manifest, fetcher });
+      this._publication = new ReadiumPublication({ manifest, fetcher });
 
       let pubId = this._publication.metadata.identifier ?? "unidentified";
       _ReadiumReader._publications.set(pubId, this._publication);
@@ -82,7 +77,6 @@ class _ReadiumReader {
     initialPositionJson: string | undefined,
     preferencesJson: string | undefined
   ) {
-    // TODO: create ReadiumReaderStatus enum to match native
     (window as any).updateReaderStatus?.(ReadiumReaderStatus.loading);
     const container: HTMLElement | null =
       document.body.querySelector("#container");
@@ -107,27 +101,17 @@ class _ReadiumReader {
       this._publication = _ReadiumReader._publications.get(pubId);
       if (!this._publication) {
         const { manifest, fetcher } = await fetchManifest(publicationURL);
-        this._publication = new Publication({ manifest, fetcher });
+        this._publication = new ReadiumPublication({ manifest, fetcher });
         _ReadiumReader._publications.set(pubId, this._publication);
       }
       let conformsToArray = this._publication.manifest.metadata.conformsTo;
 
-      if (
-        conformsToArray?.some((profile) => {
-          return profile == Profile.AUDIOBOOK;
-        }) ??
-        false
-      ) {
+      if (this._publication.conformsToAudiobook) {
         // Initialize WebAudioEngine for audiobooks
         // TODO: wip
       } else {
         // Initialize EpubNavigator for ebooks
-        if (
-          conformsToArray?.some((profile) => {
-            return profile == Profile.EPUB;
-          }) ??
-          false
-        ) {
+        if (this._publication.conformsToEpub) {
           await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,

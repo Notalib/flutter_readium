@@ -9,7 +9,6 @@ import {
   Layout,
 } from "@readium/navigator-html-injectables";
 import {
-  Publication,
   Manifest,
   Link,
   Fetcher,
@@ -18,6 +17,7 @@ import {
   Locator,
   LocatorText,
 } from "@readium/shared";
+import { ReadiumPublication } from "./extensions/ReadiumPublication";
 
 export async function fetchManifest(publicationURL: string) {
   const manifestLink = new Link({ href: "manifest.json" });
@@ -33,7 +33,7 @@ export async function fetchManifest(publicationURL: string) {
   return { manifest, fetcher, selfLink };
 }
 
-export function mediaTypes(publication: Publication) {
+export function mediaTypes(publication: ReadiumPublication) {
   let selfLinks = publication.manifest.linksWithRel("self");
   let mediaTypesString = selfLinks
     .map((link) => link.type)
@@ -121,7 +121,7 @@ export function setPreferencesFromString(
 
 export function highlightSelection(
   nav: EpubNavigator | WebPubNavigator,
-  publication: Publication,
+  publication: ReadiumPublication,
   selection: BasicTextSelection
 ) {
   // TODO: Save decoration state to re-apply after reload
