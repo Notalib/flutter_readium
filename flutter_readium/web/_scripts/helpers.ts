@@ -34,9 +34,8 @@ export async function fetchManifest(publicationURL: string) {
 }
 
 export function mediaTypes(publication: Publication) {
-  // TODO: look at selflink or the url path extension instead
-  let mediaTypesLinks = publication.manifest.links.filterLinksHasType();
-  let mediaTypesString = mediaTypesLinks
+  let selfLinks = publication.manifest.linksWithRel("self");
+  let mediaTypesString = selfLinks
     .map((link) => link.type)
     .filter((type): type is string => typeof type === "string");
 
