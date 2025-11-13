@@ -1,48 +1,44 @@
-import './style.css';
+import "./style.css";
 
-import { EpubNavigator, EpubNavigatorConfiguration } from '@readium/navigator';
-import { Locator, Publication, Resource } from '@readium/shared';
-import { Link } from '@readium/shared';
+import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
+import { Locator, Profile, Publication, Resource } from "@readium/shared";
+import { Link } from "@readium/shared";
 
-// Design
-import '@material/web/all';
-
-// Helpers
-import { fetchManifest, initializeNavigatorAndPeripherals } from './helpers';
-import {
-  defaults,
-  initializePreferencesFromString,
-  setPreferencesFromString,
-} from './preferences';
+// Helpers and extensions
+import { fetchManifest, setPreferencesFromString } from "./helpers";
+import { ReadiumReaderStatus } from "./enums";
+import { ReadiumPublication } from "./extensions/ReadiumPublication";
+import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
+import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 
 class _ReadiumReader {
   public constructor() {
-    console.log('R2Navigator initialized');
+    console.log("R2Navigator initialized");
   }
 
-  private _publication: Publication | undefined;
-  private _nav: EpubNavigator | undefined;
+  private _publication: ReadiumPublication | undefined;
+  private _nav: EpubNavigator | WebPubNavigator | undefined;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
   }
 
-  private static _publications: Map<string, Publication> = new Map<
+  private static _publications: Map<string, ReadiumPublication> = new Map<
     string,
-    Publication
+    ReadiumPublication
   >();
 
   public async getPublication(publicationURL: string) {
     try {
       const { manifest, fetcher } = await fetchManifest(publicationURL);
-      this._publication = new Publication({ manifest, fetcher });
+      this._publication = new ReadiumPublication({ manifest, fetcher });
 
-      let pubId = this._publication.metadata.identifier ?? 'unidentified';
+      let pubId = this._publication.metadata.identifier ?? "unidentified";
       _ReadiumReader._publications.set(pubId, this._publication);
 
       return JSON.stringify(this._publication);
     } catch (error) {
-      throw new Error('Error getting publication: ' + error);
+      throw new Error("Error getting publication: " + error);
     }
   }
 
@@ -55,14 +51,21 @@ class _ReadiumReader {
   }
 
   public async goTo(href: string): Promise<void> {
-    let link = this._nav?.publication.linkWithHref(href);
+    let link = this._nav?.publication.resources?.findWithHref(href);
     if (!link) {
-      let error = new Error('Link not found ' + href);
+      let publicationLinks = this._nav?.publication.resources;
+      let linksString = publicationLinks?.items
+        .map((link) => link.href)
+        .join(", ");
+      console.error(
+        "Link not found " + href + ". Available links: " + linksString
+      );
+      let error = new Error("Link not found " + href);
       throw error;
     }
     this._nav?.goLink(link, true, (ok) => {
       if (!ok) {
-        let error = new Error('Failed to navigate to link ' + href);
+        let error = new Error("Failed to navigate to link " + href);
         throw error;
       }
     });
@@ -71,17 +74,17 @@ class _ReadiumReader {
   public async openPublication(
     publicationURL: string,
     pubId: string,
-    isAudiobook: boolean = false,
-    hasText: boolean = false,
     initialPositionJson: string | undefined,
     preferencesJson: string | undefined
   ) {
+    (window as any).updateReaderStatus?.(ReadiumReaderStatus.loading);
     const container: HTMLElement | null =
-      document.body.querySelector('#container');
+      document.body.querySelector("#container");
 
     if (!container) {
-      console.error('Container element not found');
-      throw new Error('Container element not found');
+      console.error("Container element not found");
+      (window as any).updateReaderStatus?.("error");
+      throw new Error("Container element not found");
     }
 
     let initialPosition: Locator | undefined;
@@ -91,72 +94,75 @@ class _ReadiumReader {
     }
 
     let preferencesJsonString =
-      !preferencesJson || preferencesJson === 'null' ? '{}' : preferencesJson;
-
-    let preferences = initializePreferencesFromString(preferencesJsonString);
-
-    const configuration: EpubNavigatorConfiguration = {
-      preferences,
-      defaults,
-    };
+      !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
 
     try {
+      // TODO: match native
       this._publication = _ReadiumReader._publications.get(pubId);
       if (!this._publication) {
         const { manifest, fetcher } = await fetchManifest(publicationURL);
-        this._publication = new Publication({ manifest, fetcher });
+        this._publication = new ReadiumPublication({ manifest, fetcher });
         _ReadiumReader._publications.set(pubId, this._publication);
       }
+      let conformsToArray = this._publication.manifest.metadata.conformsTo;
 
-      if (isAudiobook) {
+      if (this._publication.conformsToAudiobook) {
         // Initialize WebAudioEngine for audiobooks
         // TODO: wip
-
-        // If the audiobook has text, initialize the navigator for text display
-        if (hasText) {
-          await initializeNavigatorAndPeripherals(
+      } else {
+        // Initialize EpubNavigator for ebooks
+        if (this._publication.conformsToEpub) {
+          await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,
             initialPosition,
-            configuration,
+            preferencesJsonString,
             (nav) => {
               this._nav = nav;
+              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
+            }
+          );
+        } else {
+          await initializeWebPubNavigatorAndPeripherals(
+            container,
+            this._publication,
+            initialPosition,
+            preferencesJsonString,
+            (nav) => {
+              this._nav = nav;
+              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
             }
           );
         }
-      } else {
-        // Initialize EpubNavigator for ebooks
-        await initializeNavigatorAndPeripherals(
-          container,
-          this._publication,
-          initialPosition,
-          configuration,
-          (nav) => {
-            this._nav = nav;
-          }
-        );
       }
     } catch (error) {
-      this.closePublication();
-      throw new Error('Error opening publication: ' + error);
+      this.closePublication(error);
+      throw new Error("Error opening publication: " + error);
     }
   }
 
   public setEPUBPreferences(newPreferencesString: string) {
     if (!this._nav) {
-      throw new Error('Navigator is not initialized');
+      throw new Error("Navigator is not initialized");
     }
     setPreferencesFromString(newPreferencesString, this._nav);
   }
 
-  public closePublication() {
+  public closePublication(error?: any) {
     this._publication = undefined;
     this._nav?.destroy(); // Clean up the navigator instance
-    const container = document.getElementById('container');
+    const container = document.getElementById("container");
     if (container) {
-      container.innerHTML = ''; // Clear the container
+      container.innerHTML = ""; // Clear the container
     }
-    delete (window as any)._updateLocator;
+    if (error) {
+      (window as any).updateReaderStatus?.(ReadiumReaderStatus.error);
+    } else {
+      (window as any).updateReaderStatus?.(ReadiumReaderStatus.closed);
+    }
+
+    delete (window as any).updateTextLocator;
+    delete (window as any).updateReaderStatus;
   }
 
   public async getResource(linkString: String, asBytes: boolean = false) {
@@ -165,13 +171,13 @@ class _ReadiumReader {
     // Step two - json to Link object
     let link: Link | undefined = Link.deserialize(linkJson);
     if (!link) {
-      console.error('Invalid link string');
+      console.error("Invalid link string");
     }
     // Step three - fetch the resource link
     let resourceLink: Resource | undefined = this._publication?.get(link!);
 
     if (!resourceLink) {
-      console.error('Resource not found', link);
+      console.error("Resource not found", link);
     }
 
     // Step four - get resource as string

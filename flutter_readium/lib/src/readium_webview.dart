@@ -12,11 +12,11 @@ class ReadiumWebView extends StatefulWidget {
   const ReadiumWebView({
     super.key,
     required this.publication,
-    this.currentLocatorString,
+    this.currentLocator,
   });
 
   final Publication publication;
-  final String? currentLocatorString;
+  final Locator? currentLocator;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -37,14 +37,28 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   }
 
   @js_interop.JSExport()
-  void onLocatorUpdate(final String locatorJsonString) {
+  void onTextLocatorUpdate(final String locatorJsonString) {
     final locatorJson = jsonDecode(locatorJsonString);
     final locator = Locator.fromJson(locatorJson);
-    FlutterReadiumWebPlugin.addLocatorUpdate(locator);
+    FlutterReadiumWebPlugin.addTextLocatorUpdate(locator);
   }
 
-  void registerLocatorUpdate() {
-    updateLocator = onLocatorUpdate.toJS;
+  @js_interop.JSExport()
+  void onReaderStatusChanged(final String statusString) {
+    print('Reader status changed: $statusString');
+    final status = ReadiumReaderStatus.values.firstWhereOrNull(
+      (e) => e.name == statusString,
+    );
+    if (status != null) {
+      FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
+    } else {
+      R2Log.w('Unknown ReadiumReaderStatus: $statusString');
+    }
+  }
+
+  void registerJSExports() {
+    updateTextLocator = onTextLocatorUpdate.toJS;
+    updateReaderStatus = onReaderStatusChanged.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {
@@ -60,9 +74,10 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
       final pubId = widget.publication.identifier;
       final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
+      final currentLocatorString = widget.currentLocator != null ? json.encode(widget.currentLocator) : null;
+      registerJSExports();
       await JsPublicationChannel().openPublication(publicationUrl,
-          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: widget.currentLocatorString);
-      updateLocator = onLocatorUpdate.toJS;
+          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: currentLocatorString);
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails
       // Do we need to have the app send what message it wants to show and make a dialog here? or continue to display it in the html view?

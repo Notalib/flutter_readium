@@ -1,27 +1,26 @@
 import {
-  BasicTextSelection,
-  FrameClickEvent,
-} from '@readium/navigator-html-injectables';
-import {
   EpubNavigator,
-  EpubNavigatorListeners,
-  EpubNavigatorConfiguration,
-  FrameManager,
-  FXLFrameManager,
-} from '@readium/navigator';
+  TextAlignment,
+  WebPubNavigator,
+} from "@readium/navigator";
 import {
-  Publication,
-  Locator,
+  BasicTextSelection,
+  Width,
+  Layout,
+} from "@readium/navigator-html-injectables";
+import {
   Manifest,
-  LocatorLocations,
   Link,
   Fetcher,
   HttpFetcher,
-} from '@readium/shared';
-import Peripherals from './peripherals';
+  MediaType,
+  Locator,
+  LocatorText,
+} from "@readium/shared";
+import { ReadiumPublication } from "./extensions/ReadiumPublication";
 
 export async function fetchManifest(publicationURL: string) {
-  const manifestLink = new Link({ href: 'manifest.json' });
+  const manifestLink = new Link({ href: "manifest.json" });
   const fetcher: Fetcher = new HttpFetcher(undefined, publicationURL);
   const resource = fetcher.get(manifestLink);
   const resourceLink = await resource.link();
@@ -34,128 +33,131 @@ export async function fetchManifest(publicationURL: string) {
   return { manifest, fetcher, selfLink };
 }
 
-export async function initializeNavigatorAndPeripherals(
-  container: HTMLElement,
-  publication: Publication,
-  initialPosition: Locator | undefined = undefined,
-  configuration: EpubNavigatorConfiguration,
-  setNav: (nav: EpubNavigator) => void
-) {
-  let positions = await publication.positionsFromManifest();
+export function mediaTypes(publication: ReadiumPublication) {
+  let selfLinks = publication.manifest.linksWithRel("self");
+  let mediaTypesString = selfLinks
+    .map((link) => link.type)
+    .filter((type): type is string => typeof type === "string");
 
-  if (positions.length === 0) {
-    // Use readingOrder if positionListLink is undefined
-    positions = publication.manifest.readingOrder.items.map(
-      (link: Link, index: number) => {
-        return new Locator({
-          href: link.href,
-          type: link.type ?? 'text/html',
-          title: link.title,
-          locations: new LocatorLocations({
-            position: index + 1,
-          }),
-        });
-      }
-    );
-  }
-
-  const p = new Peripherals({
-    moveTo: (direction) => {
-      if (direction === 'right') {
-        nav.goRight(true, () => {});
-      } else if (direction === 'left') {
-        nav.goLeft(true, () => {});
-      } else if (direction === 'up') {
-        const iframes = document.querySelectorAll('.readium-navigator-iframe');
-        iframes.forEach((iframe) => {
-          if (iframe instanceof HTMLIFrameElement) {
-            if (iframe.style.visibility !== 'hidden') {
-              iframe.contentWindow?.scrollBy(0, -100);
-            }
-          }
-        });
-      } else if (direction === 'down') {
-        const iframes = document.querySelectorAll('.readium-navigator-iframe');
-        iframes.forEach((iframe) => {
-          if (iframe instanceof HTMLIFrameElement) {
-            if (iframe.style.visibility !== 'hidden') {
-              iframe.contentWindow?.scrollBy(0, 100);
-            }
-          }
-        });
-      }
-    },
-    menu: (_show) => {
-      // No UI that hides/shows at the moment
-    },
-    goProgression: (_shiftKey) => {
-      nav.goForward(true, () => {});
-    },
-  });
-
-  const listeners: EpubNavigatorListeners = {
-    scroll: function (_amount: number): void {},
-    frameLoaded: function (_wnd: Window): void {
-      nav._cframes.forEach(
-        (frameManager: FrameManager | FXLFrameManager | undefined) => {
-          if (frameManager) {
-            p.observe(frameManager.window);
-          }
-        }
-      );
-      p.observe(window);
-    },
-    positionChanged: (_locator: Locator): void => {
-      window.focus();
-
-      if ((window as any).updateLocator) {
-        (window as any).updateLocator(JSON.stringify(_locator));
-      }
-    },
-    tap: function (_e: FrameClickEvent): boolean {
-      return false;
-    },
-    click: function (_e: FrameClickEvent): boolean {
-      return false;
-    },
-    zoom: function (_scale: number): void {},
-    miscPointer: function (_amount: number): void {
-      // fires when a tap or a click was made in the middle of the iframe e.g. show/hide UI
-    },
-    customEvent: function (_key: string, _data: unknown): void {},
-    handleLocator: function (locator: Locator): boolean {
-      const href = locator.href;
-      if (
-        href.startsWith('http://') ||
-        href.startsWith('https://') ||
-        href.startsWith('mailto:') ||
-        href.startsWith('tel:')
-      ) {
-        if (confirm(`Open "${href}" ?`)) window.open(href, '_blank');
-      } else {
-        console.warn('Unhandled locator', locator);
-      }
-      return false;
-    },
-    textSelected: function (_selection: BasicTextSelection): void {},
-  };
-
-  const nav = new EpubNavigator(
-    container,
-    publication,
-    listeners,
-    positions,
-    initialPosition,
-    configuration
+  let mediaTypes: MediaType[] = mediaTypesString.map((type) =>
+    MediaType.parse({ mediaType: type })
   );
 
-  try {
-    await nav.load();
-  } catch (error) {
-    throw error;
+  return mediaTypes;
+}
+
+export function convertVerticalScroll(prefs: any) {
+  if ("verticalScroll" in prefs) {
+    prefs.scroll = prefs.verticalScroll;
+    delete prefs.verticalScroll;
+  }
+}
+
+export function textAlignFromJson(textAlignString: string): TextAlignment {
+  switch (textAlignString) {
+    case "left":
+      return TextAlignment.left;
+    case "right":
+      return TextAlignment.right;
+    case "start":
+      return TextAlignment.start;
+    case "justify":
+      return TextAlignment.justify;
+    default:
+      return TextAlignment.left;
+  }
+}
+
+export function normalizeTypes(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(normalizeTypes);
+  } else if (obj !== null && typeof obj === "object") {
+    for (const key in obj) {
+      if (!obj.hasOwnProperty(key)) continue;
+      const value = obj[key];
+      if (typeof value === "string") {
+        if (value === "true") {
+          obj[key] = true;
+        } else if (value === "false") {
+          obj[key] = false;
+        } else if (/^-?\d+(\.\d+)?$/.test(value)) {
+          // Only convert if the string is a pure number (int or float)
+          obj[key] = value.includes(".")
+            ? parseFloat(value)
+            : parseInt(value, 10);
+        }
+      } else if (typeof value === "object" && value !== null) {
+        obj[key] = normalizeTypes(value);
+      } else if (value === "null" || value == null) {
+        delete obj[key];
+      }
+    }
+  }
+  return obj;
+}
+
+export function setPreferencesFromString(
+  newPreferencesString: string,
+  nav: EpubNavigator | WebPubNavigator
+) {
+  let newPreferences = JSON.parse(newPreferencesString);
+
+  convertVerticalScroll(newPreferences);
+
+  if (newPreferences.textAlign != null) {
+    newPreferences.textAlign = textAlignFromJson(newPreferences.textAlign);
+  }
+  if (newPreferences.pageMargins != null) {
+    newPreferences.pageGutter = newPreferences.pageMargins;
+    delete newPreferences.pageMargins;
   }
 
-  setNav(nav);
+  newPreferences = normalizeTypes(newPreferences);
 
-  p.observe(window);
+  // if (nav instanceof EpubNavigator) {
+  nav.submitPreferences(newPreferences);
+  // }
+}
+
+export function highlightSelection(
+  nav: EpubNavigator | WebPubNavigator,
+  publication: ReadiumPublication,
+  selection: BasicTextSelection
+) {
+  // TODO: Save decoration state to re-apply after reload
+  // Should probably be handled by the Flutter side
+  // TODO:  Make optional and configurable decoration style
+  // For now, hardcode a simple highlight style that always happens on textSelection
+  const currentLocator = nav.currentLocator;
+  const locator = new Locator({
+    href: currentLocator.href,
+    type: currentLocator.type,
+    locations: currentLocator.locations,
+    text: {
+      highlight: selection.text,
+    } as LocatorText,
+  });
+
+  const decorationId = [selection.text, selection.x, selection.y].join("_");
+
+  const decoration = {
+    id: decorationId,
+    locator,
+    style: {
+      tint: "#ff9fff55",
+      layout: Layout.Bounds,
+      width: Width.Wrap,
+    },
+  };
+
+  const frameComms = nav._cframes[0]?.msg;
+  if (frameComms) {
+    frameComms.send("decorate", {
+      group: "selection_" + publication.metadata.identifier,
+      action: "add",
+      decoration,
+    });
+  } else {
+    throw new Error("Could not find frame comms to send decoration");
+  }
 }

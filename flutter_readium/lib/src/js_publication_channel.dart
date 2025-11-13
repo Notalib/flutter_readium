@@ -5,8 +5,8 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 @JS('ReadiumReader')
 extension type ReadiumReader._(JSObject _) implements JSObject {
   external ReadiumReader();
-  external JSPromise openPublication(JSString publicationURL, JSString pubId, JSBoolean? isAudiobook,
-      JSBoolean? hasText, JSString? initialPositionJson, JSString preferencesJson);
+  external JSPromise openPublication(
+      JSString publicationURL, JSString pubId, JSString? initialPositionJson, JSString preferencesJson);
   external JSPromise getPublication(JSString link);
   external JSPromise goTo(JSString location);
   external void goLeft();
@@ -18,21 +18,19 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
 }
 
 @JS()
-external set updateLocator(JSFunction f);
+external set updateTextLocator(JSFunction f);
+
+@JS()
+external set updateReaderStatus(JSFunction f);
 
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
 
   Future<void> openPublication(String publicationURL,
-      {required String pubId,
-      required String initialPreferences,
-      bool? isAudiobook = false,
-      bool? hasText = false,
-      String? initialPositionJson}) async {
+      {required String pubId, required String initialPreferences, String? initialPositionJson}) async {
     try {
       await _readiumReader
-          .openPublication(publicationURL.toJS, pubId.toJS, isAudiobook?.toJS, hasText?.toJS, initialPositionJson?.toJS,
-              initialPreferences.toJS)
+          .openPublication(publicationURL.toJS, pubId.toJS, initialPositionJson?.toJS, initialPreferences.toJS)
           .toDart;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();
@@ -94,6 +92,9 @@ class JsPublicationChannel {
 
   static Future<void> goToLocation(String locationHref) async {
     try {
+      if (locationHref.startsWith('/')) {
+        locationHref = locationHref.substring(1);
+      }
       await _readiumReader.goTo(locationHref.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();

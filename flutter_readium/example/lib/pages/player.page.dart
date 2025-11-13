@@ -26,7 +26,11 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             onPopInvokedWithResult: (didPop, result) {
               // When Player page is popped, make sure to close current publication.
               context.read<PlayerControlsBloc>().add(Stop());
-              context.read<PublicationBloc>().add(ClosePublication());
+              // Put some delay to ensure that the closePublication is called after navigating back visually.
+              Duration delay = const Duration(milliseconds: 450);
+              Future.delayed(delay, () {
+                context.read<PublicationBloc>().add(ClosePublication());
+              });
             },
             child: Scaffold(
               restorationId: 'player_page',

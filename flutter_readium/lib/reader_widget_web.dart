@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -47,14 +45,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Widget build(final BuildContext context) {
-    // TODO: move initialPositionJsonString to flutter_readium_web when shared is implemented
-    final initialLocator = widget.initialLocator;
-    final initialPositionJsonString = initialLocator != null ? json.encode(widget.initialLocator) : null;
-
     return SizedBox.expand(
       child: ReadiumWebView(
         publication: widget.publication,
-        currentLocatorString: initialPositionJsonString,
+        currentLocator: widget.initialLocator,
       ),
     );
   }
@@ -119,15 +113,5 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     R2Log.d('applyDecorations not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsStart(String langCode, Locator? fromLocator) async {
-    R2Log.d('ttsStart not implemented in web version');
-  }
-
-  @override
-  Future<void> ttsStop() async {
-    R2Log.d('ttsStop not implemented in web version');
   }
 }

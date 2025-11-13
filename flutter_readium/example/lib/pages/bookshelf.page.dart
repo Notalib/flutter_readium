@@ -45,9 +45,11 @@ class BookshelfPageState extends State<BookshelfPage> {
       for (final href in manifestHrefs) {
         try {
           Publication? pub;
-          pub = await openPublicationFromUrl(href.toString());
+          final localPubPath = href.toString();
+          pub = await openPublicationFromUrl(localPubPath);
           if (pub != null) {
             loadedPublications.add(pub);
+            loadedPublicationURLs.add(localPubPath);
             await _flutterReadiumPlugin.closePublication();
           }
         } on Exception catch (e) {
