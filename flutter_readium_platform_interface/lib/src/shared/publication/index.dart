@@ -12,3 +12,4 @@ export 'publication.dart';
 export 'publication_collection.dart';
 export 'reading_progression.dart';
 export 'subject.dart';
+export 'properties/index.dart';

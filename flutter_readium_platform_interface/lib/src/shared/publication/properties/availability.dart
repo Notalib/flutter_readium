@@ -1,4 +1,4 @@
-import '../index.dart';
+import '../../index.dart';
 
 part 'availability.freezed.dart';
 part 'availability.g.dart';
@@ -12,7 +12,7 @@ abstract class Availability with _$Availability {
   @r2JsonSerializable
   const factory Availability({
     /// Indicated the availability of a given resource.
-    required final OPDSState state,
+    required final AvailabilityState state,
 
     /// Timestamp for the previous state change.
     @dateTimeLocal final DateTime? since,

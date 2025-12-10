@@ -1,4 +1,4 @@
-import '../index.dart';
+import '../../index.dart';
 
 part 'holds.freezed.dart';
 part 'holds.g.dart';

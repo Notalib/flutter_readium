@@ -1,4 +1,4 @@
-import '../index.dart';
+import '../../index.dart';
 
 part 'acquisition.freezed.dart';
 part 'acquisition.g.dart';

@@ -1,4 +1,4 @@
-import '../index.dart';
+import '../../index.dart';
 
 part 'copies.freezed.dart';
 part 'copies.g.dart';

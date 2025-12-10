@@ -1,4 +1,4 @@
-import '../index.dart';
+import '../../index.dart';
 
 part 'price.freezed.dart';
 part 'price.g.dart';
