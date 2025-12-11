@@ -217,9 +217,9 @@ internal class PublicationMethodCallHandler() :
             }
 
             "audioSetPreferences" -> {
-                val prefsStr = arguments as String?
+                val prefs = arguments as Map<*, *>?
                 val preferences =
-                    prefsStr?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                    prefs?.let { FlutterAudioPreferences.fromMap(it) }
                         ?: FlutterAudioPreferences()
 
                 ReadiumReader.audioUpdatePreferences(preferences)
