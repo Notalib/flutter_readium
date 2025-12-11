@@ -10,4 +10,9 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+  
+  @objc func onCustomEditingAction() {
+    debugPrint("onCustomEditingAction")
+    // TODO: Find a way to call the plugin here, to trigger a custom action response.
+  }
 }

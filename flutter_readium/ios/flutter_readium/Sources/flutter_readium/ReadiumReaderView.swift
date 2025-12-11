@@ -95,6 +95,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     config.preloadPreviousPositionCount = 2
     config.preloadNextPositionCount = 4
     config.debugState = true
+    config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Action", action: #selector(onCustomEditingAction))]
 
     if (defaultPreferences != nil) {
       config.preferences = defaultPreferences!
@@ -135,22 +137,29 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
 
+    /// This adapter will automatically turn pages when the user taps the
+    /// screen edges or press arrow keys.
+    ///
+    /// Bind it to the navigator before adding your own observers to prevent
+    /// triggering your actions when turning pages.
+    DirectionalNavigationAdapter(
+        pointerPolicy: .init(types: [.mouse, .touch])
+    ).bind(to: readiumViewController)
+
     print(TAG, "::init success")
   }
-  
-  func navigator(_ navigator: VisualNavigator, didTapAt point: CGPoint) {
-    Task {
-      // Turn pages when tapping the edge of the screen.
-      guard await !DirectionalNavigationAdapter(navigator: navigator).didTap(at: point) else {
-        return
-      }
-    }
-  }
 
-  func navigator(_ navigator: VisualNavigator, didPressKey event: KeyEvent) {
-    Task {
-      // Turn pages when pressing the arrow keys.
-      await DirectionalNavigationAdapter(navigator: navigator).didPressKey(event: event)
+  @objc public func onCustomEditingAction() {
+    print(TAG, "EditingAction::NOTA")
+    // NOTE: This method will not actually be hit. It will try to find an "onEditingActionNota" function in the Responder chain!
+    // see https://github.com/readium/swift-toolkit/issues/466
+
+    // This methos should actually be implemented in the Flutter AppDelegate!
+    // TODO: Find a way to trigger the code below, from the AppDelegate.
+    if let selection = readiumViewController.currentSelection {
+      let selectionLocator = selection.locator
+      currentReaderView?.readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
+      readiumViewController.clearSelection()
     }
   }
 
@@ -166,13 +175,18 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
   func middleTapHandler() {
   }
 
+  func navigatorContentInset(_ navigator: VisualNavigator) -> UIEdgeInsets? {
+    // All margin & safe-area is handled on the Flutter side.
+    return .init(top: 0, left: 0, bottom: 0, right: 0)
+  }
+
   // override EPUBNavigatorDelegate::navigator:presentError
   func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
     print(TAG, "presentError: \(error)")
   }
 
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
-  func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
+  func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
 
     // TODO: Should we send resource-load error like this?
