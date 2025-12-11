@@ -193,5 +193,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('audioEnable', [prefs?.toMap(), fromLocator?.toJson()]);
 
   @override
-  Future<void> audioSetPreferences(AudioPreferences prefs) => methodChannel.invokeMethod('audioSetPreferences', prefs);
+  Future<void> audioSetPreferences(AudioPreferences prefs) =>
+      methodChannel.invokeMethod('audioSetPreferences', prefs.toMap());
 }
