@@ -22,7 +22,7 @@ class ReadiumBugLogger: ReadiumShared.WarningLogger {
 private let readiumBugLogger = ReadiumBugLogger()
 private var userScripts: [WKUserScript] = []
 
-class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
+class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
   private var errorStreamHandler: EventStreamHandler?
@@ -62,7 +62,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   ) {
     print(TAG, "::init")
     let creationParams = args as! Dictionary<String, Any?>
-    
+
     let publication = getCurrentPublication()!
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
@@ -77,7 +77,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
     readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
     errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
-    
+
     readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusLoading)
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
@@ -95,7 +95,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
     config.preloadPreviousPositionCount = 2
     config.preloadNextPositionCount = 4
     config.debugState = true
-    
+
     if (defaultPreferences != nil) {
       config.preferences = defaultPreferences!
     }
@@ -137,6 +137,22 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
     print(TAG, "::init success")
   }
+  
+  func navigator(_ navigator: VisualNavigator, didTapAt point: CGPoint) {
+    Task {
+      // Turn pages when tapping the edge of the screen.
+      guard await !DirectionalNavigationAdapter(navigator: navigator).didTap(at: point) else {
+        return
+      }
+    }
+  }
+
+  func navigator(_ navigator: VisualNavigator, didPressKey event: KeyEvent) {
+    Task {
+      // Turn pages when pressing the arrow keys.
+      await DirectionalNavigationAdapter(navigator: navigator).didPressKey(event: event)
+    }
+  }
 
   // override EPUBNavigatorDelegate::navigator:setupUserScripts
   func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
@@ -158,10 +174,10 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
   func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
-    
+
     // TODO: Should we send resource-load error like this?
     self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
-    
+
     let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     self.errorStreamHandler?.sendEvent(error)
   }

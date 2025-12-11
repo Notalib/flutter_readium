@@ -87,53 +87,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
-    var userSwipe = false;
 
     return Listener(
       onPointerDown: (final _) {
         _enableWakelock();
-      },
-      onPointerMove: (final event) {
-        if (userSwipe) {
-          return;
-        }
-
-        userSwipe = event.delta.distance > 3.0;
-
-        if (userSwipe) {
-          widget.onSwipe?.call();
-        }
-      },
-      onPointerUp: (final event) async {
-        if (userSwipe) {
-          /// Wait for page animation to complete.
-          await Future.delayed(const Duration(seconds: 1));
-        } else {
-          final dx = event.position.dx;
-
-          if (dx < 70.0) {
-            widget.onGoLeft?.call();
-
-            // Native Readium navigator already supports jumping to prev page.
-            if (!Platform.isAndroid) {
-              goLeft();
-            }
-          } else if (((context.size?.width ?? 0) - dx) < 70.0) {
-            widget.onGoRight?.call();
-
-            // Native Readium navigator already supports jumping to next page.
-            if (!Platform.isAndroid) {
-              goRight();
-            }
-          } else {
-            widget.onTap?.call();
-          }
-        }
-
-        userSwipe = false;
-      },
-      onPointerCancel: (final _) {
-        userSwipe = false;
       },
       child: _readerWidget,
     );
@@ -287,6 +244,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     R2Log.d('Ensure wakelock /w timer');
 
     WakelockPlus.enable();
+
+    // Disable wakelock after 30 minutes of inactivity (no interaction with reader).
     _wakelockTimer?.cancel();
     _wakelockTimer = Timer(_wakelockTimerDuration, _disableWakelock);
   }
