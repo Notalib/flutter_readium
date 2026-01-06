@@ -53,5 +53,6 @@
     "prefs",
     "Prefs",
     "readium"
-  ]
+  ],
+  "java.configuration.updateBuildConfiguration": "interactive"
 }
