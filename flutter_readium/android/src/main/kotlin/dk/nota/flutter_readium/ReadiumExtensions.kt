@@ -110,7 +110,7 @@ fun Resource.injectScriptsAndStyles(): Resource =
             return@TransformingResource Try.success(bytes)
         }
 
-        if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
+        if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
             Log.d(TAG, "Skip injecting - already done for: $filename")
             return@TransformingResource Try.success(bytes)
         }
@@ -155,21 +155,17 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // Remember last matched TOC item for titles
     var lastTocMatch: Pair<String, String?>? = null
 
-    return this.readingOrder.map { r ->
+    return this.readingOrder.mapNotNull { r ->
         r.alternates.find { a ->
             a.mediaType == MediaType("application/vnd.syncnarr+json")
         }?.copy(title = r.title)
-    }.mapIndexed { index, link ->
-        if (link == null) return@mapIndexed null
-
+    }.mapIndexedNotNull { index, link ->
         val jsonString =
-            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexed null
+            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
         FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
     }
         .map { mo ->
-            if (mo == null) return@map null
-
             val items = mo.items.map { item ->
                 // Find best matching title from TOC
                 val match = toc.find { tocItem ->
@@ -202,10 +198,7 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         return Pair(this, null)
     }
 
-    val mo = getMediaOverlays()
-    if (mo == null) {
-        return Pair(this, null)
-    }
+    val mo = getMediaOverlays() ?: return Pair(this, null)
 
     val manifest = Manifest(
         context = context,
@@ -213,13 +206,21 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         resources = resources,
         links = links,
         readingOrder = mo.mapNotNull { mo ->
-            Href.invoke(mo?.items?.first()?.audioFile ?: "")
+            val audioFile = mo?.items?.first()?.audioFile ?: return@mapNotNull null
+            val mimeType = when (audioFile.split('.').lastOrNull())
+            {
+                "mp3" -> MediaType.MP3
+                "opus" -> MediaType.OPUS
+                else -> null
+            }
+            
+            Href.invoke(audioFile)
                 ?.let { href ->
                     Link(
                         href,
-                        MediaType.MP3,
-                        duration = mo?.duration,
-                        title = mo?.items?.first()?.title
+                        mimeType,
+                        duration = mo.duration,
+                        title = mo.items.first().title
                     )
                 }
         }

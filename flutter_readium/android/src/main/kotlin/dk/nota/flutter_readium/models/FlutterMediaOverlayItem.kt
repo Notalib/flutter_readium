@@ -116,11 +116,18 @@ data class FlutterMediaOverlayItem(
      * NOTE: You might need to update the time fragment.
      */
     val skipToAudioLocator: Locator? by lazy {
+        val mimeType = when (audioFile.split('.').lastOrNull())
+        {
+            "mp3" -> MediaType.MP3
+            "opus" -> MediaType.OPUS
+            else -> MediaType.MP3
+        }
+
         Url.invoke(audioFile)?.let { href ->
             Locator(
                 href,
                 title = title,
-                mediaType = MediaType.MP3,
+                mediaType = mimeType,
                 locations = Locator.Locations(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
                 ),
