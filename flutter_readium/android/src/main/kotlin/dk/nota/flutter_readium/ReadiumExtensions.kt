@@ -198,22 +198,22 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         return Pair(this, null)
     }
 
-    val mo = getMediaOverlays() ?: return Pair(this, null)
+    val mediaOverlays = getMediaOverlays() ?: return Pair(this, null)
 
     val manifest = Manifest(
         context = context,
         metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
         resources = resources,
         links = links,
-        readingOrder = mo.mapNotNull { mo ->
-            val item = mo?.items?.first() ?: return@mapNotNull null
+        readingOrder = mediaOverlays.mapNotNull { overlay ->
+            val item = overlay?.items?.first() ?: return@mapNotNull null
 
             Href.invoke(item.audioFile)
                 ?.let { href ->
                     Link(
                         href,
                         mediaType = item.audioMediaType,
-                        duration = mo.duration,
+                        duration = overlay.duration,
                         title = item.title
                     )
                 }
@@ -221,7 +221,7 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
     )
 
     val pseudoPublication = Publication.Builder(manifest, container).build()
-    return Pair(pseudoPublication, mo)
+    return Pair(pseudoPublication, mediaOverlays)
 }
 
 /**
