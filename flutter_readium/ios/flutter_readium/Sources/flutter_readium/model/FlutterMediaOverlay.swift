@@ -152,10 +152,16 @@ struct FlutterMediaOverlayItem {
   /// Create an Audio-based Locator representing this MediaOverlayItem
   var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
+    let mimeType = switch (audioFile.split(separator: ".").last) {
+      case "opus" :
+        MediaType.opus
+      default :
+        MediaType.mpegAudio
+    }
     let start = audioStart ?? 0.0
     return Locator(
       href: href,
-      mediaType: MediaType.mpegAudio,
+      mediaType: mimeType,
       locations: .init(fragments: ["t=\(start)"])
     )
   }

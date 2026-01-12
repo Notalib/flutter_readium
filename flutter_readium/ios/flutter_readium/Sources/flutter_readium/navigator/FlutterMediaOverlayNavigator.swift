@@ -37,9 +37,17 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     
     let audioReadingOrder = mediaOverlays.enumerated().map { (idx, narr) in
       narrationLinks.getOrNil(idx).map {
+        let audioFile = narr.items.first!.audioFile
+        let mimeType = switch (audioFile.split(separator: ".").last) {
+          case "opus" :
+            MediaType.opus
+          default :
+            MediaType.mpegAudio
+        }
+        
         return Link(
           href: narr.items.first!.audioFile,
-          mediaType: MediaType.mpegAudio,
+          mediaType: mimeType,
           title: $0.title,
           duration: narr.items.reduce(0, { $0 + ($1.audioDuration ?? 0) })
         )
