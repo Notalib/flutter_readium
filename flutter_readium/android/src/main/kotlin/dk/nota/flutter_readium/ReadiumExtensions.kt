@@ -206,21 +206,15 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         resources = resources,
         links = links,
         readingOrder = mo.mapNotNull { mo ->
-            val audioFile = mo?.items?.first()?.audioFile ?: return@mapNotNull null
-            val mimeType = when (audioFile.split('.').lastOrNull())
-            {
-                "mp3" -> MediaType.MP3
-                "opus" -> MediaType.OPUS
-                else -> null
-            }
-            
-            Href.invoke(audioFile)
+            val item = mo?.items?.first() ?: return@mapNotNull null
+
+            Href.invoke(item.audioFile)
                 ?.let { href ->
                     Link(
                         href,
-                        mimeType,
+                        mediaType = item.audioMediaType,
                         duration = mo.duration,
-                        title = mo.items.first().title
+                        title = item.title
                     )
                 }
         }
