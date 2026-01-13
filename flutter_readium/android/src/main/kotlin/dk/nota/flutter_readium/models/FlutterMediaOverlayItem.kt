@@ -36,6 +36,15 @@ data class FlutterMediaOverlayItem(
     val audioFile = audio.substringBefore("#")
 
     /**
+     * The media type of the audio file
+     */
+    val audioMediaType = when (audioFile.split('.').lastOrNull()) {
+        "mp3" -> MediaType.MP3
+        "opus" -> MediaType.OPUS
+        else -> MediaType.MP3
+    }
+
+    /**
      * The text file without the fragment (e.g. "chapter1.html")
      */
     val textFile = text.substringBefore("#")
@@ -120,7 +129,7 @@ data class FlutterMediaOverlayItem(
             Locator(
                 href,
                 title = title,
-                mediaType = MediaType.MP3,
+                mediaType = audioMediaType,
                 locations = Locator.Locations(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
                 ),

@@ -79,6 +79,7 @@ struct FlutterMediaOverlayItem {
   let position: Int
   
   let audioFile: String
+  let audioMediaType: MediaType
   private let audioFragment: String
   private let audioTime: String?
   
@@ -102,6 +103,12 @@ struct FlutterMediaOverlayItem {
     self.audioTime = audioFragment.hasPrefix("t=") ? String(audioFragment.dropFirst(2)) : nil
     self.textFile = text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
     self.textId = text.split(separator: "#", maxSplits: 1).last.map(String.init) ?? ""
+    self.audioMediaType = switch (audioFile.split(separator: ".").last) {
+      case "opus" :
+        MediaType.opus
+      default:
+        MediaType.mpegAudio
+    }
     
     if let t = self.audioTime {
       let parts = t.split(separator: ",", maxSplits: 1).map(String.init)
@@ -155,7 +162,7 @@ struct FlutterMediaOverlayItem {
     let start = audioStart ?? 0.0
     return Locator(
       href: href,
-      mediaType: MediaType.mpegAudio,
+      mediaType: audioMediaType,
       locations: .init(fragments: ["t=\(start)"])
     )
   }

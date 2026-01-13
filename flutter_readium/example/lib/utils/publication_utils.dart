@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,10 +8,9 @@ import 'readium_storage.dart';
 
 class PublicationUtils {
   static Future<Iterable<String>> getAssetPubFiles() async {
-    final manifestContent = await rootBundle.loadString('AssetManifest.json');
-    final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-    final pubAssets = manifestMap.keys.where((final assetPath) => assetPath.startsWith('assets/pubs/'));
-    return pubAssets;
+    final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final assets = assetManifest.listAssets().where((asset) => asset.startsWith('assets/pubs/'));
+    return assets;
   }
 
   static Future<List<String>> moveAssetPublicationsToReadiumStorage() async {

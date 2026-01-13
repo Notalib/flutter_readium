@@ -110,7 +110,7 @@ fun Resource.injectScriptsAndStyles(): Resource =
             return@TransformingResource Try.success(bytes)
         }
 
-        if (content.substring(0, headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
+        if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
             Log.d(TAG, "Skip injecting - already done for: $filename")
             return@TransformingResource Try.success(bytes)
         }
@@ -155,21 +155,17 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // Remember last matched TOC item for titles
     var lastTocMatch: Pair<String, String?>? = null
 
-    return this.readingOrder.map { r ->
+    return this.readingOrder.mapNotNull { r ->
         r.alternates.find { a ->
             a.mediaType == MediaType("application/vnd.syncnarr+json")
         }?.copy(title = r.title)
-    }.mapIndexed { index, link ->
-        if (link == null) return@mapIndexed null
-
+    }.mapIndexedNotNull { index, link ->
         val jsonString =
-            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexed null
+            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
         FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
     }
         .map { mo ->
-            if (mo == null) return@map null
-
             val items = mo.items.map { item ->
                 // Find best matching title from TOC
                 val match = toc.find { tocItem ->
@@ -202,31 +198,30 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
         return Pair(this, null)
     }
 
-    val mo = getMediaOverlays()
-    if (mo == null) {
-        return Pair(this, null)
-    }
+    val mediaOverlays = getMediaOverlays() ?: return Pair(this, null)
 
     val manifest = Manifest(
         context = context,
         metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
         resources = resources,
         links = links,
-        readingOrder = mo.mapNotNull { mo ->
-            Href.invoke(mo?.items?.first()?.audioFile ?: "")
+        readingOrder = mediaOverlays.mapNotNull { overlay ->
+            val item = overlay?.items?.first() ?: return@mapNotNull null
+
+            Href.invoke(item.audioFile)
                 ?.let { href ->
                     Link(
                         href,
-                        MediaType.MP3,
-                        duration = mo?.duration,
-                        title = mo?.items?.first()?.title
+                        mediaType = item.audioMediaType,
+                        duration = overlay.duration,
+                        title = item.title
                     )
                 }
         }
     )
 
     val pseudoPublication = Publication.Builder(manifest, container).build()
-    return Pair(pseudoPublication, mo)
+    return Pair(pseudoPublication, mediaOverlays)
 }
 
 /**
