@@ -17,6 +17,11 @@ dependencies:
   json_annotation: ^4.9.0
   json_diff:
   plugin_platform_interface: ^2.1.4
+  dartx: ^1.2.0
+  dfunc: ^0.10.0
+  fimber: ^0.7.0
+  equatable: ^2.0.5
+  intl: ^0.19.0
 
 dev_dependencies:
   flutter_test:
