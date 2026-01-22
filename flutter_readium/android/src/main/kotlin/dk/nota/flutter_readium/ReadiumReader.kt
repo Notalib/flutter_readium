@@ -172,6 +172,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     val epubCurrentLocator: Locator?
         get() = epubNavigator?.currentLocator?.value
 
+    private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
+
+    /** Current audio preferences (defaults if audio hasn't been enabled yet). */
+    val audioPreferences: FlutterAudioPreferences
+        get() = _audioPreferences
+
     /**
      * The PublicationFactory is used to open publications.
      */
@@ -556,6 +562,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             syncAudiobookNavigator?.dispose()
             syncAudiobookNavigator = null
 
+            _audioPreferences = FlutterAudioPreferences()
+
             state.clear()
         }.await()
     }
@@ -764,6 +772,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     @OptIn(InternalReadiumApi::class)
     suspend fun audioEnable(initialLocator: Locator?, preferences: FlutterAudioPreferences) {
+        _audioPreferences = preferences
+
         currentPublication?.let { publication ->
             // Handle karaoke books - by creating a pseudo audio publication from the media overlays.
             val (ap, overlays) = publication.makeSyncAudiobook()
@@ -792,6 +802,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun audioUpdatePreferences(preferences: FlutterAudioPreferences) {
+        _audioPreferences = preferences
+
         mainScope.async {
             audiobookNavigator?.updatePreferences(preferences)
                 ?: syncAudiobookNavigator?.updatePreferences(preferences)

@@ -93,7 +93,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _nowPlayingUpdater.setupNowPlayingInfo()
     _nowPlayingUpdater.setupCommandCenterControls(
       preferredIntervals: [_preferences.seekInterval],
-      seekToEnabled: true,
+      seekToEnabled: _preferences.allowExternalSeeking,
       timebasedNavigator: self
     )
   }

@@ -14,6 +14,7 @@ data class FlutterAudioPreferences(
     val pitch: Double? = null,
     val speed: Double? = null,
     val seekInterval: Double = 30.0,
+    val allowExternalSeeking: Boolean = true,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
 
@@ -23,6 +24,7 @@ data class FlutterAudioPreferences(
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
             seekInterval = other.seekInterval,
+            allowExternalSeeking = other.allowExternalSeeking,
             controlPanelInfoType = other.controlPanelInfoType
         )
 
@@ -53,6 +55,7 @@ data class FlutterAudioPreferences(
                 pitch = jsonObject.getDouble("pitch"),
                 speed = jsonObject.getDouble("speed"),
                 seekInterval = jsonObject.getDouble("seekInterval"),
+                allowExternalSeeking = jsonObject.getBoolean("allowExternalSeeking"),
                 controlPanelInfoType = ControlPanelInfoType.fromString( jsonObject.getString("controlPanelInfoType"))
             )
         }
@@ -66,6 +69,7 @@ data class FlutterAudioPreferences(
             jsonObject.put("pitch", preferences.pitch)
             jsonObject.put("speed", preferences.speed)
             jsonObject.put("seekInterval", preferences.seekInterval)
+            jsonObject.put("allowExternalSeeking", preferences.allowExternalSeeking)
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
             return jsonObject
         }
@@ -79,6 +83,7 @@ data class FlutterAudioPreferences(
                 pitch = prefs["pitch"] as? Double ?: 1.0,
                 speed = prefs["speed"] as? Double ?: 1.0,
                 seekInterval = prefs["seekInterval"] as? Double ?: 30.0,
+                allowExternalSeeking = prefs["allowExternalSeeking"] as? Boolean ?: true,
                 // TODO: Not sure if this is correct
                 controlPanelInfoType = ControlPanelInfoType.fromString( prefs["controlPanelInfoType"] as? String ?: "standard"),
             )
