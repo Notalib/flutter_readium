@@ -1,9 +1,9 @@
 ﻿export 'acquisition_link.dart';
 export 'acquisition.dart';
-export 'availability.dart';
 export 'availability_state.dart';
+export 'availability.dart';
 export 'copies.dart';
 export 'currency.dart';
 export 'holds.dart';
-export 'price.dart';
 export 'price_period.dart';
+export 'price.dart';

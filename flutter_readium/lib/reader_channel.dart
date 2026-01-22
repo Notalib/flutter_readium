@@ -20,50 +20,37 @@ enum _ReaderChannelMethodInvoke {
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
 class ReadiumReaderChannel extends MethodChannel {
-  ReadiumReaderChannel(
-    super.name, {
-    required this.onPageChanged,
-    this.onExternalLinkActivated,
-  }) {
+  ReadiumReaderChannel(super.name, {required this.onPageChanged, this.onExternalLinkActivated}) {
     setMethodCallHandler(onMethodCall);
   }
 
   final void Function(Locator) onPageChanged;
   void Function(String)? onExternalLinkActivated;
 
-  Future<void> go(
-    final Locator locator, {
-    required final bool isAudioBookWithText,
-    final bool animated = false,
-  }) {
+  /// Go e.g. navigate to a specific locator in the publication.
+  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) {
     R2Log.d('$name: $locator, $animated');
 
-    return _invokeMethod(
-      _ReaderChannelMethodInvoke.go,
-      [
-        json.encode(locator.toTextLocator()),
-        animated,
-        isAudioBookWithText,
-      ],
-    );
+    return _invokeMethod(_ReaderChannelMethodInvoke.go, [
+      json.encode(locator.toTextLocator()),
+      animated,
+      isAudioBookWithText,
+    ]);
   }
 
+  /// Go to the previous page.
   Future<void> goLeft({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(
-      _ReaderChannelMethodInvoke.goLeft,
-      animated,
-    );
+    return _invokeMethod(_ReaderChannelMethodInvoke.goLeft, animated);
   }
 
+  /// Go to the next page.
   Future<void> goRight({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(
-      _ReaderChannelMethodInvoke.goRight,
-      animated,
-    );
+    return _invokeMethod(_ReaderChannelMethodInvoke.goRight, animated);
   }
 
+  /// Get locator fragments for the given [locator].
   Future<Locator?> getLocatorFragments(final Locator locator) {
     R2Log.d('locator: ${locator.toString()}');
 
@@ -77,30 +64,31 @@ class ReadiumReaderChannel extends MethodChannel {
     });
   }
 
-  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async => _invokeMethod(
-        _ReaderChannelMethodInvoke.setLocation,
-        [
-          json.encode(locator),
-          isAudioBookWithText,
-        ],
-      );
+  /// Set the current location to the given [locator].
+  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async =>
+      _invokeMethod(_ReaderChannelMethodInvoke.setLocation, [json.encode(locator), isAudioBookWithText]);
 
+  /// Set EPUB preferences.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
   }
 
+  /// Apply decorations to the reader.
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
 
-  Future<Locator?> getCurrentLocator() async =>
-      await _invokeMethod<dynamic>(_ReaderChannelMethodInvoke.getCurrentLocator, [])
-          .then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
+  /// Get the current locator.
+  Future<Locator?> getCurrentLocator() async => await _invokeMethod<dynamic>(
+    _ReaderChannelMethodInvoke.getCurrentLocator,
+    [],
+  ).then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
 
+  /// Check if a locator is currently visible on screen.
   Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(
-        _ReaderChannelMethodInvoke.isLocatorVisible,
-        json.encode(locator),
-      ).then((final isVisible) => isVisible!).onError((final error, final _) => true);
+    _ReaderChannelMethodInvoke.isLocatorVisible,
+    json.encode(locator),
+  ).then((final isVisible) => isVisible!).onError((final error, final _) => true);
 
   Future<void> dispose() async {
     try {
@@ -112,6 +100,7 @@ class ReadiumReaderChannel extends MethodChannel {
     setMethodCallHandler(null);
   }
 
+  /// Handles method calls from the native platform.
   Future<dynamic> onMethodCall(final MethodCall call) async {
     try {
       switch (call.method) {
@@ -137,6 +126,7 @@ class ReadiumReaderChannel extends MethodChannel {
     }
   }
 
+  /// Invokes a method on the native platform with optional arguments.
   Future<T?> _invokeMethod<T>(final _ReaderChannelMethodInvoke method, [final dynamic arguments]) {
     R2Log.d(() => arguments == null ? '$method' : '$method: $arguments');
 

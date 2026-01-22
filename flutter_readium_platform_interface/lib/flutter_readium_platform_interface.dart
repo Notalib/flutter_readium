@@ -7,19 +7,9 @@ import 'dart:async';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
-import 'src/enums.dart';
-import 'src/exceptions/index.dart';
-import 'src/state_model.dart';
-import 'src/reader/index.dart';
-import 'src/shared/index.dart';
+import 'src/_index.dart';
 
-export 'src/exceptions/index.dart';
-export 'src/extensions/index.dart';
-export 'src/reader/index.dart';
-export 'src/shared/index.dart';
-export 'src/utils/index.dart';
-export 'src/enums.dart';
-export 'src/state_model.dart';
+export 'src/_index.dart';
 
 /// The interface that implementations of FlutterReadium must implement.
 ///
@@ -100,10 +90,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsGetAvailableVoices() has not been implemented');
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       throw UnimplementedError('ttsSetVoice() has not been implemented');
-  Future<void> setDecorationStyle(
-    ReaderDecorationStyle? utteranceDecoration,
-    ReaderDecorationStyle? rangeDecoration,
-  ) =>
+  Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       throw UnimplementedError('setDecorationStyle() has not been implemented');
   Future<void> ttsSetPreferences(TTSPreferences preferences) =>
       throw UnimplementedError('ttsSetPreferences() has not been implemented');

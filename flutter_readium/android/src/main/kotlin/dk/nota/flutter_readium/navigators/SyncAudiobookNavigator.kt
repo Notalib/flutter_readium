@@ -67,7 +67,7 @@ class SyncAudiobookNavigator(
         if (mediaOverlay == null) {
             Log.d(
                 TAG,
-                ":onTimebasedCurrentLocatorChanges no mo item found for locator=$locator, timeOffset=$timeOffset"
+                ":onTimebasedCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset"
             )
             return
         }
@@ -123,7 +123,7 @@ class SyncAudiobookNavigator(
         if (audioLocator != null) {
             super.play(audioLocator)
         } else {
-            Log.d(TAG, "goToLocator: no audio locator found for $fromLocator")
+            Log.d(TAG, "::play: no audio locator found for $fromLocator")
         }
     }
 
