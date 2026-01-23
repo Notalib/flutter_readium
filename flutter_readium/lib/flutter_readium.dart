@@ -102,4 +102,31 @@ class FlutterReadium {
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
   Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
+
+  Future<bool> goByLink(final Link link, final Publication pub) async {
+    R2Log.d(() => 'Navigating to link: $link');
+
+    final locator = pub.locatorFromLink(link);
+
+    R2Log.d(locator);
+
+    if (locator == null) {
+      throw const ReadiumException('Link could not be resolved to locator');
+    }
+
+    return goToLocator(locator);
+  }
+
+  Future<bool> toPhysicalPageIndex(final String index, final Publication pub) async {
+    final pageIndex = index.toLowerCase();
+    final pageList = pub.pageList;
+    final pageLink = pageList?.firstWhereOrNull(
+      (final link) => link.title?.toLowerCase() == pageIndex,
+    );
+    if (pageLink == null) {
+      throw const ReadiumException('Page link not found');
+    }
+
+    return goByLink(pageLink, pub);
+  }
 }
