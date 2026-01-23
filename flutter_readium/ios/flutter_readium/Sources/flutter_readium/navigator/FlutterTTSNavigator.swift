@@ -74,7 +74,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
         let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
         let link = self.publication.readingOrder.firstWithHREF(locator.href)
         
-        self.nowPlayingUpdater.updateNowPlaying(chapterNo: chapterNo)
+        self.nowPlayingUpdater.updateChapterNo(chapterNo)
         self.nowPlayingUpdater.updateCommandCenterControls()
         listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
       }

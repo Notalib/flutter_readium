@@ -178,7 +178,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             val activityIntent = createSessionActivityIntent()
             val player = navigator.asMedia3Player()
             // Create our SimpleBasePlayer override to override some media-button mapping.
-            val pluginForwardingPlayer = PluginSimpleBasePlayer(player)
+            val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences)
 
             val mediaSession = MediaSession.Builder(applicationContext, pluginForwardingPlayer)
                 .setSessionActivity(activityIntent)
@@ -357,7 +357,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 }
 
 @UnstableApi
-class PluginSimpleBasePlayer(player: Player) : ForwardingSimpleBasePlayer(player) {
+class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPreferences) : ForwardingSimpleBasePlayer(player) {
 
     override fun handleSeek(
         mediaItemIndex: Int,
@@ -385,7 +385,17 @@ class PluginSimpleBasePlayer(player: Player) : ForwardingSimpleBasePlayer(player
         if (player.isCommandAvailable(COMMAND_GET_AUDIO_ATTRIBUTES)) {
             state.setAudioAttributes(player.audioAttributes)
         }
-        state.setAvailableCommands(player.availableCommands)
+
+        if (preferences.allowExternalSeeking) {
+            state.setAvailableCommands(player.availableCommands)
+        } else {
+            val commandsWithoutSeeking = player.availableCommands
+                .buildUpon()
+                .remove(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+                .build()
+            state.setAvailableCommands(commandsWithoutSeeking)
+        }
+
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
             state.setContentPositionMs { player.contentPosition }
             state.setContentBufferedPositionMs { player.contentBufferedPosition }

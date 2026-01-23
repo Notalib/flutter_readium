@@ -4,6 +4,7 @@ class AudioPreferences {
     this.speed,
     this.pitch,
     this.seekInterval,
+    this.allowExternalSeeking,
     this.controlPanelInfoType,
   });
 
@@ -11,6 +12,7 @@ class AudioPreferences {
   double? speed;
   double? pitch;
   double? seekInterval;
+  bool? allowExternalSeeking;
   double? updateIntervalSecs;
   ControlPanelInfoType? controlPanelInfoType;
 
@@ -19,6 +21,7 @@ class AudioPreferences {
         'speed': speed,
         'pitch': pitch,
         'seekInterval': seekInterval,
+        'allowExternalSeeking': allowExternalSeeking,
         'updateIntervalSecs': updateIntervalSecs,
         'controlPanelInfoType': controlPanelInfoType?.toString().split('.').last,
       };
