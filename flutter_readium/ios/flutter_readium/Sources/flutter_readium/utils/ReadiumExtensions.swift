@@ -122,10 +122,14 @@ extension TTSVoice.Quality {
   // Biggest difference is that medium = normal.
   public var toFlutterString: String {
     switch self {
-    case .low: return "low"
-    case .medium: return "normal"
-    case .high: return "high"
-    @unknown default: return "normal"
+    case .low, .lower:
+      return "low"
+    case .medium:
+      return "normal"
+    case .high, .higher:
+      return "high"
+    @unknown default:
+      return "normal"
     }
   }
 }
@@ -159,7 +163,6 @@ extension EPUBPreferences {
         }
       case "fontFamily":
         fontFamily = FontFamily(rawValue: value)
-
       case "fontSize":
         if let fontSizeValue = Double(value) {
           fontSize = fontSizeValue

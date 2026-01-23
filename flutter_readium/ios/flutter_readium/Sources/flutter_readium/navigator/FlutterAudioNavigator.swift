@@ -193,7 +193,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   @MainActor
   func setAudioPreferences(_ preferences: FlutterAudioPreferences) {
     self._preferences = preferences
+    /// Update the Audio Navigator.
     self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
+    /// Update the CommandCenter controls.
+    self._nowPlayingUpdater.setupCommandCenterControls(
+      preferredIntervals: [_preferences.seekInterval],
+      seekToEnabled: _preferences.allowExternalSeeking,
+      timebasedNavigator: self
+    )
   }
   
   var canGoBackward: Bool {
