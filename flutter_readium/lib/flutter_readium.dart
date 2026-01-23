@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+export './reader_widget_switch.dart';
 
 class FlutterReadium {
   /// Constructs a singleton instance of [FlutterReadium].
