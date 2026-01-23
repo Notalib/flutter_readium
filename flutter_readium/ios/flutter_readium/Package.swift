@@ -15,7 +15,7 @@ let package = Package(
         .library(name: "flutter-readium", targets: ["flutter_readium"])
     ],
     dependencies: [
-      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.1.0")),
+      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.5.0")),
       .package(url: "https://github.com/mxcl/PromiseKit", .upToNextMinor(from: "6.8.0"))
     ],
     targets: [
