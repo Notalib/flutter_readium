@@ -2,12 +2,14 @@
 
 set -e
 
-./bin/forAll flutter pub get
+PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+$PROJECT_ROOT/bin/forAll flutter pub get
 
 # this is not working as expected
 if [ "$(uname)" == "Darwin" ]; then
-  (cd ./flutter_readium/example/ios; pod install --repo-update)
+  (cd $PROJECT_ROOT/flutter_readium/example/ios; pod update && pod install --repo-update)
 fi
 
-
-./bin/update_web_example
+$PROJECT_ROOT/flutter_readium/bin/build_helper_scripts.sh
+$PROJECT_ROOT/bin/update_web_example
