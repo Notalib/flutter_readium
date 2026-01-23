@@ -328,7 +328,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
 
       Task.detached(priority: .high) {
         await self.goToLocator(locator: locator, animated: animated)
-        await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
+        let _ = await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
         await MainActor.run() {
           result(true)
         }
@@ -362,8 +362,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate {
       let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
       let isAudioBookWithText = args[1] as? Bool ?? false
       Task.detached(priority: .high) {
-        await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
-        await MainActor.run() {
+        let _ = await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
+        return await MainActor.run() {
           result(true)
         }
       }
