@@ -79,6 +79,18 @@ extension MapExtension on Map<String, dynamic>? {
     return value == null || value == _null;
   }
 
+  /// Removes the mapping for [name] if it exists and is of type [T], and returns the value.
+  /// Returns null if no such mapping exists.
+  T? safeRemove<T>(String name) {
+    if (this != null && this!.containsKey(name)) {
+      final dynamic value = this!.remove(name);
+      if (value is T) {
+        return value;
+      }
+    }
+    return null;
+  }
+
   /// Returns the value mapped by {@code name}, or null if no such mapping
   /// exists.
   dynamic opt(String name) => (this != null) ? this![name] : null;

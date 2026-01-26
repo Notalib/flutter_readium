@@ -109,6 +109,12 @@ class ReadiumReaderChannel extends MethodChannel {
           final locatorJson = json.decode(args) as Map<String, dynamic>;
           final locator = Locator.fromJson(locatorJson);
           R2Log.d('onPageChanged $locator');
+
+          if (locator == null) {
+            R2Log.w('onPageChanged received empty locator');
+            return null;
+          }
+
           onPageChanged(locator);
 
           return null;

@@ -95,38 +95,35 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   @override
   Widget build(final BuildContext context) => Scaffold(
-        restorationId: 'bookshelf_page',
-        appBar: AppBar(
-          backgroundColor: Colors.deepPurple[200],
-          title: Text('Bookshelf'),
-        ),
-        body: SafeArea(
-          child: _isLoading
-              ? Center(child: CircularProgressIndicator())
-              : Column(
-                  children: [
-                    Expanded(
-                      child: CupertinoScrollbar(
-                        controller: _scrollController,
-                        thickness: 5.0,
-                        thumbVisibility: true,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          itemCount: _testPublications.length,
-                          itemBuilder: (final context, final index) {
-                            final publication = _testPublications[index];
-                            final publicationUrl = _testPublicationURLs[index];
-                            return _buildPubCard(publication, publicationUrl, context);
-                          },
-                        ),
-                      ),
+    restorationId: 'bookshelf_page',
+    appBar: AppBar(backgroundColor: Colors.deepPurple[200], title: Text('Bookshelf')),
+    body: SafeArea(
+      child: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Expanded(
+                  child: CupertinoScrollbar(
+                    controller: _scrollController,
+                    thickness: 5.0,
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: _testPublications.length,
+                      itemBuilder: (final context, final index) {
+                        final publication = _testPublications[index];
+                        final publicationUrl = _testPublicationURLs[index];
+                        return _buildPubCard(publication, publicationUrl, context);
+                      },
                     ),
-                    // Divider(),
-                    // _buildAddBookCard(context),
-                  ],
+                  ),
                 ),
-        ),
-      );
+                // Divider(),
+                // _buildAddBookCard(context),
+              ],
+            ),
+    ),
+  );
 
   // ignore: unused_element
   void _toast(final String text, {final Duration duration = const Duration(milliseconds: 4000)}) {
@@ -135,11 +132,11 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   String _listAuthors(final Publication pub) {
     final metadata = pub.metadata;
-    final authors = metadata.author;
+    final authors = metadata.authors;
 
-    final authorNames = authors?.map((final author) => author.name.values.first).join(', ');
+    final authorNames = authors.map((final author) => author.name).join(', ');
 
-    return authorNames ?? 'Unknown author';
+    return authorNames.isEmpty ? 'Unknown author' : authorNames;
   }
 
   // Future<String?> _pickAndImportPubFromFile() async {
@@ -173,63 +170,61 @@ class BookshelfPageState extends State<BookshelfPage> {
   }
 
   Widget _buildPubCard(final Publication publication, String publicationUrl, final BuildContext context) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
-        child: InkWell(
-          onTap: () {
-            final fakeInitialLocator =
-                publication.locatorFromLink(publication.readingOrder[math.min(2, publication.readingOrder.length)]);
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
+    child: InkWell(
+      onTap: () {
+        final fakeInitialLocator = publication.locatorFromLink(
+          publication.readingOrder[math.min(2, publication.readingOrder.length)],
+        );
 
-            try {
-              context
-                  .read<PublicationBloc>()
-                  .add(OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator));
+        try {
+          context.read<PublicationBloc>().add(
+            OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator),
+          );
 
-              Navigator.restorablePushNamed(context, '/player');
-            } on Object catch (e) {
-              _toast('Error opening publication: $e');
-            }
-          },
-          child: Card(
-            color: Colors.blue[100],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 15.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Navigator.restorablePushNamed(context, '/player');
+        } on Object catch (e) {
+          _toast('Error opening publication: $e');
+        }
+      },
+      child: Card(
+        color: Colors.blue[100],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 15.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        publication.metadata.title.values.first,
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      Text(_listAuthors(publication)),
-                      Text(_bookFormatFromConformsTo(publication)),
-                      Text(publicationUrl.split('/').last),
-                    ],
-                  ),
-                  // remove the if when books loaded from asset can be deleted
-                  if (!_identifiersFromAsset.contains(publication.identifier))
-                    IconButton(
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () async {
-                        try {
-                          PublicationUtils.removePublicationFromReadiumStorage(publication.identifier);
-                          setState(() {
-                            _testPublications.remove(publication);
-                          });
-                        } on Object catch (e) {
-                          _toast('Error deleting publication: $e');
-                        }
-                      },
-                    ),
+                  Text(publication.metadata.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(_listAuthors(publication)),
+                  Text(_bookFormatFromConformsTo(publication)),
+                  Text(publicationUrl.split('/').last),
                 ],
               ),
-            ),
+              // remove the if when books loaded from asset can be deleted
+              if (!_identifiersFromAsset.contains(publication.identifier))
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  onPressed: () async {
+                    try {
+                      PublicationUtils.removePublicationFromReadiumStorage(publication.identifier);
+                      setState(() {
+                        _testPublications.remove(publication);
+                      });
+                    } on Object catch (e) {
+                      _toast('Error deleting publication: $e');
+                    }
+                  },
+                ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   // Widget _buildAddBookCard(final BuildContext context) => Container(
   //       padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),

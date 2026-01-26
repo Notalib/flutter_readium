@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// ignore_for_file: avoid_returning_this
+
 class Try<Success, Failure extends Exception> {
   Try.failure(this.failure) : success = null;
 

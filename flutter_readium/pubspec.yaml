@@ -35,6 +35,7 @@ dependencies:
   rxdart:
   wakelock_plus: ^1.2.8
   web: ^1.1.1
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:

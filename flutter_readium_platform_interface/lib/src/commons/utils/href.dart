@@ -5,6 +5,7 @@
 import 'dart:convert';
 
 import 'package:dartx/dartx.dart';
+import 'package:collection/collection.dart';
 import 'package:fimber/fimber.dart';
 import '../extensions/strings.dart';
 
@@ -75,7 +76,7 @@ class QueryParameter {
 }
 
 extension QueryParameterExtension on List<QueryParameter> {
-  String? firstNamedOrNull(String name) => firstOrNullWhere((it) => it.name == name)?.value;
+  String? firstNamedOrNull(String name) => firstWhereOrNull((it) => it.name == name)?.value;
 
   List<String> allNamed(String name) => where((it) => it.name == name).mapNotNull((it) => it.value).toList();
 }

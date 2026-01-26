@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -97,18 +98,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> go(
-    final Locator locator, {
-    required final bool isAudioBookWithText,
-    final bool animated = false,
-  }) async {
+  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
     R2Log.d(() => 'Go to $locator');
 
-    await _channel?.go(
-      locator,
-      animated: animated,
-      isAudioBookWithText: isAudioBookWithText,
-    );
+    await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
 
     R2Log.d('Done');
   }
@@ -122,7 +115,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> skipToNext({final bool animated = true}) async {
     List<Link>? toc = widget.publication.toc;
-    if (toc == null || _currentLocator == null) {
+    if (toc.isEmpty || _currentLocator == null) {
       return;
     }
     String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
@@ -148,7 +141,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> skipToPrevious({final bool animated = true}) async {
     List<Link>? toc = widget.publication.toc;
-    if (toc == null || _currentLocator == null) {
+    if (toc.isEmpty || _currentLocator == null) {
       return;
     }
     String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
@@ -210,16 +203,17 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           gestureRecognizers: const {},
           hitTestBehavior: PlatformViewHitTestBehavior.opaque,
         ),
-        onCreatePlatformView: (final params) => PlatformViewsService.initSurfaceAndroidView(
-          id: params.id,
-          viewType: _viewType,
-          layoutDirection: TextDirection.ltr,
-          creationParams: creationParams,
-          creationParamsCodec: const StandardMessageCodec(),
-        )
-          ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-          ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
-          ..create(),
+        onCreatePlatformView: (final params) =>
+            PlatformViewsService.initSurfaceAndroidView(
+                id: params.id,
+                viewType: _viewType,
+                layoutDirection: TextDirection.ltr,
+                creationParams: creationParams,
+                creationParamsCodec: const StandardMessageCodec(),
+              )
+              ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+              ..addOnPlatformViewCreatedListener(_onPlatformViewCreated)
+              ..create(),
       );
     } else if (Platform.isIOS) {
       return UiKitView(
@@ -232,11 +226,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
     return ColoredBox(
       color: const Color(0xffff00ff),
-      child: Center(
-        child: Text(
-          'TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.',
-        ),
-      ),
+      child: Center(child: Text('TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.')),
     );
   }
 
@@ -288,8 +278,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     R2Log.d('New widget is: ${_channel?.name}');
 
     // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
-    final nativeLocatorStream =
-        _readium.onTextLocatorChanged.debounceTime(const Duration(milliseconds: 50)).asBroadcastStream().distinct();
+    final nativeLocatorStream = _readium.onTextLocatorChanged
+        .debounceTime(const Duration(milliseconds: 50))
+        .asBroadcastStream()
+        .distinct();
 
     nativeLocatorStream.listen((locator) {
       R2Log.d('ReaderWidget.LocatorChanged - $locator');
@@ -307,7 +299,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     final txtLoc = locator.toTextLocator();
-    final tocFragment = locator.locations?.fragments?.firstWhereOrNull((f) => f.startsWith("toc="));
+    final tocFragment = locator.locations.fragments.firstWhereOrNull((f) => f.startsWith("toc="));
     if (tocFragment == null) {
       return null;
     }
@@ -345,36 +337,5 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
       _lastOrientation = orientation;
     }
-  }
-
-  // TODO: Is this still useful or should we delete it?
-  Future<void> _setLocation(final Locator locator, final bool isAudioBookWithText) async {
-    R2Log.d('Set highlight');
-
-    // final playbackRate = FlutterReadium.state.playbackRate;
-    // final rateRatio = playbackRate == 0 ? 0 : 1 / playbackRate;
-    // NOTE: Make duration shorter due to the frame animation.
-    // final rate = playbackRate <= 1.0 ? rateRatio : rateRatio - rateRatio * 0.45;
-
-    final locations = locator.locations;
-    final domRange = locations?.domRange;
-    final selector = domRange?.start.cssSelector ?? locations?.cssSelector;
-
-    if (selector == null) {
-      R2Log.d('No selector found: $locator');
-      return;
-    }
-
-    // Make sure to copy fragment durations onto locators before sending over native channel.
-    final fragmentDurationInSec = (locations?.xFragmentDuration?.inSeconds ?? 0);
-
-    _channel?.setLocation(
-      locator.mapLocations(
-        (final locations) => locations.copyWithFragmentDuration(
-          fragmentDurationInSec,
-        ),
-      ),
-      isAudioBookWithText,
-    );
   }
 }

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:collection/collection.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -26,9 +27,7 @@ class Pause extends PlayerControlsEvent {}
 class Stop extends PlayerControlsEvent {}
 
 class TogglePlayingState extends PlayerControlsEvent {
-  TogglePlayingState({
-    required this.isPlaying,
-  });
+  TogglePlayingState({required this.isPlaying});
   bool isPlaying;
 }
 
@@ -83,34 +82,26 @@ class PlayerControlsState {
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   StreamSubscription? timebasedStateSub;
 
-  PlayerControlsBloc()
-      : super(
-          PlayerControlsState(
-            playing: false,
-            ttsEnabled: false,
-            audioEnabled: false,
-          ),
-        ) {
-    timebasedStateSub = FlutterReadium()
-        .onTimebasedPlayerStateChanged
+  PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
+    timebasedStateSub = FlutterReadium().onTimebasedPlayerStateChanged
         .map((state) => state.state)
         .distinct()
         .debounceTime(const Duration(milliseconds: 50))
         .listen((playerState) {
-      debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
+          debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
 
-      switch (playerState) {
-        case TimebasedState.playing:
-        case TimebasedState.loading:
-          if (state.playing != true) {
-            add(TogglePlayingState(isPlaying: true));
+          switch (playerState) {
+            case TimebasedState.playing:
+            case TimebasedState.loading:
+              if (state.playing != true) {
+                add(TogglePlayingState(isPlaying: true));
+              }
+            case TimebasedState.paused:
+            case TimebasedState.ended:
+            case TimebasedState.failure:
+              add(TogglePlayingState(isPlaying: false));
           }
-        case TimebasedState.paused:
-        case TimebasedState.ended:
-        case TimebasedState.failure:
-          add(TogglePlayingState(isPlaying: false));
-      }
-    });
+        });
 
     on<TogglePlayingState>((final event, final emit) async {
       emit(await state.togglePlay(event.isPlaying));
@@ -129,7 +120,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-            prefs: AudioPreferences(speed: 1.5, seekInterval: 10), fromLocator: event.fromLocator);
+          prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
+          fromLocator: event.fromLocator,
+        );
         emit(await state.toggleAudioEnabled(true));
         await instance.play(event.fromLocator);
       } else {
@@ -175,7 +168,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
       for (final v in voices) {
         debugPrint(
-            'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name}');
+          'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name}',
+        );
       }
 
       // TODO: Demo: change to first voice matching "da-DK" language.

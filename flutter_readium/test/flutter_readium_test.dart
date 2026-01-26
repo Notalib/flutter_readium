@@ -23,17 +23,26 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<Publication> loadPublication(String pubUrl) =>
-      Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
+  Future<Publication> loadPublication(String pubUrl) => Future.value(
+    Publication(
+      links: [],
+      metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'test'})),
+      readingOrder: [],
+    ),
+  );
 
   @override
-  Future<Publication> openPublication(String pubUrl) =>
-      Future.value(Publication(links: [], metadata: Metadata(title: {'en': 'test'}), readingOrder: []));
-
+  Future<Publication> openPublication(String pubUrl) => Future.value(
+    Publication(
+      links: [],
+      metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'test'})),
+      readingOrder: [],
+    ),
+  );
   @override
   Stream<Locator> get onTextLocatorChanged => Stream.fromIterable([
-        // TODO: Test locators
-      ]);
+    // TODO: Test locators
+  ]);
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) {
