@@ -37,7 +37,29 @@ class OpdsMetadata with EquatableMixin implements JSONable {
 
   @override
   Map<String, dynamic> toJson() {
-    // TODO: implement toJson
-    throw UnimplementedError();
+    final json = <String, dynamic>{'title': title}
+      ..putOpt('numberOfItems', numberOfItems)
+      ..putOpt('itemsPerPage', itemsPerPage)
+      ..putOpt('currentPage', currentPage)
+      ..putOpt('modified', modified?.toIso8601String())
+      ..putOpt('position', position)
+      ..putOpt('rdfType', rdfType);
+    return json;
+  }
+
+  static OpdsMetadata? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    return OpdsMetadata(
+      title: json['title'] as String? ?? '',
+      numberOfItems: json['numberOfItems'] as int?,
+      itemsPerPage: json['itemsPerPage'] as int?,
+      currentPage: json['currentPage'] as int?,
+      modified: json['modified'] != null ? DateTime.parse(json['modified'] as String) : null,
+      position: json['position'] as int?,
+      rdfType: json['rdfType'] as String?,
+    );
   }
 }

@@ -29,7 +29,7 @@ class Publication with EquatableMixin implements JSONable {
     this.readingOrder = const [],
     this.resources = const [],
     this.tableOfContents = const [],
-    this.subcollections = const {},
+    this.subCollections = const {},
   });
 
   final List<String> context;
@@ -38,7 +38,7 @@ class Publication with EquatableMixin implements JSONable {
   final List<Link> readingOrder;
   final List<Link> resources;
   final List<Link> tableOfContents;
-  final Map<String, List<PublicationCollection>> subcollections;
+  final Map<String, List<PublicationCollection>> subCollections;
 
   List<Link> get toc => tableOfContents;
 
@@ -59,11 +59,11 @@ class Publication with EquatableMixin implements JSONable {
     readingOrder: readingOrder ?? this.readingOrder,
     resources: resources ?? this.resources,
     tableOfContents: tableOfContents ?? this.tableOfContents,
-    subcollections: subcollections ?? this.subcollections,
+    subCollections: subcollections ?? this.subCollections,
   );
 
   @override
-  List<Object> get props => [context, metadata, links, readingOrder, resources, tableOfContents, subcollections];
+  List<Object> get props => [context, metadata, links, readingOrder, resources, tableOfContents, subCollections];
 
   /// Finds the first [Link] with the given relation in the manifest's links.
   Link? linkWithRel(String rel) =>
@@ -82,7 +82,7 @@ class Publication with EquatableMixin implements JSONable {
       ..put('readingOrder', readingOrder.toJson())
       ..putIterableIfNotEmpty('resources', resources)
       ..putIterableIfNotEmpty('toc', tableOfContents);
-    subcollections.appendToJsonObject(json);
+    subCollections.appendToJsonObject(json);
     return json;
   }
 
@@ -91,7 +91,7 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Returns the [links] of the first child [PublicationCollection] with the given role, or an
   /// empty list.
-  List<Link> linksWithRole(String role) => subcollections[role]?.firstOrNull?.links ?? [];
+  List<Link> collectionLinks(String role) => subCollections[role]?.firstOrNull?.links ?? [];
 
   static LinkHrefNormalizer normalizeHref(String baseUrl) =>
       (href) => Href(href, baseHref: baseUrl).string;
@@ -115,7 +115,7 @@ class Publication with EquatableMixin implements JSONable {
 
     final context = json.optStringsFromArrayOrSingle('@context', remove: true);
     final metadata = Metadata.fromJson(
-      json.remove('metadata') as Map<String, dynamic>?,
+      json.safeRemove<Map<String, dynamic>>('metadata'),
       normalizeHref: normalizeHref(baseUrl),
     );
     if (metadata == null) {
@@ -123,7 +123,7 @@ class Publication with EquatableMixin implements JSONable {
       return null;
     }
 
-    final links = Link.fromJSONArray(json.remove('links') as List<dynamic>?, normalizeHref: normalizeHref(baseUrl))
+    final links = Link.fromJSONArray(json.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref(baseUrl))
         .map(
           (it) => (!packaged || !it.rels.contains('self'))
               ? it
@@ -135,19 +135,19 @@ class Publication with EquatableMixin implements JSONable {
         )
         .toList();
     // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
-    final readingOrderJSON = (json.remove('readingOrder') ?? json.remove('spine')) as List<dynamic>?;
+    final readingOrderJSON = json.safeRemove<List<dynamic>>('readingOrder');
     final readingOrder = Link.fromJSONArray(
       readingOrderJSON,
       normalizeHref: normalizeHref(baseUrl),
     ).where((it) => it.type != null).toList();
 
     final resources = Link.fromJSONArray(
-      json.remove('resources') as List<dynamic>?,
+      json.safeRemove<List<dynamic>>('resources'),
       normalizeHref: normalizeHref(baseUrl),
     ).where((it) => it.type != null).toList();
 
     final tableOfContents = Link.fromJSONArray(
-      json.remove('toc') as List<dynamic>?,
+      json.safeRemove<List<dynamic>>('toc'),
       normalizeHref: normalizeHref(baseUrl),
     );
 
@@ -161,7 +161,7 @@ class Publication with EquatableMixin implements JSONable {
       readingOrder: readingOrder,
       resources: resources,
       tableOfContents: tableOfContents,
-      subcollections: subcollections,
+      subCollections: subcollections,
     );
   }
 

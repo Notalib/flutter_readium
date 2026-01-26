@@ -12,27 +12,8 @@ import '../publication/link.dart' show Link;
 import 'opds_publication.dart';
 
 class Feed with EquatableMixin implements JSONable {
-  Feed(
-    this.title,
-    this.type,
-    this.href, {
-    OpdsMetadata? metadata,
-    List<Link>? links,
-    List<Facet>? facets,
-    List<Group>? groups,
-    List<OpdsPublication>? publications,
-    List<Link>? navigation,
-    List<String>? context,
-  }) : metadata = metadata ?? OpdsMetadata(title: title),
-       links = links ?? [],
-       facets = facets ?? [],
-       groups = groups ?? [],
-       publications = publications ?? [],
-       navigation = navigation ?? [],
-       context = context ?? [];
-  final String title;
-  final int type;
-  final Uri href;
+  Feed(this.metadata, this.links, this.facets, this.groups, this.publications, this.navigation, this.context);
+
   OpdsMetadata metadata;
   List<Link> links;
   List<Facet> facets;
@@ -42,11 +23,11 @@ class Feed with EquatableMixin implements JSONable {
   List<String> context;
 
   @override
-  List<Object?> get props => [title, type, href, metadata, links, facets, groups, publications, navigation, context];
+  List<Object?> get props => [metadata, links, facets, groups, publications, navigation, context];
 
   @override
   String toString() =>
-      'Feed{title: $title, type: $type, href: $href, metadata: $metadata, '
+      'Feed{title: ${metadata.title}, metadata: $metadata, '
       'links: $links, facets: $facets, groups: $groups, '
       'publications: $publications, navigation: $navigation, '
       'context: $context}';
@@ -61,5 +42,22 @@ class Feed with EquatableMixin implements JSONable {
       ..put('groups', groups.toJson())
       ..put('facets', facets.toJson());
     return json;
+  }
+
+  static Feed? fromJson(Map<String, dynamic> json) {
+    final metadata = OpdsMetadata.fromJson(json['metadata'] as Map<String, dynamic>?);
+    if (metadata == null) {
+      return null;
+    }
+
+    return Feed(
+      metadata,
+      Link.fromJSONArray(json['links'] as List<dynamic>?),
+      Facet.fromJSONArray(json['facets'] as List<Map<String, dynamic>>?),
+      Group.fromJSONArray(json['groups'] as List<dynamic>?),
+      OpdsPublication.fromJSONArray(json['publications'] as List<Map<String, dynamic>>?),
+      Link.fromJSONArray(json['navigation'] as List<dynamic>?),
+      (json['@context'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+    );
   }
 }

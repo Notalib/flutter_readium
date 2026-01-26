@@ -6,5 +6,5 @@ import '../link.dart';
 import '../publication.dart';
 
 extension OpdsPublicationExtension on Publication {
-  List<Link> get images => linksWithRole('images');
+  List<Link> get images => collectionLinks('images');
 }
