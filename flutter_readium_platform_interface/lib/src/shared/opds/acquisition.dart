@@ -4,7 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import '../mediatype/mediatype.dart';
 
 /// OPDS Acquisition Object.

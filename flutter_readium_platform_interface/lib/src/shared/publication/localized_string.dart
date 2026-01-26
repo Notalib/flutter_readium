@@ -9,7 +9,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 
 class Translation {
   const Translation(this.string);

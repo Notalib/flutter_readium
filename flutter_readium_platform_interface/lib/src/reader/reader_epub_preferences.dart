@@ -1,7 +1,7 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:ui' show Color;
 
-import '../_index.dart';
+import '../index.dart';
 
 class EPUBPreferences {
   EPUBPreferences({
@@ -15,13 +15,13 @@ class EPUBPreferences {
   });
 
   factory EPUBPreferences.fromJsonMap(final Map<String, dynamic> map) => EPUBPreferences(
-        fontFamily: map['fontFamily'] as String,
-        fontSize: map['fontSize'] as int,
-        fontWeight: map['fontSize'] as double,
-        verticalScroll: map['verticalScroll'] as bool,
-        backgroundColor: map['tint'] is int ? Color(map['tint'] as int) : null,
-        textColor: map['tint'] is int ? Color(map['tint'] as int) : null,
-      );
+    fontFamily: map['fontFamily'] as String,
+    fontSize: map['fontSize'] as int,
+    fontWeight: map['fontSize'] as double,
+    verticalScroll: map['verticalScroll'] as bool,
+    backgroundColor: map['tint'] is int ? Color(map['tint'] as int) : null,
+    textColor: map['tint'] is int ? Color(map['tint'] as int) : null,
+  );
 
   String fontFamily;
   int fontSize;

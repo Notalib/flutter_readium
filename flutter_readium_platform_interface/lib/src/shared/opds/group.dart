@@ -6,7 +6,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart';
 import 'opds_publication.dart';

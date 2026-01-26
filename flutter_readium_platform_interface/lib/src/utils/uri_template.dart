@@ -9,9 +9,9 @@ import 'href.dart';
 /// Only handles simple cases, fitting Readium's use cases.
 /// See https://tools.ietf.org/html/rfc6570
 class UriTemplate {
-  final String uri;
-
   UriTemplate(this.uri);
+
+  final String uri;
 
   /// List of URI template parameter keys, if the [Link] is templated.
   // Escaping the last } is somehow required, otherwise the regex can't be parsed on a Pixel

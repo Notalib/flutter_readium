@@ -7,9 +7,9 @@ import 'dart:async';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
-import 'src/_index.dart';
+import 'src/index.dart';
 
-export 'src/_index.dart';
+export 'src/index.dart';
 
 /// The interface that implementations of FlutterReadium must implement.
 ///

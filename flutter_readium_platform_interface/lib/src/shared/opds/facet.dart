@@ -5,7 +5,7 @@
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import '../opds.dart' show OpdsMetadata;
 import '../publication/link.dart' show Link;
 

@@ -9,8 +9,8 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/utils/jsonable.dart';
-import '../../commons/utils/take.dart';
+import '../../utils/jsonable.dart';
+import '../../utils/take.dart';
 import '../../extensions/readium_string_extensions.dart';
 import '../epub.dart';
 import '../mediatype/mediatype.dart';

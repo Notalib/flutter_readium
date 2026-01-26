@@ -9,9 +9,9 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/extensions/uri.dart';
-import '../../commons/utils/href.dart';
-import '../../commons/utils/jsonable.dart';
+import '../../extensions/uri.dart';
+import '../../utils/href.dart';
+import '../../utils/jsonable.dart';
 import '../mediatype.dart';
 import 'link.dart';
 import 'link_list_extension.dart';

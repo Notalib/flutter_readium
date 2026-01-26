@@ -4,7 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 
 /// Library-specific features when a specific book is unavailable but provides a hold list.
 ///

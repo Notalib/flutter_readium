@@ -4,7 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 
 /// Library-specific feature that contains information about the copies that a library has acquired.
 ///

@@ -5,8 +5,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/extensions/strings.dart';
-import '../../commons/utils/jsonable.dart';
+import '../../extensions/strings.dart';
+import '../../utils/jsonable.dart';
 import '../epub.dart';
 import 'collection.dart';
 import 'contributor.dart';

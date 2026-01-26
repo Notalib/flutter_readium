@@ -1,6 +1,6 @@
 import 'package:dartx/dartx.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import '../publication/link.dart' show Link;
 import '../publication/metadata.dart' show Metadata;
 

@@ -4,7 +4,7 @@
 
 import 'package:collection/collection.dart';
 
-import '../../commons/utils/take.dart';
+import '../../utils/take.dart';
 import '../mediatype.dart';
 import 'link.dart';
 

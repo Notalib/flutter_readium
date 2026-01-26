@@ -5,7 +5,7 @@
 import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import 'collection.dart';
 import 'link.dart';
 import 'localized_string.dart';

@@ -6,7 +6,7 @@ import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import '../publication.dart';
 
 /// Subject of a [Publication].

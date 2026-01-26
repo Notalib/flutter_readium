@@ -5,7 +5,7 @@
 import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 
-import '../../../commons/utils/take.dart';
+import '../../../utils/take.dart';
 import '../../opds.dart';
 import '../../publication.dart';
 

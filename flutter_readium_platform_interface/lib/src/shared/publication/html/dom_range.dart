@@ -5,7 +5,7 @@
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../../commons/utils/jsonable.dart';
+import '../../../utils/jsonable.dart';
 
 /// This construct enables a serializable representation of a DOM Range.
 ///

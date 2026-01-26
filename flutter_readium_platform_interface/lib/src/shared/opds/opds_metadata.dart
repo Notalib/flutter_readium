@@ -6,7 +6,7 @@
 
 import 'package:equatable/equatable.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 
 class OpdsMetadata with EquatableMixin implements JSONable {
   OpdsMetadata({

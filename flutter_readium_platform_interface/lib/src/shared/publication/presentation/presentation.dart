@@ -5,7 +5,7 @@
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../../commons/utils/jsonable.dart';
+import '../../../utils/jsonable.dart';
 import '../link.dart';
 
 /// The Presentation Hints extension defines a number of hints for User Agents about the way content

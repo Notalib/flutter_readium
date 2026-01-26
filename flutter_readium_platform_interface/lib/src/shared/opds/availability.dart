@@ -5,8 +5,8 @@
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 
-import '../../commons/extensions/strings.dart';
-import '../../commons/utils/jsonable.dart';
+import '../../extensions/strings.dart';
+import '../../utils/jsonable.dart';
 
 /// Indicated the availability of a given resource.
 ///

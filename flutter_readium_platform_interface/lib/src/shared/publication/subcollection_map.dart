@@ -4,7 +4,7 @@
 
 import 'package:dfunc/dfunc.dart';
 
-import '../../commons/utils/jsonable.dart';
+import '../../utils/jsonable.dart';
 import 'publication_collection.dart';
 
 extension SubcollectionMap on Map<String, List<PublicationCollection>> {

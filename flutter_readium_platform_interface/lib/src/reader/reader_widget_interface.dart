@@ -1,12 +1,8 @@
-import '../_index.dart';
+import '../index.dart';
 
 abstract class ReadiumReaderWidgetInterface {
   /// Call to navigate the reader to a location.
-  Future<void> go(
-    final Locator locator, {
-    required final bool isAudioBookWithText,
-    final bool animated = false,
-  });
+  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false});
 
   /// Go to previous page.
   Future<void> goLeft({final bool animated = true});
