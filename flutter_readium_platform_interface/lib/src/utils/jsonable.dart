@@ -1,6 +1,8 @@
 // Copyright (c) 2021 Mantano. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// found in the LICENSE.Iridium file.
+
+// Originally from https://github.com/Mantano/iridium/blob/main/components/commons/lib/utils/jsonable.dart
 
 import 'package:dartx/dartx.dart';
 import '../extensions/strings.dart';

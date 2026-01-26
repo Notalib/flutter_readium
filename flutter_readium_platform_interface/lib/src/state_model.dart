@@ -4,7 +4,6 @@ import 'package:collection/collection.dart';
 
 import 'index.dart';
 
-// TODO: Use freezed for JSON mapping?
 class ReadiumTimebasedState {
   ReadiumTimebasedState({
     required this.state,

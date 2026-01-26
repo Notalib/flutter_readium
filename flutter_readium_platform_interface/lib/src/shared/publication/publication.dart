@@ -1,6 +1,9 @@
 // Copyright (c) 2021 Mantano. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// found in the LICENSE.Iridium file.
+
+// Originally from https://github.com/Mantano/iridium/blob/main/components/shared/lib/src/publication/manifest.dart
+// renamed to Publication.
 
 // ignore_for_file: must_be_immutable
 
@@ -51,7 +54,7 @@ class Publication with EquatableMixin implements JSONable {
     List<Link>? readingOrder,
     List<Link>? resources,
     List<Link>? tableOfContents,
-    Map<String, List<PublicationCollection>>? subcollections,
+    Map<String, List<PublicationCollection>>? subCollections,
   }) => Publication(
     context: context ?? this.context,
     metadata: metadata ?? this.metadata,
@@ -59,7 +62,7 @@ class Publication with EquatableMixin implements JSONable {
     readingOrder: readingOrder ?? this.readingOrder,
     resources: resources ?? this.resources,
     tableOfContents: tableOfContents ?? this.tableOfContents,
-    subCollections: subcollections ?? this.subCollections,
+    subCollections: subCollections ?? this.subCollections,
   );
 
   @override

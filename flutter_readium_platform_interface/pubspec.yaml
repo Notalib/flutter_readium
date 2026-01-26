@@ -12,22 +12,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.8.0
-  freezed_annotation:
-  json_annotation: ^4.9.0
+  meta: ^1.17.0
   json_diff:
   plugin_platform_interface: ^2.1.4
   dartx: ^1.2.0
   dfunc: ^0.10.0
   fimber: ^0.7.0
   equatable: ^2.0.5
-  intl: ^0.19.0
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  analyzer: ^9.0.0
+  analyzer: ^10.0.1
   build_runner:
-  freezed:
-  json_serializable:
