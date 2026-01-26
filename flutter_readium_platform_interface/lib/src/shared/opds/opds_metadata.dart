@@ -7,9 +7,10 @@
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 
-class OpdsMetadata with EquatableMixin implements JSONable {
+class OpdsMetadata with EquatableMixin, JSONable, AdditionalProperties {
   OpdsMetadata({
     required this.title,
     this.numberOfItems,
@@ -18,8 +19,10 @@ class OpdsMetadata with EquatableMixin implements JSONable {
     this.modified,
     this.position,
     this.rdfType,
-    this.otherMetadata = const {},
-  });
+    Map<String, dynamic> additionalProperties = const {},
+  }) {
+    this.additionalProperties.addAll(additionalProperties);
+  }
 
   // TODO: handle multi-language titles
 
@@ -30,10 +33,18 @@ class OpdsMetadata with EquatableMixin implements JSONable {
   final DateTime? modified;
   final int? position;
   final String? rdfType;
-  Map<String, dynamic> otherMetadata;
 
   @override
-  List<Object?> get props => [title, numberOfItems, itemsPerPage, currentPage, modified, position, rdfType];
+  List<Object?> get props => [
+    title,
+    numberOfItems,
+    itemsPerPage,
+    currentPage,
+    modified,
+    position,
+    rdfType,
+    additionalProperties,
+  ];
 
   OpdsMetadata copyWith({
     String? title,
@@ -43,7 +54,7 @@ class OpdsMetadata with EquatableMixin implements JSONable {
     DateTime? modified,
     int? position,
     String? rdfType,
-    Map<String, dynamic>? otherMetadata,
+    Map<String, dynamic>? additionalProperties,
   }) => OpdsMetadata(
     title: title ?? this.title,
     numberOfItems: numberOfItems ?? this.numberOfItems,
@@ -52,23 +63,19 @@ class OpdsMetadata with EquatableMixin implements JSONable {
     modified: modified ?? this.modified,
     position: position ?? this.position,
     rdfType: rdfType ?? this.rdfType,
-    otherMetadata: otherMetadata ?? this.otherMetadata,
+    additionalProperties: additionalProperties ?? this.additionalProperties,
   );
-
-  /// Syntactic sugar to access the [otherMetadata] values by subscripting [OpdsMetadata] directly.
-  /// `metadata["layout"] == metadata.otherMetadata["layout"]`
-  dynamic operator [](String key) => otherMetadata[key];
 
   @override
   String toString() =>
       'OpdsMetadata{title: $title, numberOfItems: $numberOfItems, '
       'itemsPerPage: $itemsPerPage, currentPage: $currentPage, '
       'modified: $modified, position: $position, rdfType: $rdfType}'
-      'otherMetadata: $otherMetadata';
+      'additionalProperties: $additionalProperties';
 
   @override
   Map<String, dynamic> toJson() {
-    final json = Map<String, dynamic>.from(otherMetadata)
+    final json = Map<String, dynamic>.from(additionalProperties)
       ..put('title', title)
       ..putOpt('numberOfItems', numberOfItems)
       ..putOpt('itemsPerPage', itemsPerPage)
@@ -104,7 +111,7 @@ class OpdsMetadata with EquatableMixin implements JSONable {
       modified: modified,
       position: position,
       rdfType: rdfType,
-      otherMetadata: json,
+      additionalProperties: json,
     );
   }
 }

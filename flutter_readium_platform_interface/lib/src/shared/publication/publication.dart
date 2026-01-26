@@ -17,7 +17,6 @@ import '../../utils/href.dart';
 import '../../utils/jsonable.dart';
 import '../mediatype.dart';
 import 'link.dart';
-import 'link_list_extension.dart';
 import 'locator.dart';
 import 'metadata.dart';
 import 'publication_collection.dart';
@@ -182,6 +181,7 @@ class Publication with EquatableMixin implements JSONable {
             href: hrefHead,
             type: type,
             title: resourceLink!.title ?? link.title,
+            text: LocatorText(),
             locations: Locations(
               cssSelector: hrefTail != null && hrefTail.isNotEmpty ? '#$hrefTail' : null,
               fragments: hrefTail == null ? [] : [hrefTail],

@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
 import '../../extensions/strings.dart';
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../epub.dart';
 import 'collection.dart';
@@ -22,8 +23,8 @@ export 'presentation/presentation_metadata_extension.dart';
 /// @param readingProgression WARNING: This contains the reading progression as declared in the
 ///     publication, so it might be [AUTO]. To lay out the content, use [effectiveReadingProgression]
 ///     to get the calculated reading progression from the declared direction and the language.
-/// @param otherMetadata Additional metadata for extensions, as a JSON dictionary.
-class Metadata with EquatableMixin, JSONable {
+/// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
+class Metadata with EquatableMixin, JSONable, AdditionalProperties {
   Metadata({
     required this.localizedTitle,
     this.identifier,
@@ -56,7 +57,7 @@ class Metadata with EquatableMixin, JSONable {
     this.belongsToSeries = const [],
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
-    this.otherMetadata = const {},
+    Map<String, dynamic> additionalProperties = const {},
   }) : belongsTo = belongsTo ?? {} {
     if (belongsToCollections.isNotEmpty) {
       this.belongsTo['collection'] = belongsToCollections;
@@ -64,6 +65,8 @@ class Metadata with EquatableMixin, JSONable {
     if (belongsToSeries.isNotEmpty) {
       this.belongsTo['series'] = belongsToSeries;
     }
+
+    this.additionalProperties.addAll(additionalProperties);
   }
 
   /// An URI used as the unique identifier for this [Publication].
@@ -117,7 +120,6 @@ class Metadata with EquatableMixin, JSONable {
 
   /// Information about the contents rendition.
   final Presentation? rendition; // nullable if not an EPUB [Publication]
-  final Map<String, dynamic> otherMetadata;
 
   ReadingProgression get effectiveReadingProgression {
     if (readingProgression != ReadingProgression.auto) {
@@ -142,10 +144,6 @@ class Metadata with EquatableMixin, JSONable {
     }
     return ReadingProgression.ltr;
   }
-
-  /// Syntactic sugar to access the [otherMetadata] values by subscripting [Metadata] directly.
-  /// `metadata["layout"] == metadata.otherMetadata["layout"]`
-  dynamic operator [](String key) => otherMetadata[key];
 
   /// Returns the default translation string for the [localizedTitle].
   String get title => localizedTitle.string;
@@ -184,12 +182,12 @@ class Metadata with EquatableMixin, JSONable {
     numberOfPages,
     belongsTo,
     rendition,
-    otherMetadata,
+    additionalProperties,
   ];
 
   /// Serializes a [Metadata] to its RWPM JSON representation.
   @override
-  Map<String, dynamic> toJson() => Map.from(otherMetadata)
+  Map<String, dynamic> toJson() => Map.from(additionalProperties)
     ..putOpt('identifier', identifier)
     ..putOpt('@type', rdfType)
     ..putIterableIfNotEmpty('conformsTo', conformsTo)
@@ -301,13 +299,13 @@ class Metadata with EquatableMixin, JSONable {
       duration: duration,
       numberOfPages: numberOfPages,
       belongsTo: belongsTo,
-      otherMetadata: json,
+      additionalProperties: json,
     );
   }
 
   Metadata copyWith({
     String? identifier,
-    String? type,
+    String? rdfType,
     LocalizedString? localizedTitle,
     LocalizedString? localizedSubtitle,
     DateTime? modified,
@@ -334,10 +332,10 @@ class Metadata with EquatableMixin, JSONable {
     Map<String, List<Collection>>? belongsTo,
     ReadingProgression? readingProgression,
     Presentation? rendition,
-    Map<String, dynamic>? otherMetadata,
+    Map<String, dynamic>? additionalProperties,
   }) => Metadata(
     identifier: identifier ?? this.identifier,
-    rdfType: type ?? this.rdfType,
+    rdfType: rdfType ?? this.rdfType,
     localizedTitle: localizedTitle ?? this.localizedTitle,
     localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
     modified: modified ?? this.modified,
@@ -364,7 +362,7 @@ class Metadata with EquatableMixin, JSONable {
     belongsTo: belongsTo ?? this.belongsTo,
     readingProgression: readingProgression ?? this.readingProgression,
     rendition: rendition ?? this.rendition,
-    otherMetadata: otherMetadata ?? this.otherMetadata,
+    additionalProperties: additionalProperties ?? this.additionalProperties,
   );
 
   @override

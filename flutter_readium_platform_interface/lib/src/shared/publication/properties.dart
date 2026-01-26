@@ -5,6 +5,7 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
@@ -12,63 +13,62 @@ import '../publication.dart';
 ///
 /// See https://readium.org/webpub-manifest/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
-class Properties with EquatableMixin, JSONable {
-  Properties({Map<String, dynamic>? otherProperties}) : otherProperties = otherProperties ?? {};
+class Properties with EquatableMixin, JSONable, AdditionalProperties {
+  Properties({Map<String, dynamic>? additionalProperties}) {
+    this.additionalProperties.addAll(additionalProperties ?? {});
+  }
 
   /// (Nullable) Indicates how the linked resource should be displayed in a
   /// reading environment that displays synthetic spreads.
-  PresentationPage? get page => PresentationPage.from(otherProperties.optString('page'));
+  PresentationPage? get page => PresentationPage.from(additionalProperties.optString('page'));
 
   /// Identifies content contained in the linked resource, that cannot be
   /// strictly identified using a media type.
-  Set<String> get contains => otherProperties.optStringsFromArrayOrSingle('contains').toSet();
+  Set<String> get contains => additionalProperties.optStringsFromArrayOrSingle('contains').toSet();
 
   /// (Nullable) Suggested orientation for the device when displaying the linked
   /// resource.
-  PresentationOrientation? get orientation => PresentationOrientation.from(otherProperties.optString('orientation'));
+  PresentationOrientation? get orientation =>
+      PresentationOrientation.from(additionalProperties.optString('orientation'));
 
   /// (Nullable) Hints how the layout of the resource should be presented.
-  EpubLayout? get layout => EpubLayout.from(otherProperties.optString('layout'));
+  EpubLayout? get layout => EpubLayout.from(additionalProperties.optString('layout'));
 
   /// (Nullable) Suggested method for handling overflow while displaying the
   /// linked resource.
-  PresentationOverflow? get overflow => PresentationOverflow.from(otherProperties.optString('overflow'));
+  PresentationOverflow? get overflow => PresentationOverflow.from(additionalProperties.optString('overflow'));
 
   /// (Nullable) Indicates the condition to be met for the linked resource to be
   /// rendered within a synthetic spread.
-  PresentationSpread? get spread => PresentationSpread.from(otherProperties.optString('spread'));
-
-  Map<String, dynamic> otherProperties;
+  PresentationSpread? get spread => PresentationSpread.from(additionalProperties.optString('spread'));
 
   @override
-  List<Object> get props => [otherProperties];
-
-  dynamic operator [](String name) => otherProperties[name];
+  List<Object> get props => [additionalProperties];
 
   /// (Nullable) Indicates that a resource is encrypted/obfuscated and provides
   /// relevant information for decryption.
   Encryption? get encryption {
-    if (otherProperties.containsKey('encrypted') && otherProperties['encrypted'] is Map<String, dynamic>) {
-      return Encryption.fromJSON(otherProperties['encrypted'] as Map<String, dynamic>);
+    if (additionalProperties.containsKey('encrypted') && additionalProperties['encrypted'] is Map<String, dynamic>) {
+      return Encryption.fromJSON(additionalProperties['encrypted'] as Map<String, dynamic>);
     }
     return null;
   }
 
   /// Serializes a [Properties] to its RWPM JSON representation.
   @override
-  Map<String, dynamic> toJson() => otherProperties;
+  Map<String, dynamic> toJson() => additionalProperties;
 
   Properties add(Map<String, dynamic> properties) {
-    final props = Map<String, dynamic>.of(otherProperties)..addAll(properties);
-    return Properties(otherProperties: props);
+    final props = Map<String, dynamic>.of(additionalProperties)..addAll(properties);
+    return Properties(additionalProperties: props);
   }
 
-  Properties copyWit({Map<String, dynamic>? otherProperties}) =>
-      Properties(otherProperties: otherProperties ?? this.otherProperties);
+  Properties copyWit({Map<String, dynamic>? additionalProperties}) =>
+      Properties(additionalProperties: additionalProperties ?? this.additionalProperties);
 
   @override
   String toString() => 'Properties(${toJson()})';
 
   /// Creates a [Properties] from its RWPM JSON representation.
-  static Properties fromJSON(Map<String, dynamic>? json) => Properties(otherProperties: json ?? {});
+  static Properties fromJSON(Map<String, dynamic>? json) => Properties(additionalProperties: json ?? {});
 }

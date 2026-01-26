@@ -9,6 +9,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../../utils/take.dart';
 import '../../extensions/readium_string_extensions.dart';
@@ -37,14 +38,18 @@ extension DoubleCheck on double? {
 ///  - human-readable (and shareable) reference in a publication
 ///
 /// https://github.com/readium/architecture/tree/master/locators
-class Locator with EquatableMixin implements JSONable {
-  const Locator({
+class Locator with EquatableMixin, JSONable, AdditionalProperties {
+  Locator({
     required this.href,
     required this.type,
+    required this.text,
+    required this.locations,
     this.title,
-    this.locations = const Locations(),
-    this.text = const LocatorText(),
-  });
+    Map<String, dynamic> additionalProperties = const {},
+  }) {
+    this.additionalProperties.addAll(additionalProperties);
+  }
+
   final String href;
   final String type;
   final String? title;
@@ -63,19 +68,22 @@ class Locator with EquatableMixin implements JSONable {
   }
 
   static Locator? fromJson(Map<String, dynamic>? json) {
-    final href = json?.optNullableString('href');
-    final type = json?.optNullableString('type');
+    if (json == null) {
+      return null;
+    }
+
+    final href = json.safeRemove<String>('href');
+    final type = json.safeRemove<String>('type');
     if (href == null || type == null) {
       Fimber.i('[href] and [type] are required $json');
       return null;
     }
-    return Locator(
-      href: href,
-      type: type,
-      title: json.optNullableString('title'),
-      locations: Locations.fromJson(json.optJSONObject('locations')),
-      text: LocatorText.fromJson(json.optJSONObject('text')),
-    );
+
+    final title = json.safeRemove<String>('title');
+    final locations = Locations.fromJson(json.optJSONObject('locations'));
+    final text = LocatorText.fromJson(json.optJSONObject('text'));
+
+    return Locator(href: href, type: type, title: title, locations: locations, text: text, additionalProperties: json);
   }
 
   String get json => JsonCodec().encode(toJson());
@@ -86,12 +94,20 @@ class Locator with EquatableMixin implements JSONable {
     ..putJSONableIfNotEmpty('locations', locations)
     ..putJSONableIfNotEmpty('text', text);
 
-  Locator copyWith({String? href, String? type, String? title, Locations? locations, LocatorText? text}) => Locator(
+  Locator copyWith({
+    String? href,
+    String? type,
+    String? title,
+    Locations? locations,
+    LocatorText? text,
+    Map<String, dynamic>? additionalProperties,
+  }) => Locator(
     href: href ?? this.href,
     type: type ?? this.type,
     title: title ?? this.title,
     locations: locations ?? this.locations,
     text: text ?? this.text,
+    additionalProperties: additionalProperties ?? this.additionalProperties,
   );
 
   /// Shortcut to get a copy of the [Locator] with different [Locations] sub-properties.
@@ -107,7 +123,7 @@ class Locator with EquatableMixin implements JSONable {
       progression: progression.check(locations.progression),
       position: position.check(locations.position),
       totalProgression: totalProgression.check(locations.totalProgression),
-      otherLocations: otherLocations ?? locations.otherLocations,
+      additionalProperties: otherLocations ?? locations.additionalProperties,
     ),
   );
 
@@ -159,15 +175,17 @@ class Locator with EquatableMixin implements JSONable {
 /// @param totalProgression Progression in the publication expressed as a percentage (between 0
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
-class Locations with EquatableMixin implements JSONable {
-  const Locations({
+class Locations with EquatableMixin, JSONable, AdditionalProperties {
+  Locations({
     this.position,
     this.progression,
     this.totalProgression,
     this.cssSelector,
     this.fragments = const [],
-    this.otherLocations = const {},
-  });
+    Map<String, dynamic> additionalProperties = const {},
+  }) {
+    this.additionalProperties.addAll(additionalProperties);
+  }
 
   factory Locations.fromJson(Map<String, dynamic>? json) {
     final fragments =
@@ -188,7 +206,7 @@ class Locations with EquatableMixin implements JSONable {
       progression: progression,
       position: position,
       totalProgression: totalProgression,
-      otherLocations: json ?? {},
+      additionalProperties: json ?? {},
       cssSelector: json?.optNullableString('cssSelector', remove: true),
     );
   }
@@ -196,7 +214,6 @@ class Locations with EquatableMixin implements JSONable {
   final double? progression;
   final double? totalProgression;
   final List<String> fragments;
-  final Map<String, dynamic> otherLocations;
   final String? cssSelector;
 
   Locations copyWith({
@@ -204,14 +221,14 @@ class Locations with EquatableMixin implements JSONable {
     double? progression = _emptyDoubleValue,
     double? totalProgression = _emptyDoubleValue,
     List<String>? fragments,
-    Map<String, dynamic>? otherLocations,
+    Map<String, dynamic>? additionalProperties,
     String? cssSelector,
   }) => Locations(
     progression: progression.check(this.progression),
     position: position.check(this.position),
     totalProgression: totalProgression.check(this.totalProgression),
     fragments: fragments ?? this.fragments,
-    otherLocations: otherLocations ?? this.otherLocations,
+    additionalProperties: additionalProperties ?? this.additionalProperties,
     cssSelector: cssSelector ?? this.cssSelector,
   );
 
@@ -223,14 +240,8 @@ class Locations with EquatableMixin implements JSONable {
     return int.parse(timeFragment.replaceFirst('t=', ''));
   }
 
-  /// Syntactic sugar to access the [otherLocations] values by subscripting [Locations] directly.
-  /// `locations["cssSelector"] == locations.otherLocations["cssSelector"]`
-  dynamic operator [](String key) => otherLocations[key];
-
-  String get json => JsonCodec().encode(toJson());
-
   @override
-  Map<String, dynamic> toJson() => Map.of(otherLocations)
+  Map<String, dynamic> toJson() => Map.of(additionalProperties)
     ..putIterableIfNotEmpty('fragments', fragments)
     ..putOpt('progression', progression)
     ..putOpt('position', position)
@@ -238,13 +249,13 @@ class Locations with EquatableMixin implements JSONable {
     ..putOpt('cssSelector', cssSelector);
 
   @override
-  List<Object?> get props => [position, progression, totalProgression, fragments, otherLocations, cssSelector];
+  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
 
   @override
   String toString() =>
       'Location{position: $position, progression: $progression, '
       'totalProgression: $totalProgression, fragments: $fragments}, '
-      'otherLocations: $otherLocations, cssSelector: $cssSelector}';
+      'otherLocations: $additionalProperties, cssSelector: $cssSelector}';
 }
 
 /// Textual context of the locator.
@@ -287,6 +298,7 @@ extension LinkLocator on Link {
       href: components.firstOrDefault(href),
       type: type ?? '',
       title: title,
+      text: LocatorText(),
       locations: Locations(fragments: fragment?.let((it) => [it]) ?? []),
     );
   }
