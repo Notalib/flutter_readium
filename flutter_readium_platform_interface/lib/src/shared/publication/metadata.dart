@@ -15,6 +15,8 @@ import 'localized_string.dart';
 import 'reading_progression.dart';
 import 'subject.dart';
 
+export 'presentation/presentation_metadata_extension.dart';
+
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///
 /// @param readingProgression WARNING: This contains the reading progression as declared in the
@@ -25,7 +27,7 @@ class Metadata with EquatableMixin, JSONable {
   Metadata({
     required this.localizedTitle,
     this.identifier,
-    this.type,
+    this.rdfType,
     this.conformsTo,
     this.localizedSubtitle,
     this.modified,
@@ -66,7 +68,7 @@ class Metadata with EquatableMixin, JSONable {
 
   /// An URI used as the unique identifier for this [Publication].
   final String? identifier; // nullable
-  final String? type; // nullable
+  final String? rdfType; // nullable
   final List<String>? conformsTo; // nullable
 
   final LocalizedString localizedTitle;
@@ -154,7 +156,7 @@ class Metadata with EquatableMixin, JSONable {
   @override
   List<Object?> get props => [
     identifier,
-    type,
+    rdfType,
     conformsTo,
     localizedTitle,
     localizedSubtitle,
@@ -189,7 +191,7 @@ class Metadata with EquatableMixin, JSONable {
   @override
   Map<String, dynamic> toJson() => Map.from(otherMetadata)
     ..putOpt('identifier', identifier)
-    ..putOpt('@type', type)
+    ..putOpt('@type', rdfType)
     ..putIterableIfNotEmpty('conformsTo', conformsTo)
     ..putJSONableIfNotEmpty('title', localizedTitle)
     ..putJSONableIfNotEmpty('subtitle', localizedSubtitle)
@@ -272,7 +274,7 @@ class Metadata with EquatableMixin, JSONable {
 
     return Metadata(
       identifier: identifier,
-      type: type,
+      rdfType: type,
       conformsTo: conformsTo,
       localizedTitle: localizedTitle,
       localizedSubtitle: localizedSubtitle,
@@ -335,7 +337,7 @@ class Metadata with EquatableMixin, JSONable {
     Map<String, dynamic>? otherMetadata,
   }) => Metadata(
     identifier: identifier ?? this.identifier,
-    type: type ?? this.type,
+    rdfType: type ?? this.rdfType,
     localizedTitle: localizedTitle ?? this.localizedTitle,
     localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
     modified: modified ?? this.modified,

@@ -54,17 +54,18 @@ extension LinkListExtension on List<Link> {
     for (final l in this) {
       if (l.href.toLowerCase() == href.toLowerCase() || l.href.toLowerCase() == '/${href.toLowerCase()}') {
         return l;
-      } else {
-        final alternate = l.alternates.deepLinkWithHref(href);
-        if (alternate != null) {
-          return alternate;
-        }
-        final child = l.children.deepLinkWithHref(href);
-        if (child != null) {
-          return child;
-        }
+      }
+
+      final alternate = l.alternates.deepLinkWithHref(href);
+      if (alternate != null) {
+        return alternate;
+      }
+      final child = l.children.deepLinkWithHref(href);
+      if (child != null) {
+        return child;
       }
     }
+
     return null;
   }
 }

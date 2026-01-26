@@ -11,5 +11,5 @@ export 'opds/group.dart';
 export 'opds/holds.dart';
 export 'opds/opds_metadata.dart';
 export 'opds/price.dart';
-export 'publication/opds/properties.dart';
-export 'publication/opds/publication.dart';
+export 'publication/opds/opds_properties_extension.dart';
+export 'publication/opds/opds_publication_extension.dart';

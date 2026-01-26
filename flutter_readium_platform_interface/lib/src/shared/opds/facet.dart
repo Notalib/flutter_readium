@@ -21,6 +21,9 @@ class Facet with EquatableMixin implements JSONable {
   @override
   String toString() => 'Facet{metadata: $metadata, links: $links}';
 
+  Facet copyWith({OpdsMetadata? metadata, List<Link>? links}) =>
+      Facet(metadata: metadata ?? this.metadata, links: links ?? this.links);
+
   @override
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{}

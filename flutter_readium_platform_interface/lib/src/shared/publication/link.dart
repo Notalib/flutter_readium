@@ -15,6 +15,8 @@ import '../../utils/uri_template.dart';
 import '../mediatype/mediatype.dart';
 import 'properties.dart';
 
+export 'link_list_extension.dart';
+
 /// Function used to recursively transform the href of a [Link] when parsing its JSON
 /// representation.
 typedef LinkHrefNormalizer = String Function(String);

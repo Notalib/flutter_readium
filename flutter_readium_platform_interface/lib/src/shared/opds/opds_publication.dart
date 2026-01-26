@@ -7,8 +7,11 @@ import '../publication/metadata.dart' show Metadata;
 class OpdsPublication implements JSONable {
   OpdsPublication(this.metadata, this.links);
 
-  Metadata metadata;
-  List<Link> links;
+  final Metadata metadata;
+  final List<Link> links;
+
+  OpdsPublication copyWith({Metadata? metadata, List<Link>? links}) =>
+      OpdsPublication(metadata ?? this.metadata, links ?? this.links);
 
   @override
   Map<String, dynamic> toJson() {

@@ -3,6 +3,7 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:fimber/fimber.dart';
 
 import '../../utils/jsonable.dart';
 
@@ -29,11 +30,13 @@ class Price with EquatableMixin implements JSONable {
   /// If the price can't be parsed, a warning will be logged with [warnings].
   static Price? fromJSON(Map<String, dynamic>? json) {
     if (json == null) {
+      Fimber.d('Price.fromJSON: null json');
       return null;
     }
     final currency = json.optNullableString('currency');
     final value = json.optPositiveDouble('value');
     if (currency == null || value == null) {
+      Fimber.d('Price.fromJSON: invalid currency or value');
       return null;
     }
 

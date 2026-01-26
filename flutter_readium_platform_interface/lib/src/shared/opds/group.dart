@@ -12,30 +12,32 @@ import '../publication/link.dart';
 import 'opds_publication.dart';
 
 class Group with EquatableMixin implements JSONable {
-  Group({
-    required this.title,
+  Group({required this.metadata, required this.links, this.publications = const [], this.navigation = const []});
+
+  final OpdsMetadata metadata;
+  final List<Link> links;
+  final List<OpdsPublication> publications;
+  final List<Link> navigation;
+
+  @override
+  List<Object?> get props => [metadata, links, publications, navigation];
+
+  @override
+  String toString() =>
+      'Group{metadata: $metadata, links: $links, '
+      'publications: $publications, navigation: $navigation}';
+
+  Group copyWith({
     OpdsMetadata? metadata,
     List<Link>? links,
     List<OpdsPublication>? publications,
     List<Link>? navigation,
-  }) : metadata = metadata ?? OpdsMetadata(title: title),
-       links = links ?? [],
-       publications = publications ?? [],
-       navigation = navigation ?? [];
-  final String title;
-
-  OpdsMetadata metadata;
-  List<Link> links;
-  List<OpdsPublication> publications;
-  List<Link> navigation;
-
-  @override
-  List<Object?> get props => [title, metadata, links, publications, navigation];
-
-  @override
-  String toString() =>
-      'Group{title: $title, metadata: $metadata, links: $links, '
-      'publications: $publications, navigation: $navigation}';
+  }) => Group(
+    metadata: metadata ?? this.metadata,
+    links: links ?? this.links,
+    publications: publications ?? this.publications,
+    navigation: navigation ?? this.navigation,
+  );
 
   @override
   Map<String, dynamic> toJson() {
@@ -47,13 +49,16 @@ class Group with EquatableMixin implements JSONable {
     return json;
   }
 
-  static fromJson(Map<String, dynamic> json) {
-    final title = json['title'] as String? ?? '';
+  static Group? fromJson(Map<String, dynamic> json) {
     final metadata = OpdsMetadata.fromJson(json['metadata'] as Map<String, dynamic>?);
+    if (metadata == null) {
+      return null;
+    }
+
     final links = Link.fromJSONArray(json['links'] as List<dynamic>?);
     final publications = OpdsPublication.fromJSONArray(json['publications'] as List<dynamic>?);
     final navigation = Link.fromJSONArray(json['navigation'] as List<dynamic>?);
-    return Group(title: title, metadata: metadata, links: links, publications: publications, navigation: navigation);
+    return Group(metadata: metadata, links: links, publications: publications, navigation: navigation);
   }
 
   static List<Group> fromJSONArray(List<dynamic>? jsonArray) {

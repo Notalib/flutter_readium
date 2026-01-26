@@ -5,6 +5,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'presentation/presentation.dart';
+import 'publication.dart';
 
 /// Direction of the [Publication] reading progression.
 class ReadingProgression with EquatableMixin {

@@ -14,13 +14,13 @@ import 'opds_publication.dart';
 class Feed with EquatableMixin implements JSONable {
   Feed(this.metadata, this.links, this.facets, this.groups, this.publications, this.navigation, this.context);
 
-  OpdsMetadata metadata;
-  List<Link> links;
-  List<Facet> facets;
-  List<Group> groups;
-  List<OpdsPublication> publications;
-  List<Link> navigation;
-  List<String> context;
+  final OpdsMetadata metadata;
+  final List<Link> links;
+  final List<Facet> facets;
+  final List<Group> groups;
+  final List<OpdsPublication> publications;
+  final List<Link> navigation;
+  final List<String> context;
 
   @override
   List<Object?> get props => [metadata, links, facets, groups, publications, navigation, context];
@@ -31,6 +31,24 @@ class Feed with EquatableMixin implements JSONable {
       'links: $links, facets: $facets, groups: $groups, '
       'publications: $publications, navigation: $navigation, '
       'context: $context}';
+
+  Feed copyWith({
+    OpdsMetadata? metadata,
+    List<Link>? links,
+    List<Facet>? facets,
+    List<Group>? groups,
+    List<OpdsPublication>? publications,
+    List<Link>? navigation,
+    List<String>? context,
+  }) => Feed(
+    metadata ?? this.metadata,
+    links ?? this.links,
+    facets ?? this.facets,
+    groups ?? this.groups,
+    publications ?? this.publications,
+    navigation ?? this.navigation,
+    context ?? this.context,
+  );
 
   @override
   Map<String, dynamic> toJson() {

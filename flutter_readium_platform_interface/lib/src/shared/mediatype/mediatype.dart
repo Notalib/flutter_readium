@@ -258,8 +258,8 @@ class MediaType {
   static const MediaType waveform = MediaType(type: 'image', subtype: 'png', fileExtension: 'wave');
 
   static const MediaType syncMediaNarration = MediaType(
-    type: 'application/vnd.synczar+json',
-    subtype: 'webpub',
+    type: 'application',
+    subtype: 'vnd.synczar+json',
     fileExtension: 'json',
   );
 
