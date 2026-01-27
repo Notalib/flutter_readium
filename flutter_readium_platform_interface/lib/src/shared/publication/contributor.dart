@@ -28,7 +28,33 @@ class Contributor extends Collection {
     super.roles,
     super.position,
     super.links,
+    super.additionalProperties,
   });
+
+  @override
+  Contributor copyWith({
+    LocalizedString? localizedName,
+    String? identifier,
+    LocalizedString? localizedSortAs,
+    Set<String>? roles,
+    double? position,
+    List<Link>? links,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Contributor(
+      localizedName: localizedName ?? this.localizedName,
+      identifier: identifier ?? this.identifier,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
+      roles: roles ?? this.roles,
+      position: position ?? this.position,
+      links: links ?? this.links,
+      additionalProperties: mergeProperties,
+    );
+  }
 
   static Contributor fromString(String name) => Contributor(localizedName: LocalizedString.fromString(name));
 
@@ -43,25 +69,41 @@ class Contributor extends Collection {
       return null;
     }
 
-    LocalizedString? localizedName;
+    var jsonObject = <String, dynamic>{};
+    dynamic jsonName;
     if (json is String) {
-      localizedName = LocalizedString.fromJson(json);
+      jsonName = json;
     } else if (json is Map<String, dynamic>) {
-      localizedName = LocalizedString.fromJson(json.opt('name'));
+      jsonObject = Map<String, dynamic>.of(json);
+
+      jsonName = jsonObject.remove('name');
     }
+
+    if (jsonName == null || jsonName.isEmpty) {
+      Fimber.i('[name] is required');
+      return null;
+    }
+
+    final localizedName = LocalizedString.fromJson(jsonName);
     if (localizedName == null) {
       Fimber.i('[name] is required');
       return null;
     }
 
-    final jsonObject = (json is Map<String, dynamic>) ? json : <String, dynamic>{};
+    final identifier = jsonObject.optNullableString('identifier', remove: true);
+    final localizedSortAs = LocalizedString.fromJson(jsonObject.remove('sortAs'));
+    final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toSet();
+    final position = jsonObject.optNullableDouble('position', remove: true);
+    final links = Link.fromJSONArray(jsonObject.optJSONArray('links'), normalizeHref: normalizeHref);
+
     return Contributor(
       localizedName: localizedName,
-      identifier: jsonObject.optNullableString('identifier'),
-      localizedSortAs: LocalizedString.fromJson(jsonObject.remove('sortAs')),
-      roles: jsonObject.optStringsFromArrayOrSingle('role').toSet(),
-      position: jsonObject.optNullableDouble('position'),
-      links: Link.fromJSONArray(jsonObject.optJSONArray('links'), normalizeHref: normalizeHref),
+      identifier: identifier,
+      localizedSortAs: localizedSortAs,
+      roles: roles,
+      position: position,
+      links: links,
+      additionalProperties: jsonObject,
     );
   }
 

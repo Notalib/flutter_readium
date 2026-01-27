@@ -5,7 +5,6 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
-import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
@@ -13,62 +12,109 @@ import '../publication.dart';
 ///
 /// See https://readium.org/webpub-manifest/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
-class Properties with EquatableMixin, JSONable, AdditionalProperties {
-  Properties({Map<String, dynamic>? additionalProperties}) {
-    this.additionalProperties.addAll(additionalProperties ?? {});
-  }
+class Properties extends AdditionalProperties with EquatableMixin, JSONable {
+  const Properties({
+    this.page,
+    this.contains,
+    this.orientation,
+    this.layout,
+    this.overflow,
+    this.spread,
+    this.encryption,
+    super.additionalProperties,
+  });
 
   /// (Nullable) Indicates how the linked resource should be displayed in a
   /// reading environment that displays synthetic spreads.
-  PresentationPage? get page => PresentationPage.from(additionalProperties.optString('page'));
+  final PresentationPage? page;
 
   /// Identifies content contained in the linked resource, that cannot be
   /// strictly identified using a media type.
-  Set<String> get contains => additionalProperties.optStringsFromArrayOrSingle('contains').toSet();
+  final Set<String>? contains;
 
   /// (Nullable) Suggested orientation for the device when displaying the linked
   /// resource.
-  PresentationOrientation? get orientation =>
-      PresentationOrientation.from(additionalProperties.optString('orientation'));
+  final PresentationOrientation? orientation;
 
   /// (Nullable) Hints how the layout of the resource should be presented.
-  EpubLayout? get layout => EpubLayout.from(additionalProperties.optString('layout'));
+  final EpubLayout? layout;
 
   /// (Nullable) Suggested method for handling overflow while displaying the
   /// linked resource.
-  PresentationOverflow? get overflow => PresentationOverflow.from(additionalProperties.optString('overflow'));
+  final PresentationOverflow? overflow;
 
   /// (Nullable) Indicates the condition to be met for the linked resource to be
   /// rendered within a synthetic spread.
-  PresentationSpread? get spread => PresentationSpread.from(additionalProperties.optString('spread'));
+  final PresentationSpread? spread;
 
   @override
-  List<Object> get props => [additionalProperties];
+  List<Object> get props => [additionalProperties, contains ?? {}, page ?? '', encryption ?? ''];
 
   /// (Nullable) Indicates that a resource is encrypted/obfuscated and provides
   /// relevant information for decryption.
-  Encryption? get encryption {
-    if (additionalProperties.containsKey('encrypted') && additionalProperties['encrypted'] is Map<String, dynamic>) {
-      return Encryption.fromJSON(additionalProperties['encrypted'] as Map<String, dynamic>);
-    }
-    return null;
-  }
+  final Encryption? encryption;
 
   /// Serializes a [Properties] to its RWPM JSON representation.
   @override
-  Map<String, dynamic> toJson() => additionalProperties;
+  Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
+    ..putOpt('page', page)
+    ..putOpt('contains', contains)
+    ..putOpt('orientation', orientation)
+    ..putOpt('layout', layout)
+    ..putOpt('overflow', overflow)
+    ..putOpt('spread', spread)
+    ..putOpt('encryption', encryption);
 
-  Properties add(Map<String, dynamic> properties) {
-    final props = Map<String, dynamic>.of(additionalProperties)..addAll(properties);
-    return Properties(additionalProperties: props);
+  Properties copyWith({
+    PresentationPage? page,
+    Set<String>? contains,
+    PresentationOrientation? orientation,
+    EpubLayout? layout,
+    PresentationOverflow? overflow,
+    PresentationSpread? spread,
+    Encryption? encryption,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Properties(
+      page: page ?? this.page,
+      contains: contains ?? this.contains,
+      orientation: orientation ?? this.orientation,
+      layout: layout ?? this.layout,
+      overflow: overflow ?? this.overflow,
+      spread: spread ?? this.spread,
+      encryption: encryption ?? this.encryption,
+      additionalProperties: mergeProperties,
+    );
   }
-
-  Properties copyWit({Map<String, dynamic>? additionalProperties}) =>
-      Properties(additionalProperties: additionalProperties ?? this.additionalProperties);
 
   @override
   String toString() => 'Properties(${toJson()})';
 
   /// Creates a [Properties] from its RWPM JSON representation.
-  static Properties fromJSON(Map<String, dynamic>? json) => Properties(additionalProperties: json ?? {});
+  static Properties fromJSON(Map<String, dynamic>? json) {
+    final page = PresentationPage.from(json?.safeRemove('page'));
+    final contains = json?.optStringsFromArrayOrSingle('contains', remove: true).toSet();
+    final orientation = PresentationOrientation.from(json?.safeRemove('orientation'));
+    final layout = EpubLayout.from(json?.safeRemove('layout'));
+    final overflow = PresentationOverflow.from(json?.safeRemove('overflow'));
+    final spread = PresentationSpread.from(json?.safeRemove('spread'));
+
+    final encryptionMap = json?.safeRemove<Map<String, dynamic>>('encrypted');
+    final encryption = Encryption.fromJSON(encryptionMap);
+
+    return Properties(
+      page: page,
+      contains: contains,
+      orientation: orientation,
+      layout: layout,
+      overflow: overflow,
+      spread: spread,
+      encryption: encryption,
+      additionalProperties: json ?? {},
+    );
+  }
 }

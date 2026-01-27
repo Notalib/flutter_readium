@@ -10,8 +10,8 @@ import 'package:equatable/equatable.dart';
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 
-class OpdsMetadata with EquatableMixin, JSONable, AdditionalProperties {
-  OpdsMetadata({
+class OpdsMetadata extends AdditionalProperties with EquatableMixin, JSONable {
+  const OpdsMetadata({
     required this.title,
     this.numberOfItems,
     this.itemsPerPage,
@@ -19,10 +19,8 @@ class OpdsMetadata with EquatableMixin, JSONable, AdditionalProperties {
     this.modified,
     this.position,
     this.rdfType,
-    Map<String, dynamic> additionalProperties = const {},
-  }) {
-    this.additionalProperties.addAll(additionalProperties);
-  }
+    super.additionalProperties,
+  });
 
   // TODO: handle multi-language titles
 
@@ -55,16 +53,22 @@ class OpdsMetadata with EquatableMixin, JSONable, AdditionalProperties {
     int? position,
     String? rdfType,
     Map<String, dynamic>? additionalProperties,
-  }) => OpdsMetadata(
-    title: title ?? this.title,
-    numberOfItems: numberOfItems ?? this.numberOfItems,
-    itemsPerPage: itemsPerPage ?? this.itemsPerPage,
-    currentPage: currentPage ?? this.currentPage,
-    modified: modified ?? this.modified,
-    position: position ?? this.position,
-    rdfType: rdfType ?? this.rdfType,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
-  );
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return OpdsMetadata(
+      title: title ?? this.title,
+      numberOfItems: numberOfItems ?? this.numberOfItems,
+      itemsPerPage: itemsPerPage ?? this.itemsPerPage,
+      currentPage: currentPage ?? this.currentPage,
+      modified: modified ?? this.modified,
+      position: position ?? this.position,
+      rdfType: rdfType ?? this.rdfType,
+      additionalProperties: mergeProperties,
+    );
+  }
 
   @override
   String toString() =>

@@ -17,14 +17,15 @@ import '../publication.dart';
 /// @param position The position of the publication in this collection/series,
 ///     when the contributor represents a collection.
 /// @param links Used to retrieve similar publications for the given contributor.
-class Collection with EquatableMixin, JSONable {
-  Collection({
+class Collection extends AdditionalProperties with EquatableMixin, JSONable {
+  const Collection({
     required this.localizedName,
     this.identifier,
     this.localizedSortAs,
     this.roles = const {},
     this.position,
     this.links = const [],
+    super.additionalProperties,
   });
 
   /// The name of the contributor.
@@ -54,6 +55,30 @@ class Collection with EquatableMixin, JSONable {
 
   @override
   String toString() => '$runtimeType($props)';
+
+  Collection copyWith({
+    LocalizedString? localizedName,
+    String? identifier,
+    LocalizedString? localizedSortAs,
+    Set<String>? roles,
+    double? position,
+    List<Link>? links,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Collection(
+      localizedName: localizedName ?? this.localizedName,
+      identifier: identifier ?? this.identifier,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
+      roles: roles ?? this.roles,
+      position: position ?? this.position,
+      links: links ?? this.links,
+      additionalProperties: mergeProperties,
+    );
+  }
 
   /// Serializes a [Contributor] to its RWPM JSON representation.
   @override
@@ -96,5 +121,6 @@ extension ContributorExtension on Contributor {
     roles: roles,
     position: position,
     links: links,
+    additionalProperties: additionalProperties,
   );
 }

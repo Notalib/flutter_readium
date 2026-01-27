@@ -95,7 +95,18 @@ extension MapExtension on Map<String, dynamic>? {
 
   /// Returns the value mapped by {@code name}, or null if no such mapping
   /// exists.
-  dynamic opt(String name) => (this != null) ? this![name] : null;
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  dynamic opt(String name, {bool remove = false}) {
+    if (this == null) {
+      return null;
+    }
+
+    if (remove && this!.containsKey(name)) {
+      return this!.remove(name);
+    }
+
+    return this![name];
+  }
 
   void put(String name, dynamic object) {
     if (this != null) {
@@ -200,43 +211,50 @@ extension MapExtension on Map<String, dynamic>? {
 
   /// Returns the value mapped by {@code name} if it exists, coercing it if
   /// necessary, or {@code fallback} if no such mapping exists.
-  String optString(String name, {String fallback = ''}) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  String optString(String name, {String fallback = '', bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
+
     return __toString(object) ?? fallback;
   }
 
   /// Returns the value mapped by {@code name} if it exists and is a boolean or
   /// can be coerced to a boolean, or {@code fallback} otherwise.
-  bool optBoolean(String name, {bool fallback = false}) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  bool optBoolean(String name, {bool fallback = false, bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
     return _toBoolean(object) ?? fallback;
   }
 
   /// Returns the value mapped by {@code name} if it exists and is an int or
   /// can be coerced to an int, or {@code fallback} otherwise.
-  int optInt(String name, {int fallback = 0}) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  int optInt(String name, {int fallback = 0, bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
     return _toInteger(object) ?? fallback;
   }
 
   /// Returns the value mapped by {@code name} if it exists and is a double or
   /// can be coerced to a double, or {@code fallback} otherwise.
-  double optDouble(String name, {double fallback = double.nan}) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  double optDouble(String name, {double fallback = double.nan, bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
     return _toDouble(object) ?? fallback;
   }
 
   /// Returns the value mapped by {@code name} if it exists and is a {@code
   /// Map}, or null otherwise.
-  Map<String, dynamic>? optJSONObject(String name) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  Map<String, dynamic>? optJSONObject(String name, {bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
     return object is Map<String, dynamic> ? object : null;
   }
 
   /// Returns the value mapped by {@code name} if it exists and is a {@code
   /// JSONArray}, or null otherwise.
-  List<dynamic>? optJSONArray(String name) {
-    final dynamic object = opt(name);
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  List<dynamic>? optJSONArray(String name, {bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
     return object is Iterable ? object.toList() : null;
   }
 
@@ -247,11 +265,7 @@ extension MapExtension on Map<String, dynamic>? {
     if (this?.containsKey(name) == false) {
       return null;
     }
-    final boolean = optBoolean(name);
-    if (remove) {
-      this?.remove(name);
-    }
-    return boolean;
+    return optBoolean(name, remove: remove);
   }
 
   /// Returns the value mapped by [name] if it exists, coercing it if necessary, or `null` if no such
@@ -261,11 +275,7 @@ extension MapExtension on Map<String, dynamic>? {
     if (this?.containsKey(name) == false) {
       return null;
     }
-    final value = optInt(name);
-    if (remove) {
-      this?.remove(name);
-    }
-    return value;
+    return optInt(name, remove: remove);
   }
 
   /// Returns the value mapped by [name] if it exists, coercing it if necessary, or `null` if no such
@@ -275,11 +285,7 @@ extension MapExtension on Map<String, dynamic>? {
     if (this?.containsKey(name) == false) {
       return null;
     }
-    final value = optDouble(name);
-    if (remove) {
-      this?.remove(name);
-    }
-    return value;
+    return optDouble(name, remove: remove);
   }
 
   /// Returns a list containing the results of applying the given transform function to each element
@@ -304,7 +310,7 @@ extension MapExtension on Map<String, dynamic>? {
   ///
   /// E.g. ["a", "b"] or "a"
   List<String> optStringsFromArrayOrSingle(String name, {bool remove = false}) {
-    final dynamic value = (remove) ? this?.remove(name) : opt(name);
+    final dynamic value = opt(name, remove: remove);
     if (value is Map) {
       return (value).values.whereType<String>().toList();
     } else if (value is List) {

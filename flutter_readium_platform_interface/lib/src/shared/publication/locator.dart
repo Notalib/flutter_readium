@@ -38,17 +38,15 @@ extension DoubleCheck on double? {
 ///  - human-readable (and shareable) reference in a publication
 ///
 /// https://github.com/readium/architecture/tree/master/locators
-class Locator with EquatableMixin, JSONable, AdditionalProperties {
-  Locator({
+class Locator extends AdditionalProperties with EquatableMixin, JSONable {
+  const Locator({
     required this.href,
     required this.type,
     required this.text,
     required this.locations,
     this.title,
-    Map<String, dynamic> additionalProperties = const {},
-  }) {
-    this.additionalProperties.addAll(additionalProperties);
-  }
+    super.additionalProperties,
+  }) : super();
 
   final String href;
   final String type;
@@ -101,14 +99,20 @@ class Locator with EquatableMixin, JSONable, AdditionalProperties {
     Locations? locations,
     LocatorText? text,
     Map<String, dynamic>? additionalProperties,
-  }) => Locator(
-    href: href ?? this.href,
-    type: type ?? this.type,
-    title: title ?? this.title,
-    locations: locations ?? this.locations,
-    text: text ?? this.text,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
-  );
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Locator(
+      href: href ?? this.href,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      locations: locations ?? this.locations,
+      text: text ?? this.text,
+      additionalProperties: mergeProperties,
+    );
+  }
 
   /// Shortcut to get a copy of the [Locator] with different [Locations] sub-properties.
   Locator copyWithLocations({
@@ -175,17 +179,15 @@ class Locator with EquatableMixin, JSONable, AdditionalProperties {
 /// @param totalProgression Progression in the publication expressed as a percentage (between 0
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
-class Locations with EquatableMixin, JSONable, AdditionalProperties {
-  Locations({
+class Locations extends AdditionalProperties with EquatableMixin, JSONable {
+  const Locations({
     this.position,
     this.progression,
     this.totalProgression,
     this.cssSelector,
     this.fragments = const [],
-    Map<String, dynamic> additionalProperties = const {},
-  }) {
-    this.additionalProperties.addAll(additionalProperties);
-  }
+    super.additionalProperties,
+  });
 
   factory Locations.fromJson(Map<String, dynamic>? json) {
     final fragments =
@@ -223,14 +225,20 @@ class Locations with EquatableMixin, JSONable, AdditionalProperties {
     List<String>? fragments,
     Map<String, dynamic>? additionalProperties,
     String? cssSelector,
-  }) => Locations(
-    progression: progression.check(this.progression),
-    position: position.check(this.position),
-    totalProgression: totalProgression.check(this.totalProgression),
-    fragments: fragments ?? this.fragments,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
-    cssSelector: cssSelector ?? this.cssSelector,
-  );
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Locations(
+      progression: progression.check(this.progression),
+      position: position.check(this.position),
+      totalProgression: totalProgression.check(this.totalProgression),
+      fragments: fragments ?? this.fragments,
+      additionalProperties: mergeProperties,
+      cssSelector: cssSelector ?? this.cssSelector,
+    );
+  }
 
   int get timestamp {
     if (fragments.isEmpty) {

@@ -216,7 +216,18 @@ class Link with EquatableMixin, JSONable {
     ..putIterableIfNotEmpty('children', children);
 
   /// Makes a copy of this [Link] after merging in the given additional other [properties].
-  Link addProperties(Map<String, dynamic> properties) => copyWith(properties: this.properties.add(properties));
+  Link copyWithProperties(Properties properties) => copyWith(
+    properties: this.properties.copyWith(
+      page: properties.page,
+      contains: properties.contains,
+      orientation: properties.orientation,
+      layout: properties.layout,
+      overflow: properties.overflow,
+      spread: properties.spread,
+      encryption: properties.encryption,
+      additionalProperties: properties.additionalProperties,
+    ),
+  );
 
   @override
   List<Object?> get props => [

@@ -15,16 +15,18 @@ import 'link.dart';
 import 'localized_string.dart';
 import 'reading_progression.dart';
 import 'subject.dart';
+import 'publication.dart';
 
 export 'presentation/presentation_metadata_extension.dart';
+export '../../utils/additional_properties.dart';
 
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///
 /// @param readingProgression WARNING: This contains the reading progression as declared in the
-///     publication, so it might be [AUTO]. To lay out the content, use [effectiveReadingProgression]
+///     publication, so it might be [ReadingProgression.AUTO]. To lay out the content, use [effectiveReadingProgression]
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
-class Metadata with EquatableMixin, JSONable, AdditionalProperties {
+class Metadata extends AdditionalProperties with EquatableMixin, JSONable {
   Metadata({
     required this.localizedTitle,
     this.identifier,
@@ -52,21 +54,19 @@ class Metadata with EquatableMixin, JSONable, AdditionalProperties {
     this.description,
     this.duration,
     this.numberOfPages,
-    Map<String, List<Collection>>? belongsTo,
+    this.belongsTo = const {},
     this.belongsToCollections = const [],
     this.belongsToSeries = const [],
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
-    Map<String, dynamic> additionalProperties = const {},
-  }) : belongsTo = belongsTo ?? {} {
+    super.additionalProperties,
+  }) {
     if (belongsToCollections.isNotEmpty) {
-      this.belongsTo['collection'] = belongsToCollections;
+      belongsTo['collection'] = belongsToCollections;
     }
     if (belongsToSeries.isNotEmpty) {
-      this.belongsTo['series'] = belongsToSeries;
+      belongsTo['series'] = belongsToSeries;
     }
-
-    this.additionalProperties.addAll(additionalProperties);
   }
 
   /// An URI used as the unique identifier for this [Publication].
@@ -111,6 +111,7 @@ class Metadata with EquatableMixin, JSONable, AdditionalProperties {
   /// Number of pages in the publication, if available.
   final int? numberOfPages; // nullable
 
+  // TODO: belongsTo should be a propert
   final Map<String, List<Collection>> belongsTo;
   final List<Collection> belongsToCollections;
   final List<Collection> belongsToSeries;
@@ -333,37 +334,43 @@ class Metadata with EquatableMixin, JSONable, AdditionalProperties {
     ReadingProgression? readingProgression,
     Presentation? rendition,
     Map<String, dynamic>? additionalProperties,
-  }) => Metadata(
-    identifier: identifier ?? this.identifier,
-    rdfType: rdfType ?? this.rdfType,
-    localizedTitle: localizedTitle ?? this.localizedTitle,
-    localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
-    modified: modified ?? this.modified,
-    published: published ?? this.published,
-    languages: languages ?? this.languages,
-    localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-    subjects: subjects ?? this.subjects,
-    authors: authors ?? this.authors,
-    publishers: publishers ?? this.publishers,
-    contributors: contributors ?? this.contributors,
-    translators: translators ?? this.translators,
-    editors: editors ?? this.editors,
-    artists: artists ?? this.artists,
-    illustrators: illustrators ?? this.illustrators,
-    letterers: letterers ?? this.letterers,
-    pencilers: pencilers ?? this.pencilers,
-    colorists: colorists ?? this.colorists,
-    inkers: inkers ?? this.inkers,
-    narrators: narrators ?? this.narrators,
-    imprints: imprints ?? this.imprints,
-    description: description ?? this.description,
-    duration: duration ?? this.duration,
-    numberOfPages: numberOfPages ?? this.numberOfPages,
-    belongsTo: belongsTo ?? this.belongsTo,
-    readingProgression: readingProgression ?? this.readingProgression,
-    rendition: rendition ?? this.rendition,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
-  );
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Metadata(
+      identifier: identifier ?? this.identifier,
+      rdfType: rdfType ?? this.rdfType,
+      localizedTitle: localizedTitle ?? this.localizedTitle,
+      localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
+      modified: modified ?? this.modified,
+      published: published ?? this.published,
+      languages: languages ?? this.languages,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
+      subjects: subjects ?? this.subjects,
+      authors: authors ?? this.authors,
+      publishers: publishers ?? this.publishers,
+      contributors: contributors ?? this.contributors,
+      translators: translators ?? this.translators,
+      editors: editors ?? this.editors,
+      artists: artists ?? this.artists,
+      illustrators: illustrators ?? this.illustrators,
+      letterers: letterers ?? this.letterers,
+      pencilers: pencilers ?? this.pencilers,
+      colorists: colorists ?? this.colorists,
+      inkers: inkers ?? this.inkers,
+      narrators: narrators ?? this.narrators,
+      imprints: imprints ?? this.imprints,
+      description: description ?? this.description,
+      duration: duration ?? this.duration,
+      numberOfPages: numberOfPages ?? this.numberOfPages,
+      belongsTo: belongsTo ?? this.belongsTo,
+      readingProgression: readingProgression ?? this.readingProgression,
+      rendition: rendition ?? this.rendition,
+      additionalProperties: mergeProperties,
+    );
+  }
 
   @override
   String toString() => 'Metadata($props)';
