@@ -8,6 +8,7 @@ import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 
@@ -29,7 +30,7 @@ class Translation {
 /// A potentially localized (multilingual) string.
 ///
 /// The translations are indexed by a BCP 47 language tag.
-class LocalizedString with EquatableMixin, JSONable {
+class LocalizedString with EquatableMixin implements JSONable {
   LocalizedString._(this.translations);
 
   factory LocalizedString._fromJSONObject(Map<String, dynamic> json) {
@@ -137,4 +138,14 @@ class LocalizedString with EquatableMixin, JSONable {
 
   @override
   String toString() => 'LocalizedString($translations)';
+}
+
+class LocalizedStringJsonConverter extends JsonConverter<LocalizedString?, dynamic> {
+  const LocalizedStringJsonConverter();
+
+  @override
+  LocalizedString? fromJson(dynamic json) => LocalizedString.fromJson(json);
+
+  @override
+  dynamic toJson(LocalizedString? localizedString) => localizedString?.toJson();
 }

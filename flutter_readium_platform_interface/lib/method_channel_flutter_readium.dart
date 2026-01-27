@@ -92,6 +92,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     final publicationString = await methodChannel
         .invokeMethod<String>('loadPublication', [pubUrl])
         .then<String>((dynamic result) => result);
+
     return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>)!;
   }
 

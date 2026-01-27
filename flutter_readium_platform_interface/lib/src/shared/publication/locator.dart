@@ -8,6 +8,7 @@ import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
@@ -38,7 +39,7 @@ extension DoubleCheck on double? {
 ///  - human-readable (and shareable) reference in a publication
 ///
 /// https://github.com/readium/architecture/tree/master/locators
-class Locator extends AdditionalProperties with EquatableMixin, JSONable {
+class Locator extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locator({
     required this.href,
     required this.type,
@@ -179,7 +180,7 @@ class Locator extends AdditionalProperties with EquatableMixin, JSONable {
 /// @param totalProgression Progression in the publication expressed as a percentage (between 0
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
-class Locations extends AdditionalProperties with EquatableMixin, JSONable {
+class Locations extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locations({
     this.position,
     this.progression,
@@ -325,4 +326,34 @@ extension HTMLLocationsExtension on Locations {
 
   /// An HTML DOM range.
   DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+}
+
+class LocatorJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
+  const LocatorJsonConverter();
+
+  @override
+  Locator? fromJson(Map<String, dynamic>? json) => Locator.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Locator? locator) => locator?.toJson();
+}
+
+class LocationsJsonConverter extends JsonConverter<Locations?, Map<String, dynamic>?> {
+  const LocationsJsonConverter();
+
+  @override
+  Locations? fromJson(Map<String, dynamic>? json) => Locations.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Locations? locations) => locations?.toJson();
+}
+
+class LocatorTextJsonConverter extends JsonConverter<LocatorText?, Map<String, dynamic>?> {
+  const LocatorTextJsonConverter();
+
+  @override
+  LocatorText? fromJson(Map<String, dynamic>? json) => LocatorText.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(LocatorText? locatorText) => locatorText?.toJson();
 }

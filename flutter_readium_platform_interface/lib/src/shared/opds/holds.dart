@@ -3,6 +3,7 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 
@@ -10,7 +11,7 @@ import '../../utils/jsonable.dart';
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
 class Holds with EquatableMixin implements JSONable {
-  Holds({this.total, this.position});
+  const Holds({this.total, this.position});
   final int? total;
   final int? position;
 
@@ -28,4 +29,14 @@ class Holds with EquatableMixin implements JSONable {
     }
     return Holds(total: json.optPositiveInt('total'), position: json.optPositiveInt('position'));
   }
+}
+
+class HoldsJsonConverter extends JsonConverter<Holds?, Map<String, dynamic>?> {
+  const HoldsJsonConverter();
+
+  @override
+  Holds? fromJson(Map<String, dynamic>? json) => Holds.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Holds? holds) => holds?.toJson();
 }

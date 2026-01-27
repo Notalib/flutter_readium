@@ -4,13 +4,14 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 import '../opds.dart' show OpdsMetadata;
 import '../publication/link.dart' show Link;
 
 class Facet with EquatableMixin implements JSONable {
-  Facet({required this.metadata, required this.links});
+  const Facet({required this.metadata, required this.links});
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -53,4 +54,14 @@ class Facet with EquatableMixin implements JSONable {
       return null;
     }).toList();
   }
+}
+
+class FacetJsonConverter extends JsonConverter<Facet?, Map<String, dynamic>?> {
+  const FacetJsonConverter();
+
+  @override
+  Facet? fromJson(Map<String, dynamic>? json) => json == null ? null : Facet.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Facet? facet) => facet?.toJson();
 }

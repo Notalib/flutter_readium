@@ -4,6 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 
@@ -15,7 +16,7 @@ import '../../utils/jsonable.dart';
 /// @param value Price value, should only be used for display purposes, because of precision issues
 ///     inherent with Double and the JSON parsing.
 class Price with EquatableMixin implements JSONable {
-  Price({required this.currency, required this.value});
+  const Price({required this.currency, required this.value});
   final String currency;
   final double value;
 
@@ -42,4 +43,14 @@ class Price with EquatableMixin implements JSONable {
 
     return Price(currency: currency, value: value);
   }
+}
+
+class PriceJsonConverter extends JsonConverter<Price?, Map<String, dynamic>?> {
+  const PriceJsonConverter();
+
+  @override
+  Price? fromJson(Map<String, dynamic>? json) => Price.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Price? price) => price?.toJson();
 }

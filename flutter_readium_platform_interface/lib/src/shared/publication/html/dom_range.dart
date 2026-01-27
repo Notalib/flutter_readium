@@ -4,6 +4,7 @@
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../../utils/jsonable.dart';
 
@@ -26,7 +27,7 @@ import '../../../utils/jsonable.dart';
 /// @param start A serializable representation of the "start" boundary point of the DOM Range.
 /// @param end A serializable representation of the "end" boundary point of the DOM Range.
 class DomRange with EquatableMixin implements JSONable {
-  DomRange({required this.start, this.end});
+  const DomRange({required this.start, this.end});
   final Point start;
   final Point? end;
 
@@ -50,6 +51,16 @@ class DomRange with EquatableMixin implements JSONable {
   }
 }
 
+class DomRangeJsonConverter extends JsonConverter<DomRange?, Map<String, dynamic>?> {
+  const DomRangeJsonConverter();
+
+  @override
+  DomRange? fromJson(Map<String, dynamic>? json) => DomRange.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(DomRange? domRange) => domRange?.toJson();
+}
+
 /// A serializable representation of a boundary point in a DOM Range.
 ///
 /// The [cssSelector] field always references a DOM element. If the original DOM Range
@@ -64,7 +75,7 @@ class DomRange with EquatableMixin implements JSONable {
 ///
 /// https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-start-and-end-object
 class Point with EquatableMixin implements JSONable {
-  Point({required this.cssSelector, required this.textNodeIndex, this.charOffset});
+  const Point({required this.cssSelector, required this.textNodeIndex, this.charOffset});
   final String cssSelector;
   final int textNodeIndex;
   final int? charOffset;
@@ -99,4 +110,14 @@ class Point with EquatableMixin implements JSONable {
           json.optPositiveInt('offset'),
     );
   }
+}
+
+class PointJsonConverter extends JsonConverter<Point?, Map<String, dynamic>?> {
+  const PointJsonConverter();
+
+  @override
+  Point? fromJson(Map<String, dynamic>? json) => Point.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Point? point) => point?.toJson();
 }

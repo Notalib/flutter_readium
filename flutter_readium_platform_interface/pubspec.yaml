@@ -19,10 +19,11 @@ dependencies:
   dfunc: ^0.10.0
   fimber: ^0.7.0
   equatable: ^2.0.5
+  json_serializable: ^6.11.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   analyzer: ^10.0.1
-  build_runner:
+  build_runner: ^2.10.5

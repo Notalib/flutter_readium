@@ -4,6 +4,7 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../extensions/strings.dart';
 import '../../utils/jsonable.dart';
@@ -15,7 +16,7 @@ import '../../utils/jsonable.dart';
 /// @param since Timestamp for the previous state change.
 /// @param until Timestamp for the next state change.
 class Availability with EquatableMixin implements JSONable {
-  Availability({required this.state, this.since, this.until});
+  const Availability({required this.state, this.since, this.until});
   final AvailabilityState state;
   final DateTime? since;
   final DateTime? until;
@@ -56,4 +57,14 @@ class AvailabilityState {
   final String value;
 
   static AvailabilityState? from(String? value) => _values.firstWhereOrNull((state) => state.value == value);
+}
+
+class AvailabilityJsonConverter extends JsonConverter<Availability?, Map<String, dynamic>?> {
+  const AvailabilityJsonConverter();
+
+  @override
+  Availability? fromJson(Map<String, dynamic>? json) => Availability.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Availability? availability) => availability?.toJson();
 }

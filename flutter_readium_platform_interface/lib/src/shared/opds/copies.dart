@@ -3,6 +3,7 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 
@@ -10,7 +11,7 @@ import '../../utils/jsonable.dart';
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
 class Copies with EquatableMixin implements JSONable {
-  Copies({this.total, this.available});
+  const Copies({this.total, this.available});
   final int? total;
   final int? available;
 
@@ -28,4 +29,14 @@ class Copies with EquatableMixin implements JSONable {
     }
     return Copies(total: json.optPositiveInt('total'), available: json.optPositiveInt('available'));
   }
+}
+
+class CopiesJsonConverter extends JsonConverter<Copies?, Map<String, dynamic>?> {
+  const CopiesJsonConverter();
+
+  @override
+  Copies? fromJson(Map<String, dynamic>? json) => Copies.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Copies? copies) => copies?.toJson();
 }

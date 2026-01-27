@@ -8,6 +8,7 @@ import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/href.dart';
 import '../../utils/jsonable.dart';
@@ -27,15 +28,15 @@ const LinkHrefNormalizer linkHrefNormalizerIdentity = identity;
 /// Link to a resource, either relative to a [Publication] or external (remote).
 ///
 /// See https://readium.org/webpub-manifest/schema/link.schema.json
-class Link with EquatableMixin, JSONable {
-  Link({
+class Link with EquatableMixin implements JSONable {
+  const Link({
     required this.href,
     this.id,
     this.templated = false,
     this.type,
     this.title,
     this.rels = const {},
-    properties,
+    this.properties = const Properties(),
     this.height,
     this.width,
     this.bitrate,
@@ -43,11 +44,7 @@ class Link with EquatableMixin, JSONable {
     this.languages = const [],
     this.alternates = const [],
     this.children = const [],
-  }) : properties = properties ?? Properties() {
-    final parts = href.split('#');
-    _hrefPart = parts[0];
-    _elementId = (parts.length > 1) ? parts[1] : null;
-  }
+  });
 
   /// Creates an [Link] from its RWPM JSON representation.
   /// It's [href] and its children's recursively will be normalized using the provided
@@ -129,13 +126,11 @@ class Link with EquatableMixin, JSONable {
   /// given collection role.
   final List<Link> children;
 
-  late String _hrefPart;
+  List<String> get _hrefParts => href.split('#');
 
-  String? _elementId;
+  String get hrefPart => _hrefParts[0];
 
-  String get hrefPart => _hrefPart;
-
-  String? get elementId => _elementId;
+  String? get elementId => (_hrefParts.length > 1) ? _hrefParts[1] : null;
 
   Link copyWith({
     String? id,
@@ -248,4 +243,14 @@ class Link with EquatableMixin, JSONable {
 
   @override
   String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
+}
+
+class LinkJsonConverter extends JsonConverter<Link?, Map<String, dynamic>?> {
+  const LinkJsonConverter();
+
+  @override
+  Link? fromJson(Map<String, dynamic>? json) => Link.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Link? link) => link?.toJson();
 }

@@ -11,6 +11,7 @@ import 'package:collection/collection.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../extensions/uri.dart';
 import '../../utils/href.dart';
@@ -22,9 +23,11 @@ import 'metadata.dart';
 import 'publication_collection.dart';
 import 'subcollection_map.dart';
 
+final _hrefEnd = RegExp('[#?]');
+
 /// Holds the metadata of a Readium publication, as described in the Readium Web Publication Manifest.
 class Publication with EquatableMixin implements JSONable {
-  Publication({
+  const Publication({
     required this.metadata,
     this.context = const [],
     this.links = const [],
@@ -36,7 +39,7 @@ class Publication with EquatableMixin implements JSONable {
 
   final List<String> context;
   final Metadata metadata;
-  List<Link> links;
+  final List<Link> links;
   final List<Link> readingOrder;
   final List<Link> resources;
   final List<Link> tableOfContents;
@@ -218,7 +221,6 @@ class Publication with EquatableMixin implements JSONable {
     return split == -1 ? null : find(href.substring(0, split));
   }
 
-  final _hrefEnd = RegExp('[#?]');
   Link? get coverLink => resources.firstWhereOrNull(
     (final r) =>
         (r.rels.contains('cover')) ||
@@ -235,4 +237,14 @@ class Publication with EquatableMixin implements JSONable {
 
   bool get containsMediaOverlays =>
       readingOrder.any((link) => link.alternates.any((alt) => alt.type == MediaType.syncMediaNarration.name));
+}
+
+class PublicationJsonConverter extends JsonConverter<Publication?, Map<String, dynamic>?> {
+  const PublicationJsonConverter();
+
+  @override
+  Publication? fromJson(Map<String, dynamic>? json) => Publication.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Publication? publication) => publication?.toJson();
 }

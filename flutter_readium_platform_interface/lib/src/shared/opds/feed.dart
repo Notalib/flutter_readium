@@ -5,14 +5,25 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart' show Link;
 import 'opds_publication.dart';
 
-class Feed with EquatableMixin implements JSONable {
-  Feed(this.metadata, this.links, this.facets, this.groups, this.publications, this.navigation, this.context);
+class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
+  const Feed(
+    this.metadata,
+    this.links,
+    this.facets,
+    this.groups,
+    this.publications,
+    this.navigation,
+    this.context,
+    Map<String, dynamic>? additionalProperties,
+  ) : super(additionalProperties: additionalProperties ?? const {});
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -23,7 +34,7 @@ class Feed with EquatableMixin implements JSONable {
   final List<String> context;
 
   @override
-  List<Object?> get props => [metadata, links, facets, groups, publications, navigation, context];
+  List<Object?> get props => [metadata, links, facets, groups, publications, navigation, context, additionalProperties];
 
   @override
   String toString() =>
@@ -40,19 +51,27 @@ class Feed with EquatableMixin implements JSONable {
     List<OpdsPublication>? publications,
     List<Link>? navigation,
     List<String>? context,
-  }) => Feed(
-    metadata ?? this.metadata,
-    links ?? this.links,
-    facets ?? this.facets,
-    groups ?? this.groups,
-    publications ?? this.publications,
-    navigation ?? this.navigation,
-    context ?? this.context,
-  );
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Feed(
+      metadata ?? this.metadata,
+      links ?? this.links,
+      facets ?? this.facets,
+      groups ?? this.groups,
+      publications ?? this.publications,
+      navigation ?? this.navigation,
+      context ?? this.context,
+      mergeProperties,
+    );
+  }
 
   @override
   Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{}
+    final json = Map<String, dynamic>.of(additionalProperties)
       ..putJSONableIfNotEmpty('metadata', metadata)
       ..put('publications', publications.toJson())
       ..put('navigation', navigation.toJson())
@@ -62,20 +81,34 @@ class Feed with EquatableMixin implements JSONable {
     return json;
   }
 
-  static Feed? fromJson(Map<String, dynamic> json) {
-    final metadata = OpdsMetadata.fromJson(json['metadata'] as Map<String, dynamic>?);
+  static Feed? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final metadata = OpdsMetadata.fromJson(jsonObject.safeRemove<Map<String, dynamic>>('metadata'));
     if (metadata == null) {
       return null;
     }
 
-    return Feed(
-      metadata,
-      Link.fromJSONArray(json['links'] as List<dynamic>?),
-      Facet.fromJSONArray(json['facets'] as List<Map<String, dynamic>>?),
-      Group.fromJSONArray(json['groups'] as List<dynamic>?),
-      OpdsPublication.fromJSONArray(json['publications'] as List<Map<String, dynamic>>?),
-      Link.fromJSONArray(json['navigation'] as List<dynamic>?),
-      (json['@context'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-    );
+    final links = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('links'));
+    final facets = Facet.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('facets'));
+    final groups = Group.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('groups'));
+    final publications = OpdsPublication.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('publications'));
+    final navigation = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('navigation'));
+    final context = (jsonObject.safeRemove<List<dynamic>>('@context') ?? []).map((e) => e.toString()).toList();
+
+    return Feed(metadata, links, facets, groups, publications, navigation, context, jsonObject);
   }
+}
+
+class FeedJsonConverter extends JsonConverter<Feed?, Map<String, dynamic>?> {
+  const FeedJsonConverter();
+
+  @override
+  Feed? fromJson(Map<String, dynamic>? json) => json == null ? null : Feed.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Feed? feed) => feed?.toJson();
 }

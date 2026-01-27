@@ -3,12 +3,13 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 
 /// Indicates that a resource is encrypted/obfuscated and provides relevant information for decryption.
-class Encryption with EquatableMixin, JSONable {
-  Encryption({required this.algorithm, this.compression, this.originalLength, this.profile, this.scheme});
+class Encryption with EquatableMixin implements JSONable {
+  const Encryption({required this.algorithm, this.compression, this.originalLength, this.profile, this.scheme});
 
   /// Identifies the algorithm used to encrypt the resource.
   final String algorithm; // URI
@@ -59,4 +60,14 @@ class Encryption with EquatableMixin, JSONable {
       scheme: json['scheme'],
     );
   }
+}
+
+class EncryptionJsonConverter extends JsonConverter<Encryption?, Map<String, dynamic>?> {
+  const EncryptionJsonConverter();
+
+  @override
+  Encryption? fromJson(Map<String, dynamic>? json) => Encryption.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Encryption? encryption) => encryption?.toJson();
 }

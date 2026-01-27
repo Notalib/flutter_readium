@@ -5,6 +5,7 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 import '../opds.dart';
@@ -12,7 +13,7 @@ import '../publication/link.dart';
 import 'opds_publication.dart';
 
 class Group with EquatableMixin implements JSONable {
-  Group({required this.metadata, required this.links, this.publications = const [], this.navigation = const []});
+  const Group({required this.metadata, required this.links, this.publications = const [], this.navigation = const []});
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -49,15 +50,21 @@ class Group with EquatableMixin implements JSONable {
     return json;
   }
 
-  static Group? fromJson(Map<String, dynamic> json) {
-    final metadata = OpdsMetadata.fromJson(json['metadata'] as Map<String, dynamic>?);
+  static Group? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final metadata = OpdsMetadata.fromJson(jsonObject.safeRemove<Map<String, dynamic>>('metadata'));
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJSONArray(json['links'] as List<dynamic>?);
-    final publications = OpdsPublication.fromJSONArray(json['publications'] as List<dynamic>?);
-    final navigation = Link.fromJSONArray(json['navigation'] as List<dynamic>?);
+    final links = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('links'));
+    final publications = OpdsPublication.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('publications'));
+    final navigation = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('navigation'));
     return Group(metadata: metadata, links: links, publications: publications, navigation: navigation);
   }
 
@@ -65,6 +72,7 @@ class Group with EquatableMixin implements JSONable {
     if (jsonArray == null) {
       return [];
     }
+
     return jsonArray
         .map((json) {
           if (json is Map<String, dynamic>) {
@@ -75,4 +83,14 @@ class Group with EquatableMixin implements JSONable {
         .whereType<Group>()
         .toList();
   }
+}
+
+class GroupJsonConverter extends JsonConverter<Group?, Map<String, dynamic>?> {
+  const GroupJsonConverter();
+
+  @override
+  Group? fromJson(Map<String, dynamic>? json) => json == null ? null : Group.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Group? group) => group?.toJson();
 }

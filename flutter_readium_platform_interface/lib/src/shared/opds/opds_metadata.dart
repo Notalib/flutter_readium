@@ -6,11 +6,12 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 
-class OpdsMetadata extends AdditionalProperties with EquatableMixin, JSONable {
+class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const OpdsMetadata({
     required this.title,
     this.numberOfItems,
@@ -118,4 +119,14 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin, JSONable {
       additionalProperties: json,
     );
   }
+}
+
+class OpdsMetadataJsonConverter extends JsonConverter<OpdsMetadata?, Map<String, dynamic>?> {
+  const OpdsMetadataJsonConverter();
+
+  @override
+  OpdsMetadata? fromJson(Map<String, dynamic>? json) => OpdsMetadata.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(OpdsMetadata? metadata) => metadata?.toJson();
 }

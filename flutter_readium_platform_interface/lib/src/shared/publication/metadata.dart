@@ -4,6 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
@@ -26,7 +27,7 @@ export '../../utils/additional_properties.dart';
 ///     publication, so it might be [ReadingProgression.AUTO]. To lay out the content, use [effectiveReadingProgression]
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
-class Metadata extends AdditionalProperties with EquatableMixin, JSONable {
+class Metadata extends AdditionalProperties with EquatableMixin implements JSONable {
   Metadata({
     required this.localizedTitle,
     this.identifier,
@@ -374,4 +375,14 @@ class Metadata extends AdditionalProperties with EquatableMixin, JSONable {
 
   @override
   String toString() => 'Metadata($props)';
+}
+
+class MetadataJsonConverter extends JsonConverter<Metadata?, Map<String, dynamic>?> {
+  const MetadataJsonConverter();
+
+  @override
+  Metadata? fromJson(Map<String, dynamic>? json) => Metadata.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Metadata? metadata) => metadata?.toJson();
 }

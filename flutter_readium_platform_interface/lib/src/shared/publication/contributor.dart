@@ -4,6 +4,7 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 import 'collection.dart';
@@ -21,7 +22,7 @@ import 'localized_string.dart';
 ///     when the contributor represents a collection.
 /// @param links Used to retrieve similar publications for the given contributor.
 class Contributor extends Collection {
-  Contributor({
+  const Contributor({
     required super.localizedName,
     super.identifier,
     super.localizedSortAs,
@@ -123,4 +124,14 @@ class Contributor extends Collection {
     }
     return [];
   }
+}
+
+class ContributorJsonConverter extends JsonConverter<Contributor?, Map<String, dynamic>?> {
+  const ContributorJsonConverter();
+
+  @override
+  Contributor? fromJson(Map<String, dynamic>? json) => Contributor.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Contributor? contributor) => contributor?.toJson();
 }

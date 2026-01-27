@@ -33,12 +33,6 @@ build/
 assets/helpers
 assets/_scripts/dist
 
-## JsonSerializable
-lib/**/*.g.dart
-
-## Freezed
-lib/**/*.freezed.dart
-
 # Android related
 **/android/**/gradle-wrapper.jar
 **/android/.gradle
@@ -88,6 +82,4 @@ lib/**/*.freezed.dart
 **/node_modules/
 **/.cxx/
 **/.build/
-**/*.freezed.dart
-**/*.g.dart
 flutter_readium/example/devtools_options.yaml

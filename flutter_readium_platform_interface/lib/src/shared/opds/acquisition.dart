@@ -3,6 +3,7 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 import '../mediatype/mediatype.dart';
@@ -11,7 +12,8 @@ import '../mediatype/mediatype.dart';
 ///
 /// https://drafts.opds.io/schema/acquisition-object.schema.json
 class Acquisition with EquatableMixin implements JSONable {
-  Acquisition({required this.type, this.children = const []});
+  const Acquisition({required this.type, this.children = const []});
+
   final String type;
   final List<Acquisition> children;
 
@@ -43,4 +45,14 @@ class Acquisition with EquatableMixin implements JSONable {
   /// If an acquisition can't be parsed, a warning will be logged with [warnings].
   static List<Acquisition> fromJSONArray(List<dynamic>? json) =>
       json?.parseObjects((it) => Acquisition.fromJSON(it as Map<String, dynamic>?)) ?? [];
+}
+
+class AcquisitionJsonConverter extends JsonConverter<Acquisition?, Map<String, dynamic>?> {
+  const AcquisitionJsonConverter();
+
+  @override
+  Acquisition? fromJson(Map<String, dynamic>? json) => Acquisition.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Acquisition? acquisition) => acquisition?.toJson();
 }

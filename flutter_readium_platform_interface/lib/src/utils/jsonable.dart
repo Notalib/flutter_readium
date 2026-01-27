@@ -8,7 +8,10 @@ import 'package:dartx/dartx.dart';
 import '../extensions/strings.dart';
 import 'take.dart';
 
-mixin JSONable {
+/// An interface for classes that can be serialized to JSON.
+/// Subclasses must implement [toJson] and a static [fromJSON] method.
+/// As well as a JsonConverter.
+abstract interface class JSONable {
   /// Serializes the object to its JSON representation.
   Map<String, dynamic> toJson();
 }

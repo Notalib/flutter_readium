@@ -3,6 +3,7 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication.dart';
@@ -17,7 +18,7 @@ import '../publication.dart';
 /// @param position The position of the publication in this collection/series,
 ///     when the contributor represents a collection.
 /// @param links Used to retrieve similar publications for the given contributor.
-class Collection extends AdditionalProperties with EquatableMixin, JSONable {
+class Collection extends AdditionalProperties with EquatableMixin implements JSONable {
   const Collection({
     required this.localizedName,
     this.identifier,
@@ -123,4 +124,14 @@ extension ContributorExtension on Contributor {
     links: links,
     additionalProperties: additionalProperties,
   );
+}
+
+class CollectionJsonConverter extends JsonConverter<Collection?, Map<String, dynamic>?> {
+  const CollectionJsonConverter();
+
+  @override
+  Collection? fromJson(Map<String, dynamic>? json) => Collection.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Collection? collection) => collection?.toJson();
 }

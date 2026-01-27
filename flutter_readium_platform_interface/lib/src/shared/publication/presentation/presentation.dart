@@ -4,6 +4,7 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 import '../../../utils/jsonable.dart';
 import '../link.dart';
@@ -28,8 +29,16 @@ import '../link.dart';
 /// @param [spread] Indicates the condition to be met for the linked resource to be rendered within a
 ///     synthetic spread.
 /// @param [layout] Hints how the layout of the resource should be presented (EPUB extension).
-class Presentation with EquatableMixin, JSONable {
-  Presentation({this.layout, this.orientation, this.overflow, this.spread, this.fit, this.clipped, this.continuous});
+class Presentation with EquatableMixin implements JSONable {
+  const Presentation({
+    this.layout,
+    this.orientation,
+    this.overflow,
+    this.spread,
+    this.fit,
+    this.clipped,
+    this.continuous,
+  });
 
   /// Creates a [Properties] from its RWPM JSON representation.
   factory Presentation.fromJson(Map<String, dynamic>? json) {
@@ -201,4 +210,14 @@ class PresentationSpread with EquatableMixin {
   List<Object> get props => [value];
 
   static PresentationSpread? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+}
+
+class PresentationJsonConverter extends JsonConverter<Presentation?, Map<String, dynamic>?> {
+  const PresentationJsonConverter();
+
+  @override
+  Presentation? fromJson(Map<String, dynamic>? json) => Presentation.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Presentation? presentation) => presentation?.toJson();
 }

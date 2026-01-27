@@ -5,6 +5,8 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
+
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
@@ -12,7 +14,7 @@ import '../publication.dart';
 ///
 /// See https://readium.org/webpub-manifest/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
-class Properties extends AdditionalProperties with EquatableMixin, JSONable {
+class Properties extends AdditionalProperties with EquatableMixin implements JSONable {
   const Properties({
     this.page,
     this.contains,
@@ -117,4 +119,14 @@ class Properties extends AdditionalProperties with EquatableMixin, JSONable {
       additionalProperties: json ?? {},
     );
   }
+}
+
+class PropertiesJsonConverter extends JsonConverter<Properties?, Map<String, dynamic>?> {
+  const PropertiesJsonConverter();
+
+  @override
+  Properties? fromJson(Map<String, dynamic>? json) => Properties.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Properties? properties) => properties?.toJson();
 }
