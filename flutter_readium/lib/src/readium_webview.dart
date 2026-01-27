@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'flutter_readium_web.dart';
@@ -9,11 +10,7 @@ import 'package:web/web.dart' as web;
 import 'dart:js_interop' as js_interop;
 
 class ReadiumWebView extends StatefulWidget {
-  const ReadiumWebView({
-    super.key,
-    required this.publication,
-    this.currentLocator,
-  });
+  const ReadiumWebView({super.key, required this.publication, this.currentLocator});
 
   final Publication publication;
   final Locator? currentLocator;
@@ -39,16 +36,14 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   @js_interop.JSExport()
   void onTextLocatorUpdate(final String locatorJsonString) {
     final locatorJson = jsonDecode(locatorJsonString);
-    final locator = Locator.fromJson(locatorJson);
+    final locator = Locator.fromJson(locatorJson)!;
     FlutterReadiumWebPlugin.addTextLocatorUpdate(locator);
   }
 
   @js_interop.JSExport()
   void onReaderStatusChanged(final String statusString) {
-    print('Reader status changed: $statusString');
-    final status = ReadiumReaderStatus.values.firstWhereOrNull(
-      (e) => e.name == statusString,
-    );
+    R2Log.d('Reader status changed: $statusString');
+    final status = ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name == statusString);
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {
@@ -64,20 +59,23 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {
     try {
       final publicationUrl = widget.publication.links
-          .firstWhereOrNull(
-            (final link) => link.href.contains('manifest.json'),
-          )
+          .firstWhereOrNull((final link) => link.href.contains('manifest.json'))
           ?.href;
+
       if (publicationUrl == null) {
-        throw Exception('Publication URL not found in publication links');
+        throw Exception('Publication manifest URL not found');
       }
 
       final pubId = widget.publication.identifier;
       final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
       final currentLocatorString = widget.currentLocator != null ? json.encode(widget.currentLocator) : null;
       registerJSExports();
-      await JsPublicationChannel().openPublication(publicationUrl,
-          pubId: pubId, initialPreferences: json.encode(preferences), initialPositionJson: currentLocatorString);
+      await JsPublicationChannel().openPublication(
+        publicationUrl,
+        pubId: pubId,
+        initialPreferences: json.encode(preferences),
+        initialPositionJson: currentLocatorString,
+      );
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails
       // Do we need to have the app send what message it wants to show and make a dialog here? or continue to display it in the html view?
@@ -123,12 +121,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
         final htmlBody = web.document.body;
 
         if (htmlBody != null) {
-          htmlObserver.observe(
-              htmlBody,
-              web.MutationObserverInit(
-                childList: true,
-                subtree: true,
-              ));
+          htmlObserver.observe(htmlBody, web.MutationObserverInit(childList: true, subtree: true));
         } else {
           throw Exception('Body element not found');
         }

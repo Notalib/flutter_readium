@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:meta/meta.dart';
 
 import 'flutter_readium_platform_interface.dart';
 
@@ -43,7 +44,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= textLocatorChannel.receiveBroadcastStream().map((dynamic event) {
       final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
-      return newLocator;
+      return newLocator!;
     });
     return _onTextLocatorChanged!;
   }
@@ -53,7 +54,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator> get onAudioLocatorChanged {
     _onAudioLocatorChanged ??= audioLocatorChannel.receiveBroadcastStream().map((dynamic event) {
       final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
-      return newLocator;
+      return newLocator!;
     });
     return _onAudioLocatorChanged!;
   }
@@ -88,9 +89,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> loadPublication(String pubUrl) async {
-    final publicationString =
-        await methodChannel.invokeMethod<String>('loadPublication', [pubUrl]).then<String>((dynamic result) => result);
-    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
+    final publicationString = await methodChannel
+        .invokeMethod<String>('loadPublication', [pubUrl])
+        .then<String>((dynamic result) => result);
+
+    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>)!;
   }
 
   @override
@@ -100,9 +103,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    final publicationString =
-        await methodChannel.invokeMethod<String>('openPublication', [pubUrl]).then<String>((dynamic result) => result);
-    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>);
+    final publicationString = await methodChannel
+        .invokeMethod<String>('openPublication', [pubUrl])
+        .then<String>((dynamic result) => result);
+    return Publication.fromJson(json.decode(publicationString) as Map<String, dynamic>)!;
   }
 
   @override
@@ -157,16 +161,14 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> previous() async => await methodChannel.invokeMethod('previous');
 
   @override
-  Future<void> setDecorationStyle(
-    ReaderDecorationStyle? utteranceDecoration,
-    ReaderDecorationStyle? rangeDecoration,
-  ) =>
+  Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       methodChannel.invokeMethod('setDecorationStyle', [utteranceDecoration?.toJson(), rangeDecoration?.toJson()]);
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
     final voicesStr = await methodChannel.invokeMethod<List<dynamic>>('ttsGetAvailableVoices');
-    final voices = voicesStr
+    final voices =
+        voicesStr
             ?.cast<String>()
             .map<Map<String, dynamic>>((str) => json.decode(str) as Map<String, dynamic>)
             .map<ReaderTTSVoice>((map) => ReaderTTSVoice.fromJsonMap(map))

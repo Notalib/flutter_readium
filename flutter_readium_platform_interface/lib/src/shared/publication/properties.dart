@@ -1,78 +1,132 @@
-import '../index.dart';
-import '../to_string_short.dart';
+// Copyright (c) 2021 Mantano. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE.Iridium file.
 
-part 'properties.freezed.dart';
-part 'properties.g.dart';
+// ignore_for_file: must_be_immutable
 
-/// Properties associated to the linked resource
+import 'package:equatable/equatable.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+import '../../utils/jsonable.dart';
+import '../publication.dart';
+
+/// Set of properties associated with a [Link].
 ///
-/// PartOf: [Link Json Schema](https://readium.org/webpub-manifest/schema/link.schema.json)
-///
-/// AllOf:
-///   * [OPDS Properties Json Schema](https://drafts.opds.io/schema/properties.schema.json)
-///   * [EPUB Properties Json Schema](https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json)
-///   * [Presentation Properties Json Schema](https://readium.org/webpub-manifest/schema//extensions/presentation/properties.schema.json)
+/// See https://readium.org/webpub-manifest/schema/properties.schema.json
+///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
+class Properties extends AdditionalProperties with EquatableMixin implements JSONable {
+  const Properties({
+    this.page,
+    this.contains,
+    this.orientation,
+    this.layout,
+    this.overflow,
+    this.spread,
+    this.encryption,
+    super.additionalProperties,
+  });
 
-@freezedExcludeUnion
-abstract class Properties with _$Properties, ToStringShort {
-  @Assert('numberOfItems == null || numberOfItems >= 0')
-  @r2JsonSerializable
-  const factory Properties({
-    /// Indicated the availability of a given resource.
-    final Availability? availability,
+  /// (Nullable) Indicates how the linked resource should be displayed in a
+  /// reading environment that displays synthetic spreads.
+  final PresentationPage? page;
 
-    /// Library-specific feature that contains information about the copies that
-    /// a library has acquired.
-    final Copies? copies,
+  /// Identifies content contained in the linked resource, that cannot be
+  /// strictly identified using a media type.
+  final Set<String>? contains;
 
-    /// Library-specific features when a specific book is unavailable but
-    /// provides a hold list.
-    final Holds? holds,
+  /// (Nullable) Suggested orientation for the device when displaying the linked
+  /// resource.
+  final PresentationOrientation? orientation;
 
-    /// Indirect acquisition provides a hint for the expected media type that
-    /// will be acquired after additional steps.
-    final List<Acquisition>? indirectAcquisition,
+  /// (Nullable) Hints how the layout of the resource should be presented.
+  final EpubLayout? layout;
 
-    /// Provide a hint about the expected number of items returned.
-    ///
-    /// "minimum": 0
-    final int? numberOfItems,
+  /// (Nullable) Suggested method for handling overflow while displaying the
+  /// linked resource.
+  final PresentationOverflow? overflow;
 
-    /// The price of a publication is tied to its acquisition link.
-    final Price? price,
+  /// (Nullable) Indicates the condition to be met for the linked resource to be
+  /// rendered within a synthetic spread.
+  final PresentationSpread? spread;
 
-    /// "uniqueItems": true
-    final List<Contain>? contains,
+  @override
+  List<Object> get props => [additionalProperties, contains ?? {}, page ?? '', encryption ?? ''];
 
-    /// Indicates that a resource is encrypted/obfuscated and provides relevant
-    /// information for decryption.
-    final Encrypted? encrypted,
+  /// (Nullable) Indicates that a resource is encrypted/obfuscated and provides
+  /// relevant information for decryption.
+  final Encryption? encryption;
 
-    /// Hints how the layout of the resource should be presented.
-    final Layout? layout,
+  /// Serializes a [Properties] to its RWPM JSON representation.
+  @override
+  Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
+    ..putOpt('page', page)
+    ..putOpt('contains', contains)
+    ..putOpt('orientation', orientation)
+    ..putOpt('layout', layout)
+    ..putOpt('overflow', overflow)
+    ..putOpt('spread', spread)
+    ..putOpt('encryption', encryption);
 
-    /// Specifies whether or not the parts of a linked resource that flow out of
-    /// the viewport are clipped.
-    final bool? clipped,
+  Properties copyWith({
+    PresentationPage? page,
+    Set<String>? contains,
+    PresentationOrientation? orientation,
+    EpubLayout? layout,
+    PresentationOverflow? overflow,
+    PresentationSpread? spread,
+    Encryption? encryption,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
 
-    /// Specifies constraints for the presentation of a linked resource within
-    /// the viewport.
-    final Fit? fit,
+    return Properties(
+      page: page ?? this.page,
+      contains: contains ?? this.contains,
+      orientation: orientation ?? this.orientation,
+      layout: layout ?? this.layout,
+      overflow: overflow ?? this.overflow,
+      spread: spread ?? this.spread,
+      encryption: encryption ?? this.encryption,
+      additionalProperties: mergeProperties,
+    );
+  }
 
-    /// Suggested orientation for the device when displaying the linked
-    /// resource.
-    final Orientation? orientation,
+  @override
+  String toString() => 'Properties(${toJson()})';
 
-    /// Indicates how the linked resource should be displayed in a reading
-    /// environment that displays synthetic spreads.
-    final Page? page,
+  /// Creates a [Properties] from its RWPM JSON representation.
+  static Properties fromJSON(Map<String, dynamic>? json) {
+    final page = PresentationPage.from(json?.safeRemove('page'));
+    final contains = json?.optStringsFromArrayOrSingle('contains', remove: true).toSet();
+    final orientation = PresentationOrientation.from(json?.safeRemove('orientation'));
+    final layout = EpubLayout.from(json?.safeRemove('layout'));
+    final overflow = PresentationOverflow.from(json?.safeRemove('overflow'));
+    final spread = PresentationSpread.from(json?.safeRemove('spread'));
 
-    /// Indicates the condition to be met for the linked resource to be rendered
-    /// within a synthetic spread.
-    final Spread? spread,
-  }) = _Properties;
+    final encryptionMap = json?.safeRemove<Map<String, dynamic>>('encrypted');
+    final encryption = Encryption.fromJSON(encryptionMap);
 
-  factory Properties.fromJson(final Map<String, dynamic> json) => _$PropertiesFromJson(json);
+    return Properties(
+      page: page,
+      contains: contains,
+      orientation: orientation,
+      layout: layout,
+      overflow: overflow,
+      spread: spread,
+      encryption: encryption,
+      additionalProperties: json ?? {},
+    );
+  }
+}
 
-  const Properties._();
+class PropertiesJsonConverter extends JsonConverter<Properties?, Map<String, dynamic>?> {
+  const PropertiesJsonConverter();
+
+  @override
+  Properties? fromJson(Map<String, dynamic>? json) => Properties.fromJSON(json);
+
+  @override
+  Map<String, dynamic>? toJson(Properties? properties) => properties?.toJson();
 }

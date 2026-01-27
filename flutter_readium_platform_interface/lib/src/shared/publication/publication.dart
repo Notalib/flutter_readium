@@ -1,63 +1,198 @@
-import '../../_index.dart';
+// Copyright (c) 2021 Mantano. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE.Iridium file.
 
-part 'publication.freezed.dart';
-part 'publication.g.dart';
+// Originally from https://github.com/Mantano/iridium/blob/main/components/shared/lib/src/publication/manifest.dart
+// renamed to Publication.
 
-/// Readium Web Publication Manifest
-///
-/// * [Publication Json Schema](https://readium.org/webpub-manifest/schema/publication.schema.json)
-///
-/// AllOf:
-/// * [Epub Publication Json Schema](https://readium.org/webpub-manifest/schema/extensions/epub/subcollections.schema.json)
-@freezedExcludeUnion
-abstract class Publication with _$Publication {
-  @r2JsonSerializable
-  const factory Publication({
-    /// Each Link Object in a publication collection must contain a `rel` with
-    /// value:
-    ///   "const": "self"
-    ///
-    /// "uniqueItems": true,
-    required final List<Link> links,
-    required final Metadata metadata,
+// ignore_for_file: must_be_immutable
 
-    /// All resources listed in the reading order should contain a media `type`.
-    ///
-    /// "uniqueItems": true
-    required final List<Link> readingOrder,
+import 'package:collection/collection.dart';
+import 'package:dfunc/dfunc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:fimber/fimber.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-    /// anyOf:
-    ///   String
-    ///   List<String>
-    ///
-    /// "uniqueItems": true
-    @JsonKey(name: '@context') @stringListJson final List<String>? context,
+import '../../extensions/uri.dart';
+import '../../utils/href.dart';
+import '../../utils/jsonable.dart';
+import '../mediatype.dart';
+import 'link.dart';
+import 'locator.dart';
+import 'metadata.dart';
+import 'publication_collection.dart';
+import 'subcollection_map.dart';
 
-    /// All resources listed in the publication should contain a media `type`.
-    ///
-    /// "uniqueItems": true
-    final List<Link>? resources,
-    final List<Link>? toc,
-    final List<Link>? landmarks,
+final _hrefEnd = RegExp('[#?]');
 
-    /// List of audio clips.
-    final List<Link>? loa,
+/// Holds the metadata of a Readium publication, as described in the Readium Web Publication Manifest.
+class Publication with EquatableMixin implements JSONable {
+  const Publication({
+    required this.metadata,
+    this.context = const [],
+    this.links = const [],
+    this.readingOrder = const [],
+    this.resources = const [],
+    this.tableOfContents = const [],
+    this.subCollections = const {},
+  });
 
-    /// List of illustrations.
-    final List<Link>? loi,
+  final List<String> context;
+  final Metadata metadata;
+  final List<Link> links;
+  final List<Link> readingOrder;
+  final List<Link> resources;
+  final List<Link> tableOfContents;
+  final Map<String, List<PublicationCollection>> subCollections;
 
-    /// List of tables.
-    final List<Link>? lot,
+  List<Link> get toc => tableOfContents;
 
-    /// List of video clips.
-    final List<Link>? lov,
-    @JsonKey(fromJson: _badPageListWorkaround) final List<Link>? pageList,
-  }) = _Publication;
+  String get identifier => metadata.identifier ?? 'unidentified';
 
-  factory Publication.fromJson(final Map<String, dynamic> json) =>
-      _$PublicationFromJson(JsonUtils.trimStringsInMap(json));
+  Publication copyWith({
+    List<String>? context,
+    Metadata? metadata,
+    List<Link>? links,
+    List<Link>? readingOrder,
+    List<Link>? resources,
+    List<Link>? tableOfContents,
+    Map<String, List<PublicationCollection>>? subCollections,
+  }) => Publication(
+    context: context ?? this.context,
+    metadata: metadata ?? this.metadata,
+    links: links ?? this.links,
+    readingOrder: readingOrder ?? this.readingOrder,
+    resources: resources ?? this.resources,
+    tableOfContents: tableOfContents ?? this.tableOfContents,
+    subCollections: subCollections ?? this.subCollections,
+  );
 
-  const Publication._();
+  @override
+  List<Object> get props => [context, metadata, links, readingOrder, resources, tableOfContents, subCollections];
+
+  /// Finds the first [Link] with the given relation in the manifest's links.
+  Link? linkWithRel(String rel) =>
+      readingOrder.firstWithRel(rel) ?? resources.firstWithRel(rel) ?? links.firstWithRel(rel);
+
+  /// Finds all [Link]s having the given [rel] in the manifest's links.
+  List<Link> linksWithRel(String rel) => (readingOrder + resources + links).filterByRel(rel);
+
+  /// Serializes a [Publication] to its RWPM JSON representation.
+  @override
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{}
+      ..putIterableIfNotEmpty('@context', context)
+      ..putJSONableIfNotEmpty('metadata', metadata)
+      ..put('links', links.toJson())
+      ..put('readingOrder', readingOrder.toJson())
+      ..putIterableIfNotEmpty('resources', resources)
+      ..putIterableIfNotEmpty('toc', tableOfContents);
+    subCollections.appendToJsonObject(json);
+    return json;
+  }
+
+  @override
+  String toString() => toJson().toString().replaceAll('\\/', '/');
+
+  /// Returns the [links] of the first child [PublicationCollection] with the given role, or an
+  /// empty list.
+  List<Link> collectionLinks(String role) => subCollections[role]?.firstOrNull?.links ?? [];
+
+  static LinkHrefNormalizer normalizeHref(String baseUrl) =>
+      (href) => Href(href, baseHref: baseUrl).string;
+
+  /// Parses a [Publication] from its RWPM JSON representation.
+  ///
+  /// If the publication can't be parsed, a warning will be logged with [warnings].
+  /// https://readium.org/webpub-manifest/
+  /// https://readium.org/webpub-manifest/schema/publication.schema.json
+  static Publication? fromJson(Map<String, dynamic>? json, {bool packaged = false}) {
+    if (json == null) {
+      return null;
+    }
+    String baseUrl;
+    if (packaged) {
+      baseUrl = '/';
+    } else {
+      final href = Link.fromJSONArray(json.optJSONArray('links')).firstWithRel('self')?.href;
+      baseUrl = href?.let((it) => Uri.tryParse(it)?.removeLastComponent().toString()) ?? '/';
+    }
+
+    final context = json.optStringsFromArrayOrSingle('@context', remove: true);
+    final metadata = Metadata.fromJson(
+      json.safeRemove<Map<String, dynamic>>('metadata'),
+      normalizeHref: normalizeHref(baseUrl),
+    );
+    if (metadata == null) {
+      Fimber.i('[metadata] is required $json');
+      return null;
+    }
+
+    final links = Link.fromJSONArray(json.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref(baseUrl))
+        .map(
+          (it) => (!packaged || !it.rels.contains('self'))
+              ? it
+              : it.copyWith(
+                  rels: it.rels
+                    ..remove('self')
+                    ..add('alternate'),
+                ),
+        )
+        .toList();
+    // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
+    final readingOrderJSON = json.safeRemove<List<dynamic>>('readingOrder');
+    final readingOrder = Link.fromJSONArray(
+      readingOrderJSON,
+      normalizeHref: normalizeHref(baseUrl),
+    ).where((it) => it.type != null).toList();
+
+    final resources = Link.fromJSONArray(
+      json.safeRemove<List<dynamic>>('resources'),
+      normalizeHref: normalizeHref(baseUrl),
+    ).where((it) => it.type != null).toList();
+
+    final tableOfContents = Link.fromJSONArray(
+      json.safeRemove<List<dynamic>>('toc'),
+      normalizeHref: normalizeHref(baseUrl),
+    );
+
+    // Parses subcollections from the remaining JSON properties.
+    final subcollections = PublicationCollection.collectionsFromJSON(json, normalizeHref: normalizeHref(baseUrl));
+
+    return Publication(
+      context: context,
+      metadata: metadata,
+      links: links,
+      readingOrder: readingOrder,
+      resources: resources,
+      tableOfContents: tableOfContents,
+      subCollections: subcollections,
+    );
+  }
+
+  Locator? locatorFromLink(final Link link, {final MediaType? typeOverride}) {
+    final href = link.href;
+    final hashIndex = href.indexOf(_hrefEnd);
+    final hrefHead = hashIndex == -1 ? href : href.substring(0, hashIndex);
+    final hrefTail = hashIndex == -1 ? null : href.substring(hashIndex + 1);
+    final resourceLink = linkWithHref(hrefHead);
+    final type = resourceLink?.type ?? typeOverride?.name;
+    final linkIndex = resourceLink == null ? -1 : readingOrder.indexOf(resourceLink);
+    return type == null
+        ? null
+        : Locator(
+            href: hrefHead,
+            type: type,
+            title: resourceLink!.title ?? link.title,
+            text: LocatorText(),
+            locations: Locations(
+              cssSelector: hrefTail != null && hrefTail.isNotEmpty ? '#$hrefTail' : null,
+              fragments: hrefTail == null ? [] : [hrefTail],
+              progression: hrefTail == null ? 0 : null,
+              position: linkIndex == -1 ? null : linkIndex + 1,
+            ),
+          );
+  }
 
   /// Finds the first [Link] with the given HREF in the manifest's links.
   ///
@@ -70,7 +205,7 @@ abstract class Publication with _$Publication {
     Iterable<Link> deepLinks(final List<Link>? list) sync* {
       for (final link in list ?? const <Never>[]) {
         yield link;
-        yield* deepLinks(link.alternate);
+        yield* deepLinks(link.alternates);
         yield* deepLinks(link.children);
       }
     }
@@ -78,7 +213,6 @@ abstract class Publication with _$Publication {
     final allDeepLinks = [readingOrder, resources, links].expand(deepLinks);
 
     Link? find(final String href) => allDeepLinks.firstWhereOrNull((final link) => link.href == href);
-
     final full = find(href);
     if (full != null) {
       return full;
@@ -87,56 +221,11 @@ abstract class Publication with _$Publication {
     return split == -1 ? null : find(href.substring(0, split));
   }
 
-  /// Creates a new [Locator] object from a [Link] to a resource of this manifest.
-  ///
-  /// Returns null if the resource is not found in this manifest.
-  Locator? locatorFromLink(
-    final Link link, {
-    final MediaType? typeOverride,
-  }) {
-    final href = link.href;
-    final hashIndex = href.indexOf(_hrefEnd);
-    final hrefHead = hashIndex == -1 ? href : href.substring(0, hashIndex);
-    final hrefTail = hashIndex == -1 ? null : href.substring(hashIndex + 1);
-    final resourceLink = linkWithHref(hrefHead);
-    final type = resourceLink?.type ?? typeOverride?.value;
-    final linkIndex = resourceLink == null ? -1 : readingOrder.indexOf(resourceLink);
-    return type == null
-        ? null
-        : Locator(
-            href: hrefHead,
-            type: type,
-            title: resourceLink!.title ?? link.title,
-            locations: Locations(
-              cssSelector: hrefTail != null && hrefTail.isNotEmpty ? '#$hrefTail' : null,
-              fragments: hrefTail == null ? null : [hrefTail],
-              progression: hrefTail == null ? 0 : null,
-              position: linkIndex == -1 ? null : linkIndex + 1,
-            ),
-          );
-  }
-}
-
-extension PublicationExtension on Publication {
-  String get identifier => metadata.identifier ?? 'unidentified';
-
-  String get title => metadata.title.values.first;
-
-  String? get subtitle => metadata.subtitle?.values.first;
-
-  String? get description => metadata.description;
-
-  String? get author => metadata.author?.map((final a) => a.name.values.first).join(', ');
-
-  String? get artist => metadata.artist?.map((final a) => a.name.values.first).join(', ');
-
-  String? get subjects => metadata.subject?.join('; ');
-
-  Link? get coverLink => resources?.firstWhereOrNull(
-        (final r) =>
-            (r.rel?.contains('cover') ?? false) ||
-            (r.href.contains('cover') && r.type == MediaType.jpeg.type || r.type == MediaType.png.type),
-      );
+  Link? get coverLink => resources.firstWhereOrNull(
+    (final r) =>
+        (r.rels.contains('cover')) ||
+        (r.href.contains('cover') && r.type == MediaType.jpeg.type || r.type == MediaType.png.type),
+  );
 
   Uri? get coverUri => coverLink != null ? Uri.tryParse(coverLink!.href) : null;
 
@@ -147,49 +236,15 @@ extension PublicationExtension on Publication {
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
   bool get containsMediaOverlays =>
-      readingOrder.any((link) => link.alternate?.any((alt) => alt.type == MediaType.syncMediaNarration.value) ?? false);
-
-  // TODO: Is this needed and does it work?
-  /// Estimates total progression duration in book, based on current chapter and current progression
-  /// in chapter.
-  Progressions calculateProgressions({
-    required final int index,
-    required final double progression,
-  }) {
-    //used to calculate totalProgression
-    var numerator = 0.0;
-    var denominator = 0.0;
-    var progressionDuration = Duration.zero;
-    var totalProgressionDuration = Duration.zero;
-    readingOrder.forEachIndexed((final i, final link) {
-      // Size of chapter in seconds or characters. As long as all chapters use the same unit as each
-      // other, this works.
-      final size = (link.duration ?? link.height ?? 1.0).toDouble();
-      final chapterDuration = const Duration(seconds: 1) * (link.duration ?? .0);
-      denominator += size;
-      if (i < index) {
-        numerator += size;
-        totalProgressionDuration += chapterDuration;
-      } else if (i == index) {
-        numerator += progression * size;
-        progressionDuration = chapterDuration * progression;
-        totalProgressionDuration += progressionDuration;
-      }
-    });
-    final haveTime = totalProgressionDuration != Duration.zero;
-
-    return Progressions(
-      progression: progression.clamp(0.0, 1.0),
-      totalProgression: (numerator / denominator).clamp(0.0, 1.0),
-      progressionDuration: haveTime ? progressionDuration : null,
-      totalProgressionDuration: haveTime ? totalProgressionDuration : null,
-    );
-  }
+      readingOrder.any((link) => link.alternates.any((alt) => alt.type == MediaType.syncMediaNarration.name));
 }
 
-List<Link>? _badPageListWorkaround(final dynamic shouldBeAList) =>
-    ((shouldBeAList is Map<String, dynamic> ? shouldBeAList['links'] : shouldBeAList) as List?)
-        ?.map((final x) => Link.fromJson(x as Map<String, dynamic>))
-        .toList();
+class PublicationJsonConverter extends JsonConverter<Publication?, Map<String, dynamic>?> {
+  const PublicationJsonConverter();
 
-final _hrefEnd = RegExp('[#?]');
+  @override
+  Publication? fromJson(Map<String, dynamic>? json) => Publication.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(Publication? publication) => publication?.toJson();
+}

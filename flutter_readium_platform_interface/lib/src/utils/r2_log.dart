@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:json_diff/json_diff.dart';
 
-import '../_index.dart';
+import '../index.dart';
 
 final _deviceStackTraceRegex = RegExp(r'#[0-9]+[\s]+(.+) \(([^\s]+)\)');
 final _webStackTraceRegex = RegExp(r'^((packages|dart-sdk)\/[^\s]+\/)');
@@ -22,11 +22,7 @@ const _trace = <String>[
 abstract class R2Log {
   const R2Log._();
 
-  static void d(
-    final dynamic message, {
-    final int? wrapWidth,
-    final int? stackTraceBeginIndex,
-  }) {
+  static void d(final dynamic message, {final int? wrapWidth, final int? stackTraceBeginIndex}) {
     if (kDebugMode) {
       final log = _log(message, stackTraceBeginIndex: stackTraceBeginIndex);
       final caseInsensitiveLog = log.toLowerCase();
@@ -38,42 +34,22 @@ abstract class R2Log {
     }
   }
 
-  static void i(final String? message, {final int? wrapWidth}) => debugPrint(
-        'INFO: $message',
-        wrapWidth: wrapWidth,
-      );
+  static void i(final String? message, {final int? wrapWidth}) => debugPrint('INFO: $message', wrapWidth: wrapWidth);
 
-  static void w(final String? message, {final int? wrapWidth}) => debugPrint(
-        'WARNING: $message',
-        wrapWidth: wrapWidth,
-      );
+  static void w(final String? message, {final int? wrapWidth}) => debugPrint('WARNING: $message', wrapWidth: wrapWidth);
 
-  static void e(
-    final Object error, {
-    final int? wrapWidth,
-    final Object? data,
-  }) {
+  static void e(final Object error, {final int? wrapWidth, final Object? data}) {
     late ReadiumError err;
 
     if (error is ReadiumError) {
       err = error;
     } else if (error is PlatformException) {
-      err = ReadiumError(
-        error.message.toString(),
-        code: error.code,
-        data: data,
-      );
+      err = ReadiumError(error.message.toString(), code: error.code, data: data);
     } else {
-      err = ReadiumError(
-        error.toString(),
-        data: data,
-      );
+      err = ReadiumError(error.toString(), data: data);
     }
 
-    debugPrint(
-      _log('ERROR: $error ${data ?? ''}'),
-      wrapWidth: wrapWidth,
-    );
+    debugPrint(_log('ERROR: $error ${data ?? ''}'), wrapWidth: wrapWidth);
   }
 
   static void logMapDiff(
@@ -84,21 +60,13 @@ abstract class R2Log {
     final int? stackTraceBeginIndex,
   }) {
     R2Log.d(
-      _logDiff(
-        leftJson: leftJson,
-        rightJson: rightJson,
-        prefix: prefix,
-      ),
+      _logDiff(leftJson: leftJson, rightJson: rightJson, prefix: prefix),
       stackTraceBeginIndex: stackTraceBeginIndex,
     );
   }
 }
 
-String _logMapDiffPrefix(
-  final String message, {
-  final int indent = 0,
-  final String? prefix,
-}) =>
+String _logMapDiffPrefix(final String message, {final int indent = 0, final String? prefix}) =>
     '\n${prefix ?? ''}${'\t' * indent} $message';
 
 String _logDiff({
@@ -111,11 +79,7 @@ String _logDiff({
   final diff = diffNode ?? JsonDiffer.fromJson(leftJson ?? {}, rightJson ?? {}).diff();
 
   if (diff.hasNothing) {
-    return _logMapDiffPrefix(
-      'No diff',
-      indent: 0,
-      prefix: prefix,
-    );
+    return _logMapDiffPrefix('No diff', indent: 0, prefix: prefix);
   }
 
   final all = {
@@ -135,35 +99,14 @@ String _logDiff({
       final right = value.last;
 
       if (left is Map || right is Map) {
-        message += _logMapDiffPrefix(
-          '$key:',
-          prefix: prefix,
-          indent: indent,
-        );
-        message += _logDiff(
-          leftJson: left,
-          rightJson: right,
-          indent: indent + 1,
-          prefix: prefix,
-        );
+        message += _logMapDiffPrefix('$key:', prefix: prefix, indent: indent);
+        message += _logDiff(leftJson: left, rightJson: right, indent: indent + 1, prefix: prefix);
       } else {
-        message += _logMapDiffPrefix(
-          '$key: $left --> $right',
-          prefix: prefix,
-          indent: indent,
-        );
+        message += _logMapDiffPrefix('$key: $left --> $right', prefix: prefix, indent: indent);
       }
     } else if (value is DiffNode) {
-      message += _logMapDiffPrefix(
-        '$key:',
-        prefix: prefix,
-        indent: indent,
-      );
-      message += _logDiff(
-        diffNode: value,
-        prefix: prefix,
-        indent: indent + 1,
-      );
+      message += _logMapDiffPrefix('$key:', prefix: prefix, indent: indent);
+      message += _logDiff(diffNode: value, prefix: prefix, indent: indent + 1);
     } else {
       message += _logMapDiffPrefix(
         '$key: ${leftJson == null ? 'null' : value} --> ${rightJson == null ? 'null' : value}',
@@ -179,15 +122,9 @@ String _logDiff({
 String _log(final dynamic message, {final int? stackTraceBeginIndex}) {
   final messageStr = _stringifyMessage(message);
 
-  final stackTraceStr = _formatStackTrace(
-    StackTrace.current,
-    stackTraceBeginIndex: stackTraceBeginIndex,
-  );
+  final stackTraceStr = _formatStackTrace(StackTrace.current, stackTraceBeginIndex: stackTraceBeginIndex);
 
-  return _formatAndPrint(
-    messageStr,
-    stackTraceStr,
-  );
+  return _formatAndPrint(messageStr, stackTraceStr);
 }
 
 String _formatStackTrace(final StackTrace stackTrace, {final int? stackTraceBeginIndex}) {
@@ -250,10 +187,7 @@ String _stringifyMessage(final dynamic message) {
   }
 }
 
-String _formatAndPrint(
-  final String message,
-  final String stacktrace,
-) {
+String _formatAndPrint(final String message, final String stacktrace) {
   final stackTraceSplit = stacktrace.replaceAll('.<anonymous closure>', '').split(' ');
 
   return '[[ ${stackTraceSplit.first} ]] $message ${stackTraceSplit.last}';

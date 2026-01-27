@@ -1,5 +1,5 @@
 import 'package:flutter_readium_platform_interface/method_channel_flutter_readium.dart';
-import 'package:flutter_readium_platform_interface/src/_index.dart';
+import 'package:flutter_readium_platform_interface/src/index.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

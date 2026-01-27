@@ -53,7 +53,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> loadPublication(String pubUrl) async {
-    Publication publication;
+    Publication? publication;
 
     try {
       final publicationString = await JsPublicationChannel().getPublication(pubUrl);
@@ -63,6 +63,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       publicationJson = _transformPublicationJson(publicationJson);
 
       publication = Publication.fromJson(publicationJson);
+      if (publication == null) {
+        throw ReadiumError('Failed to parse Publication JSON');
+      }
     } on PlatformException catch (e) {
       final type = e.intCode;
       throw OpeningReadiumException(
@@ -80,9 +83,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return publication;
   }
 
-  static Map<String, dynamic> _transformPublicationJson(
-    final Map<String, dynamic> publicationJson,
-  ) {
+  static Map<String, dynamic> _transformPublicationJson(final Map<String, dynamic> publicationJson) {
     // Transform 'links', 'readingOrder', 'resources', and 'tableOfContents' keys
     _transformKeyItems(publicationJson, 'links');
     _transformKeyItems(publicationJson, 'readingOrder');
@@ -161,17 +162,17 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static List<dynamic> _transformChildren(final List<dynamic> items) => items.map((final item) {
-        if (item is Map<String, dynamic> && item.containsKey('children')) {
-          final children = item['children'];
-          if (children is Map<String, dynamic> && children.containsKey('items')) {
-            item['children'] = children['items'];
-          }
-          if (item['children'] is List) {
-            item['children'] = _transformChildren(item['children']);
-          }
-        }
-        return item;
-      }).toList();
+    if (item is Map<String, dynamic> && item.containsKey('children')) {
+      final children = item['children'];
+      if (children is Map<String, dynamic> && children.containsKey('items')) {
+        item['children'] = children['items'];
+      }
+      if (item['children'] is List) {
+        item['children'] = _transformChildren(item['children']);
+      }
+    }
+    return item;
+  }).toList();
 
   static void _validateTranslations(Map<String, dynamic> translationsMap) {
     if (translationsMap.containsKey('undefined')) {
@@ -193,7 +194,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
     // additionally the openPublication method does currently not return a publication object
     R2Log.d(
-        'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.');
+      'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.',
+    );
     final publication = await loadPublication(pubUrl);
     return publication;
   }
