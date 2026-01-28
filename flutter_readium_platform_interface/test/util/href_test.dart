@@ -120,7 +120,7 @@ void main() {
   });
 
   test('get first parameter named x', () {
-    var params = [
+    final params = [
       QueryParameter('query', value: 'param'),
       QueryParameter('fruit', value: 'banana'),
       QueryParameter('query', value: 'other'),
@@ -134,7 +134,7 @@ void main() {
   });
 
   test('get all parameters named x', () {
-    var params = [
+    final params = [
       QueryParameter('query', value: 'param'),
       QueryParameter('fruit', value: 'banana'),
       QueryParameter('query', value: 'other'),

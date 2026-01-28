@@ -7,23 +7,14 @@ abstract class PublicationEvent {}
 class ClosePublication extends PublicationEvent {}
 
 class OpenPublication extends PublicationEvent {
-  OpenPublication({
-    required this.publicationUrl,
-    this.initialLocator,
-    this.autoPlay,
-  });
+  OpenPublication({required this.publicationUrl, this.initialLocator, this.autoPlay});
   final String publicationUrl;
   final Locator? initialLocator;
   final bool? autoPlay;
 }
 
 class PublicationState {
-  PublicationState({
-    this.publication,
-    this.initialLocator,
-    this.error,
-    this.isLoading = false,
-  });
+  PublicationState({this.publication, this.initialLocator, this.error, this.isLoading = false});
   final Publication? publication;
   final Locator? initialLocator;
   final dynamic error;
@@ -34,13 +25,12 @@ class PublicationState {
     final Locator? initialLocator,
     final dynamic error,
     final bool? isLoading,
-  }) =>
-      PublicationState(
-        publication: publication ?? this.publication,
-        initialLocator: initialLocator ?? this.initialLocator,
-        error: error ?? this.error,
-        isLoading: isLoading ?? this.isLoading,
-      );
+  }) => PublicationState(
+    publication: publication ?? this.publication,
+    initialLocator: initialLocator ?? this.initialLocator,
+    error: error ?? this.error,
+    isLoading: isLoading ?? this.isLoading,
+  );
 
   PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
       PublicationState(publication: publication, initialLocator: initialLocator, isLoading: false, error: null);
@@ -70,10 +60,12 @@ class PublicationState {
 
   static PublicationState? fromJson(Map<String, dynamic> json) {
     return PublicationState(
-      publication:
-          json['publication'] != null ? Publication.fromJson(json['publication'] as Map<String, dynamic>) : null,
-      initialLocator:
-          json['initialLocator'] != null ? Locator.fromJson(json['initialLocator'] as Map<String, dynamic>) : null,
+      publication: json['publication'] != null
+          ? Publication.fromJson(json['publication'] as Map<String, dynamic>)
+          : null,
+      initialLocator: json['initialLocator'] != null
+          ? Locator.fromJson(json['initialLocator'] as Map<String, dynamic>)
+          : null,
       error: json['error'],
       isLoading: json['isLoading'] ?? false,
     );

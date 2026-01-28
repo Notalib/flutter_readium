@@ -11,7 +11,6 @@ import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart' show Link;
-import 'opds_publication.dart';
 
 class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
   const Feed(

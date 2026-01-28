@@ -60,7 +60,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
   @override
   Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
     ..putOpt('page', page)
-    ..putOpt('contains', contains)
+    ..putIterableIfNotEmpty('contains', contains)
     ..putOpt('orientation', orientation)
     ..putOpt('layout', layout)
     ..putOpt('overflow', overflow)
