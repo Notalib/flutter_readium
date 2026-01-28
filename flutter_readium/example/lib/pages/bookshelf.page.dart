@@ -46,7 +46,7 @@ class BookshelfPageState extends State<BookshelfPage> {
         try {
           Publication? pub;
           final localPubPath = href.toString();
-          pub = await openPublicationFromUrl(localPubPath);
+          pub = await loadPublicationFromUrl(localPubPath);
           if (pub != null) {
             loadedPublications.add(pub);
             loadedPublicationURLs.add(localPubPath);
@@ -61,7 +61,7 @@ class BookshelfPageState extends State<BookshelfPage> {
       final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
       for (String localPubPath in localPublications) {
-        Publication? publication = await openPublicationFromUrl(localPubPath);
+        final publication = await loadPublicationFromUrl(localPubPath);
         if (publication != null) {
           loadedPublications.add(publication);
           loadedPublicationURLs.add(localPubPath);
@@ -76,7 +76,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     });
   }
 
-  Future<Publication?> openPublicationFromUrl(String pubUrl) async {
+  Future<Publication?> loadPublicationFromUrl(String pubUrl) async {
     try {
       Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl);
       debugPrint('loadPublication success: ${pub.metadata.title}');
