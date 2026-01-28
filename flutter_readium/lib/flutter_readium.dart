@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
@@ -120,9 +121,7 @@ class FlutterReadium {
   Future<bool> toPhysicalPageIndex(final String index, final Publication pub) async {
     final pageIndex = index.toLowerCase();
     final pageList = pub.pageList;
-    final pageLink = pageList?.firstWhereOrNull(
-      (final link) => link.title?.toLowerCase() == pageIndex,
-    );
+    final pageLink = pageList.firstWhereOrNull((final link) => link.title?.toLowerCase() == pageIndex);
     if (pageLink == null) {
       throw const ReadiumException('Page link not found');
     }
