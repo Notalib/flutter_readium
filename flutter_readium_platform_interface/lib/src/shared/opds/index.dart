@@ -1,3 +1,4 @@
+export 'acquisition_link.dart';
 export 'acquisition.dart';
 export 'availability.dart';
 export 'copies.dart';

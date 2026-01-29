@@ -50,10 +50,7 @@ class Link with EquatableMixin implements JSONable {
   /// It's [href] and its children's recursively will be normalized using the provided
   /// [normalizeHref] closure.
   /// If the link can't be parsed, a warning will be logged with [warnings].
-  static Link? fromJson(
-    Map<String, dynamic>? json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  static Link? fromJson(Map<String, dynamic>? json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     final href = json?.optNullableString('href');
     if (href == null) {
       Fimber.i('[href] is required: $json');
@@ -84,9 +81,7 @@ class Link with EquatableMixin implements JSONable {
   static List<Link> fromJSONArray(
     List<dynamic>? json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) => (json ?? []).parseObjects(
-    (it) => Link.fromJson(it as Map<String, dynamic>?, normalizeHref: normalizeHref),
-  );
+  }) => (json ?? []).parseObjects((it) => Link.fromJson(it as Map<String, dynamic>?, normalizeHref: normalizeHref));
 
   /// (Nullable) Unique identifier for this link in the [Publication].
   final String? id;
@@ -247,8 +242,7 @@ class Link with EquatableMixin implements JSONable {
   ];
 
   @override
-  String toString() =>
-      'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
+  String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
 }
 
 class LinkJsonConverter extends JsonConverter<Link, Map<String, dynamic>?> {

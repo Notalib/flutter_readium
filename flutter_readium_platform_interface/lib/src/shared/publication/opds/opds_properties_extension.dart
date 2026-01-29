@@ -10,8 +10,10 @@ import '../../opds.dart';
 import '../../publication.dart';
 
 extension OpdsPropertiesExtension on Properties {
+  static const _numberOfItemsKey = 'numberOfItems';
+
   /// Provides a hint about the expected number of items returned.
-  int? get numberOfItems => (this['numberOfItems'] as int?)?.takeIf((it) => it >= 0);
+  int? get numberOfItems => (this[_numberOfItemsKey] as int?)?.takeIf((it) => it >= 0);
 
   /// The price of a publication is tied to its acquisition link.
   Price? get price => (this['price'] as Map<String, dynamic>?)?.let((it) => Price.fromJson(it));
@@ -33,4 +35,7 @@ extension OpdsPropertiesExtension on Properties {
   /// Indicated the availability of a given resource.
   Availability? get availability =>
       (this['availability'] as Map<String, dynamic>?)?.let((it) => Availability.fromJson(it));
+
+  Properties setNumberOfItems(final int? value) =>
+      copyWith(additionalProperties: {_numberOfItemsKey: value});
 }

@@ -13,11 +13,7 @@ class OpdsPublication implements JSONable {
   final List<Link> images;
 
   OpdsPublication copyWith({Metadata? metadata, List<Link>? links, List<Link>? images}) =>
-      OpdsPublication(
-        metadata ?? this.metadata,
-        links ?? this.links,
-        images: images ?? this.images,
-      );
+      OpdsPublication(metadata ?? this.metadata, links ?? this.links, images: images ?? this.images);
 
   @override
   Map<String, dynamic> toJson() {
@@ -53,13 +49,12 @@ class OpdsPublication implements JSONable {
   }
 }
 
-class OpdsPublicationJsonConverter extends JsonConverter<OpdsPublication, Map<String, dynamic>?> {
+class OpdsPublicationJsonConverter extends JsonConverter<OpdsPublication, Map<String, dynamic>> {
   const OpdsPublicationJsonConverter();
 
   @override
-  OpdsPublication? fromJson(Map<String, dynamic>? json) =>
-      json == null ? null : OpdsPublication.fromJson(json);
+  OpdsPublication fromJson(Map<String, dynamic> json) => OpdsPublication.fromJson(json)!;
 
   @override
-  Map<String, dynamic>? toJson(OpdsPublication? publication) => publication?.toJson();
+  Map<String, dynamic> toJson(OpdsPublication publication) => publication.toJson();
 }

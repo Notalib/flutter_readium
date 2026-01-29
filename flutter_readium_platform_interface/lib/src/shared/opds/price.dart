@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../flutter_readium_platform_interface.dart';
 import '../../utils/jsonable.dart';
 
 /// The price of a publication in an OPDS link.
@@ -15,8 +16,8 @@ import '../../utils/jsonable.dart';
 /// @param currency Currency for the price, eg. EUR.
 /// @param value Price value, should only be used for display purposes, because of precision issues
 ///     inherent with Double and the JSON parsing.
-class Price with EquatableMixin implements JSONable {
-  const Price({required this.currency, required this.value});
+class Price extends AdditionalProperties with EquatableMixin implements JSONable {
+  const Price({required this.currency, required this.value, super.additionalProperties});
   final String currency;
   final double value;
 
@@ -25,7 +26,7 @@ class Price with EquatableMixin implements JSONable {
 
   /// Serializes an [Price] to its JSON representation.
   @override
-  Map<String, dynamic> toJson() => {'currency': currency, 'value': value};
+  Map<String, dynamic> toJson() => {...additionalProperties, 'currency': currency, 'value': value};
 
   /// Creates an [Price] from its JSON representation.
   /// If the price can't be parsed, a warning will be logged with [warnings].
@@ -34,14 +35,15 @@ class Price with EquatableMixin implements JSONable {
       Fimber.d('Price.fromJSON: null json');
       return null;
     }
-    final currency = json.optNullableString('currency');
-    final value = json.optPositiveDouble('value');
+    final jsonObject = Map<String, dynamic>.from(json);
+    final currency = jsonObject.optNullableString('currency', remove: true);
+    final value = jsonObject.optPositiveDouble('value', remove: true);
     if (currency == null || value == null) {
       Fimber.d('Price.fromJSON: invalid currency or value');
       return null;
     }
 
-    return Price(currency: currency, value: value);
+    return Price(currency: currency, value: value, additionalProperties: jsonObject);
   }
 }
 

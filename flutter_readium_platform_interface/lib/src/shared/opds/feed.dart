@@ -33,16 +33,7 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
   final List<String> context;
 
   @override
-  List<Object?> get props => [
-    metadata,
-    links,
-    facets,
-    groups,
-    publications,
-    navigation,
-    context,
-    additionalProperties,
-  ];
+  List<Object?> get props => [metadata, links, facets, groups, publications, navigation, context, additionalProperties];
 
   @override
   String toString() =>
@@ -103,13 +94,9 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
     final links = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('links'));
     final facets = Facet.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('facets'));
     final groups = Group.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('groups'));
-    final publications = OpdsPublication.fromJSONArray(
-      jsonObject.safeRemove<List<dynamic>>('publications'),
-    );
+    final publications = OpdsPublication.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('publications'));
     final navigation = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('navigation'));
-    final context = (jsonObject.safeRemove<List<dynamic>>('@context') ?? [])
-        .map((e) => e.toString())
-        .toList();
+    final context = (jsonObject.safeRemove<List<dynamic>>('@context') ?? []).map((e) => e.toString()).toList();
 
     return Feed(metadata, links, facets, groups, publications, navigation, context, jsonObject);
   }
@@ -119,7 +106,7 @@ class FeedJsonConverter extends JsonConverter<Feed, Map<String, dynamic>?> {
   const FeedJsonConverter();
 
   @override
-  Feed? fromJson(Map<String, dynamic>? json) => json == null ? null : Feed.fromJson(json);
+  Feed fromJson(Map<String, dynamic>? json) => Feed.fromJson(json)!;
 
   @override
   Map<String, dynamic>? toJson(Feed? feed) => feed?.toJson();

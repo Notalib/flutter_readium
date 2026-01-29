@@ -14,6 +14,8 @@ import '../../utils/jsonable.dart';
 class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const OpdsMetadata({
     required this.title,
+    this.identifier,
+    this.subtitle,
     this.numberOfItems,
     this.itemsPerPage,
     this.currentPage,
@@ -25,7 +27,9 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
   // TODO: handle multi-language titles
 
+  final String? identifier;
   final String title;
+  final String? subtitle;
   final int? numberOfItems;
   final int? itemsPerPage;
   final int? currentPage;
@@ -36,6 +40,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
   @override
   List<Object?> get props => [
     title,
+    identifier,
+    subtitle,
     numberOfItems,
     itemsPerPage,
     currentPage,
@@ -47,6 +53,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
   OpdsMetadata copyWith({
     String? title,
+    String? subtitle,
+    String? identifier,
     int? numberOfItems,
     int? itemsPerPage,
     int? currentPage,
@@ -61,6 +69,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
     return OpdsMetadata(
       title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      identifier: identifier ?? this.identifier,
       numberOfItems: numberOfItems ?? this.numberOfItems,
       itemsPerPage: itemsPerPage ?? this.itemsPerPage,
       currentPage: currentPage ?? this.currentPage,
@@ -73,7 +83,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
   @override
   String toString() =>
-      'OpdsMetadata{title: $title, numberOfItems: $numberOfItems, '
+      'OpdsMetadata{title: $title, subtitle: $subtitle, identifier: $identifier, numberOfItems: $numberOfItems, '
       'itemsPerPage: $itemsPerPage, currentPage: $currentPage, '
       'modified: $modified, position: $position, rdfType: $rdfType}'
       'additionalProperties: $additionalProperties';
@@ -82,6 +92,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
   Map<String, dynamic> toJson() {
     final json = Map<String, dynamic>.from(additionalProperties)
       ..put('title', title)
+      ..putOpt('subtitle', subtitle)
+      ..putOpt('identifier', identifier)
       ..putOpt('numberOfItems', numberOfItems)
       ..putOpt('itemsPerPage', itemsPerPage)
       ..putOpt('currentPage', currentPage)
