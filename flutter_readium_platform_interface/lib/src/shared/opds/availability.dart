@@ -34,7 +34,7 @@ class Availability with EquatableMixin implements JSONable {
 
   /// Creates an [Availability] from its JSON representation.
   /// If the availability can't be parsed, a warning will be logged with [warnings].
-  static Availability? fromJSON(Map<String, dynamic>? json) {
+  static Availability? fromJson(Map<String, dynamic>? json) {
     final state = AvailabilityState.from(json?.optNullableString('state'));
     if (state == null) {
       return null;
@@ -63,7 +63,7 @@ class AvailabilityJsonConverter extends JsonConverter<Availability?, Map<String,
   const AvailabilityJsonConverter();
 
   @override
-  Availability? fromJson(Map<String, dynamic>? json) => Availability.fromJSON(json);
+  Availability? fromJson(Map<String, dynamic>? json) => Availability.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Availability? availability) => availability?.toJson();

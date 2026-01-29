@@ -97,7 +97,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
   String toString() => 'Properties(${toJson()})';
 
   /// Creates a [Properties] from its RWPM JSON representation.
-  static Properties fromJSON(Map<String, dynamic>? json) {
+  static Properties fromJson(Map<String, dynamic>? json) {
     final page = PresentationPage.from(json?.safeRemove('page'));
     final contains = json?.optStringsFromArrayOrSingle('contains', remove: true).toSet();
     final orientation = PresentationOrientation.from(json?.safeRemove('orientation'));
@@ -106,7 +106,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
     final spread = PresentationSpread.from(json?.safeRemove('spread'));
 
     final encryptionMap = json?.safeRemove<Map<String, dynamic>>('encrypted');
-    final encryption = Encryption.fromJSON(encryptionMap);
+    final encryption = Encryption.fromJson(encryptionMap);
 
     return Properties(
       page: page,
@@ -125,7 +125,7 @@ class PropertiesJsonConverter extends JsonConverter<Properties?, Map<String, dyn
   const PropertiesJsonConverter();
 
   @override
-  Properties? fromJson(Map<String, dynamic>? json) => Properties.fromJSON(json);
+  Properties? fromJson(Map<String, dynamic>? json) => Properties.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Properties? properties) => properties?.toJson();

@@ -32,7 +32,7 @@ class Acquisition with EquatableMixin implements JSONable {
 
   /// Creates an [Acquisition] from its JSON representation.
   /// If the acquisition can't be parsed, a warning will be logged with [warnings].
-  static Acquisition? fromJSON(Map<String, dynamic>? json) {
+  static Acquisition? fromJson(Map<String, dynamic>? json) {
     final type = json?.optNullableString('type');
     if (type == null) {
       return null;
@@ -44,14 +44,14 @@ class Acquisition with EquatableMixin implements JSONable {
   /// Creates a list of [Acquisition] from its JSON representation.
   /// If an acquisition can't be parsed, a warning will be logged with [warnings].
   static List<Acquisition> fromJSONArray(List<dynamic>? json) =>
-      json?.parseObjects((it) => Acquisition.fromJSON(it as Map<String, dynamic>?)) ?? [];
+      json?.parseObjects((it) => Acquisition.fromJson(it as Map<String, dynamic>?)) ?? [];
 }
 
 class AcquisitionJsonConverter extends JsonConverter<Acquisition?, Map<String, dynamic>?> {
   const AcquisitionJsonConverter();
 
   @override
-  Acquisition? fromJson(Map<String, dynamic>? json) => Acquisition.fromJSON(json);
+  Acquisition? fromJson(Map<String, dynamic>? json) => Acquisition.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Acquisition? acquisition) => acquisition?.toJson();

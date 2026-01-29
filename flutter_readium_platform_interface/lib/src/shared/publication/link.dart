@@ -50,7 +50,10 @@ class Link with EquatableMixin implements JSONable {
   /// It's [href] and its children's recursively will be normalized using the provided
   /// [normalizeHref] closure.
   /// If the link can't be parsed, a warning will be logged with [warnings].
-  static Link? fromJSON(Map<String, dynamic>? json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static Link? fromJson(
+    Map<String, dynamic>? json, {
+    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
+  }) {
     final href = json?.optNullableString('href');
     if (href == null) {
       Fimber.i('[href] is required: $json');
@@ -63,7 +66,7 @@ class Link with EquatableMixin implements JSONable {
       templated: json.optBoolean('templated', fallback: false),
       title: json.optNullableString('title'),
       rels: json.optStringsFromArrayOrSingle('rel').toSet(),
-      properties: Properties.fromJSON(json.optJSONObject('properties')),
+      properties: Properties.fromJson(json.optJSONObject('properties')),
       height: json.optPositiveInt('height'),
       width: json.optPositiveInt('width'),
       bitrate: json.optPositiveDouble('bitrate'),
@@ -81,7 +84,9 @@ class Link with EquatableMixin implements JSONable {
   static List<Link> fromJSONArray(
     List<dynamic>? json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) => (json ?? []).parseObjects((it) => Link.fromJSON(it as Map<String, dynamic>?, normalizeHref: normalizeHref));
+  }) => (json ?? []).parseObjects(
+    (it) => Link.fromJson(it as Map<String, dynamic>?, normalizeHref: normalizeHref),
+  );
 
   /// (Nullable) Unique identifier for this link in the [Publication].
   final String? id;
@@ -242,15 +247,26 @@ class Link with EquatableMixin implements JSONable {
   ];
 
   @override
-  String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
+  String toString() =>
+      'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
 }
 
-class LinkJsonConverter extends JsonConverter<Link?, Map<String, dynamic>?> {
+class LinkJsonConverter extends JsonConverter<Link, Map<String, dynamic>?> {
   const LinkJsonConverter();
 
   @override
-  Link? fromJson(Map<String, dynamic>? json) => Link.fromJSON(json);
+  Link fromJson(Map<String, dynamic>? json) => Link.fromJson(json)!;
 
   @override
   Map<String, dynamic>? toJson(Link? link) => link?.toJson();
+}
+
+class LinkListJsonConverter extends JsonConverter<List<Link>, List<dynamic>?> {
+  const LinkListJsonConverter();
+
+  @override
+  List<Link> fromJson(List<dynamic>? json) => Link.fromJSONArray(json);
+
+  @override
+  List<dynamic>? toJson(List<Link> links) => links.map((it) => it.toJson()).toList();
 }

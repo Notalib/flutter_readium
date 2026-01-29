@@ -41,7 +41,7 @@ class Encryption with EquatableMixin implements JSONable {
 
   /// Creates an [Encryption] from its RWPM JSON representation.
   /// If the encryption can't be parsed, a warning will be logged with [warnings].
-  static Encryption? fromJSON(Map<String, dynamic>? json) {
+  static Encryption? fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) {
       return null;
     }
@@ -66,7 +66,7 @@ class EncryptionJsonConverter extends JsonConverter<Encryption?, Map<String, dyn
   const EncryptionJsonConverter();
 
   @override
-  Encryption? fromJson(Map<String, dynamic>? json) => Encryption.fromJSON(json);
+  Encryption? fromJson(Map<String, dynamic>? json) => Encryption.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Encryption? encryption) => encryption?.toJson();

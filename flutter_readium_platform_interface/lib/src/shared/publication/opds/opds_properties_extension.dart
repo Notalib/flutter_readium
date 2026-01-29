@@ -14,23 +14,23 @@ extension OpdsPropertiesExtension on Properties {
   int? get numberOfItems => (this['numberOfItems'] as int?)?.takeIf((it) => it >= 0);
 
   /// The price of a publication is tied to its acquisition link.
-  Price? get price => (this['price'] as Map<String, dynamic>?)?.let((it) => Price.fromJSON(it));
+  Price? get price => (this['price'] as Map<String, dynamic>?)?.let((it) => Price.fromJson(it));
 
   /// Indirect acquisition provides a hint for the expected media type that will be acquired after
   /// additional steps.
   List<Acquisition> get indirectAcquisitions =>
       (this['indirectAcquisition'] as List?)
-          ?.mapNotNull((it) => it is Map<String, dynamic> ? Acquisition.fromJSON(it) : null)
+          ?.mapNotNull((it) => it is Map<String, dynamic> ? Acquisition.fromJson(it) : null)
           .toList() ??
       [];
 
   /// Library-specific features when a specific book is unavailable but provides a hold list.
-  Holds? get holds => (this['holds'] as Map<String, dynamic>?)?.let((it) => Holds.fromJSON(it));
+  Holds? get holds => (this['holds'] as Map<String, dynamic>?)?.let((it) => Holds.fromJson(it));
 
   /// Library-specific feature that contains information about the copies that a library has acquired.
-  Copies? get copies => (this['copies'] as Map<String, dynamic>?)?.let((it) => Copies.fromJSON(it));
+  Copies? get copies => (this['copies'] as Map<String, dynamic>?)?.let((it) => Copies.fromJson(it));
 
   /// Indicated the availability of a given resource.
   Availability? get availability =>
-      (this['availability'] as Map<String, dynamic>?)?.let((it) => Availability.fromJSON(it));
+      (this['availability'] as Map<String, dynamic>?)?.let((it) => Availability.fromJson(it));
 }

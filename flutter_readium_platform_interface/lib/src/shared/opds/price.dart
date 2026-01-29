@@ -29,7 +29,7 @@ class Price with EquatableMixin implements JSONable {
 
   /// Creates an [Price] from its JSON representation.
   /// If the price can't be parsed, a warning will be logged with [warnings].
-  static Price? fromJSON(Map<String, dynamic>? json) {
+  static Price? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       Fimber.d('Price.fromJSON: null json');
       return null;
@@ -49,7 +49,7 @@ class PriceJsonConverter extends JsonConverter<Price?, Map<String, dynamic>?> {
   const PriceJsonConverter();
 
   @override
-  Price? fromJson(Map<String, dynamic>? json) => Price.fromJSON(json);
+  Price? fromJson(Map<String, dynamic>? json) => Price.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Price? price) => price?.toJson();

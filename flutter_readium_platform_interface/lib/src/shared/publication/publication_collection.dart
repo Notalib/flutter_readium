@@ -36,7 +36,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
   /// If the collection can't be parsed, a warning will be logged with [warnings].
   /// The [links]' href and their children's will be normalized recursively using the
   /// provided [normalizeHref] closure.
-  static PublicationCollection? fromJSON(
+  static PublicationCollection? fromJson(
     dynamic json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
@@ -83,13 +83,13 @@ class PublicationCollection with EquatableMixin implements JSONable {
       final dynamic subJSON = json[role];
 
       // Parses a list of links or a single collection object.
-      final collection = PublicationCollection.fromJSON(subJSON, normalizeHref: normalizeHref);
+      final collection = PublicationCollection.fromJson(subJSON, normalizeHref: normalizeHref);
       if (collection != null) {
         collections.putIfAbsent(role, () => []).add(collection);
         // Parses a list of collection objects.
       } else if (subJSON is List) {
         final subcollections = subJSON
-            .map((it) => PublicationCollection.fromJSON(it, normalizeHref: normalizeHref))
+            .map((it) => PublicationCollection.fromJson(it, normalizeHref: normalizeHref))
             .whereNotNull();
         collections.putIfAbsent(role, () => []).addAll(subcollections);
       }
@@ -102,7 +102,7 @@ class PublicationCollectionJsonConverter extends JsonConverter<PublicationCollec
   const PublicationCollectionJsonConverter();
 
   @override
-  PublicationCollection? fromJson(dynamic json) => PublicationCollection.fromJSON(json);
+  PublicationCollection? fromJson(dynamic json) => PublicationCollection.fromJson(json);
 
   @override
   dynamic toJson(PublicationCollection? collection) => collection?.toJson();

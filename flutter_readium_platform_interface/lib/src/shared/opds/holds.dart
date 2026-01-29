@@ -23,7 +23,7 @@ class Holds with EquatableMixin implements JSONable {
   Map<String, dynamic> toJson() => {if (total != null) 'total': total, if (position != null) 'position': position};
 
   /// Creates an [Holds] from its JSON representation.
-  static Holds? fromJSON(Map<String, dynamic>? json) {
+  static Holds? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
     }
@@ -35,7 +35,7 @@ class HoldsJsonConverter extends JsonConverter<Holds?, Map<String, dynamic>?> {
   const HoldsJsonConverter();
 
   @override
-  Holds? fromJson(Map<String, dynamic>? json) => Holds.fromJSON(json);
+  Holds? fromJson(Map<String, dynamic>? json) => Holds.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Holds? holds) => holds?.toJson();

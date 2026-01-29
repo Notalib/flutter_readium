@@ -82,7 +82,14 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     final locations = Locations.fromJson(json.optJSONObject('locations'));
     final text = LocatorText.fromJson(json.optJSONObject('text'));
 
-    return Locator(href: href, type: type, title: title, locations: locations, text: text, additionalProperties: json);
+    return Locator(
+      href: href,
+      type: type,
+      title: title,
+      locations: locations,
+      text: text,
+      additionalProperties: json,
+    );
   }
 
   String get json => JsonCodec().encode(toJson());
@@ -192,11 +199,15 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 
   factory Locations.fromJson(Map<String, dynamic>? json) {
     final fragments =
-        json?.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
+        json
+            ?.optStringsFromArrayOrSingle('fragments', remove: true)
+            .takeIf((it) => it.isNotEmpty) ??
         json?.optStringsFromArrayOrSingle('fragment', remove: true) ??
         [];
 
-    final progression = json?.optNullableDouble('progression', remove: true)?.takeIf((it) => 0.0 <= it && it <= 1.0);
+    final progression = json
+        ?.optNullableDouble('progression', remove: true)
+        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
 
     final position = json?.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
 
@@ -258,7 +269,14 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putOpt('cssSelector', cssSelector);
 
   @override
-  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
+  List<Object?> get props => [
+    position,
+    progression,
+    totalProgression,
+    fragments,
+    additionalProperties,
+    cssSelector,
+  ];
 
   @override
   String toString() =>
@@ -325,14 +343,15 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange =>
+      (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
-class LocatorJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
+class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>?> {
   const LocatorJsonConverter();
 
   @override
-  Locator? fromJson(Map<String, dynamic>? json) => Locator.fromJson(json);
+  Locator fromJson(Map<String, dynamic>? json) => Locator.fromJson(json)!;
 
   @override
   Map<String, dynamic>? toJson(Locator? locator) => locator?.toJson();
