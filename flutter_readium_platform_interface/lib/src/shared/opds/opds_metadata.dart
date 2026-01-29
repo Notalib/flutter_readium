@@ -16,6 +16,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
     required this.title,
     this.identifier,
     this.subtitle,
+    this.description,
     this.numberOfItems,
     this.itemsPerPage,
     this.currentPage,
@@ -30,6 +31,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
   final String? identifier;
   final String title;
   final String? subtitle;
+  final String? description;
   final int? numberOfItems;
   final int? itemsPerPage;
   final int? currentPage;
@@ -55,6 +57,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
     String? title,
     String? subtitle,
     String? identifier,
+    String? description,
     int? numberOfItems,
     int? itemsPerPage,
     int? currentPage,
@@ -71,6 +74,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
       identifier: identifier ?? this.identifier,
+      description: description ?? this.description,
       numberOfItems: numberOfItems ?? this.numberOfItems,
       itemsPerPage: itemsPerPage ?? this.itemsPerPage,
       currentPage: currentPage ?? this.currentPage,
@@ -94,6 +98,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       ..put('title', title)
       ..putOpt('subtitle', subtitle)
       ..putOpt('identifier', identifier)
+      ..putOpt('description', description)
       ..putOpt('numberOfItems', numberOfItems)
       ..putOpt('itemsPerPage', itemsPerPage)
       ..putOpt('currentPage', currentPage)
@@ -109,6 +114,9 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
     }
 
     final title = json.safeRemove('title') as String? ?? '';
+    final description = json.safeRemove('description') as String?;
+    final subtitle = json.safeRemove('subtitle') as String?;
+    final identifier = json.safeRemove('identifier') as String?;
     final numberOfItems = json.safeRemove('numberOfItems') as int?;
     final itemsPerPage = json.safeRemove('itemsPerPage') as int?;
     final currentPage = json.safeRemove('currentPage') as int?;
@@ -122,6 +130,9 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
     return OpdsMetadata(
       title: title,
+      subtitle: subtitle,
+      identifier: identifier,
+      description: description,
       numberOfItems: numberOfItems,
       itemsPerPage: itemsPerPage,
       currentPage: currentPage,
