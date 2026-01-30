@@ -35,7 +35,7 @@ class Link with EquatableMixin implements JSONable {
     this.templated = false,
     this.type,
     this.title,
-    this.rels = const {},
+    this.rels = const [],
     this.properties = const Properties(),
     this.height,
     this.width,
@@ -67,7 +67,7 @@ class Link with EquatableMixin implements JSONable {
       type: jsonObject.optNullableString('type', remove: true),
       templated: jsonObject.optBoolean('templated', fallback: false, remove: true),
       title: jsonObject.optNullableString('title', remove: true),
-      rels: jsonObject.optStringsFromArrayOrSingle('rel', remove: true).toSet(),
+      rels: jsonObject.optStringsFromArrayOrSingle('rel', remove: true).toSet().toList(),
       properties: Properties.fromJson(jsonObject.optJsonObject('properties', remove: true)),
       height: jsonObject.optPositiveInt('height', remove: true),
       width: jsonObject.optPositiveInt('width', remove: true),
@@ -104,7 +104,7 @@ class Link with EquatableMixin implements JSONable {
   final String? title;
 
   /// Relations between the linked resource and its containing collection.
-  final Set<String> rels;
+  final List<String> rels;
 
   /// Properties associated to the linked resource.
   final Properties properties;
@@ -143,7 +143,7 @@ class Link with EquatableMixin implements JSONable {
     bool? templated,
     String? type,
     String? title,
-    Set<String>? rels,
+    List<String>? rels,
     Properties? properties,
     int? height,
     int? width,
@@ -158,7 +158,7 @@ class Link with EquatableMixin implements JSONable {
     templated: templated ?? this.templated,
     type: type ?? this.type,
     title: title ?? this.title,
-    rels: rels ?? this.rels,
+    rels: rels?.toSet().toList() ?? this.rels,
     properties: properties ?? this.properties,
     height: height ?? this.height,
     width: width ?? this.width,

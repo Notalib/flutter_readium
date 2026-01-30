@@ -31,8 +31,8 @@ class ReadiumTimebasedState {
   String toString() =>
       'ReadiumTimebasedState($state,offset=$currentOffset,duration=$currentDuration,buffered=$currentBuffered,'
       'href=${currentLocator?.href},'
-      'progression=${currentLocator?.locations.progression},'
-      'totalProgression=${currentLocator?.locations.totalProgression})';
+      'progression=${currentLocator?.locations?.progression},'
+      'totalProgression=${currentLocator?.locations?.totalProgression})';
 
   TimebasedState state;
   Duration? currentOffset;

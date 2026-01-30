@@ -35,7 +35,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   /// Identifies content contained in the linked resource, that cannot be
   /// strictly identified using a media type.
-  final Set<String>? contains;
+  final List<String>? contains;
 
   /// (Nullable) Suggested orientation for the device when displaying the linked
   /// resource.
@@ -72,7 +72,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   Properties copyWith({
     PresentationPage? page,
-    Set<String>? contains,
+    List<String>? contains,
     PresentationOrientation? orientation,
     EpubLayout? layout,
     PresentationOverflow? overflow,
@@ -86,7 +86,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
     return Properties(
       page: page ?? this.page,
-      contains: contains ?? this.contains,
+      contains: contains?.toSet().toList() ?? this.contains,
       orientation: orientation ?? this.orientation,
       layout: layout ?? this.layout,
       overflow: overflow ?? this.overflow,
