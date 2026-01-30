@@ -11,6 +11,7 @@ export 'localized_string.dart';
 export 'locator.dart';
 export 'metadata.dart';
 export 'opds/index.dart';
+export 'positions-list.dart';
 export 'presentation/index.dart';
 export 'presentation/presentation.dart';
 export 'properties.dart';

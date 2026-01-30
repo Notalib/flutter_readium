@@ -10,9 +10,12 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
+export 'encryption/index.dart';
+export 'opds/opds_properties_extension.dart';
+
 /// Set of properties associated with a [Link].
 ///
-/// See https://readium.org/webpub-manifest/schema/properties.schema.json
+/// See https://drafts.opds.io/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
 class Properties extends AdditionalProperties with EquatableMixin implements JSONable {
   const Properties({
