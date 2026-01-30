@@ -42,12 +42,17 @@ class DomRange with EquatableMixin implements JSONable {
   List<Object?> get props => [start, end];
 
   static DomRange? fromJson(Map<String, dynamic>? json) {
-    final start = Point.fromJson(json?.optJSONObject('start'));
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final start = Point.fromJson(jsonObject.optJsonObject('start', remove: true));
     if (start == null) {
       return null;
     }
 
-    return DomRange(start: start, end: Point.fromJson(json?.optJSONObject('end')));
+    return DomRange(start: start, end: Point.fromJson(jsonObject.optJsonObject('end', remove: true)));
   }
 }
 
@@ -92,8 +97,13 @@ class Point with EquatableMixin implements JSONable {
   List<Object?> get props => [cssSelector, textNodeIndex, charOffset];
 
   static Point? fromJson(Map<String, dynamic>? json) {
-    final cssSelector = json?.optNullableString('cssSelector');
-    final textNodeIndex = json?.optPositiveInt('textNodeIndex');
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
+    final textNodeIndex = jsonObject.optPositiveInt('textNodeIndex', remove: true);
     if (cssSelector == null || textNodeIndex == null) {
       return null;
     }
@@ -102,12 +112,12 @@ class Point with EquatableMixin implements JSONable {
       cssSelector: cssSelector,
       textNodeIndex: textNodeIndex,
       charOffset:
-          json.optPositiveInt('charOffset')
+          jsonObject.optPositiveInt('charOffset', remove: true)
           // The model was using `offset` before, so we still parse it to ensure
           // backward-compatibility for reading apps having persisted legacy Locator
           // models.
           ??
-          json.optPositiveInt('offset'),
+          jsonObject.optPositiveInt('offset', remove: true),
     );
   }
 }

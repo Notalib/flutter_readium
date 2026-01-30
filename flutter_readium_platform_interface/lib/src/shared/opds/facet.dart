@@ -33,17 +33,23 @@ class Facet with EquatableMixin implements JSONable {
     return json;
   }
 
-  static Facet? fromJson(Map<String, dynamic> json) {
-    final metadata = OpdsMetadata.fromJson(json['metadata'] as Map<String, dynamic>?);
+  static Facet? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJSONArray(json['links'] as List<dynamic>?);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
     return Facet(metadata: metadata, links: links);
   }
 
-  static List<Facet> fromJSONArray(List<dynamic>? jsonArray) {
+  static List<Facet> fromJsonArray(List<dynamic>? jsonArray) {
     if (jsonArray == null) {
       return [];
     }

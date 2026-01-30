@@ -33,17 +33,22 @@ class Acquisition with EquatableMixin implements JSONable {
   /// Creates an [Acquisition] from its JSON representation.
   /// If the acquisition can't be parsed, a warning will be logged with [warnings].
   static Acquisition? fromJson(Map<String, dynamic>? json) {
-    final type = json?.optNullableString('type');
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final type = jsonObject.optNullableString('type', remove: true);
     if (type == null) {
       return null;
     }
 
-    return Acquisition(type: type, children: fromJSONArray(json.optJSONArray('child')));
+    return Acquisition(type: type, children: fromJsonArray(jsonObject.optJsonArray('child', remove: true)));
   }
 
   /// Creates a list of [Acquisition] from its JSON representation.
   /// If an acquisition can't be parsed, a warning will be logged with [warnings].
-  static List<Acquisition> fromJSONArray(List<dynamic>? json) =>
+  static List<Acquisition> fromJsonArray(List<dynamic>? json) =>
       json?.parseObjects((it) => Acquisition.fromJson(it as Map<String, dynamic>?)) ?? [];
 }
 

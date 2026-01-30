@@ -105,7 +105,7 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
   /// The [links]' href and their children's will be normalized recursively using the
   /// provided [normalizeHref] closure.
   /// If a contributor can't be parsed, a warning will be logged with [warnings].
-  static List<Collection> fromJSONArray(
+  static List<Collection> fromJsonArray(
     dynamic json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) => Contributor.fromJsonArray(

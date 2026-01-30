@@ -49,13 +49,13 @@ class PublicationCollection with EquatableMixin implements JSONable {
 
     // Parses a sub-collection object.
     if (json is Map<String, dynamic>) {
-      links = Link.fromJSONArray(json.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref);
-      metadata = (json.safeRemove<Map<String, dynamic>>('metadata') ?? {});
+      links = Link.fromJsonArray(json.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+      metadata = (json.optNullableMap('metadata', remove: true) ?? {});
       subcollections = collectionsFromJSON(json, normalizeHref: normalizeHref);
     }
     // Parses an array of links.
     else if (json is List) {
-      links = Link.fromJSONArray(json, normalizeHref: normalizeHref);
+      links = Link.fromJsonArray(json, normalizeHref: normalizeHref);
     } else {
       Fimber.i('core collection not valid');
       return null;

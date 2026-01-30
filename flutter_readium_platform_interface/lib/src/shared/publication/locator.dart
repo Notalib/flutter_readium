@@ -79,17 +79,10 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     }
 
     final title = json.safeRemove<String>('title');
-    final locations = Locations.fromJson(json.optJSONObject('locations'));
-    final text = LocatorText.fromJson(json.optJSONObject('text'));
+    final locations = Locations.fromJson(json.optJsonObject('locations'));
+    final text = LocatorText.fromJson(json.optJsonObject('text'));
 
-    return Locator(
-      href: href,
-      type: type,
-      title: title,
-      locations: locations,
-      text: text,
-      additionalProperties: json,
-    );
+    return Locator(href: href, type: type, title: title, locations: locations, text: text, additionalProperties: json);
   }
 
   String get json => JsonCodec().encode(toJson());
@@ -198,30 +191,33 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
   });
 
   factory Locations.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return Locations();
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
     final fragments =
-        json
-            ?.optStringsFromArrayOrSingle('fragments', remove: true)
-            .takeIf((it) => it.isNotEmpty) ??
-        json?.optStringsFromArrayOrSingle('fragment', remove: true) ??
-        [];
+        jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
+        jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
-    final progression = json
-        ?.optNullableDouble('progression', remove: true)
+    final progression = jsonObject
+        .optNullableDouble('progression', remove: true)
+        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
+    final position = jsonObject.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
+
+    final totalProgression = jsonObject
+        .optPositiveDouble('totalProgression', remove: true)
         ?.takeIf((it) => 0.0 <= it && it <= 1.0);
 
-    final position = json?.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
-
-    final totalProgression = json
-        ?.optNullableDouble('totalProgression', remove: true)
-        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
+    final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
 
     return Locations(
       fragments: fragments,
       progression: progression,
       position: position,
       totalProgression: totalProgression,
-      additionalProperties: json ?? {},
-      cssSelector: json?.optNullableString('cssSelector', remove: true),
+      additionalProperties: jsonObject,
+      cssSelector: cssSelector,
     );
   }
   final int? position;
@@ -269,14 +265,7 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putOpt('cssSelector', cssSelector);
 
   @override
-  List<Object?> get props => [
-    position,
-    progression,
-    totalProgression,
-    fragments,
-    additionalProperties,
-    cssSelector,
-  ];
+  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
 
   @override
   String toString() =>
@@ -295,11 +284,18 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 /// @param highlight The text at the locator.
 /// @param after The text after the locator.
 class LocatorText with EquatableMixin implements JSONable {
-  factory LocatorText.fromJson(Map<String, dynamic>? json) => LocatorText(
-    before: json?.optNullableString('before'),
-    highlight: json?.optNullableString('highlight'),
-    after: json?.optNullableString('after'),
-  );
+  factory LocatorText.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const LocatorText();
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    return LocatorText(
+      before: jsonObject.optNullableString('before', remove: true),
+      highlight: jsonObject.optNullableString('highlight', remove: true),
+      after: jsonObject.optNullableString('after', remove: true),
+    );
+  }
 
   const LocatorText({this.before, this.highlight, this.after});
   final String? before;
@@ -343,8 +339,7 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange =>
-      (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
 class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>?> {

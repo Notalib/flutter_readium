@@ -98,14 +98,20 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   /// Creates a [Properties] from its RWPM JSON representation.
   static Properties fromJson(Map<String, dynamic>? json) {
-    final page = PresentationPage.from(json?.safeRemove('page'));
-    final contains = json?.optStringsFromArrayOrSingle('contains', remove: true).toSet();
-    final orientation = PresentationOrientation.from(json?.safeRemove('orientation'));
-    final layout = EpubLayout.from(json?.safeRemove('layout'));
-    final overflow = PresentationOverflow.from(json?.safeRemove('overflow'));
-    final spread = PresentationSpread.from(json?.safeRemove('spread'));
+    if (json == null) {
+      return Properties();
+    }
 
-    final encryptionMap = json?.safeRemove<Map<String, dynamic>>('encrypted');
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final page = PresentationPage.from(jsonObject.optNullableString('page', remove: true));
+    final contains = jsonObject.optStringsFromArrayOrSingle('contains', remove: true).toSet();
+    final orientation = PresentationOrientation.from(jsonObject.optNullableString('orientation', remove: true));
+    final layout = EpubLayout.from(jsonObject.optNullableString('layout', remove: true));
+    final overflow = PresentationOverflow.from(jsonObject.optNullableString('overflow', remove: true));
+    final spread = PresentationSpread.from(jsonObject.optNullableString('spread', remove: true));
+
+    final encryptionMap = jsonObject.optNullableMap('encrypted', remove: true);
     final encryption = Encryption.fromJson(encryptionMap);
 
     return Properties(
@@ -116,7 +122,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
       overflow: overflow,
       spread: spread,
       encryption: encryption,
-      additionalProperties: json ?? {},
+      additionalProperties: jsonObject,
     );
   }
 }

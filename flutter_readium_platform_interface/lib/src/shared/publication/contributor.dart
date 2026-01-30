@@ -95,7 +95,7 @@ class Contributor extends Collection {
     final localizedSortAs = LocalizedString.fromJson(jsonObject.remove('sortAs'));
     final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toSet();
     final position = jsonObject.optNullableDouble('position', remove: true);
-    final links = Link.fromJSONArray(jsonObject.optJSONArray('links'), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links'), normalizeHref: normalizeHref);
 
     return Contributor(
       localizedName: localizedName,

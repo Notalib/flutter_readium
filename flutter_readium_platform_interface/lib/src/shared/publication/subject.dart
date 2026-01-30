@@ -54,23 +54,33 @@ class Subject with EquatableMixin implements JSONable {
       return null;
     }
 
-    LocalizedString? localizedName;
+    var jsonObject = <String, dynamic>{};
+    dynamic jsonName;
     if (json is String) {
-      localizedName = LocalizedString.fromJson(json);
+      jsonName = json;
     } else if (json is Map<String, dynamic>) {
-      localizedName = LocalizedString.fromJson(json.opt('name'));
+      jsonObject = Map<String, dynamic>.of(json);
+
+      jsonName = jsonObject.remove('name');
     }
+
+    if (jsonName == null || jsonName.isEmpty) {
+      Fimber.i('[name] is required');
+      return null;
+    }
+
+    final localizedName = LocalizedString.fromJson(jsonName);
     if (localizedName == null) {
       Fimber.i('[name] is required');
       return null;
     }
-    final jsonObject = (json is Map<String, dynamic>) ? json : <String, dynamic>{};
+
     return Subject(
       localizedName: localizedName,
-      localizedSortAs: LocalizedString.fromJson(jsonObject.remove('sortAs')),
-      scheme: jsonObject.optNullableString('scheme'),
-      code: jsonObject.optNullableString('code'),
-      links: Link.fromJSONArray(jsonObject.optJSONArray('links'), normalizeHref: normalizeHref),
+      localizedSortAs: LocalizedString.fromJson(jsonObject.opt('sortAs', remove: true)),
+      scheme: jsonObject.optNullableString('scheme', remove: true),
+      code: jsonObject.optNullableString('code', remove: true),
+      links: Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref),
     );
   }
 
@@ -79,7 +89,7 @@ class Subject with EquatableMixin implements JSONable {
   /// The [links]' href and their children's will be normalized recursively using the
   /// provided [normalizeHref] closure.
   /// If a subject can't be parsed, a warning will be logged with [warnings].
-  static List<Subject> fromJSONArray(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Subject> fromJsonArray(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is String || json is Map<String, dynamic>) {
       return [json].map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).whereNotNull().toList();
     } else if (json is List) {

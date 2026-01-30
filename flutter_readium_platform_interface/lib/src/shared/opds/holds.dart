@@ -27,7 +27,13 @@ class Holds with EquatableMixin implements JSONable {
     if (json == null) {
       return null;
     }
-    return Holds(total: json.optPositiveInt('total'), position: json.optPositiveInt('position'));
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    return Holds(
+      total: jsonObject.optPositiveInt('total', remove: true),
+      position: jsonObject.optPositiveInt('position', remove: true),
+    );
   }
 }
 
