@@ -8,18 +8,18 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   private let TAG = "FlutterTTSNavigator"
   private var _publication: Publication
   private var _initialLocator: Locator?
-  
+
   internal var synthesizer: PublicationSpeechSynthesizer?
   internal var engine: AVTTSEngine?
   internal var preferences: TTSPreferences
   internal var nowPlayingUpdater: NowPlayingInfoUpdater
-  
+
   /// TTS related variables
   @Published internal var playingUtterance: Locator?
   internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
-  
+
   public var publication: Publication {
     get {
       return self._publication
@@ -30,9 +30,9 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       return self._initialLocator
     }
   }
-  
+
   public var listener: (any TimebasedListener)?
-  
+
   public init(
     publication: Publication,
     preferences: TTSPreferences = TTSPreferences.init(),
@@ -58,11 +58,11 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     )!
     engine?.delegate = self
     self.synthesizer?.delegate = self
-    
+
     // TODO: Why is this public, if always called from itself?
     self.setupNavigatorListeners()
   }
-  
+
   public func setupNavigatorListeners() -> Void {
     $playingUtterance
       .removeDuplicates()
@@ -73,22 +73,22 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
         debugPrint(TAG, "tts send audio-locator")
         let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
         let link = self.publication.readingOrder.firstWithHREF(locator.href)
-        
+
         self.nowPlayingUpdater.updateChapterNo(chapterNo)
         self.nowPlayingUpdater.updateCommandCenterControls()
         listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
       }
       .store(in: &subscriptions)
-    
+
     playingWordRangeSubject
       .removeDuplicates()
-      // Improve performances by throttling the reader sync
+    // Improve performances by throttling the reader sync
       .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
       .sink { [weak self] locator in
         guard let self = self else {
           return
         }
-        
+
         debugPrint(TAG, "sync reader to locator")
         let link = self.publication.readingOrder.firstWithHREF(locator.href)
         listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
@@ -123,7 +123,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   public func resume() async -> Void {
     self.synthesizer?.resume()
   }
-  
+
   public func togglePlayPause() async -> Void {
     guard let synth = self.synthesizer else {
       return
@@ -134,12 +134,12 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       await self.play(fromLocator: nil)
     }
   }
-  
+
   public func seekForward() async -> Bool {
     self.synthesizer?.next()
     return true
   }
-  
+
   public func seekBackward() async -> Bool {
     self.synthesizer?.previous()
     return true
@@ -149,14 +149,19 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.synthesizer?.start(from: toLocator)
     return true
   }
-  
+
+  public func seekRelative(byOffsetSeconds: Double) async -> Bool {
+    // Cannot be implemented for TTS
+    return false
+  }
+
   public func seek(toOffset: Double) async -> Bool {
     // Cannot be implemented for TTS
     return false
   }
-  
+
   // MARK: TTS Specific APIs
-  
+
   func ttsSetPreferences(prefs: TTSPreferences) {
     preferences.rate = prefs.rate
     preferences.pitch = prefs.pitch
@@ -165,28 +170,28 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.synthesizer?.config.voiceIdentifier = preferences.voiceIdentifier
     self.synthesizer?.config.defaultLanguage = preferences.overrideLanguage
   }
-  
+
   func ttsGetAvailableVoices() -> [TTSVoice] {
     return self.synthesizer?.availableVoices ?? []
   }
-  
+
   func ttsSetVoice(voiceIdentifier: String) throws {
     debugPrint(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
-    
+
     /// Check that voice with given identifier exists
     guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
       throw ReadiumError.voiceNotFound
     }
-    
+
     /// Changes will be applied for the next utterance.
     synthesizer?.config.voiceIdentifier = voiceIdentifier
   }
-  
+
   // MARK: PublicationSpeechSynthesizerDelegate
-  
+
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
     debugPrint(TAG, "publicationSpeechSynthesizerStateDidChange")
-    
+
     switch state {
     case let .playing(utt, wordRange):
       debugPrint(TAG, "tts playing")
@@ -206,23 +211,23 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
-    
+
     let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
     self.listener?.timebasedNavigator(self, didChangeState: state)
   }
-  
+
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     debugPrint(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
-    
+
     self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
-    
+
     //TODO: How can both Reader and Plugin submit on this channel?
     //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)
     //self.errorStreamHandler?.sendEvent(error)
   }
-  
+
   // MARK: AVTTSEngineDelegate
-  
+
   public func avTTSEngine(_ engine: ReadiumNavigator.AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
     // This is the place to hook into, in order to change rate & pitch for TTS.
     utterance.rate = preferences.rate ?? AVSpeechUtteranceDefaultSpeechRate

@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/readium/swift-toolkit.git",
       "state" : {
-        "revision" : "8219531e3d83a8d7b77e1753e4e06e9101eb2aee",
-        "version" : "3.1.0"
+        "revision" : "8bd799d00a835248a6f5987f70c23c4c30280e48",
+        "version" : "3.5.0"
       }
     },
     {
@@ -86,8 +86,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/readium/ZIPFoundation.git",
       "state" : {
-        "revision" : "4484b17f0d3c872aa200f0ecc9ff004e3991c43e",
-        "version" : "2.0.0"
+        "revision" : "adb49c8bfe060cc187370b12fa081012a6440b86",
+        "version" : "3.0.1"
       }
     }
   ],

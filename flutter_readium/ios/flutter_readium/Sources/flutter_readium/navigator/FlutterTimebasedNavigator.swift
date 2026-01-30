@@ -37,4 +37,6 @@ public protocol FlutterTimebasedNavigator
   func seek(toLocator: Locator) async -> Bool
   @MainActor
   func seek(toOffset: Double) async -> Bool
+  @MainActor
+  func seekRelative(byOffsetSeconds: Double) async -> Bool
 }

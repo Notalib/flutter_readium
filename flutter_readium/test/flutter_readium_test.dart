@@ -151,10 +151,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  // TODO: implement onAudioLocatorChanged
-  Stream<Locator> get onAudioLocatorChanged => throw UnimplementedError();
-
-  @override
   // TODO: implement onTimebasedPlayerStateChanged
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => throw UnimplementedError();
 

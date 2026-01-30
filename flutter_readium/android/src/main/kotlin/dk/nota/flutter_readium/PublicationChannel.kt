@@ -16,6 +16,7 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
+import kotlin.time.Duration
 
 private const val TAG = "PublicationChannel"
 
@@ -224,6 +225,12 @@ internal class PublicationMethodCallHandler() :
 
                 ReadiumReader.audioUpdatePreferences(preferences)
 
+                return Try.success(null)
+            }
+
+            "audioSeekBy" -> {
+                val seekOffsetSeconds = arguments as Int
+                ReadiumReader.audioSeek(seekOffsetSeconds.toDouble())
                 return Try.success(null)
             }
 

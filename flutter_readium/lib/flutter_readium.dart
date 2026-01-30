@@ -51,10 +51,6 @@ class FlutterReadium {
     return _platform.onTextLocatorChanged;
   }
 
-  Stream<Locator> get onAudioLocatorChanged {
-    return _platform.onAudioLocatorChanged;
-  }
-
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     return _platform.onTimebasedPlayerStateChanged;
   }
@@ -103,6 +99,7 @@ class FlutterReadium {
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
   Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
+  Future<void> audioSeekBy(Duration offset) => _platform.audioSeekBy(offset);
 
   Future<bool> goByLink(final Link link, final Publication pub) async {
     R2Log.d(() => 'Navigating to link: $link');

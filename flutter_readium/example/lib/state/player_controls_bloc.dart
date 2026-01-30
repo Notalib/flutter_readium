@@ -187,8 +187,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     }
   }
 
-  Stream<Locator> get audioLocatorStream => instance.onAudioLocatorChanged;
-
   Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
 
   final FlutterReadium instance = FlutterReadium();

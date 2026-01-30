@@ -17,9 +17,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   EventChannel textLocatorChannel = const EventChannel('dk.nota.flutter_readium/text-locator');
 
   @visibleForTesting
-  EventChannel audioLocatorChannel = const EventChannel('dk.nota.flutter_readium/audio-locator');
-
-  @visibleForTesting
   EventChannel timebasedStateChannel = const EventChannel('dk.nota.flutter_readium/timebased-state');
 
   @visibleForTesting
@@ -30,8 +27,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
 
   Stream<Locator>? _onTextLocatorChanged;
-
-  Stream<Locator>? _onAudioLocatorChanged;
 
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
 
@@ -47,16 +42,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       return newLocator!;
     });
     return _onTextLocatorChanged!;
-  }
-
-  /// Fires whenever the Audio Locator changes. Can be either TTS or pre-recorded.
-  @override
-  Stream<Locator> get onAudioLocatorChanged {
-    _onAudioLocatorChanged ??= audioLocatorChannel.receiveBroadcastStream().map((dynamic event) {
-      final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
-      return newLocator!;
-    });
-    return _onAudioLocatorChanged!;
   }
 
   /// Fires whenever the TimebasedNavigator changes state
@@ -197,4 +182,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Future<void> audioSetPreferences(AudioPreferences prefs) =>
       methodChannel.invokeMethod('audioSetPreferences', prefs.toMap());
+
+  @override
+  Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
 }

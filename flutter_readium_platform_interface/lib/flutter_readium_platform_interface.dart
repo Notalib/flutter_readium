@@ -135,6 +135,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Change the audiobook playback preferences such as speed and seek interval.
   Future<void> audioSetPreferences(AudioPreferences prefs) =>
       throw UnimplementedError('audioSetPreferences() has not been implemented');
+
+  /// Seek in audio playback relative to current position by the given offset in seconds. Positive values seek forward, negative values seek backward.
+  /// This is an alternative to next/previous which seeks by a fixed interval.
+  Future<void> audioSeekBy(Duration offset) => throw UnimplementedError('seekInAudio() has not been implemented');
   // AUDIOBOOK API - END
 
   // State stream for reader status changes
@@ -145,11 +149,6 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   // State stream for text/visual position. Usually will be the top of the current page (firstVisibleLocator in Readium).
   Stream<Locator> get onTextLocatorChanged {
     throw UnimplementedError('onTextLocatorChanged stream has not been implemented.');
-  }
-
-  // Stream for audio position. Will be as near as possible to the currently spoken or played audio.
-  Stream<Locator> get onAudioLocatorChanged {
-    throw UnimplementedError('onAudioLocatorChanged stream has not been implemented.');
   }
 
   // State stream for audio position. Will be as near as possible to the currently spoken or played audio.

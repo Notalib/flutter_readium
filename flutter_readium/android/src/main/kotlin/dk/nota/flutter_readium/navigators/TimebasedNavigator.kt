@@ -158,4 +158,9 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
      * Seek to a specific position in the playback.
      */
     abstract suspend fun goToLocator(locator: Locator)
+
+    /**
+     * Seek to a specific offset in seconds from the current position. Can be negative or positive.
+     */
+    abstract suspend fun seekTo(offset: Double)
 }

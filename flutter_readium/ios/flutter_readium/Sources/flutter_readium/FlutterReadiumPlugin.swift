@@ -22,19 +22,18 @@ func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
-  
+
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
-  
+
   /// Timebased player events & state
-  internal var audioLocatorStreamHandler: EventStreamHandler?
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
-  
+
   /// Timebased Navigator. Can be TTS, Audio or MediaOverlay implementations.
   internal var timebasedNavigator: FlutterTimebasedNavigator? = nil
-  
+
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
     "da": "Kapitel",
@@ -47,20 +46,19 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
     let instance = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
-    instance.audioLocatorStreamHandler = EventStreamHandler(withName: "audio-locator", messenger: registrar.messenger())
     instance.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
-    
+
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
     registrar.register(factory, withId: readiumReaderViewType)
-    
+
     self.registrar = registrar
   }
-  
+
   public func log(_ warning: Warning) {
     print(TAG, "Error in Readium: \(warning)")
   }
-  
+
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "setCustomHeaders":
@@ -75,8 +73,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "dispose":
       closePublication()
-      self.audioLocatorStreamHandler?.dispose()
-      self.audioLocatorStreamHandler = nil
       self.timebasedPlayerStateStreamHandler?.dispose()
       self.timebasedPlayerStateStreamHandler = nil
       result(nil)
@@ -86,7 +82,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "openPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
-      
+
       Task.detached(priority: .high) {
         do {
           if (currentPublication != nil) {
@@ -95,7 +91,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           currentPublication = pub
           currentPublicationUrlStr = pubUrlStr
-          
+
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
             result(jsonManifest)
@@ -109,14 +105,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "loadPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
-      
+
       Task.detached(priority: .high) {
         do {
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
-          
+
           let jsonManifest = pub.jsonManifest
           pub.close()
-          
+
           await MainActor.run {
             result(jsonManifest)
           }
@@ -135,7 +131,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let publication = currentPublication,
             let link = try? Link(fromJsonString: linkStr) else {
         return result(FlutterError.init(
-          code: "getLinkContent",
+          code: "InvalidArgument",
           message: "Failed to get link content",
           details: nil))
       }
@@ -158,24 +154,24 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             print("\(TAG).getLinkContent exception: \(err)")
             result(
               FlutterError.init(
-                code: "getLinkContent",
+                code: "InternalError",
                 message: err.localizedDescription,
                 details: "Something went wrong fetching link content."))
           }
         }
       }
-      
+
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
           let args = call.arguments as? Dictionary<String, Any>,
               ttsPrefs = (try? TTSPreferences(fromMap: args ?? [:])) ?? TTSPreferences()
           //try await self.ttsEnable(withPreferences: ttsPrefs)
-          
+
           guard let publication = getCurrentPublication() else {
             throw ReadiumError.notFound("No publication opened")
           }
-          
+
           Task { @MainActor in
             // Start TTS from the reader's current location
             let currentLocation = currentReaderView?.getCurrentLocation()
@@ -189,7 +185,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         } catch {
           Task { @MainActor in
             result(FlutterError.init(
-              code: "TTSEnableFailed",
+              code: "TTSError",
               message: "Failed to enable TTS: \(error.localizedDescription)",
               details: nil))
           }
@@ -208,14 +204,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let args = call.arguments as! [Any?]
       let voiceIdentifier = args[0] as! String
       // TODO: language might be supplied as args[1], ignored on iOS for now.
-      
+
       guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
         return result(FlutterError.init(
           code: "TTSError",
           message: "TTS Navigator not initialized",
           details: nil))
       }
-      
+
       do {
         try ttsNavigator.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
@@ -227,11 +223,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "setDecorationStyle":
       let args = call.arguments as! [Any?]
-      
+
       if let uttDecorationMap = args[0] as? Dictionary<String, String> {
         ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
       }
-      
+
       if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
         ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
@@ -260,14 +256,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       if let locatorJson = args.first as? Dictionary<String, Any> {
         locator = try? Locator(json: locatorJson, warnings: self)
       }
-      
+
       Task.detached(priority: .high) {
         // If no locator provided, try to start from current ReaderView position.
         if (locator == nil) {
           locator = await currentReaderView?.getFirstVisibleLocator()
         }
         await self.timebasedNavigator?.play(fromLocator: locator)
-        
+
         await MainActor.run {
           result(nil)
         }
@@ -312,14 +308,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         else {
           await MainActor.run {
             result(FlutterError.init(
-              code: "GoToLocator",
+              code: "InvalidArgument",
               message: "Failed to parse locator",
               details: nil))
           }
           return
         }
         var navigated = false
-        
+
         // Timebased Naviagor seek
         if (self.timebasedNavigator != nil) {
           navigated = await self.timebasedNavigator?.seek(toLocator: locator) ?? false
@@ -338,7 +334,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let publication = currentPublication,
             let pubUrlStr = currentPublicationUrlStr else {
         return result(FlutterError.init(
-          code: "audioEnable",
+          code: "InvalidArgument",
           message: "No publication open or Invalid parameters to audioEnable: \(call.arguments.debugDescription)",
           details: nil))
       }
@@ -350,7 +346,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let locatorJson = args[1] as? Dictionary<String, Any> {
           locator = try? Locator(json: locatorJson, warnings: self)
         }
-        
+
         if (publication.containsMediaOverlays) {
           do {
             // MediaOverlayNavigator will modify the Publication readingOrder, so we first load a modifiable copy.
@@ -367,16 +363,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         } else {
           if (!publication.conforms(to: Publication.Profile.audiobook)) {
             return result(FlutterError.init(
-              code: "ArgumentError",
+              code: "InvalidArgument",
               message: "Publication does not contain MediaOverlays or conforms to AudioBook profile. Args: \(call.arguments.debugDescription)",
               details: nil))
           }
           self.timebasedNavigator = await FlutterAudioNavigator(publication: publication, preferences: prefs, initialLocator: locator)
         }
-        
+
         self.timebasedNavigator?.listener = self
         await self.timebasedNavigator?.initNavigator()
-        
+
         await MainActor.run {
           result(nil)
         }
@@ -387,41 +383,53 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
               let prefsMap = call.arguments as? Dictionary<String, Any>,
               let prefs = try? FlutterAudioPreferences.init(fromMap: prefsMap) else {
           return result(FlutterError.init(
-            code: "audioSetPreferences",
+            code: "InvalidArgument",
             message: "AudioNavigator not initialized or Invalid parameters to audioSetPreferences: \(call.arguments.debugDescription)",
             details: nil))
         }
         Task { @MainActor in
           audioNavigator.setAudioPreferences(prefs)
+          result(nil)
         }
       }
-      
+    case "audioSeekBy":
+      Task { @MainActor in
+        guard let seekOffset = call.arguments as? Double else {
+          return result(FlutterError.init(
+            code: "InvalidArgument",
+            message: "Invalid parameters to audioSeek: \(call.arguments.debugDescription)",
+            details: nil))
+        }
+        let _ = await self.timebasedNavigator?.seekRelative(byOffsetSeconds: seekOffset)
+        result(nil)
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }
   }
-  
+
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
     print(TAG, "TimebasedNavigator state: \(state)")
     timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
   }
-  
+
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     print(TAG, "TimebasedNavigator error: \(error), description: \(String(describing: description))")
     // TODO: submit on error stream
   }
-  
+
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, readingOrderLink: ReadiumShared.Link?) {
     print(TAG, "TimebasedNavigator reachedLocator: \(locator), readingOrderLink: \(String(describing: readingOrderLink))")
-    
+
     Task { @MainActor [locator] in
       await currentReaderView?.goToLocator(locator: locator, animated: false)
     }
   }
-  
+
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, requestsHighlightAt locator: ReadiumShared.Locator?, withWordLocator wordLocator: ReadiumShared.Locator?) {
     print(TAG, "TimebasedNavigator requestsHighlightAt: \(String(describing: locator)), withWordLocator: \(String(describing: wordLocator))")
-    
+
     // Update Reader text decorations
     var decorations: [Decoration] = []
     if let uttLocator = locator,
@@ -444,16 +452,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
 /// Extension for handling publication interactions
 extension FlutterReadiumPlugin {
-  
+
   @MainActor
   func updateReaderViewTimebasedDecorations(_ decorations: [Decoration]) {
     currentReaderView?.applyDecorations(decorations, forGroup: "timebased-highlight")
   }
-  
+
   func clearNowPlaying() {
     NowPlayingInfo.shared.clear()
   }
-  
+
   private func loadPublication (
     fromUrlStr: String,
   ) async -> Result<Publication, ReadiumError> {
@@ -462,7 +470,7 @@ extension FlutterReadiumPlugin {
       // Assume URLs without a supported prefix are local file paths.
       pubUrlStr = "file://\(pubUrlStr)"
     }
-    
+
     let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
     guard let url = URL(string: encodedUrlStr!) else {
       return .failure(ReadiumError.notFound("Invalid pub URL: \(pubUrlStr)"))
@@ -470,7 +478,7 @@ extension FlutterReadiumPlugin {
     guard let absUrl = url.anyURL.absoluteURL else {
       return .failure(ReadiumError.notFound("Failed to get AbsoluteUrl: \(pubUrlStr)"))
     }
-    
+
     print("Attempting to open publication at: \(absUrl)")
     do {
       let pub: (Publication, Format) = try await self.openPublication(at: absUrl, allowUserInteraction: true, sender: nil)
@@ -482,7 +490,7 @@ extension FlutterReadiumPlugin {
       return .failure(error)
     }
   }
-  
+
   private func openPublication(
     at url: AbsoluteURL,
     allowUserInteraction: Bool,
@@ -490,19 +498,19 @@ extension FlutterReadiumPlugin {
   ) async throws(ReadiumError) -> (Publication, Format) {
     do {
       let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
-      
+
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
         sender: sender
       ).get()
-      
+
       return (publication, asset.format)
     } catch let err {
       throw err.toReadiumError()
     }
   }
-  
+
   private func closePublication() {
     // Clean-up any resources associated with the publication.
     Task { @MainActor in

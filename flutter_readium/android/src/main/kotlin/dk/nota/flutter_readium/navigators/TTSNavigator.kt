@@ -32,6 +32,7 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -210,6 +211,10 @@ class TTSNavigator(
         mainScope.async {
             navigator.go(locator)
         }
+    }
+
+    override suspend fun seekTo(offset: Double) {
+        Log.w(TAG, ":seekTo is not implemented for TTS playback")
     }
 
     /**

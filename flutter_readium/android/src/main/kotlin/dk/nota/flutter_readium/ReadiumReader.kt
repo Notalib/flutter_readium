@@ -9,7 +9,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
-import dk.nota.flutter_readium.events.AudioLocatorEventChannel
 import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
@@ -90,8 +89,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private val jobs = mutableListOf<Job>()
 
     private var appRef: WeakReference<Application>? = null
-
-    private var audioLocatorEventChanel: AudioLocatorEventChannel? = null
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
 
@@ -202,10 +199,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     fun attach(activity: Activity, messenger: BinaryMessenger) {
         unwrapToApplication(activity)?.let { appRef = WeakReference(it) }
 
-        audioLocatorEventChanel?.dispose()
         timedBasedStateEventChannel?.dispose()
-
-        audioLocatorEventChanel = AudioLocatorEventChannel(messenger)
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
 
         // store weak ref only
@@ -351,9 +345,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         readerViewRef?.clear()
         readerViewRef = null
-
-        audioLocatorEventChanel?.dispose()
-        audioLocatorEventChanel = null
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
@@ -598,8 +589,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         currentTimebasedOffset.value = timeOffset?.let { it * 1000 }
         currentTimebasedDuration.value = duration?.let { it * 1000 }
         currentTimebasedLocator.value = locator
-
-        audioLocatorEventChanel?.sendEvent(locator)
     }
 
     override fun onTimebasedLocationChanged(locator: Locator) {
@@ -768,6 +757,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         syncAudiobookNavigator?.goToLocator(locator)
         ttsNavigator?.goToLocator(locator)
         epubGoToLocator(locator, true)
+    }
+
+    suspend fun audioSeek(offsetSeconds: Double) {
+        audiobookNavigator?.seekTo(offsetSeconds)
+        syncAudiobookNavigator?.seekTo(offsetSeconds)
     }
 
     @OptIn(InternalReadiumApi::class)

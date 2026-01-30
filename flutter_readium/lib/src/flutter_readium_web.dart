@@ -11,7 +11,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
-  static final StreamController<Locator> _locatorAudioController = StreamController<Locator>.broadcast();
+  static final StreamController<ReadiumTimebasedState> _timebasedStateController =
+      StreamController<ReadiumTimebasedState>.broadcast();
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
 
@@ -19,8 +20,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     _locatorTextController.add(locator);
   }
 
-  static void addAudioLocatorUpdate(Locator locator) {
-    _locatorAudioController.add(locator);
+  static void addTimeBasedStateUpdate(ReadiumTimebasedState timebasedState) {
+    _timebasedStateController.add(timebasedState);
   }
 
   static void addReaderStatusUpdate(ReadiumReaderStatus status) {
@@ -33,8 +34,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Stream<Locator> get onAudioLocatorChanged {
-    return _locatorAudioController.stream;
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
+    return _timebasedStateController.stream;
   }
 
   @override
