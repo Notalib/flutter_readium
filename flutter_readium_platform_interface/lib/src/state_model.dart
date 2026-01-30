@@ -34,9 +34,18 @@ class ReadiumTimebasedState {
       'progression=${currentLocator?.locations.progression},'
       'totalProgression=${currentLocator?.locations.totalProgression})';
 
+  /// Current time-based player state.
   TimebasedState state;
+
+  /// Playback offset in the current audio file.
   Duration? currentOffset;
+
+  /// Duration buffered of the current file.
   Duration? currentBuffered;
+
+  /// Total duration of the current file.
   Duration? currentDuration;
+
+  /// Current Locator in the publication being played.
   Locator? currentLocator;
 }
