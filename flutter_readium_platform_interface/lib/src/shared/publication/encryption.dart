@@ -45,19 +45,23 @@ class Encryption with EquatableMixin implements JSONable {
     if (json == null || json.isEmpty) {
       return null;
     }
-    final String? algorithm = json['algorithm'];
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final String? algorithm = jsonObject.optNullableString('algorithm', remove: true);
     if (algorithm == null || algorithm.isEmpty) {
       return null;
     }
 
     return Encryption(
       algorithm: algorithm,
-      compression: json['compression'],
+      compression: jsonObject.optNullableString('compression', remove: true),
       // Fallback on [original-length] for legacy reasons
       // See https://github.com/readium/webpub-manifest/pull/43
-      originalLength: (json['originalLength'] ?? json['original-length']) as int?,
-      profile: json['profile'],
-      scheme: json['scheme'],
+      originalLength:
+          (jsonObject.optNullableInt('originalLength', remove: true) ??
+          jsonObject.optNullableInt('original-length', remove: true)),
+      profile: jsonObject.optNullableString('profile', remove: true),
+      scheme: jsonObject.optNullableString('scheme', remove: true),
     );
   }
 }

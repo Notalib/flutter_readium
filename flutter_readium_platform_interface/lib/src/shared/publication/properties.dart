@@ -10,9 +10,12 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
+export 'encryption/index.dart';
+export 'opds/opds_properties_extension.dart';
+
 /// Set of properties associated with a [Link].
 ///
-/// See https://readium.org/webpub-manifest/schema/properties.schema.json
+/// See https://drafts.opds.io/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
 class Properties extends AdditionalProperties with EquatableMixin implements JSONable {
   const Properties({
@@ -32,7 +35,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   /// Identifies content contained in the linked resource, that cannot be
   /// strictly identified using a media type.
-  final Set<String>? contains;
+  final List<String>? contains;
 
   /// (Nullable) Suggested orientation for the device when displaying the linked
   /// resource.
@@ -69,7 +72,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   Properties copyWith({
     PresentationPage? page,
-    Set<String>? contains,
+    List<String>? contains,
     PresentationOrientation? orientation,
     EpubLayout? layout,
     PresentationOverflow? overflow,
@@ -83,7 +86,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
     return Properties(
       page: page ?? this.page,
-      contains: contains ?? this.contains,
+      contains: contains?.toSet().toList() ?? this.contains,
       orientation: orientation ?? this.orientation,
       layout: layout ?? this.layout,
       overflow: overflow ?? this.overflow,
@@ -98,14 +101,20 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
   /// Creates a [Properties] from its RWPM JSON representation.
   static Properties fromJson(Map<String, dynamic>? json) {
-    final page = PresentationPage.from(json?.safeRemove('page'));
-    final contains = json?.optStringsFromArrayOrSingle('contains', remove: true).toSet();
-    final orientation = PresentationOrientation.from(json?.safeRemove('orientation'));
-    final layout = EpubLayout.from(json?.safeRemove('layout'));
-    final overflow = PresentationOverflow.from(json?.safeRemove('overflow'));
-    final spread = PresentationSpread.from(json?.safeRemove('spread'));
+    if (json == null) {
+      return Properties();
+    }
 
-    final encryptionMap = json?.safeRemove<Map<String, dynamic>>('encrypted');
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final page = PresentationPage.from(jsonObject.optNullableString('page', remove: true));
+    final contains = jsonObject.optStringsFromArrayOrSingle('contains', remove: true).toSet();
+    final orientation = PresentationOrientation.from(jsonObject.optNullableString('orientation', remove: true));
+    final layout = EpubLayout.from(jsonObject.optNullableString('layout', remove: true));
+    final overflow = PresentationOverflow.from(jsonObject.optNullableString('overflow', remove: true));
+    final spread = PresentationSpread.from(jsonObject.optNullableString('spread', remove: true));
+
+    final encryptionMap = jsonObject.optNullableMap('encrypted', remove: true);
     final encryption = Encryption.fromJson(encryptionMap);
 
     return Properties(
@@ -116,7 +125,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
       overflow: overflow,
       spread: spread,
       encryption: encryption,
-      additionalProperties: json ?? {},
+      additionalProperties: jsonObject,
     );
   }
 }

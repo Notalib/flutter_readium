@@ -34,9 +34,11 @@ abstract class R2Log {
     }
   }
 
-  static void i(final String? message, {final int? wrapWidth}) => debugPrint('INFO: $message', wrapWidth: wrapWidth);
+  static void i(final String? message, {final int? wrapWidth}) =>
+      debugPrint('INFO: $message', wrapWidth: wrapWidth);
 
-  static void w(final String? message, {final int? wrapWidth}) => debugPrint('WARNING: $message', wrapWidth: wrapWidth);
+  static void w(final String? message, {final int? wrapWidth}) =>
+      debugPrint('WARNING: $message', wrapWidth: wrapWidth);
 
   static void e(final Object error, {final int? wrapWidth, final Object? data}) {
     late ReadiumError err;
@@ -122,7 +124,10 @@ String _logDiff({
 String _log(final dynamic message, {final int? stackTraceBeginIndex}) {
   final messageStr = _stringifyMessage(message);
 
-  final stackTraceStr = _formatStackTrace(StackTrace.current, stackTraceBeginIndex: stackTraceBeginIndex);
+  final stackTraceStr = _formatStackTrace(
+    StackTrace.current,
+    stackTraceBeginIndex: stackTraceBeginIndex,
+  );
 
   return _formatAndPrint(messageStr, stackTraceStr);
 }
@@ -163,7 +168,8 @@ bool _discardWebStacktraceLine(final String line) {
   if (match == null) {
     return false;
   }
-  return match.group(1)!.startsWith('packages/logger') || match.group(1)!.startsWith('dart-sdk/lib');
+  return match.group(1)!.startsWith('packages/logger') ||
+      match.group(1)!.startsWith('dart-sdk/lib');
 }
 
 bool _discardBrowserStacktraceLine(final String line) {

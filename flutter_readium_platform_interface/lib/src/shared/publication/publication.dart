@@ -110,54 +110,58 @@ class Publication with EquatableMixin implements JSONable {
     if (json == null) {
       return null;
     }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
     String baseUrl;
     if (packaged) {
       baseUrl = '/';
     } else {
-      final href = Link.fromJSONArray(json.optJSONArray('links')).firstWithRel('self')?.href;
+      final href = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true)).firstWithRel('self')?.href;
       baseUrl = href?.let((it) => Uri.tryParse(it)?.removeLastComponent().toString()) ?? '/';
     }
 
-    final context = json.optStringsFromArrayOrSingle('@context', remove: true);
+    final context = jsonObject.optStringsFromArrayOrSingle('@context', remove: true);
     final metadata = Metadata.fromJson(
-      json.safeRemove<Map<String, dynamic>>('metadata'),
+      jsonObject.optNullableMap('metadata', remove: true),
       normalizeHref: normalizeHref(baseUrl),
     );
     if (metadata == null) {
-      Fimber.i('[metadata] is required $json');
+      Fimber.i('[metadata] is required $jsonObject');
       return null;
     }
 
-    final links = Link.fromJSONArray(json.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref(baseUrl))
-        .map(
-          (it) => (!packaged || !it.rels.contains('self'))
-              ? it
-              : it.copyWith(
-                  rels: it.rels
-                    ..remove('self')
-                    ..add('alternate'),
-                ),
-        )
-        .toList();
+    final links =
+        Link.fromJsonArray(jsonObject.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref(baseUrl))
+            .map(
+              (it) => (!packaged || !it.rels.contains('self'))
+                  ? it
+                  : it.copyWith(
+                      rels: it.rels
+                        ..remove('self')
+                        ..add('alternate'),
+                    ),
+            )
+            .toList();
     // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
-    final readingOrderJSON = json.safeRemove<List<dynamic>>('readingOrder');
-    final readingOrder = Link.fromJSONArray(
+    final readingOrderJSON = jsonObject.safeRemove<List<dynamic>>('readingOrder');
+    final readingOrder = Link.fromJsonArray(
       readingOrderJSON,
       normalizeHref: normalizeHref(baseUrl),
     ).where((it) => it.type != null).toList();
 
-    final resources = Link.fromJSONArray(
-      json.safeRemove<List<dynamic>>('resources'),
+    final resources = Link.fromJsonArray(
+      jsonObject.safeRemove<List<dynamic>>('resources'),
       normalizeHref: normalizeHref(baseUrl),
     ).where((it) => it.type != null).toList();
 
-    final tableOfContents = Link.fromJSONArray(
-      json.safeRemove<List<dynamic>>('toc'),
+    final tableOfContents = Link.fromJsonArray(
+      jsonObject.safeRemove<List<dynamic>>('toc'),
       normalizeHref: normalizeHref(baseUrl),
     );
 
     // Parses subcollections from the remaining JSON properties.
-    final subcollections = PublicationCollection.collectionsFromJSON(json, normalizeHref: normalizeHref(baseUrl));
+    final subcollections = PublicationCollection.collectionsFromJSON(jsonObject, normalizeHref: normalizeHref(baseUrl));
 
     return Publication(
       context: context,

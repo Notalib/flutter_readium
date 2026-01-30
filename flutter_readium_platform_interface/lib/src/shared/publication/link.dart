@@ -35,7 +35,7 @@ class Link with EquatableMixin implements JSONable {
     this.templated = false,
     this.type,
     this.title,
-    this.rels = const {},
+    this.rels = const [],
     this.properties = const Properties(),
     this.height,
     this.width,
@@ -51,7 +51,12 @@ class Link with EquatableMixin implements JSONable {
   /// [normalizeHref] closure.
   /// If the link can't be parsed, a warning will be logged with [warnings].
   static Link? fromJson(Map<String, dynamic>? json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    final href = json?.optNullableString('href');
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    final href = jsonObject.optNullableString('href', remove: true);
     if (href == null) {
       Fimber.i('[href] is required: $json');
       return null;
@@ -59,18 +64,18 @@ class Link with EquatableMixin implements JSONable {
 
     return Link(
       href: normalizeHref(href),
-      type: json.optNullableString('type'),
-      templated: json.optBoolean('templated', fallback: false),
-      title: json.optNullableString('title'),
-      rels: json.optStringsFromArrayOrSingle('rel').toSet(),
-      properties: Properties.fromJson(json.optJSONObject('properties')),
-      height: json.optPositiveInt('height'),
-      width: json.optPositiveInt('width'),
-      bitrate: json.optPositiveDouble('bitrate'),
-      duration: json.optPositiveDouble('duration'),
-      languages: json.optStringsFromArrayOrSingle('language'),
-      alternates: fromJSONArray(json.optJSONArray('alternate'), normalizeHref: normalizeHref),
-      children: fromJSONArray(json.optJSONArray('children'), normalizeHref: normalizeHref),
+      type: jsonObject.optNullableString('type', remove: true),
+      templated: jsonObject.optBoolean('templated', fallback: false, remove: true),
+      title: jsonObject.optNullableString('title', remove: true),
+      rels: jsonObject.optStringsFromArrayOrSingle('rel', remove: true).toSet().toList(),
+      properties: Properties.fromJson(jsonObject.optJsonObject('properties', remove: true)),
+      height: jsonObject.optPositiveInt('height', remove: true),
+      width: jsonObject.optPositiveInt('width', remove: true),
+      bitrate: jsonObject.optPositiveDouble('bitrate', remove: true),
+      duration: jsonObject.optPositiveDouble('duration', remove: true),
+      languages: jsonObject.optStringsFromArrayOrSingle('language', remove: true),
+      alternates: fromJsonArray(jsonObject.optJsonArray('alternate', remove: true), normalizeHref: normalizeHref),
+      children: fromJsonArray(jsonObject.optJsonArray('children', remove: true), normalizeHref: normalizeHref),
     );
   }
 
@@ -78,7 +83,7 @@ class Link with EquatableMixin implements JSONable {
   /// It's [href] and its children's recursively will be normalized using the provided
   /// [normalizeHref] closure.
   /// If a link can't be parsed, a warning will be logged with [warnings].
-  static List<Link> fromJSONArray(
+  static List<Link> fromJsonArray(
     List<dynamic>? json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) => (json ?? []).parseObjects((it) => Link.fromJson(it as Map<String, dynamic>?, normalizeHref: normalizeHref));
@@ -99,7 +104,7 @@ class Link with EquatableMixin implements JSONable {
   final String? title;
 
   /// Relations between the linked resource and its containing collection.
-  final Set<String> rels;
+  final List<String> rels;
 
   /// Properties associated to the linked resource.
   final Properties properties;
@@ -138,7 +143,7 @@ class Link with EquatableMixin implements JSONable {
     bool? templated,
     String? type,
     String? title,
-    Set<String>? rels,
+    List<String>? rels,
     Properties? properties,
     int? height,
     int? width,
@@ -153,7 +158,7 @@ class Link with EquatableMixin implements JSONable {
     templated: templated ?? this.templated,
     type: type ?? this.type,
     title: title ?? this.title,
-    rels: rels ?? this.rels,
+    rels: rels?.toSet().toList() ?? this.rels,
     properties: properties ?? this.properties,
     height: height ?? this.height,
     width: width ?? this.width,
@@ -259,7 +264,7 @@ class LinkListJsonConverter extends JsonConverter<List<Link>, List<dynamic>?> {
   const LinkListJsonConverter();
 
   @override
-  List<Link> fromJson(List<dynamic>? json) => Link.fromJSONArray(json);
+  List<Link> fromJson(List<dynamic>? json) => Link.fromJsonArray(json);
 
   @override
   List<dynamic>? toJson(List<Link> links) => links.map((it) => it.toJson()).toList();

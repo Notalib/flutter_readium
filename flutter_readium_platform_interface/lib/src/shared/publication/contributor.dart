@@ -37,7 +37,7 @@ class Contributor extends Collection {
     LocalizedString? localizedName,
     String? identifier,
     LocalizedString? localizedSortAs,
-    Set<String>? roles,
+    List<String>? roles,
     double? position,
     List<Link>? links,
     Map<String, dynamic>? additionalProperties,
@@ -93,9 +93,9 @@ class Contributor extends Collection {
 
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final localizedSortAs = LocalizedString.fromJson(jsonObject.remove('sortAs'));
-    final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toSet();
+    final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toList();
     final position = jsonObject.optNullableDouble('position', remove: true);
-    final links = Link.fromJSONArray(jsonObject.optJSONArray('links'), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links'), normalizeHref: normalizeHref);
 
     return Contributor(
       localizedName: localizedName,

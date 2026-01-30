@@ -13,16 +13,16 @@ import '../opds.dart';
 import '../publication/link.dart' show Link;
 
 class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
-  const Feed(
-    this.metadata,
-    this.links,
-    this.facets,
-    this.groups,
-    this.publications,
-    this.navigation,
-    this.context,
-    Map<String, dynamic>? additionalProperties,
-  ) : super(additionalProperties: additionalProperties ?? const {});
+  const Feed({
+    this.metadata = const OpdsMetadata(title: ''),
+    this.links = const [],
+    this.facets = const [],
+    this.groups = const [],
+    this.publications = const [],
+    this.navigation = const [],
+    this.context = const [],
+    Map<String, dynamic>? additionalProperties = const {},
+  }) : super(additionalProperties: additionalProperties ?? const {});
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -57,14 +57,14 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
       ..removeWhere((key, value) => value == null);
 
     return Feed(
-      metadata ?? this.metadata,
-      links ?? this.links,
-      facets ?? this.facets,
-      groups ?? this.groups,
-      publications ?? this.publications,
-      navigation ?? this.navigation,
-      context ?? this.context,
-      mergeProperties,
+      metadata: metadata ?? this.metadata,
+      links: links ?? this.links,
+      facets: facets ?? this.facets,
+      groups: groups ?? this.groups,
+      publications: publications ?? this.publications,
+      navigation: navigation ?? this.navigation,
+      context: context ?? this.context,
+      additionalProperties: mergeProperties,
     );
   }
 
@@ -86,19 +86,28 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final metadata = OpdsMetadata.fromJson(jsonObject.safeRemove<Map<String, dynamic>>('metadata'));
+    final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('links'));
-    final facets = Facet.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('facets'));
-    final groups = Group.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('groups'));
-    final publications = OpdsPublication.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('publications'));
-    final navigation = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('navigation'));
-    final context = (jsonObject.safeRemove<List<dynamic>>('@context') ?? []).map((e) => e.toString()).toList();
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final facets = Facet.fromJsonArray(jsonObject.optJsonArray('facets', remove: true));
+    final groups = Group.fromJsonArray(jsonObject.optJsonArray('groups', remove: true));
+    final publications = OpdsPublication.fromJsonArray(jsonObject.optJsonArray('publications', remove: true));
+    final navigation = Link.fromJsonArray(jsonObject.optJsonArray('navigation', remove: true));
+    final context = (jsonObject.optJsonArray('@context', remove: true) ?? []).map((e) => e.toString()).toList();
 
-    return Feed(metadata, links, facets, groups, publications, navigation, context, jsonObject);
+    return Feed(
+      metadata: metadata,
+      links: links,
+      facets: facets,
+      groups: groups,
+      publications: publications,
+      navigation: navigation,
+      context: context,
+      additionalProperties: jsonObject,
+    );
   }
 }
 

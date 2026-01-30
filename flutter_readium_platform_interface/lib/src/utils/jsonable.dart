@@ -77,6 +77,15 @@ extension MapExtension on Map<String, dynamic>? {
     return null;
   }
 
+  DateTime? _toDateTime(dynamic value) {
+    if (value is DateTime) {
+      return value;
+    } else if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
   /// Returns true if this object has no mapping for {@code name} or if it has
   /// a mapping whose value is {@link #NULL}.
   bool isNull(String name) {
@@ -87,12 +96,11 @@ extension MapExtension on Map<String, dynamic>? {
   /// Removes the mapping for [name] if it exists and is of type [T], and returns the value.
   /// Returns null if no such mapping exists.
   T? safeRemove<T>(String name) {
-    if (this != null && this!.containsKey(name)) {
-      final dynamic value = this!.remove(name);
-      if (value is T) {
-        return value;
-      }
+    final dynamic value = opt(name, remove: true);
+    if (value is T) {
+      return value;
     }
+
     return null;
   }
 
@@ -175,11 +183,8 @@ extension MapExtension on Map<String, dynamic>? {
   /// positive integer, or [fallback] otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
   int? optPositiveInt(String name, {int fallback = -1, bool remove = false}) {
-    final i = optInt(name, fallback: fallback);
+    final i = optInt(name, fallback: fallback, remove: remove);
     final value = (i >= 0) ? i : null;
-    if (remove) {
-      this?.remove(name);
-    }
     return value;
   }
 
@@ -187,11 +192,8 @@ extension MapExtension on Map<String, dynamic>? {
   /// positive double, or [fallback] otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
   double? optPositiveDouble(String name, {double fallback = -1.0, bool remove = false}) {
-    final d = optDouble(name, fallback: fallback);
+    final d = optDouble(name, fallback: fallback, remove: remove);
     final value = (d >= 0) ? d : null;
-    if (remove) {
-      this?.remove(name);
-    }
     return value;
   }
 
@@ -204,12 +206,9 @@ extension MapExtension on Map<String, dynamic>? {
     if (isNull(name)) {
       return null;
     }
-    final s = optString(name);
-    final value = (s != '') ? s : null;
-    if (remove) {
-      this?.remove(name);
-    }
-    return value;
+
+    final s = optString(name, remove: remove);
+    return (s != '') ? s : null;
   }
 
   /// Returns the value mapped by {@code name} if it exists, coercing it if
@@ -248,7 +247,7 @@ extension MapExtension on Map<String, dynamic>? {
   /// Returns the value mapped by {@code name} if it exists and is a {@code
   /// Map}, or null otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
-  Map<String, dynamic>? optJSONObject(String name, {bool remove = false}) {
+  Map<String, dynamic>? optJsonObject(String name, {bool remove = false}) {
     final dynamic object = opt(name, remove: remove);
     return object is Map<String, dynamic> ? object : null;
   }
@@ -256,7 +255,7 @@ extension MapExtension on Map<String, dynamic>? {
   /// Returns the value mapped by {@code name} if it exists and is a {@code
   /// JSONArray}, or null otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
-  List<dynamic>? optJSONArray(String name, {bool remove = false}) {
+  List<dynamic>? optJsonArray(String name, {bool remove = false}) {
     final dynamic object = opt(name, remove: remove);
     return object is Iterable ? object.toList() : null;
   }
@@ -289,6 +288,25 @@ extension MapExtension on Map<String, dynamic>? {
       return null;
     }
     return optDouble(name, remove: remove);
+  }
+
+  /// Returns the value mapped by [name] if it exists and is a DateTime or can be coerced to a
+  /// DateTime, or `null` if no such mapping exists.
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  DateTime? optNullableDateTime(String name, {bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
+    return _toDateTime(object);
+  }
+
+  /// Returns the value mapped by [name] if it exists and is a Map<String, dynamic>, or `null` if no
+  /// such mapping exists.
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  Map<String, dynamic>? optNullableMap(String name, {bool remove = false}) {
+    final dynamic object = opt(name, remove: remove);
+    if (object is Map<String, dynamic>) {
+      return object;
+    }
+    return null;
   }
 
   /// Returns a list containing the results of applying the given transform function to each element

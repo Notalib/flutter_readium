@@ -24,18 +24,24 @@ class OpdsPublication implements JSONable {
     return json;
   }
 
-  static OpdsPublication? fromJson(Map<String, dynamic> json) {
-    final metadata = Metadata.fromJson(json['metadata']);
+  static OpdsPublication? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final metadata = Metadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJSONArray(json['links'] as List<dynamic>?);
-    final images = Link.fromJSONArray(json['images'] as List<dynamic>?);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final images = Link.fromJsonArray(jsonObject.optJsonArray('images', remove: true));
     return OpdsPublication(metadata, links, images: images);
   }
 
-  static List<OpdsPublication> fromJSONArray(List<dynamic>? jsonArray) {
+  static List<OpdsPublication> fromJsonArray(List<dynamic>? jsonArray) {
     if (jsonArray == null) {
       return [];
     }

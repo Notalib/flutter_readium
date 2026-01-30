@@ -56,18 +56,18 @@ class Group with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final metadata = OpdsMetadata.fromJson(jsonObject.safeRemove<Map<String, dynamic>>('metadata'));
+    final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('links'));
-    final publications = OpdsPublication.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('publications'));
-    final navigation = Link.fromJSONArray(jsonObject.safeRemove<List<dynamic>>('navigation'));
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final publications = OpdsPublication.fromJsonArray(jsonObject.optJsonArray('publications', remove: true));
+    final navigation = Link.fromJsonArray(jsonObject.optJsonArray('navigation', remove: true));
     return Group(metadata: metadata, links: links, publications: publications, navigation: navigation);
   }
 
-  static List<Group> fromJSONArray(List<dynamic>? jsonArray) {
+  static List<Group> fromJsonArray(List<dynamic>? jsonArray) {
     if (jsonArray == null) {
       return [];
     }

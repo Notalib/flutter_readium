@@ -14,8 +14,16 @@ class ReadiumTtsVoice implements JSONable {
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{'locale': locale, 'name': name};
 
-  static ReadiumTtsVoice fromJson(Map<String, dynamic> json) =>
-      ReadiumTtsVoice(locale: json['locale'] as String, name: json['name'] as String);
+  static ReadiumTtsVoice fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      throw ArgumentError('JSON map is null');
+    }
+    final jsonObject = Map<String, dynamic>.of(json);
+    return ReadiumTtsVoice(
+      locale: jsonObject.optString('locale', remove: true),
+      name: jsonObject.optString('name', remove: true),
+    );
+  }
 }
 
 extension ReadiumTtsVoiceExtension on ReadiumTtsVoice {

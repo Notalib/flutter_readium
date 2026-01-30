@@ -27,7 +27,13 @@ class Copies with EquatableMixin implements JSONable {
     if (json == null) {
       return null;
     }
-    return Copies(total: json.optPositiveInt('total'), available: json.optPositiveInt('available'));
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    return Copies(
+      total: jsonObject.optPositiveInt('total', remove: true),
+      available: jsonObject.optPositiveInt('available', remove: true),
+    );
   }
 }
 

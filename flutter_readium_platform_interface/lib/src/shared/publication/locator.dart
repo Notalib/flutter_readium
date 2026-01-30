@@ -38,13 +38,13 @@ extension DoubleCheck on double? {
 ///  - search results
 ///  - human-readable (and shareable) reference in a publication
 ///
-/// https://github.com/readium/architecture/tree/master/locators
+/// https://github.com/readium/architecture/tree/master/models/locators
 class Locator extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locator({
     required this.href,
     required this.type,
-    required this.text,
-    required this.locations,
+    this.text,
+    this.locations,
     this.title,
     super.additionalProperties,
   }) : super();
@@ -52,8 +52,8 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   final String href;
   final String type;
   final String? title;
-  final Locations locations;
-  final LocatorText text;
+  final Locations? locations;
+  final LocatorText? text;
 
   static Locator? fromJsonString(String jsonString) {
     try {
@@ -79,17 +79,10 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     }
 
     final title = json.safeRemove<String>('title');
-    final locations = Locations.fromJson(json.optJSONObject('locations'));
-    final text = LocatorText.fromJson(json.optJSONObject('text'));
+    final locations = Locations.fromJson(json.optJsonObject('locations'));
+    final text = LocatorText.fromJson(json.optJsonObject('text'));
 
-    return Locator(
-      href: href,
-      type: type,
-      title: title,
-      locations: locations,
-      text: text,
-      additionalProperties: json,
-    );
+    return Locator(href: href, type: type, title: title, locations: locations, text: text, additionalProperties: json);
   }
 
   String get json => JsonCodec().encode(toJson());
@@ -130,12 +123,12 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     double? totalProgression = _emptyDoubleValue,
     Map<String, dynamic>? otherLocations,
   }) => copyWith(
-    locations: locations.copyWith(
-      fragments: fragments ?? locations.fragments,
-      progression: progression.check(locations.progression),
-      position: position.check(locations.position),
-      totalProgression: totalProgression.check(locations.totalProgression),
-      additionalProperties: otherLocations ?? locations.additionalProperties,
+    locations: (locations ?? Locations()).copyWith(
+      fragments: fragments ?? locations?.fragments,
+      progression: progression.check(locations?.progression),
+      position: position.check(locations?.position),
+      totalProgression: totalProgression.check(locations?.totalProgression),
+      additionalProperties: otherLocations ?? locations?.additionalProperties,
     ),
   );
 
@@ -164,7 +157,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     // to it as fx. [readium.scrollToId('t=287.55899999999997')] which will cause the book
     // starts from the beginning.
     // Only set id fragments to less confusing readium.
-    final selector = locations.cssSelector ?? locations.domRange?.start.cssSelector;
+    final selector = locations?.cssSelector ?? locations?.domRange?.start.cssSelector;
     final idFragment = selector?.startsWith('#') == true ? selector!.substring(1) : null;
     // Make sure href only contains path.
     final locationHref = hrefPath.startsWith('/') ? hrefPath.substring(1) : hrefPath;
@@ -173,13 +166,14 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       // Makes sure href only contains /path.
       href: locationHref,
       type: MediaType.html.name,
-      locations: locations.copyWith(fragments: idFragment == null ? null : [idFragment]),
+      locations: locations?.copyWith(fragments: idFragment == null ? null : [idFragment]),
     );
   }
 }
 
 /// One or more alternative expressions of the location.
 /// https://github.com/readium/architecture/tree/master/models/locators#the-location-object
+/// https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md
 ///
 /// @param fragments Contains one or more fragment in the resource referenced by the [Locator].
 /// @param progression Progression in the resource expressed as a percentage (between 0 and 1).
@@ -194,41 +188,53 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     this.totalProgression,
     this.cssSelector,
     this.fragments = const [],
+    this.domRange,
+    this.partialCfi,
     super.additionalProperties,
   });
 
   factory Locations.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return Locations();
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
     final fragments =
-        json
-            ?.optStringsFromArrayOrSingle('fragments', remove: true)
-            .takeIf((it) => it.isNotEmpty) ??
-        json?.optStringsFromArrayOrSingle('fragment', remove: true) ??
-        [];
+        jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
+        jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
-    final progression = json
-        ?.optNullableDouble('progression', remove: true)
+    final progression = jsonObject
+        .optNullableDouble('progression', remove: true)
+        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
+    final position = jsonObject.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
+
+    final totalProgression = jsonObject
+        .optPositiveDouble('totalProgression', remove: true)
         ?.takeIf((it) => 0.0 <= it && it <= 1.0);
 
-    final position = json?.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
-
-    final totalProgression = json
-        ?.optNullableDouble('totalProgression', remove: true)
-        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
+    final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
+    final domRange = DomRange.fromJson(jsonObject.optJsonObject('domRange', remove: true));
+    final partialCfi = jsonObject.optNullableString('partialCfi', remove: true);
 
     return Locations(
       fragments: fragments,
       progression: progression,
       position: position,
       totalProgression: totalProgression,
-      additionalProperties: json ?? {},
-      cssSelector: json?.optNullableString('cssSelector', remove: true),
+      cssSelector: cssSelector,
+      domRange: domRange,
+      partialCfi: partialCfi,
+      additionalProperties: jsonObject,
     );
   }
+
   final int? position;
   final double? progression;
   final double? totalProgression;
   final List<String> fragments;
   final String? cssSelector;
+  final DomRange? domRange;
+  final String? partialCfi;
 
   Locations copyWith({
     int? position = _emptyIntValue,
@@ -237,6 +243,8 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     List<String>? fragments,
     Map<String, dynamic>? additionalProperties,
     String? cssSelector,
+    DomRange? domRange,
+    String? partialCfi,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
       ..addAll(additionalProperties ?? {})
@@ -247,8 +255,10 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
       position: position.check(this.position),
       totalProgression: totalProgression.check(this.totalProgression),
       fragments: fragments ?? this.fragments,
-      additionalProperties: mergeProperties,
       cssSelector: cssSelector ?? this.cssSelector,
+      domRange: domRange ?? this.domRange,
+      partialCfi: partialCfi ?? this.partialCfi,
+      additionalProperties: mergeProperties,
     );
   }
 
@@ -266,17 +276,12 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putOpt('progression', progression)
     ..putOpt('position', position)
     ..putOpt('totalProgression', totalProgression)
-    ..putOpt('cssSelector', cssSelector);
+    ..putOpt('cssSelector', cssSelector)
+    ..putOpt('partialCfi', partialCfi)
+    ..putJSONableIfNotEmpty('domRange', domRange);
 
   @override
-  List<Object?> get props => [
-    position,
-    progression,
-    totalProgression,
-    fragments,
-    additionalProperties,
-    cssSelector,
-  ];
+  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
 
   @override
   String toString() =>
@@ -295,11 +300,18 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 /// @param highlight The text at the locator.
 /// @param after The text after the locator.
 class LocatorText with EquatableMixin implements JSONable {
-  factory LocatorText.fromJson(Map<String, dynamic>? json) => LocatorText(
-    before: json?.optNullableString('before'),
-    highlight: json?.optNullableString('highlight'),
-    after: json?.optNullableString('after'),
-  );
+  factory LocatorText.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return const LocatorText();
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+    return LocatorText(
+      before: jsonObject.optNullableString('before', remove: true),
+      highlight: jsonObject.optNullableString('highlight', remove: true),
+      after: jsonObject.optNullableString('after', remove: true),
+    );
+  }
 
   const LocatorText({this.before, this.highlight, this.after});
   final String? before;
@@ -332,9 +344,6 @@ extension LinkLocator on Link {
 }
 
 extension HTMLLocationsExtension on Locations {
-  /// A CSS Selector.
-  String? get cssSelector => this['cssSelector'] as String?;
-
   /// [partialCfi] is an expression conforming to the "right-hand" side of the EPUB CFI syntax, that is
   /// to say: without the EPUB-specific OPF spine item reference that precedes the first ! exclamation
   /// mark (which denotes the "step indirection" into a publication document). Note that the wrapping
@@ -343,8 +352,7 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange =>
-      (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
 class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>?> {

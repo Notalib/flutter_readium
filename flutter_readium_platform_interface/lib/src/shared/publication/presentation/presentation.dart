@@ -45,14 +45,16 @@ class Presentation with EquatableMixin implements JSONable {
     if (json == null) {
       return Presentation();
     }
+
+    final jsonObject = Map<String, dynamic>.of(json);
     return Presentation(
-      clipped: json.optNullableBoolean('clipped'),
-      continuous: json.optNullableBoolean('continuous'),
-      fit: PresentationFit.from(json.optString('fit')),
-      orientation: PresentationOrientation.from(json.optString('orientation')),
-      overflow: PresentationOverflow.from(json.optString('overflow')),
-      spread: PresentationSpread.from(json.optString('spread')),
-      layout: EpubLayout.from(json.optString('layout')),
+      clipped: jsonObject.optNullableBoolean('clipped', remove: true),
+      continuous: jsonObject.optNullableBoolean('continuous', remove: true),
+      fit: PresentationFit.from(jsonObject.optString('fit', remove: true)),
+      orientation: PresentationOrientation.from(jsonObject.optString('orientation', remove: true)),
+      overflow: PresentationOverflow.from(jsonObject.optString('overflow', remove: true)),
+      spread: PresentationSpread.from(jsonObject.optString('spread', remove: true)),
+      layout: EpubLayout.from(jsonObject.optString('layout', remove: true)),
     );
   }
 

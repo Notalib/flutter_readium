@@ -299,7 +299,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     final txtLoc = locator.toTextLocator();
-    final tocFragment = locator.locations.fragments.firstWhereOrNull((f) => f.startsWith("toc="));
+    final tocFragment = locator.locations?.fragments.firstWhereOrNull((f) => f.startsWith("toc="));
     if (tocFragment == null) {
       return null;
     }

@@ -58,16 +58,23 @@ class PublicationState {
     };
   }
 
-  static PublicationState? fromJson(Map<String, dynamic> json) {
+  static PublicationState? fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return null;
+    }
+
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final publication = Publication.fromJson(jsonObject.optNullableMap('publication', remove: true));
+    final initialLocator = Locator.fromJson(jsonObject.optNullableMap('initialLocator', remove: true));
+    final error = jsonObject.remove('error');
+    final isLoading = jsonObject.optBoolean('isLoading', fallback: false, remove: true);
+
     return PublicationState(
-      publication: json['publication'] != null
-          ? Publication.fromJson(json['publication'] as Map<String, dynamic>)
-          : null,
-      initialLocator: json['initialLocator'] != null
-          ? Locator.fromJson(json['initialLocator'] as Map<String, dynamic>)
-          : null,
-      error: json['error'],
-      isLoading: json['isLoading'] ?? false,
+      publication: publication,
+      initialLocator: initialLocator,
+      error: error,
+      isLoading: isLoading,
     );
   }
 }

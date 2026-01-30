@@ -113,19 +113,20 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       return null;
     }
 
-    final title = json.safeRemove('title') as String? ?? '';
-    final description = json.safeRemove('description') as String?;
-    final subtitle = json.safeRemove('subtitle') as String?;
-    final identifier = json.safeRemove('identifier') as String?;
-    final numberOfItems = json.safeRemove('numberOfItems') as int?;
-    final itemsPerPage = json.safeRemove('itemsPerPage') as int?;
-    final currentPage = json.safeRemove('currentPage') as int?;
-    final modifiedString = json.safeRemove('modified') as String?;
-    final modified = modifiedString != null ? DateTime.parse(modifiedString) : null;
-    final position = json.safeRemove('position') as int?;
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final title = jsonObject.optNullableString('title', remove: true) ?? '';
+    final description = jsonObject.optNullableString('description', remove: true);
+    final subtitle = jsonObject.optNullableString('subtitle', remove: true);
+    final identifier = jsonObject.optNullableString('identifier', remove: true);
+    final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
+    final itemsPerPage = jsonObject.optNullableInt('itemsPerPage', remove: true);
+    final currentPage = jsonObject.optNullableInt('currentPage', remove: true);
+    final modified = jsonObject.optNullableDateTime('modified', remove: true);
+    final position = jsonObject.optNullableInt('position', remove: true);
     final rdfType = [
-      json.safeRemove('@type') as String?,
-      json.safeRemove('rdfType') as String?,
+      jsonObject.optNullableString('@type', remove: true),
+      jsonObject.optNullableString('rdfType', remove: true),
     ].firstOrNullWhere((element) => element != null);
 
     return OpdsMetadata(
@@ -139,7 +140,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       modified: modified,
       position: position,
       rdfType: rdfType,
-      additionalProperties: json,
+      additionalProperties: jsonObject,
     );
   }
 }
