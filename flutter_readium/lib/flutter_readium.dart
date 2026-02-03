@@ -88,7 +88,7 @@ class FlutterReadium {
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       _platform.ttsSetVoice(voiceIdentifier, forLanguage);
 
-  Future<void> play(Locator? fromLocator) => _platform.play(fromLocator);
+  Future<void> play(Locator? fromLocator = null) => _platform.play(fromLocator);
   Future<void> stop() => _platform.stop();
   Future<void> pause() => _platform.pause();
   Future<void> resume() => _platform.resume();
