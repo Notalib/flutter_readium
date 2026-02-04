@@ -84,9 +84,6 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
   /// Languages used in the publication.
   final List<String> languages; // BCP 47 tag
 
-  /// (Nullable) First language in the publication.
-  String? get language => (languages.isNotEmpty ? languages.first : null);
-
   /// Alternative title to be used for sorting the publication in the library.
   final LocalizedString? localizedSortAs; // nullable
 
