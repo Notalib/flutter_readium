@@ -16,7 +16,6 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
-import kotlin.time.Duration
 
 private const val TAG = "PublicationChannel"
 
@@ -29,6 +28,8 @@ internal class PublicationMethodCallHandler() :
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
+            Log.d(TAG, ":onMethodCall method:${call.method} args:${call.arguments}")
+            
             try {
                 val res = handleMethodCallsQueue(
                     call.method,
@@ -278,12 +279,10 @@ internal class PublicationMethodCallHandler() :
      * Enable TTS reading with the provided preferences.
      */
     private suspend fun ttsEnable(prefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
-        val publication = ReadiumReader.currentPublication
-        if (publication == null) {
-            return Try.failure(
-                PublicationError.Unavailable()
-            )
-        }
+        // This only makes sense if a publication is open.
+        ReadiumReader.currentPublication ?: return Try.failure(
+            PublicationError.Unavailable()
+        )
 
         ReadiumReader.ttsEnable(prefs)
         return Try.success(null)
@@ -293,12 +292,10 @@ internal class PublicationMethodCallHandler() :
      * Update the TTS preferences. The TTS must be enabled first.
      */
     private suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
-        val publication = ReadiumReader.currentPublication
-        if (publication == null) {
-            return Try.failure(
-                PublicationError.Unavailable()
-            )
-        }
+        // This only makes sense if a publication is open.
+        ReadiumReader.currentPublication ?: return Try.failure(
+            PublicationError.Unavailable()
+        )
 
         ReadiumReader.ttsSetPreferences(ttsPrefs)
         return Try.success(null)
@@ -319,10 +316,8 @@ internal class PublicationMethodCallHandler() :
      * Get the list of available TTS voices on the device.
      */
     fun ttsGetAvailableVoices(): List<String> {
-        val androidVoices = ReadiumReader.ttsGetAvailableVoices()
-        if (androidVoices == null) {
-            return listOf()
-        }
+        // If no voices are available, return an empty list.
+        val androidVoices = ReadiumReader.ttsGetAvailableVoices() ?: return listOf()
 
         val voicesJson = androidVoices.map {
             JSONObject().apply {
@@ -369,12 +364,10 @@ internal class PublicationMethodCallHandler() :
         locator: Locator?,
         preferences: FlutterAudioPreferences
     ): Try<Any?, PublicationError> {
-        val publication = ReadiumReader.currentPublication
-        if (publication == null) {
-            return Try.failure(
-                PublicationError.Unavailable()
-            )
-        }
+        // This only makes sense if a publication is open.
+        ReadiumReader.currentPublication ?: return Try.failure(
+            PublicationError.Unavailable()
+        )
 
         ReadiumReader.audioEnable(locator, preferences)
         return Try.success(null)

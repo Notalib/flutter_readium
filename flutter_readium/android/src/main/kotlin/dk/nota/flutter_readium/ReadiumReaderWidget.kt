@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
+import dk.nota.flutter_readium.events.ReadiumReaderStatus
+import dk.nota.flutter_readium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.navigators.EpubNavigator
@@ -45,7 +47,16 @@ class ReadiumReaderWidget(
     EpubReaderFragment.Listener, EpubNavigator.VisualListener {
 
     private val channel: ReadiumReaderChannel
+
     private var textLocatorEventChannel: TextLocatorEventChannel? = null
+
+    private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
+
+    /**
+     * Make sure we only sent ready status once.
+     */
+    var hasSentReady = false
+
     private val layout: ViewGroup
 
     private val activity
@@ -66,6 +77,12 @@ class ReadiumReaderWidget(
         ReadiumReader.epubClose()
         textLocatorEventChannel?.dispose()
         textLocatorEventChannel = null
+
+        readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.closed)
+        readiumReaderStatusEventChannel?.dispose()
+        readiumReaderStatusEventChannel = null
+        hasSentReady = false
+
         channel.setMethodCallHandler(null)
 
         mainScope.coroutineContext.cancelChildren()
@@ -112,6 +129,10 @@ class ReadiumReaderWidget(
         channel.setMethodCallHandler(this)
 
         textLocatorEventChannel = TextLocatorEventChannel(messenger)
+        readiumReaderStatusEventChannel = ReadiumReaderStatusEventChannel(messenger)
+
+        readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.loading)
+        hasSentReady = false
 
         // By default reader contents are hidden from screen-readers, as not to trap them within it.
         // This can be toggled back on via the 'allowScreenReaderNavigation' creation param.
@@ -134,7 +155,6 @@ class ReadiumReaderWidget(
             ReadiumReader.epubEnable(
                 initialLocator,
                 initialPreferences,
-                messenger,
                 fragmentManager,
                 layout,
                 this@ReadiumReaderWidget,
@@ -164,7 +184,14 @@ class ReadiumReaderWidget(
 
         lastPageLoadedKey = currentKey
 
-        mainScope.launch { emitOnPageChanged(locator) }
+        mainScope.launch {
+            if (!hasSentReady) {
+                hasSentReady = true
+
+                readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.ready)
+            }
+            emitOnPageChanged(locator)
+        }
     }
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
@@ -178,9 +205,15 @@ class ReadiumReaderWidget(
 
     override fun onVisualReaderIsReady() {
         Log.d(TAG, "::onVisualReaderIsReady")
+        if (!hasSentReady) {
+            readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.ready)
+
+            hasSentReady = true
+        }
     }
 
-    suspend fun getFirstVisibleLocator(): Locator? = withScope(mainScope) { ReadiumReader.getFirstVisibleLocator() }
+    suspend fun getFirstVisibleLocator(): Locator? =
+        withScope(mainScope) { ReadiumReader.getFirstVisibleLocator() }
 
     @Throws(IllegalArgumentException::class)
     private fun setPreferencesFromMap(prefMap: Map<String, String>) {
