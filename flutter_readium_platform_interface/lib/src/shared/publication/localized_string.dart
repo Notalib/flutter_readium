@@ -4,7 +4,6 @@
 
 import 'dart:io';
 
-import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
@@ -33,7 +32,7 @@ class Translation {
 class LocalizedString with EquatableMixin implements JSONable {
   LocalizedString._(this.translations);
 
-  factory LocalizedString._fromJSONObject(Map<String, dynamic> json) {
+  factory LocalizedString.fromJson(Map<String, dynamic> json) {
     final translations = <String?, String>{};
     for (final key in json.keys) {
       final string = json.optNullableString(key);
@@ -53,7 +52,7 @@ class LocalizedString with EquatableMixin implements JSONable {
   static LocalizedString fromStrings(Map<String?, String> strings) =>
       LocalizedString._(strings.map((key, value) => MapEntry(key, Translation(value))));
 
-  static LocalizedString fromString(String string) => LocalizedString._({null: Translation(string)});
+  static LocalizedString fromJsonString(String string) => LocalizedString._({null: Translation(string)});
 
   /// Parses a [LocalizedString] from its RWPM JSON representation.
   /// If the localized string can't be parsed, a warning will be logged with [warnings].
@@ -74,15 +73,15 @@ class LocalizedString with EquatableMixin implements JSONable {
   ///     "minProperties": 1
   ///   }
   /// ]
-  static LocalizedString? fromJson(dynamic json) {
+  static LocalizedString? fromJsonDynamic(dynamic json) {
     if (json == null) {
       return null;
     }
     if (json is String) {
-      return LocalizedString.fromString(json);
+      return LocalizedString.fromJsonString(json);
     }
     if (json is Map<String, dynamic>) {
-      return LocalizedString._fromJSONObject(json);
+      return LocalizedString.fromJson(json);
     }
     Fimber.i('invalid localized string object');
     return null;
@@ -144,7 +143,7 @@ class LocalizedStringJsonConverter extends JsonConverter<LocalizedString?, dynam
   const LocalizedStringJsonConverter();
 
   @override
-  LocalizedString? fromJson(dynamic json) => LocalizedString.fromJson(json);
+  LocalizedString? fromJson(dynamic json) => LocalizedString.fromJsonDynamic(json);
 
   @override
   dynamic toJson(LocalizedString? localizedString) => localizedString?.toJson();

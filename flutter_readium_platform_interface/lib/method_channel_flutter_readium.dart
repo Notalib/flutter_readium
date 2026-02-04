@@ -48,7 +48,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
-      final state = ReadiumTimebasedState.fromJsonMap(json.decode(event) as Map<String, dynamic>);
+      final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
       return state;
     });
     return _onTimebasedPlayerStateChanged!;
@@ -125,7 +125,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async =>
-      await methodChannel.invokeMethod('ttsEnable', preferences?.toMap());
+      await methodChannel.invokeMethod('ttsEnable', preferences?.toJson());
 
   @override
   Future<void> play(Locator? fromLocator) async => await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);
@@ -156,7 +156,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
         voicesStr
             ?.cast<String>()
             .map<Map<String, dynamic>>((str) => json.decode(str) as Map<String, dynamic>)
-            .map<ReaderTTSVoice>((map) => ReaderTTSVoice.fromJsonMap(map))
+            .map<ReaderTTSVoice>((map) => ReaderTTSVoice.fromJson(map))
             .toList() ??
         <ReaderTTSVoice>[];
     return voices;
@@ -169,7 +169,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) =>
-      methodChannel.invokeMethod('ttsSetPreferences', preferences.toMap());
+      methodChannel.invokeMethod('ttsSetPreferences', preferences.toJson());
 
   @override
   Future<String?> getLinkContent(final Link link) =>
@@ -177,11 +177,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
-      methodChannel.invokeMethod('audioEnable', [prefs?.toMap(), fromLocator?.toJson()]);
+      methodChannel.invokeMethod('audioEnable', [prefs?.toJson(), fromLocator?.toJson()]);
 
   @override
   Future<void> audioSetPreferences(AudioPreferences prefs) =>
-      methodChannel.invokeMethod('audioSetPreferences', prefs.toMap());
+      methodChannel.invokeMethod('audioSetPreferences', prefs.toJson());
 
   @override
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);

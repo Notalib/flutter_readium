@@ -36,6 +36,5 @@ extension OpdsPropertiesExtension on Properties {
   Availability? get availability =>
       (this['availability'] as Map<String, dynamic>?)?.let((it) => Availability.fromJson(it));
 
-  Properties setNumberOfItems(final int? value) =>
-      copyWith(additionalProperties: {_numberOfItemsKey: value});
+  Properties setNumberOfItems(final int? value) => copyWith(additionalProperties: {_numberOfItemsKey: value});
 }

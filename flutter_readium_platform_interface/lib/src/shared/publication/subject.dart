@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -14,7 +13,7 @@ import '../publication.dart';
 ///
 /// See https://github.com/readium/webpub-manifest/tree/master/contexts/default#subjects
 class Subject with EquatableMixin implements JSONable {
-  factory Subject.fromString(String name) => Subject(localizedName: LocalizedString.fromString(name));
+  factory Subject.fromString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
   const Subject({required this.localizedName, this.localizedSortAs, this.scheme, this.code, this.links = const []});
 
   final LocalizedString localizedName;
@@ -69,7 +68,7 @@ class Subject with EquatableMixin implements JSONable {
       return null;
     }
 
-    final localizedName = LocalizedString.fromJson(jsonName);
+    final localizedName = LocalizedString.fromJsonDynamic(jsonName);
     if (localizedName == null) {
       Fimber.i('[name] is required');
       return null;
@@ -77,7 +76,7 @@ class Subject with EquatableMixin implements JSONable {
 
     return Subject(
       localizedName: localizedName,
-      localizedSortAs: LocalizedString.fromJson(jsonObject.opt('sortAs', remove: true)),
+      localizedSortAs: LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true)),
       scheme: jsonObject.optNullableString('scheme', remove: true),
       code: jsonObject.optNullableString('code', remove: true),
       links: Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref),
@@ -91,9 +90,9 @@ class Subject with EquatableMixin implements JSONable {
   /// If a subject can't be parsed, a warning will be logged with [warnings].
   static List<Subject> fromJsonArray(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is String || json is Map<String, dynamic>) {
-      return [json].map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).whereNotNull().toList();
+      return [json].map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
     } else if (json is List) {
-      return json.map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).whereNotNull().toList();
+      return json.map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
     }
     return [];
   }

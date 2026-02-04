@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -57,7 +56,7 @@ class Contributor extends Collection {
     );
   }
 
-  static Contributor fromString(String name) => Contributor(localizedName: LocalizedString.fromString(name));
+  static Contributor fromString(String name) => Contributor(localizedName: LocalizedString.fromJsonString(name));
 
   /// Parses a [Contributor] from its RWPM JSON representation.
   ///
@@ -85,14 +84,14 @@ class Contributor extends Collection {
       return null;
     }
 
-    final localizedName = LocalizedString.fromJson(jsonName);
+    final localizedName = LocalizedString.fromJsonDynamic(jsonName);
     if (localizedName == null) {
       Fimber.i('[name] is required');
       return null;
     }
 
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final localizedSortAs = LocalizedString.fromJson(jsonObject.remove('sortAs'));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.remove('sortAs'));
     final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toList();
     final position = jsonObject.optNullableDouble('position', remove: true);
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links'), normalizeHref: normalizeHref);
@@ -118,9 +117,9 @@ class Contributor extends Collection {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
     if (json is String || json is Map<String, dynamic>) {
-      return [json].map((it) => Contributor.fromJson(it, normalizeHref: normalizeHref)).whereNotNull().toList();
+      return [json].map((it) => Contributor.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
     } else if (json is List) {
-      return json.map((it) => Contributor.fromJson(it, normalizeHref: normalizeHref)).whereNotNull().toList();
+      return json.map((it) => Contributor.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
     }
     return [];
   }

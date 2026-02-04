@@ -187,6 +187,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement goToLocator
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> audioSeekBy(Duration offset) {
+    // TODO: implement audioSeekBy
+    throw UnimplementedError();
+  }
 }
 
 void main() {

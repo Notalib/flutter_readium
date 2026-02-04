@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -90,7 +89,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
       } else if (subJSON is List) {
         final subcollections = subJSON
             .map((it) => PublicationCollection.fromJson(it, normalizeHref: normalizeHref))
-            .whereNotNull();
+            .nonNulls;
         collections.putIfAbsent(role, () => []).addAll(subcollections);
       }
     }

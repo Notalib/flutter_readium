@@ -15,32 +15,48 @@ DecorationStyle _styleFromString(String styleStr) {
   }
 }
 
-class ReaderDecoration {
-  ReaderDecoration({required this.id, required this.locator, required this.style});
+class ReaderDecoration implements JSONable {
+  const ReaderDecoration({required this.id, required this.locator, required this.style});
 
-  factory ReaderDecoration.fromJsonMap(final Map<String, dynamic> map) => ReaderDecoration(
-    id: map['id'] as String,
-    locator: Locator.fromJson(map['locator'])!,
-    style: ReaderDecorationStyle.fromJsonMap(map['style']),
-  );
+  factory ReaderDecoration.fromJson(final Map<String, dynamic> map) {
+    final jsonObject = Map<String, dynamic>.of(map);
 
-  String id;
-  Locator locator;
-  ReaderDecorationStyle style;
+    final id = jsonObject.optString('id', remove: true);
+    final locatorJson = jsonObject.optNullableMap('locator', remove: true);
+    final styleJson = jsonObject.optNullableMap('style', remove: true) ?? {};
 
+    return ReaderDecoration(
+      id: id,
+      locator: Locator.fromJson(locatorJson!)!,
+      style: ReaderDecorationStyle.fromJson(styleJson),
+    );
+  }
+
+  final String id;
+  final Locator locator;
+  final ReaderDecorationStyle style;
+
+  @override
   Map<String, dynamic> toJson() => {'id': id, 'locator': locator.toJson(), 'style': style.toJson()};
+
+  ReaderDecoration copyWith({String? id, Locator? locator, ReaderDecorationStyle? style}) =>
+      ReaderDecoration(id: id ?? this.id, locator: locator ?? this.locator, style: style ?? this.style);
 }
 
-class ReaderDecorationStyle {
-  ReaderDecorationStyle({required this.style, required this.tint});
+class ReaderDecorationStyle implements JSONable {
+  const ReaderDecorationStyle({required this.style, required this.tint});
 
-  DecorationStyle style;
-  Color tint;
+  final DecorationStyle style;
+  final Color tint;
 
+  @override
   Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
 
-  factory ReaderDecorationStyle.fromJsonMap(final Map<String, dynamic> map) => ReaderDecorationStyle(
+  factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
     style: _styleFromString(map['style']),
     tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
   );
+
+  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) =>
+      ReaderDecorationStyle(style: style ?? this.style, tint: tint ?? this.tint);
 }

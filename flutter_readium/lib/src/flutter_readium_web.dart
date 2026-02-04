@@ -336,13 +336,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   // AUDIOBOOK API - END
 
   @override
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    // TODO: Implement when karaoke books are supported
-    // throw UnimplementedError('get onTimebasedPlayerStateChanged is not implemented on web platform');
-    return const Stream.empty();
-  }
-
-  @override
   Stream<ReadiumError> get onErrorEvent {
     throw UnimplementedError('get onErrorEvent is not implemented on web platform');
   }
