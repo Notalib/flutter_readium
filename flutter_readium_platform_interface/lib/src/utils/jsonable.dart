@@ -4,7 +4,8 @@
 
 // Originally from https://github.com/Mantano/iridium/blob/main/components/commons/lib/utils/jsonable.dart
 
-import 'package:dartx/dartx.dart';
+import 'package:collection/collection.dart';
+
 import '../extensions/strings.dart';
 import 'take.dart';
 
@@ -18,7 +19,7 @@ abstract interface class JSONable {
 
 extension IterableJSONableExtension on Iterable<JSONable> {
   /// Serializes a list of [JSONable] into a [List<Map<String, dynamic>>].
-  List<Map<String, dynamic>> toJson() => map((it) => it.toJson()).whereNotNull().toList();
+  List<Map<String, dynamic>> toJson() => map((it) => it.toJson()).nonNulls.toList();
 }
 
 extension MapExtension on Map<String, dynamic>? {
@@ -32,7 +33,7 @@ extension MapExtension on Map<String, dynamic>? {
           .takeIf((it) => it.isNotEmpty)
           ?.map((key, value) => MapEntry<dynamic, dynamic>(key, _wrapJSON(value)));
     } else if (value is List) {
-      return (value).takeIf((it) => it.isNotEmpty)?.mapNotNull(_wrapJSON).toList();
+      return (value).takeIf((it) => it.isNotEmpty)?.nonNulls.map(_wrapJSON).toList();
     }
     return value;
   }
@@ -159,7 +160,7 @@ extension MapExtension on Map<String, dynamic>? {
   /// for [name] is removed.
   /// If the objects in [collection] are [JSONable], then they are converted to [Map] first.
   void putIterableIfNotEmpty(String name, Iterable<dynamic>? collection) {
-    final list = collection?.whereNotNull().mapNotNull(_wrapJSON).toList() ?? [];
+    final list = collection?.nonNulls.map(_wrapJSON).toList() ?? [];
     if (list.isEmpty) {
       this?.remove(name);
       return;
@@ -341,6 +342,17 @@ extension MapExtension on Map<String, dynamic>? {
     } else {
       return [];
     }
+  }
+
+  /// Returns the value mapped by [name] if it exists and is an enum of type [T], or `null` otherwise.
+  /// If [remove] is true, then the mapping will be removed from the [Map].
+  T? optEnumFromString<T extends Enum>(String name, List<T> enumValues, {T? fallback, bool remove = false}) {
+    final enumStr = optNullableString(name, remove: remove);
+    if (enumStr == null) {
+      return fallback;
+    }
+
+    return enumValues.firstWhereOrNull((e) => e.name.toLowerCase() == enumStr.toLowerCase()) ?? fallback;
   }
 }
 

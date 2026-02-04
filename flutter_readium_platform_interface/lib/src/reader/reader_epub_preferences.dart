@@ -3,8 +3,8 @@ import 'dart:ui' show Color;
 
 import '../index.dart';
 
-class EPUBPreferences {
-  EPUBPreferences({
+class EPUBPreferences implements JSONable {
+  const EPUBPreferences({
     required this.fontFamily,
     required this.fontSize,
     required this.fontWeight,
@@ -14,26 +14,41 @@ class EPUBPreferences {
     this.pageMargins,
   });
 
-  factory EPUBPreferences.fromJsonMap(final Map<String, dynamic> map) => EPUBPreferences(
-    fontFamily: map['fontFamily'] as String,
-    fontSize: map['fontSize'] as int,
-    fontWeight: map['fontSize'] as double,
-    verticalScroll: map['verticalScroll'] as bool,
-    backgroundColor: map['tint'] is int ? Color(map['tint'] as int) : null,
-    textColor: map['tint'] is int ? Color(map['tint'] as int) : null,
-  );
+  factory EPUBPreferences.fromJson(final Map<String, dynamic> json) {
+    final jsonObject = Map<String, dynamic>.of(json);
 
-  String fontFamily;
-  int fontSize;
-  double? fontWeight;
-  bool? verticalScroll;
-  Color? backgroundColor;
-  Color? textColor;
-  double? pageMargins;
+    final backgroundColorStr = jsonObject.optNullableString('backgroundColor', remove: true);
+    Color? backgroundColor;
+    if (backgroundColorStr != null && backgroundColorStr.startsWith('#')) {
+      backgroundColor = ReadiumColorExtension.fromCSS(backgroundColorStr);
+    }
+
+    final tint = jsonObject.optNullableInt('tint', remove: true);
+    if (backgroundColor == null && tint != null && tint > 0) {
+      backgroundColor = Color(tint);
+    }
+
+    return EPUBPreferences(
+      fontFamily: jsonObject.optString('fontFamily', remove: true),
+      fontSize: jsonObject.optInt('fontSize', remove: true),
+      fontWeight: jsonObject.optDouble('fontWeight', remove: true),
+      verticalScroll: jsonObject.optBoolean('verticalScroll', remove: true),
+      backgroundColor: backgroundColor,
+      textColor: jsonObject.opt('textColor') is int ? Color(jsonObject.opt('textColor') as int) : null,
+    );
+  }
+
+  final String fontFamily;
+  final int fontSize;
+  final double? fontWeight;
+  final bool? verticalScroll;
+  final Color? backgroundColor;
+  final Color? textColor;
+  final double? pageMargins;
 
   // TODO: Add more preferences,
   //see https://github.com/readium/swift-toolkit/blob/develop/Sources/Navigator/EPUB/Preferences/EPUBPreferences.swift
-
+  @override
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
       'fontFamily': fontFamily,

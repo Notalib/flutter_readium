@@ -40,7 +40,7 @@ class Presentation with EquatableMixin implements JSONable {
     this.continuous,
   });
 
-  /// Creates a [Properties] from its RWPM JSON representation.
+  /// Creates a [Presentation] from its RWPM JSON representation.
   factory Presentation.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return Presentation();

@@ -1,29 +1,27 @@
 import 'dart:io';
 
-import 'index.dart';
-
 // TODO: Map voices using Hadrien's excellent web-speech-voices
 // See: https://github.com/HadrienGardeur/web-speech-recommended-voices/tree/main
 
 class ReaderTTSVoiceNames {
-  static String getVoiceName(final ReaderTTSVoice voiceModel) {
+  static String getVoiceName(final bool networkRequired, final String language, final String identifier) {
     if (Platform.isAndroid) {
-      return androidFullVoiceName(voiceModel);
+      return _androidFullVoiceName(networkRequired, language, identifier);
     } else {
-      return voiceModel.name;
+      return identifier;
     }
   }
 
-  static String androidFullVoiceName(final ReaderTTSVoice voiceModel) {
-    final voiceName = androidName(voiceModel);
-    if (voiceModel.networkRequired) {
+  static String _androidFullVoiceName(final bool networkRequired, final String language, final String identifier) {
+    final voiceName = _androidName(language, identifier);
+    if (networkRequired) {
       return '$voiceName (online)';
     } else {
       return voiceName;
     }
   }
 
-  static String androidName(final ReaderTTSVoice voiceModel) {
+  static String _androidName(final String language, final String identifier) {
     final voiceMappings = <String, Map<String, String>>{
       'da-DK': {'I': 'Anna', 'II': 'Jens', 'III': 'Clara', 'IV': 'Emma'},
       'en-US': {
@@ -36,17 +34,10 @@ class ReaderTTSVoiceNames {
         'VII': 'Tom',
         'VIII': 'Daisy',
       },
-      'en-GB': {
-        'I': 'Stephen',
-        'II': 'Jane',
-        'III': 'Ian',
-        'IV': 'Maggie',
-        'V': 'Charles',
-        'VI': 'Amy',
-      },
+      'en-GB': {'I': 'Stephen', 'II': 'Jane', 'III': 'Ian', 'IV': 'Maggie', 'V': 'Charles', 'VI': 'Amy'},
       'en-AU': {'I': 'Phoebe', 'II': 'Chris', 'III': 'Rachel', 'IV': 'Jack'},
     };
 
-    return voiceMappings[voiceModel.language]?[voiceModel.identifier] ?? voiceModel.identifier;
+    return voiceMappings[language]?[identifier] ?? identifier;
   }
 }

@@ -55,6 +55,17 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   final Locations? locations;
   final LocatorText? text;
 
+  static Locator? fromJsonDynamic(dynamic json) {
+    if (json is String) {
+      return fromJsonString(json);
+    } else if (json is Map<String, dynamic>) {
+      return fromJson(json);
+    }
+
+    Fimber.w('Locator.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    return null;
+  }
+
   static Locator? fromJsonString(String jsonString) {
     try {
       //Fimber.d("jsonString $jsonString");

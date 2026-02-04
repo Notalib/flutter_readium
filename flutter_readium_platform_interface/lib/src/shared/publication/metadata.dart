@@ -233,19 +233,19 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    var localizedTitle = LocalizedString.fromJson(jsonObject.remove('title'));
+    var localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.remove('title'));
     if (localizedTitle == null) {
       Fimber.i('[title] is missing $json');
-      localizedTitle = LocalizedString.fromString(''); // Fallback to an empty title
+      localizedTitle = LocalizedString.fromJsonString(''); // Fallback to an empty title
     }
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final type = jsonObject.optNullableString('@type', remove: true);
-    final localizedSubtitle = LocalizedString.fromJson(jsonObject.remove('subtitle'));
+    final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.remove('subtitle'));
     final modified = (jsonObject.remove('modified') as String?)?.iso8601ToDate();
     final published = (jsonObject.remove('published') as String?)?.iso8601ToDate();
     final languages = jsonObject.optStringsFromArrayOrSingle('language', remove: true);
     final conformsTo = jsonObject.optStringsFromArrayOrSingle('conformsTo', remove: true);
-    final localizedSortAs = LocalizedString.fromJson(jsonObject.remove('sortAs'));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.remove('sortAs'));
     final subjects = Subject.fromJsonArray(jsonObject.remove('subject'), normalizeHref: normalizeHref);
     final authors = Contributor.fromJsonArray(jsonObject.remove('author'), normalizeHref: normalizeHref);
     final translators = Contributor.fromJsonArray(jsonObject.remove('translator'), normalizeHref: normalizeHref);
