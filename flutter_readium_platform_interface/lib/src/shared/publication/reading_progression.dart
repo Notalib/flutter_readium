@@ -3,11 +3,13 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 import 'presentation/presentation.dart';
 import 'publication.dart';
 
 /// Direction of the [Publication] reading progression.
+@immutable
 class ReadingProgression with EquatableMixin {
   const ReadingProgression._(this.value);
 

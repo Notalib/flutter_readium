@@ -5,6 +5,7 @@
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
 import '../link.dart';
@@ -29,6 +30,7 @@ import '../link.dart';
 /// @param [spread] Indicates the condition to be met for the linked resource to be rendered within a
 ///     synthetic spread.
 /// @param [layout] Hints how the layout of the resource should be presented (EPUB extension).
+@immutable
 class Presentation with EquatableMixin implements JSONable {
   const Presentation({
     this.layout,
@@ -97,6 +99,7 @@ class Presentation with EquatableMixin implements JSONable {
 }
 
 /// Suggested method for constraining a resource inside the viewport.
+@immutable
 class PresentationFit with EquatableMixin {
   const PresentationFit._(this.value);
   static const PresentationFit width = PresentationFit._('width');
@@ -114,6 +117,7 @@ class PresentationFit with EquatableMixin {
 }
 
 /// Hints how the layout of the resource should be presented.
+@immutable
 class EpubLayout with EquatableMixin {
   const EpubLayout._(this.value);
   // Fixed layout.
@@ -132,6 +136,7 @@ class EpubLayout with EquatableMixin {
 }
 
 /// Suggested orientation for the device when displaying the linked resource.
+@immutable
 class PresentationOrientation with EquatableMixin {
   const PresentationOrientation._(this.value);
   // Specifies that the Reading System can determine the orientation to rendered the spine item in.
@@ -153,6 +158,7 @@ class PresentationOrientation with EquatableMixin {
 }
 
 /// Suggested method for handling overflow while displaying the linked resource.
+@immutable
 class PresentationOverflow with EquatableMixin {
   const PresentationOverflow._(this.value);
   // Indicates no preference for overflow content handling by the Author.
@@ -175,6 +181,7 @@ class PresentationOverflow with EquatableMixin {
 
 /// Indicates how the linked resource should be displayed in a reading
 /// environment that displays synthetic spreads.
+@immutable
 class PresentationPage with EquatableMixin {
   const PresentationPage._(this.value);
   static const PresentationPage left = PresentationPage._('left');
@@ -191,6 +198,7 @@ class PresentationPage with EquatableMixin {
 }
 
 /// Indicates the condition to be met for the linked resource to be rendered within a synthetic spread.
+@immutable
 class PresentationSpread with EquatableMixin {
   const PresentationSpread._(this.value);
   // Specifies the Reading System can determine when to render a synthetic spread for the readingOrder item.

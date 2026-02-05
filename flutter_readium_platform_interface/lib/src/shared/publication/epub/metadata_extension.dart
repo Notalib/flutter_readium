@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
 import '../metadata.dart';
@@ -9,6 +10,7 @@ extension EpubMetadataExtension on Metadata {
       MetdataMediaOverlay.fromJson(additionalProperties.optJsonObject(_mediaOverlayKey));
 }
 
+@immutable
 class MetdataMediaOverlay with EquatableMixin implements JSONable {
   const MetdataMediaOverlay({this.activeClass, this.playbackActiveClass});
 

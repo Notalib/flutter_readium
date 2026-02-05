@@ -4,12 +4,14 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 
 /// Library-specific feature that contains information about the copies that a library has acquired.
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
+@immutable
 class Copies with EquatableMixin implements JSONable {
   const Copies({this.total, this.available});
   final int? total;

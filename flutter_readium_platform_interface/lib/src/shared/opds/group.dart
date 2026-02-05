@@ -6,11 +6,13 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart';
 
+@immutable
 class Group with EquatableMixin implements JSONable {
   const Group({required this.metadata, required this.links, this.publications = const [], this.navigation = const []});
 

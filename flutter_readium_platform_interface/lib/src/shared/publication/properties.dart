@@ -6,6 +6,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication.dart';
@@ -17,6 +18,7 @@ export 'opds/opds_properties_extension.dart';
 ///
 /// See https://drafts.opds.io/schema/properties.schema.json
 ///     https://readium.org/webpub-manifest/schema/extensions/epub/properties.schema.json
+@immutable
 class Properties extends AdditionalProperties with EquatableMixin implements JSONable {
   const Properties({
     this.page,

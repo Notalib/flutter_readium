@@ -6,6 +6,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
@@ -31,6 +32,7 @@ export 'epub/metadata_extension.dart';
 ///     publication, so it might be [ReadingProgression.auto]. To lay out the content, use [effectiveReadingProgression]
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
+@immutable
 class Metadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const Metadata({
     required this.localizedTitle,

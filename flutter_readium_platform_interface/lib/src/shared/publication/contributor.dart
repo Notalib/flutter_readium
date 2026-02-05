@@ -5,6 +5,7 @@
 import 'package:dfunc/dfunc.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import 'alt_identifier.dart';
@@ -22,6 +23,7 @@ import 'localized_string.dart';
 /// @param position The position of the publication in this collection/series,
 ///     when the contributor represents a collection.
 /// @param links Used to retrieve similar publications for the given contributor.
+@immutable
 class Contributor extends Collection {
   const Contributor({
     required super.localizedName,

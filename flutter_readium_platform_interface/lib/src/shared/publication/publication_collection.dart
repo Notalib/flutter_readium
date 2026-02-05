@@ -5,6 +5,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication.dart';
@@ -13,6 +14,7 @@ import '../publication.dart';
 ///
 /// https://readium.org/webpub-manifest/schema/subcollection.schema.json
 /// Can be used as extension point in the Readium Web Publication Manifest.
+@immutable
 class PublicationCollection with EquatableMixin implements JSONable {
   const PublicationCollection({this.metadata = const {}, this.links = const [], this.subcollections = const {}});
   final Map<String, dynamic> metadata;

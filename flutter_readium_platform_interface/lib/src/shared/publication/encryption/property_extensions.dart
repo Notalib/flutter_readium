@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
 import '../properties.dart';
@@ -12,6 +13,7 @@ extension EncryptionPropertiesExtension on Properties {
       copyWith(additionalProperties: {_encryptedKey: value?.toJson()});
 }
 
+@immutable
 class EncryptedProperties with EquatableMixin implements JSONable {
   const EncryptedProperties({
     required this.algorithm,
@@ -28,7 +30,6 @@ class EncryptedProperties with EquatableMixin implements JSONable {
   final String? scheme;
 
   @override
-  // TODO: implement props
   List<Object?> get props => [algorithm, compression, originalLength, profile, scheme];
 
   @override

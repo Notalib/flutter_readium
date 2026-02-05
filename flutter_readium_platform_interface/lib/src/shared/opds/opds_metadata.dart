@@ -7,10 +7,12 @@
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 
+@immutable
 class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const OpdsMetadata({
     required this.title,

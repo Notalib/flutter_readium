@@ -9,6 +9,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
@@ -39,6 +40,7 @@ extension DoubleCheck on double? {
 ///  - human-readable (and shareable) reference in a publication
 ///
 /// https://github.com/readium/architecture/tree/master/models/locators
+@immutable
 class Locator extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locator({
     required this.href,
@@ -192,6 +194,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
 /// @param totalProgression Progression in the publication expressed as a percentage (between 0
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
+@immutable
 class Locations extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locations({
     this.position,
@@ -310,6 +313,7 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 /// @param before The text before the locator.
 /// @param highlight The text at the locator.
 /// @param after The text after the locator.
+@immutable
 class LocatorText with EquatableMixin implements JSONable {
   factory LocatorText.fromJson(Map<String, dynamic>? json) {
     if (json == null) {

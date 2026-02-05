@@ -1,10 +1,12 @@
 import 'package:dartx/dartx.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication/link.dart' show Link;
 import '../publication/metadata.dart' show Metadata;
 
+@immutable
 class OpdsPublication implements JSONable {
   const OpdsPublication(this.metadata, this.links, {this.images = const []});
 

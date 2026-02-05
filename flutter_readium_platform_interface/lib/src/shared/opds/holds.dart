@@ -4,12 +4,14 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 
 /// Library-specific features when a specific book is unavailable but provides a hold list.
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
+@immutable
 class Holds with EquatableMixin implements JSONable {
   const Holds({this.total, this.position});
   final int? total;

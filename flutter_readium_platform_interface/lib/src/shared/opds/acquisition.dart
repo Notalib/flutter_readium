@@ -4,6 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../mediatype/mediatype.dart';
@@ -11,6 +12,7 @@ import '../mediatype/mediatype.dart';
 /// OPDS Acquisition Object.
 ///
 /// https://drafts.opds.io/schema/acquisition-object.schema.json
+@immutable
 class Acquisition with EquatableMixin implements JSONable {
   const Acquisition({required this.type, this.children = const []});
 
