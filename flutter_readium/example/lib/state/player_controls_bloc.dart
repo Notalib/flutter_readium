@@ -67,13 +67,21 @@ class PlayerControlsState {
   }
 
   Future<PlayerControlsState> toggleTTSEnabled(final bool ttsEnabled) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
+    final newState = PlayerControlsState(
+      playing: ttsEnabled && playing,
+      ttsEnabled: ttsEnabled,
+      audioEnabled: audioEnabled,
+    );
 
     return newState;
   }
 
   Future<PlayerControlsState> toggleAudioEnabled(final bool audioEnabled) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
+    final newState = PlayerControlsState(
+      playing: audioEnabled && playing,
+      ttsEnabled: ttsEnabled,
+      audioEnabled: audioEnabled,
+    );
 
     return newState;
   }
@@ -81,6 +89,7 @@ class PlayerControlsState {
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   StreamSubscription? timebasedStateSub;
+  StreamSubscription? readerStatusSub;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
     timebasedStateSub = FlutterReadium().onTimebasedPlayerStateChanged
@@ -99,9 +108,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
             case TimebasedState.paused:
             case TimebasedState.ended:
             case TimebasedState.failure:
+            case TimebasedState.none:
               add(TogglePlayingState(isPlaying: false));
           }
         });
+
+    readerStatusSub = FlutterReadium().onReaderStatusChanged.listen((status) {
+      debugPrint('onReaderStatusChanged: ${status.name}');
+    });
 
     on<TogglePlayingState>((final event, final emit) async {
       emit(await state.togglePlay(event.isPlaying));
@@ -183,6 +197,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     // ignore: unused_element
     Future<void> close() async {
       await timebasedStateSub?.cancel();
+      await readerStatusSub?.cancel();
       super.close();
     }
   }

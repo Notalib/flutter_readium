@@ -9,7 +9,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
-import dk.nota.flutter_readium.events.EpubIsReadyEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
@@ -388,8 +387,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         defaultHttpHeaders.putAll(headers)
     }
 
-    private var isReadyEventChannel: EpubIsReadyEventChannel? = null
-
     private suspend fun assetToPublication(
         asset: Asset
     ): Try<Publication, OpenError> {
@@ -533,10 +530,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             pubUrlStr = "file://$pubUrlStr"
         }
         // Create AbsoluteUrl, return PublicationError.InvalidPublicationUrl if null
-        val pubUrl = AbsoluteUrl(pubUrlStr)
-        if (pubUrl == null) {
-            return failure(PublicationError.InvalidPublicationUrl(pubUrlStr))
-        }
+        val pubUrl = AbsoluteUrl(pubUrlStr) ?: return failure(
+            PublicationError.InvalidPublicationUrl(pubUrlStr)
+        )
 
         return Try.success(pubUrl)
     }
@@ -601,15 +597,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun epubEnable(
         initialLocator: Locator?,
         initialPreferences: EpubPreferences,
-        messenger: BinaryMessenger,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget
     ) {
         val pub = currentPublication ?: throw Exception("Publication not opened cannot enable epub")
 
-        isReadyEventChannel?.dispose()
-        isReadyEventChannel = EpubIsReadyEventChannel(messenger)
         currentReaderWidget = readerWidget
 
         val isEpub = pub.conformsTo(Publication.Profile.EPUB) || pub.readingOrder.allAreHtml
@@ -647,9 +640,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         currentReaderWidget = null
         epubNavigator?.dispose()
         epubNavigator = null
-
-        isReadyEventChannel?.dispose()
-        isReadyEventChannel = null
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
@@ -686,8 +676,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun play(locator: Locator?) {
         var fromLocator = locator
 
-        // If using TTS and no fromLocator given, start from current visible locator.
-        if (fromLocator == null && (ttsNavigator != null || syncAudiobookNavigator != null)) {
+        if (fromLocator == null) {
             fromLocator = currentReaderWidget?.getFirstVisibleLocator()
         }
 
@@ -717,7 +706,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         syncAudiobookNavigator?.apply {
-            pause()
+            // pause()
             dispose()
 
             audiobookNavigator = null
@@ -790,7 +779,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 ).apply {
                     initNavigator()
                 }
-
             }
         } ?: throw Exception("Publication not opened")
     }
@@ -831,7 +819,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     override fun onVisualReaderIsReady() {
         currentReaderWidget?.onVisualReaderIsReady()
-        isReadyEventChannel?.sendEvent(true)
     }
 
     suspend fun getFirstVisibleLocator(): Locator? {

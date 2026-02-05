@@ -56,10 +56,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
-    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
-      final newStatus = ReadiumReaderStatus.values.firstWhere((e) => e.name == json.decode(event) as String);
-      return newStatus;
-    });
+    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map(
+      (dynamic event) => (json.decode(event) as String).toReadiumReaderStatus(),
+    );
     return _onReaderStatusChanged!;
   }
 

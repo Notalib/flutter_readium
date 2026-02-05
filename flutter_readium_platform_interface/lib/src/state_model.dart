@@ -1,6 +1,8 @@
 ﻿import 'package:json_annotation/json_annotation.dart';
 
-import 'index.dart';
+import 'enums.dart';
+import 'shared/publication/locator.dart';
+import 'utils/jsonable.dart';
 
 class ReadiumTimebasedState implements JSONable {
   const ReadiumTimebasedState({
@@ -17,7 +19,7 @@ class ReadiumTimebasedState implements JSONable {
     final state = jsonObject.optEnumFromString<TimebasedState>(
       'state',
       TimebasedState.values,
-      fallback: TimebasedState.failure,
+      fallback: TimebasedState.none,
       remove: true,
     )!;
 
