@@ -65,6 +65,7 @@
     "lcpl",
     "Mantano",
     "mediatype",
+    "microenterprise",
     "NYPL",
     "opds",
     "Opds",
@@ -78,7 +79,8 @@
     "RWPM",
     "subcollection",
     "Subcollection",
-    "subcollections"
+    "subcollections",
+    "Transformability"
   ],
   "java.configuration.updateBuildConfiguration": "interactive"
 }

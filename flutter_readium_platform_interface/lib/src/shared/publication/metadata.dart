@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
+import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -10,6 +11,7 @@ import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../epub.dart';
+import 'accessibility.dart';
 import 'collection.dart';
 import 'contributor.dart';
 import 'link.dart';
@@ -29,12 +31,13 @@ export 'epub/metadata_extension.dart';
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
 class Metadata extends AdditionalProperties with EquatableMixin implements JSONable {
-  Metadata({
+  const Metadata({
     required this.localizedTitle,
     this.identifier,
     this.rdfType,
     this.conformsTo,
     this.localizedSubtitle,
+    this.accessibility,
     this.modified,
     this.published,
     this.languages = const [],
@@ -57,19 +60,10 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     this.duration,
     this.numberOfPages,
     this.belongsTo = const {},
-    this.belongsToCollections = const [],
-    this.belongsToSeries = const [],
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
     super.additionalProperties,
-  }) {
-    if (belongsToCollections.isNotEmpty) {
-      belongsTo['collection'] = belongsToCollections;
-    }
-    if (belongsToSeries.isNotEmpty) {
-      belongsTo['series'] = belongsToSeries;
-    }
-  }
+  });
 
   /// An URI used as the unique identifier for this [Publication].
   final String? identifier; // nullable
@@ -78,6 +72,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
   final LocalizedString localizedTitle;
   final LocalizedString? localizedSubtitle; // nullable
+
+  final Accessibility? accessibility; // nullable
   final DateTime? modified; // nullable
   final DateTime? published; // nullable
 
@@ -110,10 +106,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
   /// Number of pages in the publication, if available.
   final int? numberOfPages; // nullable
 
-  // TODO: belongsTo should be a propert
   final Map<String, List<Collection>> belongsTo;
-  final List<Collection> belongsToCollections;
-  final List<Collection> belongsToSeries;
 
   /// Direction of the [Publication] reading progression.
   final ReadingProgression readingProgression;
@@ -238,8 +231,12 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final type = jsonObject.optNullableString('@type', remove: true);
     final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.remove('subtitle'));
-    final modified = (jsonObject.remove('modified') as String?)?.iso8601ToDate();
-    final published = (jsonObject.remove('published') as String?)?.iso8601ToDate();
+    final modified = (jsonObject.optNullableString('modified', remove: true))?.iso8601ToDate();
+    final published = (jsonObject.optNullableString('published', remove: true))?.iso8601ToDate();
+    final accessibility = jsonObject
+        .optNullableMap('accessibility', remove: true)
+        ?.let((it) => Accessibility.fromJson(it));
+
     final languages = jsonObject.optStringsFromArrayOrSingle('language', remove: true);
     final conformsTo = jsonObject.optStringsFromArrayOrSingle('conformsTo', remove: true);
     final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.remove('sortAs'));
@@ -282,6 +279,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       localizedSubtitle: localizedSubtitle,
       localizedSortAs: localizedSortAs,
       modified: modified,
+      accessibility: accessibility,
       published: published,
       languages: languages,
       subjects: subjects,
