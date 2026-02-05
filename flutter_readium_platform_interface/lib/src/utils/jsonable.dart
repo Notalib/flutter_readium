@@ -10,16 +10,16 @@ import '../extensions/strings.dart';
 import 'take.dart';
 
 /// An interface for classes that can be serialized to JSON.
-/// Subclasses must implement [toJson] and a static [fromJSON] method.
+/// Subclasses must implement [toJson] and a static [fromJson] method.
 /// As well as a JsonConverter.
 abstract interface class JSONable {
   /// Serializes the object to its JSON representation.
-  Map<String, dynamic> toJson();
+  dynamic toJson();
 }
 
 extension IterableJSONableExtension on Iterable<JSONable> {
   /// Serializes a list of [JSONable] into a [List<Map<String, dynamic>>].
-  List<Map<String, dynamic>> toJson() => map((it) => it.toJson()).nonNulls.toList();
+  List<dynamic> toJson() => map((it) => it.toJson()).nonNulls.toList();
 }
 
 extension MapExtension on Map<String, dynamic>? {

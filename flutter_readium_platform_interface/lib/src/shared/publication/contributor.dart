@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
+import 'package:dfunc/dfunc.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../utils/jsonable.dart';
+import 'alt_identifier.dart';
 import 'collection.dart';
 import 'link.dart';
 import 'localized_string.dart';
@@ -28,6 +30,7 @@ class Contributor extends Collection {
     super.roles,
     super.position,
     super.links,
+    super.altIdentifier,
     super.additionalProperties,
   });
 
@@ -39,6 +42,7 @@ class Contributor extends Collection {
     List<String>? roles,
     double? position,
     List<Link>? links,
+    AltIdentifier? altIdentifier,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -52,6 +56,7 @@ class Contributor extends Collection {
       roles: roles ?? this.roles,
       position: position ?? this.position,
       links: links ?? this.links,
+      altIdentifier: altIdentifier ?? this.altIdentifier,
       additionalProperties: mergeProperties,
     );
   }
@@ -95,6 +100,9 @@ class Contributor extends Collection {
     final roles = jsonObject.optStringsFromArrayOrSingle('role', remove: true).toList();
     final position = jsonObject.optNullableDouble('position', remove: true);
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links'), normalizeHref: normalizeHref);
+    final altIdentifier = jsonObject
+        .optNullableMap('altIdentifier', remove: true)
+        ?.let((it) => AltIdentifier.fromJson(it));
 
     return Contributor(
       localizedName: localizedName,
@@ -103,6 +111,7 @@ class Contributor extends Collection {
       roles: roles,
       position: position,
       links: links,
+      altIdentifier: altIdentifier,
       additionalProperties: jsonObject,
     );
   }

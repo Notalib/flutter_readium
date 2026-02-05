@@ -4,6 +4,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication.dart';
@@ -18,6 +19,7 @@ import '../publication.dart';
 /// @param position The position of the publication in this collection/series,
 ///     when the contributor represents a collection.
 /// @param links Used to retrieve similar publications for the given contributor.
+@immutable
 class Collection extends AdditionalProperties with EquatableMixin implements JSONable {
   const Collection({
     required this.localizedName,
@@ -26,6 +28,7 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
     this.roles = const [],
     this.position,
     this.links = const [],
+    this.altIdentifier,
     super.additionalProperties,
   });
 
@@ -45,6 +48,8 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
   final double? position;
   final List<Link> links;
 
+  final AltIdentifier? altIdentifier;
+
   /// Returns the default translation string for the [localizedName].
   String get name => localizedName.string;
 
@@ -52,7 +57,16 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
   String? get sortAs => localizedSortAs?.string;
 
   @override
-  List<Object?> get props => [localizedName, identifier, localizedSortAs, roles, position, links];
+  List<Object?> get props => [
+    localizedName,
+    identifier,
+    localizedSortAs,
+    roles,
+    position,
+    links,
+    altIdentifier,
+    additionalProperties,
+  ];
 
   @override
   String toString() => '$runtimeType($props)';
@@ -64,6 +78,7 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
     List<String>? roles,
     double? position,
     List<Link>? links,
+    AltIdentifier? altIdentifier,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -77,6 +92,7 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
       roles: roles?.toSet().toList() ?? this.roles,
       position: position ?? this.position,
       links: links ?? this.links,
+      altIdentifier: altIdentifier ?? this.altIdentifier,
       additionalProperties: mergeProperties,
     );
   }
@@ -89,7 +105,8 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
     ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
     ..putIterableIfNotEmpty('role', roles)
     ..putOpt('position', position)
-    ..putIterableIfNotEmpty('links', links);
+    ..putIterableIfNotEmpty('links', links)
+    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier);
 
   /// Parses a [Contributor] from its RWPM JSON representation.
   ///
@@ -122,6 +139,7 @@ extension ContributorExtension on Contributor {
     roles: roles,
     position: position,
     links: links,
+    altIdentifier: altIdentifier,
     additionalProperties: additionalProperties,
   );
 }

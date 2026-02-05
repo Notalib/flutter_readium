@@ -12,6 +12,7 @@ import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../epub.dart';
 import 'accessibility.dart';
+import 'alt_identifier.dart';
 import 'collection.dart';
 import 'contributor.dart';
 import 'link.dart';
@@ -27,7 +28,7 @@ export 'epub/metadata_extension.dart';
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///
 /// @param readingProgression WARNING: This contains the reading progression as declared in the
-///     publication, so it might be [ReadingProgression.AUTO]. To lay out the content, use [effectiveReadingProgression]
+///     publication, so it might be [ReadingProgression.auto]. To lay out the content, use [effectiveReadingProgression]
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
 class Metadata extends AdditionalProperties with EquatableMixin implements JSONable {
@@ -62,6 +63,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     this.belongsTo = const {},
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
+    this.altIdentifier,
     super.additionalProperties,
   });
 
@@ -144,6 +146,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
   /// Returns the default translation string for the [localizedSortAs].
   String? get sortAs => localizedSortAs?.string;
 
+  final AltIdentifier? altIdentifier;
+
   @override
   List<Object?> get props => [
     identifier,
@@ -152,6 +156,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     localizedTitle,
     localizedSubtitle,
     modified,
+    accessibility,
     published,
     languages,
     localizedSortAs,
@@ -170,6 +175,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     publishers,
     imprints,
     readingProgression,
+    altIdentifier,
     description,
     duration,
     numberOfPages,
@@ -208,7 +214,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     ..putOpt('description', description)
     ..putOpt('duration', duration)
     ..putOpt('numberOfPages', numberOfPages)
-    ..putMapIfNotEmpty('belongsTo', belongsTo);
+    ..putMapIfNotEmpty('belongsTo', belongsTo)
+    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier);
 
   /// Parses a [Metadata] from its RWPM JSON representation.
   ///

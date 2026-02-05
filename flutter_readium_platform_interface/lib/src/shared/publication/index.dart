@@ -1,3 +1,5 @@
+export 'accessibility.dart';
+export 'alt_identifier.dart';
 export 'collection.dart';
 export 'contributor.dart';
 export 'drm.dart';
