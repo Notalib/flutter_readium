@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
@@ -19,13 +20,11 @@ class Accessibility with EquatableMixin implements JSONable {
       conformsTo.addAll(conformsToJson.cast<String>());
     }
 
-    final exemption = AccessibilityExemptionExtension.fromString(
-      jsonObject.optNullableString('exemption', remove: true),
-    );
+    final exemption = AccessibilityExemption.fromString(jsonObject.optNullableString('exemption', remove: true));
 
     final accessMode = jsonObject
         .optJsonArray('accessMode', remove: true)
-        ?.map((e) => AccessibilityAccessModeExtension.fromString(e))
+        ?.map((e) => AccessibilityAccessMode.fromString(e))
         .nonNulls
         .toList();
 
@@ -37,13 +36,13 @@ class Accessibility with EquatableMixin implements JSONable {
 
     final feature = jsonObject
         .optJsonArray('feature', remove: true)
-        ?.map((e) => AccessibilityFeatureExtension.fromString(e))
+        ?.map((e) => AccessibilityFeature.fromString(e))
         .nonNulls
         .toList();
 
     final hazard = jsonObject
         .optJsonArray('hazard', remove: true)
-        ?.map((e) => AccessibilityHazardExtension.fromString(e))
+        ?.map((e) => AccessibilityHazard.fromString(e))
         .nonNulls
         .toList();
 
@@ -124,54 +123,47 @@ class Accessibility with EquatableMixin implements JSONable {
   ];
 }
 
-enum AccessibilityExemption { eaaDisproportionateBurden, eaaFundamentalAlteration, eaaMicroenterprise }
+enum AccessibilityExemption {
+  eaaDisproportionateBurden('eaa-disproportionate-burden'),
+  eaaFundamentalAlteration('eaa-fundamental-alteration'),
+  eaaMicroenterprise('eaa-microenterprise');
 
-extension AccessibilityExemptionExtension on AccessibilityExemption {
-  static const _exemptionMap = {
-    'eaa-disproportionate-burden': AccessibilityExemption.eaaDisproportionateBurden,
-    'eaa-fundamental-alteration': AccessibilityExemption.eaaFundamentalAlteration,
-    'eaa-microenterprise': AccessibilityExemption.eaaMicroenterprise,
-  };
+  const AccessibilityExemption(this.name);
+  final String name;
 
-  String get name => _exemptionMap.entries.firstWhere((entry) => entry.value == this).key;
+  static AccessibilityExemption? fromString(String? name) {
+    if (name == null || name.isEmpty) {
+      return null;
+    }
 
-  static AccessibilityExemption? fromString(String? value) =>
-      _exemptionMap[value] ?? _exemptionMap[value?.toLowerCase()];
+    return AccessibilityExemption.values.firstWhereOrNull((e) => e.name.toLowerCase() == name.toLowerCase());
+  }
 }
 
 enum AccessibilityAccessMode {
-  auditory,
-  chartOnVisual,
-  chemOnVisual,
-  colorDependent,
-  diagramOnVisual,
-  mathOnVisual,
-  musicOnVisual,
-  tactile,
-  textOnVisual,
-  textual,
-  visual,
-}
+  auditory('auditory'),
+  chartOnVisual('chartOnVisual'),
+  chemOnVisual('chemOnVisual'),
+  colorDependent('colorDependent'),
+  diagramOnVisual('diagramOnVisual'),
+  mathOnVisual('mathOnVisual'),
+  musicOnVisual('musicOnVisual'),
+  tactile('tactile'),
+  textOnVisual('textOnVisual'),
+  textual('textual'),
+  visual('visual');
 
-extension AccessibilityAccessModeExtension on AccessibilityAccessMode {
-  static final _accessModeMap = {
-    'auditory': AccessibilityAccessMode.auditory,
-    'chartOnVisual': AccessibilityAccessMode.chartOnVisual,
-    'chemOnVisual': AccessibilityAccessMode.chemOnVisual,
-    'colorDependent': AccessibilityAccessMode.colorDependent,
-    'diagramOnVisual': AccessibilityAccessMode.diagramOnVisual,
-    'mathOnVisual': AccessibilityAccessMode.mathOnVisual,
-    'musicOnVisual': AccessibilityAccessMode.musicOnVisual,
-    'tactile': AccessibilityAccessMode.tactile,
-    'textOnVisual': AccessibilityAccessMode.textOnVisual,
-    'textual': AccessibilityAccessMode.textual,
-    'visual': AccessibilityAccessMode.visual,
-  };
+  const AccessibilityAccessMode(this.name);
 
-  String get value => _accessModeMap.entries.firstWhere((entry) => entry.value == this).key;
+  final String name;
 
-  static AccessibilityAccessMode? fromString(String? name) =>
-      _accessModeMap[name] ?? _accessModeMap[name?.toLowerCase()];
+  static AccessibilityAccessMode? fromString(String? name) {
+    if (name == null || name.isEmpty) {
+      return null;
+    }
+
+    return AccessibilityAccessMode.values.firstWhereOrNull((e) => e.name.toLowerCase() == name.toLowerCase());
+  }
 }
 
 /// Represents a sufficient access mode, which can be a single mode or a list of modes.
@@ -179,7 +171,7 @@ extension AccessibilityAccessModeExtension on AccessibilityAccessMode {
 class AccessibilityAccessModeSufficient with EquatableMixin {
   factory AccessibilityAccessModeSufficient.fromJson(dynamic json) {
     if (json is String) {
-      final mode = AccessibilityAccessModeSimpleExtension.fromString(json);
+      final mode = AccessibilityAccessModeSimple.fromString(json);
       if (mode == null) {
         throw ArgumentError('Invalid accessModeSufficient value: $json');
       }
@@ -190,7 +182,7 @@ class AccessibilityAccessModeSufficient with EquatableMixin {
         json
             .map(
               (e) =>
-                  AccessibilityAccessModeSimpleExtension.fromString(e) ??
+                  AccessibilityAccessModeSimple.fromString(e) ??
                   (throw ArgumentError('Invalid accessModeSufficient value: $e')),
             )
             .toList(),
@@ -216,154 +208,104 @@ class AccessibilityAccessModeSufficient with EquatableMixin {
   List<Object?> get props => [modes];
 }
 
-enum AccessibilityAccessModeSimple { auditory, tactile, textual, visual }
+enum AccessibilityAccessModeSimple {
+  auditory('auditory'),
+  tactile('tactile'),
+  textual('textual'),
+  visual('visual');
 
-extension AccessibilityAccessModeSimpleExtension on AccessibilityAccessModeSimple {
-  static final _modeMap = {
-    'auditory': AccessibilityAccessModeSimple.auditory,
-    'tactile': AccessibilityAccessModeSimple.tactile,
-    'textual': AccessibilityAccessModeSimple.textual,
-    'visual': AccessibilityAccessModeSimple.visual,
-  };
+  const AccessibilityAccessModeSimple(this.name);
+  final String name;
 
-  String get value => _modeMap.entries.firstWhere((entry) => entry.value == this).key;
-
-  static AccessibilityAccessModeSimple? fromString(String name) => _modeMap[name] ?? _modeMap[name.toLowerCase()];
+  static AccessibilityAccessModeSimple? fromString(String? name) =>
+      AccessibilityAccessModeSimple.values.firstWhereOrNull((mode) => mode.name.toLowerCase() == name?.toLowerCase());
 }
 
 enum AccessibilityFeature {
-  annotations,
-  ARIA,
-  bookmarks,
-  indexed,
-  pageBreakMarkers,
-  printPageNumbers,
-  pageNavigation,
-  readingOrder,
-  structuralNavigation,
-  tableOfContents,
-  taggedPDF,
-  alternativeText,
-  audioDescription,
-  closeCaptions,
-  captions,
-  describedMath,
-  longDescription,
-  openCaptions,
-  signLanguage,
-  transcript,
-  displayTransformability,
-  synchronizedAudioText,
-  timingControl,
-  unlocked,
-  ChemML,
-  latex,
-  latexChemistry,
-  MathML,
-  MathMLChemistry,
-  ttsMarkup,
-  highContrastAudio,
-  highContrastDisplay,
-  largePrint,
-  braille,
-  tactileGraphic,
-  tactileObject,
-  fullRubyAnnotations,
-  horizontalWriting,
-  rubyAnnotations,
-  verticalWriting,
-  withAdditionalWordSegmentation,
-  withoutAdditionalWordSegmentation,
-  none,
-  unknown,
-}
+  annotations('annotations'),
+  aria('ARIA'),
+  bookmarks('bookmarks'),
+  indexed('indexed'),
+  pageBreakMarkers('pageBreakMarkers'),
+  printPageNumbers('printPageNumbers'),
+  pageNavigation('pageNavigation'),
+  readingOrder('readingOrder'),
+  structuralNavigation('structuralNavigation'),
+  tableOfContents('tableOfContents'),
+  taggedPDF('taggedPDF'),
+  alternativeText('alternativeText'),
+  audioDescription('audioDescription'),
+  closeCaptions('closeCaptions'),
+  captions('captions'),
+  describedMath('describedMath'),
+  longDescription('longDescription'),
+  openCaptions('openCaptions'),
+  signLanguage('signLanguage'),
+  transcript('transcript'),
+  displayTransformability('displayTransformability'),
+  synchronizedAudioText('synchronizedAudioText'),
+  timingControl('timingControl'),
+  unlocked('unlocked'),
+  chemML('ChemML'),
+  latex('latex'),
+  latexChemistry('latex-chemistry'),
+  mathML('MathML'),
+  mathMLChemistry('MathML-chemistry'),
+  ttsMarkup('ttsMarkup'),
+  highContrastAudio('highContrastAudio'),
+  highContrastDisplay('highContrastDisplay'),
+  largePrint('largePrint'),
+  braille('braille'),
+  tactileGraphic('tactileGraphic'),
+  tactileObject('tactileObject'),
+  fullRubyAnnotations('fullRubyAnnotations'),
+  horizontalWriting('horizontalWriting'),
+  rubyAnnotations('rubyAnnotations'),
+  verticalWriting('verticalWriting'),
+  withAdditionalWordSegmentation('withAdditionalWordSegmentation'),
+  withoutAdditionalWordSegmentation('withoutAdditionalWordSegmentation'),
+  none('none'),
+  unknown('unknown');
 
-extension AccessibilityFeatureExtension on AccessibilityFeature {
-  static const _featureMap = {
-    'annotations': AccessibilityFeature.annotations,
-    'ARIA': AccessibilityFeature.ARIA,
-    'bookmarks': AccessibilityFeature.bookmarks,
-    'index': AccessibilityFeature.indexed,
-    'pageBreakMarkers': AccessibilityFeature.pageBreakMarkers,
-    'printPageNumbers': AccessibilityFeature.printPageNumbers,
-    'pageNavigation': AccessibilityFeature.pageNavigation,
-    'readingOrder': AccessibilityFeature.readingOrder,
-    'structuralNavigation': AccessibilityFeature.structuralNavigation,
-    'tableOfContents': AccessibilityFeature.tableOfContents,
-    'taggedPDF': AccessibilityFeature.taggedPDF,
-    'alternativeText': AccessibilityFeature.alternativeText,
-    'audioDescription': AccessibilityFeature.audioDescription,
-    'closeCaptions': AccessibilityFeature.closeCaptions,
-    'captions': AccessibilityFeature.captions,
-    'describedMath': AccessibilityFeature.describedMath,
-    'longDescription': AccessibilityFeature.longDescription,
-    'openCaptions': AccessibilityFeature.openCaptions,
-    'signLanguage': AccessibilityFeature.signLanguage,
-    'transcript': AccessibilityFeature.transcript,
-    'displayTransformability': AccessibilityFeature.displayTransformability,
-    'synchronizedAudioText': AccessibilityFeature.synchronizedAudioText,
-    'timingControl': AccessibilityFeature.timingControl,
-    'unlocked': AccessibilityFeature.unlocked,
-    'ChemML': AccessibilityFeature.ChemML,
-    'latex': AccessibilityFeature.latex,
-    'latex-chemistry': AccessibilityFeature.latexChemistry,
-    'MathML': AccessibilityFeature.MathML,
-    'MathML-chemistry': AccessibilityFeature.MathMLChemistry,
-    'ttsMarkup': AccessibilityFeature.ttsMarkup,
-    'highContrastAudio': AccessibilityFeature.highContrastAudio,
-    'highContrastDisplay': AccessibilityFeature.highContrastDisplay,
-    'largePrint': AccessibilityFeature.largePrint,
-    'braille': AccessibilityFeature.braille,
-    'tactileGraphic': AccessibilityFeature.tactileGraphic,
-    'tactileObject': AccessibilityFeature.tactileObject,
-    'fullRubyAnnotations': AccessibilityFeature.fullRubyAnnotations,
-    'horizontalWriting': AccessibilityFeature.horizontalWriting,
-    'rubyAnnotations': AccessibilityFeature.rubyAnnotations,
-    'verticalWriting': AccessibilityFeature.verticalWriting,
-    'withAdditionalWordSegmentation': AccessibilityFeature.withAdditionalWordSegmentation,
-    'withoutAdditionalWordSegmentation': AccessibilityFeature.withoutAdditionalWordSegmentation,
-    'none': AccessibilityFeature.none,
-    'unknown': AccessibilityFeature.unknown,
-  };
+  const AccessibilityFeature(this.name);
+  final String name;
 
-  String get value => _featureMap.entries.firstWhere((entry) => entry.value == this).key;
+  static AccessibilityFeature? fromString(String? name) {
+    if (name == null || name.isEmpty) {
+      return null;
+    }
 
-  static AccessibilityFeature? fromString(String? name) => _featureMap[name] ?? _featureMap[name?.toLowerCase()];
+    return AccessibilityFeature.values.firstWhereOrNull(
+          (feature) => feature.name.toLowerCase() == name.toLowerCase(),
+        ) ??
+        unknown;
+  }
 }
 
 enum AccessibilityHazard {
-  flashing,
-  motionSimulation,
-  sound,
-  none,
-  noFlashingHazard,
-  noMotionSimulationHazard,
-  noSoundHazard,
-  unknown,
-  unknownFlashingHazard,
-  unknownMotionSimulationHazard,
-  unknownSoundHazard,
-}
+  flashing('flashing'),
+  motionSimulation('motionSimulation'),
+  sound('sound'),
+  none('none'),
+  noFlashingHazard('noFlashingHazard'),
+  noMotionSimulationHazard('noMotionSimulationHazard'),
+  noSoundHazard('noSoundHazard'),
+  unknown('unknown'),
+  unknownFlashingHazard('unknownFlashingHazard'),
+  unknownMotionSimulationHazard('unknownMotionSimulationHazard'),
+  unknownSoundHazard('unknownSoundHazard');
 
-extension AccessibilityHazardExtension on AccessibilityHazard {
-  static const _hazardMap = {
-    'flashing': AccessibilityHazard.flashing,
-    'motionSimulation': AccessibilityHazard.motionSimulation,
-    'sound': AccessibilityHazard.sound,
-    'none': AccessibilityHazard.none,
-    'noFlashingHazard': AccessibilityHazard.noFlashingHazard,
-    'noMotionSimulationHazard': AccessibilityHazard.noMotionSimulationHazard,
-    'noSoundHazard': AccessibilityHazard.noSoundHazard,
-    'unknown': AccessibilityHazard.unknown,
-    'unknownFlashingHazard': AccessibilityHazard.unknownFlashingHazard,
-    'unknownMotionSimulationHazard': AccessibilityHazard.unknownMotionSimulationHazard,
-    'unknownSoundHazard': AccessibilityHazard.unknownSoundHazard,
-  };
+  const AccessibilityHazard(this.name);
+  final String name;
 
-  String get name => _hazardMap.entries.firstWhere((entry) => entry.value == this).key;
+  static AccessibilityHazard? fromString(String? name) {
+    if (name == null || name.isEmpty) {
+      return null;
+    }
 
-  static AccessibilityHazard? fromString(String name) =>
-      _hazardMap[name] ?? _hazardMap[name.toLowerCase()] ?? AccessibilityHazard.unknown;
+    return AccessibilityHazard.values.firstWhereOrNull((hazard) => hazard.name.toLowerCase() == name.toLowerCase()) ??
+        AccessibilityHazard.unknown;
+  }
 }
 
 @immutable
