@@ -7,11 +7,11 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
+import '../../../utils/jsonable.dart';
 import 'alt_identifier.dart';
 import 'collection.dart';
-import 'link.dart';
-import 'localized_string.dart';
+import '../link.dart';
+import '../localized_string.dart';
 
 /// Contributor Object for the Readium Web Publication Manifest.
 /// https://readium.org/webpub-manifest/schema/contributor-object.schema.json

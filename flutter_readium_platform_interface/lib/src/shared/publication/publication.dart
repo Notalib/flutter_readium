@@ -20,7 +20,7 @@ import '../../utils/jsonable.dart';
 import '../mediatype.dart';
 import 'link.dart';
 import 'locator.dart';
-import 'metadata.dart';
+import 'metadata/metadata.dart';
 import 'publication_collection.dart';
 import 'subcollection_map.dart';
 

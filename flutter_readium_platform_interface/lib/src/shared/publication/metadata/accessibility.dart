@@ -3,7 +3,7 @@ import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
+import '../../../utils/jsonable.dart';
 
 /// Accessibility Object
 /// https://readium.org/webpub-manifest/schema/a11y.schema.json

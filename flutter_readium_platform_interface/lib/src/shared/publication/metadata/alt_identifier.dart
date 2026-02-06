@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
+import '../../../utils/jsonable.dart';
 
 /// Alternate Identifiers
 ///

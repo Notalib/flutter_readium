@@ -8,23 +8,23 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../extensions/strings.dart';
-import '../../utils/additional_properties.dart';
-import '../../utils/jsonable.dart';
-import '../epub.dart';
+import '../../../extensions/strings.dart';
+import '../../../utils/additional_properties.dart';
+import '../../../utils/jsonable.dart';
+import '../../epub.dart';
 import 'accessibility.dart';
 import 'alt_identifier.dart';
+import 'article.dart';
 import 'collection.dart';
 import 'contributor.dart';
-import 'link.dart';
-import 'localized_string.dart';
-import 'reading_progression.dart';
+import '../link.dart';
+import '../localized_string.dart';
+import '../reading_progression.dart';
 import 'subject.dart';
-import 'publication.dart';
 
-export 'presentation/presentation_metadata_extension.dart';
-export '../../utils/additional_properties.dart';
-export 'epub/metadata_extension.dart';
+export '../presentation/presentation_metadata_extension.dart';
+export '../../../utils/additional_properties.dart';
+export '../epub/metadata_extension.dart';
 
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///
@@ -66,6 +66,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
     this.altIdentifier,
+    this.contains = const MetadataContains(),
     super.additionalProperties,
   });
 
@@ -150,6 +151,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
   final AltIdentifier? altIdentifier;
 
+  final MetadataContains contains;
+
   @override
   List<Object?> get props => [
     identifier,
@@ -183,6 +186,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     numberOfPages,
     belongsTo,
     rendition,
+    contains,
     additionalProperties,
   ];
 
@@ -217,7 +221,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     ..putOpt('duration', duration)
     ..putOpt('numberOfPages', numberOfPages)
     ..putMapIfNotEmpty('belongsTo', belongsTo)
-    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier);
+    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+    ..putJSONableIfNotEmpty('contains', contains);
 
   /// Parses a [Metadata] from its RWPM JSON representation.
   ///
@@ -267,6 +272,9 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     final description = jsonObject.remove('description') as String?;
     final duration = jsonObject.optPositiveDouble('duration', remove: true);
     final numberOfPages = jsonObject.optPositiveInt('numberOfPages', remove: true);
+    final contains =
+        jsonObject.optNullableMap('contains', remove: true)?.let((it) => MetadataContains.fromJson(it)) ??
+        MetadataContains();
 
     final belongsToJson =
         (jsonObject.optNullableMap('belongsTo', remove: true) ??
@@ -310,6 +318,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       duration: duration,
       numberOfPages: numberOfPages,
       belongsTo: belongsTo,
+      contains: contains,
       additionalProperties: json,
     );
   }
@@ -343,6 +352,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     Map<String, List<Collection>>? belongsTo,
     ReadingProgression? readingProgression,
     Presentation? rendition,
+    AltIdentifier? altIdentifier,
+    MetadataContains? contains,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -378,12 +389,36 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       belongsTo: belongsTo ?? this.belongsTo,
       readingProgression: readingProgression ?? this.readingProgression,
       rendition: rendition ?? this.rendition,
+      altIdentifier: altIdentifier ?? this.altIdentifier,
+      contains: contains ?? this.contains,
       additionalProperties: mergeProperties,
     );
   }
 
   @override
   String toString() => 'Metadata($props)';
+}
+
+@immutable
+class MetadataContains with EquatableMixin implements JSONable {
+  factory MetadataContains.fromJson(Map<String, dynamic>? json) {
+    final jsonObject = Map<String, dynamic>.of(json ?? {});
+    final article = jsonObject.optNullableMap('article', remove: true)?.let((it) => Article.fromJson(it));
+
+    return MetadataContains(article: article);
+  }
+
+  const MetadataContains({this.article});
+
+  final List<Article>? article;
+
+  @override
+  List<Object?> get props => [article];
+
+  @override
+  Map<String, dynamic> toJson() => {}..putIterableIfNotEmpty('article', article);
+
+  MetadataContains copyWith({List<Article>? article}) => MetadataContains(article: article ?? this.article);
 }
 
 class MetadataJsonConverter extends JsonConverter<Metadata?, Map<String, dynamic>?> {

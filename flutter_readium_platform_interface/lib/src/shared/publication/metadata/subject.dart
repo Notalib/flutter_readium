@@ -7,12 +7,13 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
-import '../publication.dart';
+import '../../../utils/jsonable.dart';
+import '../../publication.dart';
 
 /// Subject of a [Publication].
 ///
 /// See https://github.com/readium/webpub-manifest/tree/master/contexts/default#subjects
+/// https://readium.org/webpub-manifest/schema/subject.schema.json
 @immutable
 class Subject with EquatableMixin implements JSONable {
   factory Subject.fromString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));

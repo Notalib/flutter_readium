@@ -6,8 +6,8 @@ import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
-import '../publication.dart';
+import '../../../utils/jsonable.dart';
+import '../../publication.dart';
 
 /// Contributor Object for the Readium Web Publication Manifest.
 /// https://readium.org/webpub-manifest/schema/contributor-object.schema.json

@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../publication/link.dart' show Link;
-import '../publication/metadata.dart' show Metadata;
+import '../publication/metadata/metadata.dart' show Metadata;
 
 @immutable
 class OpdsPublication implements JSONable {
