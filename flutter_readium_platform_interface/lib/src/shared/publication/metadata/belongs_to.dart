@@ -2,19 +2,23 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
+import 'base_collection.dart';
 
+/// BelongsTo Object for the Metadata object.
+///
+/// https://readium.org/webpub-manifest/schema/metadata.schema.json#belongsTo
 @immutable
 class BelongsTo extends AdditionalProperties with EquatableMixin implements JSONable {
   const BelongsTo({
-    this.collection,
-    this.journal,
-    this.magazine,
-    this.newspaper,
-    this.periodical,
-    this.season,
+    this.collections,
+    this.journals,
+    this.magazines,
+    this.newspapers,
+    this.periodicals,
+    this.seasons,
     this.series,
-    this.storyArc,
-    this.volume,
+    this.storyArcs,
+    this.volumes,
     super.additionalProperties,
   });
   factory BelongsTo.fromJson(
@@ -39,51 +43,51 @@ class BelongsTo extends AdditionalProperties with EquatableMixin implements JSON
     final volume = Volume.listFromJson(jsonObject.opt('volume', remove: true), normalizeHref: normalizeHref);
 
     return BelongsTo(
-      collection: collection,
-      journal: journal,
-      magazine: magazine,
-      newspaper: newspaper,
-      periodical: periodical,
-      season: season,
+      collections: collection,
+      journals: journal,
+      magazines: magazine,
+      newspapers: newspaper,
+      periodicals: periodical,
+      seasons: season,
       series: series,
-      storyArc: storyArc,
-      volume: volume,
+      storyArcs: storyArc,
+      volumes: volume,
       additionalProperties: jsonObject,
     );
   }
 
-  final List<Collection>? collection;
-  final List<Periodical>? journal;
-  final List<Periodical>? magazine;
-  final List<Periodical>? newspaper;
-  final List<Periodical>? periodical;
-  final List<Season>? season;
+  final List<Collection>? collections;
+  final List<Periodical>? journals;
+  final List<Periodical>? magazines;
+  final List<Periodical>? newspapers;
+  final List<Periodical>? periodicals;
+  final List<Season>? seasons;
   final List<Series>? series;
-  final List<StoryArc>? storyArc;
-  final List<Volume>? volume;
+  final List<StoryArc>? storyArcs;
+  final List<Volume>? volumes;
 
   @override
   Map<String, dynamic> toJson() => {}
-    ..putIterableIfNotEmpty('collection', collection)
-    ..putIterableIfNotEmpty('journal', journal)
-    ..putIterableIfNotEmpty('magazine', magazine)
-    ..putIterableIfNotEmpty('newspaper', newspaper)
-    ..putIterableIfNotEmpty('periodical', periodical)
-    ..putIterableIfNotEmpty('season', season)
-    ..putIterableIfNotEmpty('series', series)
-    ..putIterableIfNotEmpty('storyArc', storyArc)
-    ..putIterableIfNotEmpty('volume', volume);
+    ..putOpt('collection', collections.toSingleOrMultiJson())
+    ..putOpt('journal', journals.toSingleOrMultiJson())
+    ..putOpt('magazine', magazines.toSingleOrMultiJson())
+    ..putOpt('newspaper', newspapers.toSingleOrMultiJson())
+    ..putOpt('periodical', periodicals.toSingleOrMultiJson())
+    ..putOpt('season', seasons.toSingleOrMultiJson())
+    ..putOpt('series', series.toSingleOrMultiJson())
+    ..putOpt('storyArc', storyArcs.toSingleOrMultiJson())
+    ..putOpt('volume', volumes.toSingleOrMultiJson());
 
   BelongsTo copyWith({
-    List<Collection>? collection,
-    List<Periodical>? journal,
-    List<Periodical>? magazine,
-    List<Periodical>? newspaper,
-    List<Periodical>? periodical,
-    List<Season>? season,
+    List<Collection>? collections,
+    List<Periodical>? journals,
+    List<Periodical>? magazines,
+    List<Periodical>? newspapers,
+    List<Periodical>? periodicals,
+    List<Season>? seasons,
     List<Series>? series,
-    List<StoryArc>? storyArc,
-    List<Volume>? volume,
+    List<StoryArc>? storyArcs,
+    List<Volume>? volumes,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -91,19 +95,29 @@ class BelongsTo extends AdditionalProperties with EquatableMixin implements JSON
       ..removeWhere((key, value) => value == null);
 
     return BelongsTo(
-      collection: collection ?? this.collection,
-      journal: journal ?? this.journal,
-      magazine: magazine ?? this.magazine,
-      newspaper: newspaper ?? this.newspaper,
-      periodical: periodical ?? this.periodical,
-      season: season ?? this.season,
+      collections: collections ?? this.collections,
+      journals: journals ?? this.journals,
+      magazines: magazines ?? this.magazines,
+      newspapers: newspapers ?? this.newspapers,
+      periodicals: periodicals ?? this.periodicals,
+      seasons: seasons ?? this.seasons,
       series: series ?? this.series,
-      storyArc: storyArc ?? this.storyArc,
-      volume: volume ?? this.volume,
+      storyArcs: storyArcs ?? this.storyArcs,
+      volumes: volumes ?? this.volumes,
       additionalProperties: mergeProperties,
     );
   }
 
   @override
-  List<Object?> get props => [collection, journal, magazine, newspaper, periodical, season, series, storyArc, volume];
+  List<Object?> get props => [
+    collections,
+    journals,
+    magazines,
+    newspapers,
+    periodicals,
+    seasons,
+    series,
+    storyArcs,
+    volumes,
+  ];
 }

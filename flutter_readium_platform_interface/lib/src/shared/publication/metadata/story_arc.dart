@@ -2,10 +2,14 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
+/// Story Arc collection object.
+///
+/// https://readium.org/webpub-manifest/schema/storyArc.schema.json
 @immutable
 class StoryArc extends BaseCollection {
   factory StoryArc.fromJsonNumber(int number) =>
       StoryArc(localizedName: LocalizedString.fromJsonString(number.toString()), position: number);
+
   factory StoryArc.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is int) {
       return StoryArc.fromJsonNumber(json);
@@ -23,10 +27,10 @@ class StoryArc extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -38,7 +42,7 @@ class StoryArc extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       chapters: chapters,
@@ -52,7 +56,7 @@ class StoryArc extends BaseCollection {
     required super.localizedName,
     this.position,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     this.chapters = const [],
@@ -71,7 +75,7 @@ class StoryArc extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty) &&
         (chapters.isEmpty) &&
@@ -82,13 +86,13 @@ class StoryArc extends BaseCollection {
       return <String, dynamic>{...additionalProperties}
         ..put('position', position)
         ..putOpt('identifier', identifier)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links)
-        ..putIterableIfNotEmpty('chapter', chapters)
-        ..putIterableIfNotEmpty('episode', episodes)
-        ..putIterableIfNotEmpty('issue', issues);
+        ..putOpt('chapter', chapters.toSingleOrMultiJson())
+        ..putOpt('episode', episodes.toSingleOrMultiJson())
+        ..putOpt('issue', issues.toSingleOrMultiJson());
     }
   }
 
@@ -96,7 +100,7 @@ class StoryArc extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     List<Chapter>? chapters,
@@ -112,7 +116,7 @@ class StoryArc extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       chapters: chapters ?? this.chapters,
@@ -129,9 +133,10 @@ class StoryArc extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => StoryArc.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [StoryArc.fromJson(json, normalizeHref: normalizeHref)];
     }
+    return [];
   }
 
   @override
@@ -139,7 +144,7 @@ class StoryArc extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     chapters,

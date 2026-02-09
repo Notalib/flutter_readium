@@ -1,7 +1,3 @@
-// Copyright (c) 2021 Mantano. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE.Iridium file.
-
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -15,96 +11,112 @@ import '../../publication.dart';
 /// See https://github.com/readium/webpub-manifest/tree/master/contexts/default#subjects
 /// https://readium.org/webpub-manifest/schema/subject.schema.json
 @immutable
-class Subject with EquatableMixin implements JSONable {
-  factory Subject.fromString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
-  const Subject({required this.localizedName, this.localizedSortAs, this.scheme, this.code, this.links = const []});
+class Subject extends AdditionalProperties with EquatableMixin implements JSONable {
+  factory Subject.fromJsonString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
 
-  final LocalizedString localizedName;
-  final LocalizedString? localizedSortAs;
-  final String? scheme;
-  final String? code;
-  final List<Link> links;
-
-  /// Returns the default translation string for the [localizedName].
-  String get name => localizedName.string;
-
-  /// Returns the default translation string for the [localizedSortAs].
-  String? get sortAs => localizedSortAs?.string;
-
-  @override
-  List<Object?> get props => [localizedName, localizedSortAs, scheme, code, links];
-
-  @override
-  String toString() => 'Subject($props)';
-
-  @override
-  Map<String, dynamic> toJson() => {}
-    ..putJSONableIfNotEmpty('name', localizedName)
-    ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-    ..putOpt('scheme', scheme)
-    ..putOpt('code', code)
-    ..putIterableIfNotEmpty('links', links);
-
-  /// Parses a [Subject] from its RWPM JSON representation.
-  ///
-  /// A subject can be parsed from a single string, or a full-fledged object.
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
-  /// If the subject can't be parsed, a warning will be logged with [warnings].
-  static Subject? fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json == null) {
-      return null;
-    }
-
-    var jsonObject = <String, dynamic>{};
-    dynamic jsonName;
+  factory Subject.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is String) {
-      jsonName = json;
+      return Subject.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      jsonObject = Map<String, dynamic>.of(json);
+      return Subject.fromJsonMap(json, normalizeHref: normalizeHref);
+    } else {
+      Fimber.e('Invalid JSON for Subject: $json');
 
-      jsonName = jsonObject.remove('name');
+      throw ArgumentError('Invalid JSON for Subject: $json');
     }
+  }
 
-    if (jsonName == null || jsonName.isEmpty) {
-      Fimber.i('[name] is required');
-      return null;
-    }
+  factory Subject.fromJsonMap(
+    Map<String, dynamic> json, {
+    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
+  }) {
+    final jsonObject = Map<String, dynamic>.of(json);
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final code = jsonObject.optNullableString('code', remove: true);
+    final scheme = jsonObject.optNullableString('scheme', remove: true);
+    final links = Link.fromJsonArray(jsonObject.opt('links', remove: true), normalizeHref: normalizeHref);
 
-    final localizedName = LocalizedString.fromJsonDynamic(jsonName);
     if (localizedName == null) {
-      Fimber.i('[name] is required');
-      return null;
+      throw ArgumentError('Subject must have a name: $json');
     }
 
     return Subject(
       localizedName: localizedName,
-      localizedSortAs: LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true)),
-      scheme: jsonObject.optNullableString('scheme', remove: true),
-      code: jsonObject.optNullableString('code', remove: true),
-      links: Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref),
+      localizedSortAs: localizedSortAs,
+      code: code,
+      scheme: scheme,
+      links: links,
+      additionalProperties: jsonObject,
     );
   }
+  const Subject({
+    required this.localizedName,
+    this.localizedSortAs,
+    this.code,
+    this.scheme,
+    this.links,
+    super.additionalProperties,
+  });
 
-  /// Creates a list of [Subject] from its RWPM JSON representation.
-  ///
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
-  /// If a subject can't be parsed, a warning will be logged with [warnings].
-  static List<Subject> fromJsonArray(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is String || json is Map<String, dynamic>) {
-      return [json].map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
-    } else if (json is List) {
-      return json.map((it) => Subject.fromJson(it, normalizeHref: normalizeHref)).nonNulls.toList();
+  final LocalizedString localizedName;
+  final LocalizedString? localizedSortAs;
+  final String? code;
+  final String? scheme;
+  final List<Link>? links;
+
+  static List<Subject> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
     }
+
+    if (json is List) {
+      return json.map((e) => Subject.fromJson(e, normalizeHref: normalizeHref)).toList();
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
+      return [Subject.fromJson(json, normalizeHref: normalizeHref)];
+    }
+
     return [];
+  }
+
+  @override
+  List<Object?> get props => [localizedName, localizedSortAs, code, scheme, links, additionalProperties];
+
+  @override
+  toJson() {
+    if (additionalProperties.isEmpty &&
+        localizedSortAs == null &&
+        code == null &&
+        scheme == null &&
+        (links == null || links!.isEmpty)) {
+      return localizedName.toJson();
+    } else {
+      return {...additionalProperties}
+        ..putJSONableIfNotEmpty('name', localizedName)
+        ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
+        ..putOpt('code', code)
+        ..putOpt('scheme', scheme)
+        ..putIterableIfNotEmpty('links', links);
+    }
   }
 }
 
 class SubjectJsonConverter implements JsonConverter<Subject, Map<String, dynamic>> {
   @override
-  Subject fromJson(Map<String, dynamic> json) => Subject.fromJson(json)!;
+  Subject fromJson(Map<String, dynamic> json) => Subject.fromJson(json);
 
   @override
   Map<String, dynamic> toJson(Subject object) => object.toJson();
+}
+
+extension ListSubjectExtension on List<Subject>? {
+  dynamic toSingleOrMultiJson() {
+    if (this == null || this!.isEmpty) {
+      return null;
+    } else if (this!.length == 1) {
+      return this!.first.toJson();
+    } else {
+      return this!.map((e) => e.toJson()).toList();
+    }
+  }
 }

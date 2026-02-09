@@ -1,11 +1,13 @@
 import 'package:collection/collection.dart';
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
+import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
 
 /// Accessibility Object
+///
 /// https://readium.org/webpub-manifest/schema/a11y.schema.json
 @immutable
 class Accessibility with EquatableMixin implements JSONable {
@@ -29,7 +31,7 @@ class Accessibility with EquatableMixin implements JSONable {
         .toList();
 
     final accessModeSufficient = jsonObject
-        .opt('accessModeSufficient', remove: true)
+        .optJsonArray('accessModeSufficient', remove: true)
         ?.map((e) => AccessibilityAccessModeSufficient.fromJson(e))
         .nonNulls
         .toList();
@@ -170,25 +172,35 @@ enum AccessibilityAccessMode {
 @immutable
 class AccessibilityAccessModeSufficient with EquatableMixin {
   factory AccessibilityAccessModeSufficient.fromJson(dynamic json) {
+    if (json == null) {
+      return AccessibilityAccessModeSufficient([]);
+    }
+
     if (json is String) {
       final mode = AccessibilityAccessModeSimple.fromString(json);
       if (mode == null) {
-        throw ArgumentError('Invalid accessModeSufficient value: $json');
+        Fimber.e('Invalid accessModeSufficient value: $json');
+        return AccessibilityAccessModeSufficient([]);
       }
 
       return AccessibilityAccessModeSufficient([mode]);
     } else if (json is List) {
-      return AccessibilityAccessModeSufficient(
-        json
-            .map(
-              (e) =>
-                  AccessibilityAccessModeSimple.fromString(e) ??
-                  (throw ArgumentError('Invalid accessModeSufficient value: $e')),
-            )
-            .toList(),
-      );
+      final modes = json
+          .map((e) {
+            final mode = AccessibilityAccessModeSimple.fromString(e);
+            if (mode == null) {
+              Fimber.e('Invalid accessModeSufficient value: $e');
+              return null;
+            }
+            return mode;
+          })
+          .nonNulls
+          .toList();
+
+      return AccessibilityAccessModeSufficient(modes);
     } else {
-      throw ArgumentError('Invalid accessModeSufficient type');
+      Fimber.e('Invalid accessModeSufficient type: $json');
+      return AccessibilityAccessModeSufficient([]);
     }
   }
 

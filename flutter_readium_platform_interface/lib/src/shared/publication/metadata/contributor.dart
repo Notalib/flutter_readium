@@ -3,6 +3,7 @@ import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
 /// Contributor
+///
 /// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
 class Contributor extends BaseCollection {
@@ -25,21 +26,23 @@ class Contributor extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final roles = jsonObject.optJsonArray('role', remove: true)?.map((e) => e.toString()).toList();
 
     return Contributor(
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
+      roles: roles,
       additionalProperties: jsonObject,
     );
   }
@@ -48,30 +51,36 @@ class Contributor extends BaseCollection {
     required super.localizedName,
     this.position,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
+    this.roles,
     super.additionalProperties,
   });
 
   final int? position;
 
+  /// All values for the role element should be based on https://www.loc.gov/marc/relators/relaterm.html
+  final List<String>? roles;
+
   @override
   toJson() {
     if (additionalProperties.isEmpty &&
-        localizedName == null &&
+        position == null &&
+        roles == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty)) {
-      return position;
+      return localizedName!.toJson();
     } else {
       return <String, dynamic>{...additionalProperties}
         ..putOpt('position', position)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-        ..putIterableIfNotEmpty('links', links);
+        ..putIterableIfNotEmpty('links', links)
+        ..putIterableIfNotEmpty('role', roles);
     }
   }
 
@@ -79,9 +88,10 @@ class Contributor extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
+    List<String>? roles,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -92,18 +102,25 @@ class Contributor extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
+      roles: roles ?? this.roles,
       additionalProperties: mergeProperties,
     );
   }
 
   static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
+
     if (json is List) {
       return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+    } else {
+      return [];
     }
   }
 
@@ -112,9 +129,10 @@ class Contributor extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     additionalProperties,
+    roles,
   ];
 }

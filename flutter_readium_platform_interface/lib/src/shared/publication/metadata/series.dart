@@ -26,10 +26,10 @@ class Series extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -45,7 +45,7 @@ class Series extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       chapters: chapters,
@@ -62,7 +62,7 @@ class Series extends BaseCollection {
     required super.localizedName,
     this.position,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     this.chapters = const [],
@@ -87,7 +87,7 @@ class Series extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty) &&
         (chapters.isEmpty) &&
@@ -99,15 +99,15 @@ class Series extends BaseCollection {
     } else {
       return <String, dynamic>{...additionalProperties}
         ..putOpt('position', position)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links)
-        ..putIterableIfNotEmpty('chapter', chapters)
-        ..putIterableIfNotEmpty('episode', episodes)
-        ..putIterableIfNotEmpty('season', seasons)
-        ..putIterableIfNotEmpty('storyArc', storyArcs)
-        ..putIterableIfNotEmpty('volume', volumes);
+        ..putOpt('chapter', chapters.toSingleOrMultiJson())
+        ..putOpt('episode', episodes.toSingleOrMultiJson())
+        ..putOpt('season', seasons.toSingleOrMultiJson())
+        ..putOpt('storyArc', storyArcs.toSingleOrMultiJson())
+        ..putOpt('volume', volumes.toSingleOrMultiJson());
     }
   }
 
@@ -115,7 +115,7 @@ class Series extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     List<Chapter>? chapters,
@@ -134,7 +134,7 @@ class Series extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       chapters: chapters ?? this.chapters,
@@ -154,9 +154,10 @@ class Series extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Series.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Series.fromJson(json, normalizeHref: normalizeHref)];
     }
+    return [];
   }
 
   @override
@@ -164,7 +165,7 @@ class Series extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     chapters,

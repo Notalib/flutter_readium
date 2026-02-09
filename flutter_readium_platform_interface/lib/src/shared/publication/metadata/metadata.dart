@@ -9,6 +9,7 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
+import 'base_collection.dart';
 
 export '../presentation/presentation_metadata_extension.dart';
 export '../../../utils/additional_properties.dart';
@@ -55,7 +56,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     this.tdm,
     this.readingProgression = ReadingProgression.auto,
     this.rendition,
-    this.altIdentifier,
+    this.altIdentifiers,
     this.contains = const MetadataContains(),
     super.additionalProperties,
   });
@@ -143,7 +144,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
   /// Returns the default translation string for the [localizedSortAs].
   String? get sortAs => localizedSortAs?.string;
 
-  final AltIdentifier? altIdentifier;
+  final List<AltIdentifier>? altIdentifiers;
 
   final MetadataContains contains;
 
@@ -174,7 +175,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     publishers,
     imprints,
     readingProgression,
-    altIdentifier,
+    altIdentifiers,
     description,
     duration,
     numberOfPages,
@@ -198,27 +199,27 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     ..putOpt('published', published?.toIso8601String())
     ..putIterableIfNotEmpty('language', languages)
     ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-    ..putIterableIfNotEmpty('subject', subjects)
-    ..putIterableIfNotEmpty('author', authors)
-    ..putIterableIfNotEmpty('translator', translators)
-    ..putIterableIfNotEmpty('editor', editors)
-    ..putIterableIfNotEmpty('artist', artists)
-    ..putIterableIfNotEmpty('illustrator', illustrators)
-    ..putIterableIfNotEmpty('letterer', letterers)
-    ..putIterableIfNotEmpty('penciler', pencilers)
-    ..putIterableIfNotEmpty('colorist', colorists)
-    ..putIterableIfNotEmpty('inker', inkers)
-    ..putIterableIfNotEmpty('narrator', narrators)
-    ..putIterableIfNotEmpty('contributor', contributors)
-    ..putIterableIfNotEmpty('publisher', publishers)
-    ..putIterableIfNotEmpty('imprint', imprints)
-    ..putOpt('readingProgression', readingProgression.value)
+    ..put('subject', subjects.toSingleOrMultiJson())
+    ..putOpt('author', authors.toSingleOrMultiJson())
+    ..putOpt('translator', translators.toSingleOrMultiJson())
+    ..putOpt('editor', editors.toSingleOrMultiJson())
+    ..putOpt('artist', artists.toSingleOrMultiJson())
+    ..putOpt('illustrator', illustrators.toSingleOrMultiJson())
+    ..putOpt('letterer', letterers.toSingleOrMultiJson())
+    ..putOpt('penciler', pencilers.toSingleOrMultiJson())
+    ..putOpt('colorist', colorists.toSingleOrMultiJson())
+    ..putOpt('inker', inkers.toSingleOrMultiJson())
+    ..putOpt('narrator', narrators.toSingleOrMultiJson())
+    ..putOpt('contributor', contributors.toSingleOrMultiJson())
+    ..putOpt('publisher', publishers.toSingleOrMultiJson())
+    ..putOpt('imprint', imprints.toSingleOrMultiJson())
+    ..putOpt('readingProgression', readingProgression.name)
     ..putOpt('description', description)
     ..putOpt('duration', duration)
     ..putOpt('numberOfPages', numberOfPages)
     ..putOpt('layout', layout)
     ..putJSONableIfNotEmpty('belongsTo', belongsTo)
-    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+    ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
     ..putJSONableIfNotEmpty('contains', contains)
     ..putJSONableIfNotEmpty('tdm', tdm);
 
@@ -251,22 +252,34 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
     final languages = jsonObject.optStringsFromArrayOrSingle('language', remove: true);
     final conformsTo = jsonObject.optStringsFromArrayOrSingle('conformsTo', remove: true);
-    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.remove('sortAs'));
-    final subjects = Subject.fromJsonArray(jsonObject.remove('subject'), normalizeHref: normalizeHref);
-    final authors = Contributor.listFromJson(jsonObject.remove('author'), normalizeHref: normalizeHref);
-    final translators = Contributor.listFromJson(jsonObject.remove('translator'), normalizeHref: normalizeHref);
-    final editors = Contributor.listFromJson(jsonObject.remove('editor'), normalizeHref: normalizeHref);
-    final artists = Contributor.listFromJson(jsonObject.remove('artist'), normalizeHref: normalizeHref);
-    final illustrators = Contributor.listFromJson(jsonObject.remove('illustrator'), normalizeHref: normalizeHref);
-    final letterers = Contributor.listFromJson(jsonObject.remove('letterer'), normalizeHref: normalizeHref);
-    final pencilers = Contributor.listFromJson(jsonObject.remove('penciler'), normalizeHref: normalizeHref);
-    final colorists = Contributor.listFromJson(jsonObject.remove('colorist'), normalizeHref: normalizeHref);
-    final inkers = Contributor.listFromJson(jsonObject.remove('inker'), normalizeHref: normalizeHref);
-    final narrators = Contributor.listFromJson(jsonObject.remove('narrator'), normalizeHref: normalizeHref);
-    final contributors = Contributor.listFromJson(jsonObject.remove('contributor'), normalizeHref: normalizeHref);
-    final publishers = Contributor.listFromJson(jsonObject.remove('publisher'), normalizeHref: normalizeHref);
-    final imprints = Contributor.listFromJson(jsonObject.remove('imprint'), normalizeHref: normalizeHref);
-    final readingProgression = ReadingProgression.fromValue(jsonObject.remove('readingProgression') as String?);
+    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final subjects = Subject.listFromJson(jsonObject.opt('subject', remove: true), normalizeHref: normalizeHref);
+    final authors = Contributor.listFromJson(jsonObject.opt('author', remove: true), normalizeHref: normalizeHref);
+    final translators = Contributor.listFromJson(
+      jsonObject.opt('translator', remove: true),
+      normalizeHref: normalizeHref,
+    );
+    final editors = Contributor.listFromJson(jsonObject.opt('editor', remove: true), normalizeHref: normalizeHref);
+    final artists = Contributor.listFromJson(jsonObject.opt('artist', remove: true), normalizeHref: normalizeHref);
+    final illustrators = Contributor.listFromJson(
+      jsonObject.opt('illustrator', remove: true),
+      normalizeHref: normalizeHref,
+    );
+    final letterers = Contributor.listFromJson(jsonObject.opt('letterer', remove: true), normalizeHref: normalizeHref);
+    final pencilers = Contributor.listFromJson(jsonObject.opt('penciler', remove: true), normalizeHref: normalizeHref);
+    final colorists = Contributor.listFromJson(jsonObject.opt('colorist', remove: true), normalizeHref: normalizeHref);
+    final inkers = Contributor.listFromJson(jsonObject.opt('inker', remove: true), normalizeHref: normalizeHref);
+    final narrators = Contributor.listFromJson(jsonObject.opt('narrator', remove: true), normalizeHref: normalizeHref);
+    final contributors = Contributor.listFromJson(
+      jsonObject.opt('contributor', remove: true),
+      normalizeHref: normalizeHref,
+    );
+    final publishers = Contributor.listFromJson(
+      jsonObject.opt('publisher', remove: true),
+      normalizeHref: normalizeHref,
+    );
+    final imprints = Contributor.listFromJson(jsonObject.opt('imprint', remove: true), normalizeHref: normalizeHref);
+    final readingProgression = ReadingProgression.fromString(jsonObject.remove('readingProgression') as String?);
     final description = jsonObject.remove('description') as String?;
     final duration = jsonObject.optPositiveDouble('duration', remove: true);
     final numberOfPages = jsonObject.optPositiveInt('numberOfPages', remove: true);
@@ -281,6 +294,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
         jsonObject.optNullableMap('belongs_to', remove: true) ??
         {});
     final belongsTo = BelongsTo.fromJson(belongsToJson, normalizeHref: normalizeHref);
+
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
 
     final tdm = TDM.fromJson(jsonObject.optNullableMap('tdm', remove: true));
 
@@ -316,6 +331,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       belongsTo: belongsTo,
       contains: contains,
       tdm: tdm,
+      altIdentifiers: altIdentifiers,
       additionalProperties: jsonObject,
     );
   }
@@ -350,7 +366,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     TDM? tdm,
     ReadingProgression? readingProgression,
     Presentation? rendition,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     MetadataContains? contains,
     Map<String, dynamic>? additionalProperties,
   }) {
@@ -387,7 +403,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       belongsTo: belongsTo ?? this.belongsTo,
       readingProgression: readingProgression ?? this.readingProgression,
       rendition: rendition ?? this.rendition,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       contains: contains ?? this.contains,
       tdm: tdm ?? this.tdm,
       additionalProperties: mergeProperties,
@@ -463,14 +479,14 @@ class MetadataContains extends AdditionalProperties with EquatableMixin implemen
 
   @override
   Map<String, dynamic> toJson() => {...additionalProperties}
-    ..putIterableIfNotEmpty('article', articles)
-    ..putIterableIfNotEmpty('chapter', chapters)
-    ..putIterableIfNotEmpty('episode', episodes)
-    ..putIterableIfNotEmpty('issue', issues)
-    ..putIterableIfNotEmpty('season', seasons)
-    ..putIterableIfNotEmpty('series', series)
-    ..putIterableIfNotEmpty('storyArc', storyArcs)
-    ..putIterableIfNotEmpty('volume', volumes);
+    ..putOpt('article', articles.toSingleOrMultiJson())
+    ..putOpt('chapter', chapters.toSingleOrMultiJson())
+    ..putOpt('episode', episodes.toSingleOrMultiJson())
+    ..putOpt('issue', issues.toSingleOrMultiJson())
+    ..putOpt('season', seasons.toSingleOrMultiJson())
+    ..putOpt('series', series.toSingleOrMultiJson())
+    ..putOpt('storyArc', storyArcs.toSingleOrMultiJson())
+    ..putOpt('volume', volumes.toSingleOrMultiJson());
 
   MetadataContains copyWith({
     List<Article>? articles,

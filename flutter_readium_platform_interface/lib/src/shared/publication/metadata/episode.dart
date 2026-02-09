@@ -3,6 +3,9 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
+/// Episode collection object.
+///
+/// https://readium.org/webpub-manifest/schema/episode.schema.json
 @immutable
 class Episode extends BaseCollection {
   factory Episode.fromJsonNumber(int number) => Episode(position: number);
@@ -23,10 +26,10 @@ class Episode extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -35,7 +38,7 @@ class Episode extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       additionalProperties: jsonObject,
@@ -46,7 +49,7 @@ class Episode extends BaseCollection {
     required this.position,
     super.localizedName,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     super.additionalProperties,
@@ -59,7 +62,7 @@ class Episode extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty)) {
       return position;
@@ -67,7 +70,7 @@ class Episode extends BaseCollection {
       return <String, dynamic>{...additionalProperties}
         ..put('position', position)
         ..putOpt('identifier', identifier)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links);
@@ -78,7 +81,7 @@ class Episode extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     Map<String, dynamic>? additionalProperties,
@@ -91,7 +94,7 @@ class Episode extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       additionalProperties: mergeProperties,
@@ -105,9 +108,11 @@ class Episode extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Episode.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Episode.fromJson(json, normalizeHref: normalizeHref)];
     }
+
+    return [];
   }
 
   @override
@@ -115,7 +120,7 @@ class Episode extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     additionalProperties,

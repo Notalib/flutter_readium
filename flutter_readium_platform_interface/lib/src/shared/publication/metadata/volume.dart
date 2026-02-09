@@ -22,10 +22,10 @@ class Volume extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -37,7 +37,7 @@ class Volume extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       additionalProperties: jsonObject,
@@ -51,7 +51,7 @@ class Volume extends BaseCollection {
     required this.position,
     super.localizedName,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     this.chapters = const [],
@@ -70,7 +70,7 @@ class Volume extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty)) {
       return position;
@@ -78,13 +78,13 @@ class Volume extends BaseCollection {
       return <String, dynamic>{...additionalProperties}
         ..put('position', position)
         ..putOpt('identifier', identifier)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links)
-        ..putIterableIfNotEmpty('chapter', chapters)
-        ..putIterableIfNotEmpty('issue', issues)
-        ..putIterableIfNotEmpty('storyArc', storyArcs);
+        ..putOpt('chapter', chapters.toSingleOrMultiJson())
+        ..putOpt('issue', issues.toSingleOrMultiJson())
+        ..putOpt('storyArc', storyArcs.toSingleOrMultiJson());
     }
   }
 
@@ -92,7 +92,7 @@ class Volume extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     List<Chapter>? chapters,
@@ -108,7 +108,7 @@ class Volume extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       chapters: chapters ?? this.chapters,
@@ -125,9 +125,11 @@ class Volume extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Volume.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Volume.fromJson(json, normalizeHref: normalizeHref)];
     }
+
+    return [];
   }
 
   @override
@@ -135,7 +137,7 @@ class Volume extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     chapters,

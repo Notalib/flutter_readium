@@ -1,54 +1,47 @@
-// Copyright (c) 2021 Mantano. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE.Iridium file.
-
-import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
+import 'package:fimber/fimber.dart';
 
 import 'presentation/presentation.dart';
 import 'publication.dart';
 
 /// Direction of the [Publication] reading progression.
-@immutable
-class ReadingProgression with EquatableMixin {
-  const ReadingProgression._(this.value);
+enum ReadingProgression {
+  /// Left-to-right reading progression.
+  ltr,
 
-  /// Creates from a BCP 47 language.
-  factory ReadingProgression.fromLanguage(String language) {
-    if (['ar', 'fa', 'he'].contains(language.toLowerCase())) {
-      return ReadingProgression.rtl;
-    } else {
-      return ReadingProgression.ltr;
+  /// Right-to-left reading progression.
+  rtl,
+
+  /// Top to bottom reading progression.
+  ttb,
+
+  /// Bottom to top reading progression.
+  btt,
+  auto;
+
+  factory ReadingProgression.fromString(String? value) {
+    switch (value?.toLowerCase()) {
+      case 'ltr':
+        return ReadingProgression.ltr;
+      case 'rtl':
+        return ReadingProgression.rtl;
+      case 'ttb':
+        return ReadingProgression.ttb;
+      case 'btt':
+        return ReadingProgression.btt;
+      case 'auto':
+        return ReadingProgression.auto;
+      default:
+        Fimber.w('Unknown reading progression: $value, defaulting to auto');
+        return ReadingProgression.auto;
     }
   }
 
-  factory ReadingProgression.fromValue(String? value) =>
-      _values.firstWhere((it) => it.value == value?.toLowerCase(), orElse: () => auto);
-
-  /// Left-to-right reading progression.
-  static const ltr = ReadingProgression._('ltr');
-
-  /// Right-to-left reading progression.
-  static const rtl = ReadingProgression._('rtl');
-
-  /// Top to bottom reading progression.
-  static const ttb = ReadingProgression._('ttb');
-
-  /// Bottom to top reading progression.
-  static const btt = ReadingProgression._('btt');
-
-  static const auto = ReadingProgression._('auto');
-  static const List<ReadingProgression> _values = [ltr, rtl, ttb, btt, auto];
-
-  /// Underlying enum value for [ReadingProgression]. To be used with `switch` to make sure the cases match all values.
-  final String value;
-
   /// Returns the leading [Page] for the [ReadingProgression].
   PresentationPage get leadingPage {
-    switch (value) {
-      case 'ltr':
+    switch (this) {
+      case ReadingProgression.ltr:
         return PresentationPage.left;
-      case 'rtl':
+      case ReadingProgression.rtl:
       default:
         return PresentationPage.right;
     }
@@ -56,44 +49,29 @@ class ReadingProgression with EquatableMixin {
 
   /// Indicates whether this reading progression is on the horizontal axis, or null if unknown.
   bool? isHorizontal() {
-    switch (value) {
-      case 'rtl':
-      case 'ltr':
+    switch (this) {
+      case ReadingProgression.rtl:
+      case ReadingProgression.ltr:
         return true;
-      case 'ttb':
-      case 'btt':
+      case ReadingProgression.ttb:
+      case ReadingProgression.btt:
         return false;
-      case 'auto':
-      default:
+      case ReadingProgression.auto:
         return null;
     }
   }
 
   /// Indicates whether items in this reading progression must be placed in natural or reverse order in the webviews
   bool isReverseOrder() {
-    /*
-    fun VisualNavigator.goLeft(animated: Boolean = false, completion: () -> Unit = {}): Boolean {
-    return when (readingProgression) {
-        ReadingProgression.LTR, ReadingProgression.TTB, ReadingProgression.AUTO ->
-            goBackward(animated = animated, completion = completion)
-
-        ReadingProgression.RTL, ReadingProgression.BTT ->
-            goForward(animated = animated, completion = completion)
-    }
-}
-     */
-    switch (value) {
-      case 'rtl':
-      case 'btt':
+    switch (this) {
+      case ReadingProgression.rtl:
+      case ReadingProgression.btt:
         return true;
-      case 'ltr':
-      case 'ttb':
-      case 'auto': // Don't know exactly what this means ;-)
-      default:
+      case ReadingProgression.ltr:
+      case ReadingProgression.ttb:
+        return false;
+      case ReadingProgression.auto: // Don't know exactly what this means ;-)
         return false;
     }
   }
-
-  @override
-  List<Object> get props => [value];
 }

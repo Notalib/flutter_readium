@@ -26,10 +26,10 @@ class Periodical extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -41,7 +41,7 @@ class Periodical extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       issues: issues,
@@ -54,7 +54,7 @@ class Periodical extends BaseCollection {
     required super.localizedName,
     this.position,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     this.issues = const [],
@@ -71,7 +71,7 @@ class Periodical extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty) &&
         (volumes.isEmpty)) {
@@ -79,11 +79,11 @@ class Periodical extends BaseCollection {
     } else {
       return <String, dynamic>{...additionalProperties}
         ..putOpt('position', position)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links)
-        ..putIterableIfNotEmpty('volume', volumes);
+        ..putOpt('volume', volumes.toSingleOrMultiJson());
     }
   }
 
@@ -91,7 +91,7 @@ class Periodical extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     List<Issue>? issues,
@@ -106,7 +106,7 @@ class Periodical extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       issues: issues ?? this.issues,
@@ -122,9 +122,10 @@ class Periodical extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Periodical.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Periodical.fromJson(json, normalizeHref: normalizeHref)];
     }
+    return [];
   }
 
   @override
@@ -132,7 +133,7 @@ class Periodical extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     issues,

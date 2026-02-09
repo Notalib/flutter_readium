@@ -3,9 +3,13 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
+/// Issue collection object.
+///
+/// https://readium.org/webpub-manifest/schema/issue.schema.json
 @immutable
 class Issue extends BaseCollection {
   factory Issue.fromJsonNumber(int number) => Issue(position: number);
+
   factory Issue.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is int) {
       return Issue.fromJsonNumber(json);
@@ -23,10 +27,10 @@ class Issue extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJson(
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
@@ -40,7 +44,7 @@ class Issue extends BaseCollection {
       position: position,
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
       links: links,
       articles: articles,
@@ -53,7 +57,7 @@ class Issue extends BaseCollection {
     required this.position,
     super.localizedName,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     this.articles = const [],
@@ -70,7 +74,7 @@ class Issue extends BaseCollection {
     int? position,
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
     List<Link>? links,
     List<Article>? articles,
@@ -85,7 +89,7 @@ class Issue extends BaseCollection {
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
       articles: articles ?? this.articles,
@@ -101,9 +105,10 @@ class Issue extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Issue.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Issue.fromJson(json, normalizeHref: normalizeHref)];
     }
+    return [];
   }
 
   @override
@@ -111,7 +116,7 @@ class Issue extends BaseCollection {
     if (additionalProperties.isEmpty &&
         localizedName == null &&
         identifier == null &&
-        altIdentifier == null &&
+        altIdentifiers == null &&
         localizedSortAs == null &&
         (links == null || links!.isEmpty) &&
         (articles.isEmpty) &&
@@ -120,12 +125,12 @@ class Issue extends BaseCollection {
     } else {
       return <String, dynamic>{...additionalProperties}
         ..put('position', position)
-        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
         ..putIterableIfNotEmpty('links', links)
-        ..putIterableIfNotEmpty('article', articles)
-        ..putIterableIfNotEmpty('chapter', chapters);
+        ..putOpt('article', articles.toSingleOrMultiJson())
+        ..putOpt('chapter', chapters.toSingleOrMultiJson());
     }
   }
 
@@ -134,7 +139,7 @@ class Issue extends BaseCollection {
     position,
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
     links,
     articles,

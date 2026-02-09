@@ -1,11 +1,10 @@
-import 'package:dfunc/dfunc.dart';
 import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
 import '../link.dart';
 import '../localized_string.dart';
 import 'alt_identifier.dart';
-import 'base_collection.dart' show BaseCollection;
+import 'base_collection.dart';
 import 'contributor.dart';
 
 /// Article
@@ -33,9 +32,7 @@ class Article extends BaseCollection {
 
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifier = jsonObject
-        .optJsonObject('altIdentifier', remove: true)
-        ?.let((it) => AltIdentifier.fromJson(it));
+    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
     final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
     final author = jsonObject
         .optJsonArray('author', remove: true)
@@ -81,14 +78,14 @@ class Article extends BaseCollection {
     return Article(
       localizedName: localizedName,
       identifier: identifier,
-      altIdentifier: altIdentifier,
+      altIdentifiers: altIdentifiers,
       localizedSortAs: localizedSortAs,
-      author: author,
-      translator: translator,
-      editor: editor,
-      artist: artist,
-      illustrator: illustrator,
-      contributor: contributor,
+      authors: author,
+      translators: translator,
+      editors: editor,
+      artists: artist,
+      illustrators: illustrator,
+      contributors: contributor,
       description: description,
       numberOfPages: numberOfPages,
       position: position,
@@ -100,14 +97,14 @@ class Article extends BaseCollection {
   const Article({
     required super.localizedName,
     super.identifier,
-    super.altIdentifier,
+    super.altIdentifiers,
     super.localizedSortAs,
-    this.author,
-    this.translator,
-    this.editor,
-    this.artist,
-    this.illustrator,
-    this.contributor,
+    this.authors,
+    this.translators,
+    this.editors,
+    this.artists,
+    this.illustrators,
+    this.contributors,
     this.description,
     this.numberOfPages,
     this.position,
@@ -122,17 +119,19 @@ class Article extends BaseCollection {
 
     if (json is List) {
       return json.map((e) => Article.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
+    } else if (json is Map<String, dynamic> && json.isNotEmpty) {
       return [Article.fromJson(json, normalizeHref: normalizeHref)];
     }
+
+    return [];
   }
 
-  final List<Contributor>? author;
-  final List<Contributor>? translator;
-  final List<Contributor>? editor;
-  final List<Contributor>? artist;
-  final List<Contributor>? illustrator;
-  final List<Contributor>? contributor;
+  final List<Contributor>? authors;
+  final List<Contributor>? translators;
+  final List<Contributor>? editors;
+  final List<Contributor>? artists;
+  final List<Contributor>? illustrators;
+  final List<Contributor>? contributors;
   final String? description;
   final int? numberOfPages;
   final double? position;
@@ -141,14 +140,14 @@ class Article extends BaseCollection {
   List<Object?> get props => [
     localizedName,
     identifier,
-    altIdentifier,
+    altIdentifiers,
     localizedSortAs,
-    author,
-    translator,
-    editor,
-    artist,
-    illustrator,
-    contributor,
+    authors,
+    translators,
+    editors,
+    artists,
+    illustrators,
+    contributors,
     description,
     numberOfPages,
     position,
@@ -160,14 +159,14 @@ class Article extends BaseCollection {
   toJson() => <String, dynamic>{...additionalProperties}
     ..putOpt('name', localizedName)
     ..putOpt('identifier', identifier?.toString())
-    ..putOpt('altIdentifier', altIdentifier)
+    ..putIterableIfNotEmpty('altIdentifier', altIdentifiers.toJsonList())
     ..putOpt('sortAs', localizedSortAs)
-    ..putIterableIfNotEmpty('author', author)
-    ..putIterableIfNotEmpty('translator', translator)
-    ..putIterableIfNotEmpty('editor', editor)
-    ..putIterableIfNotEmpty('artist', artist)
-    ..putIterableIfNotEmpty('illustrator', illustrator)
-    ..putIterableIfNotEmpty('contributor', contributor)
+    ..putOpt('author', authors.toSingleOrMultiJson())
+    ..putOpt('translator', translators.toSingleOrMultiJson())
+    ..putOpt('editor', editors.toSingleOrMultiJson())
+    ..putOpt('artist', artists.toSingleOrMultiJson())
+    ..putOpt('illustrator', illustrators.toSingleOrMultiJson())
+    ..putOpt('contributor', contributors.toSingleOrMultiJson())
     ..putOpt('description', description)
     ..putOpt('numberOfPages', numberOfPages)
     ..putOpt('position', position)
@@ -176,14 +175,14 @@ class Article extends BaseCollection {
   Article copyWith({
     LocalizedString? localizedName,
     String? identifier,
-    AltIdentifier? altIdentifier,
+    List<AltIdentifier>? altIdentifiers,
     LocalizedString? localizedSortAs,
-    List<Contributor>? author,
-    List<Contributor>? translator,
-    List<Contributor>? editor,
-    List<Contributor>? artist,
-    List<Contributor>? illustrator,
-    List<Contributor>? contributor,
+    List<Contributor>? authors,
+    List<Contributor>? translators,
+    List<Contributor>? editors,
+    List<Contributor>? artists,
+    List<Contributor>? illustrators,
+    List<Contributor>? contributors,
     String? description,
     int? numberOfPages,
     double? position,
@@ -197,14 +196,14 @@ class Article extends BaseCollection {
     return Article(
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
+      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      author: author ?? this.author,
-      translator: translator ?? this.translator,
-      editor: editor ?? this.editor,
-      artist: artist ?? this.artist,
-      illustrator: illustrator ?? this.illustrator,
-      contributor: contributor ?? this.contributor,
+      authors: authors ?? this.authors,
+      translators: translators ?? this.translators,
+      editors: editors ?? this.editors,
+      artists: artists ?? this.artists,
+      illustrators: illustrators ?? this.illustrators,
+      contributors: contributors ?? this.contributors,
       description: description ?? this.description,
       numberOfPages: numberOfPages ?? this.numberOfPages,
       position: position ?? this.position,

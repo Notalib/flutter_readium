@@ -52,11 +52,11 @@ class Presentation with EquatableMixin implements JSONable {
     return Presentation(
       clipped: jsonObject.optNullableBoolean('clipped', remove: true),
       continuous: jsonObject.optNullableBoolean('continuous', remove: true),
-      fit: PresentationFit.from(jsonObject.optString('fit', remove: true)),
-      orientation: PresentationOrientation.from(jsonObject.optString('orientation', remove: true)),
-      overflow: PresentationOverflow.from(jsonObject.optString('overflow', remove: true)),
-      spread: PresentationSpread.from(jsonObject.optString('spread', remove: true)),
-      layout: EpubLayout.from(jsonObject.optString('layout', remove: true)),
+      fit: PresentationFit.fromString(jsonObject.optString('fit', remove: true)),
+      orientation: PresentationOrientation.fromString(jsonObject.optString('orientation', remove: true)),
+      overflow: PresentationOverflow.fromString(jsonObject.optString('overflow', remove: true)),
+      spread: PresentationSpread.fromString(jsonObject.optString('spread', remove: true)),
+      layout: EpubLayout.fromString(jsonObject.optString('layout', remove: true)),
     );
   }
 
@@ -88,138 +88,90 @@ class Presentation with EquatableMixin implements JSONable {
   Map<String, dynamic> toJson() => {}
     ..putOpt('clipped', clipped)
     ..putOpt('continuous', continuous)
-    ..putOpt('fit', fit?.value)
-    ..putOpt('orientation', orientation?.value)
-    ..putOpt('overflow', overflow?.value)
-    ..putOpt('spread', spread?.value)
-    ..putOpt('layout', layout?.value);
+    ..putOpt('fit', fit?.name)
+    ..putOpt('orientation', orientation?.name)
+    ..putOpt('overflow', overflow?.name)
+    ..putOpt('spread', spread?.name)
+    ..putOpt('layout', layout?.name);
 
   @override
   String toString() => 'Presentation(${toJson()})';
 }
 
 /// Suggested method for constraining a resource inside the viewport.
-@immutable
-class PresentationFit with EquatableMixin {
-  const PresentationFit._(this.value);
-  static const PresentationFit width = PresentationFit._('width');
-  static const PresentationFit height = PresentationFit._('height');
-  static const PresentationFit contain = PresentationFit._('contain');
-  static const PresentationFit cover = PresentationFit._('cover');
-  static const List<PresentationFit> _values = [width, height, contain, cover];
+enum PresentationFit {
+  width,
+  height,
+  contain,
+  cover;
 
-  final String value;
+  const PresentationFit();
 
-  @override
-  List<Object> get props => [value];
-
-  static PresentationFit? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static PresentationFit? fromString(String? value) =>
+      PresentationFit.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Hints how the layout of the resource should be presented.
-@immutable
-class EpubLayout with EquatableMixin {
-  const EpubLayout._(this.value);
-  // Fixed layout.
-  static const EpubLayout fixed = EpubLayout._('fixed');
+enum EpubLayout {
+  fixed,
+  reflowable;
 
-  // Apply dynamic pagination when rendering.
-  static const EpubLayout reflowable = EpubLayout._('reflowable');
-  static const List<EpubLayout> _values = [fixed, reflowable];
-
-  final String value;
-
-  @override
-  List<Object> get props => [value];
-
-  static EpubLayout? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static EpubLayout? fromString(String? value) =>
+      EpubLayout.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Suggested orientation for the device when displaying the linked resource.
-@immutable
-class PresentationOrientation with EquatableMixin {
-  const PresentationOrientation._(this.value);
-  // Specifies that the Reading System can determine the orientation to rendered the spine item in.
-  static const PresentationOrientation auto = PresentationOrientation._('auto');
+enum PresentationOrientation {
+  auto,
+  landscape,
+  portrait;
 
-  // Specifies that the given spine item is to be rendered in landscape orientation.
-  static const PresentationOrientation landscape = PresentationOrientation._('landscape');
-
-  // Specifies that the given spine item is to be rendered in portrait orientation.
-  static const PresentationOrientation portrait = PresentationOrientation._('portrait');
-  static const List<PresentationOrientation> _values = [auto, landscape, portrait];
-
-  final String value;
-
-  @override
-  List<Object> get props => [value];
-
-  static PresentationOrientation? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static PresentationOrientation? fromString(String? value) =>
+      PresentationOrientation.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Suggested method for handling overflow while displaying the linked resource.
-@immutable
-class PresentationOverflow with EquatableMixin {
-  const PresentationOverflow._(this.value);
-  // Indicates no preference for overflow content handling by the Author.
-  static const PresentationOverflow auto = PresentationOverflow._('auto');
+enum PresentationOverflow {
+  /// Indicates no preference for overflow content handling by the Author.
+  auto,
 
-  // Indicates the Author preference is to dynamically paginate content overflow.
-  static const PresentationOverflow paginated = PresentationOverflow._('paginated');
+  /// Indicates the Author preference is to dynamically paginate content overflow.
+  paginated,
 
-  // Indicates the Author preference is to provide a scrolled view for overflow content, and each spine item with this property is to be rendered as separate scrollable document.
-  static const PresentationOverflow scrolled = PresentationOverflow._('scrolled');
-  static const List<PresentationOverflow> _values = [auto, paginated, scrolled];
+  /// Indicates the Author preference is to provide a scrolled view for overflow content, and each spine item with this property is to be rendered as separate scrollable document.
+  scrolled;
 
-  final String value;
-
-  @override
-  List<Object> get props => [value];
-
-  static PresentationOverflow? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static PresentationOverflow? fromString(String? value) =>
+      PresentationOverflow.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Indicates how the linked resource should be displayed in a reading
 /// environment that displays synthetic spreads.
-@immutable
-class PresentationPage with EquatableMixin {
-  const PresentationPage._(this.value);
-  static const PresentationPage left = PresentationPage._('left');
-  static const PresentationPage right = PresentationPage._('right');
-  static const PresentationPage center = PresentationPage._('center');
-  static const List<PresentationPage> _values = [left, right, center];
+enum PresentationPage {
+  left,
+  right,
+  center;
 
-  final String value;
-
-  @override
-  List<Object> get props => [value];
-
-  static PresentationPage? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static PresentationPage? fromString(String? value) =>
+      PresentationPage.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Indicates the condition to be met for the linked resource to be rendered within a synthetic spread.
-@immutable
-class PresentationSpread with EquatableMixin {
-  const PresentationSpread._(this.value);
-  // Specifies the Reading System can determine when to render a synthetic spread for the readingOrder item.
-  static const PresentationSpread auto = PresentationSpread._('auto');
+enum PresentationSpread {
+  /// Specifies the Reading System can determine when to render a synthetic spread for the readingOrder item.
+  auto,
 
-  // Specifies the Reading System should render a synthetic spread for the readingOrder item in both portrait and landscape orientations.
-  static const PresentationSpread both = PresentationSpread._('both');
+  /// Specifies the Reading System should render a synthetic spread for the readingOrder item in both portrait and landscape orientations.
+  both,
 
-  // Specifies the Reading System should not render a synthetic spread for the readingOrder item.
-  static const PresentationSpread none = PresentationSpread._('none');
+  /// Specifies the Reading System should not render a synthetic spread for the readingOrder item.
+  none,
 
-  // Specifies the Reading System should render a synthetic spread for the readingOrder item only when in landscape orientation.
-  static const PresentationSpread landscape = PresentationSpread._('landscape');
-  static const List<PresentationSpread> _values = [auto, both, none, landscape];
+  /// Specifies the Reading System should render a synthetic spread for the readingOrder item only when in landscape orientation.
+  landscape;
 
-  final String value;
-
-  @override
-  List<Object> get props => [value];
-
-  static PresentationSpread? from(String? value) => _values.firstWhereOrNull((element) => element.value == value);
+  static PresentationSpread? fromString(String? value) =>
+      PresentationSpread.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 class PresentationJsonConverter extends JsonConverter<Presentation?, Map<String, dynamic>?> {

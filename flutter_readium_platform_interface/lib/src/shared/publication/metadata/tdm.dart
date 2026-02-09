@@ -4,8 +4,10 @@
 
 import 'package:equatable/equatable.dart';
 import '../../../../flutter_readium_platform_interface.dart';
-import 'metadata.dart';
 
+/// Text and data mining
+///
+/// https://github.com/readium/webpub-manifest/tree/master/contexts/default#text-and-data-mining
 class TDM with EquatableMixin implements JSONable {
   const TDM({required this.reservation, this.policy});
   final TDMReservation reservation;
@@ -32,15 +34,15 @@ class TDM with EquatableMixin implements JSONable {
 }
 
 enum TDMReservation {
-  reserved,
-  available;
+  all,
+  none;
 
   factory TDMReservation.fromString(String value) {
     switch (value.toLowerCase()) {
-      case 'reserved':
-        return TDMReservation.reserved;
-      case 'available':
-        return TDMReservation.available;
+      case 'all':
+        return TDMReservation.all;
+      case 'none':
+        return TDMReservation.none;
       default:
         throw ArgumentError('Unknown reservation value: $value');
     }
