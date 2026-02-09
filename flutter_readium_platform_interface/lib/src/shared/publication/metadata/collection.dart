@@ -1,84 +1,87 @@
-// Copyright (c) 2021 Mantano. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE.Iridium file.
-
-import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
+import '../../../../flutter_readium_platform_interface.dart';
+import 'base_collection.dart';
 
-import '../../../utils/jsonable.dart';
-import '../../publication.dart';
-
-/// Contributor Object for the Readium Web Publication Manifest.
-/// https://readium.org/webpub-manifest/schema/contributor-object.schema.json
-///
-/// @param localizedName The name of the contributor.
-/// @param identifier An unambiguous reference to this contributor.
-/// @param sortAs The string used to sort the name of the contributor.
-/// @param roles The roles of the contributor in the publication making.
-/// @param position The position of the publication in this collection/series,
-///     when the contributor represents a collection.
-/// @param links Used to retrieve similar publications for the given contributor.
+/// Collection
+/// See: https://readium.org/webpub-manifest/schema/collection.schema.json
 @immutable
-class Collection extends AdditionalProperties with EquatableMixin implements JSONable {
+class Collection extends BaseCollection {
+  factory Collection.fromJsonString(String localizedString) =>
+      Collection(localizedName: LocalizedString.fromJsonString(localizedString));
+  factory Collection.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is String) {
+      return Collection.fromJsonString(json);
+    } else if (json is Map<String, dynamic>) {
+      return Collection.fromJsonMap(json, normalizeHref: normalizeHref);
+    } else {
+      throw ArgumentError('Invalid JSON for Collection: $json');
+    }
+  }
+
+  factory Collection.fromJsonMap(
+    Map<String, dynamic> json, {
+    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
+  }) {
+    final jsonObject = Map<String, dynamic>.from(json);
+
+    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final localizedName = LocalizedString.fromJson(jsonObject.opt('name', remove: true));
+    final identifier = jsonObject.optNullableString('identifier', remove: true);
+    final altIdentifier = AltIdentifier.fromJson(jsonObject.opt('altIdentifier', remove: true));
+    final localizedSortAs = LocalizedString.fromJson(
+      jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
+    );
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+
+    return Collection(
+      position: position,
+      localizedName: localizedName,
+      identifier: identifier,
+      altIdentifier: altIdentifier,
+      localizedSortAs: localizedSortAs,
+      links: links,
+      additionalProperties: jsonObject,
+    );
+  }
+
   const Collection({
-    required this.localizedName,
-    this.identifier,
-    this.localizedSortAs,
-    this.roles = const [],
+    required super.localizedName,
     this.position,
-    this.links = const [],
-    this.altIdentifier,
+    super.identifier,
+    super.altIdentifier,
+    super.localizedSortAs,
+    super.links,
     super.additionalProperties,
   });
 
-  /// The name of the contributor.
-  final LocalizedString localizedName;
-
-  /// (Nullable) An unambiguous reference to this contributor.
-  final String? identifier;
-
-  /// (Nullable) The string used to sort the name of the contributor.
-  final LocalizedString? localizedSortAs;
-
-  /// The role of the contributor in the publication making.
-  final List<String> roles;
-
-  /// (Nullable) The position of the publication in this collection/series, when the contributor represents a collection.
-  final double? position;
-  final List<Link> links;
-
-  final AltIdentifier? altIdentifier;
-
-  /// Returns the default translation string for the [localizedName].
-  String get name => localizedName.string;
-
-  /// Returns the default translation string for the [localizedSortAs].
-  String? get sortAs => localizedSortAs?.string;
+  final int? position;
 
   @override
-  List<Object?> get props => [
-    localizedName,
-    identifier,
-    localizedSortAs,
-    roles,
-    position,
-    links,
-    altIdentifier,
-    additionalProperties,
-  ];
-
-  @override
-  String toString() => '$runtimeType($props)';
+  toJson() {
+    if (additionalProperties.isEmpty &&
+        localizedName == null &&
+        identifier == null &&
+        altIdentifier == null &&
+        localizedSortAs == null &&
+        (links == null || links!.isEmpty)) {
+      return position;
+    } else {
+      return <String, dynamic>{...additionalProperties}
+        ..putOpt('position', position)
+        ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
+        ..putJSONableIfNotEmpty('name', localizedName)
+        ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
+        ..putIterableIfNotEmpty('links', links);
+    }
+  }
 
   Collection copyWith({
+    int? position,
     LocalizedString? localizedName,
     String? identifier,
-    LocalizedString? localizedSortAs,
-    List<String>? roles,
-    double? position,
-    List<Link>? links,
     AltIdentifier? altIdentifier,
+    LocalizedString? localizedSortAs,
+    List<Link>? links,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
@@ -86,70 +89,32 @@ class Collection extends AdditionalProperties with EquatableMixin implements JSO
       ..removeWhere((key, value) => value == null);
 
     return Collection(
+      position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
-      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      roles: roles?.toSet().toList() ?? this.roles,
-      position: position ?? this.position,
-      links: links ?? this.links,
       altIdentifier: altIdentifier ?? this.altIdentifier,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
+      links: links ?? this.links,
       additionalProperties: mergeProperties,
     );
   }
 
-  /// Serializes a [Contributor] to its RWPM JSON representation.
-  @override
-  Map<String, dynamic> toJson() => {}
-    ..putJSONableIfNotEmpty('name', localizedName)
-    ..putOpt('identifier', identifier)
-    ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-    ..putIterableIfNotEmpty('role', roles)
-    ..putOpt('position', position)
-    ..putIterableIfNotEmpty('links', links)
-    ..putJSONableIfNotEmpty('altIdentifier', altIdentifier);
-
-  /// Parses a [Contributor] from its RWPM JSON representation.
-  ///
-  /// A contributor can be parsed from a single string, or a full-fledged object.
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
-  /// If the contributor can't be parsed, a warning will be logged with [warnings].
-  static Collection? fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) =>
-      Contributor.fromJson(json, normalizeHref: normalizeHref)?.toCollection();
-
-  /// Creates a list of [Collection] from its RWPM JSON representation.
-  ///
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
-  /// If a contributor can't be parsed, a warning will be logged with [warnings].
-  static List<Collection> fromJsonArray(
-    dynamic json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) => Contributor.fromJsonArray(
-    json,
-    normalizeHref: normalizeHref,
-  ).map((contributor) => contributor.toCollection()).toList();
-}
-
-extension ContributorExtension on Contributor {
-  Collection toCollection() => Collection(
-    localizedName: localizedName,
-    identifier: identifier,
-    localizedSortAs: localizedSortAs,
-    roles: roles,
-    position: position,
-    links: links,
-    altIdentifier: altIdentifier,
-    additionalProperties: additionalProperties,
-  );
-}
-
-class CollectionJsonConverter extends JsonConverter<Collection?, Map<String, dynamic>?> {
-  const CollectionJsonConverter();
+  static List<Collection> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is List) {
+      return json.map((e) => Collection.fromJson(e, normalizeHref: normalizeHref)).toList();
+    } else {
+      return [Collection.fromJson(json, normalizeHref: normalizeHref)];
+    }
+  }
 
   @override
-  Collection? fromJson(Map<String, dynamic>? json) => Collection.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Collection? collection) => collection?.toJson();
+  List<Object?> get props => [
+    position,
+    localizedName,
+    identifier,
+    altIdentifier,
+    localizedSortAs,
+    links,
+    additionalProperties,
+  ];
 }

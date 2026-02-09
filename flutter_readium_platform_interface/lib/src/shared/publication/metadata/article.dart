@@ -1,19 +1,34 @@
 import 'package:dfunc/dfunc.dart';
-import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-import '../../../utils/additional_properties.dart';
 import '../../../utils/jsonable.dart';
 import '../link.dart';
 import '../localized_string.dart';
 import 'alt_identifier.dart';
+import 'base_collection.dart' show BaseCollection;
 import 'contributor.dart';
 
-/// Article Object for the Readium Web Publication Manifest.
+/// Article
+///
 /// https://readium.org/webpub-manifest/schema/article.schema.json
 @immutable
-class Article extends AdditionalProperties with EquatableMixin implements JSONable {
-  factory Article.fromJsonMap(Map<String, dynamic> json) {
+class Article extends BaseCollection {
+  factory Article.fromString(String name) => Article(localizedName: LocalizedString.fromJsonString(name));
+
+  factory Article.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is String) {
+      return Article.fromString(json);
+    } else if (json is Map<String, dynamic>) {
+      return Article.fromJsonMap(json, normalizeHref: normalizeHref);
+    } else {
+      throw ArgumentError('Invalid JSON for Article: $json');
+    }
+  }
+
+  factory Article.fromJsonMap(
+    Map<String, dynamic> json, {
+    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
+  }) {
     final jsonObject = Map<String, dynamic>.of(json);
 
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
@@ -21,41 +36,43 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
     final altIdentifier = jsonObject
         .optJsonObject('altIdentifier', remove: true)
         ?.let((it) => AltIdentifier.fromJson(it));
-    final sortAs = jsonObject.optJsonObject('sortAs', remove: true)?.cast<String, String>();
+    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
     final author = jsonObject
         .optJsonArray('author', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final translator = jsonObject
         .optJsonArray('translator', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final editor = jsonObject
         .optJsonArray('editor', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final artist = jsonObject
         .optJsonArray('artist', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final illustrator = jsonObject
         .optJsonArray('illustrator', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final contributor = jsonObject
         .optJsonArray('contributor', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
         .nonNulls
         .toList();
     final description = jsonObject.optNullableString('description', remove: true);
     final numberOfPages = jsonObject.optNullableInt('numberOfPages', remove: true);
     final position = jsonObject.optNullableDouble('position', remove: true);
-    final links = jsonObject
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+
+    jsonObject
         .optJsonArray('links', remove: true)
         ?.map((e) => Link.fromJson(e as Map<String, dynamic>))
         .nonNulls
@@ -65,7 +82,7 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
       localizedName: localizedName,
       identifier: identifier,
       altIdentifier: altIdentifier,
-      sortAs: sortAs,
+      localizedSortAs: localizedSortAs,
       author: author,
       translator: translator,
       editor: editor,
@@ -80,13 +97,11 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
     );
   }
 
-  factory Article.fromString(String name) => Article(localizedName: LocalizedString.fromJsonString(name));
-
   const Article({
-    required this.localizedName,
-    this.identifier,
-    this.altIdentifier,
-    this.sortAs,
+    required super.localizedName,
+    super.identifier,
+    super.altIdentifier,
+    super.localizedSortAs,
     this.author,
     this.translator,
     this.editor,
@@ -96,37 +111,22 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
     this.description,
     this.numberOfPages,
     this.position,
-    this.links,
+    super.links,
     super.additionalProperties,
   });
 
-  static List<Article> fromJson(dynamic json) {
-    if (json is String) {
-      return [Article.fromString(json)];
-    } else if (json is List) {
-      final list = <Article>[];
-      for (final item in json) {
-        if (item is String) {
-          list.add(Article.fromString(item));
-        } else if (item is Map<String, dynamic>) {
-          list.add(Article.fromJsonMap(item));
-        } else {
-          throw ArgumentError('Invalid Article JSON: $json');
-        }
-      }
+  static List<Article> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
 
-      return list;
-    } else if (json is Map<String, dynamic>) {
-      return [Article.fromJsonMap(json)];
+    if (json is List) {
+      return json.map((e) => Article.fromJson(e, normalizeHref: normalizeHref)).toList();
     } else {
-      throw ArgumentError('Invalid Article JSON: $json');
+      return [Article.fromJson(json, normalizeHref: normalizeHref)];
     }
   }
 
-  final LocalizedString? localizedName;
-  final String? identifier;
-  final AltIdentifier? altIdentifier;
-  final Map<String, String>? sortAs;
   final List<Contributor>? author;
   final List<Contributor>? translator;
   final List<Contributor>? editor;
@@ -136,14 +136,13 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
   final String? description;
   final int? numberOfPages;
   final double? position;
-  final List<Link>? links;
 
   @override
   List<Object?> get props => [
     localizedName,
     identifier,
     altIdentifier,
-    sortAs,
+    localizedSortAs,
     author,
     translator,
     editor,
@@ -162,7 +161,7 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
     ..putOpt('name', localizedName)
     ..putOpt('identifier', identifier?.toString())
     ..putOpt('altIdentifier', altIdentifier)
-    ..putOpt('sortAs', sortAs)
+    ..putOpt('sortAs', localizedSortAs)
     ..putIterableIfNotEmpty('author', author)
     ..putIterableIfNotEmpty('translator', translator)
     ..putIterableIfNotEmpty('editor', editor)
@@ -178,7 +177,7 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
     LocalizedString? localizedName,
     String? identifier,
     AltIdentifier? altIdentifier,
-    Map<String, String>? sortAs,
+    LocalizedString? localizedSortAs,
     List<Contributor>? author,
     List<Contributor>? translator,
     List<Contributor>? editor,
@@ -199,7 +198,7 @@ class Article extends AdditionalProperties with EquatableMixin implements JSONab
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
       altIdentifier: altIdentifier ?? this.altIdentifier,
-      sortAs: sortAs ?? this.sortAs,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       author: author ?? this.author,
       translator: translator ?? this.translator,
       editor: editor ?? this.editor,

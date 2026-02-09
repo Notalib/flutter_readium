@@ -9,7 +9,7 @@ export 'localized_string.dart';
 export 'locator.dart';
 export 'metadata/index.dart';
 export 'opds/index.dart';
-export 'positions-list.dart';
+export 'positions_list.dart';
 export 'presentation/index.dart';
 export 'presentation/presentation.dart';
 export 'properties.dart';

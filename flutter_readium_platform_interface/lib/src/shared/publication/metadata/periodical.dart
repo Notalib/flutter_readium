@@ -2,23 +2,24 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
-/// Contributor
-/// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
+/// Periodical collection.
+///
+/// See: https://readium.org/webpub-manifest/schema/periodical.schema.json
 @immutable
-class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String localizedString) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+class Periodical extends BaseCollection {
+  factory Periodical.fromJsonString(String localizedString) =>
+      Periodical(localizedName: LocalizedString.fromJsonString(localizedString));
+  factory Periodical.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is String) {
-      return Contributor.fromJsonString(json);
+      return Periodical.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Periodical.fromJsonMap(json, normalizeHref: normalizeHref);
     } else {
-      throw ArgumentError('Invalid JSON for Collection: $json');
+      throw ArgumentError('Invalid JSON for Episode: $json');
     }
   }
 
-  factory Contributor.fromJsonMap(
+  factory Periodical.fromJsonMap(
     Map<String, dynamic> json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
@@ -33,28 +34,37 @@ class Contributor extends BaseCollection {
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
 
-    return Contributor(
+    final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true), normalizeHref: normalizeHref);
+    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true), normalizeHref: normalizeHref);
+
+    return Periodical(
       position: position,
       localizedName: localizedName,
       identifier: identifier,
       altIdentifier: altIdentifier,
       localizedSortAs: localizedSortAs,
       links: links,
+      issues: issues,
+      volumes: volumes,
       additionalProperties: jsonObject,
     );
   }
 
-  const Contributor({
+  const Periodical({
     required super.localizedName,
     this.position,
     super.identifier,
     super.altIdentifier,
     super.localizedSortAs,
     super.links,
+    this.issues = const [],
+    this.volumes = const [],
     super.additionalProperties,
   });
 
   final int? position;
+  final List<Issue> issues;
+  final List<Volume> volumes;
 
   @override
   toJson() {
@@ -63,7 +73,8 @@ class Contributor extends BaseCollection {
         identifier == null &&
         altIdentifier == null &&
         localizedSortAs == null &&
-        (links == null || links!.isEmpty)) {
+        (links == null || links!.isEmpty) &&
+        (volumes.isEmpty)) {
       return position;
     } else {
       return <String, dynamic>{...additionalProperties}
@@ -71,39 +82,48 @@ class Contributor extends BaseCollection {
         ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-        ..putIterableIfNotEmpty('links', links);
+        ..putIterableIfNotEmpty('links', links)
+        ..putIterableIfNotEmpty('volume', volumes);
     }
   }
 
-  Contributor copyWith({
+  Periodical copyWith({
     int? position,
     LocalizedString? localizedName,
     String? identifier,
     AltIdentifier? altIdentifier,
     LocalizedString? localizedSortAs,
     List<Link>? links,
+    List<Issue>? issues,
+    List<Volume>? volumes,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
       ..addAll(additionalProperties ?? {})
       ..removeWhere((key, value) => value == null);
 
-    return Contributor(
+    return Periodical(
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
       altIdentifier: altIdentifier ?? this.altIdentifier,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
+      issues: issues ?? this.issues,
+      volumes: volumes ?? this.volumes,
       additionalProperties: mergeProperties,
     );
   }
 
-  static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Periodical> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
+
     if (json is List) {
-      return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Periodical.fromJson(e, normalizeHref: normalizeHref)).toList();
     } else {
-      return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+      return [Periodical.fromJson(json, normalizeHref: normalizeHref)];
     }
   }
 
@@ -115,6 +135,8 @@ class Contributor extends BaseCollection {
     altIdentifier,
     localizedSortAs,
     links,
+    issues,
+    volumes,
     additionalProperties,
   ];
 }

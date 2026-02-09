@@ -2,23 +2,21 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
-/// Contributor
-/// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
-class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String localizedString) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is String) {
-      return Contributor.fromJsonString(json);
+class Chapter extends BaseCollection {
+  factory Chapter.fromJsonNumber(int number) => Chapter(position: number);
+
+  factory Chapter.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is int) {
+      return Chapter.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Chapter.fromJsonMap(json, normalizeHref: normalizeHref);
     } else {
-      throw ArgumentError('Invalid JSON for Collection: $json');
+      throw ArgumentError('Invalid JSON for Chapter: $json');
     }
   }
 
-  factory Contributor.fromJsonMap(
+  factory Chapter.fromJsonMap(
     Map<String, dynamic> json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
@@ -32,29 +30,71 @@ class Contributor extends BaseCollection {
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final series = Series.listFromJson(jsonObject.opt('series', remove: true));
 
-    return Contributor(
+    return Chapter(
       position: position,
       localizedName: localizedName,
       identifier: identifier,
       altIdentifier: altIdentifier,
       localizedSortAs: localizedSortAs,
       links: links,
+      series: series,
       additionalProperties: jsonObject,
     );
   }
 
-  const Contributor({
-    required super.localizedName,
-    this.position,
+  const Chapter({
+    required this.position,
+    super.localizedName,
     super.identifier,
     super.altIdentifier,
     super.localizedSortAs,
     super.links,
+    this.series = const [],
     super.additionalProperties,
   });
 
-  final int? position;
+  final int position;
+  final List<Series> series;
+
+  Chapter copyWith({
+    int? position,
+    LocalizedString? localizedName,
+    String? identifier,
+    AltIdentifier? altIdentifier,
+    LocalizedString? localizedSortAs,
+    List<Link>? links,
+    List<Series>? series,
+    Map<String, dynamic>? additionalProperties,
+  }) {
+    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
+      ..addAll(additionalProperties ?? {})
+      ..removeWhere((key, value) => value == null);
+
+    return Chapter(
+      position: position ?? this.position,
+      localizedName: localizedName ?? this.localizedName,
+      identifier: identifier ?? this.identifier,
+      altIdentifier: altIdentifier ?? this.altIdentifier,
+      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
+      links: links ?? this.links,
+      series: series ?? this.series,
+      additionalProperties: mergeProperties,
+    );
+  }
+
+  static List<Chapter> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
+
+    if (json is List) {
+      return json.map((e) => Chapter.fromJson(e, normalizeHref: normalizeHref)).toList();
+    } else {
+      return [Chapter.fromJson(json, normalizeHref: normalizeHref)];
+    }
+  }
 
   @override
   toJson() {
@@ -63,47 +103,17 @@ class Contributor extends BaseCollection {
         identifier == null &&
         altIdentifier == null &&
         localizedSortAs == null &&
-        (links == null || links!.isEmpty)) {
+        (links == null || links!.isEmpty) &&
+        (series.isEmpty)) {
       return position;
     } else {
       return <String, dynamic>{...additionalProperties}
-        ..putOpt('position', position)
+        ..put('position', position)
         ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-        ..putIterableIfNotEmpty('links', links);
-    }
-  }
-
-  Contributor copyWith({
-    int? position,
-    LocalizedString? localizedName,
-    String? identifier,
-    AltIdentifier? altIdentifier,
-    LocalizedString? localizedSortAs,
-    List<Link>? links,
-    Map<String, dynamic>? additionalProperties,
-  }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
-
-    return Contributor(
-      position: position ?? this.position,
-      localizedName: localizedName ?? this.localizedName,
-      identifier: identifier ?? this.identifier,
-      altIdentifier: altIdentifier ?? this.altIdentifier,
-      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      links: links ?? this.links,
-      additionalProperties: mergeProperties,
-    );
-  }
-
-  static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is List) {
-      return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
-    } else {
-      return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+        ..putIterableIfNotEmpty('links', links)
+        ..putIterableIfNotEmpty('series', series);
     }
   }
 
@@ -115,6 +125,7 @@ class Contributor extends BaseCollection {
     altIdentifier,
     localizedSortAs,
     links,
+    series,
     additionalProperties,
   ];
 }

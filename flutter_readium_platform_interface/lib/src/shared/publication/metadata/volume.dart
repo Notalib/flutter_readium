@@ -2,23 +2,20 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
-/// Contributor
-/// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
-class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String localizedString) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is String) {
-      return Contributor.fromJsonString(json);
+class Volume extends BaseCollection {
+  factory Volume.fromJsonNumber(int number) => Volume(position: number);
+  factory Volume.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is int) {
+      return Volume.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Volume.fromJsonMap(json, normalizeHref: normalizeHref);
     } else {
-      throw ArgumentError('Invalid JSON for Collection: $json');
+      throw ArgumentError('Invalid JSON for Volume: $json');
     }
   }
 
-  factory Contributor.fromJsonMap(
+  factory Volume.fromJsonMap(
     Map<String, dynamic> json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
@@ -32,8 +29,11 @@ class Contributor extends BaseCollection {
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true), normalizeHref: normalizeHref);
+    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true), normalizeHref: normalizeHref);
+    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true), normalizeHref: normalizeHref);
 
-    return Contributor(
+    return Volume(
       position: position,
       localizedName: localizedName,
       identifier: identifier,
@@ -41,20 +41,29 @@ class Contributor extends BaseCollection {
       localizedSortAs: localizedSortAs,
       links: links,
       additionalProperties: jsonObject,
+      chapters: chapters,
+      issues: issues,
+      storyArcs: storyArcs,
     );
   }
 
-  const Contributor({
-    required super.localizedName,
-    this.position,
+  const Volume({
+    required this.position,
+    super.localizedName,
     super.identifier,
     super.altIdentifier,
     super.localizedSortAs,
     super.links,
+    this.chapters = const [],
+    this.issues = const [],
+    this.storyArcs = const [],
     super.additionalProperties,
   });
 
-  final int? position;
+  final int position;
+  final List<Chapter> chapters;
+  final List<Issue> issues;
+  final List<StoryArc> storyArcs;
 
   @override
   toJson() {
@@ -67,43 +76,57 @@ class Contributor extends BaseCollection {
       return position;
     } else {
       return <String, dynamic>{...additionalProperties}
-        ..putOpt('position', position)
+        ..put('position', position)
+        ..putOpt('identifier', identifier)
         ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
-        ..putIterableIfNotEmpty('links', links);
+        ..putIterableIfNotEmpty('links', links)
+        ..putIterableIfNotEmpty('chapter', chapters)
+        ..putIterableIfNotEmpty('issue', issues)
+        ..putIterableIfNotEmpty('storyArc', storyArcs);
     }
   }
 
-  Contributor copyWith({
+  Volume copyWith({
     int? position,
     LocalizedString? localizedName,
     String? identifier,
     AltIdentifier? altIdentifier,
     LocalizedString? localizedSortAs,
     List<Link>? links,
+    List<Chapter>? chapters,
+    List<Issue>? issues,
+    List<StoryArc>? storyArcs,
     Map<String, dynamic>? additionalProperties,
   }) {
     final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
       ..addAll(additionalProperties ?? {})
       ..removeWhere((key, value) => value == null);
 
-    return Contributor(
+    return Volume(
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
       altIdentifier: altIdentifier ?? this.altIdentifier,
       localizedSortAs: localizedSortAs ?? this.localizedSortAs,
       links: links ?? this.links,
+      chapters: chapters ?? this.chapters,
+      issues: issues ?? this.issues,
+      storyArcs: storyArcs ?? this.storyArcs,
       additionalProperties: mergeProperties,
     );
   }
 
-  static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Volume> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
+
     if (json is List) {
-      return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Volume.fromJson(e, normalizeHref: normalizeHref)).toList();
     } else {
-      return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+      return [Volume.fromJson(json, normalizeHref: normalizeHref)];
     }
   }
 
@@ -115,6 +138,9 @@ class Contributor extends BaseCollection {
     altIdentifier,
     localizedSortAs,
     links,
+    chapters,
+    issues,
+    storyArcs,
     additionalProperties,
   ];
 }

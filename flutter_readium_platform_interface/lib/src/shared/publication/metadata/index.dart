@@ -1,7 +1,17 @@
 export 'accessibility.dart';
 export 'alt_identifier.dart';
 export 'article.dart';
+export 'belongs_to.dart';
+export 'chapter.dart';
 export 'collection.dart';
 export 'contributor.dart';
+export 'episode.dart';
+export 'issue.dart';
 export 'metadata.dart';
+export 'periodical.dart';
+export 'season.dart';
+export 'series.dart';
+export 'story_arc.dart';
 export 'subject.dart';
+export 'tdm.dart';
+export 'volume.dart';

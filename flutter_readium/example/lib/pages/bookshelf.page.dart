@@ -134,7 +134,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     final metadata = pub.metadata;
     final authors = metadata.authors;
 
-    final authorNames = authors.map((final author) => author.name).join(', ');
+    final authorNames = authors.map((final author) => author.localizedName?.string).nonNulls.join(', ');
 
     return authorNames.isEmpty ? 'Unknown author' : authorNames;
   }

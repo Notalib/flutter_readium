@@ -1,24 +1,22 @@
 import 'package:meta/meta.dart';
+
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
-/// Contributor
-/// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
-class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String localizedString) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is String) {
-      return Contributor.fromJsonString(json);
+class Episode extends BaseCollection {
+  factory Episode.fromJsonNumber(int number) => Episode(position: number);
+  factory Episode.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is int) {
+      return Episode.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Episode.fromJsonMap(json, normalizeHref: normalizeHref);
     } else {
-      throw ArgumentError('Invalid JSON for Collection: $json');
+      throw ArgumentError('Invalid JSON for Episode: $json');
     }
   }
 
-  factory Contributor.fromJsonMap(
+  factory Episode.fromJsonMap(
     Map<String, dynamic> json, {
     LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
   }) {
@@ -33,7 +31,7 @@ class Contributor extends BaseCollection {
     );
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
 
-    return Contributor(
+    return Episode(
       position: position,
       localizedName: localizedName,
       identifier: identifier,
@@ -44,9 +42,9 @@ class Contributor extends BaseCollection {
     );
   }
 
-  const Contributor({
-    required super.localizedName,
-    this.position,
+  const Episode({
+    required this.position,
+    super.localizedName,
     super.identifier,
     super.altIdentifier,
     super.localizedSortAs,
@@ -54,7 +52,7 @@ class Contributor extends BaseCollection {
     super.additionalProperties,
   });
 
-  final int? position;
+  final int position;
 
   @override
   toJson() {
@@ -67,7 +65,8 @@ class Contributor extends BaseCollection {
       return position;
     } else {
       return <String, dynamic>{...additionalProperties}
-        ..putOpt('position', position)
+        ..put('position', position)
+        ..putOpt('identifier', identifier)
         ..putJSONableIfNotEmpty('altIdentifier', altIdentifier)
         ..putJSONableIfNotEmpty('name', localizedName)
         ..putJSONableIfNotEmpty('sortAs', localizedSortAs)
@@ -75,7 +74,7 @@ class Contributor extends BaseCollection {
     }
   }
 
-  Contributor copyWith({
+  Episode copyWith({
     int? position,
     LocalizedString? localizedName,
     String? identifier,
@@ -88,7 +87,7 @@ class Contributor extends BaseCollection {
       ..addAll(additionalProperties ?? {})
       ..removeWhere((key, value) => value == null);
 
-    return Contributor(
+    return Episode(
       position: position ?? this.position,
       localizedName: localizedName ?? this.localizedName,
       identifier: identifier ?? this.identifier,
@@ -99,11 +98,15 @@ class Contributor extends BaseCollection {
     );
   }
 
-  static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Episode> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json == null) {
+      return [];
+    }
+
     if (json is List) {
-      return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Episode.fromJson(e, normalizeHref: normalizeHref)).toList();
     } else {
-      return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+      return [Episode.fromJson(json, normalizeHref: normalizeHref)];
     }
   }
 
