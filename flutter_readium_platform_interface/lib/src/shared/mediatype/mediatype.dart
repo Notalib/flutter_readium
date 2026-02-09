@@ -259,7 +259,7 @@ class MediaType {
 
   static const MediaType syncMediaNarration = MediaType(
     type: 'application',
-    subtype: 'vnd.synczar+json',
+    subtype: 'vnd.syncnarr+json',
     fileExtension: 'json',
   );
 
