@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:json_diff/json_diff.dart';
 
 import '../index.dart';
 
@@ -34,11 +33,9 @@ abstract class R2Log {
     }
   }
 
-  static void i(final String? message, {final int? wrapWidth}) =>
-      debugPrint('INFO: $message', wrapWidth: wrapWidth);
+  static void i(final String? message, {final int? wrapWidth}) => debugPrint('INFO: $message', wrapWidth: wrapWidth);
 
-  static void w(final String? message, {final int? wrapWidth}) =>
-      debugPrint('WARNING: $message', wrapWidth: wrapWidth);
+  static void w(final String? message, {final int? wrapWidth}) => debugPrint('WARNING: $message', wrapWidth: wrapWidth);
 
   static void e(final Object error, {final int? wrapWidth, final Object? data}) {
     late ReadiumError err;
@@ -51,83 +48,14 @@ abstract class R2Log {
       err = ReadiumError(error.toString(), data: data);
     }
 
-    debugPrint(_log('ERROR: $error ${data ?? ''}'), wrapWidth: wrapWidth);
+    debugPrint(_log('ERROR: $err ${data ?? ''}'), wrapWidth: wrapWidth);
   }
-
-  static void logMapDiff(
-    final Map? leftJson,
-    final Map? rightJson, {
-    final String? prefix,
-    final int? wrapWidth,
-    final int? stackTraceBeginIndex,
-  }) {
-    R2Log.d(
-      _logDiff(leftJson: leftJson, rightJson: rightJson, prefix: prefix),
-      stackTraceBeginIndex: stackTraceBeginIndex,
-    );
-  }
-}
-
-String _logMapDiffPrefix(final String message, {final int indent = 0, final String? prefix}) =>
-    '\n${prefix ?? ''}${'\t' * indent} $message';
-
-String _logDiff({
-  final Map? leftJson,
-  final Map? rightJson,
-  final DiffNode? diffNode,
-  final int indent = 1,
-  final String? prefix,
-}) {
-  final diff = diffNode ?? JsonDiffer.fromJson(leftJson ?? {}, rightJson ?? {}).diff();
-
-  if (diff.hasNothing) {
-    return _logMapDiffPrefix('No diff', indent: 0, prefix: prefix);
-  }
-
-  final all = {
-    ...diff.added.map((final key, final value) => MapEntry(key, [null, value])),
-    ...diff.changed,
-    ...diff.removed.map((final key, final value) => MapEntry(key, [value, null])),
-    ...diff.node,
-  };
-
-  var message = '';
-  for (final entry in all.entries) {
-    final key = entry.key;
-    final value = entry.value;
-
-    if (value is List) {
-      final left = value.first;
-      final right = value.last;
-
-      if (left is Map || right is Map) {
-        message += _logMapDiffPrefix('$key:', prefix: prefix, indent: indent);
-        message += _logDiff(leftJson: left, rightJson: right, indent: indent + 1, prefix: prefix);
-      } else {
-        message += _logMapDiffPrefix('$key: $left --> $right', prefix: prefix, indent: indent);
-      }
-    } else if (value is DiffNode) {
-      message += _logMapDiffPrefix('$key:', prefix: prefix, indent: indent);
-      message += _logDiff(diffNode: value, prefix: prefix, indent: indent + 1);
-    } else {
-      message += _logMapDiffPrefix(
-        '$key: ${leftJson == null ? 'null' : value} --> ${rightJson == null ? 'null' : value}',
-        prefix: prefix,
-        indent: indent,
-      );
-    }
-  }
-
-  return message;
 }
 
 String _log(final dynamic message, {final int? stackTraceBeginIndex}) {
   final messageStr = _stringifyMessage(message);
 
-  final stackTraceStr = _formatStackTrace(
-    StackTrace.current,
-    stackTraceBeginIndex: stackTraceBeginIndex,
-  );
+  final stackTraceStr = _formatStackTrace(StackTrace.current, stackTraceBeginIndex: stackTraceBeginIndex);
 
   return _formatAndPrint(messageStr, stackTraceStr);
 }
@@ -168,8 +96,7 @@ bool _discardWebStacktraceLine(final String line) {
   if (match == null) {
     return false;
   }
-  return match.group(1)!.startsWith('packages/logger') ||
-      match.group(1)!.startsWith('dart-sdk/lib');
+  return match.group(1)!.startsWith('packages/logger') || match.group(1)!.startsWith('dart-sdk/lib');
 }
 
 bool _discardBrowserStacktraceLine(final String line) {
