@@ -1,3 +1,4 @@
+export 'additional_properties.dart';
 export 'href.dart';
 export 'jsonable.dart';
 export 'r2_log.dart';

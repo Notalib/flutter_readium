@@ -6,12 +6,14 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart' show Link;
 
+@immutable
 class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
   const Feed({
     this.metadata = const OpdsMetadata(title: ''),

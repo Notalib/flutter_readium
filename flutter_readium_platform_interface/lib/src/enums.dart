@@ -3,16 +3,16 @@ import 'package:collection/collection.dart';
 enum TimebasedState {
   none,
 
-  /// The player is currently playing.
+  /// The player is currently playing - equivalent to kotlin-toolkit Ready + playWhenReady = true
   playing,
 
   /// The player is currently loading/buffering.
   loading,
 
-  /// The player is currently paused.
+  /// Playback is paused - equivalent to kotlin-toolkit Ready + playWhenReady = false
   paused,
 
-  /// The player has ended playback.
+  /// The player has reached the end of the publication.
   ended,
 
   /// The player is in a failure state.

@@ -25,6 +25,7 @@ import 'charset.dart' show Charset;
 /// @param string String representation for this media type.
 /// @param name A human readable name identifying the media type, which may be presented to the user.
 /// @param fileExtension The default file extension to use for this media type.
+@immutable
 class MediaType {
   @protected
   const MediaType({

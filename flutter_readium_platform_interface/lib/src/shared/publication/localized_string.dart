@@ -8,9 +8,11 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 
+@immutable
 class Translation {
   const Translation(this.string);
   final String string;
@@ -29,6 +31,7 @@ class Translation {
 /// A potentially localized (multilingual) string.
 ///
 /// The translations are indexed by a BCP 47 language tag.
+@immutable
 class LocalizedString with EquatableMixin implements JSONable {
   LocalizedString._(this.translations);
 

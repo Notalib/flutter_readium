@@ -12,6 +12,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../extensions/uri.dart';
 import '../../utils/href.dart';
@@ -19,13 +20,14 @@ import '../../utils/jsonable.dart';
 import '../mediatype.dart';
 import 'link.dart';
 import 'locator.dart';
-import 'metadata.dart';
+import 'metadata/metadata.dart';
 import 'publication_collection.dart';
 import 'subcollection_map.dart';
 
 final _hrefEnd = RegExp('[#?]');
 
 /// Holds the metadata of a Readium publication, as described in the Readium Web Publication Manifest.
+@immutable
 class Publication with EquatableMixin implements JSONable {
   const Publication({
     required this.metadata,

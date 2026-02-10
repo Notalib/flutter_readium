@@ -9,6 +9,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/href.dart';
 import '../../utils/jsonable.dart';
@@ -28,6 +29,7 @@ const LinkHrefNormalizer linkHrefNormalizerIdentity = identity;
 /// Link to a resource, either relative to a [Publication] or external (remote).
 ///
 /// See https://readium.org/webpub-manifest/schema/link.schema.json
+@immutable
 class Link with EquatableMixin implements JSONable {
   const Link({
     required this.href,

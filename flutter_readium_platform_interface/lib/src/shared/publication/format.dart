@@ -3,9 +3,13 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
+import './publication.dart';
+
 /// Format of the [Publication] file.
+@immutable
 class PublicationFormat extends Equatable {
   const PublicationFormat(this.value);
   static const epub = PublicationFormat(PublicationFormatEnum.epub);
