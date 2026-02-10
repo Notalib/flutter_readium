@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fimber/fimber.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 
@@ -56,9 +58,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
-    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map(
-      (dynamic event) => ReadiumReaderStatus.fromString(json.decode(event) as String) ?? ReadiumReaderStatus.error,
-    );
+    _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
+      debugPrint('Received reader status event: $event');
+      return ReadiumReaderStatus.fromString(json.decode(event) as String) ?? ReadiumReaderStatus.error;
+    });
     return _onReaderStatusChanged!;
   }
 

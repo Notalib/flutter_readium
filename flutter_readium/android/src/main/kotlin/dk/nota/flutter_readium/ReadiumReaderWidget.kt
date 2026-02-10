@@ -70,7 +70,7 @@ class ReadiumReaderWidget(
         Log.d(TAG, "::dispose")
         ReadiumReader.epubClose()
 
-        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.closed)
+        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Closed)
         hasSentReady = false
 
         channel.setMethodCallHandler(null)
@@ -118,7 +118,7 @@ class ReadiumReaderWidget(
         channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
         channel.setMethodCallHandler(this)
 
-        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.loading)
+        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Loading)
 
         hasSentReady = false
 
@@ -176,7 +176,7 @@ class ReadiumReaderWidget(
             if (!hasSentReady) {
                 hasSentReady = true
 
-                ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.ready)
+                ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
             }
             emitOnPageChanged(locator)
         }
@@ -194,7 +194,7 @@ class ReadiumReaderWidget(
     override fun onVisualReaderIsReady() {
         Log.d(TAG, "::onVisualReaderIsReady")
         if (!hasSentReady) {
-            ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.ready)
+            ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
 
             hasSentReady = true
         }
