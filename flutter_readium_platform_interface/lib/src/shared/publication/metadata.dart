@@ -14,13 +14,13 @@ import 'collection.dart';
 import 'contributor.dart';
 import 'link.dart';
 import 'localized_string.dart';
+import 'publication.dart';
 import 'reading_progression.dart';
 import 'subject.dart';
-import 'publication.dart';
 
-export 'presentation/presentation_metadata_extension.dart';
 export '../../utils/additional_properties.dart';
 export 'epub/metadata_extension.dart';
+export 'presentation/presentation_metadata_extension.dart';
 
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///

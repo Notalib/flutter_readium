@@ -6,9 +6,10 @@
 
 import 'dart:convert';
 
-import 'package:dartx/dartx.dart';
 import 'package:collection/collection.dart';
+import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
+
 import '../extensions/strings.dart';
 
 /// Represents an HREF, optionally relative to another one.

@@ -10,10 +10,10 @@ import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../extensions/readium_string_extensions.dart';
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../../utils/take.dart';
-import '../../extensions/readium_string_extensions.dart';
 import '../epub.dart';
 import '../mediatype/mediatype.dart';
 import 'link.dart';
