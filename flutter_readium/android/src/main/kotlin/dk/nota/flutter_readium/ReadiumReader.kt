@@ -118,7 +118,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
     var decorationStyle: FlutterDecorationPreferences
-        get() = state[decorationStyleKey] as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
+        get() = state[decorationStyleKey] as? FlutterDecorationPreferences
+            ?: FlutterDecorationPreferences()
         set(value) {
             state[decorationStyleKey] = value
         }
@@ -277,7 +278,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 return@launch
             }
 
-            decorationStyle = bundle.getSerializable(decorationStyleKey) as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
+            decorationStyle =
+                bundle.getSerializable(decorationStyleKey) as? FlutterDecorationPreferences
+                    ?: FlutterDecorationPreferences()
 
             if (bundle.getBoolean(epubEnabledKey)) {
                 Log.d(TAG, ":storeState - restore epub navigator")
@@ -450,6 +453,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun loadPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
+        if (currentPublicationUrl == pubUrl.toString()) {
+            // Current publication is the same as the one we are trying to load, return it.
+            currentPublication?.let {
+                return Try.success(it)
+            }
+        }
+
         return withContext(Dispatchers.IO) {
             try {
                 // TODO: should client provide mediaType to assetRetriever?
@@ -497,10 +507,21 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun openPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
+        if (currentPublicationUrl == pubUrl.toString()) {
+            // Current publication is the same as the one we are trying to open, return it.
+            // If you need to reload the publication, you need to close it first.
+            currentPublication?.let {
+                return Try.success(it)
+            }
+        }
+
+        // Close previously opened publication to avoid leaks.
+        _currentPublication?.close()
+        _currentPublication = null
+        currentPublicationUrl = null
+
         val pub = loadPublication(pubUrl).getOrElse { e -> return failure(e) }
 
-        // Close previously opened publication to avoid links.
-        _currentPublication?.close()
         _currentPublication = pub
         currentPublicationUrl = pubUrl.toString()
 
