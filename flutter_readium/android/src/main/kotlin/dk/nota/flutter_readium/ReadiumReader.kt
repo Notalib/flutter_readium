@@ -516,10 +516,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         // Close previously opened publication to avoid leaks.
-        _currentPublication?.close()
-        _currentPublication = null
-        currentPublicationUrl = null
-
+        closePublication()
+        
         val pub = loadPublication(pubUrl).getOrElse { e -> return failure(e) }
 
         _currentPublication = pub
