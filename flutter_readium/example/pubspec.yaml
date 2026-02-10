@@ -11,8 +11,8 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   # file_picker: # Removed temporarily since it does not compile with latest Kotlin version.
-  flutter_bloc:
-  hydrated_bloc:
+  flutter_bloc: ^9.1.1
+  hydrated_bloc: ^10.1.1
   collection: ^1.19.1
   flutter_readium:
     # When depending on this package from a real application you should use:
@@ -21,10 +21,10 @@ dependencies:
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
-  package_info_plus:
-  path:
-  path_provider:
-  pointer_interceptor:
+  package_info_plus: ^9.0.0
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  pointer_interceptor: ^0.10.1
   rxdart: ^0.28.0
 
 dev_dependencies:
