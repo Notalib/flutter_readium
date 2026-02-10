@@ -22,12 +22,9 @@ class ReadiumBugLogger: ReadiumShared.WarningLogger {
 private let readiumBugLogger = ReadiumBugLogger()
 private var userScripts: [WKUserScript] = []
 
-class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
+internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private var errorStreamHandler: EventStreamHandler?
-  private var readerStatusStreamHandler: EventStreamHandler?
-  private var textLocatorStreamHandler: EventStreamHandler?
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var isVerticalScroll = false
@@ -44,14 +41,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     print(TAG, "::dispose")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
-    textLocatorStreamHandler?.dispose()
-    textLocatorStreamHandler = nil
-    readerStatusStreamHandler?.dispose()
-    readerStatusStreamHandler = nil
-    errorStreamHandler?.dispose()
-    errorStreamHandler = nil
     channel.setMethodCallHandler(nil)
-    setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
   }
 
   init(
@@ -63,7 +54,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     print(TAG, "::init")
     let creationParams = args as! Dictionary<String, Any?>
 
-    let publication = getCurrentPublication()!
+    let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
     let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
@@ -74,11 +65,9 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
-    textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
-    readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
-    errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
 
-    readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusLoading)
+    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?
+      .sendEvent(ReadiumReaderStatusLoading)
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -134,7 +123,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
       ]
     )
 
-    setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
 
     /// This adapter will automatically turn pages when the user taps the
@@ -158,7 +147,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     // TODO: Find a way to trigger the code below, from the AppDelegate.
     if let selection = readiumViewController.currentSelection {
       let selectionLocator = selection.locator
-      currentReaderView?.readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
+      readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
       readiumViewController.clearSelection()
     }
   }
@@ -190,17 +179,17 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
 
     // TODO: Should we send resource-load error like this?
-    self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
+    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
 
     let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
-    self.errorStreamHandler?.sendEvent(error)
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(error)
   }
 
   // override NavigatorDelegate::navigator:locationDidChange
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
     if (!hasSentReady) {
-      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusReady)
+      FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusReady)
       hasSentReady = true
     }
     emitOnPageChanged(locator: locator)
@@ -269,12 +258,8 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
       }
       await MainActor.run() {
         self.channel.onPageChanged(locator: locatorWithFragments)
-        guard let textLocatorStreamHandler = self.textLocatorStreamHandler else {
-          print(TAG, "emitOnPageChanged: textLocatorStreamHandler is nil!")
-          return
-        }
-
-        textLocatorStreamHandler.sendEvent(locatorWithFragments.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?
+          .sendEvent(locatorWithFragments.jsonString)
       }
     }
   }
@@ -476,7 +461,7 @@ class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, V
       print(TAG, "Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
-      self.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusClosed)
+      FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusClosed)
       result(nil)
       break
     default:
