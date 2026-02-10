@@ -6,6 +6,8 @@ export 'facet.dart';
 export 'feed.dart';
 export 'group.dart';
 export 'holds.dart';
+export 'opds_authentication.dart';
 export 'opds_metadata.dart';
 export 'opds_publication.dart';
 export 'price.dart';
+export 'profile.dart';

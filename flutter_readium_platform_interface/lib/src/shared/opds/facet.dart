@@ -5,11 +5,13 @@
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 import '../opds.dart' show OpdsMetadata;
 import '../publication/link.dart' show Link;
 
+@immutable
 class Facet with EquatableMixin implements JSONable {
   const Facet({required this.metadata, required this.links});
 

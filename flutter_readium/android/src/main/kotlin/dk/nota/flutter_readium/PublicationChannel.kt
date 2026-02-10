@@ -29,7 +29,7 @@ internal class PublicationMethodCallHandler() :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             Log.d(TAG, ":onMethodCall method:${call.method} args:${call.arguments}")
-            
+
             try {
                 val res = handleMethodCallsQueue(
                     call.method,

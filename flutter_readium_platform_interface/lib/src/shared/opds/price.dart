@@ -5,9 +5,9 @@
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
-import '../../utils/jsonable.dart';
 
 /// The price of a publication in an OPDS link.
 ///
@@ -16,6 +16,7 @@ import '../../utils/jsonable.dart';
 /// @param currency Currency for the price, eg. EUR.
 /// @param value Price value, should only be used for display purposes, because of precision issues
 ///     inherent with Double and the JSON parsing.
+@immutable
 class Price extends AdditionalProperties with EquatableMixin implements JSONable {
   const Price({required this.currency, required this.value, super.additionalProperties});
   final String currency;

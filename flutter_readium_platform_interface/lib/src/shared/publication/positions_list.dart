@@ -1,8 +1,10 @@
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
 
 /// Readium's positions list: see https://github.com/readium/architecture/tree/master/models/locators/positions
+@immutable
 class PositionsList with EquatableMixin implements JSONable {
   PositionsList({required this.total, required this.positions});
 
@@ -13,10 +15,9 @@ class PositionsList with EquatableMixin implements JSONable {
   List<Object?> get props => [total, positions];
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'total': total,
-    'positions': positions.map((e) => e.toJson()).toList(),
-  };
+  Map<String, dynamic> toJson() => <String, dynamic>{}
+    ..put('total', total)
+    ..putIterableIfNotEmpty('positions', positions);
 
   static PositionsList? fromJson(Map<String, dynamic>? json) {
     if (json == null) {

@@ -4,10 +4,12 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
 
 /// Indicates that a resource is encrypted/obfuscated and provides relevant information for decryption.
+@immutable
 class Encryption with EquatableMixin implements JSONable {
   const Encryption({required this.algorithm, this.compression, this.originalLength, this.profile, this.scheme});
 
@@ -47,7 +49,7 @@ class Encryption with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final String? algorithm = jsonObject.optNullableString('algorithm', remove: true);
+    final algorithm = jsonObject.optNullableString('algorithm', remove: true);
     if (algorithm == null || algorithm.isEmpty) {
       return null;
     }
