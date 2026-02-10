@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements FlutterReadiumPlatform {
@@ -196,6 +196,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 }
 
 void main() {
+  // ignore: unused_local_variable
   late FlutterReadium flutterReadium;
   late MockFlutterReadiumPlatform fakePlatform;
 

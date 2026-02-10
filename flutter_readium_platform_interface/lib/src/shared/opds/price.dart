@@ -7,7 +7,6 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
-import '../../utils/jsonable.dart';
 
 /// The price of a publication in an OPDS link.
 ///

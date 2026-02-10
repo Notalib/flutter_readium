@@ -1,13 +1,13 @@
 import 'dart:convert';
+import 'dart:js_interop' as js_interop;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+import 'package:web/web.dart' as web;
+
 import 'flutter_readium_web.dart';
 import 'js_publication_channel.dart';
-
-import 'package:web/web.dart' as web;
-import 'dart:js_interop' as js_interop;
 
 class ReadiumWebView extends StatefulWidget {
   const ReadiumWebView({super.key, required this.publication, this.currentLocator});
@@ -43,7 +43,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   @js_interop.JSExport()
   void onReaderStatusChanged(final String statusString) {
     R2Log.d('Reader status changed: $statusString');
-    final status = ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name == statusString);
+    final status = ReadiumReaderStatus.fromString(statusString);
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {

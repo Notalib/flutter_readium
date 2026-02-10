@@ -51,6 +51,7 @@ linter:
     sort_constructors_first: true
     use_super_parameters: true
     use_to_and_as_if_applicable: true
+    directives_ordering : true
 
 # Unused for now, since free version of dart_code_metrics was discontinued and held back our dependencies.
 dart_code_metrics:

@@ -47,7 +47,7 @@ class Encryption with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final String? algorithm = jsonObject.optNullableString('algorithm', remove: true);
+    final algorithm = jsonObject.optNullableString('algorithm', remove: true);
     if (algorithm == null || algorithm.isEmpty) {
       return null;
     }

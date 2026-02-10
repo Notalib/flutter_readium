@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+
 import 'js_publication_channel.dart';
-import 'package:flutter/services.dart';
 
 class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   static void registerWith(Registrar registrar) {
