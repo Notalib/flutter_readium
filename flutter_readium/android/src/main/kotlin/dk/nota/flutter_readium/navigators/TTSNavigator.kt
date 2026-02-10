@@ -32,7 +32,6 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -263,10 +262,7 @@ class TTSNavigator(
         get() = ttsNavigator?.voices ?: emptySet()
 
     override fun setupNavigatorListeners() {
-        val navigator = ttsNavigator
-        if (navigator == null) {
-            return
-        }
+        val navigator = ttsNavigator ?: return
 
         // Listen to state changes
         navigator.playback

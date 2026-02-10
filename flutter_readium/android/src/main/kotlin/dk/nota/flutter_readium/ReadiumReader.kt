@@ -9,6 +9,9 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutter_readium.events.ReadiumReaderStatus
+import dk.nota.flutter_readium.events.ReadiumReaderStatusEventChannel
+import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
@@ -90,6 +93,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var appRef: WeakReference<Application>? = null
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
+
+    private var textLocatorEventChannel: TextLocatorEventChannel? = null
+
+    private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
@@ -200,6 +207,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
+
+        textLocatorEventChannel = TextLocatorEventChannel(messenger)
+        readiumReaderStatusEventChannel = ReadiumReaderStatusEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -347,6 +357,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
+
+        textLocatorEventChannel?.dispose()
+        textLocatorEventChannel = null
+
+        readiumReaderStatusEventChannel?.dispose()
+        textLocatorEventChannel = null
 
         jobs.forEach { it.cancel() }
         jobs.clear()
@@ -880,5 +896,19 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
         return epubNavigator?.getLocatorFragments(locator)
+    }
+
+    /**
+     * Emit reader status update to the flutter layer.
+     */
+    fun emitReaderStatusUpdate(statusUpdate: ReadiumReaderStatus) {
+        readiumReaderStatusEventChannel?.sendEvent(statusUpdate)
+    }
+
+    /**
+     * Emit text locator to the flutter layer
+     */
+    fun emitTextLocatorUpdate(locator: Locator) {
+        textLocatorEventChannel?.sendEvent(locator)
     }
 }

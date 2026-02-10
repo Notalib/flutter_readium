@@ -12,8 +12,6 @@ import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.events.ReadiumReaderStatus
-import dk.nota.flutter_readium.events.ReadiumReaderStatusEventChannel
-import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
@@ -48,10 +46,6 @@ class ReadiumReaderWidget(
 
     private val channel: ReadiumReaderChannel
 
-    private var textLocatorEventChannel: TextLocatorEventChannel? = null
-
-    private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
-
     /**
      * Make sure we only sent ready status once.
      */
@@ -75,12 +69,8 @@ class ReadiumReaderWidget(
     override fun dispose() {
         Log.d(TAG, "::dispose")
         ReadiumReader.epubClose()
-        textLocatorEventChannel?.dispose()
-        textLocatorEventChannel = null
 
-        readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.closed)
-        readiumReaderStatusEventChannel?.dispose()
-        readiumReaderStatusEventChannel = null
+        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.closed)
         hasSentReady = false
 
         channel.setMethodCallHandler(null)
@@ -128,10 +118,8 @@ class ReadiumReaderWidget(
         channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
         channel.setMethodCallHandler(this)
 
-        textLocatorEventChannel = TextLocatorEventChannel(messenger)
-        readiumReaderStatusEventChannel = ReadiumReaderStatusEventChannel(messenger)
+        ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.loading)
 
-        readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.loading)
         hasSentReady = false
 
         // By default reader contents are hidden from screen-readers, as not to trap them within it.
@@ -188,7 +176,7 @@ class ReadiumReaderWidget(
             if (!hasSentReady) {
                 hasSentReady = true
 
-                readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.ready)
+                ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.ready)
             }
             emitOnPageChanged(locator)
         }
@@ -206,7 +194,7 @@ class ReadiumReaderWidget(
     override fun onVisualReaderIsReady() {
         Log.d(TAG, "::onVisualReaderIsReady")
         if (!hasSentReady) {
-            readiumReaderStatusEventChannel?.sendEvent(ReadiumReaderStatus.ready)
+            ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.ready)
 
             hasSentReady = true
         }
@@ -231,7 +219,7 @@ class ReadiumReaderWidget(
             }
 
             channel.onPageChanged(locatorWithFragments)
-            textLocatorEventChannel?.sendEvent(locatorWithFragments)
+            ReadiumReader.emitTextLocatorUpdate(locatorWithFragments)
         } catch (e: Exception) {
             Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed! $e")
         }
