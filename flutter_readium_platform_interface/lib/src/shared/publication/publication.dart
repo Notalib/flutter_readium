@@ -240,7 +240,7 @@ class Publication with EquatableMixin implements JSONable {
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
   bool get containsMediaOverlays =>
-      readingOrder.any((link) => link.alternates.any((alt) => alt.type == MediaType.syncMediaNarration.toString()));
+      readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
 }
 
 class PublicationJsonConverter extends JsonConverter<Publication?, Map<String, dynamic>?> {
