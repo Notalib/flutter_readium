@@ -31,8 +31,8 @@ dependencies:
     sdk: flutter
   flutter_readium_platform_interface:
     path: ../flutter_readium_platform_interface
-  rxdart:
-  wakelock_plus: ^1.2.8
+  rxdart: ^0.28.0
+  wakelock_plus: ^1.4.0
   web: ^1.1.1
   collection: ^1.19.1
 
