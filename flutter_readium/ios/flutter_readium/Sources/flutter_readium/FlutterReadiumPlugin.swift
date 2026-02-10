@@ -103,6 +103,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       Task.detached(priority: .high) {
         do {
+          // If Publication is already open, just return it.
+          if (self.currentPublicationUrlStr == pubUrlStr) {
+            if let jsonManifest = self.currentPublication?.jsonManifest {
+              await MainActor.run {
+                result(jsonManifest)
+              }
+            }
+          }
           if (self.currentPublication != nil) {
             self.closePublication()
           }
@@ -126,13 +134,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       Task.detached(priority: .high) {
         do {
-          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          var pubJsonManifest: String?
+          if (self.currentPublicationUrlStr == pubUrlStr) {
+            /// If Publication is already open, just fetch jsonManifest from current.
+            pubJsonManifest = self.currentPublication?.jsonManifest
+          } else {
+            /// Load Publication and serialize its json manifest, before closing it again.
+            let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+            
+            pubJsonManifest = pub.jsonManifest
+            pub.close()
+          }
 
-          let jsonManifest = pub.jsonManifest
-          pub.close()
-
-          await MainActor.run {
-            result(jsonManifest)
+          await MainActor.run { [pubJsonManifest] in
+            result(pubJsonManifest)
           }
         } catch let err as ReadiumError {
           await MainActor.run {
