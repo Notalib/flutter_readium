@@ -1,6 +1,3 @@
-group 'dk.nota.lyt.flutter_readium'
-version '1.0-SNAPSHOT'
-
 buildscript {
   ext.kotlin_version = '2.2.20'
   ext.readium_version = '3.1.2'
@@ -15,6 +12,13 @@ buildscript {
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
+
+plugins {
+  id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.10'
+}
+
+group 'dk.nota.lyt.flutter_readium'
+version '1.0-SNAPSHOT'
 
 rootProject.allprojects {
   repositories {

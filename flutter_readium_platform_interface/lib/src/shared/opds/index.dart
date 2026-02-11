@@ -1,5 +1,5 @@
-export 'acquisition_link.dart';
 export 'acquisition.dart';
+export 'acquisition_link.dart';
 export 'availability.dart';
 export 'copies.dart';
 export 'facet.dart';

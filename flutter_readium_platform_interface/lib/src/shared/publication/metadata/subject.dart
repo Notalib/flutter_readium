@@ -3,8 +3,7 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../../utils/jsonable.dart';
-import '../../publication.dart';
+import '../../../../flutter_readium_platform_interface.dart';
 
 /// Subject of a [Publication].
 ///

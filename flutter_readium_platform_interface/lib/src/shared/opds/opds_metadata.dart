@@ -4,7 +4,7 @@
 
 // ignore_for_file: must_be_immutable
 
-import 'package:dartx/dartx.dart';
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
@@ -129,7 +129,7 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
     final rdfType = [
       jsonObject.optNullableString('@type', remove: true),
       jsonObject.optNullableString('rdfType', remove: true),
-    ].firstOrNullWhere((element) => element != null);
+    ].firstWhereOrNull((element) => element != null);
 
     return OpdsMetadata(
       title: title,

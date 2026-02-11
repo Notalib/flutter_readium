@@ -4,6 +4,6 @@
 
 export 'publication/epub/publication_extension.dart';
 export 'publication/html/dom_range.dart';
+export 'publication/presentation/presentation.dart';
 export 'publication/presentation/presentation_metadata_extension.dart';
 export 'publication/presentation/presentation_properties_extension.dart';
-export 'publication/presentation/presentation.dart';

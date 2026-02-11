@@ -11,10 +11,6 @@ import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
 
-export '../presentation/presentation_metadata_extension.dart';
-export '../../../utils/additional_properties.dart';
-export '../epub/metadata_extension.dart';
-
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json
 ///
 /// @param readingProgression WARNING: This contains the reading progression as declared in the

@@ -27,7 +27,7 @@ extension MapExtension on Map<String, dynamic>? {
 
   dynamic _wrapJSON(dynamic value) {
     if (value is JSONable) {
-      return value.toJson().takeIf((it) => it.isNotEmpty);
+      return _wrapJSON(value.toJson());
     } else if (value is Map) {
       return (value)
           .takeIf((it) => it.isNotEmpty)

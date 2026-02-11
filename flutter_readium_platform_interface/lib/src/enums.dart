@@ -1,4 +1,4 @@
-import 'package:dfunc/dfunc.dart';
+import 'package:collection/collection.dart';
 
 enum TimebasedState {
   none,
@@ -16,7 +16,10 @@ enum TimebasedState {
   ended,
 
   /// The player is in a failure state.
-  failure,
+  failure;
+
+  static TimebasedState? fromString(final String state) =>
+      TimebasedState.values.firstWhereOrNull((e) => e.name.toLowerCase() == state.toLowerCase()) ?? TimebasedState.none;
 }
 
 /// Indicates the current reader widget status.
@@ -34,24 +37,18 @@ enum ReadiumReaderStatus {
   reachedEndOfPublication,
 
   /// An error has occurred in the reader.
-  error,
+  error;
+
+  static ReadiumReaderStatus? fromString(final String status) =>
+      ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name.toLowerCase() == status.toLowerCase());
 }
 
 extension ReadiumReaderStatusExtension on ReadiumReaderStatus {
-  bool get isLoading => name == ReadiumReaderStatus.loading.name;
-  bool get isReady => name == ReadiumReaderStatus.ready.name;
-  bool get isClosed => name == ReadiumReaderStatus.closed.name;
-  bool get reachedEndOfPublication => name == ReadiumReaderStatus.reachedEndOfPublication.name;
-  bool get isError => name == ReadiumReaderStatus.error.name;
-}
-
-extension ReadiumReaderStatusStringExtension on String {
-  ReadiumReaderStatus toReadiumReaderStatus() => toLowerCase().let(
-    (it) => ReadiumReaderStatus.values.firstWhere(
-      (e) => e.name.toLowerCase() == it,
-      orElse: () => ReadiumReaderStatus.error,
-    ),
-  );
+  bool get isLoading => this == ReadiumReaderStatus.loading;
+  bool get isReady => this == ReadiumReaderStatus.ready;
+  bool get isClosed => this == ReadiumReaderStatus.closed;
+  bool get reachedEndOfPublication => this == ReadiumReaderStatus.reachedEndOfPublication;
+  bool get isError => this == ReadiumReaderStatus.error;
 }
 
 enum TTSVoiceGender { male, female, unspecified }

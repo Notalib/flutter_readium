@@ -170,7 +170,7 @@ open class AudiobookNavigator(
      * Updates Audio preferences, does not override current preferences if props are null
      */
     fun updatePreferences(prefs: FlutterAudioPreferences) {
-        preferences = preferences + prefs
+        preferences += prefs
 
         mainScope.async {
             audioNavigator?.submitPreferences(preferences.toExoPlayerPreferences())

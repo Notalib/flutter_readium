@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
+import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 

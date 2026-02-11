@@ -9,6 +9,9 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutter_readium.events.ReadiumReaderStatus
+import dk.nota.flutter_readium.events.ReadiumReaderStatusEventChannel
+import dk.nota.flutter_readium.events.TextLocatorEventChannel
 import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
@@ -91,6 +94,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
 
+    private var textLocatorEventChannel: TextLocatorEventChannel? = null
+
+    private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
+
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
     private var savedStateRef: WeakReference<SavedStateRegistry>? = null
@@ -111,7 +118,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
     var decorationStyle: FlutterDecorationPreferences
-        get() = state[decorationStyleKey] as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
+        get() = state[decorationStyleKey] as? FlutterDecorationPreferences
+            ?: FlutterDecorationPreferences()
         set(value) {
             state[decorationStyleKey] = value
         }
@@ -201,6 +209,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
 
+        textLocatorEventChannel = TextLocatorEventChannel(messenger)
+        readiumReaderStatusEventChannel = ReadiumReaderStatusEventChannel(messenger)
+
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
             savedStateRef = WeakReference(it)
@@ -267,7 +278,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 return@launch
             }
 
-            decorationStyle = bundle.getSerializable(decorationStyleKey) as? FlutterDecorationPreferences ?: FlutterDecorationPreferences()
+            decorationStyle =
+                bundle.getSerializable(decorationStyleKey) as? FlutterDecorationPreferences
+                    ?: FlutterDecorationPreferences()
 
             if (bundle.getBoolean(epubEnabledKey)) {
                 Log.d(TAG, ":storeState - restore epub navigator")
@@ -347,6 +360,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
+
+        textLocatorEventChannel?.dispose()
+        textLocatorEventChannel = null
+
+        readiumReaderStatusEventChannel?.dispose()
+        textLocatorEventChannel = null
 
         jobs.forEach { it.cancel() }
         jobs.clear()
@@ -434,6 +453,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun loadPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
+        if (currentPublicationUrl == pubUrl.toString()) {
+            // Current publication is the same as the one we are trying to load, return it.
+            currentPublication?.let {
+                return Try.success(it)
+            }
+        }
+
         return withContext(Dispatchers.IO) {
             try {
                 // TODO: should client provide mediaType to assetRetriever?
@@ -481,10 +507,19 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun openPublication(
         pubUrl: AbsoluteUrl
     ): Try<Publication, PublicationError> {
+        if (currentPublicationUrl == pubUrl.toString()) {
+            // Current publication is the same as the one we are trying to open, return it.
+            // If you need to reload the publication, you need to close it first.
+            currentPublication?.let {
+                return Try.success(it)
+            }
+        }
+
+        // Close previously opened publication to avoid leaks.
+        closePublication()
+        
         val pub = loadPublication(pubUrl).getOrElse { e -> return failure(e) }
 
-        // Close previously opened publication to avoid links.
-        _currentPublication?.close()
         _currentPublication = pub
         currentPublicationUrl = pubUrl.toString()
 
@@ -880,5 +915,19 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
         return epubNavigator?.getLocatorFragments(locator)
+    }
+
+    /**
+     * Emit reader status update to the flutter layer.
+     */
+    fun emitReaderStatusUpdate(statusUpdate: ReadiumReaderStatus) {
+        readiumReaderStatusEventChannel?.sendEvent(statusUpdate)
+    }
+
+    /**
+     * Emit text locator to the flutter layer
+     */
+    fun emitTextLocatorUpdate(locator: Locator) {
+        textLocatorEventChannel?.sendEvent(locator)
     }
 }
