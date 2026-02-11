@@ -18,6 +18,8 @@ abstract class BaseCollection extends AdditionalProperties with EquatableMixin i
   final List<AltIdentifier>? altIdentifiers;
   final LocalizedString? localizedSortAs;
   final List<Link>? links;
+
+  String? get name => localizedName?.string;
 }
 
 extension ListBaseCollectionExtension on List<BaseCollection>? {

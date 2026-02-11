@@ -63,30 +63,44 @@ class Profile extends AdditionalProperties implements JSONable {
 @immutable
 class ProfileHolds implements JSONable {
   const ProfileHolds({this.total, this.available});
-  factory ProfileHolds.fromJson(Map<String, dynamic> json) =>
-      ProfileHolds(total: json['total'] as int?, available: json['available'] as int?);
+  factory ProfileHolds.fromJson(Map<String, dynamic> json) {
+    final jsonObject = Map<String, dynamic>.of(json);
+    final total = jsonObject.optPositiveDouble('total', remove: true);
+    final available = jsonObject.optPositiveDouble('available', remove: true);
+
+    return ProfileHolds(total: total, available: available);
+  }
 
   /// Number of holds allowed at any time for the users.
-  final int? total;
+  final double? total;
 
   /// Number of holds currently available to the user.
-  final int? available;
+  final double? available;
 
   @override
-  Map<String, dynamic> toJson() => {if (total != null) 'total': total, if (available != null) 'available': available};
+  Map<String, dynamic> toJson() => {}
+    ..putOpt('total', total)
+    ..putOpt('available', available);
 }
 
 class ProfileLoans implements JSONable {
   const ProfileLoans({this.total, this.available});
-  factory ProfileLoans.fromJson(Map<String, dynamic> json) =>
-      ProfileLoans(total: json['total'] as int?, available: json['available'] as int?);
+  factory ProfileLoans.fromJson(Map<String, dynamic> json) {
+    final jsonObject = Map<String, dynamic>.of(json);
+    final total = jsonObject.optPositiveDouble('total', remove: true);
+    final available = jsonObject.optPositiveDouble('available', remove: true);
+
+    return ProfileLoans(total: total, available: available);
+  }
 
   /// Number of loans allowed at any time for the users.
-  final int? total;
+  final double? total;
 
   /// Number of loans currently available to the user.
-  final int? available;
+  final double? available;
 
   @override
-  Map<String, dynamic> toJson() => {if (total != null) 'total': total, if (available != null) 'available ': available};
+  Map<String, dynamic> toJson() => {}
+    ..putOpt('total', total)
+    ..putOpt('available', available);
 }

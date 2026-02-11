@@ -9,15 +9,14 @@ import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/additional_properties.dart';
-import '../../utils/jsonable.dart';
+import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
 class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const OpdsMetadata({
-    required this.title,
+    required this.localizedTitle,
     this.identifier,
-    this.subtitle,
+    this.localizedSubtitle,
     this.description,
     this.numberOfItems,
     this.itemsPerPage,
@@ -28,17 +27,18 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
     super.additionalProperties,
   });
 
-  // TODO: handle multi-language titles
-
   final String? identifier;
-  final String title;
-  final String? subtitle;
+
+  final LocalizedString localizedTitle;
+  String get title => localizedTitle.string;
+  final LocalizedString? localizedSubtitle;
+  String? get subtitle => localizedSubtitle?.string;
   final String? description;
   final int? numberOfItems;
   final int? itemsPerPage;
   final int? currentPage;
   final DateTime? modified;
-  final int? position;
+  final double? position;
   final String? rdfType;
 
   @override
@@ -56,15 +56,15 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
   ];
 
   OpdsMetadata copyWith({
-    String? title,
-    String? subtitle,
+    LocalizedString? localizedTitle,
+    LocalizedString? localizedSubtitle,
     String? identifier,
     String? description,
     int? numberOfItems,
     int? itemsPerPage,
     int? currentPage,
     DateTime? modified,
-    int? position,
+    double? position,
     String? rdfType,
     Map<String, dynamic>? additionalProperties,
   }) {
@@ -73,8 +73,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       ..removeWhere((key, value) => value == null);
 
     return OpdsMetadata(
-      title: title ?? this.title,
-      subtitle: subtitle ?? this.subtitle,
+      localizedTitle: localizedTitle ?? this.localizedTitle,
+      localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
       identifier: identifier ?? this.identifier,
       description: description ?? this.description,
       numberOfItems: numberOfItems ?? this.numberOfItems,
@@ -97,8 +97,8 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
   @override
   Map<String, dynamic> toJson() {
     final json = Map<String, dynamic>.from(additionalProperties)
-      ..put('title', title)
-      ..putOpt('subtitle', subtitle)
+      ..putJSONableIfNotEmpty('title', localizedTitle)
+      ..putJSONableIfNotEmpty('subtitle', localizedSubtitle)
       ..putOpt('identifier', identifier)
       ..putOpt('description', description)
       ..putOpt('numberOfItems', numberOfItems)
@@ -117,23 +117,23 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final title = jsonObject.optNullableString('title', remove: true) ?? '';
+    final localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.opt('title', remove: true)) ?? LocalizedString();
     final description = jsonObject.optNullableString('description', remove: true);
-    final subtitle = jsonObject.optNullableString('subtitle', remove: true);
+    final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.opt('subtitle', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
     final itemsPerPage = jsonObject.optNullableInt('itemsPerPage', remove: true);
     final currentPage = jsonObject.optNullableInt('currentPage', remove: true);
     final modified = jsonObject.optNullableDateTime('modified', remove: true);
-    final position = jsonObject.optNullableInt('position', remove: true);
+    final position = jsonObject.optNullableDouble('position', remove: true);
     final rdfType = [
       jsonObject.optNullableString('@type', remove: true),
       jsonObject.optNullableString('rdfType', remove: true),
     ].firstWhereOrNull((element) => element != null);
 
     return OpdsMetadata(
-      title: title,
-      subtitle: subtitle,
+      localizedTitle: localizedTitle,
+      localizedSubtitle: localizedSubtitle,
       identifier: identifier,
       description: description,
       numberOfItems: numberOfItems,

@@ -33,7 +33,7 @@ class Translation {
 /// The translations are indexed by a BCP 47 language tag.
 @immutable
 class LocalizedString with EquatableMixin implements JSONable {
-  LocalizedString._(this.translations);
+  const LocalizedString({this.translations = const {}});
 
   factory LocalizedString.fromJson(Map<String, dynamic> json) {
     final translations = <String?, String>{};
@@ -53,9 +53,9 @@ class LocalizedString with EquatableMixin implements JSONable {
   static const String undefinedLanguage = 'und';
 
   static LocalizedString fromStrings(Map<String?, String> strings) =>
-      LocalizedString._(strings.map((key, value) => MapEntry(key, Translation(value))));
+      LocalizedString(translations: strings.map((key, value) => MapEntry(key, Translation(value))));
 
-  static LocalizedString fromJsonString(String string) => LocalizedString._({null: Translation(string)});
+  static LocalizedString fromJsonString(String string) => LocalizedString(translations: {null: Translation(string)});
 
   /// Parses a [LocalizedString] from its RWPM JSON representation.
   /// If the localized string can't be parsed, a warning will be logged with [warnings].
@@ -128,7 +128,8 @@ class LocalizedString with EquatableMixin implements JSONable {
     translations: translations.map((language, translation) => MapEntry(language, transform(language, translation))),
   );
 
-  LocalizedString copyWith({Map<String?, Translation>? translations}) => LocalizedString._(translations ?? {});
+  LocalizedString copyWith({Map<String?, Translation>? translations}) =>
+      LocalizedString(translations: translations ?? {});
 
   /// Serializes a [LocalizedString] to its RWPM JSON representation.
   @override

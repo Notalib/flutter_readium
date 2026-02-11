@@ -14,15 +14,17 @@ import '../../utils/jsonable.dart';
 @immutable
 class Holds with EquatableMixin implements JSONable {
   const Holds({this.total, this.position});
-  final int? total;
-  final int? position;
+  final double? total;
+  final double? position;
 
   @override
   List<Object?> get props => [total, position];
 
   /// Serializes an [Holds] to its JSON representation.
   @override
-  Map<String, dynamic> toJson() => {if (total != null) 'total': total, if (position != null) 'position': position};
+  Map<String, dynamic> toJson() => {}
+    ..putOpt('total', total)
+    ..putOpt('position', position);
 
   /// Creates an [Holds] from its JSON representation.
   static Holds? fromJson(Map<String, dynamic>? json) {
@@ -33,8 +35,8 @@ class Holds with EquatableMixin implements JSONable {
     final jsonObject = Map<String, dynamic>.of(json);
 
     return Holds(
-      total: jsonObject.optPositiveInt('total', remove: true),
-      position: jsonObject.optPositiveInt('position', remove: true),
+      total: jsonObject.optPositiveDouble('total', remove: true),
+      position: jsonObject.optPositiveDouble('position', remove: true),
     );
   }
 }

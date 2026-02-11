@@ -28,7 +28,7 @@ class Collection extends BaseCollection {
   }) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
@@ -58,7 +58,7 @@ class Collection extends BaseCollection {
     super.additionalProperties,
   });
 
-  final int? position;
+  final double? position;
 
   @override
   toJson() {
@@ -80,7 +80,7 @@ class Collection extends BaseCollection {
   }
 
   Collection copyWith({
-    int? position,
+    double? position,
     LocalizedString? localizedName,
     String? identifier,
     List<AltIdentifier>? altIdentifiers,

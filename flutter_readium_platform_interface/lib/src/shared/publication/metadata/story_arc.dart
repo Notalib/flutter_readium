@@ -7,11 +7,11 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/storyArc.schema.json
 @immutable
 class StoryArc extends BaseCollection {
-  factory StoryArc.fromJsonNumber(int number) =>
+  factory StoryArc.fromJsonNumber(double number) =>
       StoryArc(localizedName: LocalizedString.fromJsonString(number.toString()), position: number);
 
   factory StoryArc.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is int) {
+    if (json is double) {
       return StoryArc.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
       return StoryArc.fromJsonMap(json, normalizeHref: normalizeHref);
@@ -26,7 +26,7 @@ class StoryArc extends BaseCollection {
   }) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
@@ -65,7 +65,7 @@ class StoryArc extends BaseCollection {
     super.additionalProperties,
   });
 
-  final int? position;
+  final double? position;
   final List<Chapter> chapters;
   final List<Episode> episodes;
   final List<Issue> issues;
@@ -97,7 +97,7 @@ class StoryArc extends BaseCollection {
   }
 
   StoryArc copyWith({
-    int? position,
+    double? position,
     LocalizedString? localizedName,
     String? identifier,
     List<AltIdentifier>? altIdentifiers,
