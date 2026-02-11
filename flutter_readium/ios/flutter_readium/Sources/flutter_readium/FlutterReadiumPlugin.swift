@@ -7,26 +7,24 @@ import ReadiumShared
 
 private let TAG = "ReadiumReaderPlugin"
 
-internal var currentPublicationUrlStr: String?
-internal var currentPublication: Publication?
-internal var currentReaderView: ReadiumReaderView?
-
-func getCurrentPublication() -> Publication? {
-  return currentPublication
-}
-
-func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
-  currentReaderView = readerView
-}
-
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
+  static var instance: FlutterReadiumPlugin? = nil
+  
+  internal var currentPublicationUrlStr: String?
+  internal var currentPublication: Publication?
+  internal var currentReaderView: ReadiumReaderView?
 
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
 
+  /// General event-stream handlers
+  internal var errorStreamHandler: EventStreamHandler?
+  internal var readerStatusStreamHandler: EventStreamHandler?
+  internal var textLocatorStreamHandler: EventStreamHandler?
+  
   /// Timebased player events & state
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
@@ -44,15 +42,29 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
-    let instance = FlutterReadiumPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
-    instance.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
+    
+    // Create
+    let plugin = FlutterReadiumPlugin()
+    registrar.addMethodCallDelegate(plugin, channel: channel)
+    plugin.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
+    plugin.textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
+    plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
+    plugin.errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
+    instance = plugin
 
     // Register reader view factory
     let factory = ReadiumReaderViewFactory(registrar: registrar)
     registrar.register(factory, withId: readiumReaderViewType)
 
     self.registrar = registrar
+  }
+  
+  internal func getCurrentPublication() -> Publication? {
+    return currentPublication
+  }
+
+  internal func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
+    currentReaderView = readerView
   }
 
   public func log(_ warning: Warning) {
@@ -73,8 +85,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "dispose":
       closePublication()
-      self.timebasedPlayerStateStreamHandler?.dispose()
-      self.timebasedPlayerStateStreamHandler = nil
+      timebasedPlayerStateStreamHandler?.dispose()
+      timebasedPlayerStateStreamHandler = nil
+      textLocatorStreamHandler?.dispose()
+      textLocatorStreamHandler = nil
+      readerStatusStreamHandler?.dispose()
+      readerStatusStreamHandler = nil
+      errorStreamHandler?.dispose()
+      errorStreamHandler = nil
       result(nil)
     case "closePublication":
       self.closePublication()
@@ -85,12 +103,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       Task.detached(priority: .high) {
         do {
-          if (currentPublication != nil) {
+          // If Publication is already open, just return it.
+          if (self.currentPublicationUrlStr == pubUrlStr) {
+            if let jsonManifest = self.currentPublication?.jsonManifest {
+              await MainActor.run {
+                result(jsonManifest)
+              }
+            }
+          }
+          if (self.currentPublication != nil) {
             self.closePublication()
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
-          currentPublication = pub
-          currentPublicationUrlStr = pubUrlStr
+          self.currentPublication = pub
+          self.currentPublicationUrlStr = pubUrlStr
 
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
@@ -108,13 +134,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       Task.detached(priority: .high) {
         do {
-          let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+          var pubJsonManifest: String?
+          if (self.currentPublicationUrlStr == pubUrlStr) {
+            /// If Publication is already open, just fetch jsonManifest from current.
+            pubJsonManifest = self.currentPublication?.jsonManifest
+          } else {
+            /// Load Publication and serialize its json manifest, before closing it again.
+            let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
+            
+            pubJsonManifest = pub.jsonManifest
+            pub.close()
+          }
 
-          let jsonManifest = pub.jsonManifest
-          pub.close()
-
-          await MainActor.run {
-            result(jsonManifest)
+          await MainActor.run { [pubJsonManifest] in
+            result(pubJsonManifest)
           }
         } catch let err as ReadiumError {
           await MainActor.run {
@@ -168,13 +201,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
               ttsPrefs = (try? TTSPreferences(fromMap: args ?? [:])) ?? TTSPreferences()
           //try await self.ttsEnable(withPreferences: ttsPrefs)
 
-          guard let publication = getCurrentPublication() else {
+          guard let publication = self.currentPublication else {
             throw ReadiumError.notFound("No publication opened")
           }
 
           Task { @MainActor in
             // Start TTS from the reader's current location
-            let currentLocation = currentReaderView?.getCurrentLocation()
+            let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
             Task {
@@ -260,7 +293,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task.detached(priority: .high) {
         // If no locator provided, try to start from current ReaderView position.
         if (locator == nil) {
-          locator = await currentReaderView?.getFirstVisibleLocator()
+          locator = await self.currentReaderView?.getFirstVisibleLocator()
         }
         await self.timebasedNavigator?.play(fromLocator: locator)
 
@@ -321,8 +354,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           navigated = await self.timebasedNavigator?.seek(toLocator: locator) ?? false
         }
         // ReaderView goTo
-        else if (currentReaderView != nil) {
-          await currentReaderView?.goToLocator(locator: locator, animated: false)
+        else if (self.currentReaderView != nil) {
+          await self.currentReaderView?.goToLocator(locator: locator, animated: false)
           navigated = true
         }
         await MainActor.run { [navigated] in
