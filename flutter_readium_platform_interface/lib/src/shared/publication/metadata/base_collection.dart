@@ -20,6 +20,8 @@ abstract class BaseCollection extends AdditionalProperties with EquatableMixin i
   final List<Link>? links;
 
   String? get name => localizedName?.string;
+
+  String? get sortAs => localizedSortAs?.string;
 }
 
 extension ListBaseCollectionExtension on List<BaseCollection>? {

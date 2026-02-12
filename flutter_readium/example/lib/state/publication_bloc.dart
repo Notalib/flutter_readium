@@ -67,7 +67,7 @@ class PublicationState {
 
     final publication = Publication.fromJson(jsonObject.optNullableMap('publication', remove: true));
     final initialLocator = Locator.fromJson(jsonObject.optNullableMap('initialLocator', remove: true));
-    final error = jsonObject.remove('error');
+    final error = jsonObject.opt('error', remove: true);
     final isLoading = jsonObject.optBoolean('isLoading', fallback: false, remove: true);
 
     return PublicationState(

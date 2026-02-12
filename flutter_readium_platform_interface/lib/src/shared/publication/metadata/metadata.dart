@@ -232,14 +232,14 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    var localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.remove('title'));
+    var localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.opt('title', remove: true));
     if (localizedTitle == null) {
       Fimber.i('[title] is missing $json');
       localizedTitle = LocalizedString.fromJsonString(''); // Fallback to an empty title
     }
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final type = jsonObject.optNullableString('@type', remove: true);
-    final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.remove('subtitle'));
+    final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.opt('subtitle', remove: true));
     final modified = (jsonObject.optNullableString('modified', remove: true))?.iso8601ToDate();
     final published = (jsonObject.optNullableString('published', remove: true))?.iso8601ToDate();
     final accessibility = jsonObject
@@ -275,8 +275,10 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
       normalizeHref: normalizeHref,
     );
     final imprints = Contributor.listFromJson(jsonObject.opt('imprint', remove: true), normalizeHref: normalizeHref);
-    final readingProgression = ReadingProgression.fromString(jsonObject.remove('readingProgression') as String?);
-    final description = jsonObject.remove('description') as String?;
+    final readingProgression = ReadingProgression.fromString(
+      jsonObject.optNullableString('readingProgression', remove: true),
+    );
+    final description = jsonObject.optNullableString('description', remove: true);
     final duration = jsonObject.optPositiveDouble('duration', remove: true);
     final numberOfPages = jsonObject.optPositiveInt('numberOfPages', remove: true);
     final contains =

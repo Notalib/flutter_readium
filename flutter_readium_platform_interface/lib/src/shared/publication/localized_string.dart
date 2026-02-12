@@ -140,7 +140,11 @@ class LocalizedString with EquatableMixin implements JSONable {
   List get props => [translations];
 
   @override
-  String toString() => 'LocalizedString($translations)';
+  String toString() {
+    Fimber.w('LocalizedString toString() is for debug purposes only, use .string or getOrFallback(language) instead');
+
+    return 'LocalizedString($translations)';
+  }
 }
 
 class LocalizedStringJsonConverter extends JsonConverter<LocalizedString?, dynamic> {
