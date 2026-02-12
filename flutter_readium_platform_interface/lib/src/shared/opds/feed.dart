@@ -110,11 +110,11 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
   }
 }
 
-class FeedJsonConverter extends JsonConverter<Feed, Map<String, dynamic>?> {
+class FeedJsonConverter extends JsonConverter<Feed?, Map<String, dynamic>?> {
   const FeedJsonConverter();
 
   @override
-  Feed fromJson(Map<String, dynamic>? json) => Feed.fromJson(json)!;
+  Feed? fromJson(Map<String, dynamic>? json) => Feed.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Feed? feed) => feed?.toJson();

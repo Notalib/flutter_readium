@@ -51,10 +51,19 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     super.additionalProperties,
   }) : super();
 
+  /// The URI of the resource that the Locator Object points to.
   final String href;
+
+  /// The media type of the resource that the Locator Object points to.
   final String type;
+
+  /// The title of the chapter or section which is more relevant in the context of this locator.
   final String? title;
+
+  /// One or more alternative expressions of the location.
   final Locations? locations;
+
+  /// Textual context of the locator.
   final LocatorText? text;
 
   static Locator? fromJsonDynamic(dynamic json) {
@@ -242,12 +251,25 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     );
   }
 
-  final int? position;
-  final double? progression;
-  final double? totalProgression;
+  /// Contains one or more fragment in the resource referenced by the Locator Object.
   final List<String> fragments;
+
+  /// An index in the publication - Integer where the value is > 0.
+  final int? position;
+
+  /// Progression in the resource expressed as a percentage - Float between 0 and 1.
+  final double? progression;
+
+  /// Progression in the publication expressed as a percentage - Float between 0 and 1.
+  final double? totalProgression;
+
+  /// A CSS Selector - for HTML documents.
   final String? cssSelector;
+
+  /// See full description in the next separate section - for HTML documents.
   final DomRange? domRange;
+
+  /// See full description below - for HTML documents.
   final String? partialCfi;
 
   Locations copyWith({
@@ -329,8 +351,14 @@ class LocatorText with EquatableMixin implements JSONable {
   }
 
   const LocatorText({this.before, this.highlight, this.after});
+
+  /// The text before the locator.
   final String? before;
+
+  /// The text at the locator.
   final String? highlight;
+
+  /// The text after the locator.
   final String? after;
 
   @override
@@ -347,7 +375,8 @@ extension LinkLocator on Link {
   /// Creates a [Locator] from a reading order [Link].
   Locator toLocator() {
     final components = href.split('#');
-    final fragment = (components.length > 1) ? components[1] : null;
+    final fragment = (components.length > 1 && components[1].isNotEmpty) ? components[1] : null;
+
     return Locator(
       href: components.firstOrDefault(href),
       type: type ?? '',
@@ -370,11 +399,11 @@ extension HTMLLocationsExtension on Locations {
   DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
-class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>?> {
+class LocatorJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
   const LocatorJsonConverter();
 
   @override
-  Locator fromJson(Map<String, dynamic>? json) => Locator.fromJson(json)!;
+  Locator? fromJson(Map<String, dynamic>? json) => Locator.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Locator? locator) => locator?.toJson();

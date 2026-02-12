@@ -25,12 +25,18 @@ import '../../../utils/jsonable.dart';
 ///
 /// https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-domrange-object
 ///
+/// Boundary point: https://dom.spec.whatwg.org/#concept-range-bp
+///
 /// @param start A serializable representation of the "start" boundary point of the DOM Range.
 /// @param end A serializable representation of the "end" boundary point of the DOM Range.
 @immutable
 class DomRange with EquatableMixin implements JSONable {
   const DomRange({required this.start, this.end});
+
+  /// A serializable representation of the "start" boundary point of the DOM Range.
   final Point start;
+
+  /// A serializable representation of the "end" boundary point of the DOM Range.
   final Point? end;
 
   @override
@@ -84,8 +90,14 @@ class DomRangeJsonConverter extends JsonConverter<DomRange?, Map<String, dynamic
 @immutable
 class Point with EquatableMixin implements JSONable {
   const Point({required this.cssSelector, required this.textNodeIndex, this.charOffset});
+
+  /// A CSS Selector to a DOM element.
   final String cssSelector;
+
+  /// See full description here: https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-domrange-object
   final int textNodeIndex;
+
+  /// See full description here: https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-domrange-object
   final int? charOffset;
 
   @override
