@@ -21,6 +21,14 @@ class ReadiumBugLogger: ReadiumShared.WarningLogger {
 
 private let readiumBugLogger = ReadiumBugLogger()
 private var userScripts: [WKUserScript] = []
+private let jsonEncoder = JSONEncoder()
+
+private func emitReaderStatusChanged(status: String) {
+  let jsonData = try! jsonEncoder.encode(status)
+  if let jsonStsring = String(data: jsonData, encoding: .utf8){
+    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(jsonStsring)
+  }
+}
 
 internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
 
@@ -66,8 +74,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
 
-    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?
-      .sendEvent(ReadiumReaderStatusLoading)
+    emitReaderStatusChanged(status: ReadiumReaderStatusLoading)
 
     print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     print(TAG, "Added publication at \(String(describing: publication.baseURL))")
@@ -179,7 +186,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
 
     // TODO: Should we send resource-load error like this?
-    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusError)
+    emitReaderStatusChanged(status: ReadiumReaderStatusError)
 
     let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(error)
@@ -189,7 +196,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
   func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
     if (!hasSentReady) {
-      FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusReady)
+      emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
     }
     emitOnPageChanged(locator: locator)
@@ -461,7 +468,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
       print(TAG, "Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
-      FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(ReadiumReaderStatusClosed)
+      emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break
     default:
