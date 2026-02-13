@@ -8,9 +8,16 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/issue.schema.json
 @immutable
 class Issue extends BaseCollection {
-  factory Issue.fromJsonNumber(int number) => Issue(position: number);
+  factory Issue.fromJsonNumber(num number) => Issue(position: number.toDouble());
 
   factory Issue.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+    if (json is String) {
+      final position = int.tryParse(json);
+      if (position != null) {
+        return Issue.fromJsonNumber(position);
+      }
+    }
+
     if (json is int) {
       return Issue.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
@@ -26,7 +33,7 @@ class Issue extends BaseCollection {
   }) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
@@ -54,7 +61,7 @@ class Issue extends BaseCollection {
   }
 
   const Issue({
-    required this.position,
+    required super.position,
     super.localizedName,
     super.identifier,
     super.altIdentifiers,
@@ -65,13 +72,11 @@ class Issue extends BaseCollection {
     super.additionalProperties,
   });
 
-  final int position;
-
   final List<Article> articles;
   final List<Chapter> chapters;
 
   Issue copyWith({
-    int? position,
+    double? position,
     LocalizedString? localizedName,
     String? identifier,
     List<AltIdentifier>? altIdentifiers,

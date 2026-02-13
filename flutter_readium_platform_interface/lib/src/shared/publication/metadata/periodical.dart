@@ -52,7 +52,7 @@ class Periodical extends BaseCollection {
 
   const Periodical({
     required super.localizedName,
-    this.position,
+    super.position,
     super.identifier,
     super.altIdentifiers,
     super.localizedSortAs,
@@ -62,7 +62,6 @@ class Periodical extends BaseCollection {
     super.additionalProperties,
   });
 
-  final double? position;
   final List<Issue> issues;
   final List<Volume> volumes;
 

@@ -8,9 +8,17 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/episode.schema.json
 @immutable
 class Episode extends BaseCollection {
-  factory Episode.fromJsonNumber(int number) => Episode(position: number);
+  factory Episode.fromJsonNumber(num number) => Episode(position: number.toDouble());
+
   factory Episode.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is int) {
+    if (json is String) {
+      final position = double.tryParse(json);
+      if (position != null) {
+        return Episode.fromJsonNumber(position);
+      }
+    }
+
+    if (json is num) {
       return Episode.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
       return Episode.fromJsonMap(json, normalizeHref: normalizeHref);
@@ -25,7 +33,7 @@ class Episode extends BaseCollection {
   }) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
@@ -46,7 +54,7 @@ class Episode extends BaseCollection {
   }
 
   const Episode({
-    required this.position,
+    required super.position,
     super.localizedName,
     super.identifier,
     super.altIdentifiers,
@@ -54,8 +62,6 @@ class Episode extends BaseCollection {
     super.links,
     super.additionalProperties,
   });
-
-  final int position;
 
   @override
   toJson() {
@@ -78,7 +84,7 @@ class Episode extends BaseCollection {
   }
 
   Episode copyWith({
-    int? position,
+    double? position,
     LocalizedString? localizedName,
     String? identifier,
     List<AltIdentifier>? altIdentifiers,

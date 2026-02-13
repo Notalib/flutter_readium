@@ -7,15 +7,15 @@ import 'base_collection.dart';
 /// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
 class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String localizedString) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(localizedString));
+  factory Contributor.fromJsonString(String name) => Contributor(localizedName: LocalizedString.fromJsonString(name));
+
   factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
     if (json is String) {
       return Contributor.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
       return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
     } else {
-      throw ArgumentError('Invalid JSON for Collection: $json');
+      throw ArgumentError('Invalid JSON for Contributor: $json');
     }
   }
 
@@ -49,7 +49,7 @@ class Contributor extends BaseCollection {
 
   const Contributor({
     required super.localizedName,
-    this.position,
+    super.position,
     super.identifier,
     super.altIdentifiers,
     super.localizedSortAs,
@@ -57,8 +57,6 @@ class Contributor extends BaseCollection {
     this.roles,
     super.additionalProperties,
   });
-
-  final double? position;
 
   /// All values for the role element should be based on https://www.loc.gov/marc/relators/relaterm.html
   final List<String>? roles;

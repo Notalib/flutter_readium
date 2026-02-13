@@ -5,6 +5,7 @@ import '../../../../flutter_readium_platform_interface.dart';
 /// Base class for collections of metadata, such as Series, StoryArc, Season, Issue, etc.
 abstract class BaseCollection extends AdditionalProperties with EquatableMixin implements JSONable {
   const BaseCollection({
+    required this.position,
     this.localizedName,
     this.identifier,
     this.altIdentifiers,
@@ -13,6 +14,7 @@ abstract class BaseCollection extends AdditionalProperties with EquatableMixin i
     super.additionalProperties,
   });
 
+  final double? position;
   final LocalizedString? localizedName;
   final String? identifier;
   final List<AltIdentifier>? altIdentifiers;

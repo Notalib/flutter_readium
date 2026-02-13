@@ -7,10 +7,17 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/chapter.schema.json
 @immutable
 class Chapter extends BaseCollection {
-  factory Chapter.fromJsonNumber(int number) => Chapter(position: number);
+  factory Chapter.fromJsonNumber(num number) => Chapter(position: number.toDouble());
 
   factory Chapter.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
-    if (json is int) {
+    if (json is String) {
+      final position = double.tryParse(json);
+      if (position != null) {
+        return Chapter.fromJsonNumber(position);
+      }
+    }
+
+    if (json is num) {
       return Chapter.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
       return Chapter.fromJsonMap(json, normalizeHref: normalizeHref);
@@ -25,7 +32,7 @@ class Chapter extends BaseCollection {
   }) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableInt('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
@@ -48,7 +55,7 @@ class Chapter extends BaseCollection {
   }
 
   const Chapter({
-    required this.position,
+    required super.position,
     super.localizedName,
     super.identifier,
     super.altIdentifiers,
@@ -58,11 +65,10 @@ class Chapter extends BaseCollection {
     super.additionalProperties,
   });
 
-  final int position;
   final List<Series> series;
 
   Chapter copyWith({
-    int? position,
+    double? position,
     LocalizedString? localizedName,
     String? identifier,
     List<AltIdentifier>? altIdentifiers,

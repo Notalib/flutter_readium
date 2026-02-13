@@ -50,15 +50,13 @@ class Collection extends BaseCollection {
 
   const Collection({
     required super.localizedName,
-    this.position,
+    super.position,
     super.identifier,
     super.altIdentifiers,
     super.localizedSortAs,
     super.links,
     super.additionalProperties,
   });
-
-  final double? position;
 
   @override
   toJson() {

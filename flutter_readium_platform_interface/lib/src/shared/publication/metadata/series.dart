@@ -60,7 +60,7 @@ class Series extends BaseCollection {
 
   const Series({
     required super.localizedName,
-    this.position,
+    super.position,
     super.identifier,
     super.altIdentifiers,
     super.localizedSortAs,
@@ -74,7 +74,6 @@ class Series extends BaseCollection {
     super.additionalProperties,
   });
 
-  final double? position;
   final List<Chapter> chapters;
   final List<Episode> episodes;
   final List<Issue> issues;

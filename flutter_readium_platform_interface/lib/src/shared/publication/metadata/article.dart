@@ -107,7 +107,7 @@ class Article extends BaseCollection {
     this.contributors,
     this.description,
     this.numberOfPages,
-    this.position,
+    super.position,
     super.links,
     super.additionalProperties,
   });
@@ -134,7 +134,6 @@ class Article extends BaseCollection {
   final List<Contributor>? contributors;
   final String? description;
   final int? numberOfPages;
-  final double? position;
 
   @override
   List<Object?> get props => [
