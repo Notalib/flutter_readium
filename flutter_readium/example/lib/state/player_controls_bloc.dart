@@ -58,8 +58,6 @@ class PlayerControlsState {
   final bool ttsEnabled;
   final bool audioEnabled;
 
-  final FlutterReadium readium = FlutterReadium();
-
   Future<PlayerControlsState> togglePlay(final bool playing) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
 
@@ -92,7 +90,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   StreamSubscription? readerStatusSub;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
-    timebasedStateSub = FlutterReadium().onTimebasedPlayerStateChanged
+    timebasedStateSub = instance.onTimebasedPlayerStateChanged
         .map((state) => state.state)
         .distinct()
         .debounceTime(const Duration(milliseconds: 50))
@@ -113,7 +111,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           }
         });
 
-    readerStatusSub = FlutterReadium().onReaderStatusChanged.listen((status) {
+    readerStatusSub = instance.onReaderStatusChanged.listen((status) {
       debugPrint('onReaderStatusChanged: ${status.name}');
     });
 
