@@ -240,9 +240,17 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
-    // Create TimebasedState and send it over the timebased-state stream.
-    let state = ReadiumTimebasedState(
-      state: info.state.asTimebasedState,
+    
+    /// Fetch MediaPlaybackState and convert it to TimebasedState
+    var playerState = info.state.asTimebasedState
+    if (info.state == .paused && info.progress >= 1 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
+      /// If paused at progress 1 of the last resource in readingOrder, we have to assume the book has ended.
+      playerState = .ended
+    }
+    
+    /// Create TimebasedState and send it over the timebased-state stream.
+    let timebasedState = ReadiumTimebasedState(
+      state: playerState,
       currentOffset: info.time,
       currentBuffered: bufferedInterval,
       currentDuration: info.duration ?? nil,
@@ -250,9 +258,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     )
 
     // If state has changed, submit it to listener.
-    if (state != self._lastTimebasedPlayerState) {
-      self._lastTimebasedPlayerState = state
-      self.listener?.timebasedNavigator(self, didChangeState: state)
+    if (timebasedState != self._lastTimebasedPlayerState) {
+      self._lastTimebasedPlayerState = timebasedState
+      self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
     } else {
       debugPrint(TAG, "Skipped state submission - duplicate")
     }
