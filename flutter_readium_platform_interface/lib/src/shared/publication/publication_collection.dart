@@ -4,7 +4,6 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
@@ -97,14 +96,4 @@ class PublicationCollection with EquatableMixin implements JSONable {
     }
     return collections;
   }
-}
-
-class PublicationCollectionJsonConverter extends JsonConverter<PublicationCollection?, dynamic> {
-  const PublicationCollectionJsonConverter();
-
-  @override
-  PublicationCollection? fromJson(dynamic json) => PublicationCollection.fromJson(json);
-
-  @override
-  dynamic toJson(PublicationCollection? collection) => collection?.toJson();
 }

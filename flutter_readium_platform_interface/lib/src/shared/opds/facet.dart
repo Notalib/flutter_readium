@@ -4,7 +4,6 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
@@ -62,14 +61,4 @@ class Facet with EquatableMixin implements JSONable {
       return null;
     }).toList();
   }
-}
-
-class FacetJsonConverter extends JsonConverter<Facet?, Map<String, dynamic>?> {
-  const FacetJsonConverter();
-
-  @override
-  Facet? fromJson(Map<String, dynamic>? json) => json == null ? null : Facet.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Facet? facet) => facet?.toJson();
 }

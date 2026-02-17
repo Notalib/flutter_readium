@@ -5,7 +5,6 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
@@ -131,14 +130,4 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
       additionalProperties: jsonObject,
     );
   }
-}
-
-class PropertiesJsonConverter extends JsonConverter<Properties?, Map<String, dynamic>?> {
-  const PropertiesJsonConverter();
-
-  @override
-  Properties? fromJson(Map<String, dynamic>? json) => Properties.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Properties? properties) => properties?.toJson();
 }

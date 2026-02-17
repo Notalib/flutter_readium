@@ -5,6 +5,8 @@ import '../enums.dart';
 import '../utils/jsonable.dart';
 import 'index.dart';
 
+FimberLog _logger = FimberLog('ReaderTTSVoice');
+
 class ReaderTTSVoice implements JSONable {
   const ReaderTTSVoice._(this.identifier, this.name, this.language, this.networkRequired, this.gender, this.quality);
 
@@ -28,22 +30,21 @@ class ReaderTTSVoice implements JSONable {
     final name = jsonObject.optString('name', remove: true);
     final language = jsonObject.optString('language', remove: true);
     final networkRequired = jsonObject.optBoolean('networkRequired', remove: true);
-    final gender = jsonObject.optEnumFromString(
-      'gender',
-      TTSVoiceGender.values,
-      fallback: TTSVoiceGender.unspecified,
-      remove: true,
-    )!;
+
+    final gender = TTSVoiceGender.fromString(jsonObject.optString('gender', remove: true));
 
     final qualityStr = jsonObject.optNullableString('quality', remove: true);
     TTSVoiceQuality? quality;
 
     if (qualityStr != null) {
       try {
-        quality = TTSVoiceQuality.values.byName(qualityStr);
+        quality = TTSVoiceQuality.optFromString(qualityStr);
+        if (quality == null) {
+          _logger.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
+        }
         // ignore: avoid_catches_without_on_clauses
       } catch (e) {
-        Fimber.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.', ex: e);
+        _logger.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.', ex: e);
         quality = null;
       }
     }
@@ -66,14 +67,13 @@ class ReaderTTSVoice implements JSONable {
   final TTSVoiceQuality? quality;
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'identifier': identifier,
-    'name': name,
-    'language': language,
-    'networkRequired': networkRequired,
-    'gender': gender.name,
-    'quality': quality?.name,
-  };
+  Map<String, dynamic> toJson() => {}
+    ..put('identifier', identifier)
+    ..put('name', name)
+    ..put('language', language)
+    ..put('networkRequired', networkRequired)
+    ..put('gender', gender.name)
+    ..putOpt('quality', quality?.name);
 }
 
 class ReaderTTSVoiceJsonConverter extends JsonConverter<ReaderTTSVoice, Map<String, dynamic>> {

@@ -5,7 +5,6 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
@@ -84,14 +83,4 @@ class Group with EquatableMixin implements JSONable {
         .whereType<Group>()
         .toList();
   }
-}
-
-class GroupJsonConverter extends JsonConverter<Group?, Map<String, dynamic>?> {
-  const GroupJsonConverter();
-
-  @override
-  Group? fromJson(Map<String, dynamic>? json) => json == null ? null : Group.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Group? group) => group?.toJson();
 }

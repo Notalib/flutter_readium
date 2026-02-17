@@ -3,15 +3,18 @@ import 'package:flutter/material.dart' show Color, Colors;
 
 import '../index.dart';
 
-enum DecorationStyle { highlight, underline }
+enum DecorationStyle {
+  highlight,
+  underline;
 
-DecorationStyle _styleFromString(String styleStr) {
-  switch (styleStr) {
-    case 'underline':
-      return DecorationStyle.underline;
-    case 'highlight':
-    default:
-      return DecorationStyle.highlight;
+  static DecorationStyle fromString(String? styleStr) {
+    switch (styleStr) {
+      case 'underline':
+        return DecorationStyle.underline;
+      case 'highlight':
+      default:
+        return DecorationStyle.highlight;
+    }
   }
 }
 
@@ -53,7 +56,7 @@ class ReaderDecorationStyle implements JSONable {
   Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
 
   factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
-    style: _styleFromString(map['style']),
+    style: DecorationStyle.fromString(map['style']),
     tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
   );
 

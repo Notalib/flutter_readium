@@ -42,9 +42,8 @@ enum TDMReservation {
       case 'all':
         return TDMReservation.all;
       case 'none':
-        return TDMReservation.none;
       default:
-        throw ArgumentError('Unknown reservation value: $value');
+        return TDMReservation.none;
     }
   }
 }

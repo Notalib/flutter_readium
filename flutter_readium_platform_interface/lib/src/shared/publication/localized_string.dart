@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
@@ -55,7 +54,11 @@ class LocalizedString with EquatableMixin implements JSONable {
   static LocalizedString fromStrings(Map<String?, String> strings) =>
       LocalizedString(translations: strings.map((key, value) => MapEntry(key, Translation(value))));
 
-  static LocalizedString fromJsonString(String string) => LocalizedString(translations: {null: Translation(string)});
+  static LocalizedString fromJsonString(String input) => fromString(input);
+
+  static LocalizedString fromString(String input) => LocalizedString(translations: {null: Translation(input)});
+
+  static LocalizedString empty() => const LocalizedString();
 
   /// Parses a [LocalizedString] from its RWPM JSON representation.
   /// If the localized string can't be parsed, a warning will be logged with [warnings].
@@ -145,14 +148,4 @@ class LocalizedString with EquatableMixin implements JSONable {
 
     return 'LocalizedString($translations)';
   }
-}
-
-class LocalizedStringJsonConverter extends JsonConverter<LocalizedString?, dynamic> {
-  const LocalizedStringJsonConverter();
-
-  @override
-  LocalizedString? fromJson(dynamic json) => LocalizedString.fromJsonDynamic(json);
-
-  @override
-  dynamic toJson(LocalizedString? localizedString) => localizedString?.toJson();
 }

@@ -5,6 +5,7 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:equatable/equatable.dart';
+import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
@@ -110,8 +111,28 @@ class Feed extends AdditionalProperties with EquatableMixin implements JSONable 
   }
 }
 
-class FeedJsonConverter extends JsonConverter<Feed?, Map<String, dynamic>?> {
+class FeedJsonConverter extends JsonConverter<Feed, Map<String, dynamic>> {
   const FeedJsonConverter();
+
+  static final FimberLog _logger = FimberLog('FeedJsonConverter');
+
+  @override
+  Feed fromJson(Map<String, dynamic> json) {
+    final feed = Feed.fromJson(json);
+    if (feed == null) {
+      _logger.w('Feed.fromJson returned null, creating a dummy Feed');
+      return const Feed();
+    }
+
+    return feed;
+  }
+
+  @override
+  Map<String, dynamic> toJson(Feed feed) => feed.toJson();
+}
+
+class FeedNullableJsonConverter extends JsonConverter<Feed?, Map<String, dynamic>?> {
+  const FeedNullableJsonConverter();
 
   @override
   Feed? fromJson(Map<String, dynamic>? json) => Feed.fromJson(json);

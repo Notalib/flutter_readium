@@ -1,20 +1,21 @@
 import 'package:dartx/dartx.dart';
+import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
-import '../publication/link.dart' show Link;
-import '../publication/metadata/metadata.dart' show Metadata;
+import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
 class OpdsPublication implements JSONable {
   const OpdsPublication(this.metadata, this.links, {this.images = const []});
 
-  final Metadata metadata;
+  final OpdsMetadata metadata;
   final List<Link> links;
   final List<Link> images;
 
-  OpdsPublication copyWith({Metadata? metadata, List<Link>? links, List<Link>? images}) =>
+  static final FimberLog _logger = FimberLog('OpdsPublication');
+
+  OpdsPublication copyWith({OpdsMetadata? metadata, List<Link>? links, List<Link>? images}) =>
       OpdsPublication(metadata ?? this.metadata, links ?? this.links, images: images ?? this.images);
 
   @override
@@ -33,8 +34,9 @@ class OpdsPublication implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final metadata = Metadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
+    final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
+      _logger.w('OpdsPublication metadata is null, cannot parse publication');
       return null;
     }
 
@@ -60,9 +62,28 @@ class OpdsPublication implements JSONable {
 class OpdsPublicationJsonConverter extends JsonConverter<OpdsPublication, Map<String, dynamic>> {
   const OpdsPublicationJsonConverter();
 
+  static final FimberLog _logger = FimberLog('OpdsPublicationJsonConverter');
+
   @override
-  OpdsPublication fromJson(Map<String, dynamic> json) => OpdsPublication.fromJson(json)!;
+  OpdsPublication fromJson(Map<String, dynamic> json) {
+    final publication = OpdsPublication.fromJson(json);
+    if (publication == null) {
+      _logger.w('Received null OpdsPublication from JSON, creating dummy.');
+      return OpdsPublication(OpdsMetadata(localizedTitle: LocalizedString()), [], images: []);
+    }
+    return publication;
+  }
 
   @override
   Map<String, dynamic> toJson(OpdsPublication publication) => publication.toJson();
+}
+
+class OpdsPublicationNullableJsonConverter extends JsonConverter<OpdsPublication?, Map<String, dynamic>?> {
+  const OpdsPublicationNullableJsonConverter();
+
+  @override
+  OpdsPublication? fromJson(Map<String, dynamic>? json) => OpdsPublication.fromJson(json);
+
+  @override
+  Map<String, dynamic>? toJson(OpdsPublication? publication) => publication?.toJson();
 }

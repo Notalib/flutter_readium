@@ -3,7 +3,6 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
@@ -66,14 +65,4 @@ class Encryption with EquatableMixin implements JSONable {
       scheme: jsonObject.optNullableString('scheme', remove: true),
     );
   }
-}
-
-class EncryptionJsonConverter extends JsonConverter<Encryption?, Map<String, dynamic>?> {
-  const EncryptionJsonConverter();
-
-  @override
-  Encryption? fromJson(Map<String, dynamic>? json) => Encryption.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Encryption? encryption) => encryption?.toJson();
 }

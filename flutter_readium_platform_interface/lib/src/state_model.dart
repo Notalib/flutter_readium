@@ -16,12 +16,7 @@ class ReadiumTimebasedState implements JSONable {
   factory ReadiumTimebasedState.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
 
-    final state = jsonObject.optEnumFromString<TimebasedState>(
-      'state',
-      TimebasedState.values,
-      fallback: TimebasedState.none,
-      remove: true,
-    )!;
+    final state = TimebasedState.fromString(jsonObject.optString('state', remove: true)) ?? TimebasedState.none;
 
     final currentOffset = jsonObject.optNullableInt('currentOffset', remove: true);
     final currentBuffered = jsonObject.optNullableInt('currentBuffered', remove: true);
@@ -61,13 +56,12 @@ class ReadiumTimebasedState implements JSONable {
   final Locator? currentLocator;
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'state': state.name,
-    if (currentOffset != null) 'currentOffset': currentOffset!.inMilliseconds,
-    if (currentBuffered != null) 'currentBuffered': currentBuffered!.inMilliseconds,
-    if (currentDuration != null) 'currentDuration': currentDuration!.inMilliseconds,
-    if (currentLocator != null) 'currentLocator': currentLocator?.toJson(),
-  };
+  Map<String, dynamic> toJson() => {}
+    ..put('state', state.name)
+    ..putOpt('currentOffset', currentOffset?.inMilliseconds)
+    ..putOpt('currentBuffered', currentBuffered?.inMilliseconds)
+    ..putOpt('currentDuration', currentDuration?.inMilliseconds)
+    ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
     TimebasedState? state,
@@ -84,12 +78,12 @@ class ReadiumTimebasedState implements JSONable {
   );
 }
 
-class ReadiumTimebasedStateJsonConverter extends JsonConverter<ReadiumTimebasedState?, Map<String, dynamic>?> {
+class ReadiumTimebasedStateJsonConverter extends JsonConverter<ReadiumTimebasedState, Map<String, dynamic>> {
   const ReadiumTimebasedStateJsonConverter();
 
   @override
-  ReadiumTimebasedState? fromJson(final Map<String, dynamic>? json) => ReadiumTimebasedState.fromJson(json ?? {});
+  ReadiumTimebasedState fromJson(final Map<String, dynamic> json) => ReadiumTimebasedState.fromJson(json);
 
   @override
-  Map<String, dynamic>? toJson(final ReadiumTimebasedState? object) => object?.toJson();
+  Map<String, dynamic> toJson(final ReadiumTimebasedState object) => object.toJson();
 }

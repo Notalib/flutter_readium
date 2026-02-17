@@ -4,7 +4,6 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
@@ -172,14 +171,4 @@ enum PresentationSpread {
 
   static PresentationSpread? fromString(String? value) =>
       PresentationSpread.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
-}
-
-class PresentationJsonConverter extends JsonConverter<Presentation?, Map<String, dynamic>?> {
-  const PresentationJsonConverter();
-
-  @override
-  Presentation? fromJson(Map<String, dynamic>? json) => Presentation.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Presentation? presentation) => presentation?.toJson();
 }

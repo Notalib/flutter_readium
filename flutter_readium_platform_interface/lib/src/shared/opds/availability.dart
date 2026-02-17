@@ -4,7 +4,6 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../extensions/strings.dart';
@@ -42,7 +41,7 @@ class Availability with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final state = AvailabilityState.fromString(jsonObject.optNullableString('state', remove: true));
+    final state = AvailabilityState.optFromString(jsonObject.optNullableString('state', remove: true));
     if (state == null) {
       return null;
     }
@@ -62,16 +61,6 @@ enum AvailabilityState {
   const AvailabilityState(this.name);
   final String name;
 
-  static AvailabilityState? fromString(String? value) =>
+  static AvailabilityState? optFromString(String? value) =>
       AvailabilityState.values.firstWhereOrNull((state) => state.name == value);
-}
-
-class AvailabilityJsonConverter extends JsonConverter<Availability?, Map<String, dynamic>?> {
-  const AvailabilityJsonConverter();
-
-  @override
-  Availability? fromJson(Map<String, dynamic>? json) => Availability.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Availability? availability) => availability?.toJson();
 }

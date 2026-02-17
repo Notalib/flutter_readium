@@ -252,11 +252,33 @@ class Link with EquatableMixin implements JSONable {
   String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
 }
 
-class LinkJsonConverter extends JsonConverter<Link, Map<String, dynamic>?> {
+/// JSON converter for [Link].
+/// Note: If fromJson fails to parse the link, a warning will be logged and a default [Link] with an empty href will be returned.
+class LinkJsonConverter extends JsonConverter<Link, Map<String, dynamic>> {
   const LinkJsonConverter();
 
+  static final FimberLog _logger = FimberLog('LinkJsonConverter');
+
   @override
-  Link fromJson(Map<String, dynamic>? json) => Link.fromJson(json)!;
+  Link fromJson(Map<String, dynamic> json) {
+    final link = Link.fromJson(json);
+    if (link == null) {
+      _logger.w('Failed to parse Link from JSON: $json');
+      return Link(href: '');
+    }
+
+    return link;
+  }
+
+  @override
+  Map<String, dynamic> toJson(Link link) => link.toJson();
+}
+
+class LinkNullableJsonConverter extends JsonConverter<Link?, Map<String, dynamic>?> {
+  const LinkNullableJsonConverter();
+
+  @override
+  Link? fromJson(Map<String, dynamic>? json) => Link.fromJson(json);
 
   @override
   Map<String, dynamic>? toJson(Link? link) => link?.toJson();
@@ -270,4 +292,14 @@ class LinkListJsonConverter extends JsonConverter<List<Link>, List<dynamic>?> {
 
   @override
   List<dynamic>? toJson(List<Link> links) => links.map((it) => it.toJson()).toList();
+}
+
+class LinkListNullableJsonConverter extends JsonConverter<List<Link>?, List<dynamic>?> {
+  const LinkListNullableJsonConverter();
+
+  @override
+  List<Link>? fromJson(List<dynamic>? json) => Link.fromJsonArray(json);
+
+  @override
+  List<dynamic>? toJson(List<Link>? links) => links?.map((it) => it.toJson()).toList();
 }

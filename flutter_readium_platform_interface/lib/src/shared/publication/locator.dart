@@ -66,6 +66,8 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   /// Textual context of the locator.
   final LocatorText? text;
 
+  static final FimberLog _logger = FimberLog('Locator');
+
   static Locator? fromJsonDynamic(dynamic json) {
     if (json is String) {
       return fromJsonString(json);
@@ -73,7 +75,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       return fromJson(json);
     }
 
-    Fimber.w('Locator.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    _logger.w('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
 
@@ -83,7 +85,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return Locator.fromJson(json);
     } catch (ex, st) {
-      Fimber.e('ERROR', ex: ex, stacktrace: st);
+      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
     }
     return null;
   }
@@ -96,7 +98,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     final href = json.safeRemove<String>('href');
     final type = json.safeRemove<String>('type');
     if (href == null || type == null) {
-      Fimber.i('[href] and [type] are required $json');
+      _logger.i('[href] and [type] are required $json');
       return null;
     }
 
@@ -110,7 +112,9 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   String get json => JsonCodec().encode(toJson());
 
   @override
-  Map<String, dynamic> toJson() => {'href': href, 'type': type}
+  Map<String, dynamic> toJson() => {}
+    ..put('href', href)
+    ..put('type', type)
     ..putOpt('title', title)
     ..putJSONableIfNotEmpty('locations', locations)
     ..putJSONableIfNotEmpty('text', text);
@@ -399,8 +403,8 @@ extension HTMLLocationsExtension on Locations {
   DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
-class LocatorJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
-  const LocatorJsonConverter();
+class LocatorNullableJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
+  const LocatorNullableJsonConverter();
 
   @override
   Locator? fromJson(Map<String, dynamic>? json) => Locator.fromJson(json);
@@ -409,22 +413,24 @@ class LocatorJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?
   Map<String, dynamic>? toJson(Locator? locator) => locator?.toJson();
 }
 
-class LocationsJsonConverter extends JsonConverter<Locations?, Map<String, dynamic>?> {
-  const LocationsJsonConverter();
+/// A [JsonConverter] for [Locator] that logs errors instead of throwing exceptions when parsing fails.
+/// Note: Creates a dummy [Locator] with empty [href] and [type] if parsing fails, since these properties are required.
+class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>> {
+  const LocatorJsonConverter();
+
+  static final FimberLog _logger = FimberLog('LocatorJsonConverter');
 
   @override
-  Locations? fromJson(Map<String, dynamic>? json) => Locations.fromJson(json);
+  Locator fromJson(Map<String, dynamic> json) {
+    final locator = Locator.fromJson(json);
+    if (locator == null) {
+      _logger.e('Failed to parse Locator from json: $json');
+
+      return Locator(href: '', type: '');
+    }
+    return locator;
+  }
 
   @override
-  Map<String, dynamic>? toJson(Locations? locations) => locations?.toJson();
-}
-
-class LocatorTextJsonConverter extends JsonConverter<LocatorText?, Map<String, dynamic>?> {
-  const LocatorTextJsonConverter();
-
-  @override
-  LocatorText? fromJson(Map<String, dynamic>? json) => LocatorText.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(LocatorText? locatorText) => locatorText?.toJson();
+  Map<String, dynamic> toJson(Locator locator) => locator.toJson();
 }

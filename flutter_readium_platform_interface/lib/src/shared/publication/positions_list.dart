@@ -15,7 +15,7 @@ class PositionsList with EquatableMixin implements JSONable {
   List<Object?> get props => [total, positions];
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{}
+  Map<String, dynamic> toJson() => {}
     ..put('total', total)
     ..putIterableIfNotEmpty('positions', positions);
 

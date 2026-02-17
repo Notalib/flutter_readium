@@ -235,7 +235,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     var localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.opt('title', remove: true));
     if (localizedTitle == null) {
       Fimber.i('[title] is missing $json');
-      localizedTitle = LocalizedString.fromJsonString(''); // Fallback to an empty title
+      localizedTitle = LocalizedString.empty(); // Fallback to an empty title
     }
     final identifier = jsonObject.optNullableString('identifier', remove: true);
     final type = jsonObject.optNullableString('@type', remove: true);
@@ -248,7 +248,8 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
     final languages = jsonObject.optStringsFromArrayOrSingle('language', remove: true);
     final conformsTo = jsonObject.optStringsFromArrayOrSingle('conformsTo', remove: true);
-    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final localizedSortAs =
+        LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true)) ?? LocalizedString.empty();
     final subjects = Subject.listFromJson(jsonObject.opt('subject', remove: true), normalizeHref: normalizeHref);
     final authors = Contributor.listFromJson(jsonObject.opt('author', remove: true), normalizeHref: normalizeHref);
     final translators = Contributor.listFromJson(
@@ -508,8 +509,27 @@ class MetadataContains extends AdditionalProperties with EquatableMixin implemen
   );
 }
 
-class MetadataJsonConverter extends JsonConverter<Metadata?, Map<String, dynamic>?> {
+class MetadataJsonConverter extends JsonConverter<Metadata, Map<String, dynamic>> {
   const MetadataJsonConverter();
+
+  static final FimberLog _logger = FimberLog('MetadataJsonConverter');
+
+  @override
+  Metadata fromJson(Map<String, dynamic> json) {
+    final metadata = Metadata.fromJson(json);
+    if (metadata == null) {
+      _logger.w('Metadata.fromJson returned null, creating dummy Metadata');
+      return Metadata(localizedTitle: LocalizedString.empty());
+    }
+    return metadata;
+  }
+
+  @override
+  Map<String, dynamic> toJson(Metadata metadata) => metadata.toJson();
+}
+
+class MetadataNullableJsonConverter extends JsonConverter<Metadata?, Map<String, dynamic>?> {
+  const MetadataNullableJsonConverter();
 
   @override
   Metadata? fromJson(Map<String, dynamic>? json) => Metadata.fromJson(json);

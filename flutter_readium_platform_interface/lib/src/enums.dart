@@ -41,16 +41,34 @@ enum ReadiumReaderStatus {
 
   static ReadiumReaderStatus? fromString(final String status) =>
       ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name.toLowerCase() == status.toLowerCase());
-}
 
-extension ReadiumReaderStatusExtension on ReadiumReaderStatus {
   bool get isLoading => this == ReadiumReaderStatus.loading;
   bool get isReady => this == ReadiumReaderStatus.ready;
   bool get isClosed => this == ReadiumReaderStatus.closed;
-  bool get reachedEndOfPublication => this == ReadiumReaderStatus.reachedEndOfPublication;
+  bool get hasReachedEndOfPublication => this == ReadiumReaderStatus.reachedEndOfPublication;
   bool get isError => this == ReadiumReaderStatus.error;
 }
 
-enum TTSVoiceGender { male, female, unspecified }
+enum TTSVoiceGender {
+  male,
+  female,
+  unspecified;
 
-enum TTSVoiceQuality { lowest, low, normal, high, highest }
+  static TTSVoiceGender? optFromString(final String gender) =>
+      TTSVoiceGender.values.firstWhereOrNull((e) => e.name.toLowerCase() == gender.toLowerCase());
+
+  static TTSVoiceGender fromString(final String gender) => optFromString(gender) ?? TTSVoiceGender.unspecified;
+}
+
+enum TTSVoiceQuality {
+  lowest,
+  low,
+  normal,
+  high,
+  highest;
+
+  static TTSVoiceQuality? optFromString(final String quality) =>
+      TTSVoiceQuality.values.firstWhereOrNull((e) => e.name.toLowerCase() == quality.toLowerCase());
+
+  static TTSVoiceQuality fromString(final String quality) => optFromString(quality) ?? TTSVoiceQuality.normal;
+}

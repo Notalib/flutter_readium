@@ -33,13 +33,12 @@ class EncryptedProperties with EquatableMixin implements JSONable {
   List<Object?> get props => [algorithm, compression, originalLength, profile, scheme];
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'algorithm': algorithm,
-    if (compression != null) 'compression': compression,
-    if (originalLength != null) 'originalLength': originalLength,
-    if (profile != null) 'profile': profile,
-    if (scheme != null) 'scheme': scheme,
-  };
+  Map<String, dynamic> toJson() => {}
+    ..put('algorithm', algorithm)
+    ..putOpt('compression', compression)
+    ..putOpt('originalLength', originalLength)
+    ..putOpt('profile', profile)
+    ..putOpt('scheme', scheme);
 
   static EncryptedProperties? fromJson(Map<String, dynamic>? json) {
     if (json == null) {

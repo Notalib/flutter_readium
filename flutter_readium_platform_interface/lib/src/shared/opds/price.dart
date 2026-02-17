@@ -4,7 +4,6 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -46,14 +45,4 @@ class Price extends AdditionalProperties with EquatableMixin implements JSONable
 
     return Price(currency: currency, value: value, additionalProperties: jsonObject);
   }
-}
-
-class PriceJsonConverter extends JsonConverter<Price?, Map<String, dynamic>?> {
-  const PriceJsonConverter();
-
-  @override
-  Price? fromJson(Map<String, dynamic>? json) => Price.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Price? price) => price?.toJson();
 }

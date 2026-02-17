@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
@@ -45,10 +46,10 @@ class OpdsAuthentication extends AdditionalProperties with EquatableMixin implem
 
     final audienceJson = jsonObject.opt('audiences', remove: true);
     if (audienceJson is String) {
-      audiences = [AudienceExtension.fromString(audienceJson)];
+      audiences = [Audience.fromString(audienceJson)];
     } else if (audienceJson is List) {
       audiences = audienceJson
-          .map((dynamic audienceValue) => AudienceExtension.fromString(audienceValue as String?))
+          .map((dynamic audienceValue) => Audience.fromString(audienceValue as String?))
           .nonNulls
           .toList();
     }
@@ -340,46 +341,33 @@ class Announcement extends AdditionalProperties with EquatableMixin implements J
 /// Audience enum representing the intended audience for a resource.
 enum Audience {
   /// No audience specified.
-  none,
+  none('none'),
 
   /// Open to the general public. If this is specified, any other values are redundant.
-  public,
+  public('public'),
 
   /// Open to pre-university students.
-  educationalPrimary,
+  educationalPrimary('educational-primary'),
 
   /// Open to university-level students.
-  educationalSecondary,
+  educationalSecondary('educational-secondary'),
 
   /// Open to academics and researchers.
-  research,
+  research('research'),
 
   /// Open only to those who have a print disability.
-  printDisability,
+  printDisability('print-disability'),
 
   /// Open to people who meet some other qualification.
-  other,
-}
+  other('other');
 
-extension AudienceExtension on Audience {
-  static final _audienceMap = {
-    'public': Audience.public,
-    'educational-primary': Audience.educationalPrimary,
-    'educational-secondary': Audience.educationalSecondary,
-    'research': Audience.research,
-    'print-disability': Audience.printDisability,
-    'other': Audience.other,
-    'none': Audience.none,
-  };
+  const Audience(this.value);
 
-  /// Maps enum to its string value.
-  String get name => _audienceMap.entries
-      .firstWhere((entry) => entry.value == this, orElse: () => const MapEntry('none', Audience.none))
-      .key;
+  final String value;
 
-  /// Parses a string to an Audience enum.
   static Audience fromString(String? value) =>
-      _audienceMap[value] ?? _audienceMap[value?.toLowerCase()] ?? Audience.none;
+      Audience.values.firstWhereOrNull((audience) => audience.name.toLowerCase() == value?.toLowerCase()) ??
+      Audience.none;
 }
 
 /// FeatureFlags class
@@ -420,7 +408,7 @@ class InputField with EquatableMixin implements JSONable {
   factory InputField.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final keyboard = KeyboardTypeExtension.fromString(jsonObject.optNullableString('keyboard', remove: true));
+    final keyboard = KeyboardType.optFromString(jsonObject.optNullableString('keyboard', remove: true));
     final maximumLength = jsonObject.optNullableInt('maximum_length', remove: true);
 
     return InputField(keyboard: keyboard, maximumLength: maximumLength);
@@ -443,19 +431,18 @@ class InputField with EquatableMixin implements JSONable {
   List<Object?> get props => [keyboard, maximumLength];
 }
 
-enum KeyboardType { defaultType, emailAddress, numPad, noInput }
+enum KeyboardType {
+  defaultType('Default'),
+  emailAddress('Email address'),
+  numPad('Number pad'),
+  noInput('No input');
 
-extension KeyboardTypeExtension on KeyboardType? {
-  static const _keyboardTypeMap = {
-    'Default': KeyboardType.defaultType,
-    'Email address': KeyboardType.emailAddress,
-    'Number pad': KeyboardType.numPad,
-    'No input': KeyboardType.noInput,
-  };
+  const KeyboardType(this.name);
 
-  String? get name => _keyboardTypeMap.entries.firstWhere((entry) => entry.value == this).key;
+  final String name;
 
-  static KeyboardType? fromString(String? value) => _keyboardTypeMap[value];
+  static KeyboardType? optFromString(String? value) =>
+      KeyboardType.values.firstWhereOrNull((keyboardType) => keyboardType.name.toLowerCase() == value?.toLowerCase());
 }
 
 @immutable
@@ -466,7 +453,7 @@ class LoginInputField extends InputField with EquatableMixin {
     final barcodeFormat = jsonObject.optNullableString('barcode_format', remove: true);
 
     // Parse base InputField properties
-    final keyboard = KeyboardTypeExtension.fromString(jsonObject.optNullableString('keyboard', remove: true));
+    final keyboard = KeyboardType.optFromString(jsonObject.optNullableString('keyboard', remove: true));
     final maximumLength = jsonObject.optNullableInt('maximum_length', remove: true);
 
     return LoginInputField(barcodeFormat: barcodeFormat, keyboard: keyboard, maximumLength: maximumLength);
@@ -478,7 +465,7 @@ class LoginInputField extends InputField with EquatableMixin {
   final String? barcodeFormat;
 
   @override
-  Map<String, dynamic> toJson() => Map.from(super.toJson())..putOpt('barcode_format', barcodeFormat);
+  Map<String, dynamic> toJson() => super.toJson()..putOpt('barcode_format', barcodeFormat);
 
   @override
   LoginInputField copyWith({String? barcodeFormat, KeyboardType? keyboard, int? maximumLength}) => LoginInputField(

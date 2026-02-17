@@ -4,7 +4,6 @@
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
@@ -40,11 +39,9 @@ class DomRange with EquatableMixin implements JSONable {
   final Point? end;
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{}.also((json) {
-    json
-      ..putJSONableIfNotEmpty('start', start)
-      ..putJSONableIfNotEmpty('end', end);
-  });
+  Map<String, dynamic> toJson() => {}
+    ..putJSONableIfNotEmpty('start', start)
+    ..putJSONableIfNotEmpty('end', end);
 
   @override
   List<Object?> get props => [start, end];
@@ -62,16 +59,6 @@ class DomRange with EquatableMixin implements JSONable {
 
     return DomRange(start: start, end: Point.fromJson(jsonObject.optJsonObject('end', remove: true)));
   }
-}
-
-class DomRangeJsonConverter extends JsonConverter<DomRange?, Map<String, dynamic>?> {
-  const DomRangeJsonConverter();
-
-  @override
-  DomRange? fromJson(Map<String, dynamic>? json) => DomRange.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(DomRange? domRange) => domRange?.toJson();
 }
 
 /// A serializable representation of a boundary point in a DOM Range.
@@ -101,12 +88,10 @@ class Point with EquatableMixin implements JSONable {
   final int? charOffset;
 
   @override
-  Map<String, dynamic> toJson() => <String, dynamic>{}.also((json) {
-    json
-      ..putOpt('cssSelector', cssSelector)
-      ..putOpt('textNodeIndex', textNodeIndex)
-      ..putOpt('charOffset', charOffset);
-  });
+  Map<String, dynamic> toJson() => {}
+    ..putOpt('cssSelector', cssSelector)
+    ..putOpt('textNodeIndex', textNodeIndex)
+    ..putOpt('charOffset', charOffset);
 
   @override
   List<Object?> get props => [cssSelector, textNodeIndex, charOffset];
@@ -135,14 +120,4 @@ class Point with EquatableMixin implements JSONable {
           jsonObject.optPositiveInt('offset', remove: true),
     );
   }
-}
-
-class PointJsonConverter extends JsonConverter<Point?, Map<String, dynamic>?> {
-  const PointJsonConverter();
-
-  @override
-  Point? fromJson(Map<String, dynamic>? json) => Point.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Point? point) => point?.toJson();
 }

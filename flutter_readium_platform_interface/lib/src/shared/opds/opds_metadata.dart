@@ -6,7 +6,6 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -145,14 +144,4 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
       additionalProperties: jsonObject,
     );
   }
-}
-
-class OpdsMetadataJsonConverter extends JsonConverter<OpdsMetadata?, Map<String, dynamic>?> {
-  const OpdsMetadataJsonConverter();
-
-  @override
-  OpdsMetadata? fromJson(Map<String, dynamic>? json) => OpdsMetadata.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(OpdsMetadata? metadata) => metadata?.toJson();
 }

@@ -1,6 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
+import '../../flutter_readium_platform_interface.dart';
+
 class ReadiumException implements Exception {
   const ReadiumException(this.message, {this.type});
 
@@ -62,6 +64,22 @@ extension PlatformExceptionCodeExtension on PlatformException {
 }
 
 class ReadiumError implements Error {
+  factory ReadiumError.fromJson(final Map<String, dynamic> json) {
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final message = jsonObject.optString('message', remove: true);
+    final code = jsonObject.optNullableString('code', remove: true);
+    final data = jsonObject.opt('data', remove: true);
+    final stackTraceStr = jsonObject.optNullableString('stackTrace', remove: true);
+
+    return ReadiumError(
+      message,
+      code: code,
+      data: data,
+      stackTrace: stackTraceStr != null ? StackTrace.fromString(stackTraceStr) : null,
+    );
+  }
+
   ReadiumError(this.message, {this.code, this.data, final StackTrace? stackTrace})
     : stackTrace = stackTrace ?? StackTrace.current;
 
@@ -83,18 +101,9 @@ class ReadiumError implements Error {
   @override
   String toString() => 'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'message': message,
-    if (code != null) 'code': code,
-    if (data != null) 'data': data?.toString(),
-    if (stackTrace != null) 'stackTrace': stackTrace?.toString(),
-  };
-
-  // ignore: sort_constructors_first
-  factory ReadiumError.fromJson(final Map<String, dynamic> map) => ReadiumError(
-    map['message'] as String,
-    code: map['code'] != null ? map['code'] as String : null,
-    data: map['data'] != null ? map['data'] as Object : null,
-    stackTrace: map['stackTrace'] != null ? StackTrace.fromString(map['stackTrace'] as String) : null,
-  );
+  Map<String, dynamic> toJson() => {}
+    ..put('message', message)
+    ..putOpt('code', code)
+    ..putOpt('data', data?.toString())
+    ..putOpt('stackTrace', stackTrace?.toString());
 }
