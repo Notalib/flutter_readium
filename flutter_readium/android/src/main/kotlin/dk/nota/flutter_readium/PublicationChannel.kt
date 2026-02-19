@@ -315,7 +315,7 @@ internal class PublicationMethodCallHandler() :
     /**
      * Get the list of available TTS voices on the device.
      */
-    fun ttsGetAvailableVoices(): List<String> {
+    suspend fun ttsGetAvailableVoices(): List<String> {
         // If no voices are available, return an empty list.
         val androidVoices = ReadiumReader.ttsGetAvailableVoices()
 

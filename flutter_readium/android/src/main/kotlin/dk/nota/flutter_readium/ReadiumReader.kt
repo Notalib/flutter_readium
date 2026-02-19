@@ -36,6 +36,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
+import org.readium.navigator.media.tts.android.AndroidTtsPreferences
+import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -46,6 +48,7 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
+import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.ThrowableError
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Try.Companion.failure
@@ -698,8 +701,22 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         syncAudiobookNavigator?.decorationsUpdated()
     }
 
-    fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice> {
-        return ttsNavigator?.voices ?: setOf()
+    suspend fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice> {
+        // Get the available voices from the TTS navigator.
+        // If the TTS navigator hasn't been initialized, create a dummy AndroidTtsEngine.
+        return ttsNavigator?.voices ?: AndroidTtsEngine.invoke(
+            context,
+            {
+                AndroidTtsSettings(
+                    Language("C"),
+                    false,
+                    0.0,
+                    0.0,
+                    mapOf()
+                )
+            },
+            { language, availableVoices -> null },
+            AndroidTtsPreferences())?.voices ?: setOf()
     }
 
     fun ttsGetPreferences(): FlutterTtsPreferences? {
