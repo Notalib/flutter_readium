@@ -317,7 +317,10 @@ internal class PublicationMethodCallHandler() :
      */
     fun ttsGetAvailableVoices(): List<String> {
         // If no voices are available, return an empty list.
-        val androidVoices = ReadiumReader.ttsGetAvailableVoices() ?: return listOf()
+        val androidVoices = ReadiumReader.ttsGetAvailableVoices()
+
+        val ttsPrefs = ReadiumReader.ttsGetPreferences()
+        val voices = ttsPrefs?.voices?.values?.toSet() ?: setOf()
 
         val voicesJson = androidVoices.map {
             JSONObject().apply {
@@ -329,6 +332,7 @@ internal class PublicationMethodCallHandler() :
                 put("quality", it.quality.name.lowercase())
                 put("requiresNetwork", it.requiresNetwork)
                 put("language", it.language.code)
+                put("active", voices.contains(it.id.value))
             }.toString()
         }
 

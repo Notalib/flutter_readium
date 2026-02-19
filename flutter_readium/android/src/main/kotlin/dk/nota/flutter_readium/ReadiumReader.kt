@@ -517,7 +517,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         // Close previously opened publication to avoid leaks.
         closePublication()
-        
+
         val pub = loadPublication(pubUrl).getOrElse { e -> return failure(e) }
 
         _currentPublication = pub
@@ -698,12 +698,24 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         syncAudiobookNavigator?.decorationsUpdated()
     }
 
-    fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice>? {
-        return ttsNavigator?.voices
+    fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice> {
+        return ttsNavigator?.voices ?: setOf()
+    }
+
+    fun ttsGetPreferences(): FlutterTtsPreferences? {
+        return ttsNavigator?.preferences
     }
 
     suspend fun ttsSetPreferredVoice(voiceId: String?, language: String?) {
-        if (voiceId == null) return
+        if (voiceId == null) {
+            Log.d(TAG, ":ttsSetPreferredVoice - missing voiceId")
+            return
+        }
+
+        if (language == null) {
+            Log.d(TAG, ":ttsSetPreferredVoice - missing language")
+            return
+        }
 
         ttsNavigator?.setPreferredVoice(voiceId, language)
     }
@@ -860,10 +872,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         return epubNavigator?.firstVisibleElementLocator()
     }
 
-    suspend fun getEpubLocatorFragments(locator: Locator): Locator? {
-        return epubNavigator?.getLocatorFragments(locator)
-    }
-
     suspend fun epubEvaluateJavascript(script: String): String? {
         return epubNavigator?.evaluateJavascript(script)
     }
@@ -873,13 +881,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     fun epubUpdatePreferences(preferences: EpubPreferences) {
         epubNavigator?.updatePreferences(preferences)
-    }
-
-    /**
-     * Check if the EPUB navigator is ready.
-     */
-    suspend fun epubIsReaderReady(): Boolean {
-        return epubNavigator?.isReaderReady() ?: false
     }
 
     /**

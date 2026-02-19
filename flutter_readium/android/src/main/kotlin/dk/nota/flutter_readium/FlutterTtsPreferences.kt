@@ -23,12 +23,16 @@ data class FlutterTtsPreferences(
      */
     @OptIn(ExperimentalReadiumApi::class)
     fun toAndroidTtsPreferences(): AndroidTtsPreferences {
+        val androidVoices = voices?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
+            ?.toMap()
+
+        // If no language in preferences, use the first language of the preferred voices.
+        val androidLanguage = language?.let { Language(it) } ?: androidVoices?.firstNotNullOfOrNull { it.key }
         return AndroidTtsPreferences(
-            language = language?.let { Language(it) },
+            language = androidLanguage,
             pitch = pitch,
             speed = speed,
-            voices = voices?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
-                ?.toMap()
+            voices = androidVoices
         )
     }
 

@@ -354,12 +354,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         navigatorStarted.first { it }
     }
 
-    suspend fun isReaderReady(): Boolean {
-        return withScope(mainScope) {
-            epubNavigator?.isReaderReady() ?: false
-        }
-    }
-
     suspend fun getLocatorFragments(locator: Locator): Locator? {
         val json =
             evaluateJavascript("window.epubPage.getLocatorFragments(${locator.toJSON()}, $isVerticalScroll)")

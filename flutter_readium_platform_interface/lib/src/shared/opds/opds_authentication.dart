@@ -361,9 +361,9 @@ enum Audience {
   /// Open to people who meet some other qualification.
   other('other');
 
-  const Audience(this.value);
+  const Audience(this.name);
 
-  final String value;
+  final String name;
 
   static Audience fromString(String? value) =>
       Audience.values.firstWhereOrNull((audience) => audience.name.toLowerCase() == value?.toLowerCase()) ??

@@ -180,14 +180,16 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
       for (final v in voices) {
         debugPrint(
-          'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name}',
+          'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
         );
       }
 
+      final dkVoices = voices.where((v) => v.language == "da-DK").toList();
+
       // TODO: Demo: change to first voice matching "da-DK" language.
-      final daVoice = voices.firstWhereOrNull((l) => l.language == "da-DK");
+      final daVoice = dkVoices.lastOrNull;
       if (daVoice != null) {
-        await instance.ttsSetVoice(daVoice.identifier, null);
+        await instance.ttsSetVoice(daVoice.identifier, daVoice.language);
       }
     });
 

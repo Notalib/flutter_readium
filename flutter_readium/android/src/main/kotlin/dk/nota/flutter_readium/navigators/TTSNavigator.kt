@@ -53,7 +53,7 @@ class TTSNavigator(
     publication: Publication,
     timebaseListener: TimebasedListener,
     initialLocator: Locator?,
-    private var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
+    var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     val decorationGroup = "tts"
 
@@ -238,18 +238,17 @@ class TTSNavigator(
         mainScope.async {
             preferences = preferences.plus(prefs)
 
-            ttsNavigator?.submitPreferences(preferences.toAndroidTtsPreferences())
+            val androidPrefs = preferences.toAndroidTtsPreferences()
+            ttsNavigator?.submitPreferences(androidPrefs)
         }.await()
     }
 
     /**
      * Set preferred voice for a given language. If lang is null, override voice for currently spoken language.
      */
-    suspend fun setPreferredVoice(voiceId: String, lang: String?) {
+    suspend fun setPreferredVoice(voiceId: String, lang: String) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
         val voices = preferences.voices?.toMutableMap() ?: mutableMapOf()
-
-        if (lang == null) return
 
         voices[lang] = voiceId
         updatePreferences(FlutterTtsPreferences(voices = voices))

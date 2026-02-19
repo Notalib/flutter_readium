@@ -31,10 +31,6 @@ export class EpubPage {
 
   private _documentRange = document.createRange();
 
-  public isReaderReady(): boolean {
-    return !!readium;
-  }
-
   // Sets an active location, and optionally navigates to a specific frame in a comic book
   public setLocation(locator: Locator | null, isAudioBookWithText: boolean): void {
     this._debugLog(locator);

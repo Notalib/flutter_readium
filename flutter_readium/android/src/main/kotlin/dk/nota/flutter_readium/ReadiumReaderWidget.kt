@@ -212,7 +212,7 @@ class ReadiumReaderWidget(
 
     private suspend fun emitOnPageChanged(locator: Locator) {
         try {
-            val locatorWithFragments = ReadiumReader.getEpubLocatorFragments(locator)
+            val locatorWithFragments = ReadiumReader.epubGetLocatorFragments(locator)
             if (locatorWithFragments == null) {
                 Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed!")
                 return
@@ -312,15 +312,6 @@ class ReadiumReaderWidget(
                         }
                     }
                     result.success(visible)
-                }
-
-                "isReaderReady" -> {
-                    try {
-                        result.success(ReadiumReader.epubIsReaderReady())
-                    } catch (e: Error) {
-                        Log.e(TAG, "::isReaderReady - error getting state - $e")
-                        result.success(false)
-                    }
                 }
 
                 "getLocatorFragments" -> {

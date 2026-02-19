@@ -432,17 +432,6 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
       }
       evaluateJSReturnResult("window.epubPage.isLocatorVisible(\(args));", result: result)
       break
-    case "isReaderReady":
-      self.evaluateJSReturnResult("""
-                (function() {
-                    if (typeof window.epubPage !== 'undefined' && typeof window.epubPage.isReaderReady === 'function') {
-                        return window.epubPage.isReaderReady();
-                    } else {
-                        return false;
-                    }
-                })();
-            """, result: result)
-      break
     case "setPreferences":
       let args = call.arguments as! [String: String]
       print(TAG, "onMethodCall[setPreferences] args = \(args)")
