@@ -179,7 +179,7 @@ class Publication with EquatableMixin implements JSONable {
     return type == null
         ? null
         : Locator(
-            href: hrefHead,
+            href: hrefHead.stripLeadingSlash(),
             type: type,
             title: resourceLink!.title ?? link.title,
             text: LocatorText(),

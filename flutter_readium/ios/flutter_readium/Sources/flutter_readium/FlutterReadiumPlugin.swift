@@ -199,7 +199,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         do {
           let args = call.arguments as? Dictionary<String, Any>,
               ttsPrefs = (try? TTSPreferences(fromMap: args ?? [:])) ?? TTSPreferences()
-          //try await self.ttsEnable(withPreferences: ttsPrefs)
 
           guard let publication = self.currentPublication else {
             throw ReadiumError.notFound("No publication opened")

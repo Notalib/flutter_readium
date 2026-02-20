@@ -60,11 +60,12 @@ final class Readium : DefaultHTTPClientDelegate {
 
   /// You can modify the `request`, for example by adding additional HTTP headers or redirecting to a different URL,
   /// before calling the `completion` handler with the new request.
-  func httpClient(_ httpClient: DefaultHTTPClient, willStartRequest request: HTTPRequest) async -> HTTPResult<HTTPRequestConvertible>? {
+  func httpClient(_ httpClient: DefaultHTTPClient, willStartRequest request: HTTPRequest) async -> HTTPResult<HTTPRequestConvertible> {
     var req = request // make a mutable copy
     var merged = additionalHeaders
     for (k, v) in request.headers { merged[k] = v } // per-request wins
     req.headers = merged
+    debugPrint("\(TAG): HTTP request headers: \(req.headers.debugDescription)")
     return .success(req)
   }
 

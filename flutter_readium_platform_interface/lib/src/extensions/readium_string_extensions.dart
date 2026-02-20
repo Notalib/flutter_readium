@@ -32,11 +32,9 @@ extension ReadiumStringExtension on String {
     final localeList = split(separator);
     switch (localeList.length) {
       case 2:
-        return localeList.last.length == 4 // scriptCode length is 4
-            ? Locale.fromSubtags(
-                languageCode: localeList.first,
-                scriptCode: localeList.last,
-              )
+        return localeList.last.length ==
+                4 // scriptCode length is 4
+            ? Locale.fromSubtags(languageCode: localeList.first, scriptCode: localeList.last)
             : Locale(localeList.first, localeList.last);
       case 3:
         return Locale.fromSubtags(
@@ -63,4 +61,6 @@ extension ReadiumStringExtension on String {
 
     return uriPath.startsWith('/') ? uriPath : '/$uriPath';
   }
+
+  String stripLeadingSlash() => startsWith('/') ? substring(1) : this;
 }

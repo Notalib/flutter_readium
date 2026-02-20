@@ -382,7 +382,7 @@ extension LinkLocator on Link {
     final fragment = (components.length > 1 && components[1].isNotEmpty) ? components[1] : null;
 
     return Locator(
-      href: components.firstOrDefault(href),
+      href: components.firstOrDefault(href).stripLeadingSlash(),
       type: type ?? '',
       title: title,
       text: LocatorText(),
