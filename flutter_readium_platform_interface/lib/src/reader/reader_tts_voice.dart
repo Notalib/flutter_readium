@@ -31,7 +31,7 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
     required bool? active,
   }) {
     // Enrich with full android voice name after creation.
-    name = ReaderTTSVoiceUtils.getVoiceName(networkRequired, language, identifier, name);
+    name = ReaderTTSVoiceUtils.getVoiceName(language, identifier, name);
     gender = ReaderTTSVoiceUtils.getVoiceGender(language, identifier, gender);
 
     return ReaderTTSVoice._(identifier, name, language, networkRequired, gender, quality, active);

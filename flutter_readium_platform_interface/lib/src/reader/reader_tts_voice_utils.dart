@@ -4,25 +4,28 @@ import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
 import '../index.dart';
-import 'readium_speech_voice.dart';
 
 // Hardcoded mappings for known Android TTS voices with non-descriptive names.
 // These take precedence over those in Readium Speech.
-// TODO: The identifiers are wrong and doesn't match anything at the moment.
+// Android nativeID look like this:
+//  - da-dk-x-kfm-local
+//  - da-dk-x-kfm-network
+//  - sv-se-x-lfs-network
+// e.g. <lang-code>-x-<vid>-<network/local>, we use the <vid> part to map to a friendly name.
 final _voiceMappings = <String, Map<String, String>>{
-  'da-DK': {'I': 'Anna', 'II': 'Jens', 'III': 'Clara', 'IV': 'Emma'},
-  'en-US': {
-    'I': 'Marilyn',
-    'II': 'Betty',
-    'III': 'Ellie',
-    'IV': 'Mickey',
-    'V': 'James',
-    'VI': 'Samantha',
-    'VII': 'Tom',
-    'VIII': 'Daisy',
+  'da-dk': {'kfm': 'Anna', 'nmm': 'Jens', 'sfp': 'Clara', 'vfb': 'Emma'},
+  'en-us': {
+    'sfg': 'Marilyn',
+    'iob': 'Betty',
+    'iog': 'Ellie',
+    'iol': 'Mickey',
+    'iom': 'James',
+    'tpc': 'Samantha',
+    'tpd': 'Tom',
+    'tpf': 'Daisy',
   },
-  'en-GB': {'I': 'Stephen', 'II': 'Jane', 'III': 'Ian', 'IV': 'Maggie', 'V': 'Charles', 'VI': 'Amy'},
-  'en-AU': {'I': 'Phoebe', 'II': 'Chris', 'III': 'Rachel', 'IV': 'Jack'},
+  'en-gb': {'rjs': 'Stephen', 'gba': 'Jane', 'gbb': 'Ian', 'gbc': 'Maggie', 'gbd': 'Charles', 'gbg': 'Amy'},
+  'en-au': {'aua': 'Phoebe', 'aub': 'Chris', 'auc': 'Rachel', 'aud': 'Jack'},
 };
 
 const _voiceAssetPath = 'packages/flutter_readium/assets/voice_data/voices.json';
@@ -51,12 +54,9 @@ abstract class ReaderTTSVoiceUtils {
   }
 
   /// Returns a user-friendly voice name for voices.
-  static String getVoiceName(
-    final bool networkRequired,
-    final String language,
-    final String identifier,
-    final String? name,
-  ) {
+  /// For android we need to resolve the name of the voice, we do that from the Readium Speech data unless we have a
+  /// hardcoded mapping for that voice.
+  static String getVoiceName(final String language, final String identifier, final String? name) {
     if (Platform.isAndroid) {
       return _androidName(language, identifier, name);
     } else {
@@ -64,18 +64,21 @@ abstract class ReaderTTSVoiceUtils {
     }
   }
 
-  /// Resolve missing gender for Android voices by looking up in the Readium Speech data based on language and identifier.
+  /// Resolve the gender for the voice. For Android we look up in the Readium Speech data, for other platforms we trust
+  /// the platform to provide it.
   static TTSVoiceGender getVoiceGender(final String language, final String identifier, TTSVoiceGender fallback) {
     if (Platform.isAndroid) {
-      final voice = findMatchingVoice(language, identifier);
+      final voice = _findMatchingVoiceData(language, identifier);
       if (voice != null && voice.gender.isNotEmpty) {
         return TTSVoiceGender.optFromString(voice.gender) ?? fallback;
       }
     }
+
     return fallback;
   }
 
-  static ReadiumSpeechVoice? findMatchingVoice(final String language, final String identifier) {
+  /// Find a matching voice in the Readium Speech data for the given [language] and [identifier].
+  static ReadiumSpeechVoice? _findMatchingVoiceData(final String language, final String identifier) {
     // Lookup in the voices loaded from the Readium Speech repository for the requested language.
     final voices = _readiumVoiceData[language.toLowerCase()];
     if (voices == null || voices.isEmpty) {
@@ -107,15 +110,41 @@ abstract class ReaderTTSVoiceUtils {
     return null;
   }
 
-  static String _androidName(final String language, final String identifier, final String? name) {
-    // Start by looking up in the hardcoded mapping for known Android voices with non-descriptive names.
-    final fromVoiceMapping = _voiceMappings[language]?[identifier];
-    if (fromVoiceMapping != null) {
-      return fromVoiceMapping;
+  /// Look up the hardcoded friendly name for known Android voices based on the identifier.
+  static String? _getAndroidVoiceNameFromIdentifier(final String language, final String identifier) {
+    if (identifier.endsWith('-language')) {
+      // Some Android voices have identifiers like "<lang-code>-language" and are not listed in nativeID.
+      return null;
     }
 
-    final voice = findMatchingVoice(language, identifier);
+    final mappings = _voiceMappings[language.toLowerCase()];
+    if (mappings != null && mappings.isNotEmpty) {
+      final identifierParts = identifier.toLowerCase().split('-').toSet();
+      return mappings.entries.firstWhereOrNull((e) => identifierParts.contains(e.key.toLowerCase()))?.value;
+    }
+
+    return null;
+  }
+
+  /// Get the voice name for Android voices.
+  static String _androidName(final String language, final String identifier, final String? name) {
+    // Start by looking up in the hardcoded mapping for known Android voices with non-descriptive names.
+    final mappedName = _getAndroidVoiceNameFromIdentifier(language, identifier);
+    if (mappedName != null && mappedName.isNotEmpty) {
+      return mappedName;
+    }
+
+    // Try finding the voice from the identifier.
+    final voice = _findMatchingVoiceData(language, identifier);
     if (voice != null) {
+      // We found a voice from the identifier, before using the label, check for a hardcoded friendly name.
+      for (final nativeId in voice.nativeID ?? []) {
+        final mappedName = _getAndroidVoiceNameFromIdentifier(language, nativeId);
+        if (mappedName != null && mappedName.isNotEmpty) {
+          return mappedName;
+        }
+      }
+
       return voice.label;
     }
 
