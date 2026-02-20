@@ -89,6 +89,11 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
 
         emit(state.openPublicationSuccess(publication, event.initialLocator));
       } on Exception catch (error) {
+        if (error is ReadiumException) {
+          debugPrint('ReadiumException on opening publication: ${error.type} - ${error.message}');
+        } else {
+          debugPrint('Unknown exception on opening publication: ${error.toString()}');
+        }
         emit(state.openPublicationFail(error));
       }
     });

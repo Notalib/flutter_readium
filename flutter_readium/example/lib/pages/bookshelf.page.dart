@@ -50,7 +50,6 @@ class BookshelfPageState extends State<BookshelfPage> {
           if (pub != null) {
             loadedPublications.add(pub);
             loadedPublicationURLs.add(localPubPath);
-            await _flutterReadiumPlugin.closePublication();
           }
         } on Exception catch (e) {
           debugPrint('Error opening publication: $e');
@@ -68,6 +67,22 @@ class BookshelfPageState extends State<BookshelfPage> {
         }
       }
     }
+
+    // Set a custom header for all publication requests (e.g., for authentication).
+    _flutterReadiumPlugin.setCustomHeaders({
+      'X-Custom-Header': 'MyCustomValue',
+      // 'Authorization':
+      //     'Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjhERUM4MDk4N0UwMzVCRjMwOUVGNUM2NEY5RjlEMUZGM0Q2MTQ3RjZSUzI1NiIsIng1dCI6ImpleUFtSDREV19NSjcxeGstZm5SX3oxaFJfWSIsInR5cCI6ImF0K2p3dCJ9.eyJpc3MiOiJodHRwczovL2F1dGgtYmV0YS5ub3RhLmRrIiwibmJmIjoxNzcxMzQ0ODUwLCJpYXQiOjE3NzEzNDQ4NTAsImV4cCI6MTc3MTM0ODQ1MCwiYXVkIjoibm90YV9hcGkiLCJzY29wZSI6WyJvcGVuaWQiLCJwcm9maWxlIiwibm90YSIsIm5vdGFfYXBpIiwib2ZmbGluZV9hY2Nlc3MiXSwiYW1yIjpbInB3ZCJdLCJjbGllbnRfaWQiOiI5ODMwZjg2Zi1kMmQ3LTRkMTAtOTc3Yy1mNGRlMDI0NjEwOGUiLCJzdWIiOiIxMDE0MDM0NSIsImF1dGhfdGltZSI6MTc3MTMzOTg2MywiaWRwIjoibG9jYWwiLCJwZXJtaXNzaW9uIjpbIkJyYWlsbGVCayIsIkVCb29rQ2QiLCJCck11c2ljIiwiRUJvb2tEbyIsIlRhbGtCa0RvIiwiVGFsa0JrQ2QiLCJNYW5lbm8iLCJFZHVCb29rUHJvdGVjdGVkRG8iLCJQYXBlckZvckJsaW5kRG8iXSwibWVtYmVyVHlwZSI6IkVNUExPWUVFIiwiZW1haWwiOiJkZmdAbm90YS5kayIsInNpZCI6IjkxODY3RThGODQ1QjBBRjRGMzgyMkU3QTYwMjdBNDBBIiwianRpIjoiNUUyNkZCRTA0OUZEQkY0NDJCQ0Y4RDIxQzUzN0NEQjYifQ.uI3-hoQWFrR37QXnJWKWihMXsOIXkwv4EDpJsWwjLLnDKLNBLoY8H3cTcMYiYkE9c9WmEWs5RTI2wejUCBmutJqAtuctgS-GiiI8x9p1shDAAXCJqo9mnldFNHtXC-Viitfn6Ln1azGj2gHEtBh5AoPVSReAgrRh5QphDV51xu2watCUNs5FaL1HuV1oAshms6CY1v01xzta5us7tu4Yds3tVsQPom1GOoJE30VkfeOZhgyatQgSvFn6RZr4FLnHMztWzI7LmpV3clZmamQtPBZTMijBVBr_uPj73N_J-GLAQEpq0lqlwwZHyhZpxQ9CYqqFHWWP3OfcnFjS3Fb5PBsZ7g0Sy8N4rGH9J_xULLuomXkUBSX059Bjg2cWEKnY4YClIcb-u6Sgz6gyvqwB3VBWybM3Yu3CaCfLizrQHYvROGHawpp_BcoELwZ-rRkLLHs7BirLZMO7HGD667fgsnBbieBkDXACVU7lxRGxrLHDygJ6oFFlj-2HxpUrM5v-l5acz6JMWmwp4xcHj8mUTEyLFDrmFxYNBNqE6XVeTTD0CeG_phDt0J8Rm2yyUUjnmE3eyq-sX4iuU7LXSp4WZ6wZ10iBklUb_FDXwRlSr8cH0gqQVMH1UBB1YKeJypkpp2cmnYXB-huB4LF6zWQh6-ZYwsdcAtVIbXpt2es-akQ',
+    });
+
+    // Load a streaming audiobook publication from URL.
+    // final audioBookUrl =
+    //     'https://merkur-test.azurewebsites.net/opds2/mtmstreamer/publication/merkur:libraryid:CA61812/manifest.json?format=WebPubAudioOnly&absoluteUrls=true';
+    // final testStreamingAudioBook = await loadPublicationFromUrl(audioBookUrl);
+    // if (testStreamingAudioBook != null) {
+    //   loadedPublications.add(testStreamingAudioBook);
+    //   loadedPublicationURLs.add(audioBookUrl);
+    // }
 
     setState(() {
       _testPublications = loadedPublications;
@@ -175,7 +190,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     child: InkWell(
       onTap: () {
         final fakeInitialLocator = publication.locatorFromLink(
-          publication.readingOrder[math.min(2, publication.readingOrder.length)],
+          publication.readingOrder[math.min(2, publication.readingOrder.length - 1)],
         );
 
         try {
