@@ -330,7 +330,7 @@ internal class PublicationMethodCallHandler() :
                     it.id.value
                 ) // ID should be mapped to a readable name on Flutter side.
                 put("quality", it.quality.name.lowercase())
-                put("requiresNetwork", it.requiresNetwork)
+                put("networkRequired", it.requiresNetwork)
                 put("language", it.language.code)
                 put("active", voices.contains(it.id.value))
             }.toString()
