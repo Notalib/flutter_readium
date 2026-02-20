@@ -178,10 +178,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       // Sort by identifer
       voices.sortBy((v) => v.identifier);
 
-      for (final v in voices) {
-        debugPrint(
-          'Available language: ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
-        );
+      for (final i in voices.groupListsBy((v) => v.language).entries) {
+        debugPrint('Language: ${i.key}');
+        debugPrint('  Available voices:');
+        for (final v in i.value) {
+          debugPrint(
+            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
+          );
+        }
       }
 
       final dkVoices = voices.where((v) => v.language == "da-DK").toList();

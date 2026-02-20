@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# This script updates the TTS voice data in the flutter_readium package.
+# It should be run after any changes to the voice data files in the assets/voice_data/ directory.
+
+set -e
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq is not installed. Please install jq to continue."
+  exit 1
+fi
+
+cd "$(dirname "$0")/.."
+
+TARGET_DIR="flutter_readium/assets/voice_data"
+TMP_DIR="tmp/voice_data"
+
+if [ -d "$TMP_DIR" ]; then
+  echo "Removing existing temporary voice data in $TMP_DIR"
+  rm -rf "$TMP_DIR"
+fi
+
+mkdir -p "$TARGET_DIR"
+mkdir -p "$TMP_DIR"
+
+wget -q --show-progress https://github.com/readium/speech/archive/refs/heads/main.zip -O "$TMP_DIR/speech.zip" || { echo "Error: Failed to download speech.zip"; exit 1; }
+unzip "$TMP_DIR/speech.zip" "speech-main/json/*" -d "$TMP_DIR"
+
+for file in "$TMP_DIR/speech-main/json/"*.json; do
+  filename=$(basename "$file")
+  lang_code="${filename%.*}"
+  jq -cS --arg lang "$lang_code" '{($lang): .}' "$file"
+done | jq -s 'add' > "$TARGET_DIR/voices.json"
+
+rm -rfv "$TMP_DIR"

@@ -226,10 +226,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "ttsGetAvailableVoices":
       guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
-        return result(FlutterError.init(
-          code: "TTSError",
-          message: "TTS Navigator not initialized",
-          details: nil))
+        result(AVTTSEngine().availableVoices.map { $0.jsonString })
+        return
       }
       let availableVoices = ttsNavigator.ttsGetAvailableVoices()
       result(availableVoices.map { $0.jsonString } )
