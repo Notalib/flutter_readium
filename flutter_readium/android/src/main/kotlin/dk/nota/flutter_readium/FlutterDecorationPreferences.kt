@@ -1,8 +1,9 @@
 package dk.nota.flutter_readium
 
 import android.graphics.Color
+import android.os.Parcelable
 import org.readium.r2.navigator.Decoration
-import java.io.Serializable
+import kotlinx.parcelize.Parcelize
 
 // TODO: Decision on appropriate defaults
 // TODO: Can this be made configurable at built time?
@@ -13,6 +14,7 @@ private val defaultCurrentRangeStyle = Decoration.Style.Underline(tint = Color.R
 /**
  * Decoration preferences used in the Flutter Readium plugin.
  */
+@Parcelize
 data class FlutterDecorationPreferences(
     /**
      * Style for utterance decoration.
@@ -23,7 +25,7 @@ data class FlutterDecorationPreferences(
      * Style for current reading range decoration.
      */
     var currentRangeStyle: Decoration.Style? = defaultCurrentRangeStyle
-) : Serializable {
+) : Parcelable {
     companion object {
         /**
          * Create Decoration.Style from map.
