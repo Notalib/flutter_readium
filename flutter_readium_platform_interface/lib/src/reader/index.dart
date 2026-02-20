@@ -4,7 +4,7 @@ export 'reader_epub_preferences.dart';
 export 'reader_highlights.dart';
 export 'reader_tts_preferences.dart';
 export 'reader_tts_voice.dart';
-export 'reader_tts_voice_names.dart';
+export 'reader_tts_voice_utils.dart';
 export 'reader_widget_interface.dart';
 export 'readium_speech_language.dart';
 export 'readium_speech_voice.dart';

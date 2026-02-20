@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
@@ -87,17 +85,7 @@ class FlutterReadium {
   Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       _platform.setDecorationStyle(utteranceDecoration, rangeDecoration);
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    if (ReaderTTSVoiceNames.voicesByLanguage.isEmpty) {
-      String assetPath = 'packages/flutter_readium/assets/voice_data/voices.json';
-      final jsonString = await rootBundle.loadString(assetPath);
-      final jsonList = jsonDecode(jsonString) as Map<String, dynamic>;
-      final voices = jsonList
-          .map((key, json) => MapEntry(key, ReadiumSpeechLanguage.fromJson(json as Map<String, dynamic>).voices))
-          .values
-          .reduce((acc, langVoices) => acc..addAll(langVoices))
-          .toList();
-      ReaderTTSVoiceNames.voicesByLanguage = groupBy(voices, (v) => v.language.toLowerCase());
-    }
+    await ReaderTTSVoiceUtils.ensureReadiumVoiceDataLoaded();
 
     return _platform.ttsGetAvailableVoices();
   }
