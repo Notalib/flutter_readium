@@ -25,7 +25,7 @@ class PublicationUtils {
     final pubAssets = await getAssetPubFiles();
     final pubs = <String>[];
 
-    final allowedExts = ['.webpub', '.epub', '.audiobook', '.zip'];
+    final allowedExts = ['.webpub', '.epub', '.audiobook', '.zip', '.json'];
 
     // Loop through the filtered assets
     for (final assetPath in pubAssets) {
