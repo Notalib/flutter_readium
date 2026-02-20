@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
