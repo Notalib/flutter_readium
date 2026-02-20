@@ -84,7 +84,12 @@ class FlutterReadium {
   Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
   Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
       _platform.setDecorationStyle(utteranceDecoration, rangeDecoration);
-  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() => _platform.ttsGetAvailableVoices();
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
+    await ReaderTTSVoiceUtils.ensureReadiumVoiceDataLoaded();
+
+    return _platform.ttsGetAvailableVoices();
+  }
+
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
       _platform.ttsSetVoice(voiceIdentifier, forLanguage);
 

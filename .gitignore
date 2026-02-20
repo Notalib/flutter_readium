@@ -83,3 +83,4 @@ assets/_scripts/dist
 **/.cxx/
 **/.build/
 flutter_readium/example/devtools_options.yaml
+tmp

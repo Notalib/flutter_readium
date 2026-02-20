@@ -23,6 +23,7 @@ flutter:
         fileName: src/flutter_readium_web.dart
   assets:
     - assets/helpers/
+    - assets/voice_data/
 
 dependencies:
   flutter:
