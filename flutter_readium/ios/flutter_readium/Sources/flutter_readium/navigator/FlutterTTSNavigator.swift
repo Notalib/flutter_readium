@@ -72,11 +72,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
         }
         debugPrint(TAG, "tts send audio-locator")
         let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
-        let link = self.publication.readingOrder.firstWithHREF(locator.href)
 
         self.nowPlayingUpdater.updateChapterNo(chapterNo)
         self.nowPlayingUpdater.updateCommandCenterControls()
-        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
+        listener?.timebasedNavigator(self, reachedLocator: locator)
       }
       .store(in: &subscriptions)
 
@@ -89,9 +88,8 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
           return
         }
 
-        debugPrint(TAG, "sync reader to locator")
-        let link = self.publication.readingOrder.firstWithHREF(locator.href)
-        listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: link)
+        debugPrint(TAG, "Sync reader-view to TTS locator")
+        listener?.timebasedNavigator(self, reachedLocator: locator)
       }
       .store(in: &subscriptions)
   }
@@ -211,7 +209,12 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
-
+    
+    if let locator = playingUtterance,
+       let readingOrderIndex = publication.readingOrder.firstIndexWithHREF(locator.href) {
+      playingUtterance?.locations.position = readingOrderIndex + 1
+    }
+    
     let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
     self.listener?.timebasedNavigator(self, didChangeState: state)
   }

@@ -173,11 +173,12 @@ struct FlutterMediaOverlayItem {
     guard var textLocator = self.asTextLocator else { return nil }
     // Combine the text-locator with given audio-locator's locations.
     // We keep the otherLocations("cssSelector") from text-locator.
+    // We get the position from they MediaOverlay.position
     textLocator.locations = Locator.Locations(
       fragments: audioLocator.locations.fragments,
       progression: audioLocator.locations.progression,
       totalProgression: audioLocator.locations.totalProgression,
-      position: self.position,
+      position: self.position + 1,
       otherLocations: textLocator.locations.otherLocations,
     )
     return textLocator

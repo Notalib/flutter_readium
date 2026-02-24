@@ -70,7 +70,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         }
         debugPrint(TAG, "$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
 
-        if var location = _audioNavigator?.currentLocation {
+        if let location = _audioNavigator?.currentLocation {
           self.submitTimebasedPlayerStateToListener(info: info, location: location)
         }
       }
@@ -141,7 +141,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     return true
   }
-  
+
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
     await _audioNavigator?.seek(by: byOffsetSeconds)
     return true
@@ -158,7 +158,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     // Submit new locator to the listener
-    self.submitAudioLocatorToListener(locator)
+    self.submitAudioLocatorReachedToListener(locator)
 
     if let info = _audioNavigator?.playbackInfo {
       self.submitTimebasedPlayerStateToListener(info: info, location: locator)
@@ -234,24 +234,28 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   // MARK: Internal AudioNavigator API
 
-  internal func submitAudioLocatorToListener(_ locator: Locator) {
-    let readingOrderLink = self.publication.readingOrder.firstWithHREF(locator.href)
-    self.listener?.timebasedNavigator(self, reachedLocator: locator, readingOrderLink: readingOrderLink)
+  internal func submitAudioLocatorReachedToListener(_ locator: Locator) {
+    var locator = locator
+    if locator.locations.position == nil,
+       let navigator = self._audioNavigator {
+      locator.locations.position = navigator.playbackInfo.resourceIndex + 1
+    }
+    self.listener?.timebasedNavigator(self, reachedLocator: locator)
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
-    
+
     /// Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
     if (info.state == .paused && info.progress >= 1 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
       /// If paused at progress 1 of the last resource in readingOrder, we have to assume the book has ended.
       playerState = .ended
     }
-    
+
     /// Enrich Locator with position before submitting to listeners.
     var locator = location
-    locator.locations.position = info.resourceIndex
-    
+    locator.locations.position = info.resourceIndex + 1
+
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = ReadiumTimebasedState(
       state: playerState,
