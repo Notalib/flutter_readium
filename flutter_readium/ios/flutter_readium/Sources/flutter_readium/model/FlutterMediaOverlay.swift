@@ -177,7 +177,7 @@ struct FlutterMediaOverlayItem {
       fragments: audioLocator.locations.fragments,
       progression: audioLocator.locations.progression,
       totalProgression: audioLocator.locations.totalProgression,
-      position: audioLocator.locations.position,
+      position: self.position,
       otherLocations: textLocator.locations.otherLocations,
     )
     return textLocator

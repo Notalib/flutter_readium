@@ -70,7 +70,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         }
         debugPrint(TAG, "$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
 
-        if let location = _audioNavigator?.currentLocation {
+        if var location = _audioNavigator?.currentLocation {
           self.submitTimebasedPlayerStateToListener(info: info, location: location)
         }
       }
@@ -248,13 +248,17 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       playerState = .ended
     }
     
+    /// Enrich Locator with position before submitting to listeners.
+    var locator = location
+    locator.locations.position = info.resourceIndex
+    
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = ReadiumTimebasedState(
       state: playerState,
       currentOffset: info.time,
       currentBuffered: bufferedInterval,
       currentDuration: info.duration ?? nil,
-      currentLocator: location
+      currentLocator: locator
     )
 
     // If state has changed, submit it to listener.
