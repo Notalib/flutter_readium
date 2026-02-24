@@ -449,8 +449,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: description))
   }
 
-  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, readingOrderLink: ReadiumShared.Link?) {
-    print(TAG, "TimebasedNavigator reachedLocator: \(locator), readingOrderLink: \(String(describing: readingOrderLink))")
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator) {
+    print(TAG, "TimebasedNavigator reachedLocator: \(locator)")
 
     Task { @MainActor [locator] in
       await currentReaderView?.goToLocator(locator: locator, animated: false)
