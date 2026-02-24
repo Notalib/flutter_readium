@@ -224,9 +224,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
     self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
 
-    //TODO: How can both Reader and Plugin submit on this channel?
-    //let error = FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text)
-    //self.errorStreamHandler?.sendEvent(error)
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text))
   }
 
   // MARK: AVTTSEngineDelegate
