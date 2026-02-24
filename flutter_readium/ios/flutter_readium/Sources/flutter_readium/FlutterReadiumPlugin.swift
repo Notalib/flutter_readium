@@ -10,11 +10,11 @@ private let TAG = "ReadiumReaderPlugin"
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
-  static var instance: FlutterReadiumPlugin? = nil
+  public static var instance: FlutterReadiumPlugin? = nil
   
-  internal var currentPublicationUrlStr: String?
-  internal var currentPublication: Publication?
-  internal var currentReaderView: ReadiumReaderView?
+  public var currentPublicationUrlStr: String?
+  public var currentPublication: Publication?
+  public var currentReaderView: ReadiumReaderView?
 
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)

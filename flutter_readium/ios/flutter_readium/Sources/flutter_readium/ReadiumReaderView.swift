@@ -30,7 +30,7 @@ private func emitReaderStatusChanged(status: String) {
   }
 }
 
-internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
+public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
   private let _view: UIView
@@ -40,7 +40,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
 
   var publicationIdentifier: String?
 
-  func view() -> UIView {
+  public func view() -> UIView {
     print(TAG, "::getView")
     return _view
   }
@@ -87,12 +87,16 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
       .regular: (top: 0, bottom: 0),
     ]
     // TODO: Make this config configurable from Flutter
-    // Might want it to be higher for a local publication than remote.
+    // Might want it to be higher for a local publication than remote. Default is 2 previous and 6 next resources.
     config.preloadPreviousPositionCount = 2
     config.preloadNextPositionCount = 4
     config.debugState = true
+    
+    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of in-front.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
-    config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Action", action: #selector(onCustomEditingAction))]
+    
+    // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
+    config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
     if (defaultPreferences != nil) {
       config.preferences = defaultPreferences!
@@ -147,11 +151,10 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
 
   @objc public func onCustomEditingAction() {
     print(TAG, "EditingAction::NOTA")
-    // NOTE: This method will not actually be hit. It will try to find an "onEditingActionNota" function in the Responder chain!
+    // NOTE: This method will not actually be hit. It will try to find an "onCustomEditingAction" function in the Responder chain!
+    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call the plugin again.
     // see https://github.com/readium/swift-toolkit/issues/466
 
-    // This methos should actually be implemented in the Flutter AppDelegate!
-    // TODO: Find a way to trigger the code below, from the AppDelegate.
     if let selection = readiumViewController.currentSelection {
       let selectionLocator = selection.locator
       readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
@@ -160,7 +163,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
   }
 
   // override EPUBNavigatorDelegate::navigator:setupUserScripts
-  func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
+  public func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
     print(TAG, "setupUserScripts: adding \(userScripts.count) scripts")
     for script in userScripts {
       userContentController.addUserScript(script)
@@ -171,18 +174,18 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
   func middleTapHandler() {
   }
 
-  func navigatorContentInset(_ navigator: VisualNavigator) -> UIEdgeInsets? {
+  public func navigatorContentInset(_ navigator: VisualNavigator) -> UIEdgeInsets? {
     // All margin & safe-area is handled on the Flutter side.
     return .init(top: 0, left: 0, bottom: 0, right: 0)
   }
 
   // override EPUBNavigatorDelegate::navigator:presentError
-  func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
+  public func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
     print(TAG, "presentError: \(error)")
   }
 
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
-  func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
+  public func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
 
     // TODO: Should we send resource-load error like this?
@@ -193,7 +196,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
   }
 
   // override NavigatorDelegate::navigator:locationDidChange
-  func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
+  public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     print(TAG, "onPageChanged: \(locator)")
     if (!hasSentReady) {
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
@@ -202,7 +205,7 @@ internal class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDe
     emitOnPageChanged(locator: locator)
   }
 
-  func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
+  public func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
       print(TAG, "skipped non-http external URL: \(url)")
       return
