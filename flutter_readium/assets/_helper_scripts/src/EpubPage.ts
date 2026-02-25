@@ -15,12 +15,6 @@ declare const comicBookPage: ComicBookPage;
 declare const Android: any | null;
 
 export class EpubPage {
-  constructor() {
-    // Undo line-height in spans broken by ReadiumCSS-before.css.
-    // -webkit-line-box-contain: block inline replaced;
-    document.documentElement.style.setProperty('-webkit-line-box-contain', 'block inline replaced');
-  }
-
   private readonly _headingTagNames = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
   private _allHeadings: IHeadingElement[] | null;
