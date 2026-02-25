@@ -85,7 +85,11 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return Locator.fromJson(json);
     } catch (ex, st) {
-      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
+      _logger.e(
+        'fromJsonString: Failed to parse Locator from json: $jsonString',
+        ex: ex,
+        stacktrace: st,
+      );
     }
     return null;
   }
@@ -106,13 +110,20 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     final locations = Locations.fromJson(json.optJsonObject('locations'));
     final text = LocatorText.fromJson(json.optJsonObject('text'));
 
-    return Locator(href: href, type: type, title: title, locations: locations, text: text, additionalProperties: json);
+    return Locator(
+      href: href,
+      type: type,
+      title: title,
+      locations: locations,
+      text: text,
+      additionalProperties: json,
+    );
   }
 
   String get json => JsonCodec().encode(toJson());
 
   @override
-  Map<String, dynamic> toJson() => {}
+  Map<String, dynamic> toJson() => additionalPropertiesToJson()
     ..put('href', href)
     ..put('type', type)
     ..putOpt('title', title)
@@ -227,7 +238,9 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 
     final jsonObject = Map<String, dynamic>.of(json);
     final fragments =
-        jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
+        jsonObject
+            .optStringsFromArrayOrSingle('fragments', remove: true)
+            .takeIf((it) => it.isNotEmpty) ??
         jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
     final progression = jsonObject
@@ -321,7 +334,14 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putJSONableIfNotEmpty('domRange', domRange);
 
   @override
-  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
+  List<Object?> get props => [
+    position,
+    progression,
+    totalProgression,
+    fragments,
+    additionalProperties,
+    cssSelector,
+  ];
 
   @override
   String toString() =>
@@ -400,7 +420,8 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange =>
+      (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
 class LocatorNullableJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
