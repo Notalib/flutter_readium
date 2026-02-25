@@ -4,7 +4,7 @@ import ReadiumShared
 public protocol TimebasedListener {
   func timebasedNavigator(_: FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState)
   func timebasedNavigator(_: FlutterTimebasedNavigator, encounteredError error: Error, withDescription description: String?)
-  func timebasedNavigator(_: FlutterTimebasedNavigator, reachedLocator locator: Locator, readingOrderLink: Link?)
+  func timebasedNavigator(_: FlutterTimebasedNavigator, reachedLocator locator: Locator)
   func timebasedNavigator(_: FlutterTimebasedNavigator, requestsHighlightAt locator: Locator?, withWordLocator wordLocator: Locator?)
 }
 

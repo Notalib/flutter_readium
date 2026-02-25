@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import flutter_readium
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -13,6 +14,7 @@ import UIKit
   
   @objc func onCustomEditingAction() {
     debugPrint("onCustomEditingAction")
-    // TODO: Find a way to call the plugin here, to trigger a custom action response.
+    // TODO: Test if this works, it should trigger a custom action response.
+    flutter_readium.FlutterReadiumPlugin.instance?.currentReaderView?.onCustomEditingAction()
   }
 }

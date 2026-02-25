@@ -151,11 +151,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<Stop>((final event, final emit) async {
-      if (state.playing) {
-        await instance.stop();
-        emit(await state.toggleTTSEnabled(false));
-        emit(await state.toggleAudioEnabled(false));
-      }
+      await instance.stop();
+      emit(await state.toggleTTSEnabled(false));
+      emit(await state.toggleAudioEnabled(false));
     });
 
     on<SkipToNext>((final event, final emit) => instance.next());

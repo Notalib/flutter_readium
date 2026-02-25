@@ -10,11 +10,11 @@ private let TAG = "ReadiumReaderPlugin"
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
-  static var instance: FlutterReadiumPlugin? = nil
+  public static var instance: FlutterReadiumPlugin? = nil
   
-  internal var currentPublicationUrlStr: String?
-  internal var currentPublication: Publication?
-  internal var currentReaderView: ReadiumReaderView?
+  public var currentPublicationUrlStr: String?
+  public var currentPublication: Publication?
+  public var currentReaderView: ReadiumReaderView?
 
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
@@ -446,11 +446,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     print(TAG, "TimebasedNavigator error: \(error), description: \(String(describing: description))")
-    // TODO: submit on error stream
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: description))
   }
 
-  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, readingOrderLink: ReadiumShared.Link?) {
-    print(TAG, "TimebasedNavigator reachedLocator: \(locator), readingOrderLink: \(String(describing: readingOrderLink))")
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator) {
+    print(TAG, "TimebasedNavigator reachedLocator: \(locator)")
 
     Task { @MainActor [locator] in
       await currentReaderView?.goToLocator(locator: locator, animated: false)

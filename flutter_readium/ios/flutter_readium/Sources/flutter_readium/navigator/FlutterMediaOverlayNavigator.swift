@@ -83,15 +83,15 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     return navigated
   }
   
-  internal override func submitAudioLocatorToListener(_ location: Locator) {
+  internal override func submitAudioLocatorReachedToListener(_ location: Locator) {
     // Map audio offset Locator to a Text-based Locator, before submitting to listener.
     if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
        let timeOffset = Double(timeOffsetStr),
        let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
        let combinedLocator = mediaOverlay.toCombinedLocator(fromPlaybackLocator: location) {
 
-      // Combined Text/Audio Locator matching the audio position is created and should be sent back.
-      self.listener?.timebasedNavigator(self, reachedLocator: combinedLocator, readingOrderLink: nil)
+      /// Combined Text/Audio Locator matching the audio position is created and should be sent back.
+      self.listener?.timebasedNavigator(self, reachedLocator: combinedLocator)
       self.listener?.timebasedNavigator(self, requestsHighlightAt: combinedLocator, withWordLocator: nil)
     } else {
       debugPrint(OTAG, "Did not find MediaOverlay matching audio Locator: \(location)")
