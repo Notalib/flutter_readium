@@ -4,14 +4,17 @@
 
 // Originally from https://github.com/Mantano/iridium/blob/main/components/commons/lib/utils/uri_template.dart
 
+import 'package:flutter/material.dart';
+
 import 'href.dart';
 
 /// A lightweight implementation of URI Template (RFC 6570).
 ///
 /// Only handles simple cases, fitting Readium's use cases.
 /// See https://tools.ietf.org/html/rfc6570
+@immutable
 class UriTemplate {
-  UriTemplate(this.uri);
+  const UriTemplate(this.uri);
 
   final String uri;
 
@@ -39,7 +42,7 @@ class UriTemplate {
       }
     });
 
-    return Href(expanded).percentEncodedString.replaceAll('~~+~~', '%2B').replaceAll('~~%20~~', '%2B');
+    return Href(href: expanded).percentEncodedString.replaceAll('~~+~~', '%2B').replaceAll('~~%20~~', '%2B');
   }
 
   String _expandSimpleString(String string, Map<String, String> parameters) =>

@@ -20,10 +20,7 @@ void main() {
     // see https://github.com/felangel/bloc/blob/master/examples/flutter_weather/test/helpers/hydrated_bloc.dart
     final PublicationBloc bloc = PublicationBloc();
 
-    expect(
-      () => bloc.add(OpenPublication(publicationUrl: "asd")),
-      throwsA(isA<ReadiumException>),
-    );
+    expect(() => bloc.add(OpenPublication(publicationUrl: "asd")), throwsA(isA<ReadiumException>));
   });
 
   testWidgets('getPlatformVersion test', (WidgetTester tester) async {

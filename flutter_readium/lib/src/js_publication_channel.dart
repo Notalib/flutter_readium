@@ -6,7 +6,11 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 extension type ReadiumReader._(JSObject _) implements JSObject {
   external ReadiumReader();
   external JSPromise openPublication(
-      JSString publicationURL, JSString pubId, JSString? initialPositionJson, JSString preferencesJson);
+    JSString publicationURL,
+    JSString pubId,
+    JSString? initialPositionJson,
+    JSString preferencesJson,
+  );
   external JSPromise getPublication(JSString link);
   external JSPromise goTo(JSString location);
   external void goLeft();
@@ -26,8 +30,12 @@ external set updateReaderStatus(JSFunction f);
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
 
-  Future<void> openPublication(String publicationURL,
-      {required String pubId, required String initialPreferences, String? initialPositionJson}) async {
+  Future<void> openPublication(
+    String publicationURL, {
+    required String pubId,
+    required String initialPreferences,
+    String? initialPositionJson,
+  }) async {
     try {
       await _readiumReader
           .openPublication(publicationURL.toJS, pubId.toJS, initialPositionJson?.toJS, initialPreferences.toJS)
@@ -92,9 +100,6 @@ class JsPublicationChannel {
 
   static Future<void> goToLocation(String locationHref) async {
     try {
-      if (locationHref.startsWith('/')) {
-        locationHref = locationHref.substring(1);
-      }
       await _readiumReader.goTo(locationHref.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();

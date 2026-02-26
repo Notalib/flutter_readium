@@ -192,12 +192,10 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     // Only set id fragments to less confusing readium.
     final selector = locations?.cssSelector ?? locations?.domRange?.start.cssSelector;
     final idFragment = selector?.startsWith('#') == true ? selector!.substring(1) : null;
-    // Make sure href only contains path.
-    final locationHref = hrefPath.startsWith('/') ? hrefPath.substring(1) : hrefPath;
 
     return copyWith(
       // Makes sure href only contains /path.
-      href: locationHref,
+      href: hrefPath,
       type: MediaType.html.name,
       locations: locations?.copyWith(fragments: idFragment == null ? null : [idFragment]),
     );

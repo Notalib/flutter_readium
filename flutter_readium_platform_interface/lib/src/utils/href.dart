@@ -9,27 +9,29 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
+import 'package:flutter/material.dart';
 
 import '../extensions/strings.dart';
 
 /// Represents an HREF, optionally relative to another one.
 ///
 /// This is used to normalize the string representation.
+@immutable
 class Href {
-  Href(this.href, {String baseHref = '/'}) : baseHref = (baseHref.isEmpty) ? '/' : baseHref;
+  const Href({required this.href, this.baseHref});
 
   final String href;
-  final String baseHref;
+  final String? baseHref;
 
   /// Returns the normalized string representation for this HREF.
   String get string {
-    if (href.isBlank) {
-      return baseHref;
+    if (baseHref.isNullOrEmpty) {
+      return href;
     }
 
     String resolved;
     try {
-      final absoluteUri = Uri.parse(baseHref).resolve(href);
+      final absoluteUri = Uri.parse(baseHref!).resolve(href);
       final absoluteString = absoluteUri.toString(); // This is percent-decoded
       final addSlash = !absoluteUri.hasScheme && !absoluteString.startsWith('/');
       resolved = ((addSlash) ? '/' : '') + absoluteString;
@@ -37,7 +39,7 @@ class Href {
       if (href.startsWith('http://') || href.startsWith('https://')) {
         resolved = href;
       } else {
-        resolved = baseHref.removeSuffix('/') + href.addPrefix('/');
+        resolved = baseHref!.removeSuffix('/') + href.addPrefix('/');
       }
     }
 

@@ -187,7 +187,7 @@ class Link with EquatableMixin implements JSONable {
     if (href.isBlank) {
       return null;
     }
-    return Href(href, baseHref: baseUrl ?? '/').percentEncodedString;
+    return Href(href: href, baseHref: baseUrl).percentEncodedString;
   }
 
   /// Serializes a [Link] to its RWPM JSON representation.

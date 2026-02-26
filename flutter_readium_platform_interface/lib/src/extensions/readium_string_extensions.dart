@@ -51,16 +51,8 @@ extension ReadiumStringExtension on String {
 
   /// Gets the path from Uri and adds a slash if it missing form the path.
   ///
-  /// Returns `null` if path could be retrieved from uri.
-  String? get path {
-    final uriPath = Uri.tryParse(this)?.path;
-
-    if (uriPath == null) {
-      return null;
-    }
-
-    return uriPath.startsWith('/') ? uriPath : '/$uriPath';
-  }
+  /// Returns `null` if path couldn't be retrieved from uri.
+  String? get path => Uri.tryParse(this)?.path;
 
   String stripLeadingSlash() => startsWith('/') ? substring(1) : this;
 }
