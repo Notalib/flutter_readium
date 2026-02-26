@@ -43,7 +43,7 @@ class PublicationState {
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
 
-  PublicationState loading() => copyWith(isLoading: true);
+  PublicationState loading(Locator? initialLocator) => copyWith(isLoading: true, initialLocator: initialLocator);
 
   String errorDebugDescription() {
     if (error is ReadiumException) {
@@ -91,7 +91,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
 
   PublicationBloc() : super(PublicationState()) {
     on<OpenPublication>((final event, final emit) async {
-      emit(state.loading());
+      emit(state.loading(event.initialLocator));
       try {
         final instance = FlutterReadium();
         final publication = await instance.openPublication(event.publicationUrl);
