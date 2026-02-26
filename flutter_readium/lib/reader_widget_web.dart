@@ -86,12 +86,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<Locator?> getCurrentLocator() async {
-    R2Log.d('getCurrentLocator not implemented in web version');
-    return null;
-  }
-
-  @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     R2Log.d('setEPUBPreferences not implemented in web version');
   }

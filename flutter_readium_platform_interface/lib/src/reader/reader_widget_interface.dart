@@ -16,9 +16,6 @@ abstract class ReadiumReaderWidgetInterface {
   /// Skip to next chapter (toc)
   Future<void> skipToNext({final bool animated = true});
 
-  /// Gets the current Navigator's locator.
-  Future<Locator?> getCurrentLocator();
-
   /// Set EPUB preferences
   Future<void> setEPUBPreferences(EPUBPreferences preferences);
 

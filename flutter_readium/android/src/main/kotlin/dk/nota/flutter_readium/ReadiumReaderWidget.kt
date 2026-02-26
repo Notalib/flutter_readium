@@ -348,10 +348,6 @@ class ReadiumReaderWidget(
                     result.success(null)
                 }
 
-                "getCurrentLocator" -> {
-                    result.success(ReadiumReader.epubCurrentLocator?.let { jsonEncode(it.toJSON()) })
-                }
-
                 else -> {
                     Log.e(TAG, "Unhandled call ${call.method}")
                     result.notImplemented()

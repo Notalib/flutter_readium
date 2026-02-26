@@ -91,10 +91,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     config.preloadPreviousPositionCount = 2
     config.preloadNextPositionCount = 4
     config.debugState = true
-    
+
     // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of in-front.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
-    
+
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
@@ -406,22 +406,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
           await MainActor.run() {
             return result(false)
           }
-        }
-      }
-      break
-    case "getCurrentLocator":
-      let args = call.arguments as? String ?? "null"
-      print(TAG, "onMethodCall[currentLocator] args = \(args)")
-      Task.detached(priority: .high) { [isVerticalScroll] in
-        let json = await self.readiumViewController.currentLocation?.jsonString ?? nil
-        if (json == nil) {
-          await MainActor.run() {
-            return result(nil)
-          }
-        }
-        let data = await self.getLocatorFragments(json!, isVerticalScroll)
-        await MainActor.run() {
-          return result(data?.jsonString)
         }
       }
       break

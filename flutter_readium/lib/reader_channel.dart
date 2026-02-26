@@ -9,7 +9,6 @@ enum _ReaderChannelMethodInvoke {
   go,
   goLeft,
   goRight,
-  getCurrentLocator,
   setLocation,
   isLocatorVisible,
   dispose,
@@ -62,12 +61,6 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
-
-  /// Get the current locator.
-  Future<Locator?> getCurrentLocator() async => await _invokeMethod<dynamic>(
-    _ReaderChannelMethodInvoke.getCurrentLocator,
-    [],
-  ).then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
 
   /// Check if a locator is currently visible on screen.
   Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(

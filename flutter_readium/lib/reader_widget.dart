@@ -7,7 +7,7 @@ import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -53,6 +53,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   final _isReadyCompleter = Completer<Locator>();
 
   final _readium = FlutterReadiumPlatform.instance;
+  final FlutterReadium _flutterReadium = FlutterReadium();
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
@@ -124,7 +125,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     // TODO: Find a better way to do this, maybe a `lastVisibleLocator` ?
     if (_readium.defaultPreferences?.verticalScroll != true) {
       await _channel?.goRight(animated: false);
-      final loc = await _channel?.getCurrentLocator();
+      final loc = await _flutterReadium.onTextLocatorChanged.first;
       currentHref = getTextLocatorHrefWithTocFragment(loc);
     }
 
@@ -153,12 +154,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         await _channel?.go(previousChapter, isAudioBookWithText: false, animated: true);
       }
     }
-  }
-
-  @override
-  Future<Locator?> getCurrentLocator() async {
-    R2Log.d('GetCurrentLocator()');
-    return _channel?.getCurrentLocator();
   }
 
   @override
@@ -277,10 +272,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     nativeLocatorStream.listen((locator) {
       R2Log.d('ReaderWidget.LocatorChanged - $locator');
     });
-  }
-
-  Future _awaitNativeViewReady() {
-    return _isReadyCompleter.future;
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier
