@@ -5,6 +5,8 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:rxdart/rxdart.dart';
 
+final Map<String, Locator> savedLocators = {};
+
 abstract class PublicationEvent {}
 
 class ClosePublication extends PublicationEvent {}
@@ -84,6 +86,8 @@ class PublicationState {
 
 class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   StreamSubscription? timebasedStateSub;
+  StreamSubscription? textLocatorSub;
+  StreamSubscription? errorEventSub;
 
   PublicationBloc() : super(PublicationState()) {
     on<OpenPublication>((final event, final emit) async {
@@ -102,7 +106,15 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             .throttleTime(const Duration(milliseconds: 100), trailing: true)
             .listen((locator) {
               debugPrint('onTimebasedPlayerState.currentLocator: $locator');
+              savedLocators[publication.identifier] = locator!;
             });
+        textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
+          debugPrint('onTextLocatorChanged: $locator');
+          savedLocators[publication.identifier] = locator;
+        });
+        errorEventSub = instance.onErrorEvent.listen((error) {
+          debugPrint('onFlutterReadiumErrorEvent: $error');
+        });
       } on Exception catch (error) {
         if (error is ReadiumException) {
           debugPrint('ReadiumException on opening publication: ${error.type} - ${error.message}');
