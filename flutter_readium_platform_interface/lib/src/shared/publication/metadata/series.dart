@@ -9,20 +9,17 @@ import 'base_collection.dart';
 class Series extends BaseCollection {
   factory Series.fromJsonString(String localizedString) =>
       Series(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Series.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Series.fromJson(dynamic json) {
     if (json is String) {
       return Series.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Series.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Series.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Episode: $json');
     }
   }
 
-  factory Series.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Series.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -32,7 +29,7 @@ class Series extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
 
     final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true));
     final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true));
@@ -146,15 +143,15 @@ class Series extends BaseCollection {
     );
   }
 
-  static List<Series> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Series> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Series.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Series.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Series.fromJson(json, normalizeHref: normalizeHref)];
+      return [Series.fromJson(json)];
     }
     return [];
   }

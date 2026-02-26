@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'src/index.dart';
 
@@ -45,19 +46,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     return SizedBox.expand(
-      child: ReadiumWebView(
-        publication: widget.publication,
-        currentLocator: widget.initialLocator,
-      ),
+      child: ReadiumWebView(publication: widget.publication, currentLocator: widget.initialLocator),
     );
   }
 
   @override
-  Future<void> go(
-    final Locator locator, {
-    required final bool isAudioBookWithText,
-    final bool animated = false,
-  }) async {
+  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
     try {
       await JsPublicationChannel.goToLocation(locator.hrefPath);
     } on PlatformException catch (e, stackTrace) {

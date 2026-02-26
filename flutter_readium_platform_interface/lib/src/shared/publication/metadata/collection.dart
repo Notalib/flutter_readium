@@ -11,21 +11,18 @@ class Collection extends BaseCollection {
   factory Collection.fromJsonString(String localizedString) =>
       Collection(localizedName: LocalizedString.fromJsonString(localizedString));
 
-  factory Collection.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Collection.fromJson(dynamic json) {
     if (json is String) {
       return Collection.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Collection.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Collection.fromJsonMap(json);
     } else {
       Fimber.e('Invalid JSON for Collection: $json');
       throw ArgumentError('Invalid JSON for Collection: $json');
     }
   }
 
-  factory Collection.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Collection.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -35,7 +32,7 @@ class Collection extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
 
     return Collection(
       position: position,
@@ -101,15 +98,15 @@ class Collection extends BaseCollection {
     );
   }
 
-  static List<Collection> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Collection> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Collection.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Collection.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Collection.fromJson(json, normalizeHref: normalizeHref)];
+      return [Collection.fromJson(json)];
     }
 
     return [];

@@ -5,7 +5,6 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:dartx/dartx.dart';
-import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -18,13 +17,6 @@ import '../mediatype/mediatype.dart';
 import 'properties.dart';
 
 export 'link_list_extension.dart';
-
-/// Function used to recursively transform the href of a [Link] when parsing its JSON
-/// representation.
-typedef LinkHrefNormalizer = String Function(String);
-
-/// Default href normalizer for [Link], doing nothing.
-const LinkHrefNormalizer linkHrefNormalizerIdentity = identity;
 
 /// Link to a resource, either relative to a [Publication] or external (remote).
 ///
@@ -52,7 +44,7 @@ class Link with EquatableMixin implements JSONable {
   /// It's [href] and its children's recursively will be normalized using the provided
   /// [normalizeHref] closure.
   /// If the link can't be parsed, a warning will be logged with [warnings].
-  static Link? fromJson(Map<String, dynamic>? json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static Link? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
     }
@@ -65,7 +57,7 @@ class Link with EquatableMixin implements JSONable {
     }
 
     return Link(
-      href: normalizeHref(href),
+      href: href,
       type: jsonObject.optNullableString('type', remove: true),
       templated: jsonObject.optBoolean('templated', fallback: false, remove: true),
       title: jsonObject.optNullableString('title', remove: true),
@@ -76,8 +68,8 @@ class Link with EquatableMixin implements JSONable {
       bitrate: jsonObject.optPositiveDouble('bitrate', remove: true),
       duration: jsonObject.optPositiveDouble('duration', remove: true),
       languages: jsonObject.optStringsFromArrayOrSingle('language', remove: true),
-      alternates: fromJsonArray(jsonObject.optJsonArray('alternate', remove: true), normalizeHref: normalizeHref),
-      children: fromJsonArray(jsonObject.optJsonArray('children', remove: true), normalizeHref: normalizeHref),
+      alternates: fromJsonArray(jsonObject.optJsonArray('alternate', remove: true)),
+      children: fromJsonArray(jsonObject.optJsonArray('children', remove: true)),
     );
   }
 
@@ -85,10 +77,8 @@ class Link with EquatableMixin implements JSONable {
   /// It's [href] and its children's recursively will be normalized using the provided
   /// [normalizeHref] closure.
   /// If a link can't be parsed, a warning will be logged with [warnings].
-  static List<Link> fromJsonArray(
-    List<dynamic>? json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) => (json ?? []).parseObjects((it) => Link.fromJson(it as Map<String, dynamic>?, normalizeHref: normalizeHref));
+  static List<Link> fromJsonArray(List<dynamic>? json) =>
+      (json ?? []).parseObjects((it) => Link.fromJson(it as Map<String, dynamic>?));
 
   /// (Nullable) Unique identifier for this link in the [Publication].
   final String? id;

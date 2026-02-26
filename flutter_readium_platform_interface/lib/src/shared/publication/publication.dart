@@ -8,7 +8,6 @@
 // ignore_for_file: must_be_immutable
 
 import 'package:collection/collection.dart';
-import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -92,9 +91,6 @@ class Publication with EquatableMixin implements JSONable {
   /// empty list.
   List<Link> collectionLinks(String role) => subCollections[role]?.firstOrNull?.links ?? [];
 
-  static LinkHrefNormalizer normalizeHref(String baseUrl) =>
-      (href) => Href(href, baseHref: baseUrl).string;
-
   /// Parses a [Publication] from its RWPM JSON representation.
   ///
   /// If the publication can't be parsed, a warning will be logged with [warnings].
@@ -106,56 +102,36 @@ class Publication with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-
-    String baseUrl;
-    if (packaged) {
-      baseUrl = '/';
-    } else {
-      final href = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true)).firstWithRel('self')?.href;
-      baseUrl = href?.let((it) => Uri.tryParse(it)?.removeLastComponent().toString()) ?? '/';
-    }
-
     final context = jsonObject.optStringsFromArrayOrSingle('@context', remove: true);
-    final metadata = Metadata.fromJson(
-      jsonObject.optNullableMap('metadata', remove: true),
-      normalizeHref: normalizeHref(baseUrl),
-    );
+    final metadata = Metadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
       Fimber.i('[metadata] is required $jsonObject');
       return null;
     }
 
-    final links =
-        Link.fromJsonArray(jsonObject.safeRemove<List<dynamic>>('links'), normalizeHref: normalizeHref(baseUrl))
-            .map(
-              (it) => (!packaged || !it.rels.contains('self'))
-                  ? it
-                  : it.copyWith(
-                      rels: it.rels
-                        ..remove('self')
-                        ..add('alternate'),
-                    ),
-            )
-            .toList();
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true))
+        .map(
+          (it) => (!packaged || !it.rels.contains('self'))
+              ? it
+              : it.copyWith(
+                  rels: it.rels
+                    ..remove('self')
+                    ..add('alternate'),
+                ),
+        )
+        .toList();
     // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
     final readingOrderJSON = jsonObject.safeRemove<List<dynamic>>('readingOrder');
-    final readingOrder = Link.fromJsonArray(
-      readingOrderJSON,
-      normalizeHref: normalizeHref(baseUrl),
-    ).where((it) => it.type != null).toList();
+    final readingOrder = Link.fromJsonArray(readingOrderJSON).where((it) => it.type != null).toList();
 
     final resources = Link.fromJsonArray(
       jsonObject.safeRemove<List<dynamic>>('resources'),
-      normalizeHref: normalizeHref(baseUrl),
     ).where((it) => it.type != null).toList();
 
-    final tableOfContents = Link.fromJsonArray(
-      jsonObject.safeRemove<List<dynamic>>('toc'),
-      normalizeHref: normalizeHref(baseUrl),
-    );
+    final tableOfContents = Link.fromJsonArray(jsonObject.safeRemove<List<dynamic>>('toc'));
 
     // Parses subcollections from the remaining JSON properties.
-    final subcollections = PublicationCollection.collectionsFromJSON(jsonObject, normalizeHref: normalizeHref(baseUrl));
+    final subcollections = PublicationCollection.collectionsFromJSON(jsonObject);
 
     return Publication(
       context: context,

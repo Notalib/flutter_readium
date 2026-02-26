@@ -36,10 +36,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
   /// If the collection can't be parsed, a warning will be logged with [warnings].
   /// The [links]' href and their children's will be normalized recursively using the
   /// provided [normalizeHref] closure.
-  static PublicationCollection? fromJson(
-    dynamic json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  static PublicationCollection? fromJson(dynamic json) {
     if (json == null) {
       return null;
     }
@@ -49,13 +46,13 @@ class PublicationCollection with EquatableMixin implements JSONable {
 
     // Parses a sub-collection object.
     if (json is Map<String, dynamic>) {
-      links = Link.fromJsonArray(json.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+      links = Link.fromJsonArray(json.optJsonArray('links', remove: true));
       metadata = (json.optNullableMap('metadata', remove: true) ?? {});
-      subcollections = collectionsFromJSON(json, normalizeHref: normalizeHref);
+      subcollections = collectionsFromJSON(json);
     }
     // Parses an array of links.
     else if (json is List) {
-      links = Link.fromJsonArray(json, normalizeHref: normalizeHref);
+      links = Link.fromJsonArray(json);
     } else {
       Fimber.i('core collection not valid');
       return null;
@@ -74,23 +71,18 @@ class PublicationCollection with EquatableMixin implements JSONable {
   /// If the collection can't be parsed, a warning will be logged with [warnings].
   /// The [links]' href and their children's will be normalized recursively using the
   /// provided [normalizeHref] closure.
-  static Map<String, List<PublicationCollection>> collectionsFromJSON(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  static Map<String, List<PublicationCollection>> collectionsFromJSON(Map<String, dynamic> json) {
     final collections = <String, List<PublicationCollection>>{};
     for (final role in json.keys.toList()..sort((a, b) => a.compareTo(b))) {
       final dynamic subJSON = json[role];
 
       // Parses a list of links or a single collection object.
-      final collection = PublicationCollection.fromJson(subJSON, normalizeHref: normalizeHref);
+      final collection = PublicationCollection.fromJson(subJSON);
       if (collection != null) {
         collections.putIfAbsent(role, () => []).add(collection);
         // Parses a list of collection objects.
       } else if (subJSON is List) {
-        final subcollections = subJSON
-            .map((it) => PublicationCollection.fromJson(it, normalizeHref: normalizeHref))
-            .nonNulls;
+        final subcollections = subJSON.map((it) => PublicationCollection.fromJson(it)).nonNulls;
         collections.putIfAbsent(role, () => []).addAll(subcollections);
       }
     }

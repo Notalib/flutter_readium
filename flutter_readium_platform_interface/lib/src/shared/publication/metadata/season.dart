@@ -9,7 +9,7 @@ import 'base_collection.dart';
 class Season extends BaseCollection {
   factory Season.fromJsonNumber(num number) => Season(position: number.toDouble());
 
-  factory Season.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Season.fromJson(dynamic json) {
     if (json is String) {
       final position = int.tryParse(json);
       if (position != null) {
@@ -20,16 +20,13 @@ class Season extends BaseCollection {
     if (json is int) {
       return Season.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Season.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Season.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Season: $json');
     }
   }
 
-  factory Season.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Season.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -39,9 +36,9 @@ class Season extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
 
-    final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true), normalizeHref: normalizeHref);
+    final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true));
 
     return Season(
       position: position,
@@ -116,15 +113,15 @@ class Season extends BaseCollection {
     );
   }
 
-  static List<Season> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Season> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Season.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Season.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Season.fromJson(json, normalizeHref: normalizeHref)];
+      return [Season.fromJson(json)];
     }
     return [];
   }

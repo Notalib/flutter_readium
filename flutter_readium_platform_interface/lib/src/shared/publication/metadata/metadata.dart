@@ -222,10 +222,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
   /// Parses a [Metadata] from its RWPM JSON representation.
   ///
   /// If the metadata can't be parsed, a warning will be logged with [warnings].
-  static Metadata? fromJson(
-    Map<String, dynamic>? json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  static Metadata? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
     }
@@ -250,32 +247,20 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     final conformsTo = jsonObject.optStringsFromArrayOrSingle('conformsTo', remove: true);
     final localizedSortAs =
         LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true)) ?? LocalizedString.empty();
-    final subjects = Subject.listFromJson(jsonObject.opt('subject', remove: true), normalizeHref: normalizeHref);
-    final authors = Contributor.listFromJson(jsonObject.opt('author', remove: true), normalizeHref: normalizeHref);
-    final translators = Contributor.listFromJson(
-      jsonObject.opt('translator', remove: true),
-      normalizeHref: normalizeHref,
-    );
-    final editors = Contributor.listFromJson(jsonObject.opt('editor', remove: true), normalizeHref: normalizeHref);
-    final artists = Contributor.listFromJson(jsonObject.opt('artist', remove: true), normalizeHref: normalizeHref);
-    final illustrators = Contributor.listFromJson(
-      jsonObject.opt('illustrator', remove: true),
-      normalizeHref: normalizeHref,
-    );
-    final letterers = Contributor.listFromJson(jsonObject.opt('letterer', remove: true), normalizeHref: normalizeHref);
-    final pencilers = Contributor.listFromJson(jsonObject.opt('penciler', remove: true), normalizeHref: normalizeHref);
-    final colorists = Contributor.listFromJson(jsonObject.opt('colorist', remove: true), normalizeHref: normalizeHref);
-    final inkers = Contributor.listFromJson(jsonObject.opt('inker', remove: true), normalizeHref: normalizeHref);
-    final narrators = Contributor.listFromJson(jsonObject.opt('narrator', remove: true), normalizeHref: normalizeHref);
-    final contributors = Contributor.listFromJson(
-      jsonObject.opt('contributor', remove: true),
-      normalizeHref: normalizeHref,
-    );
-    final publishers = Contributor.listFromJson(
-      jsonObject.opt('publisher', remove: true),
-      normalizeHref: normalizeHref,
-    );
-    final imprints = Contributor.listFromJson(jsonObject.opt('imprint', remove: true), normalizeHref: normalizeHref);
+    final subjects = Subject.listFromJson(jsonObject.opt('subject', remove: true));
+    final authors = Contributor.listFromJson(jsonObject.opt('author', remove: true));
+    final translators = Contributor.listFromJson(jsonObject.opt('translator', remove: true));
+    final editors = Contributor.listFromJson(jsonObject.opt('editor', remove: true));
+    final artists = Contributor.listFromJson(jsonObject.opt('artist', remove: true));
+    final illustrators = Contributor.listFromJson(jsonObject.opt('illustrator', remove: true));
+    final letterers = Contributor.listFromJson(jsonObject.opt('letterer', remove: true));
+    final pencilers = Contributor.listFromJson(jsonObject.opt('penciler', remove: true));
+    final colorists = Contributor.listFromJson(jsonObject.opt('colorist', remove: true));
+    final inkers = Contributor.listFromJson(jsonObject.opt('inker', remove: true));
+    final narrators = Contributor.listFromJson(jsonObject.opt('narrator', remove: true));
+    final contributors = Contributor.listFromJson(jsonObject.opt('contributor', remove: true));
+    final publishers = Contributor.listFromJson(jsonObject.opt('publisher', remove: true));
+    final imprints = Contributor.listFromJson(jsonObject.opt('imprint', remove: true));
     final readingProgression = ReadingProgression.fromString(
       jsonObject.optNullableString('readingProgression', remove: true),
     );
@@ -283,16 +268,14 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
     final duration = jsonObject.optPositiveDouble('duration', remove: true);
     final numberOfPages = jsonObject.optPositiveInt('numberOfPages', remove: true);
     final contains =
-        jsonObject
-            .optNullableMap('contains', remove: true)
-            ?.let((it) => MetadataContains.fromJson(it, normalizeHref: normalizeHref)) ??
+        jsonObject.optNullableMap('contains', remove: true)?.let((it) => MetadataContains.fromJson(it)) ??
         MetadataContains();
 
     final belongsToJson =
         (jsonObject.optNullableMap('belongsTo', remove: true) ??
         jsonObject.optNullableMap('belongs_to', remove: true) ??
         {});
-    final belongsTo = BelongsTo.fromJson(belongsToJson, normalizeHref: normalizeHref);
+    final belongsTo = BelongsTo.fromJson(belongsToJson);
 
     final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
 
@@ -415,19 +398,16 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
 @immutable
 class MetadataContains extends AdditionalProperties with EquatableMixin implements JSONable {
-  factory MetadataContains.fromJson(
-    Map<String, dynamic>? json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory MetadataContains.fromJson(Map<String, dynamic>? json) {
     final jsonObject = Map<String, dynamic>.of(json ?? {});
-    final article = Article.listFromJson(jsonObject.opt('article', remove: true), normalizeHref: normalizeHref);
-    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true), normalizeHref: normalizeHref);
-    final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true), normalizeHref: normalizeHref);
-    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true), normalizeHref: normalizeHref);
-    final seasons = Season.listFromJson(jsonObject.opt('season', remove: true), normalizeHref: normalizeHref);
-    final series = Series.listFromJson(jsonObject.opt('series', remove: true), normalizeHref: normalizeHref);
-    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true), normalizeHref: normalizeHref);
-    final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true), normalizeHref: normalizeHref);
+    final article = Article.listFromJson(jsonObject.opt('article', remove: true));
+    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true));
+    final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true));
+    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));
+    final seasons = Season.listFromJson(jsonObject.opt('season', remove: true));
+    final series = Series.listFromJson(jsonObject.opt('series', remove: true));
+    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true));
+    final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true));
 
     return MetadataContains(
       articles: article,

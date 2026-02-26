@@ -13,11 +13,11 @@ import '../../../../flutter_readium_platform_interface.dart';
 class Subject extends AdditionalProperties with EquatableMixin implements JSONable {
   factory Subject.fromJsonString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
 
-  factory Subject.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Subject.fromJson(dynamic json) {
     if (json is String) {
       return Subject.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Subject.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Subject.fromJsonMap(json);
     } else {
       Fimber.e('Invalid JSON for Subject: $json');
 
@@ -25,16 +25,13 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
     }
   }
 
-  factory Subject.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Subject.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
     final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
     final code = jsonObject.optNullableString('code', remove: true);
     final scheme = jsonObject.optNullableString('scheme', remove: true);
-    final links = Link.fromJsonArray(jsonObject.opt('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.opt('links', remove: true));
 
     if (localizedName == null) {
       throw ArgumentError('Subject must have a name: $json');
@@ -64,15 +61,15 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
   final String? scheme;
   final List<Link>? links;
 
-  static List<Subject> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Subject> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Subject.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Subject.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Subject.fromJson(json, normalizeHref: normalizeHref)];
+      return [Subject.fromJson(json)];
     }
 
     return [];

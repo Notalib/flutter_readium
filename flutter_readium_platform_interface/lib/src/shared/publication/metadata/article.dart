@@ -14,20 +14,17 @@ import 'contributor.dart';
 class Article extends BaseCollection {
   factory Article.fromString(String name) => Article(localizedName: LocalizedString.fromJsonString(name));
 
-  factory Article.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Article.fromJson(dynamic json) {
     if (json is String) {
       return Article.fromString(json);
     } else if (json is Map<String, dynamic>) {
-      return Article.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Article.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Article: $json');
     }
   }
 
-  factory Article.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Article.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
     final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
@@ -36,38 +33,38 @@ class Article extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
     final author = jsonObject
         .optJsonArray('author', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final translator = jsonObject
         .optJsonArray('translator', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final editor = jsonObject
         .optJsonArray('editor', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final artist = jsonObject
         .optJsonArray('artist', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final illustrator = jsonObject
         .optJsonArray('illustrator', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final contributor = jsonObject
         .optJsonArray('contributor', remove: true)
-        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>, normalizeHref: normalizeHref))
+        ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
     final description = jsonObject.optNullableString('description', remove: true);
     final numberOfPages = jsonObject.optNullableInt('numberOfPages', remove: true);
     final position = jsonObject.optNullableDouble('position', remove: true);
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
 
     jsonObject
         .optJsonArray('links', remove: true)
@@ -112,15 +109,15 @@ class Article extends BaseCollection {
     super.additionalProperties,
   });
 
-  static List<Article> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Article> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Article.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Article.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Article.fromJson(json, normalizeHref: normalizeHref)];
+      return [Article.fromJson(json)];
     }
 
     return [];

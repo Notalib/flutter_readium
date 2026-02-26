@@ -9,20 +9,17 @@ import 'base_collection.dart';
 class Contributor extends BaseCollection {
   factory Contributor.fromJsonString(String name) => Contributor(localizedName: LocalizedString.fromJsonString(name));
 
-  factory Contributor.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Contributor.fromJson(dynamic json) {
     if (json is String) {
       return Contributor.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Contributor.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Contributor.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Contributor: $json');
     }
   }
 
-  factory Contributor.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Contributor.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -32,7 +29,7 @@ class Contributor extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
     final roles = jsonObject.optJsonArray('role', remove: true)?.map((e) => e.toString()).toList();
 
     return Contributor(
@@ -108,15 +105,15 @@ class Contributor extends BaseCollection {
     );
   }
 
-  static List<Contributor> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Contributor> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Contributor.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Contributor.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Contributor.fromJson(json, normalizeHref: normalizeHref)];
+      return [Contributor.fromJson(json)];
     } else {
       return [];
     }

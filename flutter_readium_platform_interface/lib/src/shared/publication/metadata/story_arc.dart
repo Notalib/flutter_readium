@@ -10,20 +10,17 @@ class StoryArc extends BaseCollection {
   factory StoryArc.fromJsonNumber(double number) =>
       StoryArc(localizedName: LocalizedString.fromJsonString(number.toString()), position: number);
 
-  factory StoryArc.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory StoryArc.fromJson(dynamic json) {
     if (json is double) {
       return StoryArc.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return StoryArc.fromJsonMap(json, normalizeHref: normalizeHref);
+      return StoryArc.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for StoryArc: $json');
     }
   }
 
-  factory StoryArc.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory StoryArc.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -33,7 +30,7 @@ class StoryArc extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
     final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true));
     final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true));
     final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));
@@ -125,15 +122,15 @@ class StoryArc extends BaseCollection {
     );
   }
 
-  static List<StoryArc> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<StoryArc> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => StoryArc.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => StoryArc.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [StoryArc.fromJson(json, normalizeHref: normalizeHref)];
+      return [StoryArc.fromJson(json)];
     }
     return [];
   }

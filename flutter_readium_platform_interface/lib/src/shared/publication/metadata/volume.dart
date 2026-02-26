@@ -5,7 +5,7 @@ import 'base_collection.dart';
 @immutable
 class Volume extends BaseCollection {
   factory Volume.fromJsonNumber(num number) => Volume(position: number.toDouble());
-  factory Volume.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Volume.fromJson(dynamic json) {
     if (json is String) {
       final position = int.tryParse(json);
       if (position != null) {
@@ -16,16 +16,13 @@ class Volume extends BaseCollection {
     if (json is int) {
       return Volume.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Volume.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Volume.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Volume: $json');
     }
   }
 
-  factory Volume.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Volume.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -35,10 +32,10 @@ class Volume extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
-    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true), normalizeHref: normalizeHref);
-    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true), normalizeHref: normalizeHref);
-    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true));
+    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));
+    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true));
 
     return Volume(
       position: position,
@@ -124,15 +121,15 @@ class Volume extends BaseCollection {
     );
   }
 
-  static List<Volume> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Volume> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Volume.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Volume.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Volume.fromJson(json, normalizeHref: normalizeHref)];
+      return [Volume.fromJson(json)];
     }
 
     return [];

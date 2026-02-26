@@ -9,20 +9,17 @@ import 'base_collection.dart';
 class Periodical extends BaseCollection {
   factory Periodical.fromJsonString(String localizedString) =>
       Periodical(localizedName: LocalizedString.fromJsonString(localizedString));
-  factory Periodical.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Periodical.fromJson(dynamic json) {
     if (json is String) {
       return Periodical.fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
-      return Periodical.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Periodical.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Episode: $json');
     }
   }
 
-  factory Periodical.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Periodical.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -32,10 +29,10 @@ class Periodical extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
 
-    final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true), normalizeHref: normalizeHref);
-    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true), normalizeHref: normalizeHref);
+    final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true));
+    final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));
 
     return Periodical(
       position: position,
@@ -114,15 +111,15 @@ class Periodical extends BaseCollection {
     );
   }
 
-  static List<Periodical> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Periodical> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Periodical.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Periodical.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Periodical.fromJson(json, normalizeHref: normalizeHref)];
+      return [Periodical.fromJson(json)];
     }
     return [];
   }

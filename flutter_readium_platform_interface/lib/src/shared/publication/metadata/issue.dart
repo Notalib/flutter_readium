@@ -10,7 +10,7 @@ import 'base_collection.dart';
 class Issue extends BaseCollection {
   factory Issue.fromJsonNumber(num number) => Issue(position: number.toDouble());
 
-  factory Issue.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Issue.fromJson(dynamic json) {
     if (json is String) {
       final position = int.tryParse(json);
       if (position != null) {
@@ -21,16 +21,13 @@ class Issue extends BaseCollection {
     if (json is int) {
       return Issue.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Issue.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Issue.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Issue: $json');
     }
   }
 
-  factory Issue.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Issue.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -40,12 +37,9 @@ class Issue extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
-    final articles = Article.listFromJson(jsonObject.opt('article', remove: true), normalizeHref: normalizeHref);
-    final chapters = Chapter.listFromJson(
-      jsonObject.optJsonArray('chapter', remove: true),
-      normalizeHref: normalizeHref,
-    );
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final articles = Article.listFromJson(jsonObject.opt('article', remove: true));
+    final chapters = Chapter.listFromJson(jsonObject.optJsonArray('chapter', remove: true));
 
     return Issue(
       position: position,
@@ -103,15 +97,15 @@ class Issue extends BaseCollection {
     );
   }
 
-  static List<Issue> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Issue> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Issue.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Issue.fromJson(e)).toList();
     } else if (json is Map<String, dynamic> && json.isNotEmpty) {
-      return [Issue.fromJson(json, normalizeHref: normalizeHref)];
+      return [Issue.fromJson(json)];
     }
     return [];
   }

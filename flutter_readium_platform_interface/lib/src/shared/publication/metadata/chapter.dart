@@ -9,7 +9,7 @@ import 'base_collection.dart';
 class Chapter extends BaseCollection {
   factory Chapter.fromJsonNumber(num number) => Chapter(position: number.toDouble());
 
-  factory Chapter.fromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  factory Chapter.fromJson(dynamic json) {
     if (json is String) {
       final position = double.tryParse(json);
       if (position != null) {
@@ -20,16 +20,13 @@ class Chapter extends BaseCollection {
     if (json is num) {
       return Chapter.fromJsonNumber(json);
     } else if (json is Map<String, dynamic>) {
-      return Chapter.fromJsonMap(json, normalizeHref: normalizeHref);
+      return Chapter.fromJsonMap(json);
     } else {
       throw ArgumentError('Invalid JSON for Chapter: $json');
     }
   }
 
-  factory Chapter.fromJsonMap(
-    Map<String, dynamic> json, {
-    LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity,
-  }) {
+  factory Chapter.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
@@ -39,7 +36,7 @@ class Chapter extends BaseCollection {
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true), normalizeHref: normalizeHref);
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
     final series = Series.listFromJson(jsonObject.opt('series', remove: true));
 
     return Chapter(
@@ -93,15 +90,15 @@ class Chapter extends BaseCollection {
     );
   }
 
-  static List<Chapter> listFromJson(dynamic json, {LinkHrefNormalizer normalizeHref = linkHrefNormalizerIdentity}) {
+  static List<Chapter> listFromJson(dynamic json) {
     if (json == null) {
       return [];
     }
 
     if (json is List) {
-      return json.map((e) => Chapter.fromJson(e, normalizeHref: normalizeHref)).toList();
+      return json.map((e) => Chapter.fromJson(e)).toList();
     } else {
-      return [Chapter.fromJson(json, normalizeHref: normalizeHref)];
+      return [Chapter.fromJson(json)];
     }
   }
 

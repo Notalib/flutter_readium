@@ -8,7 +8,8 @@
       "name": "example",
       "cwd": "flutter_readium/example",
       "request": "launch",
-      "type": "dart"
+      "type": "dart",
+      "flutterMode": "debug"
     },
     {
       "name": "example (profile mode)",
