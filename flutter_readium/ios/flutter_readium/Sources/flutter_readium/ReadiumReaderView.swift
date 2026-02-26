@@ -13,6 +13,8 @@ private let ReadiumReaderStatusError = "error"
 
 let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
+let allowedInitialFragments = ["id", "t", "viewrect", "xywh"]
+
 class ReadiumBugLogger: ReadiumShared.WarningLogger {
   func log(_ warning: Warning) {
     print(TAG, "Error in Readium: \(warning)")
@@ -68,8 +70,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
     print(TAG, "publication = \(publication)")
+    
+    // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
+    // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
+    locator?.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
