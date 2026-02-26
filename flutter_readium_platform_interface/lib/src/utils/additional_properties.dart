@@ -35,32 +35,4 @@ abstract class AdditionalProperties {
     }
     return null;
   }
-
-  /// Converts the [additionalProperties] to a Map<String, dynamic> with stringified Enum values.
-  Map<String, dynamic> additionalPropertiesToJson() =>
-      additionalProperties.map((key, value) => MapEntry(key, _toJsonValue(value)));
-
-  dynamic _toJsonValue(dynamic value) {
-    if (value is Enum) {
-      return value.name;
-    }
-
-    if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), _toJsonValue(v)));
-    }
-
-    if (value is Iterable) {
-      return value.map(_toJsonValue).toList();
-    }
-
-    if (value is DateTime) {
-      return value.toIso8601String();
-    }
-
-    if (value is num || value is String || value is bool || value == null) {
-      return value;
-    }
-
-    return value.toString();
-  }
 }

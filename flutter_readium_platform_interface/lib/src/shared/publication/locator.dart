@@ -75,7 +75,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       return fromJson(json);
     }
 
-    _logger.w('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    _logger.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
 
@@ -85,11 +85,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return Locator.fromJson(json);
     } catch (ex, st) {
-      _logger.e(
-        'fromJsonString: Failed to parse Locator from json: $jsonString',
-        ex: ex,
-        stacktrace: st,
-      );
+      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
     }
     return null;
   }
@@ -99,16 +95,18 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       return null;
     }
 
-    final href = json.safeRemove<String>('href');
-    final type = json.safeRemove<String>('type');
+    final jsonObject = Map<String, dynamic>.of(json);
+
+    final href = jsonObject.optNullableString('href', remove: true);
+    final type = jsonObject.optNullableString('type', remove: true);
     if (href == null || type == null) {
-      _logger.i('[href] and [type] are required $json');
+      _logger.i('[href] and [type] are required $jsonObject');
       return null;
     }
 
-    final title = json.safeRemove<String>('title');
-    final locations = Locations.fromJson(json.optJsonObject('locations'));
-    final text = LocatorText.fromJson(json.optJsonObject('text'));
+    final title = jsonObject.optNullableString('title', remove: true);
+    final locations = Locations.fromJson(jsonObject.optJsonObject('locations', remove: true));
+    final text = LocatorText.fromJson(jsonObject.optJsonObject('text', remove: true));
 
     return Locator(
       href: href,
@@ -116,14 +114,12 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       title: title,
       locations: locations,
       text: text,
-      additionalProperties: json,
+      additionalProperties: jsonObject,
     );
   }
 
-  String get json => JsonCodec().encode(toJson());
-
   @override
-  Map<String, dynamic> toJson() => additionalPropertiesToJson()
+  Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
     ..put('href', href)
     ..put('type', type)
     ..putOpt('title', title)
@@ -238,9 +234,7 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 
     final jsonObject = Map<String, dynamic>.of(json);
     final fragments =
-        jsonObject
-            .optStringsFromArrayOrSingle('fragments', remove: true)
-            .takeIf((it) => it.isNotEmpty) ??
+        jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
         jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
     final progression = jsonObject
@@ -334,14 +328,7 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putJSONableIfNotEmpty('domRange', domRange);
 
   @override
-  List<Object?> get props => [
-    position,
-    progression,
-    totalProgression,
-    fragments,
-    additionalProperties,
-    cssSelector,
-  ];
+  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
 
   @override
   String toString() =>
@@ -420,8 +407,7 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange =>
-      (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
 }
 
 class LocatorNullableJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
