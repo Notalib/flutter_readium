@@ -263,7 +263,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       result(nil)
     case "ttsSetPreferences":
-      let args = call.arguments as! Dictionary<String, String>
+      let args = call.arguments as? Dictionary<String, Any>
       guard let ttsNavigator = self.timebasedNavigator as? FlutterTTSNavigator else {
         return result(FlutterError.init(
           code: "TTSError",
@@ -271,7 +271,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       do {
-        let ttsPrefs = try TTSPreferences(fromMap: args)
+        let ttsPrefs = try TTSPreferences(fromMap: args!)
         ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {
