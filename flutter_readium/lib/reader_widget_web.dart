@@ -76,13 +76,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  // ignore: prefer_expression_function_bodies
-  Future<Locator?> getLocatorFragments(final Locator locator) async {
-    // Implement this method if needed
-    return null;
-  }
-
-  @override
   Future<void> skipToPrevious({final bool animated = true}) async {
     R2Log.d('skipToPrevious not implemented in web version');
   }

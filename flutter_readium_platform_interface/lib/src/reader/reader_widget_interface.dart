@@ -19,9 +19,6 @@ abstract class ReadiumReaderWidgetInterface {
   /// Gets the current Navigator's locator.
   Future<Locator?> getCurrentLocator();
 
-  /// Get a locator with relevant fragments
-  Future<Locator?> getLocatorFragments(final Locator locator);
-
   /// Set EPUB preferences
   Future<void> setEPUBPreferences(EPUBPreferences preferences);
 

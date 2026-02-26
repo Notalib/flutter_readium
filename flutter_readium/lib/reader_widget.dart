@@ -156,15 +156,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<Locator?> getLocatorFragments(final Locator locator) async {
-    R2Log.d('getLocatorFragments: $locator');
-
-    await _awaitNativeViewReady();
-
-    return await _channel?.getLocatorFragments(locator);
-  }
-
-  @override
   Future<Locator?> getCurrentLocator() async {
     R2Log.d('GetCurrentLocator()');
     return _channel?.getCurrentLocator();

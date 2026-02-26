@@ -10,7 +10,6 @@ enum _ReaderChannelMethodInvoke {
   goLeft,
   goRight,
   getCurrentLocator,
-  getLocatorFragments,
   setLocation,
   isLocatorVisible,
   dispose,
@@ -48,20 +47,6 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> goRight({final bool animated = true}) {
     R2Log.d('$name: $animated');
     return _invokeMethod(_ReaderChannelMethodInvoke.goRight, animated);
-  }
-
-  /// Get locator fragments for the given [locator].
-  Future<Locator?> getLocatorFragments(final Locator locator) {
-    R2Log.d('locator: ${locator.toString()}');
-
-    return _invokeMethod(
-      _ReaderChannelMethodInvoke.getLocatorFragments,
-      json.encode(locator.toJson()),
-    ).then((final value) => Locator.fromJson(json.decode(value))).onError((final error, final _) {
-      R2Log.e(error ?? 'Unknown Error');
-
-      throw ReadiumException('getLocatorFragments failed $locator');
-    });
   }
 
   /// Set the current location to the given [locator].

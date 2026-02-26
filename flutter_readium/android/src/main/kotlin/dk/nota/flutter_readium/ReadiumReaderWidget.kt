@@ -246,9 +246,13 @@ class ReadiumReaderWidget(
             Log.d(TAG, "::onMethodCall ${call.method}")
             when (call.method) {
                 "setPreferences" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val prefsMap = call.arguments as Map<String, String>
                     try {
+                        @Suppress("UNCHECKED_CAST")
+                        val prefsMap = call.arguments as? Map<String, String> ?: run {
+                            result.error("FlutterReadium", "Failed to set preferences", "Invalid argument")
+                            return@launch
+                        }
+
                         setPreferencesFromMap(prefsMap)
                         result.success(null)
                     } catch (ex: Exception) {

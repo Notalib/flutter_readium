@@ -4,7 +4,6 @@
 
 import 'dart:convert';
 
-import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
@@ -12,6 +11,7 @@ import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../extensions/readium_string_extensions.dart';
+import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
 import '../../utils/take.dart';
@@ -383,11 +383,10 @@ class LocatorText with EquatableMixin implements JSONable {
 extension LinkLocator on Link {
   /// Creates a [Locator] from a reading order [Link].
   Locator toLocator() {
-    final components = href.split('#');
-    final fragment = (components.length > 1 && components[1].isNotEmpty) ? components[1] : null;
+    final (hrefPath, fragment) = href.splitPathAndFragment();
 
     return Locator(
-      href: components.firstOrDefault(href).stripLeadingSlash(),
+      href: hrefPath,
       type: type ?? '',
       title: title,
       text: LocatorText(),
