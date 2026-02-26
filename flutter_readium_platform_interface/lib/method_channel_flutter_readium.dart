@@ -179,10 +179,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('ttsSetPreferences', preferences.toJson());
 
   @override
-  Future<String?> getLinkContent(final Link link) =>
-      methodChannel.invokeMethod<String>('getLinkContent', [jsonEncode(link.toJson())]);
-
-  @override
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       methodChannel.invokeMethod('audioEnable', [prefs?.toJson(), fromLocator?.toJson()]);
 

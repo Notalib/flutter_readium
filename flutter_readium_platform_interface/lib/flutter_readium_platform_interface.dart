@@ -57,9 +57,6 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Close the currently open publication and its related reader or playback ressources.
   Future<void> closePublication() => throw UnimplementedError('closePublication() has not been implemented.');
 
-  /// Retrieves the content of a given link in the current Publication as a string.
-  Future<String?> getLinkContent(final Link link);
-
   /// Navigate left/backwards visually in the current publication renderer.
   Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
 

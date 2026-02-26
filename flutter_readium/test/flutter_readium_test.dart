@@ -177,12 +177,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<String?> getLinkContent(Link link) {
-    // TODO: implement getLinkContent
-    throw UnimplementedError();
-  }
-
-  @override
   Future<bool> goToLocator(Locator locator) {
     // TODO: implement goToLocator
     throw UnimplementedError();

@@ -209,11 +209,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return;
   }
 
-  @override
-  Future<String?> getLinkContent(Link link) {
-    return getString(link);
-  }
-
   static Future<String> getString(final Link link) async {
     // Get HTML string for full chapters, for example
     final linkString = json.encode(link);

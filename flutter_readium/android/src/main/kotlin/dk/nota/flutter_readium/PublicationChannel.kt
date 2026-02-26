@@ -190,19 +190,6 @@ internal class PublicationMethodCallHandler() :
                 return Try.success(null)
             }
 
-            "getLinkContent" -> {
-                val args = arguments as List<Any?>
-                val linkStr = args[0] as String
-                val asString = args[1] as? Boolean ?: true
-                val link = Link.fromJSON(JSONObject(linkStr))
-
-                if (link == null) {
-                    throw Exception("getLinkContent: failed to get resource. Missing link: $link")
-                }
-
-                return getLinkContent(link, asString)
-            }
-
             "audioEnable" -> {
                 val args = arguments as List<*>
                 // 0 is AudioPreferences
@@ -337,28 +324,6 @@ internal class PublicationMethodCallHandler() :
         }
 
         return voicesJson
-    }
-
-    /**
-     * Get the content of a publication resource via a Link.
-     * If asString is true the content is returned as a String, otherwise as ByteArray
-     */
-    private suspend fun getLinkContent(link: Link, asString: Boolean): Try<Any, PublicationError> {
-        val publication = ReadiumReader.currentPublication
-            ?: return Try.failure(
-                PublicationError.Unavailable()
-            )
-
-        Log.d(TAG, "Use publication = $publication")
-
-        val resource = publication.get(link) ?: run {
-            throw Exception("getLinkContent: failed to find pub resource via link: pubId=${publication.metadata.identifier},link=$link")
-        }
-        val resourceBytes = resource.read().getOrElse {
-            throw Exception("getLinkContent: failed to read resource. ${it.message}")
-        }
-
-        return Try.success(if (asString) String(resourceBytes) else resourceBytes)
     }
 
     /**

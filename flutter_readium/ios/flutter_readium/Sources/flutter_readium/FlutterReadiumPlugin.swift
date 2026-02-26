@@ -11,7 +11,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   static var registrar: FlutterPluginRegistrar? = nil
   public static var instance: FlutterReadiumPlugin? = nil
-  
+
   public var currentPublicationUrlStr: String?
   public var currentPublication: Publication?
   public var currentReaderView: ReadiumReaderView?
@@ -24,7 +24,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var errorStreamHandler: EventStreamHandler?
   internal var readerStatusStreamHandler: EventStreamHandler?
   internal var textLocatorStreamHandler: EventStreamHandler?
-  
+
   /// Timebased player events & state
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
@@ -42,7 +42,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "dk.nota.flutter_readium/main", binaryMessenger: registrar.messenger())
-    
+
     // Create
     let plugin = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(plugin, channel: channel)
@@ -58,7 +58,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
     self.registrar = registrar
   }
-  
+
   internal func getCurrentPublication() -> Publication? {
     return currentPublication
   }
@@ -141,7 +141,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           } else {
             /// Load Publication and serialize its json manifest, before closing it again.
             let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
-            
+
             pubJsonManifest = pub.jsonManifest
             pub.close()
           }
@@ -155,45 +155,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
-    case "getLinkContent":
-      let args = call.arguments as! [Any?]
-      // TODO: Do we need asString?
-      //let asString = args[1] as? Bool ?? true
-      let asString = true
-      guard let linkStr = args[0] as? String,
-            let publication = currentPublication,
-            let link = try? Link(fromJsonString: linkStr) else {
-        return result(FlutterError.init(
-          code: "InvalidArgument",
-          message: "Failed to get link content",
-          details: nil))
-      }
-      Task.detached(priority: .background) {
-        let resource = publication.get(link)
-        do {
-          if (asString) {
-            let linkContent = try await resource?.readAsString(encoding: .utf8).get()
-            await MainActor.run {
-              result(linkContent)
-            }
-          } else {
-            let data = try await resource!.read().get()
-            await MainActor.run {
-              result(FlutterStandardTypedData(bytes: data))
-            }
-          }
-        } catch let err {
-          await MainActor.run {
-            print("\(TAG).getLinkContent exception: \(err)")
-            result(
-              FlutterError.init(
-                code: "InternalError",
-                message: err.localizedDescription,
-                details: "Something went wrong fetching link content."))
-          }
-        }
-      }
-
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
