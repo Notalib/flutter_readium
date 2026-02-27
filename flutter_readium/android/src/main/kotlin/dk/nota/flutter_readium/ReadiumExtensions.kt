@@ -269,17 +269,20 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
         return null
     }
 
-    val cleanHref = href.removeQuery().removeFragment()
+    val cleanHref = href.cleanHref()
 
     val ids = arrayListOf<String>()
-    for (element in contentService.content(Locator(href = cleanHref, mediaType = MediaType.XHTML))) {
+    for (element in contentService.content(
+        Locator(
+            href = cleanHref,
+            mediaType = MediaType.XHTML
+        )
+    )) {
         if (element !is Content.TextElement) {
             continue
         }
 
-        if (element.locator.href.removeQuery()
-                .removeFragment() != cleanHref
-        ) {
+        if (element.locator.href.cleanHref() != cleanHref) {
             // We iterated to the next document, stopping
             break
         }
@@ -305,16 +308,13 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
         return null
     }
 
-    val cleanHref = locator.href.removeQuery().removeFragment()
-
+    val cleanHref = locator.href.cleanHref()
     for (element in contentService.content(locator)) {
         if (element !is Content.TextElement) {
             continue
         }
 
-        if (element.locator.href.removeQuery()
-                .removeFragment() != cleanHref
-        ) {
+        if (element.locator.href.cleanHref() != cleanHref) {
             // We iterated to the next document, stopping
             break
         }
@@ -327,3 +327,8 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
 
     return null
 }
+
+/**
+ * Remove query and fragment from the Url
+ */
+fun Url.cleanHref() = removeFragment().removeQuery()

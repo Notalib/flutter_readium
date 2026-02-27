@@ -177,9 +177,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private var epubNavigator: EpubNavigator? = null
 
-    val epubCurrentLocator: Locator?
-        get() = epubNavigator?.currentLocator?.value
-
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
     /** Current audio preferences (defaults if audio hasn't been enabled yet). */
@@ -400,10 +397,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
     /***
-     * Maps a URL to a HTML document to a list of all the ids in the document.
-     * This is used to find the current ToC item.
+     * For EPUB profile, maps document [Url] to a list of all the cssSelectors in the document.
+     *
+     * This is used to find the current toc item.
      */
-    private var currentPublicationContentIdsMap: MutableMap<Url, List<String>>? = null
+    private var currentPublicationCssSelectorMap: MutableMap<Url, List<String>>? = null
 
     /**
      * Sets the headers used in the HTTP requests for fetching publication resources, including
@@ -586,7 +584,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         mainScope.async {
             _currentPublication?.close()
             _currentPublication = null
-            currentPublicationContentIdsMap = null
+            currentPublicationCssSelectorMap = null
 
             ttsNavigator?.dispose()
             ttsNavigator = null
@@ -661,9 +659,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             return resultLocator
         }
 
+        val cleanHref = resultLocator.href.cleanHref()
         val toc = publication.tableOfContents.flatten().filter {
-            it.href.resolve().removeQuery()
-                .removeFragment() == resultLocator.href.removeFragment().removeQuery()
+            it.href.resolve().cleanHref() == cleanHref
         }.associateBy { contentIds.indexOf("${it.href.resolve().fragment}") }
 
         val tocItem = toc.entries.lastOrNull { it.key <= idx }?.value
@@ -989,11 +987,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      * Get all cssSelectors for an EPUB file.
      */
     suspend fun epubGetAllDocumentCssSelectors(href: Url): List<String> {
-        val contentIdsMap = currentPublicationContentIdsMap ?: mutableMapOf()
-        currentPublicationContentIdsMap = contentIdsMap
+        val cssSelectorMap = currentPublicationCssSelectorMap ?: mutableMapOf()
+        currentPublicationCssSelectorMap = cssSelectorMap
 
-        val cleanHref = href.removeQuery().removeFragment()
-        return contentIdsMap.getOrPut(cleanHref) {
+        val cleanHref = href.cleanHref()
+        return cssSelectorMap.getOrPut(cleanHref) {
             currentPublication?.findAllCssSelectors(
                 cleanHref
             ) ?: listOf()
