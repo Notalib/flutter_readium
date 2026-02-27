@@ -301,8 +301,10 @@ class TTSNavigator(
             .throttleLatest(100.milliseconds)
             .distinctUntilChanged()
             .onEach { locator ->
-                onCurrentLocatorChanges(locator)
-                state[currentTimebasedLocatorKey] = locator
+                val emittingLocator =
+                    ReadiumReader.epubFindCurrentToc(locator)
+                onCurrentLocatorChanges(emittingLocator)
+                state[currentTimebasedLocatorKey] = emittingLocator
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }

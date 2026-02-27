@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.html.cssSelector
@@ -89,4 +90,13 @@ fun canScroll(locations: Locator.Locations) =
  */
 fun <T> MutableStateFlow<T>.update(new: T) {
     if (this.value != new) this.value = new
+}
+
+@Throws(JSONException::class)
+fun JSONArray.toList(): List<Any> {
+    val list = mutableListOf<Any>()
+    for (i in 0 until this.length()) {
+        list.add(this[i])
+    }
+    return list
 }

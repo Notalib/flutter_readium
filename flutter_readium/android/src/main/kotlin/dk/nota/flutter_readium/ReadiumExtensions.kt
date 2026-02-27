@@ -18,7 +18,10 @@ import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.ContentService
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
@@ -250,4 +253,77 @@ fun Locator.copyWithTimeFragment(time: Double): Locator {
             fragments = listOf("${time}")
         )
     )
+}
+
+/**
+ * Helper for getting all cssSelectors for a HTML document.
+ */
+suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
+    if (!conformsTo(Publication.Profile.EPUB)) {
+        Log.d(TAG, ":findAllCssSelectors - this only works for an EPUB Profile")
+        return null
+    }
+
+    val contentService = findService(ContentService::class) ?: run {
+        Log.d(TAG, ":findAllCssSelectors - no content service found")
+        return null
+    }
+
+    val cleanHref = href.removeQuery().removeFragment()
+
+    val ids = arrayListOf<String>()
+    for (element in contentService.content(Locator(href = cleanHref, mediaType = MediaType.XHTML))) {
+        if (element !is Content.TextElement) {
+            continue
+        }
+
+        if (element.locator.href.removeQuery()
+                .removeFragment() != cleanHref
+        ) {
+            // We iterated to the next document, stopping
+            break
+        }
+
+        // We are only interested in #id type of cssSelectors.
+        val cssSelector =
+            element.locator.locations.cssSelector?.takeIf { it.startsWith("#") } ?: continue
+
+        ids.add(cssSelector)
+    }
+
+    return ids
+}
+
+/**
+ * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
+ */
+suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
+    locator.locations.cssSelector?.takeIf { it.startsWith("#") }?.let { return it }
+
+    val contentService = findService(ContentService::class) ?: run {
+        Log.d(TAG, ":findCssSelectorForLocator - no content service found")
+        return null
+    }
+
+    val cleanHref = locator.href.removeQuery().removeFragment()
+
+    for (element in contentService.content(locator)) {
+        if (element !is Content.TextElement) {
+            continue
+        }
+
+        if (element.locator.href.removeQuery()
+                .removeFragment() != cleanHref
+        ) {
+            // We iterated to the next document, stopping
+            break
+        }
+
+        val cssSelector =
+            element.locator.locations.cssSelector?.takeIf { it.startsWith("#") } ?: continue
+
+        return cssSelector
+    }
+
+    return null
 }

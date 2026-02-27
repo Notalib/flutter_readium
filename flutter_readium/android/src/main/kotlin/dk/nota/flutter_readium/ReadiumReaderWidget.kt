@@ -41,8 +41,8 @@ class ReadiumReaderWidget(
     creationParams: Map<String?, Any?>,
     messenger: BinaryMessenger,
     attrs: AttributeSet? = null
-) : PlatformView, MethodChannel.MethodCallHandler,
-    EpubReaderFragment.Listener, EpubNavigator.VisualListener {
+) : PlatformView, MethodChannel.MethodCallHandler, EpubReaderFragment.Listener,
+    EpubNavigator.VisualListener {
 
     private val channel: ReadiumReaderChannel
 
@@ -94,8 +94,8 @@ class ReadiumReaderWidget(
     init {
         Log.d(TAG, "::init")
 
-        @Suppress("UNCHECKED_CAST")
-        val initPrefsMap = creationParams["preferences"] as Map<String, String>?
+        @Suppress("UNCHECKED_CAST") val initPrefsMap =
+            creationParams["preferences"] as Map<String, String>?
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
@@ -103,8 +103,7 @@ class ReadiumReaderWidget(
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
         val initialPreferences =
             if (initPrefsMap == null) EpubPreferences() else epubPreferencesFromMap(
-                initPrefsMap,
-                null
+                initPrefsMap, null
             )
         Log.d(TAG, "publication = $publication")
 
@@ -126,8 +125,7 @@ class ReadiumReaderWidget(
         // This can be toggled back on via the 'allowScreenReaderNavigation' creation param.
         // See issue: https://notalib.atlassian.net/browse/NOTA-9828
         if (allowScreenReaderNavigation != true) {
-            layout.importantForAccessibility =
-                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            layout.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
 
         // Remove existing fragment if any (this is to avoid crashing on restore).
@@ -212,30 +210,17 @@ class ReadiumReaderWidget(
 
     private suspend fun emitOnPageChanged(locator: Locator) {
         try {
-            val locatorWithFragments = ReadiumReader.epubGetLocatorFragments(locator)
-            if (locatorWithFragments == null) {
-                Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed!")
-                return
-            }
-
-            channel.onPageChanged(locatorWithFragments)
-            ReadiumReader.emitTextLocatorUpdate(locatorWithFragments)
+            val emittingLocator = ReadiumReader.epubFindCurrentToc(locator)
+            channel.onPageChanged(emittingLocator)
+            ReadiumReader.emitTextLocatorUpdate(emittingLocator)
+            Log.d(TAG, "emitOnPageChanged: emitted $emittingLocator")
         } catch (e: Exception) {
-            Log.e(TAG, "emitOnPageChanged: window.epubPage.getVisibleRange failed! $e")
+            Log.e(TAG, "emitOnPageChanged: failed! $e")
         }
     }
 
     private fun emitOnExternalLinkActivated(url: AbsoluteUrl) {
         channel.onExternalLinkActivated(url)
-    }
-
-    private suspend fun setLocation(
-        locator: Locator,
-        isAudioBookWithText: Boolean
-    ) {
-        val json = locator.toJSON().toString()
-        Log.d(TAG, "::scrollToLocations: Go to locations $json")
-        evaluateJavascript("window.epubPage.setLocation($json, $isAudioBookWithText);")
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -247,11 +232,15 @@ class ReadiumReaderWidget(
             when (call.method) {
                 "setPreferences" -> {
                     try {
-                        @Suppress("UNCHECKED_CAST")
-                        val prefsMap = call.arguments as? Map<String, String> ?: run {
-                            result.error("FlutterReadium", "Failed to set preferences", "Invalid argument")
-                            return@launch
-                        }
+                        @Suppress("UNCHECKED_CAST") val prefsMap =
+                            call.arguments as? Map<String, String> ?: run {
+                                result.error(
+                                    "FlutterReadium",
+                                    "Failed to set preferences",
+                                    "Invalid argument"
+                                )
+                                return@launch
+                            }
 
                         setPreferencesFromMap(prefsMap)
                         result.success(null)
@@ -268,13 +257,11 @@ class ReadiumReaderWidget(
                     if (locatorJson.optString("type") == "") {
                         locatorJson.put("type", " ")
                         Log.e(
-                            TAG,
-                            "Got locator with empty type! This shouldn't happen. $locatorJson"
+                            TAG, "Got locator with empty type! This shouldn't happen. $locatorJson"
                         )
                     }
                     val locator = Locator.fromJSON(locatorJson)!!
                     ReadiumReader.epubGoToLocator(locator, animated)
-                    setLocation(locator, isAudioBookWithText)
                     result.success(null)
                 }
 
@@ -290,53 +277,12 @@ class ReadiumReaderWidget(
                     result.success(null)
                 }
 
-                "setLocation" -> {
-                    val args = call.arguments as List<*>
-                    val locatorJson = JSONObject(args[0] as String)
-                    val isAudioBookWithText = args[1] as Boolean
-                    val locator = Locator.fromJSON(locatorJson)!!
-                    setLocation(locator, isAudioBookWithText)
-                    result.success(null)
-                }
-
-                "isLocatorVisible" -> {
-                    val args = call.arguments as String
-                    val locatorJson = JSONObject(args)
-                    val locator = Locator.fromJSON(locatorJson)!!
-                    var visible = locator.href == ReadiumReader.epubCurrentLocator?.href
-                    if (visible) {
-                        val jsonRes =
-                            evaluateJavascript("window.epubPage.isLocatorVisible($args);")
-                                ?: "false"
-                        try {
-                            visible = jsonDecode(jsonRes) as Boolean
-                        } catch (e: Error) {
-                            Log.e(TAG, "::isLocatorVisible - invalid response:$jsonRes - e:$e")
-                            visible = false
-                        }
-                    }
-                    result.success(visible)
-                }
-
-                "getLocatorFragments" -> {
-                    val args = call.arguments as String?
-                    Log.d(TAG, "::====== $args")
-                    val locatorJson = JSONObject(args!!)
-                    Log.d(TAG, "::====== $locatorJson")
-
-                    val locator =
-                        ReadiumReader.epubGetLocatorFragments(Locator.fromJSON(locatorJson)!!)
-                    Log.d(TAG, "::====== $locator")
-
-                    result.success(jsonEncode(locator?.toJSON()))
-                }
-
                 "applyDecorations" -> {
                     val args = call.arguments as List<*>
                     val groupId = args[0] as String
 
-                    @Suppress("UNCHECKED_CAST")
-                    val decorationListStr = args[1] as List<Map<String, String>>
+                    @Suppress("UNCHECKED_CAST") val decorationListStr =
+                        args[1] as List<Map<String, String>>
                     val decorations = decorationListStr.mapNotNull { decorationFromMap(it) }
 
                     ReadiumReader.applyDecorations(decorations, groupId)

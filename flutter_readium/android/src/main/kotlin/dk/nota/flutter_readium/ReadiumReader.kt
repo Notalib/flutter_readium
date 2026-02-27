@@ -46,6 +46,7 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
+import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -398,6 +399,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             state[currentPublicationUrlKey] = value
         }
 
+    /***
+     * Maps a URL to a HTML document to a list of all the ids in the document.
+     * This is used to find the current ToC item.
+     */
+    private var currentPublicationContentIdsMap: MutableMap<Url, List<String>>? = null
+
     /**
      * Sets the headers used in the HTTP requests for fetching publication resources, including
      * resources in already created `Publication` objects.
@@ -579,6 +586,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         mainScope.async {
             _currentPublication?.close()
             _currentPublication = null
+            currentPublicationContentIdsMap = null
 
             ttsNavigator?.dispose()
             ttsNavigator = null
@@ -629,6 +637,47 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         Log.d(TAG, ":onTimebasedLocationChanged $locator")
 
         currentReaderWidget?.go(locator, true)
+    }
+
+    /**
+     * Find the current table of content item from a locator.
+     */
+    suspend fun epubFindCurrentToc(locator: Locator): Locator {
+        val publication = currentPublication ?: run {
+            Log.e(TAG, ":epubFindCurrentToc, no currentPublication")
+            return locator
+        }
+
+        val cssSelector = publication.findCssSelectorForLocator(locator) ?: run {
+            Log.e(TAG, ":epubFindCurrentToc, missing cssSelector in locator")
+            return locator
+        }
+
+        val resultLocator = locator.copyWithLocations(otherLocations = locator.locations.otherLocations + ("cssLocator" to cssSelector))
+
+        val contentIds = epubGetAllDocumentCssSelectors(locator.href)
+        val idx = contentIds.indexOf(cssSelector).takeIf { it > -1 } ?: run {
+            Log.d(TAG, ":epubFindCurrentToc cssSelector:${cssSelector} not found in contentIds")
+            return resultLocator
+        }
+
+        val toc = publication.tableOfContents.flatten().filter {
+            it.href.resolve().removeQuery()
+                .removeFragment() == resultLocator.href.removeFragment().removeQuery()
+        }.associateBy { contentIds.indexOf("${it.href.resolve().fragment}") }
+
+        val tocItem = toc.entries.lastOrNull { it.key <= idx }?.value
+            ?: toc.entries.firstOrNull()?.value ?: run {
+                Log.d(TAG, ":epubFindCurrentToc - no tocItem found")
+                return resultLocator
+            }
+
+        return resultLocator.copy(
+            title = tocItem.title
+        ).copyWithLocations(
+            otherLocations = resultLocator.locations.otherLocations + ("toc" to tocItem.href.resolve()
+                .toString())
+        )
     }
 
     @OptIn(InternalReadiumApi::class)
@@ -929,10 +978,25 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     /**
-     * Get locator fragments from EPUB navigator.
+     * Get first visible locator from the EPUB navigator.
      */
-    suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
-        return epubNavigator?.getLocatorFragments(locator)
+    suspend fun firstVisibleElementLocator(): Locator? {
+        return epubNavigator?.firstVisibleElementLocator()
+    }
+
+    /**
+     * Get all cssSelectors for an EPUB file.
+     */
+    suspend fun epubGetAllDocumentCssSelectors(href: Url): List<String> {
+        val contentIdsMap = currentPublicationContentIdsMap ?: mutableMapOf()
+        currentPublicationContentIdsMap = contentIdsMap
+
+        val cleanHref = href.removeQuery().removeFragment()
+        return contentIdsMap.getOrPut(cleanHref) {
+            currentPublication?.findAllCssSelectors(
+                cleanHref
+            ) ?: listOf()
+        }
     }
 
     /**
