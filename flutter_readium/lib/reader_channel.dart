@@ -4,16 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
-enum _ReaderChannelMethodInvoke {
-  applyDecorations,
-  go,
-  goLeft,
-  goRight,
-  setLocation,
-  isLocatorVisible,
-  dispose,
-  setPreferences,
-}
+enum _ReaderChannelMethodInvoke { applyDecorations, go, goLeft, goRight, dispose, setPreferences }
 
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
@@ -48,10 +39,6 @@ class ReadiumReaderChannel extends MethodChannel {
     return _invokeMethod(_ReaderChannelMethodInvoke.goRight, animated);
   }
 
-  /// Set the current location to the given [locator].
-  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async =>
-      _invokeMethod(_ReaderChannelMethodInvoke.setLocation, [json.encode(locator), isAudioBookWithText]);
-
   /// Set EPUB preferences.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
@@ -61,12 +48,6 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
-
-  /// Check if a locator is currently visible on screen.
-  Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(
-    _ReaderChannelMethodInvoke.isLocatorVisible,
-    json.encode(locator),
-  ).then((final isVisible) => isVisible!).onError((final error, final _) => true);
 
   Future<void> dispose() async {
     try {

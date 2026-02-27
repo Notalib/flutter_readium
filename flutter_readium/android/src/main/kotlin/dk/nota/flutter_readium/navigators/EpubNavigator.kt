@@ -332,30 +332,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         navigatorStarted.first { it }
     }
 
-    suspend fun getLocatorFragments(locator: Locator): Locator? {
-        val json =
-            evaluateJavascript("window.epubPage.getLocatorFragments(${locator.toJSON()}, $isVerticalScroll)")
-        try {
-            if (json == null || json == "null" || json == "undefined") {
-                Log.e(
-                    TAG,
-                    "getLocatorFragments: window.epubPage.getVisibleRange failed!"
-                )
-                return null
-            }
-            val jsonLocator = jsonDecode(json) as JSONObject
-            val locatorWithFragments = Locator.fromJSON(jsonLocator)
-
-            return locatorWithFragments
-        } catch (e: Exception) {
-            Log.e(
-                TAG,
-                "getLocatorFragments: window.epubPage.getVisibleRange json: $json failed! $e"
-            )
-        }
-        return null
-    }
-
     suspend fun firstVisibleElementLocator(): Locator? {
         val navigator = epubNavigator
         if (navigator == null) {

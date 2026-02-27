@@ -327,12 +327,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
-  private func setLocation(locator: Locator, isAudioBookWithText: Bool) async -> Result<Any, Error> {
-    let json = locator.jsonString ?? "null"
-
-    return await evaluateJavascript("window.epubPage.setLocation(\(json), \(isAudioBookWithText));")
-  }
-
   private func emitOnPageChanged() {
     guard let locator = readiumViewController.currentLocation else {
       print(TAG, "emitOnPageChanged: currentLocation = nil!")
@@ -353,7 +347,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
       Task.detached(priority: .high) {
         await self.goToLocator(locator: locator, animated: animated)
-        let _ = await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
         await MainActor.run() {
           result(true)
         }
@@ -381,18 +374,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         }
       }
       break
-    case "setLocation":
-      let args = call.arguments as! [Any]
-      print(TAG, "onMethodCall[setLocation] locator = \(args[0] as! String)")
-      let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
-      let isAudioBookWithText = args[1] as? Bool ?? false
-      Task.detached(priority: .high) {
-        let _ = await self.setLocation(locator: locator, isAudioBookWithText: isAudioBookWithText)
-        return await MainActor.run() {
-          result(true)
-        }
-      }
-      break
     case "getLocatorFragments":
       let args = call.arguments as? String ?? "null"
       Task.detached(priority: .high) {
@@ -408,16 +389,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
           }
         }
       }
-      break
-    case "isLocatorVisible":
-      let args = call.arguments as! String
-      print(TAG, "onMethodCall[isLocatorVisible] locator = \(args)")
-      let locator = try! Locator(jsonString: args, warnings: readiumBugLogger)!
-      if locator.href != self.readiumViewController.currentLocation?.href {
-        result(false)
-        return
-      }
-      evaluateJSReturnResult("window.epubPage.isLocatorVisible(\(args));", result: result)
       break
     case "setPreferences":
       let args = call.arguments as! [String: String]

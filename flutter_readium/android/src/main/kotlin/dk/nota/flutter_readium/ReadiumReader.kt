@@ -765,7 +765,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 )
             },
             { language, availableVoices -> null },
-            AndroidTtsPreferences())?.voices ?: setOf()
+            AndroidTtsPreferences()
+        )?.voices ?: setOf()
     }
 
     fun ttsGetPreferences(): FlutterTtsPreferences? {
