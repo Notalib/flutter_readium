@@ -7,7 +7,9 @@ import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.throttleLatest
+import dk.nota.flutter_readium.time
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,9 +25,13 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.util.getOrElse
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -223,6 +229,32 @@ open class AudiobookNavigator(
                     Log.d(TAG, ": AudioNavigator settings changed: $s")
                 }
         }
+    }
+
+    @OptIn(InternalReadiumApi::class)
+    override fun onCurrentLocatorChanges(locator: Locator) {
+        var emittingLocator = locator
+
+        locator.locations.time?.let { time ->
+            var matchedTocItem: Link? = null
+            for (link in publication.tableOfContents.flatten().filter { it.href.resolve().cleanHref() == locator.href.cleanHref() }) {
+                val tocTime = link.href.time ?: continue
+                if (tocTime > time) {
+                    continue
+                }
+                matchedTocItem = link
+            }
+
+            matchedTocItem?.href?.resolve()?.let {
+                emittingLocator = emittingLocator.copy(
+                    locations =  emittingLocator.locations.copy(
+                        otherLocations = emittingLocator.locations.otherLocations + ( "toc" to it )
+                    )
+                )
+            }
+        }
+
+        super.onCurrentLocatorChanges(emittingLocator)
     }
 
     override fun onPlaybackStateChanged(pb: AudioNavigator.Playback) {

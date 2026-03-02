@@ -26,6 +26,9 @@ import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
+import java.util.Locale
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
@@ -166,7 +169,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonString =
             this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1,  null,link.title ?: "")
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "")
     }
         .map { mo ->
             val items = mo.items.map { item ->
@@ -177,9 +180,15 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
 
                 if (match?.second != null) {
                     lastTocMatch = match
-                    item.copy(title = match.second.title ?: "", tocHref = match.second.href.resolve())
+                    item.copy(
+                        title = match.second.title ?: "",
+                        tocHref = match.second.href.resolve()
+                    )
                 } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(title = lastTocMatch.second.title ?: "", tocHref = lastTocMatch.second.href.resolve())
+                    item.copy(
+                        title = lastTocMatch.second.title ?: "",
+                        tocHref = lastTocMatch.second.href.resolve()
+                    )
                 } else {
                     item
                 }
@@ -332,3 +341,29 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
  * Remove query and fragment from the Url
  */
 fun Url.cleanHref() = removeFragment().removeQuery()
+
+/**
+ * Remove query and fragment from the Href
+ */
+fun Href.cleanHref() = Href(resolve().cleanHref())
+
+val Href.fragmentParameters: Map<String, String>
+    get() = resolve()
+        .fragment
+        // Splits parameters
+        ?.split("&")
+        ?.filter { !it.startsWith("=") }
+        ?.map { it.split("=") }
+        // Only keep named parameters
+        ?.filter { it.size == 2 }
+        ?.associate { it[0].trim().lowercase(Locale.ROOT) to it[1].trim() }
+        ?: mapOf()
+
+
+/**
+ * Media fragment, used for example in audiobooks.
+ *
+ * https://www.w3.org/TR/media-frags/
+ */
+val Href.time: Duration? get() =
+    fragmentParameters["t"]?.toIntOrNull()?.seconds

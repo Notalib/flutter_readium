@@ -40,6 +40,7 @@ import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
@@ -614,12 +615,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         // TODO: Notify client
     }
 
+    @OptIn(InternalReadiumApi::class)
     override fun onTimebasedCurrentLocatorChanges(
         locator: Locator, currentReadingOrderLink: Link?
     ) {
         val duration = currentReadingOrderLink?.duration
         val timeOffset =
-            locator.locations.fragments.find { it.startsWith("t=") }?.substring(2)?.toDoubleOrNull()
+            locator.locations.time?.inWholeSeconds?.toDouble()
                 ?: (duration?.let { duration ->
                     locator.locations.progression?.let { prog -> duration * prog }
                 })
