@@ -1,34 +1,45 @@
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-
 import { initResponsiveTables } from './Tables';
 
-import { Readium } from 'types';
+import { PageInformation, Readium } from 'types';
 import './EpubPage.scss';
 
 declare const isIos: boolean;
 declare const isAndroid: boolean;
 declare const webkit: any;
 declare const readium: Readium;
-declare const Android: any | null;
 
 export class EpubPage {
-  /**
-   * Get page fragments.
-   */
-  public getPageFragments(isVerticalScroll: boolean): string[] {
-    try {
+  private get _isScrollModeEnabled(): boolean {
+    return getComputedStyle(document.documentElement).getPropertyValue("--USER__view") === "readium-scroll-on";
+  }
+
+  public getPageInformation(): PageInformation {
+    const physicalPageIndex = this._findCurrentPhysicalPage();
+
+    if (readium?.isReflowable) {
+      if (this._isScrollModeEnabled) {
+        return {
+          pageIndex: null,
+          totalPages: null,
+          physicalPageIndex,
+        }
+      }
+
       const { scrollLeft, scrollWidth } = document.scrollingElement;
-
       const { innerWidth } = window;
-      const pageIndex = isVerticalScroll ? null : Math.round(scrollLeft / innerWidth) + 1;
-      const totalPages = isVerticalScroll ? null : Math.round(scrollWidth / innerWidth);
-
-      return [`page=${pageIndex}`, `totalPages=${totalPages}`];
-    } catch (error) {
-      this._errorLog(error);
-
-      return [];
+      return {
+        pageIndex: this._isScrollModeEnabled ? null : Math.round(scrollLeft / innerWidth) + 1,
+        totalPages: this._isScrollModeEnabled ? null : Math.round(scrollWidth / innerWidth),
+        physicalPageIndex,
+      }
     }
+
+    // Assume fixed layout has only one page, and the physical page index is determined by the current visible element.
+    return {
+      pageIndex: 1,
+      totalPages: 1,
+      physicalPageIndex,
+    };
   }
 
   private _isPageBreakElement(element: Element | null): boolean {
@@ -69,7 +80,14 @@ export class EpubPage {
     return sibs;
   }
 
-  public findCurrentPhysicalPage(cssSelector: string): string | null {
+  /**
+   * Find the current physical page index.
+   *
+   * @returns The physical page index, or null if it cannot be determined.
+   */
+  public _findCurrentPhysicalPage(): string | null {
+    const cssSelector = readium.findFirstVisibleLocator()?.locations?.cssSelector;
+
     let element = document.querySelector(cssSelector);
 
     if (element == null) {
@@ -80,7 +98,7 @@ export class EpubPage {
       return this._getPhysicalPageIndexFromElement(element as HTMLElement);
     }
 
-    while (element.nodeType === Node.ELEMENT_NODE) {
+    while (!!element && element.nodeType === Node.ELEMENT_NODE) {
       const siblings = this._getAllSiblings(element);
       if (siblings == null) {
         return;

@@ -13,6 +13,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.events.ReadiumReaderStatus
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
+import dk.nota.flutter_readium.models.PageInformation
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
@@ -210,7 +211,23 @@ class ReadiumReaderWidget(
 
     private suspend fun emitOnPageChanged(locator: Locator) {
         try {
-            val emittingLocator = ReadiumReader.epubFindCurrentToc(locator)
+            var emittingLocator = ReadiumReader.epubFindCurrentToc(locator)
+            try {
+                evaluateJavascript("window.epubPage.getPageInformation()")?.let {
+                    PageInformation.fromJson(
+                        it
+                    )
+                }?.let { pageInfo ->
+                    emittingLocator = emittingLocator.copy(
+                        locations = emittingLocator.locations.copy(
+                            otherLocations = emittingLocator.locations.otherLocations + pageInfo.otherLocations,
+                        ),
+                    );
+                }
+            } catch (e: Error) {
+                Log.d(TAG, ":pageInformation error: $e")
+            }
+
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)
             Log.d(TAG, "emitOnPageChanged: emitted $emittingLocator")

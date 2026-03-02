@@ -25,24 +25,25 @@ export interface ComicFramePosition {
  * Readium JS library injected by kotlin/swift-toolkit.
  **/
 export interface Readium {
-  link: any;
-  isFixedLayout: boolean;
-  isReflowable: boolean;
+  get isFixedLayout(): boolean | undefined;
+  get isReflowable(): boolean | undefined;
 
   /**
    * @param progression // Position must be in the range [0 - 1], 0-100%.
    */
   scrollToPosition(progression: number): void;
 
-  getColumnCountPerScreen(): void;
-
-  isScrollModeEnabled(): boolean;
-
-  isVerticalWritingMode(): boolean;
-  
-  // Scroll to the given TagId in document and snap.
+  /**
+   * Scroll to the given TagId in document and snap.
+   */
   scrollToId(id: string): void;
 
+  /**
+   * Scrolls to the first occurrence of the given text snippet.
+   *
+   * The expected text argument is a Locator object, as defined here:
+   * https://readium.org/architecture/models/locators/
+   */
   scrollToLocator(locator: Locator): void;
 
   scrollToStart(): void;
@@ -51,16 +52,14 @@ export interface Readium {
 
   scrollLeft(): void;
 
-  snapCurrentOffset(): void;
-
-  rangeFromLocator(): Range;
+  scrollRight(): void;
 
   setCSSProperties(properties: Record<string, string>): void;
 
   setProperty(key: string, value: string): void;
 
   removeProperty(key: string): void;
-  
+
   getCurrentSelection(): CurrentSelection;
 
   registerDecorationTemplates(newStyles: Record<string, any>): void;
@@ -132,4 +131,10 @@ export interface CurrentSelectionRect {
 export interface CurrentSelection {
   text: CurrentSelectionText;
   rect: CurrentSelectionRect;
+}
+
+export interface PageInformation {
+  pageIndex: number | null;
+  totalPages: number | null;
+  physicalPageIndex: string | null;
 }
