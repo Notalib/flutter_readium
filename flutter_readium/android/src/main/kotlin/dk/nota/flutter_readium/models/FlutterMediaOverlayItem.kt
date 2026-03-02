@@ -26,6 +26,11 @@ data class FlutterMediaOverlayItem(
     val position: Int,
 
     /**
+     * The ToC item for this item.
+     */
+    val tocHref: Url?,
+
+    /**
      * The title of the chapter or section this item belongs to
      */
     val title: String
@@ -114,6 +119,7 @@ data class FlutterMediaOverlayItem(
             textLocator.copy(
                 locations = textLocator.locations.copy(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
+                    otherLocations = textLocator.locations.otherLocations + ("toc" to tocHref.toString())
                 ),
             )
         }
@@ -142,11 +148,11 @@ data class FlutterMediaOverlayItem(
          * Creates a [FlutterMediaOverlayItem] from a JSON object.
          * Returns null if the JSON object does not contain valid "audio" and "text"
          */
-        fun fromJson(json: JSONObject, position: Int, title: String): FlutterMediaOverlayItem? {
+        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
             return if (audio != "" && text != "") {
-                FlutterMediaOverlayItem(audio, text, position, title)
+                FlutterMediaOverlayItem(audio, text, position, tocHref, title)
             } else {
                 null
             }

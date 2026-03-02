@@ -153,10 +153,10 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 
     // Flatten TOC for title lookup
-    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it.title) }
+    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it) }
 
     // Remember last matched TOC item for titles
-    var lastTocMatch: Pair<String, String?>? = null
+    var lastTocMatch: Pair<String, Link>? = null
 
     return this.readingOrder.mapNotNull { r ->
         r.alternates.find { a ->
@@ -166,7 +166,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonString =
             this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1,  null,link.title ?: "")
     }
         .map { mo ->
             val items = mo.items.map { item ->
@@ -177,9 +177,9 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
 
                 if (match?.second != null) {
                     lastTocMatch = match
-                    item.copy(title = match.second ?: "")
+                    item.copy(title = match.second.title ?: "", tocHref = match.second.href.resolve())
                 } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(title = lastTocMatch.second ?: "")
+                    item.copy(title = lastTocMatch.second.title ?: "", tocHref = lastTocMatch.second.href.resolve())
                 } else {
                     item
                 }
