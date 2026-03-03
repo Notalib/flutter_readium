@@ -62,24 +62,21 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   );
 
   List<Widget> _buildActionButtons() => <Widget>[
-    // IconButton(
-    //   icon: const Icon(Icons.headphones),
-    //   onPressed: () {
-    //     context.read<TtsSettingsBloc>().add(GetTtsVoicesEvent());
+    IconButton(
+      icon: const Icon(Icons.headphones),
+      onPressed: () {
+        context.read<TtsSettingsBloc>().add(GetTtsVoicesEvent());
 
-    //     final pubLang =
-    //         context.read<PublicationBloc>().state.publication?.metadata.language ?? ['en'];
+        final pubLang = context.read<PublicationBloc>().state.publication?.metadata.languages ?? ['en'];
 
-    //     showModalBottomSheet(
-    //       context: context,
-    //       isScrollControlled: true,
-    //       builder: (final context) => TtsSettingsWidget(
-    //         pubLang: pubLang,
-    //       ),
-    //     );
-    //   },
-    //   tooltip: 'Open tts settings',
-    // ),
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (final context) => TtsSettingsWidget(pubLang: pubLang),
+        );
+      },
+      tooltip: 'Open tts settings',
+    ),
     IconButton(
       icon: const Icon(Icons.format_paint),
       onPressed: () {
