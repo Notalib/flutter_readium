@@ -35,7 +35,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let channel: ReadiumReaderChannel
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
-  private var isVerticalScroll = false
   private var hasSentReady = false
 
   var publicationIdentifier: String?
@@ -252,24 +251,26 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   private func setUserPreferences(preferences: EPUBPreferences) {
-    isVerticalScroll = preferences.scroll ?? false
     self.readiumViewController.submitPreferences(preferences)
   }
 
   private func emitOnPageChanged(locator: Locator) -> Void {
-    let json = locator.jsonString ?? "null"
-
     print(TAG, "emitOnPageChanged:locator=\(String(describing: locator))")
 
-    Task.detached(priority: .high) { [isVerticalScroll] in
-      guard let locatorWithFragments = await self.getLocatorFragments(json, isVerticalScroll) else {
-        print(TAG, "emitOnPageChanged failed!")
-        return
+    Task.detached(priority: .high) { [locator] in
+
+      // Map the ToC location into the locator.
+      var resultLocator = (try? await FlutterReadiumPlugin.instance?.epubFindCurrentToc(locator: locator)) ?? locator
+      // Get information about current page.
+      if let pageInfo = await self.getPageInformation() {
+        resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
       }
+
+      let finalLocator = resultLocator
       await MainActor.run() {
-        self.channel.onPageChanged(locator: locatorWithFragments)
+        self.channel.onPageChanged(locator: finalLocator)
         FlutterReadiumPlugin.instance?.textLocatorStreamHandler?
-          .sendEvent(locatorWithFragments.jsonString)
+          .sendEvent(finalLocator.jsonString)
       }
     }
   }
@@ -283,44 +284,22 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  internal func getLocatorFragments(_ locatorJson: String, _ isVerticalScroll: Bool) async -> Locator? {
-    switch await self.evaluateJavascript("window.epubPage.getLocatorFragments(\(locatorJson), \(isVerticalScroll));") {
-      case .success(let jresult):
-        let locatorWithFragments = try! Locator(json: jresult as? Dictionary<String, Any?>, warnings: readiumBugLogger)!
-        return locatorWithFragments
-      case .failure(let err):
-        print(TAG, "getLocatorFragments failed! \(err)")
-        return nil
-      }
-  }
-
-  private func scrollTo(locations: Locator.Locations, toStart: Bool) async -> Void {
-    let json = locations.jsonString ?? "null"
-    print(TAG, "scrollTo: Go to locations \(json), toStart: \(toStart)")
-
-    let _ = await evaluateJavascript("window.epubPage.scrollToLocations(\(json),\(isVerticalScroll),\(toStart));")
+  internal func getPageInformation() async -> PageInformation? {
+    switch await self.evaluateJavascript("window.epubPage.getPageInformation();") {
+    case .success(let jresult):
+      let pageInfo = PageInformation.fromJson(jresult as? Dictionary<String, Any> ?? Dictionary())
+      return pageInfo
+    case .failure(let err):
+      print(TAG, "getPageInformation failed! \(err)")
+      return nil
+    }
   }
 
   func goToLocator(locator: Locator, animated: Bool) async -> Void {
-    let locations = locator.locations
-    let shouldScroll = canScroll(locations: locations)
-    let shouldGo = readiumViewController.currentLocation?.href != locator.href
     let readiumViewController = self.readiumViewController
 
-    if shouldGo {
-      print(TAG, "goToLocator: Go to \(locator.href)")
-      let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
-      if (goToSuccees && shouldScroll) {
-        await self.scrollTo(locations: locations, toStart: false)
-        self.emitOnPageChanged()
-      }
-    } else {
-      print(TAG, "goToLocator: Already there, Scroll to \(locator.href)")
-      if (shouldScroll) {
-        await self.scrollTo(locations: locations, toStart: false)
-        self.emitOnPageChanged()
-      }
-    }
+    let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+    //self.emitOnPageChanged()
   }
 
   func justGoToLocator(_ locator: Locator, animated: Bool) async -> Bool {
@@ -332,6 +311,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       print(TAG, "emitOnPageChanged: currentLocation = nil!")
       return
     }
+
     print(TAG, "emitOnPageChanged: Calling navigator:locationDidChange.")
     navigator(readiumViewController, locationDidChange: locator)
   }
@@ -371,22 +351,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         let success = await readiumViewController.goRight(options: NavigatorGoOptions(animated: animated))
         await MainActor.run() {
           result(success)
-        }
-      }
-      break
-    case "getLocatorFragments":
-      let args = call.arguments as? String ?? "null"
-      Task.detached(priority: .high) {
-        do {
-          let data = try await self.evaluateJavascript("window.epubPage.getLocatorFragments(\(args), true);").get()
-          await MainActor.run() {
-            return result(data)
-          }
-        } catch (let err) {
-          print(TAG, "getLocatorFragments error \(err)")
-          await MainActor.run() {
-            return result(false)
-          }
         }
       }
       break
@@ -458,9 +422,4 @@ func initUserScripts(registrar: FlutterPluginRegistrar) {
   }
   /// Add simple script used by our JS to detect OS
   userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-}
-
-private func canScroll(locations: Locator.Locations?) -> Bool {
-  guard let locations = locations else { return false }
-  return locations.domRange != nil || locations.cssSelector != nil || locations.progression != nil
 }

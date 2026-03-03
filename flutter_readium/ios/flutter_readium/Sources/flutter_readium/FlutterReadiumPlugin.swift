@@ -32,6 +32,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// Timebased Navigator. Can be TTS, Audio or MediaOverlay implementations.
   internal var timebasedNavigator: FlutterTimebasedNavigator? = nil
 
+  /// For EPUB profile, maps document path to a list of all the cssSelectors in the document.
+  /// This is used to find the current toc item.
+  private var currentPublicationCssSelectorMap: [String: [String]]?
+
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
     "da": "Kapitel",
@@ -510,6 +514,85 @@ extension FlutterReadiumPlugin {
       currentPublication?.close()
       currentPublication = nil
       currentPublicationUrlStr = nil
+      currentPublicationCssSelectorMap = [:]
     }
+  }
+}
+
+/// Extension for finding current ToC location
+extension FlutterReadiumPlugin {
+
+  /// Find the current table of content item from a locator.
+  func epubFindCurrentToc(locator: Locator) async throws -> Locator {
+    guard let publication = currentPublication else {
+      debugPrint(TAG, ":epubFindCurrentToc, no currentPublication")
+      return locator
+    }
+
+    guard let cssSelector = await publication.findCssSelectorForLocator(locator: locator) else {
+      debugPrint(TAG, ":epubFindCurrentToc, missing cssSelector in locator")
+      return locator
+    }
+    debugPrint(TAG, ":epubFindCurrentToc, found current selector: \(cssSelector)")
+
+    let cleanHrefPath = locator.href.path
+
+    var resultLocator = locator.copy()
+    resultLocator.locations.otherLocations["cssSelector"] = cssSelector
+
+    let contentIds = try await epubGetAllDocumentCssSelectors(hrefPath: cleanHrefPath)
+
+    guard let idx = contentIds.firstIndex(of: cssSelector) else {
+      debugPrint(TAG, ":epubFindCurrentToc cssSelector:\(cssSelector) not found in contentIds")
+      return resultLocator
+    }
+
+    guard let tocLinksFlattened = try? await publication.getFlattenedToC() else {
+      debugPrint(TAG, ":epubFindCurrentToc failed to retrieve ToC")
+      return resultLocator
+    }
+
+    let toc = Dictionary(
+      uniqueKeysWithValues:
+        tocLinksFlattened
+        .filter { RelativeURL(epubHREF: $0.href)?.path == cleanHrefPath }
+        .compactMap { item -> (Int, Link)? in
+          let fragment = RelativeURL(epubHREF: item.href)?.fragment ?? ""
+          guard let index = contentIds.firstIndex(of: "#\(fragment)") else { return nil }
+          return (index, item)
+        }
+    )
+
+    let tocItem = toc.filter { $0.key <= idx }
+                     .sorted { $0.key < $1.key }
+                     .last?.value
+      ?? toc.sorted { $0.key < $1.key }.first?.value
+
+    guard let tocItem else {
+      debugPrint(TAG, ":epubFindCurrentToc - no tocItem found")
+      return resultLocator
+    }
+    
+    debugPrint(TAG, ":epubFindCurrentToc - found tocItem: \(tocItem.title), href:\(tocItem.href)")
+
+    resultLocator.locations.otherLocations["toc"] = tocItem.href
+
+    return resultLocator.copy(title: tocItem.title)
+  }
+
+  /// Get all cssSelectors for an EPUB file.
+  func epubGetAllDocumentCssSelectors(hrefPath: String) async throws -> [String] {
+    if currentPublicationCssSelectorMap == nil {
+      currentPublicationCssSelectorMap = [:]
+    }
+
+    if let cached = currentPublicationCssSelectorMap?[hrefPath] {
+      return cached
+    }
+
+    let selectors = await currentPublication?.findAllCssSelectors(hrefRelativePath: hrefPath) ?? []
+
+    currentPublicationCssSelectorMap?[hrefPath] = selectors
+    return selectors
   }
 }
