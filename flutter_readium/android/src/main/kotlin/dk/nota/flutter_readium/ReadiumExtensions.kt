@@ -377,3 +377,14 @@ val Href.fragmentParameters: Map<String, String>
 val Href.time: Duration?
     get() =
         fragmentParameters["t"]?.toIntOrNull()?.seconds
+
+/**
+ * Returns a list of `Link` after flattening the `children`.
+ */
+fun List<Link>.flattenChildren(): List<Link> {
+    fun Link.flattenChildren(): List<Link> {
+        return listOf(this) + children.flattenChildren()
+    }
+
+    return flatMap { it.flattenChildren() }
+}
