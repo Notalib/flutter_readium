@@ -664,7 +664,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         val cleanHref = resultLocator.href.cleanHref()
         val toc = publication.tableOfContents.flatten().filter {
             it.href.resolve().cleanHref() == cleanHref
-        }.associateBy { contentIds.indexOf("${it.href.resolve().fragment}") }
+        }.associateBy { contentIds.indexOf("#${it.href.resolve().fragment}") }
 
         val tocItem = toc.entries.lastOrNull { it.key <= idx }?.value
             ?: toc.entries.firstOrNull()?.value ?: run {

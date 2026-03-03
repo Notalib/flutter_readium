@@ -310,6 +310,7 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
  * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
  */
 suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
+    // If our locator already has a cssSelector, use it.
     locator.locations.cssSelector?.takeIf { it.startsWith("#") }?.let { return it }
 
     val contentService = findService(ContentService::class) ?: run {
@@ -318,6 +319,8 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
     }
 
     val cleanHref = locator.href.cleanHref()
+
+    val locatorProgress = locator.locations.progression ?: 0.0
     for (element in contentService.content(locator)) {
         if (element !is Content.TextElement) {
             continue
@@ -328,10 +331,16 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
             break
         }
 
-        val cssSelector =
-            element.locator.locations.cssSelector?.takeIf { it.startsWith("#") } ?: continue
+        val progression =
+            element.locator.locations.progression
+                ?: 0.0
 
-        return cssSelector
+        if (progression < locatorProgress) continue
+
+        // Return the first cssSelector that starts with # after tha progression has been reached.
+        element.locator.locations.cssSelector?.takeIf { it.startsWith("#") }?.let {
+            return it
+        }
     }
 
     return null
@@ -365,5 +374,6 @@ val Href.fragmentParameters: Map<String, String>
  *
  * https://www.w3.org/TR/media-frags/
  */
-val Href.time: Duration? get() =
-    fragmentParameters["t"]?.toIntOrNull()?.seconds
+val Href.time: Duration?
+    get() =
+        fragmentParameters["t"]?.toIntOrNull()?.seconds
