@@ -406,7 +406,36 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
     print(TAG, "TimebasedNavigator state: \(state)")
-    timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
+    
+    Task.detached(priority: .high) {
+      // Find and enrich Locator with current ToC link
+      if let locator = state.currentLocator,
+         let time = locator.locations.time?.begin,
+         let pub = self.currentPublication {
+        let toc = await pub.getFlattenedToC()
+        let flattenedTocForHref = toc.filter {
+          $0.hrefPath == locator.href.path
+        }
+        var matchedTocItem: Link?
+        for tocLink in flattenedTocForHref {
+          guard let tocTime = tocLink.timeFragmentBegin else {
+            continue
+          }
+          // Save to matchedTocItem, unless timeFromFragment is past time
+          if tocTime > time {
+            break
+          }
+          matchedTocItem = tocLink
+        }
+        if let tocLinkHref = matchedTocItem?.href {
+          print(TAG, "Found matching TOC item: \(tocLinkHref)")
+          state.currentLocator?.locations.otherLocations["toc"] = tocLinkHref
+        }
+      }
+      Task { @MainActor [state] in
+        self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
+      }
+    }
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {

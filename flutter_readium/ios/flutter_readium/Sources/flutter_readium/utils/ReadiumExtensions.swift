@@ -26,7 +26,7 @@ extension Publication {
   func getFlattenedToC() async -> [Link] {
     switch await self.tableOfContents() {
     case .success(let toc):
-      return toc.flatMap{ $0.flatten() }
+      return toc.flatMap{ $0.flattened }
     case .failure(let err):
       debugPrint("failed to retrieve ToC: \(err)")
       return []
@@ -168,8 +168,35 @@ extension Link {
     }
   }
   
-  func flatten() -> [Link] {
-    return [self] + children.flatMap{ $0.flatten() }
+  /// Returns only the path part of the Link href.
+  var hrefPath: String? {
+    return URL(string: href)?.path
+  }
+  
+  /// Recursively flattens the Link and its children.
+  var flattened: [Link] {
+    return [self] + children.flatMap{ $0.flattened }
+  }
+  
+  /// Gets the time-fragment if part of the Link.
+  var timeFragment: String? {
+    if let url = URL(string: self.href),
+       let timeFragment = url.fragment?.split(separator: "&").first(where: { $0.hasPrefix("t=") }),
+       let timeComponent = timeFragment.split(separator: "=").last {
+      return String(timeComponent)
+    } else {
+      return nil
+    }
+  }
+  
+  /// Gets the Begin part of a time-fragment as Double in in the Link.
+  var timeFragmentBegin: Double? {
+    if let timeComponent = timeFragment,
+       let timeBegin = timeComponent.split(separator: ",").first {
+      return Double(timeBegin)
+    } else {
+      return nil
+    }
   }
 }
 

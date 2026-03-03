@@ -247,8 +247,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
     /// Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
-    if (info.state == .paused && info.progress >= 1 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
-      /// If paused at progress 1 of the last resource in readingOrder, we have to assume the book has ended.
+    if (info.state == .paused && info.progress >= 1.0 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
+      /// If paused at progress 1 of the last resource in readingOrder, we can assume the book has ended.
       playerState = .ended
     }
 
