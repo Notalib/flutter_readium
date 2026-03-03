@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart' show Locator;
+import 'package:flutter_readium/flutter_readium.dart' show Locator, TTSPreferences;
 import 'package:flutter_readium_example/state/index.dart';
-
-import '../state/player_controls_bloc.dart';
 
 class PlayerControls extends StatelessWidget {
   const PlayerControls({super.key, required this.isAudioBook});
@@ -32,6 +30,12 @@ class PlayerControls extends StatelessWidget {
           onPressed: state.playing
               ? () => context.read<PlayerControlsBloc>().add(Pause())
               : () {
+                  TtsSettingsState ttsSettingsState = context.read<TtsSettingsBloc>().state;
+
+                  TTSPreferences ttsPreferences = TTSPreferences(
+                    voiceIdentifier: ttsSettingsState.preferredVoices?.firstOrNull?.identifier,
+                  );
+
                   Locator? fakeInitialLocator;
                   // DEMO: Start from the 3rd item in readingOrder.
                   // final pub = context.read<PublicationBloc>().state.publication;
@@ -39,7 +43,9 @@ class PlayerControls extends StatelessWidget {
                   // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                   isAudioBook
                       ? context.read<PlayerControlsBloc>().add(Play(fromLocator: fakeInitialLocator))
-                      : context.read<PlayerControlsBloc>().add(PlayTTS(fromLocator: fakeInitialLocator));
+                      : context.read<PlayerControlsBloc>().add(
+                          PlayTTS(fromLocator: fakeInitialLocator, ttsPreferences: ttsPreferences),
+                        );
                 },
           tooltip: state.playing ? 'Pause' : 'Play',
         ),
@@ -59,11 +65,6 @@ class PlayerControls extends StatelessWidget {
           icon: const Icon(Icons.skip_next),
           onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter()),
           tooltip: 'Skip to next chapter',
-        ),
-        IconButton(
-          icon: const Icon(Icons.settings_voice),
-          onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),
-          tooltip: 'Change voice',
         ),
       ],
     ),

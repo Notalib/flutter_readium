@@ -136,8 +136,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await currentReaderWidget?.applyDecorations(id, decorations);
 
   @override
-  Future<void> ttsEnable(TTSPreferences? preferences) async =>
-      await methodChannel.invokeMethod('ttsEnable', preferences?.toJson());
+  Future<void> ttsEnable(TTSPreferences? preferences) async {
+    await methodChannel.invokeMethod('ttsEnable', preferences?.toJson());
+  }
 
   @override
   Future<void> play(Locator? fromLocator) async => await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);

@@ -8,81 +8,96 @@ import 'package:collection/collection.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
 
-abstract class PlayerControlsEvent {}
+@immutable
+abstract class PlayerControlsEvent {
+  const PlayerControlsEvent();
+}
 
+@immutable
 class PlayTTS extends PlayerControlsEvent {
-  PlayTTS({this.fromLocator});
+  const PlayTTS({this.fromLocator, this.ttsPreferences});
 
-  Locator? fromLocator;
+  final Locator? fromLocator;
+  final TTSPreferences? ttsPreferences;
 }
 
+@immutable
 class Play extends PlayerControlsEvent {
-  Play({this.fromLocator});
+  const Play({this.fromLocator, this.audioPreferences});
 
-  Locator? fromLocator;
+  final Locator? fromLocator;
+  final AudioPreferences? audioPreferences;
 }
 
+@immutable
 class Pause extends PlayerControlsEvent {}
 
+@immutable
 class Stop extends PlayerControlsEvent {}
 
+@immutable
 class TogglePlayingState extends PlayerControlsEvent {
-  TogglePlayingState({required this.isPlaying});
-  bool isPlaying;
+  const TogglePlayingState({required this.isPlaying});
+  final bool isPlaying;
 }
 
-class SkipToNext extends PlayerControlsEvent {}
+@immutable
+class SkipToNext extends PlayerControlsEvent {
+  const SkipToNext();
+}
 
-class SkipToPrevious extends PlayerControlsEvent {}
+@immutable
+class SkipToPrevious extends PlayerControlsEvent {
+  const SkipToPrevious();
+}
 
-class SkipToNextChapter extends PlayerControlsEvent {}
+@immutable
+class SkipToNextChapter extends PlayerControlsEvent {
+  const SkipToNextChapter();
+}
 
+@immutable
 class SkipToPreviousChapter extends PlayerControlsEvent {}
 
+@immutable
 class SkipToNextPage extends PlayerControlsEvent {}
 
+@immutable
 class SkipToPreviousPage extends PlayerControlsEvent {}
 
+@immutable
 class GoToLocator extends PlayerControlsEvent {
-  GoToLocator(this.locator);
+  const GoToLocator(this.locator);
 
   final Locator locator;
 }
 
-class GetAvailableVoices extends PlayerControlsEvent {}
-
+@immutable
 class PlayerControlsState {
-  PlayerControlsState({required this.playing, required this.ttsEnabled, required this.audioEnabled});
+  const PlayerControlsState({required this.playing, required this.ttsEnabled, required this.audioEnabled});
 
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
 
   Future<PlayerControlsState> togglePlay(final bool playing) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
-
-    return newState;
+    return copyWith(playing: playing);
   }
 
   Future<PlayerControlsState> toggleTTSEnabled(final bool ttsEnabled) async {
-    final newState = PlayerControlsState(
-      playing: ttsEnabled && playing,
-      ttsEnabled: ttsEnabled,
-      audioEnabled: audioEnabled,
-    );
-
-    return newState;
+    return copyWith(ttsEnabled: ttsEnabled, playing: ttsEnabled && playing);
   }
 
   Future<PlayerControlsState> toggleAudioEnabled(final bool audioEnabled) async {
-    final newState = PlayerControlsState(
-      playing: audioEnabled && playing,
-      ttsEnabled: ttsEnabled,
-      audioEnabled: audioEnabled,
-    );
-
-    return newState;
+    return copyWith(audioEnabled: audioEnabled, playing: audioEnabled && playing);
   }
+
+  PlayerControlsState copyWith({final bool? playing, final bool? ttsEnabled, final bool? audioEnabled}) =>
+      PlayerControlsState(
+        playing: playing ?? this.playing,
+        ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+        audioEnabled: audioEnabled ?? this.audioEnabled,
+      );
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
@@ -121,7 +136,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
-        await instance.ttsEnable(TTSPreferences(speed: 1.2));
+        await instance.ttsEnable(event.ttsPreferences ?? TTSPreferences(speed: 1.2));
         await instance.play(event.fromLocator);
         emit(await state.toggleTTSEnabled(true));
       } else {
@@ -132,7 +147,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-          prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
+          prefs: event.audioPreferences ?? AudioPreferences(speed: 1.5, seekInterval: 10),
           fromLocator: event.fromLocator,
         );
         emit(await state.toggleAudioEnabled(true));
@@ -169,31 +184,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<SkipToPreviousPage>((final event, final emit) => instance.goBackward());
 
     on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
-
-    on<GetAvailableVoices>((final event, final emit) async {
-      final voices = await instance.ttsGetAvailableVoices();
-
-      // Sort by identifer
-      voices.sortBy((v) => v.identifier);
-
-      for (final i in voices.groupListsBy((v) => v.language).entries) {
-        debugPrint('Language: ${i.key}');
-        debugPrint('  Available voices:');
-        for (final v in i.value) {
-          debugPrint(
-            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
-          );
-        }
-      }
-
-      final dkVoices = voices.where((v) => v.language == "da-DK").toList();
-
-      // TODO: Demo: change to first voice matching "da-DK" language.
-      final daVoice = dkVoices.lastOrNull;
-      if (daVoice != null) {
-        await instance.ttsSetVoice(daVoice.identifier, daVoice.language);
-      }
-    });
 
     @override
     // ignore: unused_element

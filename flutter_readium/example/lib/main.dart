@@ -16,17 +16,15 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory:
-        kIsWeb ? HydratedStorageDirectory.web : HydratedStorageDirectory((await getTemporaryDirectory()).path),
+    storageDirectory: kIsWeb
+        ? HydratedStorageDirectory.web
+        : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
 
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (final _) => PublicationBloc(),
-          lazy: false,
-        ),
+        BlocProvider(create: (final _) => PublicationBloc(), lazy: false),
         BlocProvider(
           create: (final _) {
             final bloc = TextSettingsBloc();
@@ -34,10 +32,7 @@ Future<void> main() async {
             return bloc;
           },
         ),
-        // BlocProvider(
-        //   create: (final _) => TtsSettingsBloc(),
-        //   lazy: false,
-        // ),
+        BlocProvider(create: (final _) => TtsSettingsBloc(), lazy: false),
         BlocProvider(create: (final _) => PlayerControlsBloc()),
       ],
       child: MyApp(),
