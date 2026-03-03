@@ -8,6 +8,7 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,7 +32,6 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.util.getOrElse
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -237,10 +237,11 @@ open class AudiobookNavigator(
 
         locator.locations.time?.let { time ->
             var matchedTocItem: Link? = null
-            for (link in publication.tableOfContents.flatten().filter { it.href.resolve().cleanHref() == locator.href.cleanHref() }) {
+            val cleanHref = locator.href.cleanHref()
+            for (link in publication.tableOfContents.flattenChildren().filter { it.href.resolve().cleanHref() == cleanHref }) {
                 val tocTime = link.href.time ?: continue
                 if (tocTime > time) {
-                    continue
+                    break
                 }
                 matchedTocItem = link
             }

@@ -321,6 +321,7 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
     val cleanHref = locator.href.cleanHref()
 
     val locatorProgress = locator.locations.progression ?: 0.0
+    var cssSelector: String? = null
     for (element in contentService.content(locator)) {
         if (element !is Content.TextElement) {
             continue
@@ -331,19 +332,18 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
             break
         }
 
-        val progression =
-            element.locator.locations.progression
-                ?: 0.0
+        val eCssSelector = element.locator.locations.cssSelector?.takeIf { it.startsWith("#") }
+        if (eCssSelector == null || !eCssSelector.startsWith("#")) continue
 
-        if (progression < locatorProgress) continue
-
-        // Return the first cssSelector that starts with # after tha progression has been reached.
-        element.locator.locations.cssSelector?.takeIf { it.startsWith("#") }?.let {
-            return it
+        val progression = element.locator.locations.progression ?: 0.0
+        if (progression > locatorProgress && cssSelector != null) {
+            break
         }
+
+        cssSelector = eCssSelector
     }
 
-    return null
+    return cssSelector
 }
 
 /**
@@ -377,3 +377,14 @@ val Href.fragmentParameters: Map<String, String>
 val Href.time: Duration?
     get() =
         fragmentParameters["t"]?.toIntOrNull()?.seconds
+
+/**
+ * Returns a list of `Link` after flattening the `children`.
+ */
+fun List<Link>.flattenChildren(): List<Link> {
+    fun Link.flattenChildren(): List<Link> {
+        return listOf(this) + children.flattenChildren()
+    }
+
+    return flatMap { it.flattenChildren() }
+}

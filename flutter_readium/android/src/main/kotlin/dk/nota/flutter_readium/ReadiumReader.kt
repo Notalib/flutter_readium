@@ -47,7 +47,6 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
-import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -655,14 +654,14 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         val resultLocator = locator.copyWithLocations(otherLocations = locator.locations.otherLocations + ("cssLocator" to cssSelector))
 
-        val contentIds = epubGetAllDocumentCssSelectors(locator.href)
+        val contentIds = epubGetAllDocumentCssSelectors(resultLocator.href)
         val idx = contentIds.indexOf(cssSelector).takeIf { it > -1 } ?: run {
             Log.d(TAG, ":epubFindCurrentToc cssSelector:${cssSelector} not found in contentIds")
             return resultLocator
         }
 
         val cleanHref = resultLocator.href.cleanHref()
-        val toc = publication.tableOfContents.flatten().filter {
+        val toc = publication.tableOfContents.flattenChildren().filter {
             it.href.resolve().cleanHref() == cleanHref
         }.associateBy { contentIds.indexOf("#${it.href.resolve().fragment}") }
 
