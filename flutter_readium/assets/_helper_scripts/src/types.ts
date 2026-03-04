@@ -134,8 +134,8 @@ export interface CurrentSelection {
 }
 
 export interface PageInformation {
-  pageIndex?: number | null;
+  page?: number | null;
   totalPages?: number | null;
-  physicalPageIndex?: string | null;
+  physicalPage?: string | null;
   cssSelector?: string | null;
 }

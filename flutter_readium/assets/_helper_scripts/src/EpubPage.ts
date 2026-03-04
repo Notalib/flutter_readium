@@ -14,35 +14,35 @@ export class EpubPage {
   }
 
   public getPageInformation(): PageInformation {
-    const physicalPageIndex = this._findCurrentPhysicalPage();
+    const physicalPage = this._findCurrentPhysicalPage();
     const locator = readium.findFirstVisibleLocator();
-    let pageIndex: number | null;
+    let page: number | null;
     let totalPages: number | null;
     const cssSelector = locator?.locations?.cssSelector ?? null;
 
     if (readium.isReflowable) {
       if (this._isScrollModeEnabled) {
         // Page index doesn't make sense in scroll mode.
-        pageIndex = null;
+        page = null;
         totalPages = null;
       } else {
         // Calculate page index based on scroll position and viewport width.
         const { scrollLeft, scrollWidth } = document.scrollingElement;
         const { innerWidth } = window;
-        pageIndex = Math.round(scrollLeft / innerWidth) + 1;
+        page = Math.round(scrollLeft / innerWidth) + 1;
         totalPages = Math.round(scrollWidth / innerWidth);
       }
     } else {
       // Fixed layout books is single page files.
-      pageIndex = 1;
+      page = 1;
       totalPages = 1;
     }
 
     // Assume fixed layout has only one page, and the physical page index is determined by the current visible element.
     return {
-      pageIndex: 1,
-      totalPages: 1,
-      physicalPageIndex,
+      page,
+      totalPages,
+      physicalPage,
       cssSelector,
     };
   }
@@ -52,7 +52,7 @@ export class EpubPage {
       return false;
     }
 
-    return element.getAttribute('type') === 'pagebreak';
+    return element.getAttributeNS("http://www.idpf.org/2007/ops", "type") === 'pagebreak' || element.getAttribute('type') === 'pagebreak';
   }
 
   private _getPhysicalPageIndexFromElement(element: HTMLElement): string | null {
@@ -66,13 +66,7 @@ export class EpubPage {
       return this._getPhysicalPageIndexFromElement(element as HTMLElement);
     }
 
-    const pageBreakElement = element?.querySelector('.page-normal, .page-front, .page-special');
-
-    if (pageBreakElement == null) {
-      return null;
-    }
-
-    return this._getPhysicalPageIndexFromElement(pageBreakElement as HTMLElement);
+    return null;
   }
 
   private _getAllSiblings(elem: ChildNode): HTMLElement[] | null {
@@ -90,11 +84,10 @@ export class EpubPage {
    *
    * @returns The physical page index, or null if it cannot be determined.
    */
-  public _findCurrentPhysicalPage(): string | null {
+  private _findCurrentPhysicalPage(): string | null {
     const cssSelector = readium.findFirstVisibleLocator()?.locations?.cssSelector;
 
     let element = document.querySelector(cssSelector);
-
     if (element == null) {
       return;
     }
@@ -114,7 +107,6 @@ export class EpubPage {
         const e = siblings[i];
 
         const pageBreakIndex = this._findPhysicalPageIndex(e);
-
         if (pageBreakIndex != null) {
           return pageBreakIndex;
         }

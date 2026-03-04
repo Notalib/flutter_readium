@@ -4,20 +4,20 @@ import dk.nota.flutter_readium.jsonDecode
 import org.json.JSONObject
 
 class PageInformation(
-    val pageIndex: Long?,
+    val page: Long?,
     val totalPages: Long?,
-    val physicalPageIndex: String?,
+    val physicalPage: String?,
     val cssSelector: String?
 ) {
     val otherLocations: Map<String, Any>
         get() {
             val res = mutableMapOf<String, Any>()
-            if (pageIndex != null && totalPages != null) {
-                res["currentPage"] = pageIndex
+            if (page != null && totalPages != null) {
+                res["currentPage"] = page
                 res["totalPages"] = totalPages
             }
 
-            physicalPageIndex?.takeIf { it.isNotEmpty() }?.let {
+            physicalPage?.takeIf { it.isNotEmpty() }?.let {
                 res["physicalPage"] = it
             }
 
@@ -31,12 +31,12 @@ class PageInformation(
         fun fromJson(json: String): PageInformation = fromJson(jsonDecode(json) as JSONObject)
 
         fun fromJson(json: JSONObject): PageInformation {
-            val pageIndex = json.optLong("pageIndex")
+            val page = json.optLong("page")
             val totalPages = json.optLong("totalPages")
-            val physicalPageIndex = json.optString("physicalPageIndex")
+            val physicalPage = json.optString("physicalPage").takeIf {it.isNotEmpty()}
             val cssSelector = json.optString("cssSelector")
 
-            return PageInformation(pageIndex, totalPages, physicalPageIndex, cssSelector)
+            return PageInformation(page, totalPages, physicalPage, cssSelector)
         }
     }
 }

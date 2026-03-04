@@ -177,7 +177,8 @@ class ReadiumReaderWidget(
 
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
             }
-            emitOnPageChanged(locator)
+
+            emitOnPageChanged(pageIndex, totalPages,locator)
         }
     }
 
@@ -209,9 +210,10 @@ class ReadiumReaderWidget(
         updatePreferences(newPreferences)
     }
 
-    private suspend fun emitOnPageChanged(locator: Locator) {
+    private suspend fun emitOnPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
         try {
-            var emittingLocator = ReadiumReader.epubFindCurrentToc(locator)
+            var emittingLocator = locator
+
             try {
                 evaluateJavascript("window.epubPage.getPageInformation()")?.let {
                     PageInformation.fromJson(
@@ -227,6 +229,14 @@ class ReadiumReaderWidget(
             } catch (e: Error) {
                 Log.d(TAG, ":pageInformation error: $e")
             }
+
+            emittingLocator = emittingLocator.copy(
+                locations = emittingLocator.locations.copy(
+                    otherLocations = emittingLocator.locations.otherLocations + ("currentPage" to pageIndex) + ("totalPages" to totalPages)
+                )
+            )
+
+            emittingLocator = ReadiumReader.epubFindCurrentToc(emittingLocator)
 
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)

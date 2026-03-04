@@ -47,7 +47,6 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
-import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -644,7 +643,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     suspend fun epubFindCurrentToc(locator: Locator): Locator {
         val publication = currentPublication ?: run {
-            Log.e(TAG, ":epubFindCurrentToc, no currentPublication")
+            Log.e(TAG, ":epubFindCurrentToc - no currentPublication")
             return locator
         }
 
@@ -654,23 +653,33 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         val cssSelector = publication.findCssSelectorForLocator(locator) ?: run {
-            Log.e(TAG, ":epubFindCurrentToc, missing cssSelector in locator")
+            Log.e(TAG, ":epubFindCurrentToc - missing cssSelector in locator")
             return locator
         }
 
         val resultLocator =
-            locator.copyWithLocations(otherLocations = locator.locations.otherLocations + ("cssLocator" to cssSelector))
-
-        val contentIds = epubGetAllDocumentCssSelectors(resultLocator.href)
-        val idx = contentIds.indexOf(cssSelector).takeIf { it > -1 } ?: run {
-            Log.d(TAG, ":epubFindCurrentToc cssSelector:${cssSelector} not found in contentIds")
-            return resultLocator
-        }
+            locator.copyWithLocations(
+                otherLocations = locator.locations.otherLocations +
+                    ("cssSelector" to cssSelector)
+            )
 
         val cleanHref = resultLocator.href.cleanHref()
-        val toc = publication.tableOfContents.flattenChildren().filter {
-            it.href.resolve().cleanHref() == cleanHref
-        }.associateBy { contentIds.indexOf("#${it.href.resolve().fragment}") }
+        val tocLinks = publication.tableOfContents.flattenChildren().filter {
+            it.href.resolve().cleanHref().path == cleanHref.path
+        }
+
+        val documentCssSelectors = epubGetAllDocumentCssSelectors(resultLocator.href)
+        val idx = documentCssSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: run {
+            // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
+            Log.d(
+                TAG,
+                ":epubFindCurrentToc cssSelector:${cssSelector} not found in contentIds, assume idx = 0"
+            )
+            0
+        }
+
+        val toc =
+            tocLinks.associateBy { documentCssSelectors.indexOf("#${it.href.resolve().fragment}") }
 
         val tocItem = toc.entries.lastOrNull { it.key <= idx }?.value
             ?: toc.entries.firstOrNull()?.value ?: run {
@@ -681,8 +690,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         return resultLocator.copy(
             title = tocItem.title
         ).copyWithLocations(
-            otherLocations = resultLocator.locations.otherLocations + ("toc" to tocItem.href.resolve()
-                .toString())
+            otherLocations = resultLocator.locations.otherLocations +
+                ("toc" to tocItem.href.resolve().toString())
         )
     }
 
@@ -993,6 +1002,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     /**
      * Get all cssSelectors for an EPUB file.
+     * Note: These only includes text elements, so body, page breaks etc are not included.
      */
     suspend fun epubGetAllDocumentCssSelectors(href: Url): List<String> {
         val cssSelectorMap = currentPublicationCssSelectorMap ?: mutableMapOf()
