@@ -647,12 +647,18 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             return locator
         }
 
+        if (!publication.conformsTo(Publication.Profile.EPUB)) {
+            Log.d(TAG, ":epubFindCurrentToc - not an EPUB profile")
+            return locator
+        }
+
         val cssSelector = publication.findCssSelectorForLocator(locator) ?: run {
             Log.e(TAG, ":epubFindCurrentToc, missing cssSelector in locator")
             return locator
         }
 
-        val resultLocator = locator.copyWithLocations(otherLocations = locator.locations.otherLocations + ("cssLocator" to cssSelector))
+        val resultLocator =
+            locator.copyWithLocations(otherLocations = locator.locations.otherLocations + ("cssLocator" to cssSelector))
 
         val contentIds = epubGetAllDocumentCssSelectors(resultLocator.href)
         val idx = contentIds.indexOf(cssSelector).takeIf { it > -1 } ?: run {

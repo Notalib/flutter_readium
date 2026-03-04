@@ -15,23 +15,27 @@ export class EpubPage {
 
   public getPageInformation(): PageInformation {
     const physicalPageIndex = this._findCurrentPhysicalPage();
+    const locator = readium.findFirstVisibleLocator();
+    let pageIndex: number | null;
+    let totalPages: number | null;
+    const cssSelector = locator?.locations?.cssSelector ?? null;
 
-    if (readium?.isReflowable) {
+    if (readium.isReflowable) {
       if (this._isScrollModeEnabled) {
-        return {
-          pageIndex: null,
-          totalPages: null,
-          physicalPageIndex,
-        }
+        // Page index doesn't make sense in scroll mode.
+        pageIndex = null;
+        totalPages = null;
+      } else {
+        // Calculate page index based on scroll position and viewport width.
+        const { scrollLeft, scrollWidth } = document.scrollingElement;
+        const { innerWidth } = window;
+        pageIndex = Math.round(scrollLeft / innerWidth) + 1;
+        totalPages = Math.round(scrollWidth / innerWidth);
       }
-
-      const { scrollLeft, scrollWidth } = document.scrollingElement;
-      const { innerWidth } = window;
-      return {
-        pageIndex: this._isScrollModeEnabled ? null : Math.round(scrollLeft / innerWidth) + 1,
-        totalPages: this._isScrollModeEnabled ? null : Math.round(scrollWidth / innerWidth),
-        physicalPageIndex,
-      }
+    } else {
+      // Fixed layout books is single page files.
+      pageIndex = 1;
+      totalPages = 1;
     }
 
     // Assume fixed layout has only one page, and the physical page index is determined by the current visible element.
@@ -39,6 +43,7 @@ export class EpubPage {
       pageIndex: 1,
       totalPages: 1,
       physicalPageIndex,
+      cssSelector,
     };
   }
 

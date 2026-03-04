@@ -343,7 +343,7 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
         cssSelector = eCssSelector
     }
 
-    return cssSelector
+    return cssSelector?.takeIf { it.isNotEmpty() && it.startsWith("#") }
 }
 
 /**
@@ -354,7 +354,7 @@ fun Url.cleanHref() = removeFragment().removeQuery()
 /**
  * Remove query and fragment from the Href
  */
-fun Href.cleanHref() = Href(resolve().cleanHref())
+fun Href.cleanHref(): Href = Href(resolve().cleanHref())
 
 val Href.fragmentParameters: Map<String, String>
     get() = resolve()
