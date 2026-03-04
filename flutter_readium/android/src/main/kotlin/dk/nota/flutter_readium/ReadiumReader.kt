@@ -47,6 +47,7 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.allAreHtml
+import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language

@@ -71,8 +71,10 @@ open class AudiobookNavigator(
                 DatabaseMediaMetadataFactory(
                     publication = publication,
                     trackCount = pub.readingOrder.size,
-                    controlPanelInfoType = preferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
-                )})
+                    controlPanelInfoType = preferences.controlPanelInfoType
+                        ?: ControlPanelInfoType.STANDARD
+                )
+            })
         )
 
         if (navigatorFactory == null) {
@@ -237,8 +239,10 @@ open class AudiobookNavigator(
 
         locator.locations.time?.let { time ->
             var matchedTocItem: Link? = null
-            val cleanHref = locator.href.cleanHref()
-            for (link in publication.tableOfContents.flattenChildren().filter { it.href.resolve().cleanHref() == cleanHref }) {
+            val cleanHref = locator.href.cleanHref().path
+            for (link in publication.tableOfContents.flattenChildren().filter {
+                it.href.resolve().cleanHref().path == cleanHref
+            }) {
                 val tocTime = link.href.time ?: continue
                 if (tocTime > time) {
                     break
@@ -248,8 +252,8 @@ open class AudiobookNavigator(
 
             matchedTocItem?.href?.resolve()?.let {
                 emittingLocator = emittingLocator.copy(
-                    locations =  emittingLocator.locations.copy(
-                        otherLocations = emittingLocator.locations.otherLocations + ( "toc" to it )
+                    locations = emittingLocator.locations.copy(
+                        otherLocations = emittingLocator.locations.otherLocations + ("toc" to it)
                     )
                 )
             }

@@ -291,7 +291,7 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
             continue
         }
 
-        if (element.locator.href.cleanHref() != cleanHref) {
+        if (element.locator.href.cleanHref().path != cleanHref.path) {
             // We iterated to the next document, stopping
             break
         }
@@ -327,7 +327,7 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
             continue
         }
 
-        if (element.locator.href.cleanHref() != cleanHref) {
+        if (element.locator.href.cleanHref().path != cleanHref.path) {
             // We iterated to the next document, stopping
             break
         }
@@ -350,11 +350,6 @@ suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
  * Remove query and fragment from the Url
  */
 fun Url.cleanHref() = removeFragment().removeQuery()
-
-/**
- * Remove query and fragment from the Href
- */
-fun Href.cleanHref(): Href = Href(resolve().cleanHref())
 
 val Href.fragmentParameters: Map<String, String>
     get() = resolve()
