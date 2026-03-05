@@ -259,7 +259,7 @@ fun Locator.getTextId(): String? {
 fun Locator.copyWithTimeFragment(time: Double): Locator {
     return copy(
         locations = locations.copy(
-            fragments = listOf("${time}")
+            fragments = listOf("t=${time}")
         )
     )
 }

@@ -178,7 +178,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
             }
 
-            emitOnPageChanged(pageIndex, totalPages,locator)
+            emitOnPageChanged(pageIndex, totalPages, locator)
         }
     }
 
@@ -217,7 +217,7 @@ class ReadiumReaderWidget(
             try {
                 evaluateJavascript("window.epubPage.getPageInformation()")?.let {
                     PageInformation.fromJson(
-                        it
+                        it, locator.href
                     )
                 }?.let { pageInfo ->
                     emittingLocator = emittingLocator.copy(

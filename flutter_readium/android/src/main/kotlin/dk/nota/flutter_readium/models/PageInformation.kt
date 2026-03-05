@@ -1,21 +1,21 @@
 package dk.nota.flutter_readium.models
 
+import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.jsonDecode
 import org.json.JSONObject
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.extensions.optNullableString
+import org.readium.r2.shared.util.Url
 
 class PageInformation(
-    val page: Long?,
-    val totalPages: Long?,
     val physicalPage: String?,
-    val cssSelector: String?
+    val cssSelector: String?,
+    val href: String,
+    val tocId: String?
 ) {
     val otherLocations: Map<String, Any>
         get() {
             val res = mutableMapOf<String, Any>()
-            if (page != null && totalPages != null) {
-                res["currentPage"] = page
-                res["totalPages"] = totalPages
-            }
 
             physicalPage?.takeIf { it.isNotEmpty() }?.let {
                 res["physicalPage"] = it
@@ -24,19 +24,31 @@ class PageInformation(
             cssSelector?.takeIf { it.isNotEmpty() }?.let {
                 res["cssSelector"] = it
             }
+
+            tocId?.takeIf { it.isNotEmpty() }?.let {
+                res["tocId"] = it
+            }
             return res;
         }
 
     companion object {
-        fun fromJson(json: String): PageInformation = fromJson(jsonDecode(json) as JSONObject)
+        fun fromJson(json: String, href: Url): PageInformation =
+            fromJson(jsonDecode(json) as JSONObject, href)
 
-        fun fromJson(json: JSONObject): PageInformation {
+        @OptIn(InternalReadiumApi::class)
+        fun fromJson(json: JSONObject, href: Url): PageInformation {
             val page = json.optLong("page")
             val totalPages = json.optLong("totalPages")
-            val physicalPage = json.optString("physicalPage").takeIf {it.isNotEmpty()}
-            val cssSelector = json.optString("cssSelector")
+            val physicalPage = json.optString("physicalPage").takeIf { it.isNotEmpty() }
+            val cssSelector = json.optNullableString("cssSelector")
+            val tocId = json.optNullableString("tocId")?.takeIf { it.isNotEmpty() }
 
-            return PageInformation(page, totalPages, physicalPage, cssSelector)
+            return PageInformation(
+                physicalPage,
+                cssSelector,
+                href.cleanHref().toString(),
+                tocId
+            )
         }
     }
 }

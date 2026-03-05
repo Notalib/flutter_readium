@@ -12,5 +12,5 @@ if [ "$(uname)" == "Darwin" ]; then
 fi
 
 $PROJECT_ROOT/flutter_readium/bin/build_helper_scripts.sh
-$PROJECT_ROOT/build_js
+$PROJECT_ROOT/bin/build_js
 $PROJECT_ROOT/bin/update_web_example

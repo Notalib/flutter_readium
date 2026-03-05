@@ -3,80 +3,233 @@ import { initResponsiveTables } from './Tables';
 import { PageInformation, Readium } from 'types';
 import './EpubPage.scss';
 
-declare const isIos: boolean;
-declare const isAndroid: boolean;
-declare const webkit: any;
 declare const readium: Readium;
 
 export class EpubPage {
-  private get _isScrollModeEnabled(): boolean {
-    return getComputedStyle(document.documentElement).getPropertyValue("--USER__view") === "readium-scroll-on";
+  get #isScrollModeEnabled(): boolean {
+    return readium.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
 
+  /**
+   * List of all ids from the publication's Table of Contents, in lowercase for easier comparison.
+   * This is used to find the nearest ToC element to the current reading position.
+   */
+  #tocIds: string[] = [];
+
+  /**
+   * Register all the ToC ids for the publication. Should be called in the EpubNavigator's onPageLoaded() callback.
+   */
+  public registerToc(ids: string[]) {
+    this.#tocIds = this.#tocIds.concat(ids.map((id) => document.getElementById(id)?.id?.toLocaleLowerCase()).filter((id): id is string => id != null));
+    console.error(`Registered ToC ids: ${this.#tocIds.join(", ")}`);
+  }
+
+  /**
+   * Find current page information, including physical page, css selector of the current position, and the nearest ToC element id.
+   */
   public getPageInformation(): PageInformation {
-    const physicalPage = this._findCurrentPhysicalPage();
-    const locator = readium.findFirstVisibleLocator();
-    let page: number | null;
-    let totalPages: number | null;
-    const cssSelector = locator?.locations?.cssSelector ?? null;
+    const physicalPage = this.#findCurrentPhysicalPage();
+    const cssSelector = this.#findCssSelector();
+    const tocSelector = this.#findTocId(cssSelector);
 
-    if (readium.isReflowable) {
-      if (this._isScrollModeEnabled) {
-        // Page index doesn't make sense in scroll mode.
-        page = null;
-        totalPages = null;
-      } else {
-        // Calculate page index based on scroll position and viewport width.
-        const { scrollLeft, scrollWidth } = document.scrollingElement;
-        const { innerWidth } = window;
-        page = Math.round(scrollLeft / innerWidth) + 1;
-        totalPages = Math.round(scrollWidth / innerWidth);
-      }
-    } else {
-      // Fixed layout books is single page files.
-      page = 1;
-      totalPages = 1;
-    }
-
-    // Assume fixed layout has only one page, and the physical page index is determined by the current visible element.
     return {
-      page,
-      totalPages,
       physicalPage,
       cssSelector,
+      tocSelector,
     };
   }
 
-  private _isPageBreakElement(element: Element | null): boolean {
+  /**
+   * Find the nearest cssSelector that is an id.
+   *
+   * @param cssSelector
+   * @returns cssSelector that is guaranteed to be an id, or null if no element can be found.
+   */
+  #findCssSelector(): string | null {
+    const firstVisibleCssSelector = this.#findFirstVisibleCssSelector();
+    const cssSelector = readium.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
+    if (cssSelector == null) {
+      return null;
+    }
+
+    let selectorElement = document.querySelector(cssSelector) as HTMLElement;
+    if (selectorElement == null) {
+      if (firstVisibleCssSelector) {
+        return firstVisibleCssSelector;
+      }
+
+      return null;
+    }
+
+    if (selectorElement.id) {
+      return `#${selectorElement.id}`;
+    }
+
+    if (firstVisibleCssSelector) {
+      return firstVisibleCssSelector;
+    }
+
+    // Some locators land inside injected spans
+    if (selectorElement.nodeType !== Node.ELEMENT_NODE) {
+      selectorElement = selectorElement.parentElement;
+    }
+
+    // 1. Closest ancestor with ID
+    const ancestor = selectorElement.closest('[id]');
+    if (ancestor) {
+      return `#${ancestor.id}`;
+    };
+
+    // 2. Nearest element with ID, either preceding or following the current element in the document order.
+    const precedingElementXPath = 'preceding::*[@id][1]';
+    const followingElementXPath = 'following::*[@id][1]';
+
+    for (const xpath of [precedingElementXPath, followingElementXPath]) {
+      const result = document.evaluate(
+        xpath,
+        selectorElement,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      );
+
+      if (result.singleNodeValue instanceof Element) {
+        return `#${result.singleNodeValue.id}`;
+      }
+    }
+  }
+
+  /**
+   * Find the nearest cssSelector that is visible, starting from the first visible element and ending at the given cssSelector.
+   */
+  #findFirstVisibleCssSelector(): string | null {
+    const firstVisibleElement = this.#findFirstVisibleElement();
+    const lastVisibleElement = this.#findLastVisibleElement();
+
+    if (firstVisibleElement == null || lastVisibleElement == null) {
+      return null;
+    }
+
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_ELEMENT
+    );
+
+    walker.currentNode = firstVisibleElement;
+    let node: Node = firstVisibleElement;
+
+    while (node) {
+      if (node instanceof Element && node.id) return `#${node.id}`;
+
+      if (node === lastVisibleElement) break;
+
+      node = walker.nextNode();
+    }
+  }
+
+  /**
+   * Find the preceding Table of Contents element id.
+   * @param cssSelector
+   * @returns
+   */
+  #findTocId(cssSelector: string | null): string | null {
+    if (this.#tocIds == null || this.#tocIds.length === 0 || cssSelector == null) {
+      return null;
+    }
+
+    // First check if any of the registered ToC ids are currently visible and return the first one found.
+    for (const tocId of this.#tocIds) {
+      const tocElement = document.getElementById(tocId);
+      if (this.#isElementVisible(tocElement)) {
+        return `#${tocId}`;
+      }
+    }
+
+    // Then find the nearest ToC id to the current cssSelector, either preceding or following in the document order.
+    const selectorElement = document.querySelector(cssSelector);
+    if (selectorElement == null) {
+      return null;
+    }
+
+    // If the current element itself is a ToC element, return it immediately.
+    if (selectorElement.id && this.#tocIds.includes(selectorElement.id.toLocaleLowerCase())) {
+      return `#${selectorElement.id}`;
+    }
+
+    // Find the preceding ToC element.
+    const predicate = this.#tocIds.map((id) => `@id="${id}"`).join(" or ");
+
+    const precedingElementXPath = `preceding::*[${predicate}][1]`;
+    const result = document.evaluate(
+      precedingElementXPath,
+      selectorElement,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    );
+
+    if (result.singleNodeValue instanceof Element) {
+      return `#${result.singleNodeValue.id}`;
+    }
+
+    // This might be a special case, where we start just before the first ToC element.
+    let firstTocElement: Element;
+    for (const tocId of this.#tocIds) {
+      const tocElement = document.getElementById(tocId);
+      if (tocElement) {
+        firstTocElement = tocElement;
+        break;
+      }
+    }
+
+    if (firstTocElement == null) {
+      // Really shouldn't happen.
+      return null;
+    }
+
+    // Walk backwards from the first to see if the find the current selector element.
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_ELEMENT
+    );
+
+    walker.currentNode = firstTocElement;
+    let node: Node = firstTocElement;
+
+    while (node) {
+      if (node instanceof Element && node === selectorElement) {
+        // First ToC element is the current one.
+        return `#${firstTocElement.id}`;
+      }
+
+      node = walker.previousNode();
+    }
+  }
+
+  /**
+   * Is the given element a page break element, based on EPUB specification or common practices?
+   * @param element
+   * @returns
+   */
+  #isPageBreakElement(element: Element | null): boolean {
     if (element == null) {
       return false;
     }
 
-    return element.getAttributeNS("http://www.idpf.org/2007/ops", "type") === 'pagebreak' || element.getAttribute('type') === 'pagebreak';
+    return element.getAttributeNS("http://www.idpf.org/2007/ops", "type") === 'pagebreak' || element.getAttribute('type') === 'pagebreak' || element.getAttribute('epub:type') === 'pagebreak';
   }
 
-  private _getPhysicalPageIndexFromElement(element: HTMLElement): string | null {
-    return element?.getAttribute('title') ?? element?.innerText.trim();
-  }
-
-  private _findPhysicalPageIndex(element: Element | null): string | null {
-    if (element == null || !(element instanceof Element)) {
+  /**
+   * Get the physical page text from the given element, if it is a page break element.
+   * @param element
+   * @returns
+   */
+  #getPhysicalPageText(element: HTMLElement): string | null {
+    if (!this.#isPageBreakElement(element)) {
       return null;
-    } else if (this._isPageBreakElement(element)) {
-      return this._getPhysicalPageIndexFromElement(element as HTMLElement);
     }
 
-    return null;
-  }
-
-  private _getAllSiblings(elem: ChildNode): HTMLElement[] | null {
-    const sibs: HTMLElement[] = [];
-    elem = elem?.parentNode?.firstChild as HTMLElement;
-    do {
-      if (elem?.nodeType === 3) continue; // text node
-      sibs.push(elem as HTMLElement);
-    } while ((elem = elem?.nextSibling as HTMLElement));
-    return sibs;
+    return element?.getAttribute('title') ?? element?.innerText.trim();
   }
 
   /**
@@ -84,83 +237,126 @@ export class EpubPage {
    *
    * @returns The physical page index, or null if it cannot be determined.
    */
-  private _findCurrentPhysicalPage(): string | null {
-    const cssSelector = readium.findFirstVisibleLocator()?.locations?.cssSelector;
-
-    let element = document.querySelector(cssSelector);
-    if (element == null) {
+  #findCurrentPhysicalPage(): string | null {
+    let element = this.#findFirstVisibleElement();
+    if (!(element instanceof HTMLElement)) {
       return;
     }
 
-    if (this._isPageBreakElement(element)) {
-      return this._getPhysicalPageIndexFromElement(element as HTMLElement);
+    if (this.#isPageBreakElement(element)) {
+      return this.#getPhysicalPageText(element);
     }
 
-    while (!!element && element.nodeType === Node.ELEMENT_NODE) {
-      const siblings = this._getAllSiblings(element);
-      if (siblings == null) {
-        return;
-      }
-      const currentIndex = siblings.findIndex((e) => e?.isEqualNode(element));
-
-      for (let i = currentIndex; i >= 0; i--) {
-        const e = siblings[i];
-
-        const pageBreakIndex = this._findPhysicalPageIndex(e);
-        if (pageBreakIndex != null) {
-          return pageBreakIndex;
+    const result = document.evaluate(
+      'preceding::*[@epub:type="pagebreak" or @type="pagebreak" or @role="doc-pagebreak" or contains(@class,"pagebreak")][1]',
+      element,
+      (prefix: string) => {
+        if (prefix === "epub") {
+          return "http://www.idpf.org/2007/ops";
         }
+        return null;
+      },
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    );
+
+    if (result.singleNodeValue instanceof Element && this.#isPageBreakElement(result.singleNodeValue)) {
+      return this.#getPhysicalPageText(result.singleNodeValue as HTMLElement);
+    }
+  }
+
+  /**
+   * Find the first visible element in the document.
+   * @returns The first visible element, or null if none is found.
+   */
+  #findFirstVisibleElement(): Element | null {
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_ELEMENT
+    );
+
+    walker.currentNode = document.body.firstElementChild ?? document.body;
+
+    let node = walker.currentNode;
+    while (node) {
+      if (node instanceof Element && this.#isElementVisible(node)) {
+        return node;
       }
 
-      element = element.parentNode as HTMLElement;
+      node = walker.nextNode();
+    }
+  }
 
-      if (element == null || element.nodeName.toLowerCase() === 'body') {
-        return document.querySelector("head [name='webpub:currentPage']")?.getAttribute('content');
+  /**
+   * Find the last visible element in the document.
+   * @returns The last visible element, or null if none is found.
+   */
+  #findLastVisibleElement() {
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_ELEMENT
+    );
+
+    walker.currentNode = document.body.lastElementChild ?? document.body;
+
+    let node = walker.currentNode;
+    while (node) {
+      if (node instanceof Element && this.#isElementVisible(node)) {
+        return node;
+      }
+
+      node = walker.previousNode();
+    }
+  }
+
+  // Functions below was copied from Swift-toolkit - see License.readium-swift-toolkit for details.
+  #isElementVisible(element: Element | null): boolean {
+    if (this.#shouldIgnoreElement(element)) {
+      return false;
+    }
+
+    if (readium.isFixedLayout) return true;
+
+    if (element === document.body || element === document.documentElement) {
+      return true;
+    }
+
+    if (!document || !document.documentElement || !document.body) {
+      return false;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (this.#isScrollModeEnabled) {
+      return rect.bottom > 0 && rect.top < window.innerHeight;
+    } else {
+      return rect.right > 0 && rect.left < window.innerWidth;
+    }
+  }
+
+  #shouldIgnoreElement(element: Element | null): boolean {
+    if (element == null) {
+      return true;
+    }
+
+    const elStyle = getComputedStyle(element);
+    if (elStyle) {
+      const display = elStyle.getPropertyValue("display");
+      if (display != "block") {
+        return true;
+      }
+      // Cannot be relied upon, because web browser engine reports invisible when out of view in
+      // scrolled columns!
+      // const visibility = elStyle.getPropertyValue("visibility");
+      // if (visibility === "hidden") {
+      //     return false;
+      // }
+      const opacity = elStyle.getPropertyValue("opacity");
+      if (opacity === "0") {
+        return true;
       }
     }
-  }
 
-  private _log(...args: unknown[]) {
-    // Alternative for webkit in order to print logs in flutter log outputs.
-
-    if (this._isIos()) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      webkit?.messageHandlers.log.postMessage(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        [].slice
-          .call(args)
-          .map((x: unknown) => (x instanceof String ? `${x}` : `${JSON.stringify(x)}`))
-          .join(', '),
-      );
-
-      return;
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(JSON.stringify(args));
-  }
-
-  private _errorLog(...error: any) {
-    this._log(`v===v===v===v===v===v`);
-    this._log(`Error:`, error);
-    this._log(`Stack:`, error?.stack ?? new Error().stack.replace('\n', '->').replace('_errorLog', ''));
-    this._log(`^===^===^===^===^===^`);
-  }
-
-  private _isIos(): boolean {
-    try {
-      return isIos;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  private _isAndroid(): boolean {
-    try {
-      return isAndroid;
-    } catch (error) {
-      return false;
-    }
+    return false;
   }
 }
 

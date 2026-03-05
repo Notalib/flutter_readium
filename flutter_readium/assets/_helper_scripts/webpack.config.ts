@@ -22,13 +22,6 @@ export default function (): webpack.Configuration {
       clean: true,
     },
     plugins: [
-      new CopyPlugin({
-        patterns: [
-          {
-            from: 'public/.gitkeep',
-          },
-        ],
-      }),
       new webpack.ProgressPlugin(),
       new MiniCssExtractPlugin({ filename: '[name].css' }),
     ],
