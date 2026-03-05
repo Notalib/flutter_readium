@@ -130,4 +130,7 @@ class FlutterReadium {
 
     return goByLink(pageLink, pub);
   }
+
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
+      _platform.searchInPublication(searchKey);
 }

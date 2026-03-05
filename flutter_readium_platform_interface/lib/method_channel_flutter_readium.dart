@@ -188,4 +188,46 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
+
+  @override
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
+    final resultString = await methodChannel.invokeMethod<String>('searchInPublication', searchKey);
+
+    if (resultString == null || resultString.isEmpty) {
+      return <TextSearchResult>[];
+    }
+
+    try {
+      final decoded = json.decode(resultString);
+      if (decoded is List) {
+        final collections = decoded
+            .map((e) => LocatorCollection.fromJson(e as Map<String, dynamic>?))
+            .whereType<LocatorCollection>()
+            .toList();
+
+        return _convertLocatorCollectionsToTextSearchResults(collections);
+      }
+      return <TextSearchResult>[];
+    } catch (e) {
+      throw Exception('Failed to parse search results: $e');
+    }
+  }
+
+  List<TextSearchResult> _convertLocatorCollectionsToTextSearchResults(final List<LocatorCollection> collections) {
+    final results = <TextSearchResult>[];
+
+    for (final collection in collections) {
+      for (final locator in collection.locators) {
+        final result = TextSearchResult(
+          locator: locator,
+          chapterTitle: locator.title ?? collection.metadata.title ?? '',
+          pageNumbers: null, // pageNumbers not currently available from Readium search
+        );
+
+        results.add(result);
+      }
+    }
+
+    return results;
+  }
 }

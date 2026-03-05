@@ -1,4 +1,5 @@
 export 'drm.dart';
+export 'dto/index.dart';
 export 'encryption.dart';
 export 'epub/index.dart';
 export 'format.dart';
@@ -7,6 +8,7 @@ export 'link.dart';
 export 'link_list_extension.dart';
 export 'localized_string.dart';
 export 'locator.dart';
+export 'locator_collection.dart';
 export 'metadata/index.dart';
 export 'opds/index.dart';
 export 'positions_list.dart';

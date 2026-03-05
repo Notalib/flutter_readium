@@ -187,6 +187,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement audioSeekBy
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) {
+    // TODO: implement searchInPublication
+    throw UnimplementedError();
+  }
 }
 
 void main() {
