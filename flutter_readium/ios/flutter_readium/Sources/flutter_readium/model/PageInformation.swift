@@ -5,11 +5,13 @@ final class PageInformation {
     let pageIndex: Int64?
     let totalPages: Int64?
     let physicalPageIndex: String?
+    let cssSelector: String?
 
-    init(pageIndex: Int64?, totalPages: Int64?, physicalPageIndex: String?) {
+    init(pageIndex: Int64?, totalPages: Int64?, physicalPageIndex: String?, cssSelector: String?) {
         self.pageIndex = pageIndex
         self.totalPages = totalPages
         self.physicalPageIndex = physicalPageIndex
+        self.cssSelector = cssSelector
     }
 
     var otherLocations: [String: Any] {
@@ -25,6 +27,11 @@ final class PageInformation {
             res["physicalPage"] = physicalPageIndex
         }
 
+        if let cssSelector,
+           !cssSelector.isEmpty {
+            res["cssSelector"] = cssSelector
+        }
+
         return res
     }
 
@@ -38,11 +45,13 @@ final class PageInformation {
         let pageIndex = json["pageIndex"] as? NSNumber
         let totalPages = json["totalPages"] as? NSNumber
         let physicalPageIndex = json["physicalPageIndex"] as? String
+        let cssSelector = json["cssSelector"] as? String
 
         return PageInformation(
             pageIndex: pageIndex?.int64Value,
             totalPages: totalPages?.int64Value,
-            physicalPageIndex: physicalPageIndex
+            physicalPageIndex: physicalPageIndex,
+            cssSelector: cssSelector
         )
     }
 }
