@@ -394,6 +394,36 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         let _ = await self.timebasedNavigator?.seekRelative(byOffsetSeconds: seekOffset)
         result(nil)
       }
+    case "searchInPublication":
+          guard let publication = getCurrentPublication(),
+                let query = call.arguments as? String
+          else {
+            result(
+              FlutterError(
+                code: "InvalidArgument",
+                message: "No publication open or invalid parameters to searchInPublication",
+                details: nil))
+            return
+          }
+          Task {
+            do {
+              let searchResults = await publication.searchInContentForQuery(query)
+              let searchResultsJson = searchResults.map { $0.json }
+              let jsonData = try JSONSerialization.data(withJSONObject: searchResultsJson)
+              let jsonString = String(data: jsonData, encoding: .utf8) ?? "[]"
+              await MainActor.run {
+                result(jsonString)
+              }
+            } catch {
+              await MainActor.run {
+                result(
+                  FlutterError(
+                    code: "SearchError",
+                    message: "Failed to perform search with query: \(query)",
+                    details: error.localizedDescription))
+              }
+            }
+          }
 
     default:
       result(FlutterMethodNotImplemented)

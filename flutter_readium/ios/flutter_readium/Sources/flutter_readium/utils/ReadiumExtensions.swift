@@ -22,6 +22,30 @@ extension Publication {
   var containsMediaOverlays: Bool {
     self.readingOrder.contains(where: { $0.alternates.contains(where: { $0.mediaType?.matches(MediaType("application/vnd.syncnarr+json")) == true })})
   }
+  
+  func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
+      guard let searchService: SearchService = findService(SearchService.self) else {
+        debugPrint("No SearchService available")
+        return []
+      }
+      var collections: [LocatorCollection] = []
+      switch await searchService.search(query: query, options: .init()) {
+      case .failure(let err):
+        switch err {
+        case .badQuery(let queryErr):
+          debugPrint("Search failed, bad query: \(queryErr)")
+        case .reading(let readErr):
+          debugPrint("Search failed, reading error: \(readErr)")
+        case .publicationNotSearchable:
+          debugPrint("Search failed, publication is not searchable")
+        }
+      case .success(let iterator):
+        _ = await iterator.forEach { collection in
+          collections.append(collection)
+        }
+      }
+      return collections
+    }
 }
 
 extension MediaPlaybackState {
