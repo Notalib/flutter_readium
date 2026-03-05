@@ -258,14 +258,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     print(TAG, "emitOnPageChanged:locator=\(String(describing: locator))")
 
     Task.detached(priority: .high) { [locator] in
-
-      // Map the ToC location into the locator.
-      var resultLocator = (try? await FlutterReadiumPlugin.instance?.epubFindCurrentToc(locator: locator)) ?? locator
-      // Get information about current page.
+      /// Enrich Locator with PageInformation and ToC.
+      var resultLocator = locator
       if let pageInfo = await self.getPageInformation() {
         resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
       }
+      if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
+        resultLocator.title = tocLink.title
+        resultLocator.locations.otherLocations["toc"] = tocLink.href
+      }
 
+      /// Immutable ref, so that we can use it on the main thread
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)

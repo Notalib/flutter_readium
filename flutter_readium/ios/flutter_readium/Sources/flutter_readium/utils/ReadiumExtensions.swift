@@ -72,35 +72,39 @@ extension Publication {
     let cleanHref = hrefRelativePath,
         startLocator = Locator(href: RelativeURL(string: cleanHref)!, mediaType: MediaType.xhtml)
         
-    let content = contentService.content(from: startLocator)?.iterator()
-    if (content == nil) {
+    guard let content = contentService.content(from: startLocator)?.iterator() else {
       debugPrint("No content iterator obtained from ContentService")
       return []
     }
     
     var ids = [] as [String]
 
-    while let element: ContentElement? = try? await content?.next() {
-      if (element == nil) {
-        continue
+    do {
+      while let element = try await content.next() {
+        if (element.locator.href.path != cleanHref) {
+          break
+        }
+        
+        if let cssSelector = element.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
+          ids.append(cssSelector)
+          debugPrint("findAllCssSelectors: \(element.locator.href.path),id: \(cssSelector)")
+        }
       }
-      if (element?.locator.href.path != cleanHref) {
-        break
-      }
-      
-      if let cssSelector = element?.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
-        ids.append(cssSelector)
-      }
+    } catch (let err) {
+      debugPrint("ContentService failed to fetch next element: \(err)")
     }
     return ids
   }
   
   /**
    * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
+   * We find it by rewinding in the ContentService from current Locator, until we hit an #id selector.
    */
   func findCssSelectorForLocator(locator: Locator) async -> String? {
     if locator.locations.cssSelector?.hasPrefix("#") == true {
       return locator.locations.cssSelector
+    } else {
+      debugPrint("findCssSelectorForLocator: there's work to do!")
     }
     
     guard let contentService: ContentService = findService(ContentService.self) else {
@@ -115,25 +119,21 @@ extension Publication {
       return nil
     }
     let locatorProgression = locator.locations.progression ?? 0.0
-    var lastPassedCssSelector: String? = nil
     
-    while let element: ContentElement? = try? await content?.next() {
-      debugPrint("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
-      if (element == nil || element?.locator.href.path != cleanPath) {
-        // End of content iterator or went past current HTML resource.
+    while let element: ContentElement? = try? await content?.previous() {
+      if (element == nil) {
+        // Nore more content to rewind through.
         break
       }
-      let progression = element?.locator.locations.progression ?? 0.0
-      if (progression > locatorProgression && lastPassedCssSelector != nil) {
-        // We're past Locator's progression and previously found a cssSelector, break out and return it.
-        break;
-      }
-      // Save the passed CSS selector.
+      // Return first content element with an #id cssSelector
       if let cssSelector = element?.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
-        lastPassedCssSelector = cssSelector.split(separator: " ").first?.lowercased()
+        debugPrint("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
+        return cssSelector.split(separator: " ").first?.lowercased()
+      } else {
+        debugPrint("findCssSelector: skip \(element?.locator.locations.cssSelector ?? "")")
       }
     }
-    return lastPassedCssSelector
+    return nil
   }
 }
 
