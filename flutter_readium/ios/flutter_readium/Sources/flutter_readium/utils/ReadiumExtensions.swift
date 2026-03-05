@@ -23,6 +23,47 @@ extension Publication {
     self.readingOrder.contains(where: { $0.alternates.contains(where: { $0.mediaType?.matches(MediaType("application/vnd.syncnarr+json")) == true })})
   }
   
+  var narrationLinks: [Link] {
+    return self.readingOrder.compactMap {
+      var link = $0.alternates.filterByMediaType(MediaType("application/vnd.syncnarr+json")!).first
+      link?.title = $0.title
+      return link
+    }
+  }
+  
+  func getMediaOverlays() async -> [FlutterMediaOverlay] {
+    if (!containsMediaOverlays) {
+      return []
+    }
+    
+    let narrationLinks = self.narrationLinks
+    
+    let toc: [(String, Link)] = (await getFlattenedToC()).map { ($0.href, $0) }
+    var lastTocMatch: (String, Link)? = nil
+    
+    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
+    let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
+      FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil)
+    }).map({
+      let items = $0.items.map { item in
+        // Find best matching title from ToC (via text URL)
+        if let match = toc.first(where: { tocItem in tocItem.0 == item.text }) {
+          lastTocMatch = match
+          return item.copyWith(tocTitle: match.1.title, tocHref: match.1.href)
+        } else if (lastTocMatch?.1 != nil && lastTocMatch?.0.substringBeforeLast("#") == item.textFile) {
+          return item.copyWith(tocTitle: lastTocMatch?.1.title, tocHref: lastTocMatch?.1.href)
+        }
+        return item
+      }
+      return FlutterMediaOverlay(items: items)
+    })
+    
+    // Assert that we did not lose any MediaOverlays during JSON deserialization.
+    assert(mediaOverlays.count == narrationLinks.count)
+    
+    return mediaOverlays
+  }
+  
   func getFlattenedToC() async -> [Link] {
     switch await self.tableOfContents() {
     case .success(let toc):
