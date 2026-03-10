@@ -21,6 +21,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
       final hasMediaOverlays = pubState.publication?.containsMediaOverlays == true;
+
       return PopScope(
         canPop: true,
         onPopInvokedWithResult: (didPop, result) {

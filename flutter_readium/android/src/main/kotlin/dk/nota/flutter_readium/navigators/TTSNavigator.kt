@@ -8,10 +8,12 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.letIfBothNotNull
-import dk.nota.flutter_readium.throttleLatest
+import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
@@ -87,13 +89,11 @@ class TTSNavigator(
         }
 
         val initialAndroidPreferences = preferences.toAndroidTtsPreferences()
-        mainScope.async {
-            val firstVisibleLocator = ReadiumReader.currentReaderWidget?.getFirstVisibleLocator()
-
+        withScope(mainScope) {
             ttsNavigator =
                 navigatorFactory.createNavigator(
                     listener,
-                    firstVisibleLocator,
+                    initialLocator,
                     initialAndroidPreferences
                 )
                     .getOrElse {
@@ -125,7 +125,7 @@ class TTSNavigator(
                             }
                         }.launchIn(mainScope)
                 }
-        }.await()
+        }
     }
 
     override suspend fun play() {
@@ -133,81 +133,106 @@ class TTSNavigator(
     }
 
     override suspend fun play(fromLocator: Locator?) {
-        mainScope.async {
-            if (fromLocator != null) {
-                ttsNavigator?.go(fromLocator)
+        val navigator = ttsNavigator ?: run {
+            Log.e(TAG, ":play called when ttsNavigator was null")
+            return
+        }
+
+        val mediaFacade = mediaServiceFacade ?: run {
+            Log.e(TAG, ":play called when mediaServiceFacade was null")
+            return
+        }
+
+        withScope(mainScope) {
+            fromLocator?.let {
+                navigator.go(it)
             }
 
-            // TODO: Handle multiple calls to this function
             try {
-                Log.d(TAG, "Opening MediaSession")
-                mediaServiceFacade?.openSession(ttsNavigator!!)
-                ttsNavigator?.play()
+                Log.d(TAG, "::play - Opening MediaSession")
+                if (mediaFacade.session.value == null) {
+                    mediaFacade.openSession(navigator)
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to open MediaSession: $e")
-                ttsNavigator?.close()
-                return@async
+                Log.e(TAG, "::play - Failed to open MediaSession: $e")
+                navigator.close()
+                return@withScope
             }
-        }.await()
+
+            navigator.play()
+        }
     }
 
     override suspend fun pause() {
-        if (ttsNavigator == null) {
+        val navigator = ttsNavigator ?: run {
             Log.e(TAG, "Cannot pause TTS playback: navigator is null")
             return
         }
 
-        mainScope.async {
+        withScope(mainScope) {
             try {
-                ttsNavigator?.pause()
+                navigator.pause()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to pause TTS playback: $e")
             }
-        }.await()
+        }
     }
 
     override suspend fun resume() {
-        if (ttsNavigator == null) {
+        val navigator = ttsNavigator ?: run {
             Log.e(TAG, "Cannot resume TTS playback: navigator is null")
             return
         }
 
-        mainScope.async {
+        withScope(mainScope) {
             try {
-                ttsNavigator?.play()
+                navigator.play()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resume TTS playback: $e")
             }
-        }.await()
+        }
     }
 
     /**
      * Skip to previous utterance (sentence).
      */
     override suspend fun goBack() {
-        val navigator = ttsNavigator ?: return
-        mainScope.async {
+        val navigator = ttsNavigator ?: run {
+            Log.e(TAG, "::goBack ttsNavigator is null")
+            return
+        }
+
+        withScope(mainScope) {
             if (navigator.hasPreviousUtterance()) {
                 navigator.skipToPreviousUtterance()
             }
-        }.await()
+        }
     }
 
     /**
      * Skip to next utterance (sentence).
      */
     override suspend fun goForward() {
-        val navigator = ttsNavigator ?: return
-        mainScope.async {
+        val navigator = ttsNavigator ?: run {
+            Log.e(TAG, "::goBack goForward is null")
+            return
+        }
+
+        withScope(mainScope) {
             if (navigator.hasNextUtterance()) {
                 navigator.skipToNextUtterance()
             }
-        }.await()
+        }
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        val navigator = ttsNavigator ?: return
-        mainScope.async {
+        val navigator = ttsNavigator ?: run {
+            Log.e(TAG, "::goToLocator called when ttsNavigator was null")
+            return
+        }
+        withScope(mainScope) {
+            decorateCurrentUtterance(locator, null)
+            onCurrentLocatorChanges(locator)
             navigator.go(locator)
         }
     }
@@ -220,27 +245,24 @@ class TTSNavigator(
      * Called when decorations (e.g., highlights) need to be updated.
      */
     suspend fun decorationsUpdated() {
-        val navigator = ttsNavigator
-        if (navigator == null) {
-            Log.d(TAG, ":setDecorationStyle: navigator is null")
+        val navigator = ttsNavigator ?: run {
+            Log.d(TAG, ":decorationsUpdated: navigator is null")
             return
         }
 
         val location = navigator.location.value
-        mainScope.async {
-            decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
-        }.await()
+        decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
     }
 
 
     /// Updates TTS preferences, does not override current preferences if props are null
     suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
-        mainScope.async {
+        withScope(mainScope) {
             preferences = preferences.plus(prefs)
 
             val androidPrefs = preferences.toAndroidTtsPreferences()
             ttsNavigator?.submitPreferences(androidPrefs)
-        }.await()
+        }
     }
 
     /**
@@ -260,12 +282,12 @@ class TTSNavigator(
     val voices: Set<AndroidTtsEngine.Voice>
         get() = ttsNavigator?.voices ?: emptySet()
 
+    @OptIn(FlowPreview::class)
     override fun setupNavigatorListeners() {
         val navigator = ttsNavigator ?: return
 
         // Listen to state changes
         navigator.playback
-            .throttleLatest(100.milliseconds)
             .distinctUntilChangedBy { pb ->
                 "${pb.state}|${pb.playWhenReady}"
             }
@@ -288,7 +310,7 @@ class TTSNavigator(
 
         // Listen to location changes and turn pages (throttled).
         navigator.location
-            .throttleLatest(0.4.seconds)
+            .debounce(0.4.seconds)
             .map { it.tokenLocator ?: it.utteranceLocator }
             .distinctUntilChanged()
             .onEach { locator ->
@@ -298,11 +320,11 @@ class TTSNavigator(
             .let { jobs.add(it) }
 
         navigator.currentLocator
-            .throttleLatest(100.milliseconds)
+            .debounce(100.milliseconds)
             .distinctUntilChanged()
             .onEach { locator ->
                 val emittingLocator =
-                    ReadiumReader.epubFindCurrentToc(locator)
+                    ReadiumReader.epubEnrichLocatorWithTocHref(locator)
                 onCurrentLocatorChanges(emittingLocator)
                 state[currentTimebasedLocatorKey] = emittingLocator
             }

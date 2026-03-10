@@ -8,9 +8,11 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
+import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -163,7 +165,7 @@ open class AudiobookNavigator(
 
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: return
-        mainScope.async {
+        withScope(mainScope) {
             navigator.go(locator)
         }
     }
@@ -251,11 +253,7 @@ open class AudiobookNavigator(
             }
 
             matchedTocItem?.href?.resolve()?.let {
-                emittingLocator = emittingLocator.copy(
-                    locations = emittingLocator.locations.copy(
-                        otherLocations = emittingLocator.locations.otherLocations + ("toc" to it)
-                    )
-                )
+                emittingLocator = emittingLocator.copyWithTocHref(it)
             }
         }
 

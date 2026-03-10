@@ -13,7 +13,6 @@ import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -347,8 +346,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.e(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
             return null
         }
@@ -362,9 +360,16 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         decorations: List<Decoration>,
         group: String
     ) {
-        mainScope.async {
-            epubNavigator?.applyDecorations(decorations, group)
-        }.await()
+        val navigator = epubNavigator ?: run {
+            Log.e(TAG, "::applyDecorations: navigator is null")
+            return
+        }
+
+        withScope(mainScope) {
+            Log.d(TAG, "::applyDecorations: $decorations for group:$group")
+
+            navigator.applyDecorations(decorations, group)
+        }
     }
 
     /**

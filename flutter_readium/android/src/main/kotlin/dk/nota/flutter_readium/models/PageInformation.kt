@@ -11,7 +11,7 @@ class PageInformation(
     val physicalPage: String?,
     val cssSelector: String?,
     val href: String,
-    val tocId: String?
+    val tocId: String?,
 ) {
     val otherLocations: Map<String, Any>
         get() {
@@ -26,8 +26,9 @@ class PageInformation(
             }
 
             tocId?.takeIf { it.isNotEmpty() }?.let {
-                res["tocId"] = it
+                res["tocHref"] = "$href#$tocId"
             }
+
             return res;
         }
 
@@ -37,8 +38,6 @@ class PageInformation(
 
         @OptIn(InternalReadiumApi::class)
         fun fromJson(json: JSONObject, href: Url): PageInformation {
-            val page = json.optLong("page")
-            val totalPages = json.optLong("totalPages")
             val physicalPage = json.optString("physicalPage").takeIf { it.isNotEmpty() }
             val cssSelector = json.optNullableString("cssSelector")
             val tocId = json.optNullableString("tocId")?.takeIf { it.isNotEmpty() }
@@ -47,7 +46,7 @@ class PageInformation(
                 physicalPage,
                 cssSelector,
                 href.cleanHref().toString(),
-                tocId
+                tocId,
             )
         }
     }

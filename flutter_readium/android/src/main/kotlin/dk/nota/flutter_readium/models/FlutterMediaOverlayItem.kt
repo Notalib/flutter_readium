@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.models
 
+import dk.nota.flutter_readium.copyWithTocHref
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
@@ -102,7 +103,7 @@ data class FlutterMediaOverlayItem(
                 title = title,
                 locations = Locator.Locations(
                     listOf("#$textId"),
-                    otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
+                    otherLocations = mapOf("cssSelector" to "#$textId"),
                     position = position,
                 ),
             )
@@ -115,13 +116,12 @@ data class FlutterMediaOverlayItem(
      * NOTE: You might need to update the time fragment.
      */
     val flutterAudioLocator: Locator? by lazy {
-        syncTextLocator?.let() { textLocator ->
+        syncTextLocator?.let { textLocator ->
             textLocator.copy(
                 locations = textLocator.locations.copy(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
-                    otherLocations = textLocator.locations.otherLocations + ("toc" to tocHref.toString())
                 ),
-            )
+            ).copyWithTocHref(tocHref)
         }
     }
 

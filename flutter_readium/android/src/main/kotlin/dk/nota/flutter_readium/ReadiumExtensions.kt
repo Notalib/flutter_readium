@@ -307,46 +307,6 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
 }
 
 /**
- * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
- */
-suspend fun Publication.findCssSelectorForLocator(locator: Locator): String? {
-    // If our locator already has a cssSelector, use it.
-    locator.locations.cssSelector?.takeIf { it.startsWith("#") }?.let { return it }
-
-    val contentService = findService(ContentService::class) ?: run {
-        Log.d(TAG, ":findCssSelectorForLocator - no content service found")
-        return null
-    }
-
-    val cleanHref = locator.href.cleanHref()
-
-    val locatorProgress = locator.locations.progression ?: 0.0
-    var cssSelector: String? = null
-    for (element in contentService.content(locator)) {
-        if (element !is Content.TextElement) {
-            continue
-        }
-
-        if (element.locator.href.cleanHref().path != cleanHref.path) {
-            // We iterated to the next document, stopping
-            break
-        }
-
-        val eCssSelector = element.locator.locations.cssSelector?.takeIf { it.startsWith("#") }
-        if (eCssSelector == null || !eCssSelector.startsWith("#")) continue
-
-        val progression = element.locator.locations.progression ?: 0.0
-        if (progression > locatorProgress && cssSelector != null) {
-            break
-        }
-
-        cssSelector = eCssSelector
-    }
-
-    return cssSelector?.takeIf { it.isNotEmpty() && it.startsWith("#") }
-}
-
-/**
  * Remove query and fragment from the Url
  */
 fun Url.cleanHref() = removeFragment().removeQuery()
@@ -383,3 +343,31 @@ fun List<Link>.flattenChildren(): List<Link> {
 
     return flatMap { it.flattenChildren() }
 }
+
+private val tocHrefLocationKey = "tocHref"
+/**
+ * A CSS Selector.
+ */
+val Locator.Locations.tocHref: String?
+    get() = this[tocHrefLocationKey] as? String
+
+/**
+ * Add a tocHref to Locator.locations.otherLocations.
+ */
+fun Locator.copyWithTocHref(tocLink: Link): Locator = this.copyWithTocHref(tocLink.href.resolve())
+
+/**
+ * Add a tocHref to Locator.locations.otherLocations.
+ */
+fun Locator.copyWithTocHref(tocUrl: Url?): Locator {
+    if (tocUrl == null) return copy()
+
+    return this.copyWithAdditionalLocations(mapOf(tocHrefLocationKey to tocUrl.toString()))
+}
+
+/**
+ * Make a copy of the locator by adding more values to Locator.Locations.otherLocations.
+ */
+fun Locator.copyWithAdditionalLocations(additionalValues: Map<String, Any>) = copyWithLocations(
+    otherLocations = locations.otherLocations + additionalValues
+)

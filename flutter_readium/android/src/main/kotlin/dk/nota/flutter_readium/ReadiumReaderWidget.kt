@@ -200,9 +200,6 @@ class ReadiumReaderWidget(
         }
     }
 
-    suspend fun getFirstVisibleLocator(): Locator? =
-        withScope(mainScope) { ReadiumReader.getFirstVisibleLocator() }
-
     @Throws(IllegalArgumentException::class)
     private fun setPreferencesFromMap(prefMap: Map<String, String>) {
         Log.d(TAG, "::setPreferencesFromMap")
@@ -220,23 +217,17 @@ class ReadiumReaderWidget(
                         it, locator.href
                     )
                 }?.let { pageInfo ->
-                    emittingLocator = emittingLocator.copy(
-                        locations = emittingLocator.locations.copy(
-                            otherLocations = emittingLocator.locations.otherLocations + pageInfo.otherLocations,
-                        ),
-                    );
+                    emittingLocator = emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                } ?: {
+                    Log.d(TAG, "::emitOnPageChanged - no page information")
                 }
             } catch (e: Error) {
                 Log.d(TAG, ":pageInformation error: $e")
             }
 
-            emittingLocator = emittingLocator.copy(
-                locations = emittingLocator.locations.copy(
-                    otherLocations = emittingLocator.locations.otherLocations + ("currentPage" to pageIndex) + ("totalPages" to totalPages)
-                )
-            )
+            emittingLocator = emittingLocator.copyWithAdditionalLocations(mapOf("currentPage" to pageIndex, "totalPages" to totalPages))
 
-            emittingLocator = ReadiumReader.epubFindCurrentToc(emittingLocator)
+            emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
 
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)

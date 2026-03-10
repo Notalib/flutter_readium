@@ -1,6 +1,5 @@
 import { initResponsiveTables } from './Tables';
-
-import { PageInformation, Readium } from 'types';
+import { PageInformation, Readium } from './types';
 import './EpubPage.scss';
 
 declare const readium: Readium;
@@ -20,8 +19,17 @@ export class EpubPage {
    * Register all the ToC ids for the publication. Should be called in the EpubNavigator's onPageLoaded() callback.
    */
   public registerToc(ids: string[]) {
-    this.#tocIds = this.#tocIds.concat(ids.map((id) => document.getElementById(id)?.id?.toLocaleLowerCase()).filter((id): id is string => id != null));
-    console.error(`Registered ToC ids: ${this.#tocIds.join(", ")}`);
+    ids.forEach((id) => {
+      const lowerCaseId = id.toLocaleLowerCase();
+      if (this.#tocIds.includes(lowerCaseId)) {
+        return;
+      }
+
+      const elementId = document.getElementById(id)?.id?.toLocaleLowerCase();
+      if (elementId) {
+        this.#tocIds.push(lowerCaseId);
+      }
+    });
   }
 
   /**
@@ -30,12 +38,12 @@ export class EpubPage {
   public getPageInformation(): PageInformation {
     const physicalPage = this.#findCurrentPhysicalPage();
     const cssSelector = this.#findCssSelector();
-    const tocSelector = this.#findTocId(cssSelector);
+    const tocId = this.#findTocId(cssSelector);
 
     return {
       physicalPage,
       cssSelector,
-      tocSelector,
+      tocId,
     };
   }
 
@@ -46,135 +54,72 @@ export class EpubPage {
    * @returns cssSelector that is guaranteed to be an id, or null if no element can be found.
    */
   #findCssSelector(): string | null {
-    const firstVisibleCssSelector = this.#findFirstVisibleCssSelector();
-    const cssSelector = readium.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
-    if (cssSelector == null) {
-      return null;
-    }
-
-    let selectorElement = document.querySelector(cssSelector) as HTMLElement;
-    if (selectorElement == null) {
-      if (firstVisibleCssSelector) {
-        return firstVisibleCssSelector;
-      }
-
-      return null;
-    }
-
-    if (selectorElement.id) {
-      return `#${selectorElement.id}`;
-    }
-
-    if (firstVisibleCssSelector) {
-      return firstVisibleCssSelector;
-    }
-
-    // Some locators land inside injected spans
-    if (selectorElement.nodeType !== Node.ELEMENT_NODE) {
-      selectorElement = selectorElement.parentElement;
-    }
-
-    // 1. Closest ancestor with ID
-    const ancestor = selectorElement.closest('[id]');
-    if (ancestor) {
-      return `#${ancestor.id}`;
-    };
-
-    // 2. Nearest element with ID, either preceding or following the current element in the document order.
-    const precedingElementXPath = 'preceding::*[@id][1]';
-    const followingElementXPath = 'following::*[@id][1]';
-
-    for (const xpath of [precedingElementXPath, followingElementXPath]) {
-      const result = document.evaluate(
-        xpath,
-        selectorElement,
-        null,
-        XPathResult.FIRST_ORDERED_NODE_TYPE,
-        null
-      );
-
-      if (result.singleNodeValue instanceof Element) {
-        return `#${result.singleNodeValue.id}`;
-      }
-    }
+    return readium.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
   }
 
   /**
-   * Find the nearest cssSelector that is visible, starting from the first visible element and ending at the given cssSelector.
-   */
-  #findFirstVisibleCssSelector(): string | null {
-    const firstVisibleElement = this.#findFirstVisibleElement();
-    const lastVisibleElement = this.#findLastVisibleElement();
-
-    if (firstVisibleElement == null || lastVisibleElement == null) {
-      return null;
-    }
-
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_ELEMENT
-    );
-
-    walker.currentNode = firstVisibleElement;
-    let node: Node = firstVisibleElement;
-
-    while (node) {
-      if (node instanceof Element && node.id) return `#${node.id}`;
-
-      if (node === lastVisibleElement) break;
-
-      node = walker.nextNode();
-    }
-  }
-
-  /**
-   * Find the preceding Table of Contents element id.
-   * @param cssSelector
-   * @returns
+   * Find the nearest Table of Content's element id.
+   * If a ToC element is visible, we return it. Otherwise we look for the nearest preceding ToC element to the current reading position.
+   *
+   * @param cssSelector The current cssSelector or current reading position. This is used to find the nearest ToC element if there is no visible ToC element.
+   * @returns The id of the nearest ToC element, or null if none is found.
    */
   #findTocId(cssSelector: string | null): string | null {
-    if (this.#tocIds == null || this.#tocIds.length === 0 || cssSelector == null) {
-      return null;
+    let tocIds = [...this.#tocIds];
+    if (tocIds.length === 0) {
+      console.warn("No ToC ids registered. Fallback to finding all heading elements as ToC candidates.");
+
+      document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((element) => {
+        if (element.id) {
+          tocIds.push(element.id.toLocaleLowerCase());
+        }
+      });
     }
 
-    // First check if any of the registered ToC ids are currently visible and return the first one found.
-    for (const tocId of this.#tocIds) {
+    // First we check if a ToC element is visible. If yes, we return it immediately.
+    for (const tocId of tocIds) {
       const tocElement = document.getElementById(tocId);
       if (this.#isElementVisible(tocElement)) {
-        return `#${tocId}`;
+        return tocId;
       }
     }
 
-    // Then find the nearest ToC id to the current cssSelector, either preceding or following in the document order.
-    const selectorElement = document.querySelector(cssSelector);
-    if (selectorElement == null) {
+    if (!cssSelector) {
+      console.warn("cssSelector is null. Cannot find ToC element.");
       return null;
     }
 
-    // If the current element itself is a ToC element, return it immediately.
-    if (selectorElement.id && this.#tocIds.includes(selectorElement.id.toLocaleLowerCase())) {
-      return `#${selectorElement.id}`;
+    // Since there wasn't a visible ToC element, we need to find the nearest one to the current reading position.
+    const cssSelectorElement = document.querySelector(cssSelector);
+    if (cssSelectorElement == null) {
+      return null;
     }
 
-    // Find the preceding ToC element.
-    const predicate = this.#tocIds.map((id) => `@id="${id}"`).join(" or ");
+    // If the current cssSelector element is a ToC element, return it's id immediately.
+    if (cssSelectorElement.id && tocIds.includes(cssSelectorElement.id.toLocaleLowerCase())) {
+      return cssSelectorElement.id;
+    }
+
+    // Now look backwards from the cssSelector to find the nearest preceding ToC element.
+    const predicate = tocIds.map((id) => `@id="${id}"`).join(" or ");
 
     const precedingElementXPath = `preceding::*[${predicate}][1]`;
     const result = document.evaluate(
       precedingElementXPath,
-      selectorElement,
+      cssSelectorElement,
       null,
       XPathResult.FIRST_ORDERED_NODE_TYPE,
       null
     );
 
-    if (result.singleNodeValue instanceof Element) {
-      return `#${result.singleNodeValue.id}`;
+    // We found one, return it.
+    if (result.singleNodeValue instanceof Element && result.singleNodeValue.id) {
+      return result.singleNodeValue.id
     }
 
     // This might be a special case, where we start just before the first ToC element.
     let firstTocElement: Element;
-    for (const tocId of this.#tocIds) {
+    for (const tocId of tocIds) {
       const tocElement = document.getElementById(tocId);
       if (tocElement) {
         firstTocElement = tocElement;
@@ -187,31 +132,30 @@ export class EpubPage {
       return null;
     }
 
-    // Walk backwards from the first to see if the find the current selector element.
+    // Sometimes the cssSelector lands before the first ToC element.
+    // In this case; We need to walk backwards from the first ToC element and if we find the current cssSelector,
+    // we know the first ToC element is the current ToC element.
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_ELEMENT
     );
 
     walker.currentNode = firstTocElement;
-    let node: Node = firstTocElement;
-
-    while (node) {
-      if (node instanceof Element && node === selectorElement) {
+    for (let node: Node = firstTocElement; node; node = walker.previousNode()) {
+      if (node instanceof HTMLElement && node === cssSelectorElement && firstTocElement.id) {
         // First ToC element is the current one.
-        return `#${firstTocElement.id}`;
+        return firstTocElement.id;
       }
-
-      node = walker.previousNode();
     }
   }
 
   /**
    * Is the given element a page break element, based on EPUB specification or common practices?
+   *
    * @param element
    * @returns
    */
-  #isPageBreakElement(element: Element | null): boolean {
+  #isPageBreakElement(element: HTMLElement | null): boolean {
     if (element == null) {
       return false;
     }
@@ -221,8 +165,9 @@ export class EpubPage {
 
   /**
    * Get the physical page text from the given element, if it is a page break element.
-   * @param element
-   * @returns
+   *
+   * @param element The element to get the physical page text from.
+   * @returns The physical page text, or null if the element is not a page break element.
    */
   #getPhysicalPageText(element: HTMLElement): string | null {
     if (!this.#isPageBreakElement(element)) {
@@ -260,8 +205,8 @@ export class EpubPage {
       null
     );
 
-    if (result.singleNodeValue instanceof Element && this.#isPageBreakElement(result.singleNodeValue)) {
-      return this.#getPhysicalPageText(result.singleNodeValue as HTMLElement);
+    if (result.singleNodeValue instanceof HTMLElement && this.#isPageBreakElement(result.singleNodeValue)) {
+      return this.#getPhysicalPageText(result.singleNodeValue);
     }
   }
 
@@ -269,7 +214,7 @@ export class EpubPage {
    * Find the first visible element in the document.
    * @returns The first visible element, or null if none is found.
    */
-  #findFirstVisibleElement(): Element | null {
+  #findFirstVisibleElement(): HTMLElement | null {
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_ELEMENT
@@ -277,35 +222,10 @@ export class EpubPage {
 
     walker.currentNode = document.body.firstElementChild ?? document.body;
 
-    let node = walker.currentNode;
-    while (node) {
-      if (node instanceof Element && this.#isElementVisible(node)) {
+    for (let node = walker.currentNode; node; node = walker.nextNode()) {
+      if (node instanceof HTMLElement && this.#isElementVisible(node)) {
         return node;
       }
-
-      node = walker.nextNode();
-    }
-  }
-
-  /**
-   * Find the last visible element in the document.
-   * @returns The last visible element, or null if none is found.
-   */
-  #findLastVisibleElement() {
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_ELEMENT
-    );
-
-    walker.currentNode = document.body.lastElementChild ?? document.body;
-
-    let node = walker.currentNode;
-    while (node) {
-      if (node instanceof Element && this.#isElementVisible(node)) {
-        return node;
-      }
-
-      node = walker.previousNode();
     }
   }
 

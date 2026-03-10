@@ -24,6 +24,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     protected val timebaseListener: TimebasedListener,
     initialLocator: Locator?
 ) : BaseNavigator(publication, initialLocator) {
+    var isPlaying = false
 
     /**
      * Listener interface for time-based navigator events.
@@ -96,6 +97,8 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
             TAG,
             ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}"
         )
+
+        isPlaying = timebasedState == TimebasedState.Playing
 
         timebaseListener.onTimebasedPlaybackStateChanged(timebasedState)
     }

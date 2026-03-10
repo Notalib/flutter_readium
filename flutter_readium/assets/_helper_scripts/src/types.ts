@@ -134,7 +134,20 @@ export interface CurrentSelection {
 }
 
 export interface PageInformation {
+  /**
+   * The physical page number, if available. This is a string because it can contain non-numeric characters, such as "iv" or "xii". It can also be null if the physical page number is not available.
+   */
   physicalPage?: string | null;
+
+  /**
+   * The CSS selector for the first visible element in the current viewport.
+   *
+   * These are used to make more precise locators in the native layer.
+   */
   cssSelector?: string | null;
-  tocSelector?: string | null;
+
+  /**
+   * The id of the nearest ToC element to the current reading position. Either the first visible ToC element id or the nearest preceding ToC element id. This is null if no ToC element is found.
+   */
+  tocId?: string | null;
 }
