@@ -245,7 +245,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
                 publication.tableOfContents.flattenChildren().map { it.href.resolve().fragment }
 
             for (chunk in tocIds.chunked(1000)) {
-                evaluateJavascript("window.epubPage.registerToc(${jsonEncode(chunk)})")
+                evaluateJavascript("window.flutterReadium.registerToc(${jsonEncode(chunk)})")
             }
         }
     }

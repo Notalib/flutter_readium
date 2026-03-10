@@ -125,10 +125,10 @@ fun Resource.injectScriptsAndStyles(): Resource =
 
         val injectLines = listOf(
             """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
+            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
+            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadium.css"></link>""",
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")

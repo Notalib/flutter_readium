@@ -212,7 +212,7 @@ class ReadiumReaderWidget(
             var emittingLocator = locator
 
             try {
-                evaluateJavascript("window.epubPage.getPageInformation()")?.let {
+                evaluateJavascript("window.flutterReadium.getPageInformation()")?.let {
                     PageInformation.fromJson(
                         it, locator.href
                     )

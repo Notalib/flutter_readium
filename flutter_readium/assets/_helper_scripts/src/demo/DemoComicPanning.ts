@@ -179,20 +179,20 @@ export class DemoComicPanning extends LitElement {
     };
     iframe.contentDocument.head.appendChild(script);
 
-    const epub = iframe.contentDocument.createElement('script');
-    epub.async = false;
-    epub.src = `/epub.js?r=${Date.now()}`;
-    epub.onload = () => {
+    const flutterReadiumScript = iframe.contentDocument.createElement('script');
+    flutterReadiumScript.async = false;
+    flutterReadiumScript.src = `/flutterReadiumTools.js?r=${Date.now()}`;
+    flutterReadiumScript.onload = () => {
       this._updateNarration();
       this._iframeLoaded = true;
     };
-    iframe.contentDocument.head.appendChild(epub);
+    iframe.contentDocument.head.appendChild(flutterReadiumScript);
 
-    const epubCss = iframe.contentDocument.createElement('link');
-    epubCss.href = `/epub.css?r=${Date.now()}`;
-    epubCss.type = 'text/css';
-    epubCss.rel = 'stylesheet';
-    iframe.contentDocument.head.appendChild(epubCss);
+    const flutterReadiumCssLink = iframe.contentDocument.createElement('link');
+    flutterReadiumCssLink.href = `/flutterReadium.css?r=${Date.now()}`;
+    flutterReadiumCssLink.type = 'text/css';
+    flutterReadiumCssLink.rel = 'stylesheet';
+    iframe.contentDocument.head.appendChild(flutterReadiumCssLink);
 
     const link = iframe.contentDocument.createElement('link');
     link.href = `/comics.css?r=${Date.now()}`;

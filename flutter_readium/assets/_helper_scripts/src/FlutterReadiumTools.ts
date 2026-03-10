@@ -1,10 +1,10 @@
 import { initResponsiveTables } from './Tables';
 import { PageInformation, Readium } from './types';
-import './EpubPage.scss';
+import './FlutterReadiumTools.scss';
 
 declare const readium: Readium;
 
-export class EpubPage {
+export class FlutterReadiumTools {
   get #isScrollModeEnabled(): boolean {
     return readium.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
@@ -282,19 +282,19 @@ export class EpubPage {
 
 declare global {
   interface Window {
-    epubPage: EpubPage;
+    flutterReadium: FlutterReadiumTools;
   }
 }
 
 function Setup() {
-  if (window.epubPage) {
+  if (window.flutterReadium) {
     return;
   }
 
   initResponsiveTables();
 
   document.removeEventListener('DOMContentLoaded', Setup);
-  window.epubPage = new EpubPage();
+  window.flutterReadium = new FlutterReadiumTools();
 }
 
 if (document.readyState !== 'loading') {

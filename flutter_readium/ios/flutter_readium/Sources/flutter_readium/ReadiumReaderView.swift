@@ -288,7 +288,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   internal func getPageInformation() async -> PageInformation? {
-    switch await self.evaluateJavascript("window.epubPage.getPageInformation();") {
+    switch await self.evaluateJavascript("window.flutterReadium.getPageInformation();") {
     case .success(let jresult):
       let pageInfo = PageInformation.fromJson(jresult as? Dictionary<String, Any> ?? Dictionary())
       return pageInfo
@@ -396,14 +396,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 func initUserScripts(registrar: FlutterPluginRegistrar) {
   let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
   let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
-  let epubJsKey = registrar.lookupKey(forAsset: "assets/helpers/epub.js", fromPackage: "flutter_readium")
-  let epubCssKey = registrar.lookupKey(forAsset: "assets/helpers/epub.css", fromPackage: "flutter_readium")
-  let jsScripts = [comicJsKey, epubJsKey].map { sourceFile -> String in
+  let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
+  let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadium.css", fromPackage: "flutter_readium")
+  let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
     let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
     let data = FileManager().contents(atPath: path)!
     return String(data: data, encoding: .utf8)!
   }
-  let addCssScripts = [comicCssKey, epubCssKey].map { sourceFile -> String in
+  let addCssScripts = [comicCssKey, flutterReadiumCssKey].map { sourceFile -> String in
     let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
     let data = FileManager().contents(atPath: path)!.base64EncodedString()
     return """

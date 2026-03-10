@@ -120,13 +120,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     /**
-     * Check if the reader is ready.
-     */
-    suspend fun isReaderReady(): Boolean {
-        return started.value && evaluateJavascript("window.epubPage.isReaderReady();") == "true"
-    }
-
-    /**
      * Update the reader preferences.
      */
     fun updatePreferences(preferences: EpubPreferences) {
