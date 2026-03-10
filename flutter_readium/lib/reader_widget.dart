@@ -21,10 +21,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     required this.publication,
     this.loadingWidget = const Center(child: CircularProgressIndicator()),
     this.initialLocator,
-    this.onTap,
-    this.onGoLeft,
-    this.onGoRight,
-    this.onSwipe,
+    this.shouldShowControls,
     this.onExternalLinkActivated,
     super.key,
   });
@@ -32,10 +29,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final Publication publication;
   final Widget loadingWidget;
   final Locator? initialLocator;
-  final VoidCallback? onTap;
-  final VoidCallback? onGoLeft;
-  final VoidCallback? onGoRight;
-  final VoidCallback? onSwipe;
+  final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
 
   @override
@@ -61,6 +55,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   EPUBPreferences? get _defaultPreferences {
     return _readium.defaultPreferences;
   }
+
+  /// Last time that the controls were hidden due to a touch, used to guess whether a tap was caused
+  /// by such a touch.
+  DateTime? _lastTouchHideControls;
 
   @override
   void initState() {
@@ -89,11 +87,42 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
+    var userSwipe = false;
 
     return Listener(
       onPointerDown: (final _) {
         _enableWakelock();
       },
+      onPointerMove: (final event) {
+        if (userSwipe) {
+          return;
+        }
+
+        userSwipe = event.delta.distance > 3.0;
+
+        if (userSwipe) {
+          _onInteraction();
+        }
+      },
+      onPointerUp: (final event) async {
+        if (userSwipe) {
+          /// Wait for page animation to complete.
+          await Future.delayed(const Duration(seconds: 1));
+        } else {
+          final dx = event.position.dx;
+
+          if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
+            // edge tap
+            _onInteraction();
+          } else {
+            // center tap
+            _toggleControls();
+          }
+        }
+
+        userSwipe = false;
+      },
+
       child: _readerWidget,
     );
   }
@@ -318,6 +347,27 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       }
 
       _lastOrientation = orientation;
+    }
+  }
+
+  void _toggleControls() {
+    if (widget.shouldShowControls == null) return;
+
+    final last = _lastTouchHideControls;
+    final delta = last != null ? DateTime.now().difference(last) : null;
+    // If we recently hid the controls due to a touch, assume that the tap is due to that same
+    // touch, so don't re-show the controls.
+    if (delta == null || delta > const Duration(milliseconds: 400)) {
+      widget.shouldShowControls!.value = !widget.shouldShowControls!.value;
+      // Debounce taps, since Readium apparently sends a double onTap on some devices.
+      _lastTouchHideControls = DateTime.now();
+    }
+  }
+
+  void _onInteraction() {
+    if (widget.shouldShowControls?.value == true) {
+      widget.shouldShowControls?.value = false;
+      _lastTouchHideControls = DateTime.now();
     }
   }
 }

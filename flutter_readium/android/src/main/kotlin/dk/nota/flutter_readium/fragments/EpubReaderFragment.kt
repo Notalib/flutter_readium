@@ -14,8 +14,10 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -307,6 +309,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 epubNavigator,
                 NAVIGATOR_FRAGMENT_TAG,
             )
+        }
+
+        (epubNavigator as OverflowableNavigator).apply {
+            // This will automatically turn pages when tapping the screen edges or arrow keys.
+            addInputListener(DirectionalNavigationAdapter(this))
         }
 
         navigator = epubNavigator

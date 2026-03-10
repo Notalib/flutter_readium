@@ -5,3 +5,4 @@ export 'text_settings.widget.dart';
 export 'theme_selector.widget.dart';
 export 'timebased.state.widget.dart';
 export 'tts_settings.widget.dart';
+export 'animated_slide_out_widget.dart';
