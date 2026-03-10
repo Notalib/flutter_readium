@@ -8,20 +8,16 @@ class ReadiumReaderWidget extends StatefulWidget {
     required this.publication,
     this.loadingWidget = const Center(child: CircularProgressIndicator()),
     this.initialLocator,
-    this.onTap,
-    this.onGoLeft,
-    this.onGoRight,
-    this.onSwipe,
+    this.shouldShowControls,
+    this.onExternalLinkActivated,
     super.key,
   });
 
   final Publication publication;
   final Widget loadingWidget;
   final Locator? initialLocator;
-  final VoidCallback? onTap;
-  final VoidCallback? onGoLeft;
-  final VoidCallback? onGoRight;
-  final VoidCallback? onSwipe;
+  final ValueNotifier<bool>? shouldShowControls;
+  final Function(String)? onExternalLinkActivated;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
