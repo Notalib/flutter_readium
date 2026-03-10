@@ -16,6 +16,9 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
+  final _slideDuration = const Duration(milliseconds: 350);
+  final _shouldShowControls = ValueNotifier(true);
+
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
@@ -42,14 +45,14 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             ),
             actions: _buildActionButtons(),
           ),
-          body: Column(
+          body: Stack(
             children: [
-              Expanded(
+              Positioned.fill(
                 child: isAudioBook
                     ? Container(padding: EdgeInsets.all(12.0), child: TimebasedStateWidget())
-                    : ReaderWidget(),
+                    : ReaderWidget(shouldShowControls: _shouldShowControls),
               ),
-              _controls(isAudioBook || hasMediaOverlays),
+              Positioned(left: 0, right: 0, bottom: 0, child: _controls(isAudioBook || hasMediaOverlays)),
             ],
           ),
         ),
@@ -105,8 +108,15 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     ),
   ];
 
-  Widget _controls(final bool isAudioBook) =>
-      SafeArea(top: false, left: false, right: false, child: PlayerControls(isAudioBook: isAudioBook));
+  Widget _controls(final bool isAudioBook) => AnimatedSlideOutWidget(
+    visible: _shouldShowControls,
+    hiddenOffset: const Offset(0, 1),
+    duration: _slideDuration,
+    child: Container(
+      color: Colors.purple[200],
+      child: SafeArea(top: false, left: false, right: false, child: PlayerControls(isAudioBook: isAudioBook)),
+    ),
+  );
 
   @override
   String? get restorationId => 'player_page_state';

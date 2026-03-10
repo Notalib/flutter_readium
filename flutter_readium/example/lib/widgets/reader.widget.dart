@@ -5,7 +5,9 @@ import 'package:flutter_readium/flutter_readium.dart';
 import '../state/index.dart';
 
 class ReaderWidget extends StatelessWidget {
-  ReaderWidget({super.key});
+  ReaderWidget({this.shouldShowControls, super.key});
+
+  final ValueNotifier<bool>? shouldShowControls;
 
   final ValueNotifier<bool> loadingNotifier = ValueNotifier<bool>(false);
 
@@ -59,7 +61,11 @@ class ReaderWidget extends StatelessWidget {
           container: true,
           explicitChildNodes: true,
           child: ExcludeSemantics(
-            child: ReadiumReaderWidget(publication: state.publication!, initialLocator: state.initialLocator),
+            child: ReadiumReaderWidget(
+              publication: state.publication!,
+              initialLocator: state.initialLocator,
+              shouldShowControls: shouldShowControls,
+            ),
           ),
         );
       }
