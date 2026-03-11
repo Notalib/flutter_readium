@@ -335,7 +335,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         }
       }
       break
-    case "goLeft":
+    case "goBackward":
       let animated = call.arguments as! Bool
       let readiumViewController = self.readiumViewController
 
@@ -346,7 +346,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         }
       }
       break
-    case "goRight":
+    case "goForward":
       let animated = call.arguments as! Bool
       let readiumViewController = self.readiumViewController
 
