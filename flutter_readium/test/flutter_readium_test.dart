@@ -18,6 +18,11 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
+  Future<void> setLogLevel(LogLevel level) {
+    throw UnimplementedError();
+  }
+
+  @override
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }

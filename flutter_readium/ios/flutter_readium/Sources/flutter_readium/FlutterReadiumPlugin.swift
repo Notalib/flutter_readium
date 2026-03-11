@@ -75,15 +75,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
-    case "setCustomHeaders":
-      guard let args = call.arguments as? [String: Any],
-            let httpHeaders = args["httpHeaders"] as? [String: String] else {
-        return result(FlutterError.init(
-          code: "InvalidArgument",
-          message: "Invalid custom headers map",
-          details: nil))
+    case "setLogLevel":
+      if let value = call.arguments as? Int,
+         let level = LogLevel(rawValue: value) {
+        ReadiumPluginLogger.level = level
       }
-      sharedReadium.setAdditionalHeaders(httpHeaders)
       result(nil)
     case "dispose":
       closePublication()
@@ -157,6 +153,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
+    case "setCustomHeaders":
+      guard let args = call.arguments as? [String: Any],
+            let httpHeaders = args["httpHeaders"] as? [String: String] else {
+        return result(FlutterError.init(
+          code: "InvalidArgument",
+          message: "Invalid custom headers map",
+          details: nil))
+      }
+      sharedReadium.setAdditionalHeaders(httpHeaders)
+      result(nil)
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {

@@ -94,6 +94,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setLogLevel(LogLevel level) async {
+    await methodChannel.invokeMethod<void>('setLogLevel', level.index);
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('openPublication', [pubUrl])

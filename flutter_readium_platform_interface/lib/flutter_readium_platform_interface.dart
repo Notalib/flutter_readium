@@ -39,6 +39,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setCustomHeaders(Map<String, String> headers) =>
       throw UnimplementedError('setCustomHeaders(headers) has not been implemented.');
 
+  Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
+
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }

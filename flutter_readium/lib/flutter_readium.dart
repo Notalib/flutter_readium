@@ -26,6 +26,10 @@ class FlutterReadium {
     return _platform.setCustomHeaders(headers);
   }
 
+  Future<void> setLogLevel(LogLevel level) {
+    return _platform.setLogLevel(level);
+  }
+
   void setDefaultPreferences(EPUBPreferences preferences) {
     _platform.setDefaultPreferences(preferences);
   }
