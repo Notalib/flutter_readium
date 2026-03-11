@@ -69,14 +69,14 @@ extension Publication {
     case .success(let toc):
       return toc.flatMap{ $0.flattened }
     case .failure(let err):
-      debugPrint("failed to retrieve ToC: \(err)")
+      Log.readium.error("failed to retrieve ToC: \(err)")
       return []
     }
   }
   
   func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
     guard let searchService: SearchService = findService(SearchService.self) else {
-      debugPrint("No SearchService available")
+      Log.readium.warn("No SearchService available")
       return []
     }
     var collections: [LocatorCollection] = []
@@ -84,11 +84,11 @@ extension Publication {
     case .failure(let err):
       switch err {
       case .badQuery(let queryErr):
-        debugPrint("Search failed, bad query: \(queryErr)")
+        Log.readium.error("Search failed, bad query: \(queryErr)")
       case .reading(let readErr):
-        debugPrint("Search failed, reading error: \(readErr)")
+        Log.readium.error("Search failed, reading error: \(readErr)")
       case .publicationNotSearchable:
-        debugPrint("Search failed, publication is not searchable")
+        Log.readium.error("Search failed, publication is not searchable")
       }
     case .success(let iterator):
       _ = await iterator.forEach { collection in
@@ -103,18 +103,18 @@ extension Publication {
    */
   func findAllCssSelectors(hrefRelativePath: String) async -> [String] {
     if (!self.conforms(to: Publication.Profile.epub)) {
-      debugPrint("This only works for EPUBs")
+      Log.readium.warn("findAllCssSelectors only works for EPUBs")
       return []
     }
     guard let contentService: ContentService = findService(ContentService.self) else {
-      debugPrint("No ContentService available")
+      Log.readium.warn("No ContentService available")
       return []
     }
     let cleanHref = hrefRelativePath,
         startLocator = Locator(href: RelativeURL(string: cleanHref)!, mediaType: MediaType.xhtml)
         
     guard let content = contentService.content(from: startLocator)?.iterator() else {
-      debugPrint("No content iterator obtained from ContentService")
+      Log.readium.warn("No content iterator obtained from ContentService")
       return []
     }
     
@@ -128,11 +128,11 @@ extension Publication {
         
         if let cssSelector = element.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
           ids.append(cssSelector)
-          debugPrint("findAllCssSelectors: \(element.locator.href.path),id: \(cssSelector)")
+          Log.readium.debug("findAllCssSelectors: \(element.locator.href.path),id: \(cssSelector)")
         }
       }
     } catch (let err) {
-      debugPrint("ContentService failed to fetch next element: \(err)")
+      Log.readium.warn("ContentService failed to fetch next element: \(err)")
     }
     return ids
   }
@@ -143,20 +143,19 @@ extension Publication {
    */
   func findCssSelectorForLocator(locator: Locator) async -> String? {
     if locator.locations.cssSelector?.hasPrefix("#") == true {
+      Log.readium.debug("findCssSelectorForLocator, Locator already had selector: \(locator.locations.cssSelector ?? "")")
       return locator.locations.cssSelector
-    } else {
-      debugPrint("findCssSelectorForLocator: there's work to do!")
     }
     
     guard let contentService: ContentService = findService(ContentService.self) else {
-      debugPrint("No ContentService available")
+      Log.readium.warn("No ContentService available")
       return nil
     }
     
     let cleanPath = locator.href.path
     let content = contentService.content(from: locator)?.iterator()
     if (content == nil) {
-      debugPrint("No content iterator obtained from ContentService")
+      Log.readium.warn("No content iterator obtained from ContentService")
       return nil
     }
     let locatorProgression = locator.locations.progression ?? 0.0
@@ -168,10 +167,10 @@ extension Publication {
       }
       // Return first content element with an #id cssSelector
       if let cssSelector = element?.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
-        debugPrint("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
+        Log.readium.debug("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
         return cssSelector.split(separator: " ").first?.lowercased()
       } else {
-        debugPrint("findCssSelector: skip \(element?.locator.locations.cssSelector ?? "")")
+        Log.readium.debug("findCssSelector: skip \(element?.locator.locations.cssSelector ?? "")")
       }
     }
     return nil
@@ -204,7 +203,7 @@ extension Link {
       let jsonObj = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!)
       try self.init(json: jsonObj)
     } catch {
-      print("Invalid Link object: \(error)")
+      Log.readium.error("Invalid Link object: \(error)")
       throw JSONError.parsing(Self.self)
     }
   }
@@ -247,7 +246,7 @@ extension Decoration {
     do {
       jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-      print("Invalid Decoration object: \(error)")
+      Log.readium.error("Invalid Decoration object: \(error)")
       throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
@@ -261,7 +260,7 @@ extension Decoration {
           let tintHexStr = jsonObject["tint"],
           let tintColor = Color(hex: tintHexStr),
           let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
-      print("Decoration parse error: `id`, `locator`, `style` and `tint` required")
+      Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
     self.init(
@@ -283,7 +282,7 @@ extension Decoration.Style {
     do {
       jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-      print("Invalid Decoration.Style json map: \(error)")
+      Log.readium.error("Invalid Decoration.Style json map: \(error)")
       throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
@@ -295,7 +294,7 @@ extension Decoration.Style {
           let tintHexStr = map["tint"],
           let tintColor = Color(hex: tintHexStr)
     else {
-      print("Decoration parse error: `style` and `tint` required")
+      Log.readium.error("Decoration parse error: `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
     try self.init(withStyle: styleStr, tintColor: tintColor)
@@ -413,7 +412,7 @@ extension EPUBPreferences {
           wordSpacing = wordSpacingValue
         }
       default:
-        print("EPUBPreferences", "WARN: Cannot map property: \(key): \(value)")
+        Log.readium.warn("EPUBPreferences unable to map JSON property: \(key)=\(value)")
       }
     }
   }

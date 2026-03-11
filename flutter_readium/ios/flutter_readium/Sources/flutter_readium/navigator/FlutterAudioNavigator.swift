@@ -5,8 +5,6 @@ import ReadiumNavigator
 
 public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDelegate
 {
-  internal let TAG = "FlutterAudioNavigator"
-
   internal var _publication: Publication
   internal var _initialLocator: Locator?
   internal var _preferences: FlutterAudioPreferences
@@ -64,11 +62,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     /// Subscribe to changes
     $playback
       .throttle(for: .seconds(self._preferences.updateIntervalSecs), scheduler: RunLoop.main, latest: true)
-      .sink { [weak self, TAG] info in
+      .sink { [weak self] info in
         guard let self = self else {
           return
         }
-        debugPrint(TAG, "$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
+        Log.navigator.debug("$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
 
         if let location = _audioNavigator?.currentLocation {
           self.submitTimebasedPlayerStateToListener(info: info, location: location)
@@ -185,8 +183,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
-    debugPrint(TAG, "presentError: \(error)")
-    // TODO: Only relevant when supporting LCP, error can only be copyForbidden.
+    Log.navigator.error("Should present error: \(error)")
+    // TODO: Ignored for now, only relevant when supporting LCP.
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
@@ -270,7 +268,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       self._lastTimebasedPlayerState = timebasedState
       self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
     } else {
-      debugPrint(TAG, "Skipped state submission - duplicate")
+      Log.navigator.debug("Skipped state emission - duplicate")
     }
   }
 }

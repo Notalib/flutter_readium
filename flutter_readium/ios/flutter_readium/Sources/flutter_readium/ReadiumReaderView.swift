@@ -5,7 +5,6 @@ import Flutter
 import UIKit
 import WebKit
 
-private let TAG = "ReadiumReaderView"
 private let ReadiumReaderStatusReady = "ready"
 private let ReadiumReaderStatusLoading = "loading"
 private let ReadiumReaderStatusClosed = "closed"
@@ -15,7 +14,7 @@ let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 class ReadiumBugLogger: ReadiumShared.WarningLogger {
   func log(_ warning: Warning) {
-    print(TAG, "Error in Readium: \(warning)")
+    Log.reader.error("Error in Readium while deserializing: \(warning)")
   }
 }
 
@@ -40,12 +39,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   var publicationIdentifier: String?
 
   public func view() -> UIView {
-    print(TAG, "::getView")
+    Log.reader.debug("getView")
     return _view
   }
 
   deinit {
-    print(TAG, "::dispose")
+    Log.reader.info("dispose")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
@@ -58,7 +57,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     arguments args: Any?,
     registrar: FlutterPluginRegistrar
   ) {
-    print(TAG, "::init")
+    Log.reader.info("init")
     let creationParams = args as! Dictionary<String, Any?>
 
     let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
@@ -68,15 +67,15 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     let locatorStr = creationParams["initialLocator"] as? String
     let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
-    print(TAG, "publication = \(publication)")
+    Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
 
     emitReaderStatusChanged(status: ReadiumReaderStatusLoading)
 
-    print(TAG, "Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
-    print(TAG, "Added publication at \(String(describing: publication.baseURL))")
+    Log.reader.info("Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
+    Log.reader.info("Added publication at \(String(describing: publication.baseURL))")
 
     // Remove undocumented Readium default 20dp or 44dp top/bottom padding.
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
@@ -145,13 +144,13 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         pointerPolicy: .init(types: [.mouse, .touch])
     ).bind(to: readiumViewController)
 
-    print(TAG, "::init success")
+    Log.reader.debug("init success")
   }
 
   @objc public func onCustomEditingAction() {
-    print(TAG, "EditingAction::NOTA")
+    Log.reader.debug("EditingAction::NOTA")
     // NOTE: This method will not actually be hit. It will try to find an "onCustomEditingAction" function in the Responder chain!
-    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call the plugin again.
+    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call back into the plugin from there.
     // see https://github.com/readium/swift-toolkit/issues/466
 
     if let selection = readiumViewController.currentSelection {
@@ -163,14 +162,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   // override EPUBNavigatorDelegate::navigator:setupUserScripts
   public func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
-    print(TAG, "setupUserScripts: adding \(userScripts.count) scripts")
+    Log.reader.debug("setupUserScripts: adding \(userScripts.count) scripts")
     for script in userScripts {
       userContentController.addUserScript(script)
     }
   }
 
-  // override EPUBNavigatorDelegate::middleTapHandler
   func middleTapHandler() {
+    Log.reader.debug("EPUBNavigatorDelegate.middleTapHandler")
   }
 
   public func navigatorContentInset(_ navigator: VisualNavigator) -> UIEdgeInsets? {
@@ -180,12 +179,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   // override EPUBNavigatorDelegate::navigator:presentError
   public func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
-    print(TAG, "presentError: \(error)")
+    Log.reader.error("Should present error: \(error)")
   }
 
   // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
   public func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
-    print(TAG, "didFailToLoadResourceAt: \(href). err: \(error)")
+    Log.reader.warn("didFailToLoadResourceAt: \(href). err: \(error)")
 
     // TODO: Should we send resource-load error like this?
     emitReaderStatusChanged(status: ReadiumReaderStatusError)
@@ -196,7 +195,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   // override NavigatorDelegate::navigator:locationDidChange
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    print(TAG, "onPageChanged: \(locator)")
+    Log.reader.debug("onPageChanged: \(locator)")
     if (!hasSentReady) {
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
@@ -206,14 +205,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   public func navigator(_ navigator: Navigator, presentExternalURL url: URL) {
     guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
-      print(TAG, "skipped non-http external URL: \(url)")
+      Log.reader.warn("skipped non-http external URL: \(url)")
       return
     }
     emitOnExternalLinkActivated(url: url)
   }
 
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
-    print(TAG, "onMethodApplyDecorations: \(decorations) identifier: \(groupIdentifier)")
+    Log.reader.debug("applyDecorations: \(decorations) identifier: \(groupIdentifier)")
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
   }
 
@@ -237,12 +236,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     Task.detached(priority: .high) {
       do {
         let data = try await self.evaluateJavascript(code).get()
-        print(TAG, "evaluateJSReturnResult result: \(data)")
+        Log.reader.debug("evaluateJavascript result: \(data)")
         await MainActor.run() {
           return result(data)
         }
       } catch (let err) {
-        print(TAG, "evaluateJSReturnResult error: \(err)")
+        Log.reader.error("evaluateJavascript error: \(err)")
         await MainActor.run() {
           return result(nil)
         }
@@ -255,7 +254,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   private func emitOnPageChanged(locator: Locator) -> Void {
-    print(TAG, "emitOnPageChanged:locator=\(String(describing: locator))")
+    Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
     Task.detached(priority: .high) { [locator] in
       /// Enrich Locator with PageInformation and ToC.
@@ -279,7 +278,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   private func emitOnExternalLinkActivated(url: URL) {
-    print(TAG, "emitOnExternalLinkActivated: \(url)")
+    Log.reader.info("emitOnExternalLinkActivated: \(url)")
     Task.detached(priority: .high) {
       await MainActor.run() {
         self.channel.onExternalLinkActivated(url: url)
@@ -293,45 +292,37 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       let pageInfo = PageInformation.fromJson(jresult as? Dictionary<String, Any> ?? Dictionary())
       return pageInfo
     case .failure(let err):
-      print(TAG, "getPageInformation failed! \(err)")
+      Log.reader.error("getPageInformation failed! \(err)")
       return nil
     }
   }
 
-  func goToLocator(locator: Locator, animated: Bool) async -> Void {
-    let readiumViewController = self.readiumViewController
-
-    let goToSuccees = await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
-    //self.emitOnPageChanged()
-  }
-
-  func justGoToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+  func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+    Log.reader.debug("goToLocator: \(locator)")
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
   private func emitOnPageChanged() {
     guard let locator = readiumViewController.currentLocation else {
-      print(TAG, "emitOnPageChanged: currentLocation = nil!")
+      Log.reader.warn("emitOnPageChanged: currentLocation was nil!")
       return
     }
 
-    print(TAG, "emitOnPageChanged: Calling navigator:locationDidChange.")
     navigator(readiumViewController, locationDidChange: locator)
   }
 
   func onMethodCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    Log.reader.debug("onMethodCall: \(call.method)")
     switch call.method {
     case "go":
       let args = call.arguments as! [Any?]
-      print(TAG, "onMethodCall[go] locator = \(args[0] as! String)")
       let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
       let animated = args[1] as! Bool
-      let isAudioBookWithText = args[2] as? Bool ?? false
 
       Task.detached(priority: .high) {
-        await self.goToLocator(locator: locator, animated: animated)
+        let success = await self.goToLocator(locator, animated: animated)
         await MainActor.run() {
-          result(true)
+          result(success)
         }
       }
       break
@@ -359,7 +350,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       break
     case "setPreferences":
       let args = call.arguments as! [String: String]
-      print(TAG, "onMethodCall[setPreferences] args = \(args)")
+      Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
       let preferences = EPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       break
@@ -375,18 +366,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
           details: nil))
       }
 
-      print(TAG, "onMethodCall[setPreferences] args = \(args)")
       applyDecorations(decorations, forGroup: identifier)
       break
     case "dispose":
-      print(TAG, "Disposing readiumViewController")
+      Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break
     default:
-      print(TAG, "Unhandled call \(call.method)")
+      Log.reader.warn("Unhandled call: \(call.method)")
       result(FlutterMethodNotImplemented)
       break
     }

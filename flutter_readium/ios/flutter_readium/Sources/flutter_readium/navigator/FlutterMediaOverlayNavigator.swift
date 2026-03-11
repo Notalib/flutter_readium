@@ -10,8 +10,6 @@ import ReadiumNavigator
 
 public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 {
-  internal let OTAG = "FlutterMediaOverlayNavigator"
-  
   internal var mediaOverlays: [FlutterMediaOverlay] = []
   internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
   
@@ -23,7 +21,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
 
   public override func initNavigator() async -> Void {
-    debugPrint(OTAG, "Publication with Synchronized Narration reading-order found!")
+    Log.navigator.info("Initializing MediaOverlayNavigator")
+    
     let narrationLinks = publication.narrationLinks
     let mediaOverlays = await publication.getMediaOverlays()
     
@@ -49,7 +48,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // For now caller must re-load the Publication from same URL, to get a separate reference.
     publication.manifest = audioPubManifest
     
-    debugPrint(OTAG, "New audio readingOrder found: \(audioReadingOrder)")
+    Log.navigator.info("New audio readingOrder found: \(audioReadingOrder)")
     // Save the media-overlays for later position matching.
     self.mediaOverlays = mediaOverlays
     
@@ -86,7 +85,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       self.listener?.timebasedNavigator(self, reachedLocator: combinedLocator)
       self.listener?.timebasedNavigator(self, requestsHighlightAt: combinedLocator, withWordLocator: nil)
     } else {
-      debugPrint(OTAG, "Did not find MediaOverlay matching audio Locator: \(location)")
+      Log.navigator.warn("Did not find MediaOverlay matching audio Locator: \(location)")
     }
   }
   
@@ -100,7 +99,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
     if let textLocatorTime = textLocator.locations.time,
        let textLocatorTimeBegin = textLocatorTime.begin {
-      debugPrint(OTAG, "TextLocator had more precise time offset: \(textLocatorTimeBegin)")
+      Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
       audioLocator.locations.fragments = ["t=\(textLocatorTimeBegin)"]
     }
     return audioLocator
