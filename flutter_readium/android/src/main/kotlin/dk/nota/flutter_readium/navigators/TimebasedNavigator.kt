@@ -149,7 +149,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     /**
      * Go back in the playback.
      */
-    abstract suspend fun goBack()
+    abstract suspend fun goBackward()
 
     /**
      * Go forward in the playback.

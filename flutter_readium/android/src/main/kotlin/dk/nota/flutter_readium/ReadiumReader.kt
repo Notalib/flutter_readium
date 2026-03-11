@@ -46,7 +46,6 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.allAreHtml
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
@@ -652,17 +651,19 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      * Find the current table of content item from a locator.
      */
     suspend fun epubEnrichLocatorWithTocHref(locator: Locator): Locator {
-        // This locator already has a tocHref
-        locator.locations.tocHref?.let { return locator }
-
         val publication = currentPublication ?: run {
             Log.e(TAG, ":epubFindCurrentToc - no currentPublication")
             return locator
         }
 
         if (!publication.conformsTo(Publication.Profile.EPUB)) {
-            Log.d(TAG, ":epubFindCurrentToc - not an EPUB profile")
+            Log.e(TAG, ":epubFindCurrentToc - not an EPUB profile")
             return locator
+        }
+
+        // This locator already has a tocHref, add title and return it.
+        locator.locations.tocHref?.let { tocHref ->
+            return locator.copy(title = publication.getTitleFromTocHref(tocHref))
         }
 
         val cssSelector = locator.locations.cssSelector ?: run {
@@ -713,7 +714,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         currentReaderWidget = readerWidget
 
-        val isEpub = pub.conformsTo(Publication.Profile.EPUB) || pub.readingOrder.allAreHtml
+        val isEpub = pub.conformsTo(Publication.Profile.EPUB)
         if (!isEpub) {
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }

@@ -128,7 +128,7 @@ fun Resource.injectScriptsAndStyles(): Resource =
             """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadium.css"></link>""",
+            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
@@ -307,6 +307,21 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
 }
 
 /**
+ * Get the Table of Content title from a href.
+ */
+fun Publication.getTitleFromTocHref(tocHref: String?): String? {
+    if (tocHref == null || tocHref.isEmpty()) return null
+
+    for (tocLink in tableOfContents.flattenChildren()) {
+        if (tocLink.href.resolve().toString().equals(tocHref, ignoreCase = true)) {
+            return tocLink.title
+        }
+    }
+
+    return null
+}
+
+/**
  * Remove query and fragment from the Url
  */
 fun Url.cleanHref() = removeFragment().removeQuery()
@@ -344,7 +359,8 @@ fun List<Link>.flattenChildren(): List<Link> {
     return flatMap { it.flattenChildren() }
 }
 
-private val tocHrefLocationKey = "tocHref"
+private const val tocHrefLocationKey = "tocHref"
+
 /**
  * A CSS Selector.
  */

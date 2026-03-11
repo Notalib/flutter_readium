@@ -151,7 +151,7 @@ open class AudiobookNavigator(
         }.await()
     }
 
-    override suspend fun goBack() {
+    override suspend fun goBackward() {
         mainScope.async {
             audioNavigator?.skip((-preferences.seekInterval).seconds)
         }.await()

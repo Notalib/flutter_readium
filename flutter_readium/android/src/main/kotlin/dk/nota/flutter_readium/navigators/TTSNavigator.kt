@@ -196,7 +196,7 @@ class TTSNavigator(
     /**
      * Skip to previous utterance (sentence).
      */
-    override suspend fun goBack() {
+    override suspend fun goBackward() {
         val navigator = ttsNavigator ?: run {
             Log.e(TAG, "::goBack ttsNavigator is null")
             return
@@ -238,7 +238,7 @@ class TTSNavigator(
     }
 
     override suspend fun seekTo(offset: Double) {
-        Log.w(TAG, ":seekTo is not implemented for TTS playback")
+        Log.d(TAG, ":seekTo is not implemented for TTS playback")
     }
 
     /**

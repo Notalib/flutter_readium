@@ -320,7 +320,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Navigate backward. Readium component handles RTL / LTR
      */
-    suspend fun goBackward(animated: Boolean) {
+    suspend fun goBackward(animated: Boolean = true) {
         val navigator = epubNavigator
         if (navigator == null) {
             Log.e(TAG, "::goBackward - epubNavigator is null!")
@@ -336,7 +336,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Navigate forward. Readium component handles RTL / LTR
      */
-    suspend fun goForward(animated: Boolean) {
+    suspend fun goForward(animated: Boolean = true) {
         val navigator = epubNavigator
         if (navigator == null) {
             Log.e(TAG, "::goForward - epubNavigator is null!")

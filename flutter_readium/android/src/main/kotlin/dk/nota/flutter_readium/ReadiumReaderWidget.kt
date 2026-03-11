@@ -339,6 +339,7 @@ class ReadiumReaderWidget(
     }
 
     private suspend fun goForward(animated: Boolean) {
+        Log.d(TAG, "::goForward")
         ReadiumReader.epubGoForward(animated)
     }
 

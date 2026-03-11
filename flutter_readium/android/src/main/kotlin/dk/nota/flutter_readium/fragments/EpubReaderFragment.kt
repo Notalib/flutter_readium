@@ -8,7 +8,6 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
-import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
@@ -150,17 +149,17 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
      * Navigate forward. Readium component handles RTL / LTR
      */
     fun goForward(animated: Boolean) {
-        Log.d(TAG, "::goRight")
+        Log.d(TAG, "::goForward")
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::goRight. Navigator not ready.")
+            Log.d(TAG, "::goForward. Navigator not ready.")
             return
         }
 
         if (navigator.goForward(animated)) {
-            Log.d(TAG, "::goRight: Went forward.")
+            Log.d(TAG, "::goForward: Went forward.")
         } else {
-            Log.d(TAG, "::goRight: Couldn't go forward.")
+            Log.d(TAG, "::goForward: Couldn't go forward.")
         }
     }
 

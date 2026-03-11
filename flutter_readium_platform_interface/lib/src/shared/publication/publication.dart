@@ -40,6 +40,26 @@ class Publication with EquatableMixin implements JSONable {
 
   List<Link> get toc => tableOfContents;
 
+  /// Returns a flattened version of the table of contents, where all children links are recursively.
+  List<Link> get tocFlattened {
+    List<Link> flatten(List<Link> links) {
+      if (links.isEmpty) {
+        return [];
+      }
+
+      final result = <Link>[];
+      for (final link in links) {
+        result
+          ..add(link)
+          ..addAll(flatten(link.children));
+      }
+
+      return result;
+    }
+
+    return flatten(tableOfContents);
+  }
+
   String get identifier => metadata.identifier ?? 'unidentified';
 
   Publication copyWith({

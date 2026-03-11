@@ -7,6 +7,8 @@ import 'index.dart';
 extension LocationExtension on Locations {
   TimeFragment? get timeFragment => fragments.map((final e) => TimeFragment.fromFragment(e)).nonNulls.firstOrNull;
 
+  String? get tocHref => this['tocHref'] as String?;
+
   Locations copyWithTimeFragment(final TimeFragment? fragment) {
     final newFragments = [
       ...fragments.where((final e) => TimeFragment.fromFragment(e) == null),
