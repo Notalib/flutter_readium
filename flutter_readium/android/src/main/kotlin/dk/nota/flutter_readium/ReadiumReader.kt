@@ -177,6 +177,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
+    private val timebasedNavigator: TimebasedNavigator<*>?
+        get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
+
     private var epubNavigator: EpubNavigator? = null
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
@@ -812,21 +815,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun play(locator: Locator?) {
         val fromLocator = locator ?: currentTextLocator.value ?: epubFirstVisibleElementLocator()
 
-        audiobookNavigator?.play(fromLocator)
-        syncAudiobookNavigator?.play(fromLocator)
-        ttsNavigator?.play(fromLocator)
+        timebasedNavigator?.play(fromLocator)
     }
 
     suspend fun pause() {
-        audiobookNavigator?.pause()
-        syncAudiobookNavigator?.pause()
-        ttsNavigator?.pause()
+        timebasedNavigator?.pause()
     }
 
     suspend fun resume() {
-        audiobookNavigator?.resume()
-        syncAudiobookNavigator?.resume()
-        ttsNavigator?.resume()
+        timebasedNavigator?.resume()
     }
 
     suspend fun stop() {
@@ -838,7 +835,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         syncAudiobookNavigator?.apply {
-            // pause()
+            pause()
             dispose()
 
             audiobookNavigator = null
@@ -856,33 +853,29 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      * Skip backwards.
      */
     suspend fun previous() {
-        audiobookNavigator?.goBack()
-        syncAudiobookNavigator?.goBack()
-        ttsNavigator?.goBack()
+        timebasedNavigator?.goBackward()
     }
 
     /**
      * Skip forwards.
      */
     suspend fun next() {
-        audiobookNavigator?.goForward()
-        syncAudiobookNavigator?.goForward()
-        ttsNavigator?.goForward()
+        timebasedNavigator?.goForward()
     }
 
     /**
      * Go to a specific locator.
      */
     suspend fun goToLocator(locator: Locator) {
-        audiobookNavigator?.goToLocator(locator)
-        syncAudiobookNavigator?.goToLocator(locator)
-        ttsNavigator?.goToLocator(locator)
-        epubGoToLocator(locator, true)
+        if (timebasedNavigator != null) {
+            timebasedNavigator!!.goToLocator(locator)
+        } else {
+            epubGoToLocator(locator, true)
+        }
     }
 
     suspend fun audioSeek(offsetSeconds: Double) {
-        audiobookNavigator?.seekTo(offsetSeconds)
-        syncAudiobookNavigator?.seekTo(offsetSeconds)
+        timebasedNavigator?.seekTo(offsetSeconds)
     }
 
     @OptIn(InternalReadiumApi::class)
