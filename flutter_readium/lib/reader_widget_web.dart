@@ -10,6 +10,10 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
@@ -18,6 +22,10 @@ class ReadiumReaderWidget extends StatefulWidget {
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();

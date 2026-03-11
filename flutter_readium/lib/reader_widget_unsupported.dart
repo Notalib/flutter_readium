@@ -8,6 +8,10 @@ class ReadiumReaderWidget extends StatelessWidget {
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
@@ -16,6 +20,10 @@ class ReadiumReaderWidget extends StatelessWidget {
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
   Widget build(final BuildContext context) => Center(child: Text('ReaderWidget is not available on this platform.'));
