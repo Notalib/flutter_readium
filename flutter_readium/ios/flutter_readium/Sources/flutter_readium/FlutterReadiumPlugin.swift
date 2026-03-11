@@ -553,7 +553,6 @@ extension FlutterReadiumPlugin {
 
   /// Find the current table of content item from a locator.
   func currentTocLinkFromLocator(_ locator: Locator) async throws -> Link? {
-    let start = CFAbsoluteTimeGetCurrent()
     guard let publication = currentPublication else {
       debugPrint(TAG, ":currentTocLinkFromLocator, no currentPublication")
       return nil

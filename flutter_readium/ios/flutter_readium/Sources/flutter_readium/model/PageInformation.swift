@@ -1,57 +1,53 @@
 import Foundation
 
 final class PageInformation {
-
-    let pageIndex: Int64?
-    let totalPages: Int64?
-    let physicalPageIndex: String?
-    let cssSelector: String?
-
-    init(pageIndex: Int64?, totalPages: Int64?, physicalPageIndex: String?, cssSelector: String?) {
-        self.pageIndex = pageIndex
-        self.totalPages = totalPages
-        self.physicalPageIndex = physicalPageIndex
-        self.cssSelector = cssSelector
+  
+  let tocId: String?
+  let physicalPage: String?
+  let cssSelector: String?
+  
+  init(tocId: String?, physicalPage: String?, cssSelector: String?) {
+    self.tocId = tocId
+    self.physicalPage = physicalPage
+    self.cssSelector = cssSelector
+  }
+  
+  var otherLocations: [String: Any] {
+    var res: [String: Any] = [:]
+    
+    if let tocId,
+       !tocId.isEmpty {
+      res["tocId"] = tocId
     }
-
-    var otherLocations: [String: Any] {
-        var res: [String: Any] = [:]
-
-        if let pageIndex, let totalPages {
-            res["currentPage"] = pageIndex
-            res["totalPages"] = totalPages
-        }
-
-        if let physicalPageIndex,
-           !physicalPageIndex.isEmpty {
-            res["physicalPage"] = physicalPageIndex
-        }
-
-        if let cssSelector,
-           !cssSelector.isEmpty {
-            res["cssSelector"] = cssSelector
-        }
-
-        return res
+    
+    if let physicalPage,
+       !physicalPage.isEmpty {
+      res["physicalPage"] = physicalPage
     }
-
-    static func fromJson(_ jsonString: String) throws -> PageInformation {
-        let data = Data(jsonString.utf8)
-        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
-        return fromJson(object)
+    
+    if let cssSelector,
+       !cssSelector.isEmpty {
+      res["cssSelector"] = cssSelector
     }
-
-    static func fromJson(_ json: [String: Any]) -> PageInformation {
-        let pageIndex = json["pageIndex"] as? NSNumber
-        let totalPages = json["totalPages"] as? NSNumber
-        let physicalPageIndex = json["physicalPageIndex"] as? String
-        let cssSelector = json["cssSelector"] as? String
-
-        return PageInformation(
-            pageIndex: pageIndex?.int64Value,
-            totalPages: totalPages?.int64Value,
-            physicalPageIndex: physicalPageIndex,
-            cssSelector: cssSelector
-        )
-    }
+    
+    return res
+  }
+  
+  static func fromJson(_ jsonString: String) throws -> PageInformation {
+    let data = Data(jsonString.utf8)
+    let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+    return fromJson(object)
+  }
+  
+  static func fromJson(_ json: [String: Any]) -> PageInformation {
+    let tocId = json["tocId"] as? String
+    let physicalPage = json["physicalPage"] as? String
+    let cssSelector = json["cssSelector"] as? String
+    
+    return PageInformation(
+      tocId: tocId,
+      physicalPage: physicalPage,
+      cssSelector: cssSelector
+    )
+  }
 }

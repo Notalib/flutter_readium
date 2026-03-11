@@ -210,6 +210,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       self.nowPlayingUpdater.clearNowPlaying()
     }
     
+    /// Enrich with reading-order position
     if let locator = playingUtterance,
        let readingOrderIndex = publication.readingOrder.firstIndexWithHREF(locator.href) {
       playingUtterance?.locations.position = readingOrderIndex + 1
