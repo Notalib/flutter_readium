@@ -62,13 +62,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> goLeft({final bool animated = true}) async {
-    JsPublicationChannel.goLeft();
+  Future<void> goBackward({final bool animated = true}) async {
+    JsPublicationChannel.goBackward();
   }
 
   @override
-  Future<void> goRight({final bool animated = true}) async {
-    JsPublicationChannel.goRight();
+  Future<void> goForward({final bool animated = true}) async {
+    JsPublicationChannel.goForward();
   }
 
   @override

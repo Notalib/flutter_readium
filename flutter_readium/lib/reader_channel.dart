@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
-enum _ReaderChannelMethodInvoke { applyDecorations, go, goLeft, goRight, dispose, setPreferences }
+enum _ReaderChannelMethodInvoke { applyDecorations, go, goBackward, goForward, dispose, setPreferences }
 
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
@@ -28,15 +28,15 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   /// Go to the previous page.
-  Future<void> goLeft({final bool animated = true}) {
+  Future<void> goBackward({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(_ReaderChannelMethodInvoke.goLeft, animated);
+    return _invokeMethod(_ReaderChannelMethodInvoke.goBackward, animated);
   }
 
   /// Go to the next page.
-  Future<void> goRight({final bool animated = true}) {
+  Future<void> goForward({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(_ReaderChannelMethodInvoke.goRight, animated);
+    return _invokeMethod(_ReaderChannelMethodInvoke.goForward, animated);
   }
 
   /// Set EPUB preferences.

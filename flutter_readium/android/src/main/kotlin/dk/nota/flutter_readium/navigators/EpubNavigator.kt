@@ -317,26 +317,36 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
-    fun goLeft(animated: Boolean) {
+    /**
+     * Navigate backward. Readium component handles RTL / LTR
+     */
+    suspend fun goBackward(animated: Boolean) {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.e(TAG, "::goLeft - epubNavigator is null!")
+            Log.e(TAG, "::goBackward - epubNavigator is null!")
             return
         }
 
-        Log.d(TAG, "::goLeft")
-        navigator.goLeft(animated)
+        withScope(mainScope) {
+            Log.d(TAG, "::goBackward")
+            navigator.goBackward(animated)
+        }
     }
 
-    fun goRight(animated: Boolean) {
+    /**
+     * Navigate forward. Readium component handles RTL / LTR
+     */
+    suspend fun goForward(animated: Boolean) {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.e(TAG, "::goRight - epubNavigator is null!")
+            Log.e(TAG, "::goForward - epubNavigator is null!")
             return
         }
 
-        Log.d(TAG, "::goRight")
-        navigator.goRight(animated)
+        withScope(mainScope) {
+            Log.d(TAG, "::goForward")
+            navigator.goForward(animated)
+        }
     }
 
     private suspend fun afterFragmentStarted() {
@@ -376,7 +386,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
     suspend fun goToLocator(locator: Locator, animated: Boolean) {
-        go(locator, animated)
+        withScope(mainScope) {
+            go(locator, animated)
+        }
     }
 
     companion object {

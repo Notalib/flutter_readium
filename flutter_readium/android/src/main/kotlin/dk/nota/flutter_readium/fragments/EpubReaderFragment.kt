@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
+import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
@@ -128,27 +129,27 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     /**
-     * Navigate left (previous page).
+     * Navigate backward. Readium component handles RTL / LTR
      */
-    fun goLeft(animated: Boolean) {
-        Log.d(TAG, "::goLeft")
+    fun goBackward(animated: Boolean) {
+        Log.d(TAG, "::goBackward")
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::goLeft. Navigator not ready.")
+            Log.d(TAG, "::goBackward. Navigator not ready.")
             return
         }
 
         if (navigator.goBackward(animated)) {
-            Log.d(TAG, "::goLeft: Went back.")
+            Log.d(TAG, "::goBackward: Went back.")
         } else {
-            Log.d(TAG, "::goLeft: Couldn't go back.")
+            Log.d(TAG, "::goBackward: Couldn't go back.")
         }
     }
 
     /**
-     * Navigate right (next page).
+     * Navigate forward. Readium component handles RTL / LTR
      */
-    fun goRight(animated: Boolean) {
+    fun goForward(animated: Boolean) {
         Log.d(TAG, "::goRight")
         val navigator = epubNavigator
         if (navigator == null) {

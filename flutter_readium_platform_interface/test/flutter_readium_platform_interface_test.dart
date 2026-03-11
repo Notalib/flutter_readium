@@ -28,7 +28,7 @@ void main() {
               return 'TODO';
             case 'ttsEnable':
               return true;
-            case 'goRight':
+            case 'goForward':
               return true;
             default:
               return null;

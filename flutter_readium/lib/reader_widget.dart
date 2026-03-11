@@ -137,10 +137,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> goLeft({final bool animated = true}) async => _channel?.goLeft();
+  Future<void> goBackward({final bool animated = true}) async => _channel?.goBackward();
 
   @override
-  Future<void> goRight({final bool animated = true}) async => _channel?.goRight();
+  Future<void> goForward({final bool animated = true}) async => _channel?.goForward();
 
   @override
   Future<void> skipToNext({final bool animated = true}) async {
@@ -153,7 +153,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     // Ensure we are at least 1 page into the current chapter, if not in scroll mode.
     // TODO: Find a better way to do this, maybe a `lastVisibleLocator` ?
     if (_readium.defaultPreferences?.verticalScroll != true) {
-      await _channel?.goRight(animated: false);
+      await _channel?.goForward(animated: false);
       final loc = await _flutterReadium.onTextLocatorChanged.first;
       currentHref = getTextLocatorHrefWithTocFragment(loc);
     }

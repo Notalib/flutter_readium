@@ -59,12 +59,12 @@ class FlutterReadium {
     return _platform.onErrorEvent;
   }
 
-  Future<void> goLeft() {
-    return _platform.goLeft();
+  Future<void> goBackward() {
+    return _platform.goBackward();
   }
 
-  Future<void> goRight() {
-    return _platform.goRight();
+  Future<void> goForward() {
+    return _platform.goForward();
   }
 
   Future<void> skipToNext() {

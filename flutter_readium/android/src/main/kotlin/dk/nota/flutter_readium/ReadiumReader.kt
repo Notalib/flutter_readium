@@ -968,31 +968,26 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     /**
-     * Go to a specific locator in the EPUB navigator, without scrolling to the locator position.
+     * Navigate backward in the EPUB navigator.
      */
-    suspend fun epubGo(locator: Locator, animated: Boolean) {
-        epubNavigator?.go(locator, animated)
+    suspend fun epubGoBackward(animated: Boolean) {
+        epubNavigator?.goBackward(animated)
     }
 
     /**
-     * Go left (previous page) in the EPUB navigator.
+     * Navigate forward in the EPUB navigator.
      */
-    fun epubGoLeft(animated: Boolean) {
-        epubNavigator?.goLeft(animated)
-    }
-
-    /**
-     * Go right (next page) in the EPUB navigator.
-     */
-    fun epubGoRight(animated: Boolean) {
-        epubNavigator?.goRight(animated)
+    suspend fun epubGoForward(animated: Boolean) {
+        epubNavigator?.goForward(animated)
     }
 
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    suspend fun epubGoToLocator(locator: Locator, animated: Boolean) {
-        epubNavigator?.goToLocator(locator, animated)
+    fun epubGoToLocator(locator: Locator, animated: Boolean) {
+        mainScope.launch {
+            epubNavigator?.goToLocator(locator, animated)
+        }
     }
 
     /**

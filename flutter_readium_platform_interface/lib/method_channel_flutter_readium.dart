@@ -105,10 +105,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
 
   @override
-  Future<void> goLeft() async => await currentReaderWidget?.goLeft();
+  Future<void> goBackward() async => await currentReaderWidget?.goBackward();
 
   @override
-  Future<void> goRight() async => await currentReaderWidget?.goRight();
+  Future<void> goForward() async => await currentReaderWidget?.goForward();
 
   @override
   Future<void> skipToNext() async => await currentReaderWidget?.skipToNext();

@@ -217,7 +217,8 @@ class ReadiumReaderWidget(
                         it, locator.href
                     )
                 }?.let { pageInfo ->
-                    emittingLocator = emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                    emittingLocator =
+                        emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
                 } ?: {
                     Log.d(TAG, "::emitOnPageChanged - no page information")
                 }
@@ -225,7 +226,12 @@ class ReadiumReaderWidget(
                 Log.d(TAG, ":pageInformation error: $e")
             }
 
-            emittingLocator = emittingLocator.copyWithAdditionalLocations(mapOf("currentPage" to pageIndex, "totalPages" to totalPages))
+            emittingLocator = emittingLocator.copyWithAdditionalLocations(
+                mapOf(
+                    "currentPage" to pageIndex,
+                    "totalPages" to totalPages
+                )
+            )
 
             emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
 
@@ -271,7 +277,6 @@ class ReadiumReaderWidget(
                     val args = call.arguments as List<*>
                     val locatorJson = JSONObject(args[0] as String)
                     val animated = args[1] as Boolean
-                    val isAudioBookWithText = args[2] as Boolean
                     if (locatorJson.optString("type") == "") {
                         locatorJson.put("type", " ")
                         Log.e(
@@ -283,15 +288,15 @@ class ReadiumReaderWidget(
                     result.success(null)
                 }
 
-                "goLeft" -> {
+                "goBackward" -> {
                     val animated = call.arguments as Boolean
-                    goLeft(animated)
+                    goBackward(animated)
                     result.success(null)
                 }
 
-                "goRight" -> {
+                "goForward" -> {
                     val animated = call.arguments as Boolean
-                    goRight(animated)
+                    goForward(animated)
                     result.success(null)
                 }
 
@@ -322,18 +327,19 @@ class ReadiumReaderWidget(
 
     fun go(locator: Locator, animated: Boolean) {
         Log.d(TAG, "::go ${locator.href}")
-        mainScope.launch {
-            ReadiumReader.epubGoToLocator(locator, animated)
-        }
+        ReadiumReader.epubGoToLocator(locator, animated)
     }
 
-    private fun goLeft(animated: Boolean) {
-        Log.d(TAG, "::goLeft")
-        ReadiumReader.epubGoLeft(animated)
+    /**
+     * Navigate backward in the EPUB navigator.
+     */
+    private suspend fun goBackward(animated: Boolean) {
+        Log.d(TAG, "::goBackward")
+        ReadiumReader.epubGoBackward(animated)
     }
 
-    private fun goRight(animated: Boolean) {
-        ReadiumReader.epubGoRight(animated)
+    private suspend fun goForward(animated: Boolean) {
+        ReadiumReader.epubGoForward(animated)
     }
 
     private suspend fun evaluateJavascript(script: String): String? {
