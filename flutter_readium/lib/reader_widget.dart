@@ -23,6 +23,10 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
@@ -31,6 +35,10 @@ class ReadiumReaderWidget extends StatefulWidget {
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -88,42 +96,78 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
     var userSwipe = false;
+    final verticalScroll = widget.verticalScroll;
 
-    return Listener(
-      onPointerDown: (final _) {
-        _enableWakelock();
-      },
-      onPointerMove: (final event) {
-        if (userSwipe) {
-          return;
-        }
+    final readingProgression = widget.publication.metadata.readingProgression;
+    // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
+    final leftUpLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+        ? widget.goForwardSemanticLabel
+        : widget.goBackwardSemanticLabel;
+    final rightDownLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+        ? widget.goBackwardSemanticLabel
+        : widget.goForwardSemanticLabel;
 
-        userSwipe = event.delta.distance > 3.0;
+    return Stack(
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          width: verticalScroll ? null : 70,
+          height: verticalScroll ? 100 : null,
+          right: verticalScroll ? 0 : null,
+          bottom: verticalScroll ? null : 0,
+          child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
+        ),
+        // TODO: This presumes there is only one semantic label, for when the different toggles
+        Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
+        Positioned(
+          top: verticalScroll ? null : 0,
+          right: 0,
+          width: verticalScroll ? null : 70,
+          height: verticalScroll ? 100 : null,
+          left: verticalScroll ? 0 : null,
+          bottom: 0,
+          child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
+        ),
+        ExcludeSemantics(
+          child: Listener(
+            onPointerDown: (final _) {
+              _enableWakelock();
+            },
+            onPointerMove: (final event) {
+              if (userSwipe) {
+                return;
+              }
 
-        if (userSwipe) {
-          _onInteraction();
-        }
-      },
-      onPointerUp: (final event) async {
-        if (userSwipe) {
-          /// Wait for page animation to complete.
-          await Future.delayed(const Duration(seconds: 1));
-        } else {
-          final dx = event.position.dx;
+              userSwipe = event.delta.distance > 3.0;
 
-          if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
-            // edge tap
-            _onInteraction();
-          } else {
-            // center tap
-            _toggleControls();
-          }
-        }
+              if (userSwipe) {
+                _onInteraction();
+              }
+            },
+            onPointerUp: (final event) async {
+              if (userSwipe) {
+                /// Wait for page animation to complete.
+                await Future.delayed(const Duration(seconds: 1));
+              } else {
+                final dx = event.position.dx;
 
-        userSwipe = false;
-      },
+                if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
+                  // edge tap
+                  _onInteraction();
+                } else {
+                  // center tap
+                  _toggleControls();
+                }
+              }
 
-      child: _readerWidget,
+              userSwipe = false;
+            },
+
+            child: _readerWidget,
+          ),
+        ),
+      ],
     );
   }
 
@@ -369,5 +413,28 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
     }
+  }
+
+  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) {
+    return Semantics(
+      // TODO: this is not necessarily how it should be handled needs to be evaluated more
+      sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
+      button: true,
+      container: true,
+      label: label,
+      onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
+      child: Container(color: Colors.transparent),
+    );
+  }
+
+  Widget _buildSemanticsToggleFullScreen({required final String label}) {
+    return Semantics(
+      sortKey: const OrdinalSortKey(1.0),
+      button: true,
+      container: true,
+      label: label,
+      onTap: _toggleControls,
+      child: Container(color: Colors.transparent),
+    );
   }
 }
