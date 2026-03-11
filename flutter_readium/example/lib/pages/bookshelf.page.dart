@@ -192,13 +192,14 @@ class BookshelfPageState extends State<BookshelfPage> {
     padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
     child: InkWell(
       onTap: () {
-        final fakeInitialLocator = publication.locatorFromLink(
-          publication.readingOrder[math.min(2, publication.readingOrder.length - 1)],
-        );
+        // Use an in-memory saved locator as initial locator when opening the publication,
+        // so that we can restore the last reading position.
+        // This is just for demo purposes, in a real app you would probably want to persist the locator.
+        final savedInitialLocator = savedLocators[publication.identifier];
 
         try {
           context.read<PublicationBloc>().add(
-            OpenPublication(publicationUrl: publicationUrl, initialLocator: fakeInitialLocator),
+            OpenPublication(publicationUrl: publicationUrl, initialLocator: savedInitialLocator),
           );
 
           Navigator.restorablePushNamed(context, '/player');
