@@ -397,7 +397,7 @@ func initUserScripts(registrar: FlutterPluginRegistrar) {
   let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
   let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
   let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
-  let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadium.css", fromPackage: "flutter_readium")
+  let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
   let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
     let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
     let data = FileManager().contents(atPath: path)!
