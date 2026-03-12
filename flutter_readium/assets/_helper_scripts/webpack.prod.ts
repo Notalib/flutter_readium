@@ -3,8 +3,10 @@ import * as webpack from 'webpack';
 
 export default <webpack.Configuration>{
   mode: 'production',
+  // devtool: 'source-map',
   optimization: {
     minimizer: [new TerserPlugin()],
+    minimize: true,
 
     splitChunks: {
       cacheGroups: {

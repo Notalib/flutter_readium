@@ -60,10 +60,13 @@ class BookshelfPageState extends State<BookshelfPage> {
       final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
       for (String localPubPath in localPublications) {
+        debugPrint('Loading publication from local path: $localPubPath');
         final publication = await loadPublicationFromUrl(localPubPath);
         if (publication != null) {
           loadedPublications.add(publication);
           loadedPublicationURLs.add(localPubPath);
+        } else {
+          debugPrint('Failed to load publication from path: $localPubPath');
         }
       }
     }

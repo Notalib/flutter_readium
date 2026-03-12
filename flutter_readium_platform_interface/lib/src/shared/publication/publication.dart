@@ -40,6 +40,26 @@ class Publication with EquatableMixin implements JSONable {
 
   List<Link> get toc => tableOfContents;
 
+  /// Returns a flattened version of the table of contents, where all children links are recursively.
+  List<Link> get tocFlattened {
+    List<Link> flatten(List<Link> links) {
+      if (links.isEmpty) {
+        return [];
+      }
+
+      final result = <Link>[];
+      for (final link in links) {
+        result
+          ..add(link)
+          ..addAll(flatten(link.children));
+      }
+
+      return result;
+    }
+
+    return flatten(tableOfContents);
+  }
+
   String get identifier => metadata.identifier ?? 'unidentified';
 
   Publication copyWith({
@@ -145,24 +165,21 @@ class Publication with EquatableMixin implements JSONable {
   }
 
   Locator? locatorFromLink(final Link link, {final MediaType? typeOverride}) {
-    final href = link.href;
-    final hashIndex = href.indexOf(_hrefEnd);
-    final hrefHead = hashIndex == -1 ? href : href.substring(0, hashIndex);
-    final hrefTail = hashIndex == -1 ? null : href.substring(hashIndex + 1);
-    final resourceLink = linkWithHref(hrefHead);
+    final (href, fragments) = link.href.splitPathAndFragment();
+    final resourceLink = linkWithHref(href);
     final type = resourceLink?.type ?? typeOverride?.name;
     final linkIndex = resourceLink == null ? -1 : readingOrder.indexOf(resourceLink);
     return type == null
         ? null
         : Locator(
-            href: hrefHead.stripLeadingSlash(),
+            href: href,
             type: type,
             title: resourceLink!.title ?? link.title,
             text: LocatorText(),
             locations: Locations(
-              cssSelector: hrefTail != null && hrefTail.isNotEmpty ? '#$hrefTail' : null,
-              fragments: hrefTail == null ? [] : [hrefTail],
-              progression: hrefTail == null ? 0 : null,
+              cssSelector: fragments != null && fragments.isNotEmpty ? '#$fragments' : null,
+              fragments: fragments == null ? [] : [fragments],
+              progression: fragments == null ? 0 : null,
               position: linkIndex == -1 ? null : linkIndex + 1,
             ),
           );

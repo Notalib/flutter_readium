@@ -10,12 +10,6 @@
   font-size: 98%;
 }
 
-span#activeLocation {
-  border-radius: 4px;
-  background-color: var(--USER__highlightBackgroundColor) !important;
-  color: var(--USER__highlightForegroundColor) !important;
-}
-
 body > *:first-child {
   margin-top: 50px !important;
 }

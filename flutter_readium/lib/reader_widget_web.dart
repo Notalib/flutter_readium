@@ -8,20 +8,24 @@ class ReadiumReaderWidget extends StatefulWidget {
     required this.publication,
     this.loadingWidget = const Center(child: CircularProgressIndicator()),
     this.initialLocator,
-    this.onTap,
-    this.onGoLeft,
-    this.onGoRight,
-    this.onSwipe,
+    this.shouldShowControls,
+    this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
   final Publication publication;
   final Widget loadingWidget;
   final Locator? initialLocator;
-  final VoidCallback? onTap;
-  final VoidCallback? onGoLeft;
-  final VoidCallback? onGoRight;
-  final VoidCallback? onSwipe;
+  final ValueNotifier<bool>? shouldShowControls;
+  final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
@@ -66,20 +70,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> goLeft({final bool animated = true}) async {
-    JsPublicationChannel.goLeft();
+  Future<void> goBackward({final bool animated = true}) async {
+    JsPublicationChannel.goBackward();
   }
 
   @override
-  Future<void> goRight({final bool animated = true}) async {
-    JsPublicationChannel.goRight();
-  }
-
-  @override
-  // ignore: prefer_expression_function_bodies
-  Future<Locator?> getLocatorFragments(final Locator locator) async {
-    // Implement this method if needed
-    return null;
+  Future<void> goForward({final bool animated = true}) async {
+    JsPublicationChannel.goForward();
   }
 
   @override
@@ -90,12 +87,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> skipToNext({final bool animated = true}) async {
     R2Log.d('skipToNext not implemented in web version');
-  }
-
-  @override
-  Future<Locator?> getCurrentLocator() async {
-    R2Log.d('getCurrentLocator not implemented in web version');
-    return null;
   }
 
   @override

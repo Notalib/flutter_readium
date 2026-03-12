@@ -67,7 +67,7 @@ class SyncAudiobookNavigator(
         if (mediaOverlay == null) {
             Log.d(
                 TAG,
-                ":onTimebasedCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset"
+                ":onCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset"
             )
             return
         }

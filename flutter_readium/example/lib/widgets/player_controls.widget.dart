@@ -23,7 +23,7 @@ class PlayerControls extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.fast_rewind),
           onPressed: () => context.read<PlayerControlsBloc>().add(
-            state.ttsEnabled || isAudioBook ? SkipToPrevious() : SkipToPreviousPage(),
+            state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToPrevious() : SkipToPreviousPage(),
           ),
           tooltip: state.ttsEnabled ? 'Skip to previous paragraph' : 'Skip to previous page',
         ),
@@ -50,8 +50,9 @@ class PlayerControls extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.fast_forward),
-          onPressed: () =>
-              context.read<PlayerControlsBloc>().add(state.ttsEnabled || isAudioBook ? SkipToNext() : SkipToNextPage()),
+          onPressed: () => context.read<PlayerControlsBloc>().add(
+            state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
+          ),
           tooltip: state.ttsEnabled ? 'Skip to next paragraph' : 'Skip to next page',
         ),
         IconButton(

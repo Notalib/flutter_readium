@@ -18,11 +18,17 @@ import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.ContentService
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
+import java.util.Locale
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
@@ -119,10 +125,10 @@ fun Resource.injectScriptsAndStyles(): Resource =
 
         val injectLines = listOf(
             """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.js"></script>""",
+            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/epub.css"></link>""",
+            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
@@ -150,10 +156,10 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 
     // Flatten TOC for title lookup
-    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it.title) }
+    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it) }
 
     // Remember last matched TOC item for titles
-    var lastTocMatch: Pair<String, String?>? = null
+    var lastTocMatch: Pair<String, Link>? = null
 
     return this.readingOrder.mapNotNull { r ->
         r.alternates.find { a ->
@@ -163,7 +169,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonString =
             this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1, link.title ?: "")
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "")
     }
         .map { mo ->
             val items = mo.items.map { item ->
@@ -174,9 +180,15 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
 
                 if (match?.second != null) {
                     lastTocMatch = match
-                    item.copy(title = match.second ?: "")
+                    item.copy(
+                        title = match.second.title ?: "",
+                        tocHref = match.second.href.resolve()
+                    )
                 } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(title = lastTocMatch.second ?: "")
+                    item.copy(
+                        title = lastTocMatch.second.title ?: "",
+                        tocHref = lastTocMatch.second.href.resolve()
+                    )
                 } else {
                     item
                 }
@@ -247,7 +259,131 @@ fun Locator.getTextId(): String? {
 fun Locator.copyWithTimeFragment(time: Double): Locator {
     return copy(
         locations = locations.copy(
-            fragments = listOf("${time}")
+            fragments = listOf("t=${time}")
         )
     )
 }
+
+/**
+ * Helper for getting all cssSelectors for a HTML document.
+ */
+suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
+    if (!conformsTo(Publication.Profile.EPUB)) {
+        Log.d(TAG, ":findAllCssSelectors - this only works for an EPUB Profile")
+        return null
+    }
+
+    val contentService = findService(ContentService::class) ?: run {
+        Log.d(TAG, ":findAllCssSelectors - no content service found")
+        return null
+    }
+
+    val cleanHref = href.cleanHref()
+
+    val ids = arrayListOf<String>()
+    for (element in contentService.content(
+        Locator(
+            href = cleanHref,
+            mediaType = MediaType.XHTML
+        )
+    )) {
+        if (element !is Content.TextElement) {
+            continue
+        }
+
+        if (element.locator.href.cleanHref().path != cleanHref.path) {
+            // We iterated to the next document, stopping
+            break
+        }
+
+        // We are only interested in #id type of cssSelectors.
+        val cssSelector =
+            element.locator.locations.cssSelector?.takeIf { it.startsWith("#") } ?: continue
+
+        ids.add(cssSelector)
+    }
+
+    return ids
+}
+
+/**
+ * Get the Table of Content title from a href.
+ */
+fun Publication.getTitleFromTocHref(tocHref: String?): String? {
+    if (tocHref == null || tocHref.isEmpty()) return null
+
+    for (tocLink in tableOfContents.flattenChildren()) {
+        if (tocLink.href.resolve().toString().equals(tocHref, ignoreCase = true)) {
+            return tocLink.title
+        }
+    }
+
+    return null
+}
+
+/**
+ * Remove query and fragment from the Url
+ */
+fun Url.cleanHref() = removeFragment().removeQuery()
+
+val Href.fragmentParameters: Map<String, String>
+    get() = resolve()
+        .fragment
+        // Splits parameters
+        ?.split("&")
+        ?.filter { !it.startsWith("=") }
+        ?.map { it.split("=") }
+        // Only keep named parameters
+        ?.filter { it.size == 2 }
+        ?.associate { it[0].trim().lowercase(Locale.ROOT) to it[1].trim() }
+        ?: mapOf()
+
+
+/**
+ * Media fragment, used for example in audiobooks.
+ *
+ * https://www.w3.org/TR/media-frags/
+ */
+val Href.time: Duration?
+    get() =
+        fragmentParameters["t"]?.toIntOrNull()?.seconds
+
+/**
+ * Returns a list of `Link` after flattening the `children`.
+ */
+fun List<Link>.flattenChildren(): List<Link> {
+    fun Link.flattenChildren(): List<Link> {
+        return listOf(this) + children.flattenChildren()
+    }
+
+    return flatMap { it.flattenChildren() }
+}
+
+private const val tocHrefLocationKey = "tocHref"
+
+/**
+ * A CSS Selector.
+ */
+val Locator.Locations.tocHref: String?
+    get() = this[tocHrefLocationKey] as? String
+
+/**
+ * Add a tocHref to Locator.locations.otherLocations.
+ */
+fun Locator.copyWithTocHref(tocLink: Link): Locator = this.copyWithTocHref(tocLink.href.resolve())
+
+/**
+ * Add a tocHref to Locator.locations.otherLocations.
+ */
+fun Locator.copyWithTocHref(tocUrl: Url?): Locator {
+    if (tocUrl == null) return copy()
+
+    return this.copyWithAdditionalLocations(mapOf(tocHrefLocationKey to tocUrl.toString()))
+}
+
+/**
+ * Make a copy of the locator by adding more values to Locator.Locations.otherLocations.
+ */
+fun Locator.copyWithAdditionalLocations(additionalValues: Map<String, Any>) = copyWithLocations(
+    otherLocations = locations.otherLocations + additionalValues
+)

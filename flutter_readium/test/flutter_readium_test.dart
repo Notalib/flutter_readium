@@ -18,6 +18,11 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
+  Future<void> setLogLevel(LogLevel level) {
+    throw UnimplementedError();
+  }
+
+  @override
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }
@@ -57,14 +62,14 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> goLeft() {
-    // TODO: implement goLeft
+  Future<void> goBackward() {
+    // TODO: implement goBackward
     throw UnimplementedError();
   }
 
   @override
-  Future<void> goRight() {
-    // TODO: implement goRight
+  Future<void> goForward() {
+    // TODO: implement goForward
     throw UnimplementedError();
   }
 

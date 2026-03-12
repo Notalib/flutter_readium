@@ -7,7 +7,12 @@ import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.copyWithTocHref
+import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
+import dk.nota.flutter_readium.time
+import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +28,10 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
@@ -65,8 +73,10 @@ open class AudiobookNavigator(
                 DatabaseMediaMetadataFactory(
                     publication = publication,
                     trackCount = pub.readingOrder.size,
-                    controlPanelInfoType = preferences.controlPanelInfoType ?: ControlPanelInfoType.STANDARD
-                )})
+                    controlPanelInfoType = preferences.controlPanelInfoType
+                        ?: ControlPanelInfoType.STANDARD
+                )
+            })
         )
 
         if (navigatorFactory == null) {
@@ -141,7 +151,7 @@ open class AudiobookNavigator(
         }.await()
     }
 
-    override suspend fun goBack() {
+    override suspend fun goBackward() {
         mainScope.async {
             audioNavigator?.skip((-preferences.seekInterval).seconds)
         }.await()
@@ -155,7 +165,7 @@ open class AudiobookNavigator(
 
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: return
-        mainScope.async {
+        withScope(mainScope) {
             navigator.go(locator)
         }
     }
@@ -223,6 +233,31 @@ open class AudiobookNavigator(
                     Log.d(TAG, ": AudioNavigator settings changed: $s")
                 }
         }
+    }
+
+    @OptIn(InternalReadiumApi::class)
+    override fun onCurrentLocatorChanges(locator: Locator) {
+        var emittingLocator = locator
+
+        locator.locations.time?.let { time ->
+            var matchedTocItem: Link? = null
+            val cleanHref = locator.href.cleanHref().path
+            for (link in publication.tableOfContents.flattenChildren().filter {
+                it.href.resolve().cleanHref().path == cleanHref
+            }) {
+                val tocTime = link.href.time ?: continue
+                if (tocTime > time) {
+                    break
+                }
+                matchedTocItem = link
+            }
+
+            matchedTocItem?.href?.resolve()?.let {
+                emittingLocator = emittingLocator.copyWithTocHref(it)
+            }
+        }
+
+        super.onCurrentLocatorChanges(emittingLocator)
     }
 
     override fun onPlaybackStateChanged(pb: AudioNavigator.Playback) {

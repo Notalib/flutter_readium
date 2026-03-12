@@ -24,6 +24,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     protected val timebaseListener: TimebasedListener,
     initialLocator: Locator?
 ) : BaseNavigator(publication, initialLocator) {
+    var isPlaying = false
 
     /**
      * Listener interface for time-based navigator events.
@@ -75,7 +76,8 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         var timebasedState: TimebasedState
         when (pb.state) {
             is MediaNavigator.State.Ready -> {
-                timebasedState = if (pb.playWhenReady) TimebasedState.Playing else TimebasedState.Paused
+                timebasedState =
+                    if (pb.playWhenReady) TimebasedState.Playing else TimebasedState.Paused
             }
 
             is MediaNavigator.State.Buffering -> {
@@ -96,30 +98,30 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
             ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}"
         )
 
+        isPlaying = timebasedState == TimebasedState.Playing
+
         timebaseListener.onTimebasedPlaybackStateChanged(timebasedState)
     }
 
     override fun onCurrentLocatorChanges(locator: Locator) {
+        var emittingLocator = locator
+
         val readingOrderLink =
             publication.readingOrder.find { link ->
                 link.href.toString() == locator.href.toString()
             }
 
-        if (locator.locations.position == null) {
-            val index =
-                publication.readingOrder.indexOfFirst { link ->
-                    link == readingOrderLink
-                }
-            if (index != -1) {
-                val newLocator = locator.copy(
+        if (emittingLocator.locations.position == null) {
+            publication.readingOrder.indexOfFirst { link ->
+                link == readingOrderLink
+            }.takeIf { it > -1 }?.let { index ->
+                emittingLocator = emittingLocator.copy(
                     locations = locator.locations.copy(position = index + 1)
                 )
-                timebaseListener.onTimebasedCurrentLocatorChanges(newLocator, readingOrderLink)
-                return
             }
         }
 
-        timebaseListener.onTimebasedCurrentLocatorChanges(locator, readingOrderLink)
+        timebaseListener.onTimebasedCurrentLocatorChanges(emittingLocator, readingOrderLink)
     }
 
     /**
@@ -147,7 +149,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     /**
      * Go back in the playback.
      */
-    abstract suspend fun goBack()
+    abstract suspend fun goBackward()
 
     /**
      * Go forward in the playback.

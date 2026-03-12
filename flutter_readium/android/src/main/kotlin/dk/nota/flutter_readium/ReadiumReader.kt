@@ -40,12 +40,13 @@ import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.allAreHtml
+import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -118,6 +119,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     private val currentTimebasedLocator = MutableStateFlow<Locator?>(null)
 
+    private val currentTextLocator = MutableStateFlow<Locator?>(null)
+
     private var defaultHttpHeaders = mutableMapOf<String, String>()
 
     var decorationStyle: FlutterDecorationPreferences
@@ -174,10 +177,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
-    private var epubNavigator: EpubNavigator? = null
+    private val timebasedNavigator: TimebasedNavigator<*>?
+        get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
 
-    val epubCurrentLocator: Locator?
-        get() = epubNavigator?.currentLocator?.value
+    private var epubNavigator: EpubNavigator? = null
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
@@ -398,6 +401,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             state[currentPublicationUrlKey] = value
         }
 
+    /***
+     * For EPUB profile, maps document [Url] to a list of all the cssSelectors in the document.
+     *
+     * This is used to find the current toc item.
+     */
+    private var currentPublicationCssSelectorMap: MutableMap<Url, List<String>>? = null
+
     /**
      * Sets the headers used in the HTTP requests for fetching publication resources, including
      * resources in already created `Publication` objects.
@@ -579,6 +589,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         mainScope.async {
             _currentPublication?.close()
             _currentPublication = null
+            currentPublicationCssSelectorMap = null
 
             ttsNavigator?.dispose()
             ttsNavigator = null
@@ -588,6 +599,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             syncAudiobookNavigator = null
 
             _audioPreferences = FlutterAudioPreferences()
+
+            currentTextLocator.value = null
+            currentTimebasedLocator.value = null
+            currentTimebasedState.value = null
+            currentTimebasedBuffer.value = null
+            currentTimebasedDuration.value = null
+            currentTimebasedOffset.value = null
 
             state.clear()
         }.await()
@@ -608,12 +626,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         // TODO: Notify client
     }
 
+    @OptIn(InternalReadiumApi::class)
     override fun onTimebasedCurrentLocatorChanges(
         locator: Locator, currentReadingOrderLink: Link?
     ) {
         val duration = currentReadingOrderLink?.duration
         val timeOffset =
-            locator.locations.fragments.find { it.startsWith("t=") }?.substring(2)?.toDoubleOrNull()
+            locator.locations.time?.inWholeSeconds?.toDouble()
                 ?: (duration?.let { duration ->
                     locator.locations.progression?.let { prog -> duration * prog }
                 })
@@ -631,6 +650,61 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         currentReaderWidget?.go(locator, true)
     }
 
+    /**
+     * Find the current table of content item from a locator.
+     */
+    suspend fun epubEnrichLocatorWithTocHref(locator: Locator): Locator {
+        val publication = currentPublication ?: run {
+            Log.e(TAG, ":epubFindCurrentToc - no currentPublication")
+            return locator
+        }
+
+        if (!publication.conformsTo(Publication.Profile.EPUB)) {
+            Log.e(TAG, ":epubFindCurrentToc - not an EPUB profile")
+            return locator
+        }
+
+        // This locator already has a tocHref, add title and return it.
+        locator.locations.tocHref?.let { tocHref ->
+            return locator.copy(title = publication.getTitleFromTocHref(tocHref))
+        }
+
+        val cssSelector = locator.locations.cssSelector ?: run {
+            Log.e(TAG, ":epubFindCurrentToc - missing cssSelector in locator")
+            return locator
+        }
+
+        val resultLocator = locator.copy()
+
+        val cleanHref = resultLocator.href.cleanHref()
+        val tocLinks = publication.tableOfContents.flattenChildren().filter {
+            it.href.resolve().cleanHref().path == cleanHref.path
+        }
+
+        val documentCssSelectors = epubGetAllDocumentCssSelectors(resultLocator.href)
+        val idx = documentCssSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: run {
+            // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
+            Log.d(
+                TAG,
+                ":epubFindCurrentToc cssSelector:${cssSelector} not found in contentIds, assume idx = 0"
+            )
+            0
+        }
+
+        val toc =
+            tocLinks.associateBy { documentCssSelectors.indexOf("#${it.href.resolve().fragment}") }
+
+        val tocItem = toc.entries.lastOrNull { it.key <= idx }?.value
+            ?: toc.entries.firstOrNull()?.value ?: run {
+                Log.d(TAG, ":epubFindCurrentToc - no tocItem found")
+                return resultLocator
+            }
+
+        return resultLocator.copy(
+            title = tocItem.title
+        ).copyWithTocHref(tocItem)
+    }
+
     @OptIn(InternalReadiumApi::class)
     suspend fun epubEnable(
         initialLocator: Locator?,
@@ -643,7 +717,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         currentReaderWidget = readerWidget
 
-        val isEpub = pub.conformsTo(Publication.Profile.EPUB) || pub.readingOrder.allAreHtml
+        val isEpub = pub.conformsTo(Publication.Profile.EPUB)
         if (!isEpub) {
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
@@ -682,10 +756,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
-            // TODO: Get initial locator
-            ttsNavigator = TTSNavigator(it, this@ReadiumReader, null, ttsPrefs).apply {
-                initNavigator()
-            }
+            ttsNavigator =
+                TTSNavigator(it, this@ReadiumReader, currentTextLocator.value, ttsPrefs).apply {
+                    initNavigator()
+                }
         } ?: throw Exception("Publication not opened cannot enable tts")
     }
 
@@ -716,7 +790,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 )
             },
             { language, availableVoices -> null },
-            AndroidTtsPreferences())?.voices ?: setOf()
+            AndroidTtsPreferences()
+        )?.voices ?: setOf()
     }
 
     fun ttsGetPreferences(): FlutterTtsPreferences? {
@@ -738,27 +813,17 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun play(locator: Locator?) {
-        var fromLocator = locator
+        val fromLocator = locator ?: currentTextLocator.value ?: epubFirstVisibleElementLocator()
 
-        if (fromLocator == null) {
-            fromLocator = currentReaderWidget?.getFirstVisibleLocator()
-        }
-
-        audiobookNavigator?.play(fromLocator)
-        syncAudiobookNavigator?.play(fromLocator)
-        ttsNavigator?.play(fromLocator)
+        timebasedNavigator?.play(fromLocator)
     }
 
     suspend fun pause() {
-        audiobookNavigator?.pause()
-        syncAudiobookNavigator?.pause()
-        ttsNavigator?.pause()
+        timebasedNavigator?.pause()
     }
 
     suspend fun resume() {
-        audiobookNavigator?.resume()
-        syncAudiobookNavigator?.resume()
-        ttsNavigator?.resume()
+        timebasedNavigator?.resume()
     }
 
     suspend fun stop() {
@@ -770,7 +835,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         syncAudiobookNavigator?.apply {
-            // pause()
+            pause()
             dispose()
 
             audiobookNavigator = null
@@ -788,33 +853,29 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      * Skip backwards.
      */
     suspend fun previous() {
-        audiobookNavigator?.goBack()
-        syncAudiobookNavigator?.goBack()
-        ttsNavigator?.goBack()
+        timebasedNavigator?.goBackward()
     }
 
     /**
      * Skip forwards.
      */
     suspend fun next() {
-        audiobookNavigator?.goForward()
-        syncAudiobookNavigator?.goForward()
-        ttsNavigator?.goForward()
+        timebasedNavigator?.goForward()
     }
 
     /**
      * Go to a specific locator.
      */
     suspend fun goToLocator(locator: Locator) {
-        audiobookNavigator?.goToLocator(locator)
-        syncAudiobookNavigator?.goToLocator(locator)
-        ttsNavigator?.goToLocator(locator)
-        epubGoToLocator(locator, true)
+        if (timebasedNavigator != null) {
+            timebasedNavigator!!.goToLocator(locator)
+        } else {
+            epubGoToLocator(locator, true)
+        }
     }
 
     suspend fun audioSeek(offsetSeconds: Double) {
-        audiobookNavigator?.seekTo(offsetSeconds)
-        syncAudiobookNavigator?.seekTo(offsetSeconds)
+        timebasedNavigator?.seekTo(offsetSeconds)
     }
 
     @OptIn(InternalReadiumApi::class)
@@ -885,7 +946,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         currentReaderWidget?.onVisualReaderIsReady()
     }
 
-    suspend fun getFirstVisibleLocator(): Locator? {
+    suspend fun epubFirstVisibleElementLocator(): Locator? {
         return epubNavigator?.firstVisibleElementLocator()
     }
 
@@ -901,38 +962,42 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     /**
-     * Go to a specific locator in the EPUB navigator, without scrolling to the locator position.
+     * Navigate backward in the EPUB navigator.
      */
-    suspend fun epubGo(locator: Locator, animated: Boolean) {
-        epubNavigator?.go(locator, animated)
+    suspend fun epubGoBackward(animated: Boolean) {
+        epubNavigator?.goBackward(animated)
     }
 
     /**
-     * Go left (previous page) in the EPUB navigator.
+     * Navigate forward in the EPUB navigator.
      */
-    fun epubGoLeft(animated: Boolean) {
-        epubNavigator?.goLeft(animated)
-    }
-
-    /**
-     * Go right (next page) in the EPUB navigator.
-     */
-    fun epubGoRight(animated: Boolean) {
-        epubNavigator?.goRight(animated)
+    suspend fun epubGoForward(animated: Boolean) {
+        epubNavigator?.goForward(animated)
     }
 
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    suspend fun epubGoToLocator(locator: Locator, animated: Boolean) {
-        epubNavigator?.goToLocator(locator, animated)
+    fun epubGoToLocator(locator: Locator, animated: Boolean) {
+        mainScope.launch {
+            epubNavigator?.goToLocator(locator, animated)
+        }
     }
 
     /**
-     * Get locator fragments from EPUB navigator.
+     * Get all cssSelectors for an EPUB file.
+     * Note: These only includes text elements, so body, page breaks etc are not included.
      */
-    suspend fun epubGetLocatorFragments(locator: Locator): Locator? {
-        return epubNavigator?.getLocatorFragments(locator)
+    suspend fun epubGetAllDocumentCssSelectors(href: Url): List<String> {
+        val cssSelectorMap = currentPublicationCssSelectorMap ?: mutableMapOf()
+        currentPublicationCssSelectorMap = cssSelectorMap
+
+        val cleanHref = href.cleanHref()
+        return cssSelectorMap.getOrPut(cleanHref) {
+            currentPublication?.findAllCssSelectors(
+                cleanHref
+            ) ?: listOf()
+        }
     }
 
     /**
@@ -947,5 +1012,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     fun emitTextLocatorUpdate(locator: Locator) {
         textLocatorEventChannel?.sendEvent(locator)
+
+        currentTextLocator.value = locator
     }
 }

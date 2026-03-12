@@ -23,29 +23,158 @@ extension Publication {
     self.readingOrder.contains(where: { $0.alternates.contains(where: { $0.mediaType?.matches(MediaType("application/vnd.syncnarr+json")) == true })})
   }
   
-  func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
-      guard let searchService: SearchService = findService(SearchService.self) else {
-        debugPrint("No SearchService available")
-        return []
-      }
-      var collections: [LocatorCollection] = []
-      switch await searchService.search(query: query, options: .init()) {
-      case .failure(let err):
-        switch err {
-        case .badQuery(let queryErr):
-          debugPrint("Search failed, bad query: \(queryErr)")
-        case .reading(let readErr):
-          debugPrint("Search failed, reading error: \(readErr)")
-        case .publicationNotSearchable:
-          debugPrint("Search failed, publication is not searchable")
-        }
-      case .success(let iterator):
-        _ = await iterator.forEach { collection in
-          collections.append(collection)
-        }
-      }
-      return collections
+  var narrationLinks: [Link] {
+    return self.readingOrder.compactMap {
+      var link = $0.alternates.filterByMediaType(MediaType("application/vnd.syncnarr+json")!).first
+      link?.title = $0.title
+      return link
     }
+  }
+  
+  func getMediaOverlays() async -> [FlutterMediaOverlay] {
+    if (!containsMediaOverlays) {
+      return []
+    }
+    
+    let narrationLinks = self.narrationLinks
+    
+    let toc: [(String, Link)] = (await getFlattenedToC()).map { ($0.href, $0) }
+    var lastTocMatch: (String, Link)? = nil
+    
+    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
+    let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
+      FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil)
+    }).map({
+      let items = $0.items.map { item in
+        // Find best matching title from ToC (via text URL)
+        if let match = toc.first(where: { tocItem in tocItem.0 == item.text }) {
+          lastTocMatch = match
+          return item.copyWith(tocTitle: match.1.title, tocHref: match.1.href)
+        } else if (lastTocMatch?.1 != nil && lastTocMatch?.0.substringBeforeLast("#") == item.textFile) {
+          return item.copyWith(tocTitle: lastTocMatch?.1.title, tocHref: lastTocMatch?.1.href)
+        }
+        return item
+      }
+      return FlutterMediaOverlay(items: items)
+    })
+    
+    // Assert that we did not lose any MediaOverlays during JSON deserialization.
+    assert(mediaOverlays.count == narrationLinks.count)
+    
+    return mediaOverlays
+  }
+  
+  func getFlattenedToC() async -> [Link] {
+    switch await self.tableOfContents() {
+    case .success(let toc):
+      return toc.flatMap{ $0.flattened }
+    case .failure(let err):
+      Log.readium.error("failed to retrieve ToC: \(err)")
+      return []
+    }
+  }
+  
+  func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
+    guard let searchService: SearchService = findService(SearchService.self) else {
+      Log.readium.warn("No SearchService available")
+      return []
+    }
+    var collections: [LocatorCollection] = []
+    switch await searchService.search(query: query, options: .init()) {
+    case .failure(let err):
+      switch err {
+      case .badQuery(let queryErr):
+        Log.readium.error("Search failed, bad query: \(queryErr)")
+      case .reading(let readErr):
+        Log.readium.error("Search failed, reading error: \(readErr)")
+      case .publicationNotSearchable:
+        Log.readium.error("Search failed, publication is not searchable")
+      }
+    case .success(let iterator):
+      _ = await iterator.forEach { collection in
+        collections.append(collection)
+      }
+    }
+    return collections
+  }
+  
+  /**
+   * Helper for getting all cssSelectors for a HTML document in the Publication.
+   */
+  func findAllCssSelectors(hrefRelativePath: String) async -> [String] {
+    if (!self.conforms(to: Publication.Profile.epub)) {
+      Log.readium.warn("findAllCssSelectors only works for EPUBs")
+      return []
+    }
+    guard let contentService: ContentService = findService(ContentService.self) else {
+      Log.readium.warn("No ContentService available")
+      return []
+    }
+    let cleanHref = hrefRelativePath,
+        startLocator = Locator(href: RelativeURL(string: cleanHref)!, mediaType: MediaType.xhtml)
+        
+    guard let content = contentService.content(from: startLocator)?.iterator() else {
+      Log.readium.warn("No content iterator obtained from ContentService")
+      return []
+    }
+    
+    var ids = [] as [String]
+
+    do {
+      while let element = try await content.next() {
+        if (element.locator.href.path != cleanHref) {
+          break
+        }
+        
+        if let cssSelector = element.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
+          ids.append(cssSelector)
+          Log.readium.debug("findAllCssSelectors: \(element.locator.href.path),id: \(cssSelector)")
+        }
+      }
+    } catch (let err) {
+      Log.readium.warn("ContentService failed to fetch next element: \(err)")
+    }
+    return ids
+  }
+  
+  /**
+   * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
+   * We find it by rewinding in the ContentService from current Locator, until we hit an #id selector.
+   */
+  func findCssSelectorForLocator(locator: Locator) async -> String? {
+    if locator.locations.cssSelector?.hasPrefix("#") == true {
+      Log.readium.debug("findCssSelectorForLocator, Locator already had selector: \(locator.locations.cssSelector ?? "")")
+      return locator.locations.cssSelector
+    }
+    
+    guard let contentService: ContentService = findService(ContentService.self) else {
+      Log.readium.warn("No ContentService available")
+      return nil
+    }
+    
+    let cleanPath = locator.href.path
+    let content = contentService.content(from: locator)?.iterator()
+    if (content == nil) {
+      Log.readium.warn("No content iterator obtained from ContentService")
+      return nil
+    }
+    let locatorProgression = locator.locations.progression ?? 0.0
+    
+    while let element: ContentElement? = try? await content?.previous() {
+      if (element == nil) {
+        // Nore more content to rewind through.
+        break
+      }
+      // Return first content element with an #id cssSelector
+      if let cssSelector = element?.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
+        Log.readium.debug("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
+        return cssSelector.split(separator: " ").first?.lowercased()
+      } else {
+        Log.readium.debug("findCssSelector: skip \(element?.locator.locations.cssSelector ?? "")")
+      }
+    }
+    return nil
+  }
 }
 
 extension MediaPlaybackState {
@@ -74,8 +203,39 @@ extension Link {
       let jsonObj = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!)
       try self.init(json: jsonObj)
     } catch {
-      print("Invalid Link object: \(error)")
+      Log.readium.error("Invalid Link object: \(error)")
       throw JSONError.parsing(Self.self)
+    }
+  }
+  
+  /// Returns only the path part of the Link href.
+  var hrefPath: String? {
+    return URL(string: href)?.path
+  }
+  
+  /// Recursively flattens the Link and its children.
+  var flattened: [Link] {
+    return [self] + children.flatMap{ $0.flattened }
+  }
+  
+  /// Gets the time-fragment if part of the Link.
+  var timeFragment: String? {
+    if let url = URL(string: self.href),
+       let timeFragment = url.fragment?.split(separator: "&").first(where: { $0.hasPrefix("t=") }),
+       let timeComponent = timeFragment.split(separator: "=").last {
+      return String(timeComponent)
+    } else {
+      return nil
+    }
+  }
+  
+  /// Gets the Begin part of a time-fragment as Double in in the Link.
+  var timeFragmentBegin: Double? {
+    if let timeComponent = timeFragment,
+       let timeBegin = timeComponent.split(separator: ",").first {
+      return Double(timeBegin)
+    } else {
+      return nil
     }
   }
 }
@@ -86,7 +246,7 @@ extension Decoration {
     do {
       jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-      print("Invalid Decoration object: \(error)")
+      Log.readium.error("Invalid Decoration object: \(error)")
       throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
@@ -100,7 +260,7 @@ extension Decoration {
           let tintHexStr = jsonObject["tint"],
           let tintColor = Color(hex: tintHexStr),
           let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
-      print("Decoration parse error: `id`, `locator`, `style` and `tint` required")
+      Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
     self.init(
@@ -122,7 +282,7 @@ extension Decoration.Style {
     do {
       jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
     } catch {
-      print("Invalid Decoration.Style json map: \(error)")
+      Log.readium.error("Invalid Decoration.Style json map: \(error)")
       throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
@@ -134,7 +294,7 @@ extension Decoration.Style {
           let tintHexStr = map["tint"],
           let tintColor = Color(hex: tintHexStr)
     else {
-      print("Decoration parse error: `style` and `tint` required")
+      Log.readium.error("Decoration parse error: `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
     try self.init(withStyle: styleStr, tintColor: tintColor)
@@ -252,7 +412,7 @@ extension EPUBPreferences {
           wordSpacing = wordSpacingValue
         }
       default:
-        print("EPUBPreferences", "WARN: Cannot map property: \(key): \(value)")
+        Log.readium.warn("EPUBPreferences unable to map JSON property: \(key)=\(value)")
       }
     }
   }

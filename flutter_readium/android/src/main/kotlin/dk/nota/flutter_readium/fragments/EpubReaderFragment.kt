@@ -14,8 +14,10 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -118,13 +120,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     /**
-     * Check if the reader is ready.
-     */
-    suspend fun isReaderReady(): Boolean {
-        return started.value && evaluateJavascript("window.epubPage.isReaderReady();") == "true"
-    }
-
-    /**
      * Update the reader preferences.
      */
     fun updatePreferences(preferences: EpubPreferences) {
@@ -133,38 +128,38 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     /**
-     * Navigate left (previous page).
+     * Navigate backward. Readium component handles RTL / LTR
      */
-    fun goLeft(animated: Boolean) {
-        Log.d(TAG, "::goLeft")
+    fun goBackward(animated: Boolean) {
+        Log.d(TAG, "::goBackward")
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::goLeft. Navigator not ready.")
+            Log.d(TAG, "::goBackward. Navigator not ready.")
             return
         }
 
         if (navigator.goBackward(animated)) {
-            Log.d(TAG, "::goLeft: Went back.")
+            Log.d(TAG, "::goBackward: Went back.")
         } else {
-            Log.d(TAG, "::goLeft: Couldn't go back.")
+            Log.d(TAG, "::goBackward: Couldn't go back.")
         }
     }
 
     /**
-     * Navigate right (next page).
+     * Navigate forward. Readium component handles RTL / LTR
      */
-    fun goRight(animated: Boolean) {
-        Log.d(TAG, "::goRight")
+    fun goForward(animated: Boolean) {
+        Log.d(TAG, "::goForward")
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::goRight. Navigator not ready.")
+            Log.d(TAG, "::goForward. Navigator not ready.")
             return
         }
 
         if (navigator.goForward(animated)) {
-            Log.d(TAG, "::goRight: Went forward.")
+            Log.d(TAG, "::goForward: Went forward.")
         } else {
-            Log.d(TAG, "::goRight: Couldn't go forward.")
+            Log.d(TAG, "::goForward: Couldn't go forward.")
         }
     }
 
@@ -307,6 +302,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 epubNavigator,
                 NAVIGATOR_FRAGMENT_TAG,
             )
+        }
+
+        (epubNavigator as OverflowableNavigator).apply {
+            // This will automatically turn pages when tapping the screen edges or arrow keys.
+            addInputListener(DirectionalNavigationAdapter(this))
         }
 
         navigator = epubNavigator

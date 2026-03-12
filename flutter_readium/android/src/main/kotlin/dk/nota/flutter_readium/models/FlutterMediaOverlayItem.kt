@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.models
 
+import dk.nota.flutter_readium.copyWithTocHref
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
@@ -24,6 +25,11 @@ data class FlutterMediaOverlayItem(
      * The position in the reading order (1-based index)
      */
     val position: Int,
+
+    /**
+     * The ToC item for this item.
+     */
+    val tocHref: Url?,
 
     /**
      * The title of the chapter or section this item belongs to
@@ -97,7 +103,7 @@ data class FlutterMediaOverlayItem(
                 title = title,
                 locations = Locator.Locations(
                     listOf("#$textId"),
-                    otherLocations = mapOf<String, Any>("cssSelector" to "#$textId"),
+                    otherLocations = mapOf("cssSelector" to "#$textId"),
                     position = position,
                 ),
             )
@@ -110,12 +116,12 @@ data class FlutterMediaOverlayItem(
      * NOTE: You might need to update the time fragment.
      */
     val flutterAudioLocator: Locator? by lazy {
-        syncTextLocator?.let() { textLocator ->
+        syncTextLocator?.let { textLocator ->
             textLocator.copy(
                 locations = textLocator.locations.copy(
                     fragments = listOf("t=${audioStart ?: 0.0}"),
                 ),
-            )
+            ).copyWithTocHref(tocHref)
         }
     }
 
@@ -142,11 +148,11 @@ data class FlutterMediaOverlayItem(
          * Creates a [FlutterMediaOverlayItem] from a JSON object.
          * Returns null if the JSON object does not contain valid "audio" and "text"
          */
-        fun fromJson(json: JSONObject, position: Int, title: String): FlutterMediaOverlayItem? {
+        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
             return if (audio != "" && text != "") {
-                FlutterMediaOverlayItem(audio, text, position, title)
+                FlutterMediaOverlayItem(audio, text, position, tocHref, title)
             } else {
                 null
             }

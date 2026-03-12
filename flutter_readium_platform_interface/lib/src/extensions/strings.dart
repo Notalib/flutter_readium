@@ -105,6 +105,13 @@ extension StringExtension on String {
   ///
   /// @sample samples.text.Strings.take
   String takeWhile(bool Function(String) predicate) => characters.takeWhile(predicate).string;
+
+  (String, String?) splitPathAndFragment() {
+    final components = split('#');
+    final path = components.firstOrDefault(this);
+    final fragment = (components.length > 1 && components[1].isNotEmpty) ? components[1] : null;
+    return (path, fragment);
+  }
 }
 
 extension StringHashExtension on String {

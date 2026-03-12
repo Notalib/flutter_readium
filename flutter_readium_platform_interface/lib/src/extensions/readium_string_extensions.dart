@@ -53,6 +53,4 @@ extension ReadiumStringExtension on String {
   ///
   /// Returns `null` if path couldn't be retrieved from uri.
   String? get path => Uri.tryParse(this)?.path;
-
-  String stripLeadingSlash() => startsWith('/') ? substring(1) : this;
 }

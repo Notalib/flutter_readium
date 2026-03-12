@@ -13,8 +13,8 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   );
   external JSPromise getPublication(JSString link);
   external JSPromise goTo(JSString location);
-  external void goLeft();
-  external void goRight();
+  external void goBackward();
+  external void goForward();
   external void closePublication();
   external JSPromise getResource(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
@@ -115,12 +115,12 @@ class JsPublicationChannel {
     }
   }
 
-  static void goLeft() {
-    _readiumReader.goLeft();
+  static void goBackward() {
+    _readiumReader.goBackward();
   }
 
-  static void goRight() {
-    _readiumReader.goRight();
+  static void goForward() {
+    _readiumReader.goForward();
   }
 
   void closePublication() {
