@@ -68,7 +68,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
     Log.reader.debug("publication = \(publication)")
     
     // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
