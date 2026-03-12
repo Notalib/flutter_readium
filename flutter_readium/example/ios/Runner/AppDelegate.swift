@@ -13,7 +13,7 @@ import flutter_readium
   }
   
   @objc func onCustomEditingAction() {
-    debugPrint("onCustomEditingAction")
+    debugPrint("AppDelegate.onCustomEditingAction")
     // TODO: Test if this works, it should trigger a custom action response.
     flutter_readium.FlutterReadiumPlugin.instance?.currentReaderView?.onCustomEditingAction()
   }

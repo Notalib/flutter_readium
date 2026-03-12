@@ -39,6 +39,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setCustomHeaders(Map<String, String> headers) =>
       throw UnimplementedError('setCustomHeaders(headers) has not been implemented.');
 
+  Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
+
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }
@@ -58,10 +60,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> closePublication() => throw UnimplementedError('closePublication() has not been implemented.');
 
   /// Navigate left/backwards visually in the current publication renderer.
-  Future<void> goLeft() => throw UnimplementedError('goLeft() has not been implemented.');
+  Future<void> goBackward() => throw UnimplementedError('goBackward() has not been implemented.');
 
   /// Navigate right/forwards visually in the current publication renderer.
-  Future<void> goRight() => throw UnimplementedError('goRight() has not been implemented.');
+  Future<void> goForward() => throw UnimplementedError('goForward() has not been implemented.');
 
   /// Skip to next chapter in the current publication.
   Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
@@ -71,7 +73,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   /// Sets the default EPUB rendering preferences and updates preferences for the ReaderWidgetView.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
-      throw UnimplementedError('applyDecorations() has not been implemented');
+      throw UnimplementedError('setEPUBPreferences() has not been implemented');
 
   /// Apply reader decorations (highlights, bookmarks, etc.) to the current ReaderWidgetView.
   /// The `id` parameter is used to identify the decoration set.

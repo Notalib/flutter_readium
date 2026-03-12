@@ -111,14 +111,14 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     }
 
     companion object {
-        fun fromJson(json: JSONObject, position: Int, title: String): FlutterMediaOverlay? {
+        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
             val items = mutableListOf<FlutterMediaOverlayItem>()
             for (i in 0 until topNarration.length()) {
                 val itemJson = topNarration.getJSONObject(i)
-                FlutterMediaOverlayItem.fromJson(itemJson, position, title)?.let { items.add(it) }
+                FlutterMediaOverlayItem.fromJson(itemJson, position, tocHref, title)?.let { items.add(it) }
 
-                fromJson(itemJson, position, title)?.let { items.addAll(it.items) }
+                fromJson(itemJson, position, tocHref, title)?.let { items.addAll(it.items) }
             }
 
             return FlutterMediaOverlay(items)

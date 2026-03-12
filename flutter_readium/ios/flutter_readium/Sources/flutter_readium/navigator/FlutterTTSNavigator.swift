@@ -5,7 +5,6 @@ import ReadiumNavigator
 
 public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSynthesizerDelegate, AVTTSEngineDelegate
 {
-  private let TAG = "FlutterTTSNavigator"
   private var _publication: Publication
   private var _initialLocator: Locator?
 
@@ -70,7 +69,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
         guard let self = self, let locator = locator else {
           return
         }
-        debugPrint(TAG, "tts send audio-locator")
+        Log.navigator.debug("TTS utterance changed")
         let chapterNo = publication.readingOrder.firstIndexWithHREF(locator.href)
 
         self.nowPlayingUpdater.updateChapterNo(chapterNo)
@@ -88,7 +87,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
           return
         }
 
-        debugPrint(TAG, "Sync reader-view to TTS locator")
+        Log.navigator.debug("Sync reader-view to new TTS locator")
         listener?.timebasedNavigator(self, reachedLocator: locator)
       }
       .store(in: &subscriptions)
@@ -174,7 +173,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   }
 
   func ttsSetVoice(voiceIdentifier: String) throws {
-    debugPrint(TAG, "ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
+    Log.navigator.info("ttsSetVoice: voiceIdent=\(String(describing: voiceIdentifier))")
 
     /// Check that voice with given identifier exists
     guard let _ = synthesizer?.voiceWithIdentifier(voiceIdentifier) else {
@@ -188,11 +187,11 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   // MARK: PublicationSpeechSynthesizerDelegate
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, stateDidChange state: ReadiumNavigator.PublicationSpeechSynthesizer.State) {
-    debugPrint(TAG, "publicationSpeechSynthesizerStateDidChange")
+    Log.navigator.debug("publicationSpeechSynthesizerStateDidChange")
 
     switch state {
     case let .playing(utt, wordRange):
-      debugPrint(TAG, "tts playing")
+      Log.navigator.info("TTS state: playing")
       /// utterance is a full sentence/paragraph, while range is the currently spoken part.
       playingUtterance = utt.locator
       if let wordRange = wordRange {
@@ -200,16 +199,17 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       }
       self.listener?.timebasedNavigator(self, requestsHighlightAt: utt.locator, withWordLocator: wordRange)
     case let .paused(utt):
-      debugPrint(TAG, "tts paused at utterance: \(utt.text)")
+      Log.navigator.info("TTS paused at utterance: \(utt.text)")
       playingUtterance = utt.locator
     case .stopped:
       playingUtterance = nil
-      debugPrint(TAG, "tts stopped")
+      Log.navigator.info("TTS state: stopped")
       self.listener?.timebasedNavigator(self, requestsHighlightAt: nil, withWordLocator: nil)
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
     
+    /// Enrich with reading-order position
     if let locator = playingUtterance,
        let readingOrderIndex = publication.readingOrder.firstIndexWithHREF(locator.href) {
       playingUtterance?.locations.position = readingOrderIndex + 1
@@ -220,7 +220,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   }
 
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
-    debugPrint(TAG, "publicationSpeechSynthesizerUtteranceDidFail: \(error)")
+    Log.navigator.error("SpeechSynthesizer failed with error: \(error)")
 
     self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
 

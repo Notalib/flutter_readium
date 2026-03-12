@@ -164,9 +164,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToPreviousChapter>((final event, final emit) => instance.skipToPrevious());
 
-    on<SkipToNextPage>((final event, final emit) => instance.goRight());
+    on<SkipToNextPage>((final event, final emit) => instance.goForward());
 
-    on<SkipToPreviousPage>((final event, final emit) => instance.goLeft());
+    on<SkipToPreviousPage>((final event, final emit) => instance.goBackward());
 
     on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
 

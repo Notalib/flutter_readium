@@ -6,23 +6,25 @@ class ReadiumReaderWidget extends StatelessWidget {
     required this.publication,
     this.loadingWidget = const Center(child: CircularProgressIndicator()),
     this.initialLocator,
-    this.onTap,
-    this.onGoLeft,
-    this.onGoRight,
-    this.onSwipe,
+    this.shouldShowControls,
+    this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
   final Publication publication;
   final Widget loadingWidget;
   final Locator? initialLocator;
-  final VoidCallback? onTap;
-  final VoidCallback? onGoLeft;
-  final VoidCallback? onGoRight;
-  final VoidCallback? onSwipe;
+  final ValueNotifier<bool>? shouldShowControls;
+  final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
-  Widget build(final BuildContext context) => Center(
-        child: Text('ReaderWidget is not available on this platform.'),
-      );
+  Widget build(final BuildContext context) => Center(child: Text('ReaderWidget is not available on this platform.'));
 }

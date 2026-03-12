@@ -10,11 +10,7 @@ import 'package:fimber/fimber.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/href.dart';
-import '../../utils/jsonable.dart';
-import '../../utils/uri_template.dart';
-import '../mediatype/mediatype.dart';
-import 'properties.dart';
+import '../../../flutter_readium_platform_interface.dart';
 
 export 'link_list_extension.dart';
 
@@ -123,11 +119,11 @@ class Link with EquatableMixin implements JSONable {
   /// given collection role.
   final List<Link> children;
 
-  List<String> get _hrefParts => href.split('#');
+  (String, String?) get _hrefParts => href.splitPathAndFragment();
 
-  String get hrefPart => _hrefParts[0];
+  String get hrefPart => _hrefParts.$1;
 
-  String? get elementId => (_hrefParts.length > 1) ? _hrefParts[1] : null;
+  String? get elementId => _hrefParts.$2;
 
   Link copyWith({
     String? id,

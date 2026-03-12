@@ -94,6 +94,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setLogLevel(LogLevel level) async {
+    await methodChannel.invokeMethod<void>('setLogLevel', level.index);
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('openPublication', [pubUrl])
@@ -105,10 +110,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
 
   @override
-  Future<void> goLeft() async => await currentReaderWidget?.goLeft();
+  Future<void> goBackward() async => await currentReaderWidget?.goBackward();
 
   @override
-  Future<void> goRight() async => await currentReaderWidget?.goRight();
+  Future<void> goForward() async => await currentReaderWidget?.goForward();
 
   @override
   Future<void> skipToNext() async => await currentReaderWidget?.skipToNext();

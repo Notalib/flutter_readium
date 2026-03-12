@@ -16,8 +16,6 @@ import ReadiumAdapterLCPSQLite
 import ReadiumLCP
 #endif
 
-private let TAG = "Readium"
-
 let sharedReadium = Readium(withHeaders: nil)
 
 final class Readium : DefaultHTTPClientDelegate {
@@ -65,12 +63,12 @@ final class Readium : DefaultHTTPClientDelegate {
     var merged = additionalHeaders
     for (k, v) in request.headers { merged[k] = v } // per-request wins
     req.headers = merged
-    debugPrint("\(TAG): HTTP request headers: \(req.headers.debugDescription)")
+    Log.readium.debug("HTTPClient request headers: \(req.headers.debugDescription)")
     return .success(req)
   }
 
   func httpClient(_ httpClient: DefaultHTTPClient, request: HTTPRequest, didReceiveResponse response: HTTPResponse) {
-    debugPrint("\(TAG): HTTP response: \(response)")
+    Log.readium.debug("HTTPClient response: \(response)")
   }
 
   //--- MARK: LCP

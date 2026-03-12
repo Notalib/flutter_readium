@@ -4,18 +4,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
-enum _ReaderChannelMethodInvoke {
-  applyDecorations,
-  go,
-  goLeft,
-  goRight,
-  getCurrentLocator,
-  getLocatorFragments,
-  setLocation,
-  isLocatorVisible,
-  dispose,
-  setPreferences,
-}
+enum _ReaderChannelMethodInvoke { applyDecorations, go, goBackward, goForward, dispose, setPreferences }
 
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
@@ -39,34 +28,16 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   /// Go to the previous page.
-  Future<void> goLeft({final bool animated = true}) {
+  Future<void> goBackward({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(_ReaderChannelMethodInvoke.goLeft, animated);
+    return _invokeMethod(_ReaderChannelMethodInvoke.goBackward, animated);
   }
 
   /// Go to the next page.
-  Future<void> goRight({final bool animated = true}) {
+  Future<void> goForward({final bool animated = true}) {
     R2Log.d('$name: $animated');
-    return _invokeMethod(_ReaderChannelMethodInvoke.goRight, animated);
+    return _invokeMethod(_ReaderChannelMethodInvoke.goForward, animated);
   }
-
-  /// Get locator fragments for the given [locator].
-  Future<Locator?> getLocatorFragments(final Locator locator) {
-    R2Log.d('locator: ${locator.toString()}');
-
-    return _invokeMethod(
-      _ReaderChannelMethodInvoke.getLocatorFragments,
-      json.encode(locator.toJson()),
-    ).then((final value) => Locator.fromJson(json.decode(value))).onError((final error, final _) {
-      R2Log.e(error ?? 'Unknown Error');
-
-      throw ReadiumException('getLocatorFragments failed $locator');
-    });
-  }
-
-  /// Set the current location to the given [locator].
-  Future<void> setLocation(final Locator locator, final bool isAudioBookWithText) async =>
-      _invokeMethod(_ReaderChannelMethodInvoke.setLocation, [json.encode(locator), isAudioBookWithText]);
 
   /// Set EPUB preferences.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
@@ -77,18 +48,6 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
-
-  /// Get the current locator.
-  Future<Locator?> getCurrentLocator() async => await _invokeMethod<dynamic>(
-    _ReaderChannelMethodInvoke.getCurrentLocator,
-    [],
-  ).then((locStr) => locStr != null ? Locator.fromJson(json.decode(locStr) as Map<String, dynamic>) : null);
-
-  /// Check if a locator is currently visible on screen.
-  Future<bool> isLocatorVisible(final Locator locator) => _invokeMethod<bool>(
-    _ReaderChannelMethodInvoke.isLocatorVisible,
-    json.encode(locator),
-  ).then((final isVisible) => isVisible!).onError((final error, final _) => true);
 
   Future<void> dispose() async {
     try {

@@ -7,7 +7,7 @@ import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -21,22 +21,24 @@ class ReadiumReaderWidget extends StatefulWidget {
     required this.publication,
     this.loadingWidget = const Center(child: CircularProgressIndicator()),
     this.initialLocator,
-    this.onTap,
-    this.onGoLeft,
-    this.onGoRight,
-    this.onSwipe,
+    this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.goBackwardSemanticLabel = 'Go Backward',
+    this.goForwardSemanticLabel = 'Go Forward',
+    this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.verticalScroll = false,
     super.key,
   });
 
   final Publication publication;
   final Widget loadingWidget;
   final Locator? initialLocator;
-  final VoidCallback? onTap;
-  final VoidCallback? onGoLeft;
-  final VoidCallback? onGoRight;
-  final VoidCallback? onSwipe;
+  final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
+  final String goBackwardSemanticLabel;
+  final String goForwardSemanticLabel;
+  final String toggleShowControlsSemanticLabel;
+  final bool verticalScroll;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -53,6 +55,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   final _isReadyCompleter = Completer<Locator>();
 
   final _readium = FlutterReadiumPlatform.instance;
+  final FlutterReadium _flutterReadium = FlutterReadium();
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
@@ -60,6 +63,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   EPUBPreferences? get _defaultPreferences {
     return _readium.defaultPreferences;
   }
+
+  /// Last time that the controls were hidden due to a touch, used to guess whether a tap was caused
+  /// by such a touch.
+  DateTime? _lastTouchHideControls;
 
   @override
   void initState() {
@@ -88,12 +95,79 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
+    var userSwipe = false;
+    final verticalScroll = widget.verticalScroll;
 
-    return Listener(
-      onPointerDown: (final _) {
-        _enableWakelock();
-      },
-      child: _readerWidget,
+    final readingProgression = widget.publication.metadata.readingProgression;
+    // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
+    final leftUpLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+        ? widget.goForwardSemanticLabel
+        : widget.goBackwardSemanticLabel;
+    final rightDownLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+        ? widget.goBackwardSemanticLabel
+        : widget.goForwardSemanticLabel;
+
+    return Stack(
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          width: verticalScroll ? null : 70,
+          height: verticalScroll ? 100 : null,
+          right: verticalScroll ? 0 : null,
+          bottom: verticalScroll ? null : 0,
+          child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
+        ),
+        // TODO: This presumes there is only one semantic label, for when the different toggles
+        Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
+        Positioned(
+          top: verticalScroll ? null : 0,
+          right: 0,
+          width: verticalScroll ? null : 70,
+          height: verticalScroll ? 100 : null,
+          left: verticalScroll ? 0 : null,
+          bottom: 0,
+          child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
+        ),
+        ExcludeSemantics(
+          child: Listener(
+            onPointerDown: (final _) {
+              _enableWakelock();
+            },
+            onPointerMove: (final event) {
+              if (userSwipe) {
+                return;
+              }
+
+              userSwipe = event.delta.distance > 3.0;
+
+              if (userSwipe) {
+                _onInteraction();
+              }
+            },
+            onPointerUp: (final event) async {
+              if (userSwipe) {
+                /// Wait for page animation to complete.
+                await Future.delayed(const Duration(seconds: 1));
+              } else {
+                final dx = event.position.dx;
+
+                if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
+                  // edge tap
+                  _onInteraction();
+                } else {
+                  // center tap
+                  _toggleControls();
+                }
+              }
+
+              userSwipe = false;
+            },
+
+            child: _readerWidget,
+          ),
+        ),
+      ],
     );
   }
 
@@ -107,10 +181,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> goLeft({final bool animated = true}) async => _channel?.goLeft();
+  Future<void> goBackward({final bool animated = true}) async => _channel?.goBackward();
 
   @override
-  Future<void> goRight({final bool animated = true}) async => _channel?.goRight();
+  Future<void> goForward({final bool animated = true}) async => _channel?.goForward();
 
   @override
   Future<void> skipToNext({final bool animated = true}) async {
@@ -123,8 +197,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     // Ensure we are at least 1 page into the current chapter, if not in scroll mode.
     // TODO: Find a better way to do this, maybe a `lastVisibleLocator` ?
     if (_readium.defaultPreferences?.verticalScroll != true) {
-      await _channel?.goRight(animated: false);
-      final loc = await _channel?.getCurrentLocator();
+      await _channel?.goForward(animated: false);
+      final loc = await _flutterReadium.onTextLocatorChanged.first;
       currentHref = getTextLocatorHrefWithTocFragment(loc);
     }
 
@@ -153,21 +227,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         await _channel?.go(previousChapter, isAudioBookWithText: false, animated: true);
       }
     }
-  }
-
-  @override
-  Future<Locator?> getLocatorFragments(final Locator locator) async {
-    R2Log.d('getLocatorFragments: $locator');
-
-    await _awaitNativeViewReady();
-
-    return await _channel?.getLocatorFragments(locator);
-  }
-
-  @override
-  Future<Locator?> getCurrentLocator() async {
-    R2Log.d('GetCurrentLocator()');
-    return _channel?.getCurrentLocator();
   }
 
   @override
@@ -276,20 +335,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     );
 
     R2Log.d('New widget is: ${_channel?.name}');
-
-    // TODO: This is just to demo how to use and debounce the Stream, remove when appropriate.
-    final nativeLocatorStream = _readium.onTextLocatorChanged
-        .debounceTime(const Duration(milliseconds: 50))
-        .asBroadcastStream()
-        .distinct();
-
-    nativeLocatorStream.listen((locator) {
-      R2Log.d('ReaderWidget.LocatorChanged - $locator');
-    });
-  }
-
-  Future _awaitNativeViewReady() {
-    return _isReadyCompleter.future;
   }
 
   /// Gets a Locator's href with toc fragment appended as identifier
@@ -337,5 +382,49 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
       _lastOrientation = orientation;
     }
+  }
+
+  void _toggleControls() {
+    if (widget.shouldShowControls == null) return;
+
+    final last = _lastTouchHideControls;
+    final delta = last != null ? DateTime.now().difference(last) : null;
+    // If we recently hid the controls due to a touch, assume that the tap is due to that same
+    // touch, so don't re-show the controls.
+    if (delta == null || delta > const Duration(milliseconds: 400)) {
+      widget.shouldShowControls!.value = !widget.shouldShowControls!.value;
+      // Debounce taps, since Readium apparently sends a double onTap on some devices.
+      _lastTouchHideControls = DateTime.now();
+    }
+  }
+
+  void _onInteraction() {
+    if (widget.shouldShowControls?.value == true) {
+      widget.shouldShowControls?.value = false;
+      _lastTouchHideControls = DateTime.now();
+    }
+  }
+
+  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) {
+    return Semantics(
+      // TODO: this is not necessarily how it should be handled needs to be evaluated more
+      sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
+      button: true,
+      container: true,
+      label: label,
+      onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
+      child: Container(color: Colors.transparent),
+    );
+  }
+
+  Widget _buildSemanticsToggleFullScreen({required final String label}) {
+    return Semantics(
+      sortKey: const OrdinalSortKey(1.0),
+      button: true,
+      container: true,
+      label: label,
+      onTap: _toggleControls,
+      child: Container(color: Colors.transparent),
+    );
   }
 }
