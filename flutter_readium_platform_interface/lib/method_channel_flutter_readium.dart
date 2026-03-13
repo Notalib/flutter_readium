@@ -205,34 +205,16 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     try {
       final decoded = json.decode(resultString);
       if (decoded is List) {
-        final collections = decoded
-            .map((e) => LocatorCollection.fromJson(e as Map<String, dynamic>?))
-            .whereType<LocatorCollection>()
+        final results = decoded
+            .map((e) => TextSearchResult.fromJson(e as Map<String, dynamic>?))
+            .whereType<TextSearchResult>()
             .toList();
 
-        return _convertLocatorCollectionsToTextSearchResults(collections);
+        return results;
       }
       return <TextSearchResult>[];
     } catch (e) {
       throw Exception('Failed to parse search results: $e');
     }
-  }
-
-  List<TextSearchResult> _convertLocatorCollectionsToTextSearchResults(final List<LocatorCollection> collections) {
-    final results = <TextSearchResult>[];
-
-    for (final collection in collections) {
-      for (final locator in collection.locators) {
-        final result = TextSearchResult(
-          locator: locator,
-          chapterTitle: locator.title ?? collection.metadata.title ?? '',
-          pageNumbers: null, // pageNumbers not currently available from Readium search
-        );
-
-        results.add(result);
-      }
-    }
-
-    return results;
   }
 }

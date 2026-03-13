@@ -416,11 +416,17 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           Task {
             do {
               let searchResults = await publication.searchInContentForQuery(query)
-              let searchResultsJson = searchResults.map { $0.json }
-              let jsonData = try JSONSerialization.data(withJSONObject: searchResultsJson)
-              let jsonString = String(data: jsonData, encoding: .utf8) ?? "[]"
-              await MainActor.run {
-                result(jsonString)
+              switch searchResults {
+              case .failure(let err):
+                throw err
+              case .success(let searchResultsCols):
+                let fallbackTitle = searchResultsCols.first?.metadata.title ?? publication.metadata.title ?? "Unknown chapter"
+                // TODO: Should we try to find physical page-numbers for the results?
+                let results = searchResultsCols.flatMap { $0.locators.map { l in TextSearchResult(locator: l, chapterTitle: l.title ?? fallbackTitle, pageNumbers: nil) } }
+                let searchResultsJson = try results.map { try $0.toJsonString() }
+                await MainActor.run {
+                  result(searchResultsJson)
+                }
               }
             } catch {
               await MainActor.run {

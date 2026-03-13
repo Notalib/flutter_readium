@@ -383,34 +383,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break
-    case "searchInPublication":
-      Task.detached(priority: .high) {
-        guard let query = call.arguments as? String else {
-          await MainActor.run {
-            result(FlutterError.init(
-              code: "InvalidArgument",
-              message: "Invalid parameters to searchInPublication: \(call.arguments.debugDescription)",
-              details: nil))
-          }
-          return
-        }
-        do {
-          let searchResults = await self.publication.searchInContentForQuery(query)
-          let searchResultsJson = searchResults.map { $0.json }
-          let jsonData = try JSONSerialization.data(withJSONObject: searchResultsJson)
-          let jsonString = String(data: jsonData, encoding: .utf8) ?? "[]"
-          await MainActor.run {
-            result(jsonString)
-          }
-        } catch let err {
-          await MainActor.run {
-            result(FlutterError.init(
-              code: "SearchError",
-              message: "Failed to perform search with query: \(query)",
-              details: err.localizedDescription))
-          }
-        }
-      }
     default:
       Log.reader.warn("Unhandled call: \(call.method)")
       result(FlutterMethodNotImplemented)
