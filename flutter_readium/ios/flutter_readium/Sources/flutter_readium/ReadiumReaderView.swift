@@ -113,10 +113,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       httpServer: sharedReadium.httpServer!
     )
 
-    if userScripts.isEmpty {
-      initUserScripts(registrar: registrar)
-    }
-
     _view = UIView()
     super.init()
 
@@ -140,6 +136,11 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
+    
+    /// Ensure userScripts are initialized for later injection.
+    if userScripts.isEmpty {
+      self.initUserScripts(registrar: registrar)
+    }
 
     /// This adapter will automatically turn pages when the user taps the
     /// screen edges or press arrow keys.
@@ -172,14 +173,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     for script in userScripts {
       userContentController.addUserScript(script)
     }
-    
-    /// TODO: set known ToC IDs for this resource in the javascript layer.
-    //if let publication = FlutterReadiumPlugin.instance?.getCurrentPublication(),
-    //   let tocFragments = publication.getFlattenedToC().compactMap(\.fragment) as? [String]
-    //{
-      //let tocScript = "const pubTocIDs = [\(tocFragments.map({ "\"\($0)\"" }).joined(separator: ","))]"
-      //userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    //}
   }
 
   func middleTapHandler() {
@@ -395,38 +388,50 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       break
     }
   }
-}
-
-func initUserScripts(registrar: FlutterPluginRegistrar) {
-  let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-  let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
-  let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
-  let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-  let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
-    let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-    let data = FileManager().contents(atPath: path)!
-    return String(data: data, encoding: .utf8)!
+  
+  func initUserScripts(registrar: FlutterPluginRegistrar) {
+    let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
+    let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
+    let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
+    let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
+    let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
+      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
+      let data = FileManager().contents(atPath: path)!
+      return String(data: data, encoding: .utf8)!
+    }
+    let addCssScripts = [comicCssKey, flutterReadiumCssKey].map { sourceFile -> String in
+      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
+      let data = FileManager().contents(atPath: path)!.base64EncodedString()
+      return """
+        (function() {
+        var parent = document.getElementsByTagName('head').item(0);
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = window.atob('\(data)');
+        parent.appendChild(style)})();
+      """
+    }
+    /// Add JS scripts right away, before loading the rest of the document.
+    for jsScript in jsScripts {
+      userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+    }
+    /// Add css injection scripts after primary document finished loading.
+    for addCssScript in addCssScripts {
+      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
+    }
+    /// Add simple script used by our JS to detect OS
+    userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
+    
+    /// Add all known ToC IDs for this publication to a global javascript array.
+    do {
+      let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
+      let data = try JSONEncoder().encode(tocFragments)
+      if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
+        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON); console.log('ToC IDs were injected!')"
+        userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+      }
+    } catch (let err) {
+      Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
+    }
   }
-  let addCssScripts = [comicCssKey, flutterReadiumCssKey].map { sourceFile -> String in
-    let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-    let data = FileManager().contents(atPath: path)!.base64EncodedString()
-    return """
-      (function() {
-      var parent = document.getElementsByTagName('head').item(0);
-      var style = document.createElement('style');
-      style.type = 'text/css';
-      style.innerHTML = window.atob('\(data)');
-      parent.appendChild(style)})();
-    """
-  }
-  /// Add JS scripts right away, before loading the rest of the document.
-  for jsScript in jsScripts {
-    userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-  }
-  /// Add css injection scripts after primary document finished loading.
-  for addCssScript in addCssScripts {
-    userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-  }
-  /// Add simple script used by our JS to detect OS
-  userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
 }
