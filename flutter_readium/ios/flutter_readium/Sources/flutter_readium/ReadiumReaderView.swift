@@ -270,7 +270,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       }
       if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
         resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["toc"] = tocLink.href
+        resultLocator.locations.otherLocations["tocHref"] = tocLink.href
       }
 
       /// Immutable ref, so that we can use it on the main thread

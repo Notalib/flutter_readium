@@ -410,20 +410,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
     Log.navigator.debug("ReadiumTimebasedState: \(state)")
-    
+
     Task.detached(priority: .high) {
       /// Enrich the Locator with ToC if missing.
       if var locator = state.currentLocator,
-         locator.locations.otherLocations["toc"] == nil {
+         locator.locations.otherLocations["tocHref"] == nil {
         var tocLink: Link?
         /// Find ToC link via time fragment if present, or via the ContentService if not.
         if locator.locations.time?.begin != nil {
-          tocLink = await self.currentTocLinkFromTimeLocator(locator)
+          tocLink = self.currentTocLinkFromTimeLocator(locator)
         } else {
           tocLink = try? await self.currentTocLinkFromLocator(locator)
         }
         if let tocLink = tocLink {
-          locator.locations.otherLocations["toc"] = tocLink.href
+          locator.locations.otherLocations["tocHref"] = tocLink.href
           locator.title = tocLink.title
         }
       }
@@ -553,8 +553,8 @@ extension FlutterReadiumPlugin {
       return nil
     }
 
-    guard let cssSelector = await publication.findCssSelectorForLocator(locator: locator) else {
-      Log.toc.warn("Could not find cssSelector from locator")
+    guard let cssSelector = locator.locations.cssSelector else {
+      Log.toc.warn("No cssSelector on locator")
       return nil
     }
 
@@ -567,9 +567,12 @@ extension FlutterReadiumPlugin {
       idx = 0
     }
 
-    let toc = Dictionary(
+    /// Note this uses ToC directly from manifest, and thus does not support LCP PDFs.
+    let flattenedToc = publication.getFlattenedToC()
+
+    let indexedToc = Dictionary(
       uniqueKeysWithValues:
-        await publication.getFlattenedToC()
+        flattenedToc
         .filter { RelativeURL(epubHREF: $0.href)?.path == cleanHrefPath }
         .compactMap { item -> (Int, Link)? in
           let fragment = RelativeURL(epubHREF: item.href)?.fragment ?? ""
@@ -578,15 +581,15 @@ extension FlutterReadiumPlugin {
         }
     )
 
-    let tocItem = (toc.filter { $0.key <= idx! }
+    let tocItem = (indexedToc.filter { $0.key <= idx! }
                      .sorted { $0.key < $1.key }
                      .last?.value
-    ?? toc.sorted { $0.key < $1.key }.first?.value)
+    ?? indexedToc.sorted { $0.key < $1.key }.first?.value)
     return tocItem
   }
-  
-  func currentTocLinkFromTimeLocator(_ timeLocator: Locator) async -> Link? {
-    guard let toc = await currentPublication?.getFlattenedToC(),
+
+  func currentTocLinkFromTimeLocator(_ timeLocator: Locator) -> Link? {
+    guard let toc = currentPublication?.getFlattenedToC(),
           let time = timeLocator.locations.time?.begin else {
       return nil
     }
