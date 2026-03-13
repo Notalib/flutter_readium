@@ -387,3 +387,13 @@ fun Locator.copyWithTocHref(tocUrl: Url?): Locator {
 fun Locator.copyWithAdditionalLocations(additionalValues: Map<String, Any>) = copyWithLocations(
     otherLocations = locations.otherLocations + additionalValues
 )
+
+/**
+ * Add currentPage and totalPages to [Locator.locations]
+ */
+fun Locator.addPageNumber(pageIndex: Int, totalPages: Int) = copyWithAdditionalLocations(
+    mapOf(
+        "currentPage" to pageIndex,
+        "totalPages" to totalPages
+    )
+)

@@ -1,7 +1,10 @@
 package dk.nota.flutter_readium.models
 
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.ifNotEmptyLet
 import dk.nota.flutter_readium.jsonDecode
+import dk.nota.flutter_readium.letIfBothNotNull
+import dk.nota.flutter_readium.takeIfNotEmpty
 import org.json.JSONObject
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.optNullableString
@@ -17,19 +20,19 @@ class PageInformation(
         get() {
             val res = mutableMapOf<String, Any>()
 
-            physicalPage?.takeIf { it.isNotEmpty() }?.let {
+            physicalPage.ifNotEmptyLet {
                 res["physicalPage"] = it
             }
 
-            cssSelector?.takeIf { it.isNotEmpty() }?.let {
+            cssSelector.ifNotEmptyLet {
                 res["cssSelector"] = it
             }
 
-            tocId?.takeIf { it.isNotEmpty() }?.let {
+            letIfBothNotNull(tocId, href)?.let { (tocId, href) ->
                 res["tocHref"] = "$href#$tocId"
             }
 
-            return res;
+            return res
         }
 
     companion object {
@@ -38,9 +41,9 @@ class PageInformation(
 
         @OptIn(InternalReadiumApi::class)
         fun fromJson(json: JSONObject, href: Url): PageInformation {
-            val physicalPage = json.optString("physicalPage").takeIf { it.isNotEmpty() }
-            val cssSelector = json.optNullableString("cssSelector")
-            val tocId = json.optNullableString("tocId")?.takeIf { it.isNotEmpty() }
+            val physicalPage = json.optNullableString("physicalPage").takeIfNotEmpty()
+            val cssSelector = json.optNullableString("cssSelector").takeIfNotEmpty()
+            val tocId = json.optNullableString("tocId").takeIfNotEmpty()
 
             return PageInformation(
                 physicalPage,
@@ -51,3 +54,4 @@ class PageInformation(
         }
     }
 }
+

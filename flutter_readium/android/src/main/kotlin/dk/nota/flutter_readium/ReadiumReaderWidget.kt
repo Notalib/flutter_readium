@@ -226,12 +226,7 @@ class ReadiumReaderWidget(
                 Log.d(TAG, ":pageInformation error: $e")
             }
 
-            emittingLocator = emittingLocator.copyWithAdditionalLocations(
-                mapOf(
-                    "currentPage" to pageIndex,
-                    "totalPages" to totalPages
-                )
-            )
+            emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
 
             emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
 
