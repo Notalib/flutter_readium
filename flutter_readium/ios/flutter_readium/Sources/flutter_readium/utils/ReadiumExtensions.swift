@@ -64,7 +64,7 @@ extension Publication {
     return mediaOverlays
   }
 
-  func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection]> {
+  func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
     guard let searchService: SearchService = findService(SearchService.self) else {
       Log.readium.warn("No SearchService available")
       return []

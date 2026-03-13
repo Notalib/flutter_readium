@@ -70,7 +70,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let locatorStr = creationParams["initialLocator"] as? String
     var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
     Log.reader.debug("publication = \(publication)")
-    
+
     // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
     // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
     locator?.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
@@ -172,6 +172,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     for script in userScripts {
       userContentController.addUserScript(script)
     }
+    
+    /// TODO: set known ToC IDs for this resource in the javascript layer.
+    //if let publication = FlutterReadiumPlugin.instance?.getCurrentPublication(),
+    //   let tocFragments = publication.getFlattenedToC().compactMap(\.fragment) as? [String]
+    //{
+      //let tocScript = "const pubTocIDs = [\(tocFragments.map({ "\"\($0)\"" }).joined(separator: ","))]"
+      //userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+    //}
   }
 
   func middleTapHandler() {
