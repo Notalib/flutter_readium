@@ -10,10 +10,34 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.optNullableString
 import org.readium.r2.shared.util.Url
 
+/**
+ * Page information from the webview.
+ *
+ * Retrieved via window.flutterReadium.getPageInformation().
+ *
+ * Requires injection of Table Of Content ids into javascript.
+ * Either into windows.readiumTocIDs = [...] or by calling
+ * window.registerToc([...]);
+ */
 class PageInformation(
+    /**
+     * Physical page information, usually an integer as a string, but can be in other formats.
+     */
     val physicalPage: String?,
+
+    /**
+     * First visible cssSelector. Can be any valid cssSelector.
+     */
     val cssSelector: String?,
+
+    /**
+     * Href for the current file, not retrieved from javascript.
+     */
     val href: String,
+
+    /**
+     * Current ToC id.
+     */
     val tocId: String?,
 ) {
     val otherLocations: Map<String, Any>
@@ -36,9 +60,15 @@ class PageInformation(
         }
 
     companion object {
+        /**
+         * Parse JSON string from window.flutterReadium.getPageInformation()
+         */
         fun fromJson(json: String, href: Url): PageInformation =
             fromJson(jsonDecode(json) as JSONObject, href)
 
+        /**
+         * Parse JSON object from window.flutterReadium.getPageInformation()
+         */
         @OptIn(InternalReadiumApi::class)
         fun fromJson(json: JSONObject, href: Url): PageInformation {
             val physicalPage = json.optNullableString("physicalPage").takeIfNotEmpty()

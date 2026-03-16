@@ -16,7 +16,6 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.flatten
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.ContentService
@@ -99,13 +98,13 @@ private const val READIUM_FLUTTER_PATH_PREFIX =
     "https://readium/assets/flutter_assets/packages/flutter_readium"
 
 // Helper for injecting extra files into an epub
-fun Resource.injectScriptsAndStyles(): Resource =
+fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
     TransformingResource(this) { bytes ->
         val props = this.properties().getOrNull()
-        val filename = props?.filename
+        val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
 
         // Skip all non-html files
-        if (filename?.endsWith("html", ignoreCase = true) != true) {
+        if (!filename.endsWith("html", ignoreCase = true)) {
             return@TransformingResource Try.success(bytes)
         }
 
@@ -129,6 +128,7 @@ fun Resource.injectScriptsAndStyles(): Resource =
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
+            """<script type="text/javascript">var readiumTocIDs = ${jsonEncode(tocIds)}; console.log({readiumTocIDs});</script>"""
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
@@ -156,7 +156,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 
     // Flatten TOC for title lookup
-    val toc = tableOfContents.flatten().map { Pair(it.href.toString(), it) }
+    val toc = tableOfContents.flattenChildren().map { Pair(it.href.toString(), it) }
 
     // Remember last matched TOC item for titles
     var lastTocMatch: Pair<String, Link>? = null

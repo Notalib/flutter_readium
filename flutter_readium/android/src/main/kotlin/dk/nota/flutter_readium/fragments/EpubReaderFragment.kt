@@ -161,18 +161,24 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     Log.e(TAG, "::goForward - no current publication?")
                     return
                 }
-                val position = publication.readingOrder.indexOfFirst { it.href.resolve().isEquivalent(locator.href) }
+                val position = publication.readingOrder.indexOfFirst {
+                    it.href.resolve().isEquivalent(locator.href)
+                }
 
+                val progression = viewPortSize.progression
                 val prevProgression = viewPortSize.prevProgression
-                if (prevProgression < 0.0) {
-                    // stepping back gets us before the start of the current file, but if it is less than a full page go to the top.
-                    if (position <= 0) {
+                if (progression == 0.0 && prevProgression <= 0.0) {
+                    // Current progress is already at the top and prevProgression is <= 0.0,
+                    // We need to go to the previous file in the readingOrder.
+                    val prevPosition = position -1
+                    if (prevPosition < 0) {
                         // Reached the beginning
+                        Log.d(TAG, ":goBackwards - reached the beginning.")
                         return
                     }
 
                     Log.d(TAG, "::goBackward load prev chapter, progression:$prevProgression")
-                    publication.readingOrder[position - 1].let { prevLink ->
+                    publication.readingOrder.getOrNull(prevPosition)?.let { prevLink ->
                         val locator = publication.locatorFromLink(prevLink)?.copyWithLocations(
                             progression = 1.0,
                             totalProgression = null
@@ -181,6 +187,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                             return
                         }
                         navigator.go(locator, animated)
+                    } ?: run {
+                        // Reached the beginning
+                        Log.d(TAG, ":goBackwards - reached the beginning.")
+                        return
                     }
 
                     return
@@ -190,7 +200,13 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                     TAG,
                     "::goBackward from progression:$currentProgression to $prevProgression"
                 )
-                navigator.go(locator.copyWithLocations(progression = prevProgression), animated)
+                navigator.go(
+                    locator.copyWithLocations(
+                        progression = prevProgression.coerceAtLeast(
+                            0.0
+                        )
+                    ), animated
+                )
                 return
             }
 
@@ -222,25 +238,35 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 it.locations.position != null && it.locations.progression != null
             }?.let { locator ->
                 val currentProgression = locator.locations.progression!!
-                val position = locator.locations.position!!
-
-                val viewPortSize = currentViewPortSize()
-                val nextProgression = viewPortSize.nextProgression
                 val publication = ReadiumReader.currentPublication ?: run {
                     Log.e(TAG, "::goForward - no current publication?")
                     return
                 }
 
-                if (nextProgression >= 1.0) {
-                    if (position >= publication.readingOrder.size) {
+                val viewPortSize = currentViewPortSize()
+
+                val endProgression = viewPortSize.endProgression
+                val nextProgression = viewPortSize.nextProgression
+
+                val position = publication.readingOrder.indexOfFirst {
+                    it.href.resolve().isEquivalent(locator.href)
+                }
+
+                if (nextProgression >= 1.0 && endProgression == 1.0) {
+                    // Attempted to over the end of the current file.
+                    val nextPosition = position + 1
+                    if (nextPosition >= publication.readingOrder.size) {
                         Log.d(TAG, "::goForward - reached end.")
                         return
                     }
 
                     Log.d(TAG, "::goForward. load next chapter, progression:$nextProgression")
 
-                    publication.readingOrder[position].let { nextLink ->
+                    publication.readingOrder.getOrNull(nextPosition)?.let { nextLink ->
                         navigator.go(nextLink, animated)
+                    } ?: run {
+                        Log.d(TAG, "::goForward - reached end.")
+                        return
                     }
 
                     return
