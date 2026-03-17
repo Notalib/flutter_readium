@@ -22,7 +22,7 @@ extension Publication {
   var containsMediaOverlays: Bool {
     self.readingOrder.contains(where: { $0.alternates.contains(where: { $0.mediaType?.matches(MediaType("application/vnd.syncnarr+json")) == true })})
   }
-  
+
   var narrationLinks: [Link] {
     return self.readingOrder.compactMap {
       var link = $0.alternates.filterByMediaType(MediaType("application/vnd.syncnarr+json")!).first
@@ -30,17 +30,17 @@ extension Publication {
       return link
     }
   }
-  
+
   func getMediaOverlays() async -> [FlutterMediaOverlay] {
     if (!containsMediaOverlays) {
       return []
     }
-    
+
     let narrationLinks = self.narrationLinks
-    
-    let toc: [(String, Link)] = (await getFlattenedToC()).map { ($0.href, $0) }
+
+    let toc: [(String, Link)] = getFlattenedToC().map { ($0.href, $0) }
     var lastTocMatch: (String, Link)? = nil
-    
+
     let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
     let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
       FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil)
@@ -57,21 +57,11 @@ extension Publication {
       }
       return FlutterMediaOverlay(items: items)
     })
-    
+
     // Assert that we did not lose any MediaOverlays during JSON deserialization.
     assert(mediaOverlays.count == narrationLinks.count)
-    
+
     return mediaOverlays
-  }
-  
-  func getFlattenedToC() async -> [Link] {
-    switch await self.tableOfContents() {
-    case .success(let toc):
-      return toc.flatMap{ $0.flattened }
-    case .failure(let err):
-      Log.readium.error("failed to retrieve ToC: \(err)")
-      return []
-    }
   }
   
   func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection]> {
@@ -91,7 +81,7 @@ extension Publication {
     }
     return .success(collections)
   }
-  
+
   /**
    * Helper for getting all cssSelectors for a HTML document in the Publication.
    */
@@ -106,12 +96,12 @@ extension Publication {
     }
     let cleanHref = hrefRelativePath,
         startLocator = Locator(href: RelativeURL(string: cleanHref)!, mediaType: MediaType.xhtml)
-        
+
     guard let content = contentService.content(from: startLocator)?.iterator() else {
       Log.readium.warn("No content iterator obtained from ContentService")
       return []
     }
-    
+
     var ids = [] as [String]
 
     do {
@@ -119,8 +109,8 @@ extension Publication {
         if (element.locator.href.path != cleanHref) {
           break
         }
-        
-        if let cssSelector = element.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
+
+        if let cssSelector = element.locator.locations.cssSelector {
           ids.append(cssSelector)
           Log.readium.debug("findAllCssSelectors: \(element.locator.href.path),id: \(cssSelector)")
         }
@@ -130,44 +120,11 @@ extension Publication {
     }
     return ids
   }
-  
-  /**
-   * Find the cssSelector for a locator. If it already have one return it, otherwise we need to look it up.
-   * We find it by rewinding in the ContentService from current Locator, until we hit an #id selector.
-   */
-  func findCssSelectorForLocator(locator: Locator) async -> String? {
-    if locator.locations.cssSelector?.hasPrefix("#") == true {
-      Log.readium.debug("findCssSelectorForLocator, Locator already had selector: \(locator.locations.cssSelector ?? "")")
-      return locator.locations.cssSelector
-    }
-    
-    guard let contentService: ContentService = findService(ContentService.self) else {
-      Log.readium.warn("No ContentService available")
-      return nil
-    }
-    
-    let cleanPath = locator.href.path
-    let content = contentService.content(from: locator)?.iterator()
-    if (content == nil) {
-      Log.readium.warn("No content iterator obtained from ContentService")
-      return nil
-    }
-    let locatorProgression = locator.locations.progression ?? 0.0
-    
-    while let element: ContentElement? = try? await content?.previous() {
-      if (element == nil) {
-        // Nore more content to rewind through.
-        break
-      }
-      // Return first content element with an #id cssSelector
-      if let cssSelector = element?.locator.locations.cssSelector.takeIf({ $0.hasPrefix("#") }) {
-        Log.readium.debug("findCssSelector: \(element?.locator.href.path ?? ""), \(element?.locator.locations.progression ?? 0.0), \(element?.locator.locations.cssSelector ?? "")")
-        return cssSelector.split(separator: " ").first?.lowercased()
-      } else {
-        Log.readium.debug("findCssSelector: skip \(element?.locator.locations.cssSelector ?? "")")
-      }
-    }
-    return nil
+
+  /// Get a flattened Table of Contents from the manifest.
+  /// This does not support LCP PDFs, as that would require using the TableOfContentsService.
+  func getFlattenedToC() -> [Link] {
+    return self.manifest.tableOfContents.flattened()
   }
 }
 
@@ -201,17 +158,21 @@ extension Link {
       throw JSONError.parsing(Self.self)
     }
   }
-  
+
+  var fragment: String? {
+    return URL(string: href)?.fragment
+  }
+
   /// Returns only the path part of the Link href.
   var hrefPath: String? {
     return URL(string: href)?.path
   }
-  
+
   /// Recursively flattens the Link and its children.
-  var flattened: [Link] {
-    return [self] + children.flatMap{ $0.flattened }
+  func flattened() -> [Link] {
+    return [self] + children.flatMap{ $0.flattened() }
   }
-  
+
   /// Gets the time-fragment if part of the Link.
   var timeFragment: String? {
     if let url = URL(string: self.href),
@@ -222,7 +183,7 @@ extension Link {
       return nil
     }
   }
-  
+
   /// Gets the Begin part of a time-fragment as Double in in the Link.
   var timeFragmentBegin: Double? {
     if let timeComponent = timeFragment,
@@ -231,6 +192,12 @@ extension Link {
     } else {
       return nil
     }
+  }
+}
+
+extension Array where Element == Link {
+  func flattened() -> [Link] {
+    flatMap { $0.flattened() }
   }
 }
 

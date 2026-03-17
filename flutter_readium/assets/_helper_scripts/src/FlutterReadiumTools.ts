@@ -32,10 +32,28 @@ export class FlutterReadiumTools {
     });
   }
 
+  public getViewPortSize(): { width: number; height: number, scrollTop: number, scrollLeft: number, scrollHeight: number, scrollWidth: number } {
+    const scrollingElement = document.scrollingElement ?? document.documentElement;
+
+    return {
+      width: Math.ceil(scrollingElement.clientWidth),
+      height: Math.ceil(scrollingElement.clientHeight),
+      scrollTop: Math.ceil(scrollingElement.scrollTop),
+      scrollLeft: Math.ceil(scrollingElement.scrollLeft),
+      scrollHeight: Math.floor(scrollingElement.scrollHeight),
+      scrollWidth: Math.floor(scrollingElement.scrollWidth),
+    };
+  }
+
   /**
    * Find current page information, including physical page, css selector of the current position, and the nearest ToC element id.
    */
   public getPageInformation(): PageInformation {
+    if (window.readiumTocIDs) {
+      this.registerToc(window.readiumTocIDs);
+      window.readiumTocIDs = undefined;
+    }
+
     const physicalPage = this.#findCurrentPhysicalPage();
     const cssSelector = this.#findCssSelector();
     const tocId = this.#findTocId(cssSelector);
@@ -283,6 +301,7 @@ export class FlutterReadiumTools {
 declare global {
   interface Window {
     flutterReadium: FlutterReadiumTools;
+    readiumTocIDs?: string[];
   }
 }
 
