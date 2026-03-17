@@ -2,13 +2,11 @@ package dk.nota.flutter_readium.navigators
 
 import android.util.Log
 import dk.nota.flutter_readium.PublicationError
-import kotlinx.coroutines.async
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.services.positions
 import kotlin.time.Duration
 
 private const val TAG = "TimebasedNavigator"
