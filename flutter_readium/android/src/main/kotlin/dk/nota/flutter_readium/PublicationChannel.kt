@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
-import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
@@ -100,13 +99,15 @@ internal class PublicationMethodCallHandler() :
 
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                Log.d(TAG, "::ttsEnable: ttsPrefs:$ttsPrefs")
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                Log.d(TAG, "::ttsSetPreferences: ttsPrefs:$ttsPrefs")
 
                 return ttsSetPreferences(ttsPrefs)
             }
