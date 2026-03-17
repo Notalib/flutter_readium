@@ -45,8 +45,11 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.search.SearchService
+import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -872,6 +875,23 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         } else {
             epubGoToLocator(locator, true)
         }
+    }
+
+    suspend fun searchInPublication(query: String): Try<List<LocatorCollection>, Error> {
+        val pub = currentPublication ?: return failure(
+            Error("no publication")
+        )
+        val resultIterator = pub.search(query, SearchService.Options()) ?: return failure(
+            Error("SearchService unavailable")
+        )
+        var results = mutableListOf<LocatorCollection>()
+        while (true) {
+            val result = resultIterator.next()
+            if (result.isFailure) break
+            val collection = result.getOrNull() ?: break
+            results.add(collection)
+        }
+        return Try.success(results.toList())
     }
 
     suspend fun audioSeek(offsetSeconds: Double) {

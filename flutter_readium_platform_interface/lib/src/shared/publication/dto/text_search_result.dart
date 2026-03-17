@@ -1,15 +1,14 @@
 // NOTE: This is a Nota type
+import 'dart:convert' show JsonCodec;
+
 import 'package:equatable/equatable.dart';
+import 'package:fimber/fimber.dart';
 
 import '../../../utils/jsonable.dart';
 import '../index.dart';
 
 class TextSearchResult with EquatableMixin implements JSONable {
   const TextSearchResult({required this.locator, this.chapterTitle, this.pageNumbers});
-
-  final Locator locator;
-  final String? chapterTitle;
-  final List<String>? pageNumbers;
 
   factory TextSearchResult.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -19,11 +18,38 @@ class TextSearchResult with EquatableMixin implements JSONable {
     final jsonObject = Map<String, dynamic>.of(json);
 
     return TextSearchResult(
-      locator: Locator.fromJson(jsonObject['locator'] as Map<String, dynamic>)!,
+      locator: Locator.fromJsonDynamic(jsonObject['locator'])!,
       chapterTitle: jsonObject['chapterTitle'] as String?,
       pageNumbers: (jsonObject['pageNumbers'] as List<dynamic>?)?.map((e) => e as String).toList(),
     );
   }
+
+  static TextSearchResult? fromJsonString(String jsonString) {
+    try {
+      final Map<String, dynamic> json = JsonCodec().decode(jsonString);
+      return TextSearchResult.fromJson(json);
+    } on Exception catch (ex, st) {
+      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
+    }
+    return null;
+  }
+
+  static TextSearchResult? fromJsonDynamic(dynamic json) {
+    if (json is String) {
+      return fromJsonString(json);
+    } else if (json is Map<String, dynamic>) {
+      return TextSearchResult.fromJson(json);
+    }
+
+    _logger.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    return null;
+  }
+
+  static final FimberLog _logger = FimberLog('TextSearchResult');
+
+  final Locator locator;
+  final String? chapterTitle;
+  final List<String>? pageNumbers;
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{}

@@ -196,23 +196,15 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
-    final resultString = await methodChannel.invokeMethod<String>('searchInPublication', searchKey);
+    final resultList = await methodChannel.invokeMethod<List<dynamic>>('searchInPublication', searchKey);
 
-    if (resultString == null || resultString.isEmpty) {
+    if (resultList == null || resultList.isEmpty) {
       return <TextSearchResult>[];
     }
 
     try {
-      final decoded = json.decode(resultString);
-      if (decoded is List) {
-        final results = decoded
-            .map((e) => TextSearchResult.fromJson(e as Map<String, dynamic>?))
-            .whereType<TextSearchResult>()
-            .toList();
-
-        return results;
-      }
-      return <TextSearchResult>[];
+      final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
+      return results;
     } catch (e) {
       throw Exception('Failed to parse search results: $e');
     }
