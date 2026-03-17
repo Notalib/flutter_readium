@@ -16,17 +16,15 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory:
-        kIsWeb ? HydratedStorageDirectory.web : HydratedStorageDirectory((await getTemporaryDirectory()).path),
+    storageDirectory: kIsWeb
+        ? HydratedStorageDirectory.web
+        : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
 
   runApp(
     MultiBlocProvider(
       providers: [
-        BlocProvider(
-          create: (final _) => PublicationBloc(),
-          lazy: false,
-        ),
+        BlocProvider(create: (final _) => PublicationBloc(), lazy: false),
         BlocProvider(
           create: (final _) {
             final bloc = TextSettingsBloc();
@@ -69,6 +67,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
         '/': (context) => BookshelfPage(),
         '/player': (context) => PlayerPage(),
         '/toc': (context) => TableOfContentsPage(),
+        '/search': (context) => SearchPage(),
       },
     );
   }

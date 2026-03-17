@@ -92,6 +92,20 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       tooltip: 'Open text style settings',
     ),
     IconButton(
+      icon: const Icon(Icons.search),
+      onPressed: () async {
+        final tappedSearchResult = await Navigator.pushNamed<dynamic>(context, '/search');
+        if (!context.mounted) return;
+        final publication = context.read<PublicationBloc>().state.publication;
+        if (publication != null && tappedSearchResult != null && tappedSearchResult is TextSearchResult) {
+          if (context.mounted) {
+            context.read<PlayerControlsBloc>().add(GoToLocator(tappedSearchResult.locator));
+          }
+        }
+      },
+      tooltip: 'Search in publication contents',
+    ),
+    IconButton(
       icon: const Icon(Icons.toc),
       onPressed: () async {
         final result = await Navigator.pushNamed<dynamic>(context, '/toc');
