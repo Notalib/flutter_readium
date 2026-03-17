@@ -17,11 +17,11 @@ class TTSPreferences implements JSONable {
     ControlPanelInfoType? controlPanelInfoType;
 
     if (controlPanelInfoTypeStr != null) {
-      try {
-        controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
-      } catch (e) {
-        Fimber.w('Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to null.', ex: e);
-        controlPanelInfoType = null;
+      controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
+      if (controlPanelInfoType == null) {
+        Fimber.w(
+          'Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to ControlPanelInfoType.standard.',
+        );
       }
     }
 
