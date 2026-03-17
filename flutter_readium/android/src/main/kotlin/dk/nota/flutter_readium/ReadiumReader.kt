@@ -813,7 +813,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun play(locator: Locator?) {
-        val fromLocator = locator ?: currentTextLocator.value ?: epubFirstVisibleElementLocator()
+        val fromLocator = locator ?:
+            currentTimebasedLocator.value ?:
+            currentTextLocator.value ?:
+            epubFirstVisibleElementLocator()
+
+        Log.d(TAG, ":play($locator) - fromLocator:$fromLocator")
 
         timebasedNavigator?.play(fromLocator)
     }
@@ -868,7 +873,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     suspend fun goToLocator(locator: Locator) {
         if (timebasedNavigator != null) {
-            timebasedNavigator!!.goToLocator(locator)
+            Log.d(TAG, "::goToLocator - timebased $locator")
+            timebasedNavigator!!.goToLocator(locator.copy(
+                text = Locator.Text()
+            ))
         } else {
             epubGoToLocator(locator, true)
         }
