@@ -129,7 +129,8 @@ data class FlutterTtsPreferences(
             }
 
             return FlutterTtsPreferences(
-                language = ttsPrefs?.get("language") as? String,
+                language = (ttsPrefs?.get("languageOverride") as? String)
+                    ?: (ttsPrefs?.get("language") as? String),
                 pitch = ttsPrefs?.get("pitch") as? Double,
                 speed = ttsPrefs?.get("speed") as? Double,
                 voices = voices.ifEmpty { null },

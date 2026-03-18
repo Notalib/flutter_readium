@@ -102,14 +102,18 @@ internal class PublicationMethodCallHandler() :
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
                 val ttsPrefs = FlutterTtsPreferences.fromMap(args, availableTtsVoices)
-                Log.d(TAG, "::ttsEnable: ttsPrefs:$ttsPrefs")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "::ttsEnable: ttsPrefs:$ttsPrefs")
+                }
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
                 val ttsPrefs = FlutterTtsPreferences.fromMap(args, availableTtsVoices)
-                Log.d(TAG, "::ttsSetPreferences: ttsPrefs:$ttsPrefs")
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "::ttsSetPreferences: ttsPrefs:$ttsPrefs")
+                }
 
                 return ttsSetPreferences(ttsPrefs)
             }
