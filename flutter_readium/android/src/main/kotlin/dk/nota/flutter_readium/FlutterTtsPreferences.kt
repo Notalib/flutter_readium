@@ -132,7 +132,7 @@ data class FlutterTtsPreferences(
                 language = ttsPrefs?.get("language") as? String,
                 pitch = ttsPrefs?.get("pitch") as? Double,
                 speed = ttsPrefs?.get("speed") as? Double,
-                voices = voices,
+                voices = voices.ifEmpty { null },
                 controlPanelInfoType = ControlPanelInfoType.fromString(
                     ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard"
                 )
