@@ -117,7 +117,7 @@ class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin
     final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
 
     // Validate numberOfItems is positive
-    final validNumberOfItems = (numberOfItems != null && numberOfItems > 0) ? numberOfItems : null;
+    final validNumberOfItems = (numberOfItems != null && numberOfItems >= 0) ? numberOfItems : null;
 
     return LocatorCollectionMetadata(
       localizedTitle: localizedTitle,
