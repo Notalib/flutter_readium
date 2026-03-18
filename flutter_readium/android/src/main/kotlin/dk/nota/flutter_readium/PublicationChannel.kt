@@ -24,6 +24,8 @@ internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 internal class PublicationMethodCallHandler() :
     MethodChannel.MethodCallHandler {
 
+    private val availableTtsVoices by lazy { ReadiumReader.ttsGetAvailableVoices() }
+
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -99,14 +101,14 @@ internal class PublicationMethodCallHandler() :
 
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, availableTtsVoices)
                 Log.d(TAG, "::ttsEnable: ttsPrefs:$ttsPrefs")
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, availableTtsVoices)
                 Log.d(TAG, "::ttsSetPreferences: ttsPrefs:$ttsPrefs")
 
                 return ttsSetPreferences(ttsPrefs)
