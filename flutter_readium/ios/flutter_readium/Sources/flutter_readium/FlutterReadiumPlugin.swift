@@ -552,6 +552,13 @@ extension FlutterReadiumPlugin {
       Log.toc.warn("no currentPublication")
       return nil
     }
+    
+    /// If we already have a ToC ID from the viewer, use that for lookup.
+    if let tocId = locator.locations.otherLocations["tocId"] {
+      let tocHref = "\(locator.href)#\(tocId)"
+      let tocLink = publication.getFlattenedToC().first(where: { $0.href == tocHref })
+      return tocLink
+    }
 
     guard let cssSelector = locator.locations.cssSelector else {
       Log.toc.warn("No cssSelector on locator")
