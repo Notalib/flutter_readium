@@ -114,7 +114,7 @@ class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin
     final jsonObject = Map<String, dynamic>.of(json);
 
     final localizedTitle = jsonObject.remove('title');
-    final numberOfItems = jsonObject.remove('numberOfItems') as int?;
+    final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
 
     // Validate numberOfItems is positive
     final validNumberOfItems = (numberOfItems != null && numberOfItems > 0) ? numberOfItems : null;

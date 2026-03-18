@@ -20,7 +20,7 @@ class TextSearchResult with EquatableMixin implements JSONable {
     return TextSearchResult(
       locator: Locator.fromJsonDynamic(jsonObject['locator'])!,
       chapterTitle: jsonObject['chapterTitle'] as String?,
-      pageNumbers: (jsonObject['pageNumbers'] as List<dynamic>?)?.map((e) => e as String).toList(),
+      pageNumbers: (jsonObject['pageNumbers'] as String?)?.split(','),
     );
   }
 
@@ -29,7 +29,7 @@ class TextSearchResult with EquatableMixin implements JSONable {
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return TextSearchResult.fromJson(json);
     } on Exception catch (ex, st) {
-      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
+      _logger.e('fromJsonString: Failed to decode TextSearchResult: $jsonString', ex: ex, stacktrace: st);
     }
     return null;
   }

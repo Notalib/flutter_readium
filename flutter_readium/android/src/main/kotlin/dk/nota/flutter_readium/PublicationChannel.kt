@@ -15,7 +15,6 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
-import org.readium.r2.shared.util.data.ReadError
 import org.readium.r2.shared.util.getOrElse
 
 private const val TAG = "PublicationChannel"

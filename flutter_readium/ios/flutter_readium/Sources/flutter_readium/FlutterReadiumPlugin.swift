@@ -423,7 +423,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
                 let fallbackTitle = searchResultsCols.first?.metadata.title ?? publication.metadata.title ?? "Unknown chapter"
                 // TODO: Should we try to find physical page-numbers for the results?
                 let results = searchResultsCols.flatMap { $0.locators.map { l in TextSearchResult(locator: l, chapterTitle: l.title ?? fallbackTitle, pageNumbers: nil) } }
-                let searchResultsJson = try results.map { try $0.toJsonString() }
+                let searchResultsJson = try results.compactMap { try $0.toJsonString() }
                 await MainActor.run {
                   result(searchResultsJson)
                 }
