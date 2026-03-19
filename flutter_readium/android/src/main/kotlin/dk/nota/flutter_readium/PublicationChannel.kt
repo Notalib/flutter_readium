@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
-import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
@@ -92,22 +91,19 @@ internal class PublicationMethodCallHandler() :
             }
 
             "closePublication" -> {
-                Log.d(TAG, "Close publication")
-
                 ReadiumReader.closePublication()
                 return Try.success(null)
             }
 
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args)
-
+                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
                 return ttsSetPreferences(ttsPrefs)
             }
 

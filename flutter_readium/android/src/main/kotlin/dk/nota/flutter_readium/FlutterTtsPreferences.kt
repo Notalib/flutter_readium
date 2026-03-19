@@ -5,6 +5,8 @@ import org.json.JSONObject
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.extensions.optNullableString
 import org.readium.r2.shared.util.Language
 
 /**
@@ -12,7 +14,7 @@ import org.readium.r2.shared.util.Language
  */
 @Serializable
 data class FlutterTtsPreferences(
-    val language: String? = null,
+    val languageOverride: String? = null,
     val pitch: Double? = null,
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
@@ -23,11 +25,13 @@ data class FlutterTtsPreferences(
      */
     @OptIn(ExperimentalReadiumApi::class)
     fun toAndroidTtsPreferences(): AndroidTtsPreferences {
-        val androidVoices = voices?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
-            ?.toMap()
+        val androidVoices =
+            voices?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
+                ?.toMap()
 
         // If no language in preferences, use the first language of the preferred voices.
-        val androidLanguage = language?.let { Language(it) } ?: androidVoices?.firstNotNullOfOrNull { it.key }
+        val androidLanguage =
+            languageOverride?.let { Language(it) } ?: androidVoices?.firstNotNullOfOrNull { it.key }
         return AndroidTtsPreferences(
             language = androidLanguage,
             pitch = pitch,
@@ -38,7 +42,7 @@ data class FlutterTtsPreferences(
 
     fun plus(other: FlutterTtsPreferences): FlutterTtsPreferences =
         FlutterTtsPreferences(
-            language = other.language ?: language,
+            languageOverride = other.languageOverride ?: languageOverride,
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
@@ -56,6 +60,7 @@ data class FlutterTtsPreferences(
         /**
          * Create FlutterTtsPreferences from JSON object.
          */
+        @OptIn(InternalReadiumApi::class)
         fun fromJSON(jsonObject: JSONObject): FlutterTtsPreferences {
             val voicesMap = mutableMapOf<String, String>()
             if (jsonObject.has("voices")) {
@@ -65,7 +70,7 @@ data class FlutterTtsPreferences(
                 }
             }
             return FlutterTtsPreferences(
-                language = jsonObject.optString("language", null),
+                languageOverride = jsonObject.optNullableString("language"),
                 pitch = jsonObject.optDouble("pitch").let { if (it.isNaN()) null else it },
                 speed = jsonObject.optDouble("speed").let { if (it.isNaN()) null else it },
                 voices = voicesMap.ifEmpty { null },
@@ -83,7 +88,7 @@ data class FlutterTtsPreferences(
          */
         fun toJSON(preferences: FlutterTtsPreferences): JSONObject {
             val jsonObject = JSONObject()
-            jsonObject.put("language", preferences.language)
+            jsonObject.put("languageOverride", preferences.languageOverride)
             jsonObject.put("pitch", preferences.pitch)
             jsonObject.put("speed", preferences.speed)
             preferences.voices?.let { voices ->
@@ -98,19 +103,38 @@ data class FlutterTtsPreferences(
         /**
          * Create FlutterTtsPreferences from a map.
          */
-        fun fromMap(prefs: Map<*, *>?): FlutterTtsPreferences {
-            val voices = (prefs?.get("voices") as? Map<*, *>)?.mapNotNull {
-                val key = it.key as? String
-                val value = it.value as? String
-                if (key != null && value != null) key to value else null
-            }?.toMap()
+        @OptIn(ExperimentalReadiumApi::class)
+        fun fromMap(
+            ttsPrefs: Map<*, *>?,
+            androidVoices: Set<AndroidTtsEngine.Voice>
+        ): FlutterTtsPreferences {
+            val voices = mutableMapOf<String, String>()
+
+            ttsPrefs?.let { prefs ->
+                (prefs["voiceIdentifier"] as? String)?.let { voiceId ->
+                    androidVoices.firstOrNull {
+                        it.id.value.equals(voiceId, true)
+                    }?.let {
+                        voices[it.language.code] = it.id.value
+                    }
+                }
+
+                (prefs["voices"] as? Map<*, *>?)?.forEach {
+                    val key = it.key as? String
+                    val value = it.value as? String
+                    if (key != null && value != null) {
+                        voices[key] = value
+                    }
+                }
+            }
+
             return FlutterTtsPreferences(
-                language = prefs?.get("language") as? String,
-                pitch = prefs?.get("pitch") as? Double,
-                speed = prefs?.get("speed") as? Double,
-                voices = voices,
+                languageOverride = ttsPrefs?.get("languageOverride") as? String,
+                pitch = ttsPrefs?.get("pitch") as? Double,
+                speed = ttsPrefs?.get("speed") as? Double,
+                voices = voices.ifEmpty { null },
                 controlPanelInfoType = ControlPanelInfoType.fromString(
-                    prefs?.get("controlPanelInfoType") as? String ?: "standard"
+                    ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard"
                 )
             )
         }

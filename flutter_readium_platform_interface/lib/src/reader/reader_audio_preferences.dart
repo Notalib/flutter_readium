@@ -12,18 +12,10 @@ class AudioPreferences with EquatableMixin implements JSONable {
     final speed = jsonObject.optNullableDouble('speed', remove: true);
     final pitch = jsonObject.optNullableDouble('pitch', remove: true);
     final seekInterval = jsonObject.optNullableDouble('seekInterval', remove: true);
-    final allowExternalSeeking = jsonObject.optNullableBoolean(
-      'allowExternalSeeking',
-      remove: true,
-    );
+    final allowExternalSeeking = jsonObject.optNullableBoolean('allowExternalSeeking', remove: true);
     final updateIntervalSecs = jsonObject.optNullableDouble('updateIntervalSecs', remove: true);
-    final controlPanelInfoTypeStr = jsonObject.optNullableString(
-      'controlPanelInfoType',
-      remove: true,
-    );
-    final controlPanelInfoType = controlPanelInfoTypeStr?.let(
-      (it) => ControlPanelInfoType.fromString(it),
-    );
+    final controlPanelInfoTypeStr = jsonObject.optNullableString('controlPanelInfoType', remove: true);
+    final controlPanelInfoType = controlPanelInfoTypeStr?.let((it) => ControlPanelInfoType.fromOptString(it));
     return AudioPreferences(
       volume: volume,
       speed: speed,
@@ -101,6 +93,6 @@ enum ControlPanelInfoType {
   chapterTitle,
   titleChapter;
 
-  static ControlPanelInfoType? fromString(final String type) =>
+  static ControlPanelInfoType? fromOptString(final String type) =>
       ControlPanelInfoType.values.firstWhereOrNull((e) => e.toString().split('.').last == type);
 }
