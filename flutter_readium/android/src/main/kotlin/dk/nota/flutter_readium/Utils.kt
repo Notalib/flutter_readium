@@ -29,10 +29,6 @@ fun String?.ifNotEmptyLet(closure: (String) -> Unit) {
     if (this != null && this.isNotEmpty()) closure(this)
 }
 
-fun String?.takeIfNotEmpty(closure: (String) -> Unit) {
-    if (this != null && this.isNotEmpty()) closure(this)
-}
-
 fun String?.takeIfNotEmpty(): String? {
     if (this != null && this.isNotEmpty()) return this
     return null

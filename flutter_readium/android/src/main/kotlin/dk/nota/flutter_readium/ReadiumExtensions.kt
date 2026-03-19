@@ -128,7 +128,7 @@ fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
-            """<script type="text/javascript">var readiumTocIDs = ${jsonEncode(tocIds)}; console.log({readiumTocIDs});</script>"""
+            """<script type="text/javascript">window.readiumTocIDs = ${jsonEncode(tocIds)};</script>"""
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")

@@ -51,7 +51,7 @@ export class FlutterReadiumTools {
   public getPageInformation(): PageInformation {
     if (window.readiumTocIDs) {
       this.registerToc(window.readiumTocIDs);
-      delete window.readiumTocIDs;
+      window.readiumTocIDs = null;
     }
 
     const physicalPage = this.#findCurrentPhysicalPage();

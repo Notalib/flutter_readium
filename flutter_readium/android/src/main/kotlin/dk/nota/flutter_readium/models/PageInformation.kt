@@ -17,7 +17,7 @@ import org.readium.r2.shared.util.Url
  *
  * Requires injection of Table Of Content ids into javascript.
  * Either into windows.readiumTocIDs = [...] or by calling
- * window.registerToc([...]);
+ * window.flutterReadium.registerToc([...]);
  */
 class PageInformation(
     /**
