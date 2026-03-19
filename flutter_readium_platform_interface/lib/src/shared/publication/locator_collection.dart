@@ -1,7 +1,3 @@
-// Copyright (c) 2021 Mantano. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE.Iridium file.
-
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
