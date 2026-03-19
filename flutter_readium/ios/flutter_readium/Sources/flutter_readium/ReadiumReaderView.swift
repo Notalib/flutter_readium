@@ -136,6 +136,11 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
+    
+    /// Ensure userScripts are initialized for later injection.
+    if userScripts.isEmpty {
+      self.initUserScripts(registrar: registrar)
+    }
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -173,14 +178,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     for script in userScripts {
       userContentController.addUserScript(script)
     }
-
-    /// TODO: set known ToC IDs for this resource in the javascript layer.
-    //if let publication = FlutterReadiumPlugin.instance?.getCurrentPublication(),
-    //   let tocFragments = publication.getFlattenedToC().compactMap(\.fragment) as? [String]
-    //{
-      //let tocScript = "const pubTocIDs = [\(tocFragments.map({ "\"\($0)\"" }).joined(separator: ","))]"
-      //userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    //}
   }
 
   func middleTapHandler() {
@@ -455,7 +452,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-
+    
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
