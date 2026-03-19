@@ -14,7 +14,7 @@ import org.readium.r2.shared.util.Language
  */
 @Serializable
 data class FlutterTtsPreferences(
-    val language: String? = null,
+    val languageOverride: String? = null,
     val pitch: Double? = null,
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
@@ -31,7 +31,7 @@ data class FlutterTtsPreferences(
 
         // If no language in preferences, use the first language of the preferred voices.
         val androidLanguage =
-            language?.let { Language(it) } ?: androidVoices?.firstNotNullOfOrNull { it.key }
+            languageOverride?.let { Language(it) } ?: androidVoices?.firstNotNullOfOrNull { it.key }
         return AndroidTtsPreferences(
             language = androidLanguage,
             pitch = pitch,
@@ -42,7 +42,7 @@ data class FlutterTtsPreferences(
 
     fun plus(other: FlutterTtsPreferences): FlutterTtsPreferences =
         FlutterTtsPreferences(
-            language = other.language ?: language,
+            languageOverride = other.languageOverride ?: languageOverride,
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
@@ -70,7 +70,7 @@ data class FlutterTtsPreferences(
                 }
             }
             return FlutterTtsPreferences(
-                language = jsonObject.optNullableString("language"),
+                languageOverride = jsonObject.optNullableString("language"),
                 pitch = jsonObject.optDouble("pitch").let { if (it.isNaN()) null else it },
                 speed = jsonObject.optDouble("speed").let { if (it.isNaN()) null else it },
                 voices = voicesMap.ifEmpty { null },
@@ -88,7 +88,7 @@ data class FlutterTtsPreferences(
          */
         fun toJSON(preferences: FlutterTtsPreferences): JSONObject {
             val jsonObject = JSONObject()
-            jsonObject.put("language", preferences.language)
+            jsonObject.put("languageOverride", preferences.languageOverride)
             jsonObject.put("pitch", preferences.pitch)
             jsonObject.put("speed", preferences.speed)
             preferences.voices?.let { voices ->
@@ -129,7 +129,7 @@ data class FlutterTtsPreferences(
             }
 
             return FlutterTtsPreferences(
-                language = ttsPrefs?.get("language") as? String,
+                languageOverride = ttsPrefs?.get("languageOverride") as? String,
                 pitch = ttsPrefs?.get("pitch") as? Double,
                 speed = ttsPrefs?.get("speed") as? Double,
                 voices = voices,
