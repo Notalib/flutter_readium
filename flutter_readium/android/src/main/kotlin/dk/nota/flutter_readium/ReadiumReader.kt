@@ -424,8 +424,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     ): Try<Publication, OpenError> {
         val publication: Publication =
             publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
+                val tocIds = manifest.tableOfContents.flattenChildren()
+                    .mapNotNull { it.href.resolve().fragment }
                 container = TransformingContainer(container) { _: Url, resource: Resource ->
-                    resource.injectScriptsAndStyles()
+                    resource.injectScriptsAndStyles(tocIds)
                 }
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")

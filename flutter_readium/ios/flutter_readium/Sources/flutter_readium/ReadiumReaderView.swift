@@ -142,13 +142,18 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       self.initUserScripts(registrar: registrar)
     }
 
+    /// Ensure userScripts are initialized for later injection.
+    if userScripts.isEmpty {
+      self.initUserScripts(registrar: registrar)
+    }
+
     /// This adapter will automatically turn pages when the user taps the
     /// screen edges or press arrow keys.
     ///
     /// Bind it to the navigator before adding your own observers to prevent
     /// triggering your actions when turning pages.
     DirectionalNavigationAdapter(
-        pointerPolicy: .init(types: [.mouse, .touch])
+      pointerPolicy: .init(types: [.mouse, .touch])
     ).bind(to: readiumViewController)
 
     Log.reader.debug("init success")
@@ -216,6 +221,16 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       return
     }
     emitOnExternalLinkActivated(url: url)
+  }
+
+  /// Called when the user taps on a link referring to a note.
+  ///
+  /// Return `true` to navigate to the note, or `false` if you intend to present the
+  /// note yourself, using its `content`. `link.type` contains information about the
+  /// format of `content` and `referrer`, such as `text/html`.
+  public func navigator(_ navigator: Navigator, shouldNavigateToNoteAt link: Link, content: String, referrer: String?) -> Bool {
+    Log.reader.info("user tapped on note: \(content)")
+    return true
   }
 
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
@@ -335,10 +350,18 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       break
     case "goBackward":
       let animated = call.arguments as! Bool
+      let navOptions = NavigatorGoOptions(animated: animated)
       let readiumViewController = self.readiumViewController
+      let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
-        let success = await readiumViewController.goLeft(options: NavigatorGoOptions(animated: animated))
+        let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
+        let success: Bool
+        if (layoutMode == .reflowable && scrollMode == true) {
+          success = await self.goBackwardInScrollMode(options: navOptions)
+        } else {
+          success = await readiumViewController.goBackward(options: navOptions)
+        }
         await MainActor.run() {
           result(success)
         }
@@ -346,10 +369,18 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       break
     case "goForward":
       let animated = call.arguments as! Bool
+      let navOptions = NavigatorGoOptions(animated: animated)
       let readiumViewController = self.readiumViewController
+      let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
-        let success = await readiumViewController.goRight(options: NavigatorGoOptions(animated: animated))
+        let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
+        let success: Bool
+        if (layoutMode == .reflowable && scrollMode == true) {
+          success = await self.goForwardInScrollMode(options: navOptions)
+        } else {
+          success = await readiumViewController.goForward(options: navOptions)
+        }
         await MainActor.run() {
           result(success)
         }
@@ -388,7 +419,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       break
     }
   }
-  
+
   func initUserScripts(registrar: FlutterPluginRegistrar) {
     let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
     let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
@@ -433,5 +464,60 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     } catch (let err) {
       Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
     }
+  }
+
+  func goBackwardInScrollMode(options: NavigatorGoOptions) async -> Bool {
+    guard var locator = getCurrentLocation(),
+          let currentProgression = locator.locations.progression else {
+      Log.reader.error("no current location or progression")
+      return false
+    }
+    let jsResult = await self.evaluateJavascript("window.flutterReadium.getViewPortSize();")
+    guard case .success(let viewPortResult) = jsResult,
+          let viewPortMap = viewPortResult as? Dictionary<String, Any> else {
+      Log.reader.error("getViewPortSize JS eval failed – \(jsResult.getOrNil() ?? "nil")")
+      return false
+    }
+    let viewPort = ViewPortSize.fromJson(viewPortMap, scrollMode: true)
+    let progression = viewPort.progression
+    let prevProgression = viewPort.prevProgression
+    if (progression == 0.0 && prevProgression <= 0.0) {
+      // Current progress is already at the top and prevProgression is <= 0.0,
+      // We need to go to the previous file in the readingOrder.
+      Log.reader.debug("at beginning, use default goBackward")
+      return await self.readiumViewController.goBackward(options: options)
+    }
+
+    Log.reader.debug("goBackward from progression:\(currentProgression) to \(prevProgression)")
+    locator.locations.progression = clamp(prevProgression, minValue: 0.0, maxValue: 1.0)
+    return await self.readiumViewController.go(to: locator, options: options)
+  }
+
+  func goForwardInScrollMode(options: NavigatorGoOptions) async -> Bool {
+    guard var locator = getCurrentLocation(),
+          let currentProgression = locator.locations.progression else {
+      Log.reader.error("no current location or progression")
+      return false
+    }
+    let jsResult = await self.evaluateJavascript("window.flutterReadium.getViewPortSize();")
+    guard case .success(let viewPortResult) = jsResult,
+          let viewPortMap = viewPortResult as? Dictionary<String, Any> else {
+      Log.reader.error("getViewPortSize JS eval failed – \(jsResult.getOrNil() ?? "nil")")
+      return false
+    }
+    let viewPort = ViewPortSize.fromJson(viewPortMap, scrollMode: true)
+
+    let endProgression = viewPort.endProgression
+    let nextProgression = viewPort.nextProgression
+    if (nextProgression >= 1.0 && endProgression == 1.0) {
+      // Current progress is already at the top and prevProgression is <= 0.0,
+      // We need to go to the previous file in the readingOrder.
+      Log.reader.debug("at end, use default goForward")
+      return await self.readiumViewController.goForward(options: options)
+    }
+
+    Log.reader.debug("goForward from progression:\(currentProgression) to \(nextProgression)")
+    locator.locations.progression = clamp(nextProgression, minValue: 0.0, maxValue: 1.0)
+    return await self.readiumViewController.go(to: locator, options: options)
   }
 }

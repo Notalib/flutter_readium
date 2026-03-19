@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
+import dk.nota.flutter_readium.models.ViewPortSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
@@ -19,7 +20,10 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.epub.EpubLayout
+import org.readium.r2.shared.publication.presentation.presentation
 import org.readium.r2.shared.util.AbsoluteUrl
 
 
@@ -53,6 +57,12 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     val started = MutableStateFlow(false)
 
+    val scrollMode: Boolean
+        get() = epubNavigator?.settings?.value?.scroll == true
+
+    val layoutMode =
+        ReadiumReader.currentPublication?.metadata?.presentation?.layout ?: EpubLayout.REFLOWABLE
+
     private val instance = ++instanceNo
 
     private var epubNavigator
@@ -74,6 +84,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             TAG,
             "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression}"
         )
+
         listener?.onPageChanged(pageIndex, totalPages, locator)
     }
 
@@ -130,11 +141,16 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     /**
      * Navigate backward. Readium component handles RTL / LTR
      */
-    fun goBackward(animated: Boolean) {
+    suspend fun goBackward(animated: Boolean) {
         Log.d(TAG, "::goBackward")
         val navigator = epubNavigator
         if (navigator == null) {
             Log.d(TAG, "::goBackward. Navigator not ready.")
+            return
+        }
+
+        if (layoutMode != EpubLayout.FIXED && scrollMode) {
+            goBackwardVertical(animated)
             return
         }
 
@@ -146,13 +162,93 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     }
 
     /**
+     * Go backwards in vertical scroll mode.
+     */
+    private suspend fun goBackwardVertical(animated: Boolean) {
+        if (layoutMode == EpubLayout.FIXED || !scrollMode) {
+            Log.e(TAG, "::goBackwardVertical - this is only meant for vertical scroll mode")
+        }
+
+        val locator = currentLocator?.value ?: run {
+            Log.e(TAG, "::goBackwardVertical - no current locator")
+            return
+        }
+
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
+            return
+        }
+
+        val viewPortSize = currentViewPortSize() ?: run {
+            Log.e(TAG, "::goBackwardVertical - failed to load view port size")
+            return
+        }
+
+        val publication = ReadiumReader.currentPublication ?: run {
+            Log.e(TAG, ":goBackwardVertical - no current publication?")
+            return
+        }
+
+        val prevProgression = viewPortSize.prevProgression
+        if (viewPortSize.progression <= 0.0 && prevProgression <= 0.0) {
+            val position = publication.readingOrder.indexOfFirst {
+                it.href.resolve().isEquivalent(locator.href)
+            }
+
+            if (position < 0) {
+                Log.e(
+                    TAG,
+                    ":goBackwardVertical - current reading order item not from {${locator.href}}"
+                )
+                return
+            }
+
+            // Current progress is already at the top and prevProgression is <= 0.0,
+            // We need to go to the previous file in the readingOrder.
+            val prevPosition = position - 1
+            if (prevPosition < 0) {
+                // Reached the beginning
+                Log.d(TAG, ":goBackwardVertical - reached the beginning.")
+                return
+            }
+
+            Log.d(TAG, "::goBackwardVertical go to previous chapter, progression:$prevProgression")
+            publication.readingOrder.getOrNull(prevPosition)?.let { prevLink ->
+                val locator = publication.locatorFromLink(prevLink)?.copyWithLocations(
+                    progression = 1.0,
+                    totalProgression = null
+                ) ?: run {
+                    Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
+                    return
+                }
+                navigator.go(locator, animated)
+            } ?: run {
+                // Reached the beginning
+                Log.d(TAG, ":goBackwardVertical - reached the beginning.")
+                return
+            }
+
+            return
+        }
+
+        scrollToProgression(prevProgression)
+    }
+
+    /**
      * Navigate forward. Readium component handles RTL / LTR
      */
-    fun goForward(animated: Boolean) {
+    @OptIn(InternalReadiumApi::class)
+    suspend fun goForward(animated: Boolean) {
         Log.d(TAG, "::goForward")
         val navigator = epubNavigator
         if (navigator == null) {
             Log.d(TAG, "::goForward. Navigator not ready.")
+            return
+        }
+
+        if (layoutMode != EpubLayout.FIXED && scrollMode) {
+            goForwardVertical(animated)
             return
         }
 
@@ -161,6 +257,106 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         } else {
             Log.d(TAG, "::goForward: Couldn't go forward.")
         }
+    }
+
+    /**
+     * Go forward in vertical scroll mode
+     */
+    private suspend fun goForwardVertical(animated: Boolean) {
+        if (layoutMode == EpubLayout.FIXED || !scrollMode) {
+            Log.e(TAG, "::goForwardVertical - this is only meant for vertical scroll mode")
+        }
+
+        val locator = currentLocator?.value ?: run {
+            Log.e(TAG, "::goBackwardVertical - no current locator")
+            return
+        }
+
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
+            return
+        }
+
+        val viewPortSize = currentViewPortSize() ?: run {
+            Log.e(TAG, "::goBackwardVertical - failed to load view port size")
+            return
+        }
+
+        val publication = ReadiumReader.currentPublication ?: run {
+            Log.e(TAG, ":goBackwardVertical - no current publication?")
+            return
+        }
+
+        val endProgression = viewPortSize.endProgression
+        val nextProgression = viewPortSize.nextProgression
+
+        if (nextProgression >= 1.0 && endProgression >= 1.0) {
+            val position = publication.readingOrder.indexOfFirst {
+                it.href.resolve().isEquivalent(locator.href)
+            }
+
+            if (position < 0) {
+                Log.e(
+                    TAG,
+                    "::goForwardVertical - current reading order item not from {${locator.href}}"
+                )
+                return
+            }
+
+            // Attempted to over the end of the current file.
+            val nextPosition = position + 1
+            if (nextPosition >= publication.readingOrder.size) {
+                Log.d(TAG, "::goForwardVertical - reached end.")
+                return
+            }
+
+            Log.d(TAG, "::goForwardVertical. load next chapter, progression:$nextProgression")
+
+            publication.readingOrder.getOrNull(nextPosition)?.let { nextLink ->
+                navigator.go(nextLink, animated)
+            } ?: run {
+                Log.d(TAG, "::goForwardVertical - reached end.")
+                return
+            }
+
+            return
+        }
+
+        scrollToProgression(nextProgression)
+    }
+
+    /**
+     * Get current view port size information.
+     */
+    suspend fun currentViewPortSize(): ViewPortSize? {
+        try {
+            val viewPortSize = ViewPortSize.fromJson(
+                evaluateJavascript("window.flutterReadium.getViewPortSize()") ?: "", scrollMode
+            )
+            return viewPortSize
+        } catch (_: Exception) {
+            return null
+
+        } catch (_: Error) {
+            return null
+        }
+    }
+
+    /**
+     * Scroll to progression, coerce to >=0.0 and <=1.0
+     */
+    suspend fun scrollToProgression(progression: Double) {
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.d(TAG, "::scrollToProgression. Navigator not ready.")
+            return
+        }
+
+        val coercedProgression = progression.coerceIn(0.0, 1.0)
+        Log.d(TAG, "::scrollToProgression - scroll to progression - $coercedProgression")
+
+        navigator.evaluateJavascript("readium.scrollToPosition($coercedProgression)")
     }
 
     /**

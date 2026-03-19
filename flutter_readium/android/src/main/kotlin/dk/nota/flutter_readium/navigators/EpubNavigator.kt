@@ -6,9 +6,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
-import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
-import dk.nota.flutter_readium.jsonEncode
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withScope
@@ -239,20 +237,8 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
-    fun updateTocInJavascript() {
-        mainScope.launch {
-            val tocIds =
-                publication.tableOfContents.flattenChildren().map { it.href.resolve().fragment }
-
-            for (chunk in tocIds.chunked(1000)) {
-                evaluateJavascript("window.flutterReadium.registerToc(${jsonEncode(chunk)})")
-            }
-        }
-    }
-
     override fun onPageLoaded() {
         Log.d(TAG, "::onPageLoaded")
-        updateTocInJavascript()
 
         visualListener.onPageLoaded()
 
