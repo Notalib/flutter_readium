@@ -133,33 +133,22 @@ class TTSNavigator(
     }
 
     override suspend fun play(fromLocator: Locator?) {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, ":play called when ttsNavigator was null")
+        if (isPlaying && fromLocator == null) {
+            Log.d(TAG, "::play - already playing and no fromLocator, do nothing.")
             return
         }
 
-        val mediaFacade = mediaServiceFacade ?: run {
-            Log.e(TAG, ":play called when mediaServiceFacade was null")
+        if (fromLocator != null) {
+            goToLocator(fromLocator)
             return
         }
 
         withScope(mainScope) {
-            fromLocator?.let {
-                navigator.go(it)
-            }
-
-            try {
-                Log.d(TAG, "::play - Opening MediaSession")
-                if (mediaFacade.session.value == null) {
-                    mediaFacade.openSession(navigator)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "::play - Failed to open MediaSession: $e")
-                navigator.close()
-                return@withScope
-            }
-
+            val navigator = ensureNavigator()
+            ensureMediaSessionIsOpen()
             navigator.play()
+
+            decorateCurrentUtterance(initialLocator)
         }
     }
 
@@ -179,13 +168,9 @@ class TTSNavigator(
     }
 
     override suspend fun resume() {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, "Cannot resume TTS playback: navigator is null")
-            return
-        }
-
         withScope(mainScope) {
             try {
+                val navigator = ensureNavigator()
                 navigator.play()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resume TTS playback: $e")
@@ -226,14 +211,21 @@ class TTSNavigator(
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, "::goToLocator called when ttsNavigator was null")
-            return
-        }
         withScope(mainScope) {
-            decorateCurrentUtterance(locator, null)
-            onCurrentLocatorChanges(locator)
-            navigator.go(locator)
+            // Workaround to flickering and restart chapter issue.
+            // We tear down the existing TTS navigator, updates the initialLocator and recreates
+            // the ttsNavigator and mediaService
+            val wasPlaying = isPlaying
+
+            stopTtsNavigator()
+            initialLocator = locator
+            val navigator = ensureNavigator()
+            ensureMediaSessionIsOpen()
+            decorateCurrentUtterance(locator)
+
+            if (wasPlaying) {
+                navigator.play()
+            }
         }
     }
 
@@ -260,8 +252,10 @@ class TTSNavigator(
         withScope(mainScope) {
             preferences = preferences.plus(prefs)
 
-            val androidPrefs = preferences.toAndroidTtsPreferences()
-            ttsNavigator?.submitPreferences(androidPrefs)
+            ttsNavigator?.let { navigator ->
+                val androidPrefs = preferences.toAndroidTtsPreferences()
+                navigator.submitPreferences(androidPrefs)
+            }
         }
     }
 
@@ -284,7 +278,10 @@ class TTSNavigator(
 
     @OptIn(FlowPreview::class)
     override fun setupNavigatorListeners() {
-        val navigator = ttsNavigator ?: return
+        val navigator = ttsNavigator ?: run {
+            Log.d(TAG, "::setupNavigatorListeners() - no ttsNavigator?")
+            return;
+        }
 
         // Listen to state changes
         navigator.playback
@@ -327,6 +324,7 @@ class TTSNavigator(
                     ReadiumReader.epubEnrichLocatorWithTocHref(locator)
                 onCurrentLocatorChanges(emittingLocator)
                 state[currentTimebasedLocatorKey] = emittingLocator
+                initialLocator = emittingLocator
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
@@ -335,15 +333,18 @@ class TTSNavigator(
     /**
      * Apply decorations for the current utterance and token (word).
      */
-    private suspend fun decorateCurrentUtterance(uttLocator: Locator, tokenLocator: Locator?) {
+    private suspend fun decorateCurrentUtterance(
+        uttLocator: Locator?,
+        tokenLocator: Locator? = null
+    ) {
         val decorations = mutableListOf<Decoration>()
         val utteranceStyle = ReadiumReader.decorationStyle.utteranceStyle
         val currentRangeStyle = ReadiumReader.decorationStyle.currentRangeStyle
-        utteranceStyle?.let { style ->
+        letIfBothNotNull(uttLocator, utteranceStyle)?.let { (locator, style) ->
             decorations.add(
                 Decoration(
                     id = TTS_DECORATION_ID_UTTERANCE,
-                    locator = uttLocator,
+                    locator = locator,
                     style = style,
                 )
             )
@@ -375,16 +376,46 @@ class TTSNavigator(
         }
     }
 
+    private suspend fun ensureNavigator(): TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice> {
+        if (ttsNavigator == null) initNavigator()
+        return ttsNavigator!!
+    }
+
+    private suspend fun ensureMediaSessionIsOpen() {
+        val navigator = ensureNavigator()
+        try {
+            val mediaSession = mediaServiceFacade!!
+            if (mediaSession.session.value == null) {
+                Log.d(TAG, ":ensureMediaSessionIsOpen - open session")
+                mediaSession.openSession(navigator)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "::play - Failed to open MediaSession: $e")
+            navigator.close()
+            return
+        }
+    }
+
+    /**
+     * Stop the current ttsNavigator. This is needed because we have to restart it when navigating.
+     */
+    private suspend fun stopTtsNavigator() {
+        ttsNavigator?.let { navigator ->
+            initialLocator = navigator.currentLocator.value
+        }
+        mediaServiceFacade?.closeSession()
+
+        ReadiumReader.applyDecorations(emptyList(), decorationGroup)
+
+        ttsNavigator?.close()
+        ttsNavigator = null
+    }
+
     override fun dispose() {
         super.dispose()
 
         mainScope.async {
-            mediaServiceFacade?.closeSession()
-
-            ReadiumReader.applyDecorations(emptyList(), decorationGroup)
-
-            ttsNavigator?.close()
-            ttsNavigator = null
+            stopTtsNavigator()
         }
     }
 

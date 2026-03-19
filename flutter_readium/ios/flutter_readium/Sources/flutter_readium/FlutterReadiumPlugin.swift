@@ -409,7 +409,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
-    Log.navigator.debug("ReadiumTimebasedState: \(state)")
+    Log.navigator.debug("ReadiumTimebasedState: \(state.state)")
 
     Task.detached(priority: .high) {
       /// Enrich the Locator with ToC if missing.
@@ -425,9 +425,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let tocLink = tocLink {
           locator.locations.otherLocations["tocHref"] = tocLink.href
           locator.title = tocLink.title
+          Log.navigator.debug("ReadiumTimebasedState: enriched with tocHref: \(String(describing: tocLink.href))")
+          state.currentLocator = locator
         }
       }
+      
       Task { @MainActor [state] in
+        self.lastTimebasedPlayerState = state
         self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
       }
     }
@@ -551,6 +555,13 @@ extension FlutterReadiumPlugin {
     guard let publication = currentPublication else {
       Log.toc.warn("no currentPublication")
       return nil
+    }
+    
+    /// If we already have a ToC ID from the viewer, use that for lookup.
+    if let tocId = locator.locations.otherLocations["tocId"] {
+      let tocHref = "\(locator.href)#\(tocId)"
+      let tocLink = publication.getFlattenedToC().first(where: { $0.href == tocHref })
+      return tocLink
     }
 
     guard let cssSelector = locator.locations.cssSelector else {
