@@ -409,7 +409,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
-    Log.navigator.debug("ReadiumTimebasedState: \(state)")
+    Log.navigator.debug("ReadiumTimebasedState: \(state.state)")
 
     Task.detached(priority: .high) {
       /// Enrich the Locator with ToC if missing.
@@ -425,9 +425,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         if let tocLink = tocLink {
           locator.locations.otherLocations["tocHref"] = tocLink.href
           locator.title = tocLink.title
+          Log.navigator.debug("ReadiumTimebasedState: enriched with tocHref: \(String(describing: tocLink.href))")
+          state.currentLocator = locator
         }
       }
+      
       Task { @MainActor [state] in
+        self.lastTimebasedPlayerState = state
         self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
       }
     }
