@@ -37,6 +37,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private let publication: Publication
 
   var publicationIdentifier: String?
 
@@ -63,6 +64,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let creationParams = args as! Dictionary<String, Any?>
 
     let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
+    self.publication = publication
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
     let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)

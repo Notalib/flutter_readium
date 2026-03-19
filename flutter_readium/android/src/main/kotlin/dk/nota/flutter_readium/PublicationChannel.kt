@@ -3,6 +3,7 @@
 package dk.nota.flutter_readium
 
 import android.util.Log
+import dk.nota.flutter_readium.models.TextSearchResult
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -216,6 +217,21 @@ internal class PublicationMethodCallHandler() :
                 val seekOffsetSeconds = arguments as Int
                 ReadiumReader.audioSeek(seekOffsetSeconds.toDouble())
                 return Try.success(null)
+            }
+
+            "searchInPublication" -> {
+                ReadiumReader.currentPublication ?: return Try.failure(
+                    PublicationError.Unavailable()
+                )
+                val query = arguments as String
+                val searchResult = ReadiumReader.searchInPublication(query).getOrElse {
+                    return Try.failure(PublicationError.Unknown(message = it.message ?: "Search failed"))
+                }
+
+                val textSearchResults = searchResult.flatMap { col ->
+                    col.locators.map { TextSearchResult(locator = it, chapterTitle = it.title, pageNumbers = null) }
+                }
+                return Try.success(textSearchResults.map { it.toJSON().toString() })
             }
 
             else -> {

@@ -193,4 +193,20 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
+
+  @override
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
+    final resultList = await methodChannel.invokeMethod<List<dynamic>>('searchInPublication', searchKey);
+
+    if (resultList == null || resultList.isEmpty) {
+      return <TextSearchResult>[];
+    }
+
+    try {
+      final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
+      return results;
+    } catch (e) {
+      throw Exception('Failed to parse search results: $e');
+    }
+  }
 }

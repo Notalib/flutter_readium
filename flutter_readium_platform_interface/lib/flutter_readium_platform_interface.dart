@@ -140,6 +140,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> audioSeekBy(Duration offset) => throw UnimplementedError('seekInAudio() has not been implemented');
   // AUDIOBOOK API - END
 
+  Future<List<TextSearchResult>> searchInPublication(final String searchKey) {
+    throw UnimplementedError('searchInPublication() has not been implemented');
+  }
+
   // State stream for reader status changes
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');

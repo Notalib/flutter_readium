@@ -402,6 +402,42 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         let _ = await self.timebasedNavigator?.seekRelative(byOffsetSeconds: seekOffset)
         result(nil)
       }
+    case "searchInPublication":
+          guard let publication = getCurrentPublication(),
+                let query = call.arguments as? String
+          else {
+            result(
+              FlutterError(
+                code: "InvalidArgument",
+                message: "No publication open or invalid parameters to searchInPublication",
+                details: nil))
+            return
+          }
+          Task {
+            do {
+              let searchResults = await publication.searchInContentForQuery(query)
+              switch searchResults {
+              case .failure(let err):
+                throw err
+              case .success(let searchResultsCols):
+                let fallbackTitle = searchResultsCols.first?.metadata.title ?? publication.metadata.title ?? "Unknown chapter"
+                // TODO: Should we try to find physical page-numbers for the results?
+                let results = searchResultsCols.flatMap { $0.locators.map { l in TextSearchResult(locator: l, chapterTitle: l.title ?? fallbackTitle, pageNumbers: nil) } }
+                let searchResultsJson = try results.compactMap { try $0.toJsonString() }
+                await MainActor.run {
+                  result(searchResultsJson)
+                }
+              }
+            } catch {
+              await MainActor.run {
+                result(
+                  FlutterError(
+                    code: "SearchError",
+                    message: "Failed to perform search with query: \(query)",
+                    details: error.localizedDescription))
+              }
+            }
+          }
 
     default:
       result(FlutterMethodNotImplemented)
