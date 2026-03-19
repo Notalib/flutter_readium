@@ -8,6 +8,9 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../state/index.dart';
 import '../widgets/index.dart';
 
+const Color _appBarColor = Colors.amber;
+const Color _playerControlsColor = Color.fromARGB(255, 240, 240, 240);
+
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
 
@@ -39,7 +42,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         child: Scaffold(
           restorationId: 'player_page',
           appBar: AppBar(
-            backgroundColor: Colors.amber,
+            backgroundColor: _appBarColor,
             title: Semantics(
               header: true,
               child: Text(pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown'),
@@ -114,7 +117,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     hiddenOffset: const Offset(0, 1),
     duration: _slideDuration,
     child: Container(
-      color: Colors.purple[200],
+      color: _playerControlsColor,
       child: SafeArea(top: false, left: false, right: false, child: PlayerControls(isAudioBook: isAudioBook)),
     ),
   );
