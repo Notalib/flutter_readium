@@ -11,17 +11,21 @@ class TTSPreferences implements JSONable {
     final pitch = jsonObject.optDouble('pitch', remove: true);
     final voiceIdentifier = jsonObject.optNullableString('voiceIdentifier', remove: true);
     final voicesJson = jsonObject.optJsonObject('voices', remove: true) ?? {};
-    final voices = voicesJson.map((key, value) => MapEntry(key, value.toString()));
+    final Map<String, String> voices = Map.fromEntries(
+      voicesJson.entries
+          .where((entry) => entry.value is String)
+          .map((entry) => MapEntry(entry.key, entry.value as String)),
+    );
     final languageOverride = jsonObject.optNullableString('languageOverride', remove: true);
     final controlPanelInfoTypeStr = jsonObject.optNullableString('controlPanelInfoType', remove: true);
     ControlPanelInfoType? controlPanelInfoType;
 
     if (controlPanelInfoTypeStr != null) {
-      try {
-        controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
-      } catch (e) {
-        Fimber.w('Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to null.', ex: e);
-        controlPanelInfoType = null;
+      controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
+      if (controlPanelInfoType == null) {
+        Fimber.w(
+          'Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to ControlPanelInfoType.standard.',
+        );
       }
     }
 

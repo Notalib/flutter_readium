@@ -775,10 +775,21 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         syncAudiobookNavigator?.decorationsUpdated()
     }
 
+    /**
+     * Cached list of android tts voices.
+     */
+    private var availableTtsVoices: Set<AndroidTtsEngine.Voice>? = null
+
+    /**
+     * Get available tts voices
+     */
     suspend fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice> {
+        // Already loaded, return existing list.
+        availableTtsVoices?.takeIf { it.isNotEmpty() }?.let { return it }
+
         // Get the available voices from the TTS navigator.
         // If the TTS navigator hasn't been initialized, create a dummy AndroidTtsEngine.
-        return ttsNavigator?.voices ?: AndroidTtsEngine.invoke(
+        availableTtsVoices = ttsNavigator?.voices ?: AndroidTtsEngine.invoke(
             context,
             {
                 AndroidTtsSettings(
@@ -791,7 +802,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             },
             { language, availableVoices -> null },
             AndroidTtsPreferences()
-        )?.voices ?: setOf()
+        )?.voices
+
+        return availableTtsVoices ?: setOf()
     }
 
     fun ttsGetPreferences(): FlutterTtsPreferences? {

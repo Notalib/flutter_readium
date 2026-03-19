@@ -91,8 +91,6 @@ internal class PublicationMethodCallHandler() :
             }
 
             "closePublication" -> {
-                Log.d(TAG, "Close publication")
-
                 ReadiumReader.closePublication()
                 return Try.success(null)
             }
@@ -100,15 +98,12 @@ internal class PublicationMethodCallHandler() :
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
                 val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
-                Log.d(TAG, "::ttsEnable: ttsPrefs:$ttsPrefs")
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
                 val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
-                Log.d(TAG, "::ttsSetPreferences: ttsPrefs:$ttsPrefs")
-
                 return ttsSetPreferences(ttsPrefs)
             }
 
