@@ -71,12 +71,32 @@ class FlutterReadium {
     return _platform.goForward();
   }
 
-  Future<void> skipToNext() {
-    return _platform.skipToNext();
-  }
+  Future<void> skipToNextTOC({
+    required final Publication publication,
+    required final String currentTocHref,
+    final bool animated = true,
+  }) => _skipToTOCItem(publication, currentTocHref, 1);
 
-  Future<void> skipToPrevious() {
-    return _platform.skipToPrevious();
+  Future<void> skipToPreviousTOC({
+    required final Publication publication,
+    required final String currentTocHref,
+    final bool animated = true,
+  }) => _skipToTOCItem(publication, currentTocHref, -1);
+
+  Future<void> _skipToTOCItem(Publication publication, String currentTocHref, int direction) async {
+    final toc = publication.toc.flattenTOC();
+    if (toc.isEmpty) return;
+
+    var curIndex = toc.indexWhere((l) => l.href == currentTocHref);
+
+    if (curIndex == -1) return;
+
+    final newIndex = (curIndex + direction).clamp(0, toc.length - 1);
+    final locator = publication.locatorFromLink(toc[newIndex]);
+
+    if (locator != null) {
+      await goToLocator(locator);
+    }
   }
 
   Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
