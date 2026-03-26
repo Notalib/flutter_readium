@@ -35,9 +35,15 @@ class SkipToNext extends PlayerControlsEvent {}
 
 class SkipToPrevious extends PlayerControlsEvent {}
 
-class SkipToNextChapter extends PlayerControlsEvent {}
+class SkipToNextChapter extends PlayerControlsEvent {
+  SkipToNextChapter({required this.publication});
+  Publication publication;
+}
 
-class SkipToPreviousChapter extends PlayerControlsEvent {}
+class SkipToPreviousChapter extends PlayerControlsEvent {
+  SkipToPreviousChapter({required this.publication});
+  Publication publication;
+}
 
 class SkipToNextPage extends PlayerControlsEvent {}
 
@@ -51,12 +57,24 @@ class GoToLocator extends PlayerControlsEvent {
 
 class GetAvailableVoices extends PlayerControlsEvent {}
 
+class UpdateCurrentTocHref extends PlayerControlsEvent {
+  UpdateCurrentTocHref(this.tocHref);
+
+  final String tocHref;
+}
+
 class PlayerControlsState {
-  PlayerControlsState({required this.playing, required this.ttsEnabled, required this.audioEnabled});
+  PlayerControlsState({
+    required this.playing,
+    required this.ttsEnabled,
+    required this.audioEnabled,
+    this.currentTocHref,
+  });
 
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
+  final String? currentTocHref;
 
   Future<PlayerControlsState> togglePlay(final bool playing) async {
     final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
@@ -83,10 +101,22 @@ class PlayerControlsState {
 
     return newState;
   }
+
+  Future<PlayerControlsState> setTocHref(final String tocHref) async {
+    final newState = PlayerControlsState(
+      playing: playing,
+      ttsEnabled: ttsEnabled,
+      audioEnabled: audioEnabled,
+      currentTocHref: tocHref,
+    );
+
+    return newState;
+  }
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   StreamSubscription? timebasedStateSub;
+  StreamSubscription? currentTocHrefSub;
   StreamSubscription? readerStatusSub;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
@@ -108,6 +138,20 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
             case TimebasedState.failure:
             case TimebasedState.none:
               add(TogglePlayingState(isPlaying: false));
+          }
+        });
+
+    // TODO: This does not include the tocHref for the initial locator
+    currentTocHrefSub =
+        Rx.merge([
+          instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator),
+          instance.onTextLocatorChanged,
+        ]).distinct().debounceTime(const Duration(milliseconds: 50)).listen((currentLocator) {
+          final tocHref = currentLocator?.locations?.tocHref;
+          if (tocHref == null) debugPrint('tocHref is null');
+          if (tocHref != null && tocHref != state.currentTocHref) {
+            debugPrint('Update current TOC href');
+            add(UpdateCurrentTocHref(tocHref));
           }
         });
 
@@ -160,15 +204,31 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToPrevious>((final event, final emit) => instance.previous());
 
-    on<SkipToNextChapter>((final event, final emit) => instance.skipToNext());
+    on<SkipToNextChapter>((final event, final emit) {
+      if (state.currentTocHref == null) {
+        R2Log.e("No currentTocHref in state, cannot skip to next TOC chapter");
+        return null;
+      }
+      return instance.skipToNextTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
+    });
 
-    on<SkipToPreviousChapter>((final event, final emit) => instance.skipToPrevious());
+    on<SkipToPreviousChapter>((final event, final emit) {
+      if (state.currentTocHref == null) {
+        R2Log.e("No currentTocHref in state, cannot skip to previous TOC chapter");
+        return null;
+      }
+      return instance.skipToPreviousTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
+    });
 
     on<SkipToNextPage>((final event, final emit) => instance.goForward());
 
     on<SkipToPreviousPage>((final event, final emit) => instance.goBackward());
 
     on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
+
+    on<UpdateCurrentTocHref>((event, emit) async {
+      emit(await state.setTocHref(event.tocHref));
+    });
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
