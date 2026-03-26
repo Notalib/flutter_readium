@@ -116,12 +116,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> goForward() async => await currentReaderWidget?.goForward();
 
   @override
-  Future<void> skipToNext() async => await currentReaderWidget?.skipToNext();
-
-  @override
-  Future<void> skipToPrevious() async => await currentReaderWidget?.skipToPrevious();
-
-  @override
   Future<bool> goToLocator(Locator locator) async =>
       await methodChannel.invokeMethod<bool>('goToLocator', [locator.toJson()]) ?? false;
 

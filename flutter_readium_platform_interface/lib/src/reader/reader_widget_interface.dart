@@ -10,12 +10,6 @@ abstract class ReadiumReaderWidgetInterface {
   /// Go to next page.
   Future<void> goForward({final bool animated = true});
 
-  /// Skip to previous chapter (toc)
-  Future<void> skipToPrevious({final bool animated = true});
-
-  /// Skip to next chapter (toc)
-  Future<void> skipToNext({final bool animated = true});
-
   /// Set EPUB preferences
   Future<void> setEPUBPreferences(EPUBPreferences preferences);
 
