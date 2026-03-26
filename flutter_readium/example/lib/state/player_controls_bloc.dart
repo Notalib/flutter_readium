@@ -144,10 +144,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     // TODO: This does not include the tocHref for the initial locator
     currentTocHrefSub =
         Rx.merge([
-          instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator),
-          instance.onTextLocatorChanged,
-        ]).distinct().debounceTime(const Duration(milliseconds: 50)).listen((currentLocator) {
-          final tocHref = currentLocator?.locations?.tocHref;
+          instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator?.locations?.tocHref),
+          instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
+        ]).where((t) => t != null).distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
           if (tocHref == null) debugPrint('tocHref is null');
           if (tocHref != null && tocHref != state.currentTocHref) {
             debugPrint('Update current TOC href');
