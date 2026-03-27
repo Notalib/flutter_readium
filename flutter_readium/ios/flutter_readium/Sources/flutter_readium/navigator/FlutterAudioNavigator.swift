@@ -240,10 +240,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     self.listener?.timebasedNavigator(self, reachedLocator: locator)
   }
-
-  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
-
-    /// Fetch MediaPlaybackState and convert it to TimebasedState
+  
+  internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
+    // Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
     if (info.state == .paused && info.progress >= 1.0 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
       /// If paused at progress 1 of the last resource in readingOrder, we can assume the book has ended.
@@ -262,6 +261,13 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       currentDuration: info.duration ?? nil,
       currentLocator: locator
     )
+    return timebasedState
+  }
+
+  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+
+    /// Create TimebasedState and send it over the timebased-state stream.
+    let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
 
     // If state has changed, submit it to listener.
     if (timebasedState != self._lastTimebasedPlayerState) {

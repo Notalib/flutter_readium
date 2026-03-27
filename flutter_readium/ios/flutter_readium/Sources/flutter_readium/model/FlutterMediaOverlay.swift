@@ -164,7 +164,7 @@ struct FlutterMediaOverlayItem {
       locator.locations.otherLocations["cssSelector"] = "#\(frag!)"
     }
     if (tocHref != nil) {
-      locator.locations.otherLocations["toc"] = tocHref
+      locator.locations.otherLocations["tocHref"] = tocHref
     }
     return locator
   }
@@ -182,7 +182,7 @@ struct FlutterMediaOverlayItem {
   
   /// Combine this MediaOverlayItem as a Text-based Locator, with an Audio-based Locator.
   /// This is generally used to report back a synchronizable Locator to Flutter client and backends.
-  func toCombinedLocator(fromPlaybackLocator audioLocator: Locator) -> Locator? {
+  func toCombinedLocator(fromAudioLocator audioLocator: Locator) -> Locator? {
     guard var textLocator = self.asTextLocator else { return nil }
     // Combine the text-locator with given audio-locator's locations.
     // We keep the otherLocations("cssSelector") from text-locator.
