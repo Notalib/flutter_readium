@@ -429,8 +429,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
                 val tocIds = manifest.tableOfContents.flattenChildren()
                     .mapNotNull { it.href.resolve().fragment }
-                container = TransformingContainer(container) { _: Url, resource: Resource ->
-                    resource.injectScriptsAndStyles(tocIds)
+                container = TransformingContainer(container) { url: Url, resource: Resource ->
+                    if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
+                        resource.injectScriptsAndStyles(tocIds)
+                    else
+                        resource
+
                 }
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")
@@ -831,10 +835,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun play(locator: Locator?) {
-        val fromLocator = locator ?:
-            currentTimebasedLocator.value ?:
-            currentTextLocator.value ?:
-            epubFirstVisibleElementLocator()
+        val fromLocator = locator ?: currentTimebasedLocator.value ?: currentTextLocator.value
+        ?: epubFirstVisibleElementLocator()
 
         Log.d(TAG, ":play($locator) - fromLocator:$fromLocator")
 
@@ -892,9 +894,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun goToLocator(locator: Locator) {
         if (timebasedNavigator != null) {
             Log.d(TAG, "::goToLocator - timebased $locator")
-            timebasedNavigator!!.goToLocator(locator.copy(
-                text = Locator.Text()
-            ))
+            timebasedNavigator?.goToLocator(
+                locator.copy(
+                    text = Locator.Text()
+                )
+            )
         } else {
             epubGoToLocator(locator, true)
         }
@@ -907,7 +911,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         val resultIterator = pub.search(query, SearchService.Options()) ?: return failure(
             Error("SearchService unavailable")
         )
-        var results = mutableListOf<LocatorCollection>()
+        val results = mutableListOf<LocatorCollection>()
         while (true) {
             val result = resultIterator.next()
             if (result.isFailure) break
@@ -1021,9 +1025,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    fun epubGoToLocator(locator: Locator, animated: Boolean) {
+    fun epubGoToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
         mainScope.launch {
-            epubNavigator?.goToLocator(locator, animated)
+            epubNavigator?.goToLocator(locator, animated, segmentDuration)
         }
     }
 

@@ -10,7 +10,6 @@ export default function (): webpack.Configuration {
 
   const commonConfig = <webpack.Configuration>{
     entry: {
-      comics: './src/ComicBookPage.ts',
       flutterReadiumTools: './src/FlutterReadiumTools.ts',
     },
     output: {

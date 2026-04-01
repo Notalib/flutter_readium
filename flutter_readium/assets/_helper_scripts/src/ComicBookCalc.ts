@@ -1,5 +1,5 @@
 import { AnimeAnimParams } from 'animejs';
-import { CanvasSize, ComicFrame, ComicFramePosition } from 'types';
+import { CanvasSize, ComicFrame, ComicFramePosition } from './types';
 
 // At which factor should we pane over a frame?
 const panningFactor = 1.75;
@@ -8,6 +8,15 @@ const MAX_ZOOM_VALUE = 3;
 const framePadding = 10;
 
 export class ComicBookCalc {
+  /**
+   * Make animation keyframes for a given frame and container size.
+   * @param currentFrame
+   * @param canvasSize
+   * @param availableWidth
+   * @param availableHeight
+   * @param duration
+   * @returns
+   */
   public static MakeKeyFrames(
     currentFrame: ComicFrame,
     canvasSize: CanvasSize,
@@ -20,10 +29,12 @@ export class ComicBookCalc {
     const keyframes: AnimeAnimParams[] = [
       {
         ...ComicBookCalc.calcFramePositionAndSize(framePosition, canvasSize, availableWidth, availableHeight),
-        duration: focusDuration,
+        duration: duration > 0 ? focusDuration : 0,
         opacity: 1, // fixes odd jump at first render of the new image.
       },
     ];
+
+    if (duration == 0) return keyframes;
 
     let panFramePosition: ComicFramePosition;
     let finalFramePosition: ComicFramePosition;
@@ -85,7 +96,7 @@ export class ComicBookCalc {
    * AND
    * The frame's height is larger than the containers height * panningFactor
    */
-  protected static shouldDoVerticalPanning(framePosition: ComicFramePosition, availableHeight: number): boolean {
+  private static shouldDoVerticalPanning(framePosition: ComicFramePosition, availableHeight: number): boolean {
     return framePosition.height / framePosition.width >= panningFactor && framePosition.height > availableHeight * panningFactor;
   }
 
@@ -96,14 +107,14 @@ export class ComicBookCalc {
    * AND
    * The frame's width is larger than the containers width * panningFactor
    */
-  protected static shouldDoHorizontalPanning(framePosition: ComicFramePosition, availableWidth: number): boolean {
+  private static shouldDoHorizontalPanning(framePosition: ComicFramePosition, availableWidth: number): boolean {
     return framePosition.width / framePosition.height >= panningFactor && framePosition.width > availableWidth * panningFactor;
   }
 
   /**
    * Convert a ComicFrame to a ComicFramePosition.
    */
-  public static makeFramePosition({ left: x, top: y, width, height }: ComicFrame): ComicFramePosition {
+  private static makeFramePosition({ left: x, top: y, width, height }: ComicFrame): ComicFramePosition {
     return {
       width,
       height,
@@ -124,7 +135,7 @@ export class ComicBookCalc {
    *
    * If the frame too large to fit within the container, the image will be resized.
    */
-  public static calcFramePositionAndSize(frame: ComicFramePosition, canvasSize: CanvasSize, availableWidth: number, availableHeight: number): ComicFrame {
+  private static calcFramePositionAndSize(frame: ComicFramePosition, canvasSize: CanvasSize, availableWidth: number, availableHeight: number): ComicFrame {
     // Start by getting width and height of the container minus the padding.
     const clientWidth = availableWidth - framePadding * 2;
     const clientHeight = availableHeight - framePadding * 2;

@@ -1,12 +1,13 @@
 import { initResponsiveTables } from './Tables';
 import { PageInformation, Readium } from './types';
+import { NotaComicBook } from './NotaComicBookPage';
 import './FlutterReadiumTools.scss';
 
-declare const readium: Readium;
+declare const readium: Readium | undefined;
 
-export class FlutterReadiumTools {
+class FlutterReadiumTools {
   get #isScrollModeEnabled(): boolean {
-    return readium.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
+    return readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
 
   /**
@@ -63,6 +64,12 @@ export class FlutterReadiumTools {
       cssSelector,
       tocId,
     };
+  }
+
+  public setSegmentDuration(duration: number) {
+    if (window.comicBookPage) {
+      window.comicBookPage.segmentDuration = duration;
+    }
   }
 
   /**
@@ -302,22 +309,54 @@ declare global {
   interface Window {
     flutterReadium: FlutterReadiumTools;
     readiumTocIDs?: string[];
+
+    isNotaComicBook: () => boolean;
+    comicBookPage?: NotaComicBook;
+    GotoComicFrame: (id: string, duration: number) => void;
+    SetBlackAndWhiteMode: (enable: boolean) => void;
+    IsBlackAndWhiteEnabled: () => boolean;
   }
 }
+
 
 function Setup() {
   if (window.flutterReadium) {
     return;
   }
 
-  initResponsiveTables();
-
   document.removeEventListener('DOMContentLoaded', Setup);
-  window.flutterReadium = new FlutterReadiumTools();
+  requestAnimationFrame(() => {
+    window.flutterReadium = new FlutterReadiumTools();
+
+    if (window.isNotaComicBook()) {
+      window.comicBookPage = new NotaComicBook();
+    }
+
+    initResponsiveTables();
+  });
 }
 
 if (document.readyState !== 'loading') {
   window.setTimeout(Setup);
 } else {
   document.addEventListener('DOMContentLoaded', Setup);
+}
+
+window.IsBlackAndWhiteEnabled = () => {
+  return !!NotaComicBook.isBlackAndWhiteEnabled()
+};
+
+window.SetBlackAndWhiteMode = (enable: boolean) => {
+  if (window.comicBookPage) {
+    NotaComicBook.setBlackAndWhiteMode(enable);
+    return;
+  }
+};
+
+window.GotoComicFrame = (id: string, duration: number) => {
+  if (window.comicBookPage) {
+    window.comicBookPage.gotoComicFrame(id, duration);
+  } else {
+    console.warn("GotoComicFrame: Comic book page is not available.");
+  }
 }

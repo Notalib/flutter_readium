@@ -78,7 +78,7 @@ class SyncAudiobookNavigator(
                 mainScope.async {
                     // IMPORTANT: We use epubGoToLocator here, NOT goToLocator, as the latter
                     // triggers an infinite loop
-                    ReadiumReader.epubGoToLocator(textLocator, false)
+                    ReadiumReader.epubGoToLocator(textLocator, false, mediaOverlay.duration)
 
                     decorateCurrentUtterance(textLocator)
                 }
