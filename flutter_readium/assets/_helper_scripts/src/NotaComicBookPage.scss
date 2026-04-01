@@ -1,4 +1,4 @@
-html,
+html:has(body.comicBody),
 body.comicBody {
   height: 100vh;
   width: 100vw;
@@ -21,11 +21,15 @@ body.comicBody {
     flex-grow: 0;
     flex-shrink: 0;
   }
-  div.area {
-    display: none;
-  }
 
-  div.page {
+  /**
+   * Hide all the area elements on the page.
+   **/
+  > figure.nota-comicbook-page {
+    > .area {
+      display: none;
+    }
+
     position: relative;
     flex-grow: 1;
     overflow: hidden;
@@ -54,8 +58,8 @@ body.comicBody {
     }
   }
 
-  &.black-white {
-    div.page {
+  &.black-white-comic-mode {
+    > figure.nota-comicbook-page {
       img {
         filter: grayscale(1) contrast(255) brightness(1);
         mix-blend-mode: multiply;

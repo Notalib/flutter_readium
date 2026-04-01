@@ -154,15 +154,21 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Go to a specific locator in the EPUB navigator, this does not scroll to the locator position.
      */
-    suspend fun go(locator: Locator, animated: Boolean): Boolean {
+    suspend fun go(locator: Locator, animated: Boolean, segmentDuration: Double? = null): Boolean {
         val navigator = epubNavigator
         if (navigator == null) {
             Log.d(TAG, "::go - epubNavigator is null!")
             return false
         }
 
+        Log.d(TAG, "::go $locator animated:$animated")
+
         return withScope(mainScope) {
             afterFragmentStarted()
+            segmentDuration?.takeIf { it > 0 }?.let {
+                navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
+            }
+
             if (!navigator.go(locator, animated)) {
                 Log.w(TAG, "::go -  FAILED!")
                 return@withScope false
@@ -371,9 +377,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    suspend fun goToLocator(locator: Locator, animated: Boolean) {
+    suspend fun goToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
         withScope(mainScope) {
-            go(locator, animated)
+            go(locator, animated, segmentDuration)
         }
     }
 

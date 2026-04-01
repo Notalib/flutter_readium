@@ -1,32 +1,32 @@
 import { css, html, LitElement, nothing, TemplateResult } from 'lit';
-import { customElement, property, query } from 'lit/decorators';
-import { classMap } from 'lit/directives/class-map';
+import { customElement, property, query } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
 
 @customElement('demo-comic-panning')
 export class DemoComicPanning extends LitElement {
   @property()
-  private _books = ['text-book', 'comic-panning', 'comic-panning-figure', 'xkcd'];
+  private _books = ['text-book', 'comic-panning-figure', 'xkcd'];
 
   @property()
-  private _selectedBook?: string;
+  public selectedBook?: string;
 
-  private get _canGoBack() {
-    return this._navIdx > 0;
+  get #canGoBack() {
+    return this.navIndex > 0;
   }
 
-  private get _canGoForward() {
-    return this._navIdx + 1 < this._navLength;
+  get #canGoForward() {
+    return this.navIndex + 1 < this.#navLength;
   }
 
-  private get _navLength() {
+  get #navLength() {
     return this.mediaOverlay?.narration?.[0]?.narration?.length ?? 0;
   }
 
-  private get _narrationItem(): MediaOverlayNarrationNode {
-    return this.mediaOverlay?.narration?.[0]?.narration[this._navIdx];
+  get #narrationItem(): MediaOverlayNarrationNode {
+    return this.mediaOverlay?.narration?.[0]?.narration[this.navIndex];
   }
 
-  private _iframeLoaded = false;
+  #iframeLoaded = false;
 
   @query('#iframe-content-viewer')
   public iframe?: HTMLIFrameElement;
@@ -35,70 +35,70 @@ export class DemoComicPanning extends LitElement {
   public mediaOverlay?: MediaOverlay;
 
   @property()
-  private _navIdx = 0;
+  public navIndex = 0;
 
   @property()
-  private _blackAndWhiteEnabled = false;
+  public blackAndWhiteModeEnabled = false;
 
-  private _buttonControlClasses(enabled: boolean) {
+  #buttonControlClasses(enabled: boolean) {
     return classMap({
       disabled: !enabled,
     });
   }
 
-  private _iframeClasses() {
+  #iframeClasses() {
     return classMap({
-      loaded: this._iframeLoaded && !!this.mediaOverlay,
+      loaded: this.#iframeLoaded && !!this.mediaOverlay,
     });
   }
 
-  protected _renderBook(): TemplateResult | typeof nothing {
-    if (!this._selectedBook) {
+  #renderBook(): TemplateResult | typeof nothing {
+    if (!this.selectedBook) {
       return nothing;
     }
 
     return html`<iframe
       id="iframe-content-viewer"
-      @load="${this._iframeOnLoadEvent}"
-      src="/books/${this._selectedBook}/index.html"
-      class="${this._iframeClasses()}"
+      @load="${this.#iframeOnLoadEvent}"
+      src="/books/${this.selectedBook}/index.html"
+      class="${this.#iframeClasses()}"
     ></iframe>`;
   }
 
-  protected _renderControlButton(click: (e: Event) => void, isEnabled: boolean, label: string): TemplateResult {
-    return html` <button @click="${click}" class="${this._buttonControlClasses(isEnabled)}" ?disabled="${!isEnabled}">${label}</button> `;
+  #renderControlButton(click: (e: Event) => void, isEnabled: boolean, label: string): TemplateResult {
+    return html` <button @click="${click}" class="${this.#buttonControlClasses(isEnabled)}" ?disabled="${!isEnabled}">${label}</button> `;
   }
 
-  protected _renderControls(): TemplateResult | typeof nothing {
-    if (!this._selectedBook) {
+  #renderControls(): TemplateResult | typeof nothing {
+    if (!this.selectedBook) {
       return nothing;
     }
 
     return html`
       <div class="book-controls">
-        ${this._renderControlButton(this.prevSegmentEvent, this._canGoBack, 'PREV')}
-        <div class="nav-idx"><span>${this._navIdx + 1} / ${this._navLength}</span></div>
-        ${this._renderControlButton(this._nextSegmentEvent, this._canGoForward, 'NEXT')}
+        ${this.#renderControlButton(this.#prevSegmentEvent, this.#canGoBack, 'PREV')}
+        <div class="nav-idx"><span>${this.navIndex + 1} / ${this.#navLength}</span></div>
+        ${this.#renderControlButton(this.#nextSegmentEvent, this.#canGoForward, 'NEXT')}
       </div>
     `;
   }
 
   protected render(): TemplateResult {
     return html`
-      <header class="book-selector">${this._books.map((book) => html`<button data-book="${book}" @click="${this.selectBookEvent}">${book}</button>`)}</header>
+      <header class="book-selector">${this._books.map((book) => html`<button data-book="${book}" @click="${this.#selectBookEvent}">${book}</button>`)}</header>
 
-      ${this._renderControls()}
+      ${this.#renderControls()}
 
-      <section class="content-viewer">${this._renderBook()}</section>
+      <section class="content-viewer">${this.#renderBook()}</section>
 
       <footer>
         DEMO
         <button
           class="${classMap({
-            hidden: !this._selectedBook,
-            'bw-active': this._blackAndWhiteEnabled,
+            hidden: !this.selectedBook,
+            'bw-active': this.blackAndWhiteModeEnabled,
           })}"
-          @click=${this._enableBlackAndWhite}
+          @click=${this.#enableBlackAndWhite}
         >
           Black & white
         </button>
@@ -106,28 +106,28 @@ export class DemoComicPanning extends LitElement {
     `;
   }
 
-  private readonly prevSegmentEvent = () => {
-    if (this._navIdx > 0) {
-      this._navIdx -= 1;
+  readonly #prevSegmentEvent = () => {
+    if (this.navIndex > 0) {
+      this.navIndex -= 1;
     }
 
-    this._updateNarration();
+    this.#updateNarration();
   };
 
-  private readonly _nextSegmentEvent = () => {
-    this._navIdx = Math.min(this._navLength - 1, this._navIdx + 1);
+  readonly #nextSegmentEvent = () => {
+    this.navIndex = Math.min(this.#navLength - 1, this.navIndex + 1);
 
-    this._updateNarration();
+    this.#updateNarration();
   };
 
-  private _updateNarration() {
-    const item = this._narrationItem;
+  #updateNarration() {
+    const item = this.#narrationItem;
     const iframe = this.iframe;
 
     if (item && iframe) {
       const { audio, text } = item;
-      const audioUrl = new URL(`/books/${this._selectedBook}/${audio.replace('#', '?')}`, window.location.href);
-      const textUrl = new URL(`/books/${this._selectedBook}/${text}`, window.location.href);
+      const audioUrl = new URL(`/books/${this.selectedBook}/${audio.replace('#', '?')}`, window.location.href);
+      const textUrl = new URL(`/books/${this.selectedBook}/${text}`, window.location.href);
 
       const duration = audioUrl.searchParams
         .get('t')
@@ -142,64 +142,45 @@ export class DemoComicPanning extends LitElement {
     this.requestUpdate();
   }
 
-  private _enableBlackAndWhite = () => {
-    const enabled = !this._blackAndWhiteEnabled;
+  readonly #enableBlackAndWhite = () => {
+    const enabled = !this.blackAndWhiteModeEnabled;
     this.iframe?.contentWindow.SetBlackAndWhiteMode(enabled);
-    this._blackAndWhiteEnabled = enabled;
+    this.blackAndWhiteModeEnabled = enabled;
   };
 
-  private readonly selectBookEvent = async (e: MouseEvent) => {
-    this._iframeLoaded = false;
+  readonly #selectBookEvent = async (e: MouseEvent) => {
+    this.#iframeLoaded = false;
     this.mediaOverlay = undefined;
-    this._navIdx = 0;
+    this.navIndex = 0;
 
-    this._selectedBook = (e.target as HTMLButtonElement).dataset.book;
+    this.selectedBook = (e.target as HTMLButtonElement).dataset.book;
 
     this.requestUpdate();
 
-    this.mediaOverlay = await fetch(`/books/${this._selectedBook}/media-overlay.json`)
+    this.mediaOverlay = await fetch(`/books/${this.selectedBook}/media-overlay.json`)
       .then((r) => r.json())
       .then((j) => j as MediaOverlay);
 
     this.requestUpdate();
   };
 
-  private _iframeOnLoadEvent = (e: Event) => {
+  #iframeOnLoadEvent = (e: Event) => {
     const iframe = e.target as HTMLIFrameElement;
-
-    const script = iframe.contentDocument.createElement('script');
-    script.async = false;
-    script.src = `/comics.js?r=${Date.now()}`;
-    script.onload = () => {
-      this._updateNarration();
-      this._iframeLoaded = true;
-
-      this._blackAndWhiteEnabled = iframe.contentWindow.IsBlackAndWhiteEnabled();
-      script.onload = null;
-    };
-    iframe.contentDocument.head.appendChild(script);
 
     const flutterReadiumScript = iframe.contentDocument.createElement('script');
     flutterReadiumScript.async = false;
     flutterReadiumScript.src = `/flutterReadiumTools.js?r=${Date.now()}`;
     flutterReadiumScript.onload = () => {
-      this._updateNarration();
-      this._iframeLoaded = true;
+      this.#updateNarration();
+      this.#iframeLoaded = true;
     };
     iframe.contentDocument.head.appendChild(flutterReadiumScript);
 
     const flutterReadiumCssLink = iframe.contentDocument.createElement('link');
-    flutterReadiumCssLink.href = `/flutterReadium.css?r=${Date.now()}`;
+    flutterReadiumCssLink.href = `/flutterReadiumTools.css?r=${Date.now()}`;
     flutterReadiumCssLink.type = 'text/css';
     flutterReadiumCssLink.rel = 'stylesheet';
     iframe.contentDocument.head.appendChild(flutterReadiumCssLink);
-
-    const link = iframe.contentDocument.createElement('link');
-    link.href = `/comics.css?r=${Date.now()}`;
-    link.type = 'text/css';
-    link.rel = 'stylesheet';
-
-    iframe.contentDocument.head.appendChild(link);
   };
 
   // Define scoped styles right with your component, in plain CSS

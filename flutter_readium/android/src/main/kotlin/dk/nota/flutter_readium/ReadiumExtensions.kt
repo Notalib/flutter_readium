@@ -123,10 +123,8 @@ fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
         Log.d(TAG, "Injecting files into: $filename")
 
         val injectLines = listOf(
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.js"></script>""",
             """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
             """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/comics.css"></link>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
             """<script type="text/javascript">window.readiumTocIDs = ${jsonEncode(tocIds)};</script>"""
         )

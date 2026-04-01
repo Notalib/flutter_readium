@@ -138,7 +138,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
-    
+
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
       self.initUserScripts(registrar: registrar)
@@ -423,8 +423,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   func initUserScripts(registrar: FlutterPluginRegistrar) {
-    let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-    let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
     let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
     let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
     let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
@@ -454,7 +452,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    
+
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)

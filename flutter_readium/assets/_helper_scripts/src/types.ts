@@ -25,8 +25,8 @@ export interface ComicFramePosition {
  * Readium JS library injected by kotlin/swift-toolkit.
  **/
 export interface Readium {
-  get isFixedLayout(): boolean | undefined;
-  get isReflowable(): boolean | undefined;
+  isFixedLayout: boolean | undefined;
+  isReflowable: boolean | undefined;
 
   /**
    * @param progression // Position must be in the range [0 - 1], 0-100%.
@@ -151,3 +151,5 @@ export interface PageInformation {
    */
   tocId?: string | null;
 }
+
+export const figureQuerySelector = 'body > figure:has(img:first-child + div.area)';
