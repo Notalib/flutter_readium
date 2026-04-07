@@ -46,9 +46,8 @@
     "build:flutter": "cross-env NODE_ENV=production IS_FLUTTER=1 webpack",
     "build:dev": "cross-env NODE_ENV=development webpack",
     "coverage": "jest --collect-coverage",
-    "start": "cross-env NODE_ENV=development WATCH=true webpack serve",
-    "test": "jest --watchAll",
-    "watch": "cross-env NODE_ENV=development WATCH=true webpack"
+    "start": "cross-env NODE_ENV=development webpack serve",
+    "test": "jest --watchAll"
   },
   "dependencies": {
     "animejs": "^3.2.2",

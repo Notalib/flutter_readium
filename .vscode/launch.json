@@ -10,7 +10,7 @@
       "request": "launch",
       "type": "dart",
       "flutterMode": "debug",
-      "preLaunchTask": "npm: build:flutter - flutter_readium/assets/_helper_scripts"
+      "preLaunchTask": "build_helper_scripts"
     },
     {
       "name": "example (profile mode)",
@@ -18,7 +18,7 @@
       "request": "launch",
       "type": "dart",
       "flutterMode": "profile",
-      "preLaunchTask": "npm: build:flutter - flutter_readium/assets/_helper_scripts"
+      "preLaunchTask": "build_helper_scripts"
     },
     {
       "name": "example (release mode)",
@@ -26,7 +26,7 @@
       "request": "launch",
       "type": "dart",
       "flutterMode": "release",
-      "preLaunchTask": "npm: build:flutter - flutter_readium/assets/_helper_scripts"
+      "preLaunchTask": "build_helper_scripts"
     },
     {
       "command": "npm run start",
