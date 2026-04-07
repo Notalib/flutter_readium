@@ -60,8 +60,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     val scrollMode: Boolean
         get() = epubNavigator?.settings?.value?.scroll == true
 
-    val layoutMode =
-        ReadiumReader.currentPublication?.metadata?.presentation?.layout ?: EpubLayout.REFLOWABLE
+    val layoutMode: EpubLayout
+        get() = ReadiumReader.currentPublication?.metadata?.presentation?.layout ?: EpubLayout.REFLOWABLE
 
     private val instance = ++instanceNo
 
