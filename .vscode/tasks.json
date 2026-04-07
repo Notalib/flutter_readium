@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build:flutter",
+			"path": "flutter_readium/assets/_helper_scripts",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "build_helper_scripts",
+			"detail": "cross-env NODE_ENV=production IS_FLUTTER=1 webpack"
+		}
+	]
+}

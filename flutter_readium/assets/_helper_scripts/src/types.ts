@@ -1,24 +1,25 @@
-export interface CanvasSize {
+/**
+ * The comic book page's real size.
+ */
+export interface ComicPageSize {
   height: number;
   width: number;
 }
 
-export interface ComicFrame extends CanvasSize {
+/**
+ * The size and position of a comic panel on a comic book page.
+ */
+export interface ComicPanel extends ComicPageSize {
   left: number;
   top: number;
 }
 
-export interface ComicFramePosition {
-  width: number;
-  height: number;
-  topLeft: {
-    x: number;
-    y: number;
-  };
-  bottomRight: {
-    x: number;
-    y: number;
-  };
+/**
+ * The size of the viewport that the comic book page is being displayed in.
+ */
+export interface ViewSize {
+  viewHeight: number;
+  viewWidth: number;
 }
 
 /**
@@ -153,3 +154,10 @@ export interface PageInformation {
 }
 
 export const figureQuerySelector = 'body > figure:has(img:first-child + div.area)';
+
+
+declare global {
+  interface Window {
+    readium?: Readium;
+  }
+}

@@ -11,7 +11,7 @@ class TTSPreferences implements JSONable {
     final pitch = jsonObject.optDouble('pitch', remove: true);
     final voiceIdentifier = jsonObject.optNullableString('voiceIdentifier', remove: true);
     final voicesJson = jsonObject.optJsonObject('voices', remove: true) ?? {};
-    final Map<String, String> voices = Map.fromEntries(
+    final voices = Map<String, String>.fromEntries(
       voicesJson.entries
           .where((entry) => entry.value is String)
           .map((entry) => MapEntry(entry.key, entry.value as String)),

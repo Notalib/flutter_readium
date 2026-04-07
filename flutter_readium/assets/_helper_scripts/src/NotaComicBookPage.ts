@@ -1,13 +1,13 @@
-import animejs, { AnimeInstance } from 'animejs';
-import { CanvasSize, ComicFrame, figureQuerySelector, Readium } from './types';
+import animejs, { type AnimeInstance } from 'animejs';
+import { type ComicPageSize, type ComicPanel, figureQuerySelector } from './types';
 import { ComicBookCalc } from './ComicBookCalc';
 import './NotaComicBookPage.scss';
-
-declare const readium: Readium | undefined;
 
 const BLACK_AND_WHITE_MODE_KEY = 'black-and-white-rendering';
 
 const blackAndWhiteCssClass = 'black-white-comic-mode';
+
+const activeComicPageContainerClass = 'nota-comic-is-active';
 
 function sanitizeId(id: string): string {
   return id.toLocaleLowerCase().replace(/^#/g, '');
@@ -15,15 +15,19 @@ function sanitizeId(id: string): string {
 
 export class NotaComicBook {
   // Singleton instance
-  private static instance: NotaComicBook | null = null;
+  static #instance: NotaComicBook | null = null;
+
+  #originalScrollToIdFn = window.readium?.scrollToId ?? ((id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  });
 
   constructor() {
     // Singleton pattern to ensure only one instance of NotaComicBook is created.
-    if (NotaComicBook.instance) {
-      return NotaComicBook.instance;
+    if (NotaComicBook.#instance) {
+      return NotaComicBook.#instance;
     }
 
-    NotaComicBook.instance = this;
+    NotaComicBook.#instance = this;
 
     const figureElements = [...document.querySelectorAll<HTMLElement>(figureQuerySelector)];
     if (figureElements.length === 0) {
@@ -35,74 +39,66 @@ export class NotaComicBook {
       NotaComicBook.setBlackAndWhiteMode(true);
     }
 
-    this._comicBookPages = figureElements.map((figureElement) => new NotaComicBookPage(figureElement));
+    this.#container = document.createElement('div');
+    this.#container.classList.add('nota-comicbook-page-container');
+    document.body.appendChild(this.#container);
 
-    if (this._comicBookPages.length > 0) {
-      document.body.classList.add('comicBody');
-    }
+    this.#comicBookPages = figureElements.map((figureElement) => new NotaComicBookPage(figureElement, this.#container));
 
-    if (typeof readium !== 'undefined') {
-
-      const originalScrollToIdFn = readium.scrollToId;
-      readium.scrollToId = (id: string) => {
-        if (!id) {
-          console.log("scrollToId called with empty id, delegating to original function");
-          // originalScrollToIdFn.call(readium, id);
-          return;
-        }
-
-        const lcId = sanitizeId(id);
-
-        const page = this.getComicBookPageByFrameId(lcId);
-        console.log("scrollToId called with id:", id, "mapped to lcId:", lcId, "found page:", page);
-        if (!page) {
-          originalScrollToIdFn.call(readium, id);
-          return;
-        }
-
-        page.gotoComicFrame(lcId, this.segmentDuration ?? 1000);
+    if (typeof window.readium !== 'undefined') {
+      // We need to capture scrollToId calls to handle scrolling to comic frames, but we want to preserve the original functionality for non-comic content. So we override scrollToId to route through our custom function, and keep a reference to the original function for non-comic use.
+      window.readium.scrollToId = (id: string) => {
+        this.scrollToId(id);
       };
-
-      Object.entries(readium).forEach(([key, value]) => {
-        if (key === 'scrollToId') {
-          return;
-        }
-
-        if (typeof value !== 'function') {
-          return;
-        }
-
-        const originalFunction = value;
-        (readium as any)[key] = (...args: any[]) => {
-          console.log(`Readium method "${key}" called with arguments:`, args);
-
-          return originalFunction.apply(readium, args);
-        };
-      });
     }
+
+    window.addEventListener('resize', this.#onResize);
   }
 
   public segmentDuration: number = 1000;
 
-  private _comicBookPages: NotaComicBookPage[];
+  readonly #comicBookPages: NotaComicBookPage[];
 
-  private getComicBookPageByFrameId(id: string): NotaComicBookPage | undefined {
-    return this._comicBookPages.find((page) => !!page.getComicArea(id));
+  #lastElementId: string | null = null;
+
+  #container: HTMLDivElement;
+
+  #getComicBookPageByFrameId(id: string): NotaComicBookPage | undefined {
+    return this.#comicBookPages.find((page) => !!page.getComicArea(id));
+  }
+
+  public scrollToId(id: string, duration: number = this.segmentDuration): void {
+    if (!id) {
+      console.warn("scrollToId called with empty id, doing nothing");
+      return;
+    }
+
+    this.#lastElementId = id;
+
+    const lcId = sanitizeId(id);
+
+    const page = this.#getComicBookPageByFrameId(lcId);
+    if (!page) {
+      // Use readium's original scrollToId function if the id does not correspond to a comic frame, to allow normal scrolling behavior for non-comic content.
+      this.#container.classList.remove(activeComicPageContainerClass);
+      this.#container.querySelectorAll('img').forEach((img) => {
+        this.#container.removeChild(img);
+      });
+      this.#originalScrollToIdFn.call(window.readium, id);
+      return;
+    }
+
+    page.gotoComicFrame(lcId, duration ?? this.segmentDuration ?? 1000);
+  }
+
+  public gotoComicFrame(id: string, duration?: number) {
+    this.scrollToId(id, duration);
   }
 
   public static isBlackAndWhiteEnabled() {
     return window.sessionStorage.getItem(BLACK_AND_WHITE_MODE_KEY) === 'true';
   }
 
-  public gotoComicFrame(id: string, duration: number) {
-    const page = this.getComicBookPageByFrameId(id);
-    if (!page) {
-      console.error(`gotoComicFrame: No comic book page found for id "${id}"`);
-      return;
-    }
-
-    page.gotoComicFrame(id, duration ?? this.segmentDuration ?? 1000);
-  }
 
   public static setBlackAndWhiteMode(enable: boolean) {
     window.sessionStorage.setItem(BLACK_AND_WHITE_MODE_KEY, enable ? 'true' : 'false');
@@ -113,11 +109,13 @@ export class NotaComicBook {
       document.body.classList.remove(blackAndWhiteCssClass);
     }
   }
+
+  #onResize = (): void => this.scrollToId(this.#lastElementId);
 }
 
 const animationEasing = 'cubicBezier(0.455, 0.030, 0.515, 0.955)';
 export class NotaComicBookPage {
-  constructor(figureElement: HTMLElement) {
+  constructor(figureElement: HTMLElement, container: HTMLDivElement) {
     const comicImg = figureElement.querySelector<HTMLImageElement>('img:first-child');
     if (comicImg == null) {
       console.error(`No image with class "page" found within figure element. This really shouldn't happen.`);
@@ -128,43 +126,44 @@ export class NotaComicBookPage {
     const figureId = figureElement.id;
     const comicImgId = comicImg.id || figureId;
     if (comicImgId == figureId) {
-      figureElement.id = null;
+      delete figureElement.id;
       comicImg.id = comicImgId;
     }
 
     this.#comicImg = comicImg;
-    this.#container = figureElement;
+    this.#container = container;
+    this.#canvasSize = this.#extractCanvasSize();
+
+    // reset to readium-css
+    this.#comicImg.style.width = "unset";
+    this.#comicImg.style.height = "unset";
 
     const canvasFrame = this.#fullPageComicFrame;
 
-    if (figureId) {
-      this.#setComicArea(figureId, canvasFrame);
-    }
-    if (comicImgId) {
-      this.#setComicArea(comicImgId, canvasFrame);
-    }
+    this.#setComicAreaData(figureId, canvasFrame);
+    this.#setComicAreaData(comicImgId, canvasFrame);
 
     for (const area of figureElement.querySelectorAll<HTMLDivElement>('div.area')) {
       const frame = this.#extractComicFrame(area);
-      this.#setComicArea(area.id, frame);
-      area.style.display = 'none';
+      this.#setComicAreaData(area.id, frame);
+      // area.style.display = 'none';
     }
 
-    window.addEventListener('resize', this.#onResize);
-
-    console.log("frame areas:", this.#comicAreas);
-
-    // Make sure whole comic image is visible on start.
+    // Set the current frame to the full page.
     this.setCurrentFrame(this.#comicImg.id, 0);
   }
 
   /**
-   * Set comic area frame to the map, handle naming.
+   * Set comic area frame to the map, handle id naming.
    *
    * @param id - id of the area
    * @param frame - frame of the area
    */
-  #setComicArea(id: string, frame: ComicFrame): void {
+  #setComicAreaData(id: string, frame: ComicPanel): void {
+    if (!id) {
+      return;
+    }
+
     this.#comicAreas.set(sanitizeId(id), frame);
   }
 
@@ -173,10 +172,13 @@ export class NotaComicBookPage {
    *
    * @param id - id of the area
    */
-  public getComicArea(id: string): ComicFrame | undefined {
-    id = sanitizeId(id);
+  public getComicArea(id: string): ComicPanel | undefined {
+    const sanitizedId = sanitizeId(id);
+    if (!this.#comicAreas.has(sanitizedId)) {
+      return;
+    }
 
-    return this.#comicAreas.get(id);
+    return Object.freeze(this.#comicAreas.get(sanitizedId));
   }
 
   #animeInstance?: AnimeInstance;
@@ -184,6 +186,8 @@ export class NotaComicBookPage {
   public segmentDuration: number = 1000;
 
   #container: HTMLElement;
+
+  #currentId: string = '';
 
   protected get availableWidth(): number {
     return this.#container.clientWidth;
@@ -193,18 +197,20 @@ export class NotaComicBookPage {
     return this.#container.clientHeight;
   }
 
-  #comicImg: HTMLImageElement;
+  readonly #comicImg: HTMLImageElement;
 
-  #comicAreas = new Map<string, ComicFrame>();
+  readonly #comicAreas = new Map<string, ComicPanel>();
 
-  #currentFrame: ComicFrame;
+  #currentFrame: ComicPanel;
 
   #duration: number;
+
+  readonly #canvasSize: ComicPageSize;
 
   /**
    * Full page comic book frame
    */
-  get #fullPageComicFrame(): ComicFrame {
+  get #fullPageComicFrame(): ComicPanel {
     return {
       ...this.#canvasSize,
       left: 0,
@@ -219,24 +225,53 @@ export class NotaComicBookPage {
     const canvasSize = this.#canvasSize;
     const currentFrame = this.#currentFrame;
     const currentDuration = this.#duration;
-    const comicImg = this.#comicImg;
-    if (canvasSize == null || currentFrame == null || currentDuration == null || comicImg == null) {
-      console.error('Cannot render comic frame - missing data', { canvasSize, currentFrame, currentDuration, comicImg });
+
+    if (canvasSize == null || currentFrame == null || currentDuration == null) {
+      console.error('Cannot render comic frame - missing data', { canvasSize, currentFrame, currentDuration });
+      return;
+    }
+
+    let img = this.#container.querySelector('img');
+    const currentId = this.#currentId;
+    const frameId = this.#comicImg.id;
+    const cloneId = `${frameId}-clone`;
+    if (img && img.id !== cloneId) {
+      animejs.remove(img);
+      this.#container.removeChild(img);
+      img = null;
+    }
+
+    this.#container.classList.add(activeComicPageContainerClass);
+
+    if (!img) {
+      img = this.#comicImg.cloneNode(false) as HTMLImageElement;
+      img.id = cloneId;
+      const frame = ComicBookCalc.calcFullPageComicFrame(canvasSize, this.availableWidth, this.availableHeight);
+      img.style.width = `${frame.width}px`;
+      img.style.height = `${frame.height}px`;
+      img.style.left = `${frame.left}px`;
+      img.style.top = `${frame.top}px`;
+      this.#container.prepend(img);
+    }
+
+    const target = img;
+    if (target == null) {
+      console.error('Cannot render comic frame - missing data', { canvasSize, currentFrame, currentDuration, comicImg: target });
       return;
     }
 
     // Remove old animation
     this.#animeInstance?.pause();
-    animejs.remove(comicImg);
+    animejs.remove(target);
 
-    const keyframes = ComicBookCalc.MakeKeyFrames(currentFrame, canvasSize, this.availableWidth, this.availableHeight, currentDuration);
+    const keyframes = ComicBookCalc.makeKeyFrames(currentFrame, canvasSize, this.availableWidth, this.availableHeight, currentDuration);
 
     this.#animeInstance = animejs({
-      targets: comicImg,
+      targets: target,
       keyframes,
       easing: animationEasing,
       complete: () => {
-        console.log("Animation complete for frame:", currentFrame, "keyframes:", keyframes);
+        console.debug("Animation complete for frame:", currentFrame, "keyframes:", keyframes);
 
         this.#animeInstance = undefined;
       }
@@ -255,47 +290,29 @@ export class NotaComicBookPage {
 
     this.#currentFrame = comicFrame;
     this.#duration = duration;
+    this.#currentId = id;
+  }
+
+  public renderCurrentFrame(id: string, duration: number): void {
+    this.setCurrentFrame(id, duration);
 
     this.#renderCurrentComicFrame();
   }
 
   public gotoComicFrame(id: string, duration: number) {
-    id = sanitizeId(id);
-    const headingElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-
-    this.setCurrentFrame(id, duration);
-
-    const activeElement = document.getElementById(id);
-    if (activeElement?.classList.contains('area') || activeElement?.tagName.toLowerCase() === 'img' || activeElement?.tagName.toLowerCase() === 'figure') {
-      headingElements.forEach((e) => e.classList.add('hideHeading'));
-    } else {
-      headingElements.forEach((e) => e.classList.remove('hideHeading'));
-      this.setCurrentImageFrame();
-    }
+    this.renderCurrentFrame(sanitizeId(id), duration);
   };
 
-  /**
-   * Set current comic frame to the image element.
-   */
-  public setCurrentImageFrame(): void {
-    if (this.#comicImg == null) {
-      console.error('setCurrentImageFrame() - no comicImg');
-      return;
-    }
-
-    this.setCurrentFrame(this.#comicImg.id, 1000);
-  }
-
-  #extractComicFrame(area: HTMLDivElement): ComicFrame {
-    const frame: ComicFrame = {
+  #extractComicFrame(area: HTMLDivElement): ComicPanel {
+    const frame: ComicPanel = {
       height: 0,
       width: 0,
       left: 0,
       top: 0,
     };
 
-    for (const key of Object.keys(frame) as (keyof ComicFrame)[]) {
-      const value = this.getStylePixelValue(area, key);
+    for (const key of Object.keys(frame) as (keyof ComicPanel)[]) {
+      const value = this.#getStylePixelValue(area, key);
       if (value == null) {
         continue;
       }
@@ -314,7 +331,7 @@ export class NotaComicBookPage {
    * @param key
    * @returns Pixel number value or null if not found or not in pixels
    */
-  private getStylePixelValue(element: HTMLElement, key: string): number | null {
+  #getStylePixelValue(element: HTMLElement, key: string): number | null {
     const value = element.style.getPropertyValue(key);
     if (!value) {
       console.error(`${element.id} is missing style[${key}]`);
@@ -329,20 +346,14 @@ export class NotaComicBookPage {
     return parseInt(value.replace(/px$/, ''), 10);
   }
 
-  get #canvasSize(): CanvasSize {
-    const dataKey = 'canvasSize';
-
-    if (this.#comicImg.dataset[dataKey]) {
-      return JSON.parse(this.#comicImg.dataset[dataKey]) as CanvasSize;
-    }
-
-    const frame: CanvasSize = {
+  #extractCanvasSize(): ComicPageSize {
+    const frame: ComicPageSize = {
       height: 0,
       width: 0,
     };
 
-    for (const key of Object.keys(frame) as (keyof CanvasSize)[]) {
-      const value = this.getStylePixelValue(this.#comicImg, key);
+    for (const key of Object.keys(frame) as (keyof ComicPageSize)[]) {
+      const value = this.#getStylePixelValue(this.#comicImg, key);
       if (value == null) {
         console.error(`${this.#comicImg.id} is missing style[${key}]`);
         continue;
@@ -351,12 +362,8 @@ export class NotaComicBookPage {
       frame[key] = value;
     }
 
-    this.#comicImg.dataset[dataKey] = JSON.stringify(frame);
-
     return frame;
   }
-
-  #onResize = (): void => this.#renderCurrentComicFrame();
 }
 
 Object.defineProperty(window, 'isNotaComicBook', {

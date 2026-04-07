@@ -196,12 +196,10 @@ export class DemoComicPanning extends LitElement {
       display: flex;
       flex-direction: row;
       background-color: blue;
-      height: 50px;
       justify-content: center;
     }
 
     .book-controls > .nav-idx {
-      line-height: 50px;
       margin: 0 2em;
     }
 

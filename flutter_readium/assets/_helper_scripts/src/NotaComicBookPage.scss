@@ -1,69 +1,52 @@
-html:has(body.comicBody),
-body.comicBody {
-  height: 100vh;
-  width: 100vw;
-  padding: 0 !important;
-  margin: 0 !important;
-
-  // Reset Readium CSS
+:root[style*="--USER__backgroundColor"] * div.nota-comicbook-page-container {
+  background-color: var(--USER__backgroundColor) !important;
+  /**
+   * Override max-width and max-height from readium-css to allow the comic page to be scaled.
+   */
   --RS__maxMediaWidth: auto;
   --RS__maxMediaHeight: auto;
-  --RS__pageGutter: 0;
-  --RS__maxLineLength: 100vm;
-  --USER__pageMargins: 0;
 }
 
-body.comicBody {
-  display: flex;
-  flex-direction: column;
+div.nota-comicbook-page-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
 
-  > :is(h1, h2, h3, h4, h5) {
-    flex-grow: 0;
-    flex-shrink: 0;
+  &:not(.nota-comic-is-active) {
+    display: none;
   }
 
-  /**
-   * Hide all the area elements on the page.
-   **/
-  > figure.nota-comicbook-page {
-    > .area {
-      display: none;
-    }
-
-    position: relative;
-    flex-grow: 1;
-    overflow: hidden;
-
-    > img {
-      position: absolute;
-    }
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    transition: all 0.2s linear;
-    display: block;
-    max-height: auto;
-    padding: 0 40px;
-
-    &.hideHeading {
-      opacity: 0;
-      max-height: 0;
-      padding: 0;
-      margin: 0;
-    }
+  img {
+    position: absolute;
+    opacity: 0;
   }
 
   &.black-white-comic-mode {
-    > figure.nota-comicbook-page {
-      img {
-        filter: grayscale(1) contrast(255) brightness(1);
-        mix-blend-mode: multiply;
-      }
+    /**
+     * Apply a filter to make the comic page black and white. This helps certain visual impairments to read the content more easily.
+     */
+    img {
+      filter: grayscale(1) contrast(255) brightness(1);
+      mix-blend-mode: multiply;
     }
+  }
+}
+
+/**
+  * Prevent scrolling of the body when a comic book page is active.
+  */
+body:has(div.nota-comicbook-page-container.active) {
+  overflow: hidden;
+}
+
+/**
+ * Fix layout of comic book pages by hiding the area elements.
+ */
+figure.nota-comicbook-page {
+  div.area {
+    display: none;
   }
 }

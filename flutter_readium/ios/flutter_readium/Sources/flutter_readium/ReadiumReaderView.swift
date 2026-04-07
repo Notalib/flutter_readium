@@ -458,7 +458,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
       let data = try JSONEncoder().encode(tocFragments)
       if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
-        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON); console.log('ToC IDs were injected!')"
+        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON);"
         userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
       }
     } catch (let err) {
