@@ -68,15 +68,4 @@ extension LinkListExtension on List<Link> {
 
     return null;
   }
-
-  List<Link> flattenTOC() {
-    final flattened = <Link>[];
-    for (final link in this) {
-      flattened.add(link);
-      if (link.children.isNotEmpty) {
-        flattened.addAll(link.children.flattenTOC());
-      }
-    }
-    return flattened;
-  }
 }

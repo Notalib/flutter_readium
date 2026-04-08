@@ -65,12 +65,6 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Navigate right/forwards visually in the current publication renderer.
   Future<void> goForward() => throw UnimplementedError('goForward() has not been implemented.');
 
-  /// Skip to next chapter in the current publication.
-  Future<void> skipToNext() => throw UnimplementedError('skipToNext() has not been implemented.');
-
-  /// Skip to previous chapter in the current publication.
-  Future<void> skipToPrevious() => throw UnimplementedError('skipToPrevious() has not been implemented.');
-
   /// Sets the default EPUB rendering preferences and updates preferences for the ReaderWidgetView.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('setEPUBPreferences() has not been implemented');

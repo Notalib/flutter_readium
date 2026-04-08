@@ -71,25 +71,20 @@ class FlutterReadium {
     return _platform.goForward();
   }
 
-  Future<void> skipToNextTOC({
-    required final Publication publication,
-    required final String currentTocHref,
-    final bool animated = true,
-  }) => _skipToTOCItem(publication, currentTocHref, 1);
+  Future<void> skipToNextTOC({required final Publication publication, required final String currentTocHref}) =>
+      _skipToTOCItem(publication, currentTocHref, 1);
 
-  Future<void> skipToPreviousTOC({
-    required final Publication publication,
-    required final String currentTocHref,
-    final bool animated = true,
-  }) => _skipToTOCItem(publication, currentTocHref, -1);
+  Future<void> skipToPreviousTOC({required final Publication publication, required final String currentTocHref}) =>
+      _skipToTOCItem(publication, currentTocHref, -1);
 
   Future<void> _skipToTOCItem(Publication publication, String currentTocHref, int direction) async {
-    final toc = publication.toc.flattenTOC();
+    final toc = publication.tocFlattened;
     if (toc.isEmpty) return;
 
     var curIndex = toc.indexWhere((l) => l.href == currentTocHref);
 
     if (curIndex == -1) return;
+    if (direction == -1 && curIndex == 0) return;
 
     final newIndex = (curIndex + direction).clamp(0, toc.length - 1);
     final locator = publication.locatorFromLink(toc[newIndex]);
