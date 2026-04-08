@@ -7,6 +7,11 @@ import android.content.ContextWrapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -99,4 +104,24 @@ fun JSONArray.toList(): List<Any> {
         list.add(this[i])
     }
     return list
+}
+
+fun anyToJsonElement(value: Any?): JsonElement = when (value) {
+    null -> JsonNull
+    is Map<*, *> -> mapToJsonObject(value)
+    is List<*> -> JsonArray(value.map { anyToJsonElement(it) })
+    is Double -> JsonPrimitive(value)
+    is Float -> JsonPrimitive(value.toDouble())
+    is Number -> JsonPrimitive(value.toLong())
+    is Boolean -> JsonPrimitive(value)
+    is String -> JsonPrimitive(value)
+    else -> JsonPrimitive(value.toString())
+}
+
+fun mapToJsonObject(map: Map<*, *>): JsonObject {
+    val content = map.entries.associate { (k, v) ->
+        val key = k?.toString() ?: "null"
+        key to anyToJsonElement(v)
+    }
+    return JsonObject(content)
 }

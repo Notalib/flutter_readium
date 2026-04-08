@@ -347,10 +347,7 @@ window.IsBlackAndWhiteEnabled = () => {
 };
 
 window.SetBlackAndWhiteMode = (enable: boolean) => {
-  if (window.comicBookPage) {
-    NotaComicBook.setBlackAndWhiteMode(enable);
-    return;
-  }
+  NotaComicBook.setBlackAndWhiteMode(enable);
 };
 
 window.GotoComicFrame = (id: string, duration: number) => {

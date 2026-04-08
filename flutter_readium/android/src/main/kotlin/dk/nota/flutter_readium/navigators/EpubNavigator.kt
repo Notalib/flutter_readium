@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
+import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.EpubReaderViewModel
@@ -21,8 +22,6 @@ import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
-import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.epub.EpubPreferencesEditor
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -40,13 +39,13 @@ private const val epubPreferencesKey = "epubPreferences"
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
-    private val initialPreferences: EpubPreferences
+    private val initialPreferences: FlutterEpubPreferences
 
     constructor(
         publication: Publication,
         initialLocator: Locator?,
         visualListener: VisualListener,
-        initialPreferences: EpubPreferences = EpubPreferences()
+        initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences()
     ) : super(publication, initialLocator) {
         this.initialPreferences = initialPreferences
         this.visualListener = visualListener
@@ -95,15 +94,10 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     private var epubNavigator: EpubReaderFragment? = null
 
     /**
-     * Editor to modify EPUB preferences.
-     */
-    private var editor: EpubPreferencesEditor? = null
-
-    /**
      * Current EPUB preferences.
      */
-    val preferences: EpubPreferences?
-        get() = editor?.preferences
+    val preferences: FlutterEpubPreferences?
+        get() = state[epubPreferencesKey] as? FlutterEpubPreferences
 
     /**
      * Current locator in the EPUB navigator.
@@ -117,23 +111,12 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     private val navigatorStarted
         get() = epubNavigator!!.started
 
-    /**
-     * Whether the EPUB navigator is in vertical scroll mode.
-     */
-    private val isVerticalScroll: Boolean
-        get() {
-            return editor?.preferences?.scroll ?: false
-        }
-
     override suspend fun initNavigator() {
         epubNavigator = EpubReaderFragment().apply {
             vm = EpubReaderViewModel().apply {
                 navigatorFactory = EpubNavigatorFactory(publication)
                 locator = this@EpubNavigator.initialLocator
-                preferences = this@EpubNavigator.initialPreferences
-
-                editor =
-                    navigatorFactory!!.createPreferencesEditor(initialPreferences)
+                preferences = this@EpubNavigator.initialPreferences.toEpubPreferences()
             }
             listener = this@EpubNavigator
         }
@@ -183,23 +166,19 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Update EPUB navigator preferences.
      */
-    fun updatePreferences(preferences: EpubPreferences) {
-        Log.d(TAG, "::setPreferences")
+    fun updatePreferences(preferences: FlutterEpubPreferences) {
+        Log.d(TAG, "::updatePreferences")
 
         try {
-            editor?.apply {
-                fontFamily.set(preferences.fontFamily)
-                fontSize.set(preferences.fontSize)
-                fontWeight.set(preferences.fontWeight)
-                scroll.set(preferences.scroll)
-                backgroundColor.set(preferences.backgroundColor)
-                textColor.set(preferences.textColor)
+            mainScope.launch {
+                val oldBlackAndWhiteComicMode = (state[epubPreferencesKey] as? FlutterEpubPreferences)?.blackAndWhiteComicMode ?: false
+                epubNavigator?.updatePreferences(preferences.toEpubPreferences())
 
-                mainScope.launch {
-                    epubNavigator?.updatePreferences(preferences)
+                if (preferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
+                    epubNavigator?.evaluateJavascript("window.SetBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
                 }
-                state[epubPreferencesKey] = preferences
             }
+            state[epubPreferencesKey] = preferences
         } catch (ex: Exception) {
             Log.e(TAG, "Error applying EpubPreferences: $ex")
         }
@@ -237,7 +216,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             preferences?.let { prefs ->
                 putString(
                     epubPreferencesKey,
-                    Json.encodeToString(EpubPreferences.serializer(), prefs)
+                    Json.encodeToString(FlutterEpubPreferences.serializer(), prefs)
                 )
             }
         }
@@ -392,8 +371,8 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             val locator = state.getString(currentVisualCurrentLocatorKey)
                 ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences = state.getString(epubPreferencesKey)
-                ?.let { string -> Json.decodeFromString<EpubPreferences>(string) }
-                ?: EpubPreferences()
+                ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
+                ?: FlutterEpubPreferences()
 
             Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 
