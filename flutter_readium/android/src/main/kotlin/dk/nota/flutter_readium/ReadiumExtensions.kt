@@ -7,8 +7,6 @@ import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
-import org.readium.r2.navigator.epub.EpubPreferences
-import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Href
@@ -32,7 +30,7 @@ import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
 
-private fun readiumColorFromCSS(cssColor: String): ReadiumColor {
+fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()
     return ReadiumColor(color)
 }
@@ -68,29 +66,6 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
     } catch (ex: Exception) {
         Log.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
         return null
-    }
-}
-
-fun epubPreferencesFromMap(
-    prefMap: Map<String, String>,
-    defaults: EpubPreferences?,
-): EpubPreferences {
-    try {
-        val newPreferences = EpubPreferences(
-            fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
-            fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
-            fontWeight = prefMap["fontWeight"]?.toDoubleOrNull() ?: defaults?.fontWeight,
-            scroll = prefMap["verticalScroll"]?.toBoolean() ?: defaults?.scroll,
-            backgroundColor = prefMap["backgroundColor"]?.let { readiumColorFromCSS(it) }
-                ?: defaults?.backgroundColor,
-            textColor = prefMap["textColor"]?.let { readiumColorFromCSS(it) }
-                ?: defaults?.textColor,
-            pageMargins = prefMap["pageMargins"]?.toDoubleOrNull() ?: defaults?.pageMargins,
-        )
-        return newPreferences
-    } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to EpubPreferences: $ex")
-        return EpubPreferences()
     }
 }
 

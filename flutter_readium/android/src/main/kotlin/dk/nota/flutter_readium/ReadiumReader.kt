@@ -39,7 +39,6 @@ import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
-import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -717,7 +716,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     @OptIn(InternalReadiumApi::class)
     suspend fun epubEnable(
         initialLocator: Locator?,
-        initialPreferences: EpubPreferences,
+        initialPreferences: FlutterEpubPreferences,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget
@@ -1004,7 +1003,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     /**
      * Update EPUB navigator preferences.
      */
-    fun epubUpdatePreferences(preferences: EpubPreferences) {
+    fun epubUpdatePreferences(preferences: FlutterEpubPreferences) {
         epubNavigator?.updatePreferences(preferences)
     }
 

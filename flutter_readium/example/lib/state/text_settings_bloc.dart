@@ -32,6 +32,7 @@ class TextSettingsState {
     required this.theme,
     required this.highlight,
     this.pageMargins,
+    this.blackAndWhiteComicMode = false,
   });
 
   bool verticalScroll;
@@ -39,6 +40,7 @@ class TextSettingsState {
   TextSettingsTheme theme;
   TextSettingsTheme highlight;
   double? pageMargins;
+  bool blackAndWhiteComicMode;
 
   @override
   String toString() =>
@@ -75,6 +77,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
@@ -88,26 +91,24 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
     );
     instance.setDefaultPreferences(defaultPreferences);
   }
 
   TextSettingsBloc()
-      : super(
-          TextSettingsState(
-            verticalScroll: false,
-            fontSize: 120,
-            theme: TextSettingsTheme(
-              textColor: themes[1].textColor,
-              backgroundColor: themes[1].backgroundColor,
-            ),
-            highlight: TextSettingsTheme(
-              textColor: highlights[0].textColor,
-              backgroundColor: highlights[0].backgroundColor,
-            ),
-            pageMargins: kIsWeb ? 35 : null,
+    : super(
+        TextSettingsState(
+          verticalScroll: false,
+          fontSize: 120,
+          theme: TextSettingsTheme(textColor: themes[1].textColor, backgroundColor: themes[1].backgroundColor),
+          highlight: TextSettingsTheme(
+            textColor: highlights[0].textColor,
+            backgroundColor: highlights[0].backgroundColor,
           ),
-        ) {
+          pageMargins: kIsWeb ? 35 : null,
+        ),
+      ) {
     on<ChangeFontSize>((final event, final emit) {
       emit(state.copyWith(fontSize: event.value));
       submitPreferenceUpdate();

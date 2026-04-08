@@ -26,7 +26,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -102,10 +101,8 @@ class ReadiumReaderWidget(
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
         var initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
-        val initialPreferences =
-            if (initPrefsMap == null) EpubPreferences() else epubPreferencesFromMap(
-                initPrefsMap, null
-            )
+        val initialPreferences = initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
+
         Log.d(TAG, "publication = $publication")
 
         layout = LinearLayout(context, attrs)
@@ -201,9 +198,9 @@ class ReadiumReaderWidget(
     }
 
     @Throws(IllegalArgumentException::class)
-    private fun setPreferencesFromMap(prefMap: Map<String, String>) {
+    private fun setPreferencesFromMap(prefMap: Map<String, Any>) {
         Log.d(TAG, "::setPreferencesFromMap")
-        val newPreferences = epubPreferencesFromMap(prefMap, null)
+        val newPreferences = FlutterEpubPreferences.fromMap(prefMap)
         updatePreferences(newPreferences)
     }
 
@@ -252,7 +249,7 @@ class ReadiumReaderWidget(
                 "setPreferences" -> {
                     try {
                         @Suppress("UNCHECKED_CAST") val prefsMap =
-                            call.arguments as? Map<String, String> ?: run {
+                            call.arguments as? Map<String, Any> ?: run {
                                 result.error(
                                     "FlutterReadium",
                                     "Failed to set preferences",
@@ -350,7 +347,7 @@ class ReadiumReaderWidget(
         return ret
     }
 
-    private fun updatePreferences(preferences: EpubPreferences) {
+    private fun updatePreferences(preferences: FlutterEpubPreferences) {
         ReadiumReader.epubUpdatePreferences(preferences)
     }
 
