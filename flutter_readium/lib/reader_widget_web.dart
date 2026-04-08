@@ -80,16 +80,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> skipToPrevious({final bool animated = true}) async {
-    R2Log.d('skipToPrevious not implemented in web version');
-  }
-
-  @override
-  Future<void> skipToNext({final bool animated = true}) async {
-    R2Log.d('skipToNext not implemented in web version');
-  }
-
-  @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     R2Log.d('setEPUBPreferences not implemented in web version');
   }

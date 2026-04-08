@@ -68,4 +68,15 @@ extension LinkListExtension on List<Link> {
 
     return null;
   }
+
+  List<Link> flatten() {
+    final result = <Link>[];
+    for (final link in this) {
+      result.add(link);
+      if (link.children.isNotEmpty) {
+        result.addAll(link.children.flatten());
+      }
+    }
+    return result;
+  }
 }
