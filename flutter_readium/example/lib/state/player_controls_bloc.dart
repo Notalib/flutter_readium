@@ -76,42 +76,23 @@ class PlayerControlsState {
   final bool audioEnabled;
   final String? currentTocHref;
 
-  Future<PlayerControlsState> togglePlay(final bool playing) async {
-    final newState = PlayerControlsState(playing: playing, ttsEnabled: ttsEnabled, audioEnabled: audioEnabled);
+  PlayerControlsState copyWith({bool? playing, bool? ttsEnabled, bool? audioEnabled, String? currentTocHref}) =>
+      PlayerControlsState(
+        playing: playing ?? this.playing,
+        ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+        audioEnabled: audioEnabled ?? this.audioEnabled,
+        currentTocHref: currentTocHref ?? this.currentTocHref,
+      );
 
-    return newState;
-  }
+  PlayerControlsState togglePlay(final bool playing) => copyWith(playing: playing);
 
-  Future<PlayerControlsState> toggleTTSEnabled(final bool ttsEnabled) async {
-    final newState = PlayerControlsState(
-      playing: ttsEnabled && playing,
-      ttsEnabled: ttsEnabled,
-      audioEnabled: audioEnabled,
-    );
+  PlayerControlsState toggleTTSEnabled(final bool ttsEnabled) =>
+      copyWith(playing: ttsEnabled && playing, ttsEnabled: ttsEnabled);
 
-    return newState;
-  }
+  PlayerControlsState toggleAudioEnabled(final bool audioEnabled) =>
+      copyWith(playing: audioEnabled && playing, audioEnabled: audioEnabled);
 
-  Future<PlayerControlsState> toggleAudioEnabled(final bool audioEnabled) async {
-    final newState = PlayerControlsState(
-      playing: audioEnabled && playing,
-      ttsEnabled: ttsEnabled,
-      audioEnabled: audioEnabled,
-    );
-
-    return newState;
-  }
-
-  Future<PlayerControlsState> setTocHref(final String tocHref) async {
-    final newState = PlayerControlsState(
-      playing: playing,
-      ttsEnabled: ttsEnabled,
-      audioEnabled: audioEnabled,
-      currentTocHref: tocHref,
-    );
-
-    return newState;
-  }
+  PlayerControlsState setTocHref(final String tocHref) => copyWith(currentTocHref: tocHref);
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
@@ -159,14 +140,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<TogglePlayingState>((final event, final emit) async {
-      emit(await state.togglePlay(event.isPlaying));
+      emit(state.togglePlay(event.isPlaying));
     });
 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
         await instance.play(event.fromLocator);
-        emit(await state.toggleTTSEnabled(true));
+        emit(state.toggleTTSEnabled(true));
       } else {
         await instance.resume();
       }
@@ -178,7 +159,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
           fromLocator: event.fromLocator,
         );
-        emit(await state.toggleAudioEnabled(true));
+        emit(state.toggleAudioEnabled(true));
         await instance.play(event.fromLocator);
       } else {
         await instance.resume();
@@ -195,8 +176,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Stop>((final event, final emit) async {
       await instance.stop();
-      emit(await state.toggleTTSEnabled(false));
-      emit(await state.toggleAudioEnabled(false));
+      emit(state.toggleTTSEnabled(false));
+      emit(state.toggleAudioEnabled(false));
     });
 
     on<SkipToNext>((final event, final emit) => instance.next());
@@ -226,7 +207,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
 
     on<UpdateCurrentTocHref>((event, emit) async {
-      emit(await state.setTocHref(event.tocHref));
+      emit(state.setTocHref(event.tocHref));
     });
 
     on<GetAvailableVoices>((final event, final emit) async {
