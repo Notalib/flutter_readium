@@ -86,13 +86,16 @@ class PlayerControlsState {
 
   PlayerControlsState togglePlay(final bool playing) => copyWith(playing: playing);
 
-  PlayerControlsState toggleTTSEnabled(final bool ttsEnabled) =>
-      copyWith(playing: ttsEnabled && playing, ttsEnabled: ttsEnabled);
+  PlayerControlsState toggleTTSEnabled(final bool ttsEnabled, final String? tocHref) =>
+      copyWith(playing: ttsEnabled && playing, ttsEnabled: ttsEnabled, currentTocHref: tocHref ?? currentTocHref);
 
-  PlayerControlsState toggleAudioEnabled(final bool audioEnabled) =>
-      copyWith(playing: audioEnabled && playing, audioEnabled: audioEnabled);
+  PlayerControlsState toggleAudioEnabled(final bool audioEnabled, final String? tocHref) =>
+      copyWith(playing: audioEnabled && playing, audioEnabled: audioEnabled, currentTocHref: tocHref ?? currentTocHref);
 
   PlayerControlsState setTocHref(final String tocHref) => copyWith(currentTocHref: tocHref);
+
+  PlayerControlsState stop() =>
+      PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false, currentTocHref: null);
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
@@ -122,15 +125,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           }
         });
 
-    // TODO: This does not include the tocHref for the initial locator
+    // NOTE: This does not include the tocHref for the initial locator.
     currentTocHrefSub =
         Rx.merge([
           instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator?.locations?.tocHref),
           instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
-        ]).where((t) => t != null).distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
-          if (tocHref == null) debugPrint('tocHref is null');
-          if (tocHref != null && tocHref != state.currentTocHref) {
-            debugPrint('Update current TOC href');
+        ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
+          if (tocHref != state.currentTocHref) {
+            debugPrint('Current TOC href: $tocHref');
             add(UpdateCurrentTocHref(tocHref));
           }
         });
@@ -147,7 +149,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
         await instance.play(event.fromLocator);
-        emit(state.toggleTTSEnabled(true));
+        emit(state.toggleTTSEnabled(true, event.fromLocator?.locations?.tocHref));
       } else {
         await instance.resume();
       }
@@ -159,7 +161,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
           fromLocator: event.fromLocator,
         );
-        emit(state.toggleAudioEnabled(true));
+        emit(state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref));
         await instance.play(event.fromLocator);
       } else {
         await instance.resume();
@@ -176,8 +178,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Stop>((final event, final emit) async {
       await instance.stop();
-      emit(state.toggleTTSEnabled(false));
-      emit(state.toggleAudioEnabled(false));
+      emit(state.stop());
     });
 
     on<SkipToNext>((final event, final emit) => instance.next());
@@ -240,6 +241,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     Future<void> close() async {
       await timebasedStateSub?.cancel();
       await readerStatusSub?.cancel();
+      await currentTocHrefSub?.cancel();
       super.close();
     }
   }
