@@ -84,7 +84,7 @@ class FlutterReadium {
     var curIndex = toc.indexWhere((l) => l.href == currentTocHref);
 
     if (curIndex == -1) return;
-    if (direction == -1 && curIndex == 0) return;
+    if ((direction == -1 && curIndex == 0) || (direction == 1 && curIndex == toc.length - 1)) return;
 
     final newIndex = (curIndex + direction).clamp(0, toc.length - 1);
     final locator = publication.locatorFromLink(toc[newIndex]);
