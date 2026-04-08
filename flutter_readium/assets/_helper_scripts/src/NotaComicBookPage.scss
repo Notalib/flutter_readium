@@ -1,27 +1,38 @@
-:root[style*="--USER__backgroundColor"] * div.nota-comicbook-page-container {
-  background-color: var(--USER__backgroundColor) !important;
+:root[style*="--USER__backgroundColor"] * div.nota-comicbook-page-container,
+div.nota-comicbook-page-container {
+  /**
+   * Readium-css makes the background-color transparent, which makes the comic book page rendering look bad.
+   * Override by taking the background color from the user settings, or default to white if not set.
+   */
+  background-color: var(--USER__backgroundColor, white) !important;
+
   /**
    * Override max-width and max-height from readium-css to allow the comic page to be scaled.
    */
   --RS__maxMediaWidth: auto;
   --RS__maxMediaHeight: auto;
-}
 
-div.nota-comicbook-page-container {
   position: fixed;
+
+  /**
+   * Stretch the comic book page container to cover the entire viewport, and position it above all other content.
+   * This allows the comic page to be displayed as an overlay when active.
+   */
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   z-index: 9999;
+  display: none;
 
-  &:not(.nota-comic-is-active) {
-    display: none;
+  &.nota-comic-is-active {
+    // Only display the comic book page container when the comic page is active.
+    display: block;
   }
 
   img {
     position: absolute;
-    opacity: 0;
+    opacity: 0; // Allows the image to be faded in.
   }
 
   &.black-white-comic-mode {
@@ -44,6 +55,7 @@ body:has(div.nota-comicbook-page-container.active) {
 
 /**
  * Fix layout of comic book pages by hiding the area elements.
+ * This fixes issue with the figure element becoming huge and breaking scrolling in horizontal mode.
  */
 figure.nota-comicbook-page {
   div.area {
