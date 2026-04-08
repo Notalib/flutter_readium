@@ -13,13 +13,13 @@ abstract class PlayerControlsEvent {}
 class PlayTTS extends PlayerControlsEvent {
   PlayTTS({this.fromLocator});
 
-  Locator? fromLocator;
+  final Locator? fromLocator;
 }
 
 class Play extends PlayerControlsEvent {
   Play({this.fromLocator});
 
-  Locator? fromLocator;
+  final Locator? fromLocator;
 }
 
 class Pause extends PlayerControlsEvent {}
@@ -37,12 +37,12 @@ class SkipToPrevious extends PlayerControlsEvent {}
 
 class SkipToNextChapter extends PlayerControlsEvent {
   SkipToNextChapter({required this.publication});
-  Publication publication;
+  final Publication publication;
 }
 
 class SkipToPreviousChapter extends PlayerControlsEvent {
   SkipToPreviousChapter({required this.publication});
-  Publication publication;
+  final Publication publication;
 }
 
 class SkipToNextPage extends PlayerControlsEvent {}

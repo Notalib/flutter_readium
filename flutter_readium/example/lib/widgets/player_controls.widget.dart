@@ -9,9 +9,6 @@ class PlayerControls extends StatelessWidget {
   const PlayerControls({super.key, required this.publication});
 
   final Publication publication;
-
-  // TODO: Could really use a stream with tochref that only updates when it changes
-
   @override
   Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
