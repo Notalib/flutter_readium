@@ -26,7 +26,6 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
-      final hasMediaOverlays = pubState.publication?.containsMediaOverlays == true;
 
       return PopScope(
         canPop: true,
@@ -56,7 +55,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                     ? Container(padding: EdgeInsets.all(12.0), child: TimebasedStateWidget())
                     : ReaderWidget(shouldShowControls: _shouldShowControls),
               ),
-              Positioned(left: 0, right: 0, bottom: 0, child: _controls(isAudioBook || hasMediaOverlays)),
+              if (pubState.publication != null)
+                Positioned(left: 0, right: 0, bottom: 0, child: _controls(pubState.publication!)),
             ],
           ),
         ),
@@ -126,15 +126,17 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     ),
   ];
 
-  Widget _controls(final bool isAudioBook) => AnimatedSlideOutWidget(
-    visible: _shouldShowControls,
-    hiddenOffset: const Offset(0, 1),
-    duration: _slideDuration,
-    child: Container(
-      color: _playerControlsColor,
-      child: SafeArea(top: false, left: false, right: false, child: PlayerControls(isAudioBook: isAudioBook)),
-    ),
-  );
+  Widget _controls(final Publication publication) {
+    return AnimatedSlideOutWidget(
+      visible: _shouldShowControls,
+      hiddenOffset: const Offset(0, 1),
+      duration: _slideDuration,
+      child: Container(
+        color: _playerControlsColor,
+        child: SafeArea(top: false, left: false, right: false, child: PlayerControls(publication: publication)),
+      ),
+    );
+  }
 
   @override
   String? get restorationId => 'player_page_state';
