@@ -76,6 +76,7 @@ fun epubPreferencesFromMap(
     defaults: EpubPreferences?,
 ): EpubPreferences {
     try {
+        // TODO: This is a small subset of possible preferences
         val newPreferences = EpubPreferences(
             fontFamily = prefMap["fontFamily"]?.let { FontFamily(it) } ?: defaults?.fontFamily,
             fontSize = prefMap["fontSize"]?.toDoubleOrNull() ?: defaults?.fontSize,
