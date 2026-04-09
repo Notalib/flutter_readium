@@ -34,12 +34,12 @@ class EPUBPreferences implements JSONable {
   });
 
   final Color? backgroundColor;
-  final ColumnCount? columnCount;
+  final EpubColumnCount? columnCount;
   final String? fontFamily;
   final int? fontSize;
   final double? fontWeight;
   final bool? hyphens;
-  final ImageFilter? imageFilter;
+  final EpubImageFilter? imageFilter;
   final String? language;
   final double? letterSpacing;
   final bool? ligatures;
@@ -51,26 +51,29 @@ class EPUBPreferences implements JSONable {
   final EpubReadingProgression? readingProgression;
   final bool? verticalScroll;
   final String? spread;
-  final TextAlign? textAlign;
+  final EpubTextAlign? textAlign;
   final Color? textColor;
   final bool? textNormalization;
-  final ThemeType? theme;
+  final EpubThemeType? theme;
   final double? typeScale;
   final bool? verticalText;
   final double? wordSpacing;
+
+  /// Black and white mode for Nota Comic Books.
+  /// When enabled, this mode applies a black and white filter to the comic book pages.
   final bool blackAndWhiteComicMode;
 
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final backgroundColorStr = jsonObject.optNullableString('backgroundColor', remove: true);
     final columnCountStr = jsonObject.optNullableString('columnCount', remove: true);
-    final columnCount = columnCountStr != null ? ColumnCount.fromJson(columnCountStr) : null;
+    final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
     final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
     final hyphens = jsonObject.optNullableBoolean('hyphens', remove: true);
     final imageFilterStr = jsonObject.optNullableString('imageFilter', remove: true);
-    final imageFilter = imageFilterStr != null ? ImageFilter.fromJson(imageFilterStr) : null;
+    final imageFilter = imageFilterStr != null ? EpubImageFilter.fromJson(imageFilterStr) : null;
     final language = jsonObject.optNullableString('language', remove: true);
     final letterSpacing = jsonObject.optNullableDouble('letterSpacing', remove: true);
     final ligatures = jsonObject.optNullableBoolean('ligatures', remove: true);
@@ -89,10 +92,10 @@ class EPUBPreferences implements JSONable {
     final textColor = jsonObject.optNullableString('textColor', remove: true);
     final textNormalization = jsonObject.optNullableBoolean('textNormalization', remove: true);
     final themeStr = jsonObject.optNullableString('theme', remove: true);
-    final theme = ThemeType.fromJson(themeStr);
-    final typeScale = jsonObject.optDouble('typeScale', remove: true);
+    final theme = EpubThemeType.fromJson(themeStr);
+    final typeScale = jsonObject.optNullableDouble('typeScale', remove: true);
     final verticalText = jsonObject.optNullableBoolean('verticalText', remove: true);
-    final wordSpacing = jsonObject.optDouble('wordSpacing', remove: true);
+    final wordSpacing = jsonObject.optNullableDouble('wordSpacing', remove: true);
     final blackAndWhiteComicMode = jsonObject.optBoolean('blackAndWhiteComicMode', remove: true);
 
     return EPUBPreferences(
@@ -155,19 +158,19 @@ class EPUBPreferences implements JSONable {
     ..put('blackAndWhiteComicMode', blackAndWhiteComicMode);
 }
 
-enum ColumnCount {
+enum EpubColumnCount {
   auto,
   one,
   two;
 
-  static ColumnCount? fromJson(String? value) {
+  static EpubColumnCount? fromJson(String? value) {
     switch (value) {
       case 'auto':
-        return ColumnCount.auto;
+        return EpubColumnCount.auto;
       case 'one':
-        return ColumnCount.one;
+        return EpubColumnCount.one;
       case 'two':
-        return ColumnCount.two;
+        return EpubColumnCount.two;
       default:
         return null;
     }
@@ -175,26 +178,26 @@ enum ColumnCount {
 
   String toJson() {
     switch (this) {
-      case ColumnCount.auto:
+      case EpubColumnCount.auto:
         return 'auto';
-      case ColumnCount.one:
+      case EpubColumnCount.one:
         return 'one';
-      case ColumnCount.two:
+      case EpubColumnCount.two:
         return 'two';
     }
   }
 }
 
-enum ImageFilter {
+enum EpubImageFilter {
   darken,
   invert;
 
-  static ImageFilter? fromJson(String? value) {
+  static EpubImageFilter? fromJson(String? value) {
     switch (value) {
       case 'darken':
-        return ImageFilter.darken;
+        return EpubImageFilter.darken;
       case 'invert':
-        return ImageFilter.invert;
+        return EpubImageFilter.invert;
       default:
         return null;
     }
@@ -202,15 +205,15 @@ enum ImageFilter {
 
   String toJson() {
     switch (this) {
-      case ImageFilter.darken:
+      case EpubImageFilter.darken:
         return 'darken';
-      case ImageFilter.invert:
+      case EpubImageFilter.invert:
         return 'invert';
     }
   }
 }
 
-enum TextAlign {
+enum EpubTextAlign {
   center,
   justify,
   start,
@@ -218,20 +221,20 @@ enum TextAlign {
   left,
   right;
 
-  static TextAlign? fromJson(String? value) {
+  static EpubTextAlign? fromJson(String? value) {
     switch (value) {
       case 'center':
-        return TextAlign.center;
+        return EpubTextAlign.center;
       case 'justify':
-        return TextAlign.justify;
+        return EpubTextAlign.justify;
       case 'start':
-        return TextAlign.start;
+        return EpubTextAlign.start;
       case 'end':
-        return TextAlign.end;
+        return EpubTextAlign.end;
       case 'left':
-        return TextAlign.left;
+        return EpubTextAlign.left;
       case 'right':
-        return TextAlign.right;
+        return EpubTextAlign.right;
       default:
         return null;
     }
@@ -239,35 +242,35 @@ enum TextAlign {
 
   String toJson() {
     switch (this) {
-      case TextAlign.center:
+      case EpubTextAlign.center:
         return 'center';
-      case TextAlign.justify:
+      case EpubTextAlign.justify:
         return 'justify';
-      case TextAlign.start:
+      case EpubTextAlign.start:
         return 'start';
-      case TextAlign.end:
+      case EpubTextAlign.end:
         return 'end';
-      case TextAlign.left:
+      case EpubTextAlign.left:
         return 'left';
-      case TextAlign.right:
+      case EpubTextAlign.right:
         return 'right';
     }
   }
 }
 
-enum ThemeType {
+enum EpubThemeType {
   light,
   dark,
   sepia;
 
-  static ThemeType? fromJson(String? value) {
+  static EpubThemeType? fromJson(String? value) {
     switch (value) {
       case 'light':
-        return ThemeType.light;
+        return EpubThemeType.light;
       case 'dark':
-        return ThemeType.dark;
+        return EpubThemeType.dark;
       case 'sepia':
-        return ThemeType.sepia;
+        return EpubThemeType.sepia;
       default:
         return null;
     }
@@ -275,11 +278,11 @@ enum ThemeType {
 
   String toJson() {
     switch (this) {
-      case ThemeType.light:
+      case EpubThemeType.light:
         return 'light';
-      case ThemeType.dark:
+      case EpubThemeType.dark:
         return 'dark';
-      case ThemeType.sepia:
+      case EpubThemeType.sepia:
         return 'sepia';
     }
   }
