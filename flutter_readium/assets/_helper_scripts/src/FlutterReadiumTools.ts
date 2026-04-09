@@ -106,7 +106,7 @@ class FlutterReadiumTools {
    * @returns The id of the nearest ToC element, or null if none is found.
    */
   #findTocId(cssSelector: string | undefined): string | undefined {
-    let tocIds = [...this.#tocIds];
+    const tocIds = [...this.#tocIds];
     if (tocIds.length === 0) {
       console.warn("No ToC ids registered. Fallback to finding all heading elements as ToC candidates.");
 
