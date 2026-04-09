@@ -134,6 +134,13 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
      * Update the reader preferences.
      */
     fun updatePreferences(preferences: EpubPreferences) {
+        val model = epubVm ?: run {
+            Log.d(TAG, "::updatePreferences - No epubVm available, how did this happen?")
+            return
+        }
+
+        model.preferences = preferences
+
         val navigator = epubNavigator
         if (navigator == null) {
             Log.d(TAG, "::updatePreferences. Navigator not ready.")
@@ -142,12 +149,6 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
         Log.d(TAG, "::updatePreferences: $preferences")
         navigator.submitPreferences(preferences)
-        val model = epubVm ?: run {
-            Log.d(TAG, "::updatePreferences - No epubVm available, how did this happen?")
-            return
-        }
-
-        model.preferences = preferences
     }
 
     /**
