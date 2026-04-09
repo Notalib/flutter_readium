@@ -17,6 +17,7 @@ export class NotaComicBook {
   // Singleton instance
   static #instance: NotaComicBook | null = null;
 
+  // Store the original scrollToId function to call for non-comic content, if it doesn't exist we provide a fallback that just scrolls the element into view.
   #originalScrollToIdFn = window.readium?.scrollToId ?? ((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   });
@@ -76,7 +77,6 @@ export class NotaComicBook {
     this.#lastElementId = id;
 
     const lcId = sanitizeId(id);
-
     const page = this.#getComicBookPageByFrameId(lcId);
     if (!page) {
       // Not a comic book page, so we need to use the original scrollToId function to scroll to the element,
@@ -180,7 +180,7 @@ export class NotaComicBookPage {
       return;
     }
 
-    return Object.freeze(this.#comicAreas.get(sanitizedId));
+    return Object.freeze({ ...this.#comicAreas.get(sanitizedId)! });
   }
 
   #animeInstance?: AnimeInstance;
@@ -188,8 +188,6 @@ export class NotaComicBookPage {
   public segmentDuration: number = 1000;
 
   #container!: HTMLElement;
-
-  #currentId: string = '';
 
   protected get availableWidth(): number {
     return this.#container.clientWidth;
@@ -291,7 +289,6 @@ export class NotaComicBookPage {
 
     this.#currentFrame = comicFrame;
     this.#duration = duration;
-    this.#currentId = id;
   }
 
   public renderCurrentFrame(id: string, duration: number): void {
