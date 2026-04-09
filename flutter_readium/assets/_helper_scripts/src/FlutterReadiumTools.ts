@@ -1,13 +1,12 @@
 import { initResponsiveTables } from './Tables';
-import { PageInformation, Readium } from './types';
+import { PageInformation } from './types';
 import { NotaComicBook } from './NotaComicBookPage';
+import { getCssSelector, cssSelectorGenerator } from "css-selector-generator";
 import './FlutterReadiumTools.scss';
-
-declare const readium: Readium | undefined;
 
 class FlutterReadiumTools {
   get #isScrollModeEnabled(): boolean {
-    return readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
+    return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
 
   /**
@@ -76,10 +75,27 @@ class FlutterReadiumTools {
    * Find the nearest cssSelector that is an id.
    *
    * @param cssSelector
-   * @returns cssSelector that is guaranteed to be an id, or null if no element can be found.
+   * @returns cssSelector that is guaranteed to be an id, or undefined if no element can be found.
    */
-  #findCssSelector(): string | null {
-    return readium?.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
+  #findCssSelector(): string | undefined {
+    let cssSelector = window.readium?.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
+    if (!cssSelector) {
+      return;
+    }
+
+    const element = document.querySelector<HTMLElement>(cssSelector);
+    if (element == null) {
+      return;
+    }
+
+    if (element.nodeType !== Node.ELEMENT_NODE || this.#isPageBreakElement(element)) {
+      // Make sure the cssSelector isn't inside a page break element or a text-node.
+      if (element.parentElement) {
+        cssSelector = getCssSelector(element.parentElement);
+      }
+    }
+
+    return cssSelector;
   }
 
   /**
@@ -89,7 +105,7 @@ class FlutterReadiumTools {
    * @param cssSelector The current cssSelector or current reading position. This is used to find the nearest ToC element if there is no visible ToC element.
    * @returns The id of the nearest ToC element, or null if none is found.
    */
-  #findTocId(cssSelector: string | null): string | undefined {
+  #findTocId(cssSelector: string | undefined): string | undefined {
     let tocIds = [...this.#tocIds];
     if (tocIds.length === 0) {
       console.warn("No ToC ids registered. Fallback to finding all heading elements as ToC candidates.");
@@ -266,7 +282,7 @@ class FlutterReadiumTools {
       return false;
     }
 
-    if (readium?.isFixedLayout) return true;
+    if (window.readium?.isFixedLayout) return true;
 
     if (element === document.body || element === document.documentElement) {
       return true;

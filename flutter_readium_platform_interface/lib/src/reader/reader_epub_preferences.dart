@@ -1,5 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'dart:ui' show Color;
+import 'dart:ui' show Color, TextAlign;
 
 import '../index.dart';
 
@@ -51,7 +51,7 @@ class EPUBPreferences implements JSONable {
   final EpubReadingProgression? readingProgression;
   final bool? verticalScroll;
   final String? spread;
-  final EpubTextAlign? textAlign;
+  final TextAlign? textAlign;
   final Color? textColor;
   final bool? textNormalization;
   final EpubThemeType? theme;
@@ -87,9 +87,10 @@ class EPUBPreferences implements JSONable {
         ? EpubReadingProgression.fromJson(readingProgressionStr)
         : null;
     final verticalScroll = jsonObject.optNullableBoolean('verticalScroll', remove: true);
-    final spread = jsonObject.opt('spread', remove: true); // Replace with actual parsing if needed
-    final textAlign = jsonObject.opt('textAlign', remove: true); // Replace with actual parsing if needed
-    final textColor = jsonObject.optNullableString('textColor', remove: true);
+    final spread = jsonObject.opt('spread', remove: true);
+    final textAlign = jsonObject.optEnumFromString('textAlign', TextAlign.values, remove: true);
+    final textColorStr = jsonObject.optNullableString('textColor', remove: true);
+    final textColor = textColorStr != null ? ReadiumColorExtension.fromCSS(textColorStr) : null;
     final textNormalization = jsonObject.optNullableBoolean('textNormalization', remove: true);
     final themeStr = jsonObject.optNullableString('theme', remove: true);
     final theme = EpubThemeType.fromJson(themeStr);
@@ -114,13 +115,13 @@ class EPUBPreferences implements JSONable {
       paragraphIndent: paragraphIndent,
       paragraphSpacing: paragraphSpacing,
       publisherStyles: publisherStyles,
-      readingProgression: readingProgression, // Replace with actual parsing if needed
+      readingProgression: readingProgression,
       verticalScroll: verticalScroll,
-      spread: spread, // Replace with actual parsing if needed
-      textAlign: textAlign, // Replace with actual parsing if needed
-      textColor: textColor != null ? ReadiumColorExtension.fromCSS(textColor) : null,
+      spread: spread,
+      textAlign: textAlign,
+      textColor: textColor,
       textNormalization: textNormalization,
-      theme: theme, // Replace with actual parsing if needed
+      theme: theme,
       typeScale: typeScale,
       verticalText: verticalText,
       wordSpacing: wordSpacing,
@@ -148,7 +149,7 @@ class EPUBPreferences implements JSONable {
     ..putOpt('readingProgression', readingProgression?.toJson())
     ..putOpt('verticalScroll', verticalScroll)
     ..putOpt('spread', spread)
-    ..putOpt('textAlign', textAlign?.toJson())
+    ..putOpt('textAlign', textAlign?.name)
     ..putOpt('textColor', textColor?.toCSS())
     ..putOpt('textNormalization', textNormalization)
     ..putOpt('theme', theme?.toJson())
@@ -209,51 +210,6 @@ enum EpubImageFilter {
         return 'darken';
       case EpubImageFilter.invert:
         return 'invert';
-    }
-  }
-}
-
-enum EpubTextAlign {
-  center,
-  justify,
-  start,
-  end,
-  left,
-  right;
-
-  static EpubTextAlign? fromJson(String? value) {
-    switch (value) {
-      case 'center':
-        return EpubTextAlign.center;
-      case 'justify':
-        return EpubTextAlign.justify;
-      case 'start':
-        return EpubTextAlign.start;
-      case 'end':
-        return EpubTextAlign.end;
-      case 'left':
-        return EpubTextAlign.left;
-      case 'right':
-        return EpubTextAlign.right;
-      default:
-        return null;
-    }
-  }
-
-  String toJson() {
-    switch (this) {
-      case EpubTextAlign.center:
-        return 'center';
-      case EpubTextAlign.justify:
-        return 'justify';
-      case EpubTextAlign.start:
-        return 'start';
-      case EpubTextAlign.end:
-        return 'end';
-      case EpubTextAlign.left:
-        return 'left';
-      case EpubTextAlign.right:
-        return 'right';
     }
   }
 }
