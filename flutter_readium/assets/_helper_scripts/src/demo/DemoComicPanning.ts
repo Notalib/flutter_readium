@@ -22,7 +22,7 @@ export class DemoComicPanning extends LitElement {
     return this.mediaOverlay?.narration?.[0]?.narration?.length ?? 0;
   }
 
-  get #narrationItem(): MediaOverlayNarrationNode {
+  get #narrationItem(): MediaOverlayNarrationNode | undefined {
     return this.mediaOverlay?.narration?.[0]?.narration[this.navIndex];
   }
 
@@ -95,9 +95,9 @@ export class DemoComicPanning extends LitElement {
         DEMO
         <button
           class="${classMap({
-            hidden: !this.selectedBook,
-            'bw-active': this.blackAndWhiteModeEnabled,
-          })}"
+      hidden: !this.selectedBook,
+      'bw-active': this.blackAndWhiteModeEnabled,
+    })}"
           @click=${this.#enableBlackAndWhite}
         >
           Black & white
@@ -130,13 +130,13 @@ export class DemoComicPanning extends LitElement {
       const textUrl = new URL(`/books/${this.selectedBook}/${text}`, window.location.href);
 
       const duration = audioUrl.searchParams
-        .get('t')
-        .split(',')
-        .map((p) => parseFloat(p))
-        .reverse()
-        .reduce((p, v) => p + v, 0);
+        ?.get('t')
+        ?.split(',')
+        ?.map((p) => parseFloat(p))
+        ?.reverse()
+        ?.reduce((p, v) => p + v, 0) ?? 0;
 
-      iframe.contentWindow.GotoComicFrame(textUrl.hash, duration * 1000);
+      iframe.contentWindow?.GotoComicFrame?.(textUrl.hash, duration * 1000);
     }
 
     this.requestUpdate();
@@ -144,7 +144,7 @@ export class DemoComicPanning extends LitElement {
 
   readonly #enableBlackAndWhite = () => {
     const enabled = !this.blackAndWhiteModeEnabled;
-    this.iframe?.contentWindow.SetBlackAndWhiteMode(enabled);
+    this.iframe?.contentWindow?.SetBlackAndWhiteMode?.(enabled);
     this.blackAndWhiteModeEnabled = enabled;
   };
 
@@ -166,21 +166,25 @@ export class DemoComicPanning extends LitElement {
 
   #iframeOnLoadEvent = (e: Event) => {
     const iframe = e.target as HTMLIFrameElement;
+    const contentDocument = iframe.contentDocument;
+    if (!contentDocument) {
+      return;
+    }
 
-    const flutterReadiumScript = iframe.contentDocument.createElement('script');
+    const flutterReadiumScript = contentDocument.createElement('script');
     flutterReadiumScript.async = false;
     flutterReadiumScript.src = `/flutterReadiumTools.js?r=${Date.now()}`;
     flutterReadiumScript.onload = () => {
       this.#updateNarration();
       this.#iframeLoaded = true;
     };
-    iframe.contentDocument.head.appendChild(flutterReadiumScript);
+    contentDocument.head.appendChild(flutterReadiumScript);
 
-    const flutterReadiumCssLink = iframe.contentDocument.createElement('link');
+    const flutterReadiumCssLink = contentDocument.createElement('link');
     flutterReadiumCssLink.href = `/flutterReadiumTools.css?r=${Date.now()}`;
     flutterReadiumCssLink.type = 'text/css';
     flutterReadiumCssLink.rel = 'stylesheet';
-    iframe.contentDocument.head.appendChild(flutterReadiumCssLink);
+    contentDocument.head.appendChild(flutterReadiumCssLink);
   };
 
   // Define scoped styles right with your component, in plain CSS

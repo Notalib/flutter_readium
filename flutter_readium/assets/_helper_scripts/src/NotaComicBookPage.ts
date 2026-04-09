@@ -57,11 +57,11 @@ export class NotaComicBook {
 
   public segmentDuration: number = 1000;
 
-  readonly #comicBookPages: NotaComicBookPage[];
+  readonly #comicBookPages: NotaComicBookPage[] = [];
 
   #lastElementId: string | null = null;
 
-  #container: HTMLDivElement;
+  #container!: HTMLDivElement;
 
   #getComicBookPageByFrameId(id: string): NotaComicBookPage | undefined {
     return this.#comicBookPages.find((page) => !!page.getComicArea(id));
@@ -79,11 +79,13 @@ export class NotaComicBook {
 
     const page = this.#getComicBookPageByFrameId(lcId);
     if (!page) {
-      // Use readium's original scrollToId function if the id does not correspond to a comic frame, to allow normal scrolling behavior for non-comic content.
+      // Not a comic book page, so we need to use the original scrollToId function to scroll to the element,
+      // and remove the active comic page container class to reset any comic page specific styling or behavior.
       this.#container.classList.remove(activeComicPageContainerClass);
-      this.#container.querySelectorAll('img').forEach((img) => {
-        this.#container.removeChild(img);
-      });
+      for (let child of this.#container.childNodes) {
+        this.#container.removeChild(child);
+      }
+
       this.#originalScrollToIdFn.call(window.readium, id);
       return;
     }
@@ -110,7 +112,7 @@ export class NotaComicBook {
     }
   }
 
-  #onResize = (): void => this.scrollToId(this.#lastElementId);
+  #onResize = (): void => this.scrollToId(this.#lastElementId ?? '');
 }
 
 const animationEasing = 'cubicBezier(0.455, 0.030, 0.515, 0.955)';
@@ -126,7 +128,7 @@ export class NotaComicBookPage {
     const figureId = figureElement.id;
     const comicImgId = comicImg.id || figureId;
     if (comicImgId == figureId) {
-      delete figureElement.id;
+      figureElement.removeAttribute('id');
       comicImg.id = comicImgId;
     }
 
@@ -185,7 +187,7 @@ export class NotaComicBookPage {
 
   public segmentDuration: number = 1000;
 
-  #container: HTMLElement;
+  #container!: HTMLElement;
 
   #currentId: string = '';
 
@@ -197,15 +199,15 @@ export class NotaComicBookPage {
     return this.#container.clientHeight;
   }
 
-  readonly #comicImg: HTMLImageElement;
+  readonly #comicImg!: HTMLImageElement;
 
   readonly #comicAreas = new Map<string, ComicPanel>();
 
-  #currentFrame: ComicPanel;
+  #currentFrame!: ComicPanel;
 
-  #duration: number;
+  #duration!: number;
 
-  readonly #canvasSize: ComicPageSize;
+  readonly #canvasSize!: ComicPageSize;
 
   /**
    * Full page comic book frame
@@ -232,7 +234,6 @@ export class NotaComicBookPage {
     }
 
     let img = this.#container.querySelector('img');
-    const currentId = this.#currentId;
     const frameId = this.#comicImg.id;
     const cloneId = `${frameId}-clone`;
     if (img && img.id !== cloneId) {

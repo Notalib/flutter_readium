@@ -52,7 +52,7 @@ class FlutterReadiumTools {
   public getPageInformation(): PageInformation {
     if (window.readiumTocIDs) {
       this.registerToc(window.readiumTocIDs);
-      window.readiumTocIDs = null;
+      delete window.readiumTocIDs;
     }
 
     const physicalPage = this.#findCurrentPhysicalPage();
@@ -79,7 +79,7 @@ class FlutterReadiumTools {
    * @returns cssSelector that is guaranteed to be an id, or null if no element can be found.
    */
   #findCssSelector(): string | null {
-    return readium.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
+    return readium?.findFirstVisibleLocator()?.locations?.cssSelector ?? null;
   }
 
   /**
@@ -89,7 +89,7 @@ class FlutterReadiumTools {
    * @param cssSelector The current cssSelector or current reading position. This is used to find the nearest ToC element if there is no visible ToC element.
    * @returns The id of the nearest ToC element, or null if none is found.
    */
-  #findTocId(cssSelector: string | null): string | null {
+  #findTocId(cssSelector: string | null): string | undefined {
     let tocIds = [...this.#tocIds];
     if (tocIds.length === 0) {
       console.warn("No ToC ids registered. Fallback to finding all heading elements as ToC candidates.");
@@ -111,13 +111,13 @@ class FlutterReadiumTools {
 
     if (!cssSelector) {
       console.warn("cssSelector is null. Cannot find ToC element.");
-      return null;
+      return;
     }
 
     // Since there wasn't a visible ToC element, we need to find the nearest one to the current reading position.
     const cssSelectorElement = document.querySelector(cssSelector);
     if (cssSelectorElement == null) {
-      return null;
+      return;
     }
 
     // If the current cssSelector element is a ToC element, return it's id immediately.
@@ -143,7 +143,7 @@ class FlutterReadiumTools {
     }
 
     // This might be a special case, where we start just before the first ToC element.
-    let firstTocElement: Element;
+    let firstTocElement: Element | null = null;
     for (const tocId of tocIds) {
       const tocElement = document.getElementById(tocId);
       if (tocElement) {
@@ -154,7 +154,7 @@ class FlutterReadiumTools {
 
     if (firstTocElement == null) {
       // Really shouldn't happen.
-      return null;
+      return;
     }
 
     // Sometimes the cssSelector lands before the first ToC element.
@@ -166,7 +166,7 @@ class FlutterReadiumTools {
     );
 
     walker.currentNode = firstTocElement;
-    for (let node: Node = firstTocElement; node; node = walker.previousNode()) {
+    for (let node: Node | null = firstTocElement; node; node = walker.previousNode()) {
       if (node instanceof HTMLElement && node === cssSelectorElement && firstTocElement.id) {
         // First ToC element is the current one.
         return firstTocElement.id;
@@ -192,11 +192,11 @@ class FlutterReadiumTools {
    * Get the physical page text from the given element, if it is a page break element.
    *
    * @param element The element to get the physical page text from.
-   * @returns The physical page text, or null if the element is not a page break element.
+   * @returns The physical page text, or undefined if the element is not a page break element.
    */
-  #getPhysicalPageText(element: HTMLElement): string | null {
+  #getPhysicalPageText(element: HTMLElement): string | undefined {
     if (!this.#isPageBreakElement(element)) {
-      return null;
+      return;
     }
 
     return element?.getAttribute('title') ?? element?.innerText.trim();
@@ -207,7 +207,7 @@ class FlutterReadiumTools {
    *
    * @returns The physical page index, or null if it cannot be determined.
    */
-  #findCurrentPhysicalPage(): string | null {
+  #findCurrentPhysicalPage(): string | undefined {
     let element = this.#findFirstVisibleElement();
     if (!(element instanceof HTMLElement)) {
       return;
@@ -220,7 +220,7 @@ class FlutterReadiumTools {
     const result = document.evaluate(
       'preceding::*[@epub:type="pagebreak" or @type="pagebreak" or @role="doc-pagebreak" or contains(@class,"pagebreak")][1]',
       element,
-      (prefix: string) => {
+      (prefix: string | null) => {
         if (prefix === "epub") {
           return "http://www.idpf.org/2007/ops";
         }
@@ -239,7 +239,7 @@ class FlutterReadiumTools {
    * Find the first visible element in the document.
    * @returns The first visible element, or null if none is found.
    */
-  #findFirstVisibleElement(): HTMLElement | null {
+  #findFirstVisibleElement(): HTMLElement | undefined {
     const walker = document.createTreeWalker(
       document.body,
       NodeFilter.SHOW_ELEMENT
@@ -247,20 +247,26 @@ class FlutterReadiumTools {
 
     walker.currentNode = document.body.firstElementChild ?? document.body;
 
-    for (let node = walker.currentNode; node; node = walker.nextNode()) {
+    for (let node: Node | null = walker.currentNode; node; node = walker.nextNode()) {
       if (node instanceof HTMLElement && this.#isElementVisible(node)) {
         return node;
       }
     }
+
+    return;
   }
 
   // Functions below was copied from Swift-toolkit - see License.readium-swift-toolkit for details.
   #isElementVisible(element: Element | null): boolean {
+    if (element == null) {
+      return false;
+    }
+
     if (this.#shouldIgnoreElement(element)) {
       return false;
     }
 
-    if (readium.isFixedLayout) return true;
+    if (readium?.isFixedLayout) return true;
 
     if (element === document.body || element === document.documentElement) {
       return true;

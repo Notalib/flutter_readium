@@ -1,6 +1,6 @@
-import * as CopyPlugin from 'copy-webpack-plugin';
-import * as HtmlWebpackPlugin from 'html-webpack-plugin';
-import * as webpack from 'webpack';
+import CopyPlugin from 'copy-webpack-plugin';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import webpack from 'webpack';
 import { getEnvVariables, outputPath, resolveApp } from './webpack.tools';
 
 export default <webpack.Configuration>{

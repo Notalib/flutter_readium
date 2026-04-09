@@ -1,4 +1,4 @@
-import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import * as webpack from 'webpack';
 import { merge } from 'webpack-merge';
 import devConfig from './webpack.dev';
