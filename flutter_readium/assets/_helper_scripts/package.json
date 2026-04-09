@@ -51,6 +51,7 @@
   },
   "dependencies": {
     "animejs": "^3.2.2",
+    "css-selector-generator": "^3.9.1",
     "lit": "~3.3.2",
     "readium-css": "github:readium/readium-css"
   }
