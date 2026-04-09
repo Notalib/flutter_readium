@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -210,6 +211,14 @@ class SyncAudiobookNavigator(
         return letIfBothNotNull(newLocator, locator.getTimeOffset())?.let { (nl, timeOffset) ->
             nl.copyWithTimeFragment(timeOffset)
         } ?: newLocator
+    }
+
+    override fun dispose() {
+        mainScope.launch {
+            ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
+        }
+
+        super.dispose()
     }
 
     companion object {
