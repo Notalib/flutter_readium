@@ -79,7 +79,7 @@ export class ComicBookCalc {
     keyframes.push(
       {
         ...this.calcFramePositionAndSize(panFramePosition, canvasSize, availableWidth, availableHeight),
-        duration: focusDuration,
+        duration: 0,
       },
       {
         ...this.calcFramePositionAndSize(finalFramePosition, canvasSize, availableWidth, availableHeight),
