@@ -235,16 +235,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> skipToNext() async {
-    R2Log.d('skipToNext is not implemented on web platform');
-  }
-
-  @override
-  Future<void> skipToPrevious() async {
-    R2Log.d('skipToPrevious is not implemented on web platform');
-  }
-
-  @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     defaultPreferences = preferences;
     JsPublicationChannel().setEPUBPreferences(json.encode(preferences.toJson()));

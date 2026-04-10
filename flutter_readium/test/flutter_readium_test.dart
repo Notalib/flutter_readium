@@ -84,18 +84,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
-  Future<void> skipToNext() {
-    // TODO: implement skipToNext
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> skipToPrevious() {
-    // TODO: implement skipToPrevious
-    throw UnimplementedError();
-  }
-
-  @override
   Future<void> ttsEnable(TTSPreferences? preferences) {
     // TODO: implement ttsEnable
     throw UnimplementedError();
