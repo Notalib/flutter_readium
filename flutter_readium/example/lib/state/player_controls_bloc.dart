@@ -63,26 +63,73 @@ class UpdateCurrentTocHref extends PlayerControlsEvent {
   final String tocHref;
 }
 
+class UpdateCurrentLocator extends PlayerControlsEvent {
+  UpdateCurrentLocator(this.locator);
+  final Locator locator;
+}
+
+class UpdateTimebasedState extends PlayerControlsEvent {
+  UpdateTimebasedState(this.timebasedState);
+  final ReadiumTimebasedState timebasedState;
+}
+
 class PlayerControlsState {
   PlayerControlsState({
     required this.playing,
     required this.ttsEnabled,
     required this.audioEnabled,
     this.currentTocHref,
+    this.currentChapter = 'Chapter',
+    this.progression = 0.0,
+    this.audioState = TimebasedState.none,
+    this.audioChapterTitle = 'Chapter',
+    this.audioChapterProgression = 0.0,
+    this.audioTotalProgression = 0.0,
+    this.audioOffset = Duration.zero,
+    this.audioDuration = Duration.zero,
   });
 
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
   final String? currentTocHref;
+  final String currentChapter;
+  final double progression;
 
-  PlayerControlsState copyWith({bool? playing, bool? ttsEnabled, bool? audioEnabled, String? currentTocHref}) =>
-      PlayerControlsState(
-        playing: playing ?? this.playing,
-        ttsEnabled: ttsEnabled ?? this.ttsEnabled,
-        audioEnabled: audioEnabled ?? this.audioEnabled,
-        currentTocHref: currentTocHref ?? this.currentTocHref,
-      );
+  final TimebasedState audioState;
+  final String audioChapterTitle;
+  final double audioChapterProgression;
+  final double audioTotalProgression;
+  final Duration audioOffset;
+  final Duration audioDuration;
+
+  PlayerControlsState copyWith({
+    bool? playing,
+    bool? ttsEnabled,
+    bool? audioEnabled,
+    String? currentTocHref,
+    String? currentChapter,
+    double? progression,
+    TimebasedState? audioState,
+    String? audioChapterTitle,
+    double? audioChapterProgression,
+    double? audioTotalProgression,
+    Duration? audioOffset,
+    Duration? audioDuration,
+  }) => PlayerControlsState(
+    playing: playing ?? this.playing,
+    ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+    audioEnabled: audioEnabled ?? this.audioEnabled,
+    currentTocHref: currentTocHref ?? this.currentTocHref,
+    currentChapter: currentChapter ?? this.currentChapter,
+    progression: progression ?? this.progression,
+    audioState: audioState ?? this.audioState,
+    audioChapterTitle: audioChapterTitle ?? this.audioChapterTitle,
+    audioChapterProgression: audioChapterProgression ?? this.audioChapterProgression,
+    audioTotalProgression: audioTotalProgression ?? this.audioTotalProgression,
+    audioOffset: audioOffset ?? this.audioOffset,
+    audioDuration: audioDuration ?? this.audioDuration,
+  );
 
   PlayerControlsState togglePlay(final bool playing) => copyWith(playing: playing);
 
@@ -102,27 +149,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   StreamSubscription? timebasedStateSub;
   StreamSubscription? currentTocHrefSub;
   StreamSubscription? readerStatusSub;
+  StreamSubscription? textLocatorSub;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
     timebasedStateSub = instance.onTimebasedPlayerStateChanged
-        .map((state) => state.state)
         .distinct()
         .debounceTime(const Duration(milliseconds: 50))
-        .listen((playerState) {
-          debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
-
-          switch (playerState) {
-            case TimebasedState.playing:
-            case TimebasedState.loading:
-              if (state.playing != true) {
-                add(TogglePlayingState(isPlaying: true));
-              }
-            case TimebasedState.paused:
-            case TimebasedState.ended:
-            case TimebasedState.failure:
-            case TimebasedState.none:
-              add(TogglePlayingState(isPlaying: false));
-          }
+        .listen((ts) {
+          add(UpdateTimebasedState(ts));
         });
 
     // NOTE: This does not include the tocHref for the initial locator.
@@ -140,6 +174,19 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     readerStatusSub = instance.onReaderStatusChanged.listen((status) {
       debugPrint('onReaderStatusChanged: ${status.name}');
     });
+
+    textLocatorSub = instance.onTextLocatorChanged
+        .distinct((prev, next) {
+          final prevTitle = prev.title ?? '';
+          final nextTitle = next.title ?? '';
+          final prevProg = prev.locations?.progression ?? 0.0;
+          final nextProg = next.locations?.progression ?? 0.0;
+          return prevTitle == nextTitle && (prevProg - nextProg).abs() < 0.0001;
+        })
+        .debounceTime(const Duration(milliseconds: 50))
+        .listen((locator) {
+          add(UpdateCurrentLocator(locator));
+        });
 
     on<TogglePlayingState>((final event, final emit) async {
       emit(state.togglePlay(event.isPlaying));
@@ -211,6 +258,40 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.setTocHref(event.tocHref));
     });
 
+    on<UpdateTimebasedState>((event, emit) {
+      final ts = event.timebasedState;
+      final nextPlaying = ts.state == TimebasedState.playing || ts.state == TimebasedState.loading;
+
+      final nextTitle = ts.currentLocator?.title ?? state.audioChapterTitle;
+      final nextChapterProg = ts.currentLocator?.locations?.progression ?? state.audioChapterProgression;
+      final nextTotalProg = ts.currentLocator?.locations?.totalProgression ?? state.audioTotalProgression;
+      final nextOffset = ts.currentOffset ?? Duration.zero;
+      final nextDuration = ts.currentDuration ?? Duration.zero;
+
+      emit(
+        state.copyWith(
+          playing: nextPlaying,
+          audioState: ts.state,
+          audioChapterTitle: nextTitle,
+          audioChapterProgression: nextChapterProg,
+          audioTotalProgression: nextTotalProg,
+          audioOffset: nextOffset,
+          audioDuration: nextDuration,
+        ),
+      );
+    });
+
+    on<UpdateCurrentLocator>((event, emit) {
+      final nextChapter = event.locator.title ?? state.currentChapter;
+      final nextProgression = event.locator.locations?.progression ?? state.progression;
+
+      if (nextChapter == state.currentChapter && (nextProgression - state.progression).abs() < 0.0001) {
+        return;
+      }
+
+      emit(state.copyWith(currentChapter: nextChapter, progression: nextProgression));
+    });
+
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
 
@@ -242,6 +323,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       await timebasedStateSub?.cancel();
       await readerStatusSub?.cancel();
       await currentTocHrefSub?.cancel();
+      await textLocatorSub?.cancel();
       super.close();
     }
   }

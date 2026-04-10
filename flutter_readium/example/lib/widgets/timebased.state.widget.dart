@@ -25,8 +25,6 @@ class TimebasedStateWidget extends StatelessWidget {
               // Text('Progression: ${snapshot.data?.currentLocator?.locations?.progression}'),
               // Text('TotalProgression: ${snapshot.data?.currentLocator?.locations?.totalProgression}'),
               SizedBox(height: 22),
-              Text('Chapter progress:'),
-              Slider.adaptive(value: snapshot.data?.currentLocator?.locations?.progression ?? 0, onChanged: null),
               Text('Total book progress:'),
               LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0),
             ],
