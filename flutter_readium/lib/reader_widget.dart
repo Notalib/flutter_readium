@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -54,7 +53,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   final _isReadyCompleter = Completer<Locator>();
 
   final _readium = FlutterReadiumPlatform.instance;
-  final FlutterReadium _flutterReadium = FlutterReadium();
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
@@ -186,49 +184,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Future<void> goForward({final bool animated = true}) async => _channel?.goForward();
 
   @override
-  Future<void> skipToNext({final bool animated = true}) async {
-    List<Link>? toc = widget.publication.toc;
-    if (toc.isEmpty || _currentLocator == null) {
-      return;
-    }
-    String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
-
-    // Ensure we are at least 1 page into the current chapter, if not in scroll mode.
-    // TODO: Find a better way to do this, maybe a `lastVisibleLocator` ?
-    if (_readium.defaultPreferences?.verticalScroll != true) {
-      await _channel?.goForward(animated: false);
-      final loc = await _flutterReadium.onTextLocatorChanged.first;
-      currentHref = getTextLocatorHrefWithTocFragment(loc);
-    }
-
-    int? curIndex = toc.indexWhere((l) => l.href == currentHref);
-    if (curIndex > -1) {
-      final newIndex = (curIndex + 1).clamp(0, toc.length - 1);
-      Locator? nextChapter = widget.publication.locatorFromLink(toc[newIndex]);
-      if (nextChapter != null) {
-        await _channel?.go(nextChapter, isAudioBookWithText: false, animated: true);
-      }
-    }
-  }
-
-  @override
-  Future<void> skipToPrevious({final bool animated = true}) async {
-    List<Link>? toc = widget.publication.toc;
-    if (toc.isEmpty || _currentLocator == null) {
-      return;
-    }
-    String? currentHref = getTextLocatorHrefWithTocFragment(_currentLocator);
-    int? curIndex = toc.indexWhere((l) => l.href == currentHref);
-    if (curIndex > -1) {
-      final newIndex = (curIndex - 1).clamp(0, toc.length - 1);
-      Locator? previousChapter = widget.publication.locatorFromLink(toc[newIndex]);
-      if (previousChapter != null) {
-        await _channel?.go(previousChapter, isAudioBookWithText: false, animated: true);
-      }
-    }
-  }
-
-  @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     _channel?.setEPUBPreferences(preferences);
   }
@@ -334,20 +289,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     );
 
     R2Log.d('New widget is: ${_channel?.name}');
-  }
-
-  /// Gets a Locator's href with toc fragment appended as identifier
-  String? getTextLocatorHrefWithTocFragment(Locator? locator) {
-    if (locator == null) {
-      return null;
-    }
-
-    final txtLoc = locator.toTextLocator();
-    final tocFragment = locator.locations?.fragments.firstWhereOrNull((f) => f.startsWith("toc="));
-    if (tocFragment == null) {
-      return null;
-    }
-    return '${txtLoc.toTextLocator().hrefPath.substring(1)}#${tocFragment.substring(4)}';
   }
 
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
