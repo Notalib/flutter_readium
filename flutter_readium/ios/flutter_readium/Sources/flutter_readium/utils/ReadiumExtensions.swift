@@ -64,28 +64,22 @@ extension Publication {
     return mediaOverlays
   }
 
-  func searchInContentForQuery(_ query: String) async -> [LocatorCollection] {
+  func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection], Error> {
     guard let searchService: SearchService = findService(SearchService.self) else {
       Log.readium.warn("No SearchService available")
-      return []
+      return Result.failure(SearchError.publicationNotSearchable)
     }
     var collections: [LocatorCollection] = []
     switch await searchService.search(query: query, options: .init()) {
     case .failure(let err):
-      switch err {
-      case .badQuery(let queryErr):
-        Log.readium.error("Search failed, bad query: \(queryErr)")
-      case .reading(let readErr):
-        Log.readium.error("Search failed, reading error: \(readErr)")
-      case .publicationNotSearchable:
-        Log.readium.error("Search failed, publication is not searchable")
-      }
+      Log.readium.error("Search in publication content failed: \(err)")
+      return Result.failure(err)
     case .success(let iterator):
       _ = await iterator.forEach { collection in
         collections.append(collection)
       }
     }
-    return collections
+    return .success(collections)
   }
 
   /**

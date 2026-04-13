@@ -10,9 +10,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.html.cssSelector
-import org.readium.r2.shared.publication.html.domRange
 
 inline fun <T : Any> guardLet(vararg elements: T?, closure: () -> Nothing): List<T> {
     return if (elements.all { it != null }) {
@@ -26,6 +23,15 @@ inline fun <T : Any> ifLet(vararg elements: T?, closure: (List<T>) -> Unit) {
     if (elements.all { it != null }) {
         closure(elements.filterNotNull())
     }
+}
+
+fun String?.ifNotEmptyLet(closure: (String) -> Unit) {
+    if (this != null && this.isNotEmpty()) closure(this)
+}
+
+fun String?.takeIfNotEmpty(): String? {
+    if (this != null && this.isNotEmpty()) return this
+    return null
 }
 
 fun <T : Any, U : Any> letIfBothNotNull(t: T?, u: U?): Pair<T, U>? {
@@ -68,12 +74,6 @@ fun unwrapToApplication(context: Context?): Application? {
     }
     return ctx
 }
-
-/**
- * Check if a Locator has scrollable locations.
- */
-fun canScroll(locations: Locator.Locations) =
-    locations.domRange != null || locations.cssSelector != null || locations.progression != null
 
 /**
  * Run a suspend block with the given CoroutineScope's context.

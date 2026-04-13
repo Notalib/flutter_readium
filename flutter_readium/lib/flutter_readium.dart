@@ -71,12 +71,32 @@ class FlutterReadium {
     return _platform.goForward();
   }
 
-  Future<void> skipToNext() {
-    return _platform.skipToNext();
-  }
+  Future<void> skipToNextTOC({required final Publication publication, required final String currentTocHref}) =>
+      _skipToTOCItem(publication, currentTocHref, 1);
 
-  Future<void> skipToPrevious() {
-    return _platform.skipToPrevious();
+  Future<void> skipToPreviousTOC({required final Publication publication, required final String currentTocHref}) =>
+      _skipToTOCItem(publication, currentTocHref, -1);
+
+  Future<void> _skipToTOCItem(Publication publication, String currentTocHref, int direction) async {
+    final toc = publication.tocFlattened;
+    if (toc.isEmpty) return;
+
+    var curIndex = toc.indexWhere((l) => l.href == currentTocHref);
+
+    // Throws exceptions so that they can either be handled to send a message to user or ignored
+    if (curIndex == -1) {
+      throw const ReadiumException('Could not find current toc index');
+    }
+    if (direction == 1 && curIndex == toc.length - 1) {
+      throw const ReadiumException('At the last chapter');
+    }
+
+    final newIndex = (curIndex + direction).clamp(0, toc.length - 1);
+    final locator = publication.locatorFromLink(toc[newIndex]);
+
+    if (locator != null) {
+      await goToLocator(locator);
+    }
   }
 
   Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
@@ -134,4 +154,7 @@ class FlutterReadium {
 
     return goByLink(pageLink, pub);
   }
+
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
+      _platform.searchInPublication(searchKey);
 }

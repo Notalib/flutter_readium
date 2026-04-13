@@ -74,18 +74,45 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     return navigated
   }
   
-  internal override func submitAudioLocatorReachedToListener(_ location: Locator) {
-    // Map audio offset Locator to a Text-based Locator, before submitting to listener.
-    if let timeOffsetStr = location.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
+  private func mediaOverlayItemFromAudioLocator(_ audioLocator: Locator) -> FlutterMediaOverlayItem? {
+    if let timeOffsetStr = audioLocator.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
        let timeOffset = Double(timeOffsetStr),
-       let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  location.href.string) }),
-       let combinedLocator = mediaOverlay.toCombinedLocator(fromPlaybackLocator: location) {
+       let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  audioLocator.href.string) }) {
+      return mediaOverlay
+    } else {
+      return nil
+    }
+  }
+  
+  internal override func submitAudioLocatorReachedToListener(_ location: Locator) {
+    /// Map Audio-based Locator to a Text-based Locator, before submitting to viewer.
+    if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
+       let textLocator = mediaOverlayItem.asTextLocator {
 
-      /// Combined Text/Audio Locator matching the audio position is created and should be sent back.
-      self.listener?.timebasedNavigator(self, reachedLocator: combinedLocator)
-      self.listener?.timebasedNavigator(self, requestsHighlightAt: combinedLocator, withWordLocator: nil)
+      self.listener?.timebasedNavigator(self, reachedLocator: textLocator)
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
     } else {
       Log.navigator.warn("Did not find MediaOverlay matching audio Locator: \(location)")
+    }
+  }
+  
+  internal override func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+
+    /// Create TimebasedState and send it over the timebased-state stream.
+    let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
+    
+    /// Map audio Locator to a combined Text-based Locator, before submitting to listener.
+    if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
+       let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: location) {
+      timebasedState.currentLocator = combinedLocator
+    }
+
+    /// If state has changed, submit it to listener.
+    if (timebasedState != self._lastTimebasedPlayerState) {
+      self._lastTimebasedPlayerState = timebasedState
+      self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
+    } else {
+      Log.navigator.debug("Skipped state emission - duplicate")
     }
   }
   

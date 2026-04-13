@@ -116,12 +116,6 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> goForward() async => await currentReaderWidget?.goForward();
 
   @override
-  Future<void> skipToNext() async => await currentReaderWidget?.skipToNext();
-
-  @override
-  Future<void> skipToPrevious() async => await currentReaderWidget?.skipToPrevious();
-
-  @override
   Future<bool> goToLocator(Locator locator) async =>
       await methodChannel.invokeMethod<bool>('goToLocator', [locator.toJson()]) ?? false;
 
@@ -194,4 +188,20 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
+
+  @override
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
+    final resultList = await methodChannel.invokeMethod<List<dynamic>>('searchInPublication', searchKey);
+
+    if (resultList == null || resultList.isEmpty) {
+      return <TextSearchResult>[];
+    }
+
+    try {
+      final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
+      return results;
+    } catch (e) {
+      throw Exception('Failed to parse search results: $e');
+    }
+  }
 }

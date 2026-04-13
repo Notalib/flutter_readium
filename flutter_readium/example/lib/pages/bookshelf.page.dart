@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -114,7 +113,7 @@ class BookshelfPageState extends State<BookshelfPage> {
   @override
   Widget build(final BuildContext context) => Scaffold(
     restorationId: 'bookshelf_page',
-    appBar: AppBar(backgroundColor: Colors.deepPurple[200], title: Text('Bookshelf')),
+    appBar: AppBar(title: Text('Example Bookshelf')),
     body: SafeArea(
       child: _isLoading
           ? Center(child: CircularProgressIndicator())

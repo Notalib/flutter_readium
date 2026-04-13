@@ -45,8 +45,11 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.search.SearchService
+import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Language
@@ -424,8 +427,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     ): Try<Publication, OpenError> {
         val publication: Publication =
             publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
+                val tocIds = manifest.tableOfContents.flattenChildren()
+                    .mapNotNull { it.href.resolve().fragment }
                 container = TransformingContainer(container) { _: Url, resource: Resource ->
-                    resource.injectScriptsAndStyles()
+                    resource.injectScriptsAndStyles(tocIds)
                 }
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")
@@ -775,10 +780,21 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         syncAudiobookNavigator?.decorationsUpdated()
     }
 
+    /**
+     * Cached list of android tts voices.
+     */
+    private var availableTtsVoices: Set<AndroidTtsEngine.Voice>? = null
+
+    /**
+     * Get available tts voices
+     */
     suspend fun ttsGetAvailableVoices(): Set<AndroidTtsEngine.Voice> {
+        // Already loaded, return existing list.
+        availableTtsVoices?.takeIf { it.isNotEmpty() }?.let { return it }
+
         // Get the available voices from the TTS navigator.
         // If the TTS navigator hasn't been initialized, create a dummy AndroidTtsEngine.
-        return ttsNavigator?.voices ?: AndroidTtsEngine.invoke(
+        availableTtsVoices = ttsNavigator?.voices ?: AndroidTtsEngine.invoke(
             context,
             {
                 AndroidTtsSettings(
@@ -791,7 +807,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             },
             { language, availableVoices -> null },
             AndroidTtsPreferences()
-        )?.voices ?: setOf()
+        )?.voices
+
+        return availableTtsVoices ?: setOf()
     }
 
     fun ttsGetPreferences(): FlutterTtsPreferences? {
@@ -880,6 +898,23 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         } else {
             epubGoToLocator(locator, true)
         }
+    }
+
+    suspend fun searchInPublication(query: String): Try<List<LocatorCollection>, Error> {
+        val pub = currentPublication ?: return failure(
+            Error("no publication")
+        )
+        val resultIterator = pub.search(query, SearchService.Options()) ?: return failure(
+            Error("SearchService unavailable")
+        )
+        var results = mutableListOf<LocatorCollection>()
+        while (true) {
+            val result = resultIterator.next()
+            if (result.isFailure) break
+            val collection = result.getOrNull() ?: break
+            results.add(collection)
+        }
+        return Try.success(results.toList())
     }
 
     suspend fun audioSeek(offsetSeconds: Double) {
