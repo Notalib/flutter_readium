@@ -166,17 +166,17 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Update EPUB navigator preferences.
      */
-    fun updatePreferences(preferences: FlutterEpubPreferences) {
+    suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
         Log.d(TAG, "::updatePreferences")
 
         try {
-            mainScope.launch {
-                val oldBlackAndWhiteComicMode = (state[epubPreferencesKey] as? FlutterEpubPreferences)?.blackAndWhiteComicMode ?: false
-                epubNavigator?.updatePreferences(preferences.toEpubPreferences())
+            val oldBlackAndWhiteComicMode =
+                (state[epubPreferencesKey] as? FlutterEpubPreferences)?.blackAndWhiteComicMode
+                    ?: false
+            epubNavigator?.updatePreferences(preferences.toEpubPreferences())
 
-                if (preferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
-                    epubNavigator?.evaluateJavascript("window.SetBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
-                }
+            if (preferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
+                epubNavigator?.evaluateJavascript("window.SetBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
             }
             state[epubPreferencesKey] = preferences
         } catch (ex: Exception) {
@@ -348,6 +348,10 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
 
         withScope(mainScope) {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
+
+            // Remove old decorations, this prevents old decorator from hanging around when sync is
+            // disabled, and the TTS / SyncAudio navigators goes to next file.
+            navigator.applyDecorations(listOf(), group)
 
             navigator.applyDecorations(decorations, group)
         }

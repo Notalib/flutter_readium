@@ -198,7 +198,7 @@ class ReadiumReaderWidget(
     }
 
     @Throws(IllegalArgumentException::class)
-    private fun setPreferencesFromMap(prefMap: Map<String, Any>) {
+    private suspend fun setPreferencesFromMap(prefMap: Map<String, Any>) {
         Log.d(TAG, "::setPreferencesFromMap")
         val newPreferences = FlutterEpubPreferences.fromMap(prefMap)
         updatePreferences(newPreferences)
@@ -317,11 +317,6 @@ class ReadiumReaderWidget(
         }
     }
 
-    fun go(locator: Locator, animated: Boolean) {
-        Log.d(TAG, "::go ${locator.href}")
-        ReadiumReader.epubGoToLocator(locator, animated)
-    }
-
     /**
      * Navigate backward in the EPUB navigator.
      */
@@ -347,7 +342,7 @@ class ReadiumReaderWidget(
         return ret
     }
 
-    private fun updatePreferences(preferences: FlutterEpubPreferences) {
+    private suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
         ReadiumReader.epubUpdatePreferences(preferences)
     }
 

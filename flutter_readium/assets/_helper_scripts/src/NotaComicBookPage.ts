@@ -71,6 +71,7 @@ export class NotaComicBook {
   public scrollToId(id: string, duration: number = this.segmentDuration): void {
     if (!id) {
       console.warn("scrollToId called with empty id, doing nothing");
+      this.#originalScrollToIdFn.call(window.readium, id);
       return;
     }
 
@@ -116,6 +117,7 @@ export class NotaComicBook {
 }
 
 const animationEasing = 'cubicBezier(0.455, 0.030, 0.515, 0.955)';
+
 export class NotaComicBookPage {
   constructor(figureElement: HTMLElement, container: HTMLDivElement) {
     const comicImg = figureElement.querySelector<HTMLImageElement>('img:first-child');
@@ -211,11 +213,11 @@ export class NotaComicBookPage {
    * Full page comic book frame
    */
   get #fullPageComicFrame(): ComicPanel {
-    return {
+    return Object.freeze({
       ...this.#canvasSize,
       left: 0,
       top: 0,
-    };
+    });
   }
 
   /**
@@ -360,7 +362,7 @@ export class NotaComicBookPage {
       frame[key] = value;
     }
 
-    return frame;
+    return Object.freeze(frame);
   }
 }
 

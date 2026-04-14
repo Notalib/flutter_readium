@@ -28,17 +28,20 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     /**
      * The audio file Url.
      */
-    private val audioUrl = Url.invoke(audioFile)
+    private val audioUrl
+        get() = Url.invoke(audioFile)
 
     /**
      * The text file Url.
      */
-    private val textUrl = Url.invoke(textFile)
+    private val textUrl
+        get() = Url.invoke(textFile)
 
     /**
      * The total duration of the audio, based on the end time of the last item.
      */
-    val duration = items.lastOrNull()?.audioEnd ?: 0.0
+    val duration
+        get() = items.lastOrNull()?.audioEnd ?: 0.0
 
     /**
      * Find the media overlay item for the given file and time.

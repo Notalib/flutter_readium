@@ -1,9 +1,13 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:ui' show Color, TextAlign;
 
+import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
+
 import '../index.dart';
 
-class EPUBPreferences implements JSONable {
+@immutable
+class EPUBPreferences with EquatableMixin implements JSONable {
   const EPUBPreferences({
     this.backgroundColor,
     this.columnCount,
@@ -31,6 +35,7 @@ class EPUBPreferences implements JSONable {
     this.verticalText,
     this.wordSpacing,
     this.blackAndWhiteComicMode = false,
+    this.disableSynchronization = false,
   });
 
   final Color? backgroundColor;
@@ -61,7 +66,9 @@ class EPUBPreferences implements JSONable {
 
   /// Black and white mode for Nota Comic Books.
   /// When enabled, this mode applies a black and white filter to the comic book pages.
+  /// Note: ImageFilter is not supported when this mode is enabled.
   final bool blackAndWhiteComicMode;
+  final bool disableSynchronization;
 
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
@@ -98,6 +105,7 @@ class EPUBPreferences implements JSONable {
     final verticalText = jsonObject.optNullableBoolean('verticalText', remove: true);
     final wordSpacing = jsonObject.optNullableDouble('wordSpacing', remove: true);
     final blackAndWhiteComicMode = jsonObject.optBoolean('blackAndWhiteComicMode', remove: true);
+    final disableSynchronization = jsonObject.optBoolean('disableSynchronization', remove: true);
 
     return EPUBPreferences(
       backgroundColor: backgroundColorStr != null ? ReadiumColorExtension.fromCSS(backgroundColorStr) : null,
@@ -126,6 +134,7 @@ class EPUBPreferences implements JSONable {
       verticalText: verticalText,
       wordSpacing: wordSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode,
+      disableSynchronization: disableSynchronization,
     );
   }
 
@@ -156,7 +165,97 @@ class EPUBPreferences implements JSONable {
     ..putOpt('typeScale', typeScale)
     ..putOpt('verticalText', verticalText)
     ..putOpt('wordSpacing', wordSpacing)
-    ..put('blackAndWhiteComicMode', blackAndWhiteComicMode);
+    ..put('blackAndWhiteComicMode', blackAndWhiteComicMode)
+    ..put('disableSynchronization', disableSynchronization);
+
+  EPUBPreferences copyWith({
+    Color? backgroundColor,
+    EpubColumnCount? columnCount,
+    String? fontFamily,
+    int? fontSize,
+    double? fontWeight,
+    bool? hyphens,
+    EpubImageFilter? imageFilter,
+    String? language,
+    double? letterSpacing,
+    bool? ligatures,
+    double? lineHeight,
+    double? pageMargins,
+    double? paragraphIndent,
+    double? paragraphSpacing,
+    bool? publisherStyles,
+    EpubReadingProgression? readingProgression,
+    bool? verticalScroll,
+    String? spread,
+    TextAlign? textAlign,
+    Color? textColor,
+    bool? textNormalization,
+    EpubThemeType? theme,
+    double? typeScale,
+    bool? verticalText,
+    double? wordSpacing,
+    bool? blackAndWhiteComicMode,
+    bool? disableSynchronization,
+  }) => EPUBPreferences(
+    backgroundColor: backgroundColor ?? this.backgroundColor,
+    columnCount: columnCount ?? this.columnCount,
+    fontFamily: fontFamily ?? this.fontFamily,
+    fontSize: fontSize ?? this.fontSize,
+    fontWeight: fontWeight ?? this.fontWeight,
+    hyphens: hyphens ?? this.hyphens,
+    imageFilter: imageFilter ?? this.imageFilter,
+    language: language ?? this.language,
+    letterSpacing: letterSpacing ?? this.letterSpacing,
+    ligatures: ligatures ?? this.ligatures,
+    lineHeight: lineHeight ?? this.lineHeight,
+    pageMargins: pageMargins ?? this.pageMargins,
+    paragraphIndent: paragraphIndent ?? this.paragraphIndent,
+    paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
+    publisherStyles: publisherStyles ?? this.publisherStyles,
+    readingProgression: readingProgression ?? this.readingProgression,
+    verticalScroll: verticalScroll ?? this.verticalScroll,
+    spread: spread ?? this.spread,
+    textAlign: textAlign ?? this.textAlign,
+    textColor: textColor ?? this.textColor,
+    textNormalization: textNormalization ?? this.textNormalization,
+    theme: theme ?? this.theme,
+    typeScale: typeScale ?? this.typeScale,
+    verticalText: verticalText ?? this.verticalText,
+    wordSpacing: wordSpacing ?? this.wordSpacing,
+    blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+    disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+  );
+
+  @override
+  List<Object?> get props => [
+    backgroundColor,
+    columnCount,
+    fontFamily,
+    fontSize,
+    fontWeight,
+    hyphens,
+    imageFilter,
+    language,
+    letterSpacing,
+    ligatures,
+    lineHeight,
+    pageMargins,
+    paragraphIndent,
+    paragraphSpacing,
+    publisherStyles,
+    readingProgression,
+    verticalScroll,
+    spread,
+    textAlign,
+    textColor,
+    textNormalization,
+    theme,
+    typeScale,
+    verticalText,
+    wordSpacing,
+    blackAndWhiteComicMode,
+    disableSynchronization,
+  ];
 }
 
 enum EpubColumnCount {
