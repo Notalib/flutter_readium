@@ -39,7 +39,7 @@ div.nota-comicbook-page-container {
 /**
   * Prevent scrolling of the body when a comic book page is active.
   */
-body:has(div.nota-comicbook-page-container.active) {
+body:has(div.nota-comicbook-page-container.nota-comic-is-active) {
   overflow: hidden;
 }
 
