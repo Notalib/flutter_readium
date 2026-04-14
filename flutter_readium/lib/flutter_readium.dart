@@ -67,7 +67,7 @@ class FlutterReadium {
     return _platform.onTextLocatorChanged;
   }
 
-  /// Stream emitting the current Timebased playback state, including audio offset and an updated Locator during playback.
+  /// Stream emitting the current time-based playback state (including audio Locator) during playback.
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     return _platform.onTimebasedPlayerStateChanged;
   }
@@ -84,7 +84,7 @@ class FlutterReadium {
     return _platform.goBackward();
   }
 
-  /// Navigates forward in the publication, such as to the previous page or section.
+  /// Navigates forward in the publication, such as to the next page or section.
   ///
   /// The exact behavior may depend on the publication's format and if audio or TTS is enabled.
   Future<void> goForward() {
