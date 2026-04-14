@@ -16,6 +16,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   @Published var cover: UIImage?
   @Published var playback: MediaPlaybackInfo = .init()
+  @Published var audioLocator: Locator?
 
   public var publication: Publication {
     get {
@@ -155,6 +156,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
+    self.audioLocator = locator
     // Submit new locator to the listener
     self.submitAudioLocatorReachedToListener(locator)
 
@@ -238,9 +240,23 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
        let navigator = self._audioNavigator {
       locator.locations.position = navigator.playbackInfo.resourceIndex + 1
     }
-    self.listener?.timebasedNavigator(self, reachedLocator: locator)
+    self.listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
   }
-  
+
+  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+
+    /// Create TimebasedState and send it over the timebased-state stream.
+    let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
+
+    // If state has changed, submit it to listener.
+    if (timebasedState != self._lastTimebasedPlayerState) {
+      self._lastTimebasedPlayerState = timebasedState
+      self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
+    } else {
+      Log.navigator.debug("Skipped state emission - duplicate")
+    }
+  }
+
   internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
     // Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
@@ -262,19 +278,5 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       currentLocator: locator
     )
     return timebasedState
-  }
-
-  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
-
-    /// Create TimebasedState and send it over the timebased-state stream.
-    let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
-
-    // If state has changed, submit it to listener.
-    if (timebasedState != self._lastTimebasedPlayerState) {
-      self._lastTimebasedPlayerState = timebasedState
-      self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
-    } else {
-      Log.navigator.debug("Skipped state emission - duplicate")
-    }
   }
 }

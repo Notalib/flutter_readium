@@ -321,8 +321,11 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+  func goToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
+    if (segmentDuration != nil) {
+      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDuration! * 1000.0));");
+    }
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
@@ -389,7 +392,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       }
       break
     case "setPreferences":
-      let args = call.arguments as! [String: String]
+      let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
       let preferences = EPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
@@ -425,12 +428,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   func initUserScripts(registrar: FlutterPluginRegistrar) {
     let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
     let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-    let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
+    let jsScripts = [flutterReadiumJsKey].map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!
       return String(data: data, encoding: .utf8)!
     }
-    let addCssScripts = [comicCssKey, flutterReadiumCssKey].map { sourceFile -> String in
+    let addCssScripts = [flutterReadiumCssKey].map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!.base64EncodedString()
       return """
