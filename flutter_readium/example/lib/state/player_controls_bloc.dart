@@ -8,55 +8,70 @@ import 'package:collection/collection.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
 
+@immutable
 abstract class PlayerControlsEvent {}
 
+@immutable
 class PlayTTS extends PlayerControlsEvent {
   PlayTTS({this.fromLocator});
 
   final Locator? fromLocator;
 }
 
+@immutable
 class Play extends PlayerControlsEvent {
   Play({this.fromLocator});
 
   final Locator? fromLocator;
 }
 
+@immutable
 class Pause extends PlayerControlsEvent {}
 
+@immutable
 class Stop extends PlayerControlsEvent {}
 
+@immutable
 class TogglePlayingState extends PlayerControlsEvent {
   TogglePlayingState({required this.isPlaying});
-  bool isPlaying;
+  final bool isPlaying;
 }
 
+@immutable
 class SkipToNext extends PlayerControlsEvent {}
 
+@immutable
 class SkipToPrevious extends PlayerControlsEvent {}
 
+@immutable
 class SkipToNextChapter extends PlayerControlsEvent {
   SkipToNextChapter({required this.publication});
   final Publication publication;
 }
 
+@immutable
 class SkipToPreviousChapter extends PlayerControlsEvent {
   SkipToPreviousChapter({required this.publication});
   final Publication publication;
 }
 
+@immutable
 class SkipToNextPage extends PlayerControlsEvent {}
 
+@immutable
 class SkipToPreviousPage extends PlayerControlsEvent {}
 
+@immutable
 class GoToLocator extends PlayerControlsEvent {
   GoToLocator(this.locator);
 
   final Locator locator;
 }
 
+@immutable
 class GetAvailableVoices extends PlayerControlsEvent {}
 
+@immutable
 class UpdateCurrentTocHref extends PlayerControlsEvent {
   UpdateCurrentTocHref(this.tocHref);
 
