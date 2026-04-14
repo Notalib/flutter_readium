@@ -482,7 +482,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     Log.navigator.debug("TimebasedNavigator reachedLocator: \(locator)")
 
     Task { @MainActor [locator] in
-      await currentReaderView?.goToLocator(locator, animated: false, segmentDuration: segmentDuration)
+      await currentReaderView?.syncToLocator(locator, animated: false, segmentDuration: segmentDuration)
     }
   }
 
