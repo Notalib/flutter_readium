@@ -84,12 +84,20 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     }
   }
   
+  internal var lastTextSyncKey: String?
+  
   internal override func submitAudioLocatorReachedToListener(_ location: Locator) {
     /// Map Audio-based Locator to a Text-based Locator, before submitting to viewer.
     if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
        let textLocator = mediaOverlayItem.asTextLocator {
-
-      self.listener?.timebasedNavigator(self, reachedLocator: textLocator)
+      
+      
+      let syncKey = textLocator.href.string + "#" + (textLocator.locations.cssSelector ?? "")
+      if syncKey != lastTextSyncKey {
+        lastTextSyncKey = syncKey
+        self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration)
+      }
+      
       self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
     } else {
       Log.navigator.warn("Did not find MediaOverlay matching audio Locator: \(location)")
