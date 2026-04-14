@@ -295,83 +295,86 @@ extension TTSVoice {
 }
 
 extension EPUBPreferences {
-  init(fromMap jsonMap: Dictionary<String, String>) {
+  init(fromMap jsonMap: Dictionary<String, Any>) {
     self.init()
 
     for (key, value) in jsonMap {
       switch key {
       case "backgroundColor":
-        backgroundColor = Color(hex: value)
+        if let colorStr = value as? String {
+          backgroundColor = Color(hex: colorStr)
+        }
       case "columnCount":
-        if let columnCountValue = ColumnCount(rawValue: value) {
-          columnCount = columnCountValue
+        if let columnCountStr = value as? String {
+          columnCount = ColumnCount(rawValue: columnCountStr)
         }
       case "fontFamily":
-        fontFamily = FontFamily(rawValue: value)
+        if let fontFamilyStr = value as? String {
+          fontFamily = FontFamily(rawValue: fontFamilyStr)
+        }
       case "fontSize":
-        if let fontSizeValue = Double(value) {
-          fontSize = fontSizeValue
+        if let fontSizeValue = value as? Int32 {
+          fontSize = Double(fontSizeValue)
         }
       case "fontWeight":
-        if let fontWeightValue = Double(value) {
+        if let fontWeightValue = value as? Double {
           fontWeight = fontWeightValue
         }
       case "hyphens":
-        hyphens = (value == "true")
+        hyphens = value as? Bool
       case "imageFilter":
-        if let imageFilterValue = ImageFilter(rawValue: value) {
-          imageFilter = imageFilterValue
+        if let imageFilterStr = value as? String {
+          imageFilter = ImageFilter(rawValue: imageFilterStr)
+        }
+      case "language":
+        if let languageCode = value as? Language.Code {
+          language = Language(code: languageCode)
         }
       case "letterSpacing":
-        if let letterSpacingValue = Double(value) {
+        if let letterSpacingValue = value as? Double {
           letterSpacing = letterSpacingValue
         }
       case "ligatures":
-        ligatures = (value == "true")
+        ligatures = value as? Bool
       case "lineHeight":
-        if let lineHeightValue = Double(value) {
-          lineHeight = lineHeightValue
-        }
+        lineHeight = value as? Double
       case "pageMargins":
-        if let pageMarginsValue = Double(value) {
-          pageMargins = pageMarginsValue
-        }
+        pageMargins = value as? Double
       case "paragraphIndent":
-        if let paragraphIndentValue = Double(value) {
-          paragraphIndent = paragraphIndentValue
-        }
+        paragraphIndent = value as? Double
       case "paragraphSpacing":
-        if let paragraphSpacingValue = Double(value) {
-          paragraphSpacing = paragraphSpacingValue
+        paragraphSpacing = value as? Double
+      // TODO: publisherStyles?
+      case "readingProgression":
+        if let readingProgressionStr = value as? String {
+          readingProgression = ReadingProgression(rawValue: readingProgressionStr)
         }
-      case "verticalScroll":
-        scroll = (value == "true")
+      case "scroll":
+        scroll = value as? Bool
       case "spread":
-        if let spreadValue = Spread(rawValue: value) {
-          spread = spreadValue
+        if let spreadValueStr = value as? String {
+          spread = Spread(rawValue: spreadValueStr)
         }
       case "textAlign":
-        if let textAlignValue = TextAlignment(rawValue: value) {
-          textAlign = textAlignValue
+        if let textAlignStr = value as? String {
+          textAlign = TextAlignment(rawValue: textAlignStr)
         }
       case "textColor":
-        textColor = Color(hex: value)
+        if let colorStr = value as? String, let color = Color(hex: colorStr) {
+          textColor = color
+        }
       case "textNormalization":
-        textNormalization = (value == "true")
+        textNormalization = value as? Bool
       case "theme":
-        if let themeValue = Theme(rawValue: value) {
-          theme = themeValue
+        if let themeValueStr = value as? String {
+          theme = Theme(rawValue: themeValueStr)
         }
       case "typeScale":
-        if let typeScaleValue = Double(value) {
-          typeScale = typeScaleValue
-        }
+          typeScale = value as? Double
       case "verticalText":
-        verticalText = (value == "true")
+        verticalText = value as? Bool
       case "wordSpacing":
-        if let wordSpacingValue = Double(value) {
-          wordSpacing = wordSpacingValue
-        }
+        wordSpacing = value as? Double
       default:
         Log.readium.warn("EPUBPreferences unable to map JSON property: \(key)=\(value)")
       }

@@ -37,6 +37,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
 
   var publicationIdentifier: String?
@@ -67,7 +68,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     self.publication = publication
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
-    let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
+    let initWithPreferences = preferencesMap == nil ? nil : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
     var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
@@ -104,8 +105,9 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
-    if (defaultPreferences != nil) {
-      config.preferences = defaultPreferences!
+    if let preferences = initWithPreferences {
+      config.preferences = preferences.readium
+      self.preferences = preferences
     }
 
     readiumViewController = try! EPUBNavigatorViewController(
@@ -273,8 +275,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  private func setUserPreferences(preferences: EPUBPreferences) {
-    self.readiumViewController.submitPreferences(preferences)
+  private func setUserPreferences(preferences: FlutterEPUBPreferences) {
+    self.readiumViewController.submitPreferences(preferences.readium)
+    
+    if let blackAndWhiteMode = preferences.blackAndWhite {
+      Task.detached(priority: .high) { [blackAndWhiteMode] in
+        await self.readiumViewController.evaluateJavaScript("window.SetBlackAndWhiteMode(\(blackAndWhiteMode);")
+      }
+    }
   }
 
   private func emitOnPageChanged(locator: Locator) -> Void {
@@ -321,12 +329,20 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  func goToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+  func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
-    if (segmentDuration != nil) {
-      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDuration! * 1000.0));");
-    }
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+  }
+  
+  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+    Log.reader.debug("syncToLocator: \(locator)")
+    if (preferences?.disableSync == true) {
+      return false
+    }
+    if let duration = segmentDuration {
+      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(duration * 1000.0));");
+    }
+    return await goToLocator(locator, animated: animated)
   }
 
   private func emitOnPageChanged() {
@@ -394,8 +410,9 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     case "setPreferences":
       let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
-      let preferences = EPUBPreferences.init(fromMap: args)
+      let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
+      self.preferences = preferences
       break
     case "applyDecorations":
       let args = call.arguments as! [Any?]
