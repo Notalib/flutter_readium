@@ -6,27 +6,34 @@ import '../extensions/text_settings_theme.dart';
 
 abstract class TextSettingsEvent {}
 
+@immutable
 class ChangeFontSize extends TextSettingsEvent {
   ChangeFontSize(this.value);
   final int value;
 }
 
+@immutable
 class ToggleVerticalScroll extends TextSettingsEvent {}
 
+@immutable
 class ChangeTheme extends TextSettingsEvent {
   ChangeTheme(this.theme);
   final TextSettingsTheme theme;
 }
 
+@immutable
 class ChangeHighlight extends TextSettingsEvent {
   ChangeHighlight(this.highlight);
   final TextSettingsTheme highlight;
 }
 
+@immutable
 class OpenPubSuccess extends TextSettingsEvent {}
 
+@immutable
 class ToggleBlackAndWhiteComicMode extends TextSettingsEvent {}
 
+@immutable
 class ToggleDisableSynchronization extends TextSettingsEvent {}
 
 @immutable
