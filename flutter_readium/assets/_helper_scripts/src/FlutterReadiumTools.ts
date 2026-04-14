@@ -1,7 +1,7 @@
 import { initResponsiveTables } from './Tables';
 import { PageInformation } from './types';
 import { NotaComicBook } from './NotaComicBookPage';
-import { getCssSelector, cssSelectorGenerator } from "css-selector-generator";
+import { getCssSelector } from "css-selector-generator";
 import './FlutterReadiumTools.scss';
 
 class FlutterReadiumTools {

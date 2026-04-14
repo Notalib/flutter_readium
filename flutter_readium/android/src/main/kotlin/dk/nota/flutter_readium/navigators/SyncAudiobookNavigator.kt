@@ -85,9 +85,7 @@ class SyncAudiobookNavigator(
             .filterNotNull()
             .distinctUntilChangedBy { (_, locator) -> locator.href.toString() + locator.locations.cssSelector }
             .onEach { (mediaOverlay, textLocator) ->
-                // IMPORTANT: We use epubGoToLocator here, NOT goToLocator, as the latter
-                // triggers an infinite loop
-                ReadiumReader.epubGoToLocator(textLocator, false, mediaOverlay.duration)
+                ReadiumReader.epubSyncToLocator(textLocator, false, mediaOverlay.duration)
 
                 decorateCurrentUtterance(textLocator)
             }
@@ -201,6 +199,12 @@ class SyncAudiobookNavigator(
         mainScope.async {
             decorateCurrentUtterance(textLocator)
         }.await()
+    }
+
+    override fun onEnded() {
+        mainScope.launch {
+            ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
+        }
     }
 
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {

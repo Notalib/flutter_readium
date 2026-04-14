@@ -2,14 +2,14 @@ package dk.nota.flutter_readium
 
 import android.graphics.Color
 import android.os.Parcelable
-import org.readium.r2.navigator.Decoration
 import kotlinx.parcelize.Parcelize
+import org.readium.r2.navigator.Decoration
 
 // TODO: Decision on appropriate defaults
 // TODO: Can this be made configurable at built time?
 // TODO: More complex styles? Like bold or italic plus background and text colors?
 private val defaultUtteranceStyle = Decoration.Style.Highlight(tint = Color.YELLOW)
-private val defaultCurrentRangeStyle = Decoration.Style.Underline(tint = Color.RED)
+private val defaultCurrentRangeStyle = Decoration.Style.Underline(tint = Color.BLACK)
 
 /**
  * Decoration preferences used in the Flutter Readium plugin.

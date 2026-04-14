@@ -297,6 +297,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
                             initNavigator()
                             Log.d(TAG, ":storeState - epubNavigator restored")
+                            setDecorationStyle(decorationStyle)
                         }
                 }
             }
@@ -655,7 +656,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     override fun onTimebasedLocationChanged(locator: Locator) {
         Log.d(TAG, ":onTimebasedLocationChanged $locator")
 
-        currentReaderWidget?.go(locator, true)
+        epubSyncToLocator(locator, true)
     }
 
     /**
@@ -740,6 +741,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 initNavigator()
                 epubNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
+                setDecorationStyle(decorationStyle)
                 return@withScope
             }
         }
@@ -967,7 +969,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun applyDecorations(
         decorations: List<Decoration>, group: String
     ) {
-        epubNavigator?.applyDecorations(decorations, group)
+        val navigator = epubNavigator ?: return
+
+        navigator.applyDecorations(decorations, group)
     }
 
     override fun onPageLoaded() {
@@ -993,40 +997,82 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun epubFirstVisibleElementLocator(): Locator? {
-        return epubNavigator?.firstVisibleElementLocator()
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubFirstVisibleElementLocator called without a epubNavigator")
+            return null
+        }
+
+        return navigator.firstVisibleElementLocator()
     }
 
     suspend fun epubEvaluateJavascript(script: String): String? {
-        return epubNavigator?.evaluateJavascript(script)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubEvaluateJavascript called without a epubNavigator")
+            return null
+        }
+
+        return navigator.evaluateJavascript(script)
     }
 
     /**
      * Update EPUB navigator preferences.
      */
-    fun epubUpdatePreferences(preferences: FlutterEpubPreferences) {
-        epubNavigator?.updatePreferences(preferences)
+    suspend fun epubUpdatePreferences(preferences: FlutterEpubPreferences) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubUpdatePreferences called without a epubNavigator")
+            return
+        }
+
+        navigator.updatePreferences(preferences)
     }
 
     /**
      * Navigate backward in the EPUB navigator.
      */
     suspend fun epubGoBackward(animated: Boolean) {
-        epubNavigator?.goBackward(animated)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoBackward called without a epubNavigator")
+            return
+        }
+
+        navigator.goBackward(animated)
     }
 
     /**
      * Navigate forward in the EPUB navigator.
      */
     suspend fun epubGoForward(animated: Boolean) {
-        epubNavigator?.goForward(animated)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoForward called without a epubNavigator")
+            return
+        }
+
+        navigator.goForward(animated)
     }
 
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    fun epubGoToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
+    suspend fun epubGoToLocator(locator: Locator, animated: Boolean) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoToLocator called without a epubNavigator")
+            return
+        }
+
+        navigator.goToLocator(locator, animated)
+    }
+
+    /**
+     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator]
+     */
+    fun epubSyncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
+        val navigator = epubNavigator ?: return
         mainScope.launch {
-            epubNavigator?.goToLocator(locator, animated, segmentDuration)
+            if (navigator.preferences?.disableSynchronization == true) {
+                return@launch
+            }
+
+            navigator.goToLocator(locator, animated, segmentDuration)
         }
     }
 

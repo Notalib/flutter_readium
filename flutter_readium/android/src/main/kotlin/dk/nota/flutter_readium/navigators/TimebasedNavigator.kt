@@ -100,6 +100,8 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
 
         isPlaying = timebasedState == TimebasedState.Playing
 
+        if (timebasedState == TimebasedState.Ended) onEnded()
+
         timebaseListener.onTimebasedPlaybackStateChanged(timebasedState)
     }
 
@@ -122,6 +124,12 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         }
 
         timebaseListener.onTimebasedCurrentLocatorChanges(emittingLocator, readingOrderLink)
+    }
+
+    /**
+     * Triggers when playback ends. This is needed to remove last decoration.
+     */
+    open fun onEnded() {
     }
 
     /**

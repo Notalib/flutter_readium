@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+@immutable
 class TextSettingsTheme {
-  TextSettingsTheme({required this.textColor, required this.backgroundColor});
+  const TextSettingsTheme({required this.textColor, required this.backgroundColor});
   final Color textColor;
   final Color backgroundColor;
 
@@ -9,34 +10,22 @@ class TextSettingsTheme {
   String toString() => 'backgroundColor: $backgroundColor, textColor: $textColor';
 }
 
-final List<TextSettingsTheme> themes = [
-  TextSettingsTheme(textColor: const Color(0xffeeeeee), backgroundColor: const Color(0xff000000)),
-  TextSettingsTheme(textColor: const Color(0xff000000), backgroundColor: const Color(0xffffffff)),
-  TextSettingsTheme(textColor: const Color(0xffffbb00), backgroundColor: const Color(0xff000000)),
-  TextSettingsTheme(textColor: const Color(0xff000000), backgroundColor: const Color(0xffffbb00)),
-  TextSettingsTheme(textColor: const Color(0xff116666), backgroundColor: const Color(0xffffeeee)),
-  TextSettingsTheme(textColor: const Color(0xffffeeee), backgroundColor: const Color(0xff116666)),
-  TextSettingsTheme(textColor: const Color(0XFF015298), backgroundColor: const Color(0xffffffff)),
-  TextSettingsTheme(textColor: const Color(0xffffffff), backgroundColor: const Color(0XFF015298)),
-  TextSettingsTheme(textColor: const Color(0xff000000), backgroundColor: const Color(0xff88bbbb)),
-  TextSettingsTheme(textColor: const Color(0xff88bbbb), backgroundColor: const Color(0xff000000)),
+const List<TextSettingsTheme> themes = [
+  TextSettingsTheme(textColor: Color(0xffeeeeee), backgroundColor: Color(0xff000000)),
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xffffffff)),
+  TextSettingsTheme(textColor: Color(0xffffbb00), backgroundColor: Color(0xff000000)),
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xffffbb00)),
+  TextSettingsTheme(textColor: Color(0xff116666), backgroundColor: Color(0xffffeeee)),
+  TextSettingsTheme(textColor: Color(0xffffeeee), backgroundColor: Color(0xff116666)),
+  TextSettingsTheme(textColor: Color(0XFF015298), backgroundColor: Color(0xffffffff)),
+  TextSettingsTheme(textColor: Color(0xffffffff), backgroundColor: Color(0XFF015298)),
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xff88bbbb)),
+  TextSettingsTheme(textColor: Color(0xff88bbbb), backgroundColor: Color(0xff000000)),
 ];
 
-final List<TextSettingsTheme> highlights = [
-  TextSettingsTheme(
-    textColor: const Color(0xffffffff),
-    backgroundColor: const Color(0xccff00a7),
-  ),
-  TextSettingsTheme(
-    textColor: const Color(0xff000000),
-    backgroundColor: const Color(0xcc00c5ff),
-  ),
-  TextSettingsTheme(
-    textColor: const Color(0xff000000),
-    backgroundColor: const Color(0xcc00ff04),
-  ),
-  TextSettingsTheme(
-    textColor: const Color(0xff000000),
-    backgroundColor: const Color(0xccfdff00),
-  ),
+const List<TextSettingsTheme> highlights = [
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xccfdff00)),
+  TextSettingsTheme(textColor: Color(0xffffffff), backgroundColor: Color(0xccff00a7)),
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xcc00c5ff)),
+  TextSettingsTheme(textColor: Color(0xff000000), backgroundColor: Color(0xcc00ff04)),
 ];

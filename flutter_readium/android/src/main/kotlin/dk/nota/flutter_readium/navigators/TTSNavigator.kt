@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.navigator.media.tts.TtsNavigator
 import org.readium.navigator.media.tts.TtsNavigator.Listener
@@ -360,6 +361,12 @@ class TTSNavigator(
         }
 
         ReadiumReader.applyDecorations(decorations, group = decorationGroup)
+    }
+
+    override fun onEnded() {
+        mainScope.launch {
+            ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
+        }
     }
 
     override fun storeState(): Bundle {

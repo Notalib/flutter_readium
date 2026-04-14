@@ -18,7 +18,7 @@ private const val TAG = "FlutterEpubPreferences"
 
 @OptIn(ExperimentalReadiumApi::class)
 @Serializable
-data class FlutterEpubPreferences constructor(
+data class FlutterEpubPreferences(
     val backgroundColor: String? = null,
     val columnCount: ColumnCount? = null,
     val fontFamily: FontFamily? = null,
@@ -45,6 +45,7 @@ data class FlutterEpubPreferences constructor(
     val verticalText: Boolean? = null,
     val wordSpacing: Double? = null,
     val blackAndWhiteComicMode: Boolean? = false,
+    val disableSynchronization: Boolean? = false
 ) : Configurable.Preferences<FlutterEpubPreferences> {
     override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences {
         return FlutterEpubPreferences(
@@ -74,6 +75,7 @@ data class FlutterEpubPreferences constructor(
             verticalText = other.verticalText ?: verticalText,
             wordSpacing = other.wordSpacing ?: wordSpacing,
             blackAndWhiteComicMode = other.blackAndWhiteComicMode ?: blackAndWhiteComicMode,
+            disableSynchronization = other.disableSynchronization ?: disableSynchronization,
         )
     }
 

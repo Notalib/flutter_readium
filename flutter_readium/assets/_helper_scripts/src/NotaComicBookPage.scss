@@ -1,4 +1,4 @@
-:root[style*="--USER__backgroundColor"] * div.nota-comicbook-page-container,
+:root[style*='--USER__backgroundColor'] * div.nota-comicbook-page-container,
 div.nota-comicbook-page-container {
   /**
    * Readium-css makes the background-color transparent, which makes the comic book page rendering look bad.
@@ -34,16 +34,6 @@ div.nota-comicbook-page-container {
     position: absolute;
     opacity: 0; // Allows the image to be faded in.
   }
-
-  &.black-white-comic-mode {
-    /**
-     * Apply a filter to make the comic page black and white. This helps certain visual impairments to read the content more easily.
-     */
-    img {
-      filter: grayscale(1) contrast(255) brightness(1);
-      mix-blend-mode: multiply;
-    }
-  }
 }
 
 /**
@@ -60,5 +50,17 @@ body:has(div.nota-comicbook-page-container.active) {
 figure.nota-comicbook-page {
   div.area {
     display: none;
+  }
+}
+
+body.black-white-comic-mode {
+  /**
+     * Apply a filter to make the comic page black and white. This helps certain visual impairments to read the content more easily.
+     */
+  .nota-comicbook-page-container, .nota-comicbook-page {
+    img {
+      filter: grayscale(1) contrast(255) brightness(1);
+      mix-blend-mode: multiply;
+    }
   }
 }
