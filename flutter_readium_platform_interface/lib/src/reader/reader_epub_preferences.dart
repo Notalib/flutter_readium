@@ -25,7 +25,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     this.paragraphSpacing,
     this.publisherStyles,
     this.readingProgression,
-    this.verticalScroll,
+    this.scroll,
     this.spread,
     this.textAlign,
     this.textColor,
@@ -38,36 +38,90 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     this.disableSynchronization = false,
   });
 
+  /// Default page background color.
   final Color? backgroundColor;
+
+  /// Number of columns to display in reflowable content.
   final EpubColumnCount? columnCount;
+
+  /// Font family for text content.
   final String? fontFamily;
+
+  /// Font size for text content.
   final int? fontSize;
+
+  /// Font weight for text content.
   final double? fontWeight;
+
+  /// Hyphenation for text content.
   final bool? hyphens;
+
+  /// Image filter to apply to images in the content. Note [blackAndWhiteComicMode] takes precedence over this setting for Nota comic books.
   final EpubImageFilter? imageFilter;
+
+  /// Language for the content, specified as a BCP 47 language tag (e.g., "en", "fr", "zh-CN").
   final String? language;
+
+  /// Letter spacing for text content.
   final double? letterSpacing;
+
+  /// Ligatures for text content.
   final bool? ligatures;
+
+  /// Line height for text content.
   final double? lineHeight;
+
+  /// Page margins for the content.
   final double? pageMargins;
+
+  /// Text indent for paragraphs.
   final double? paragraphIndent;
+
+  /// Paragraph spacing for the content.
   final double? paragraphSpacing;
+
+  /// Indicates whether the original publisher styles should be observed. Many settings require this to be off.
   final bool? publisherStyles;
+
+  /// Direction of the reading progression across resources
   final EpubReadingProgression? readingProgression;
-  final bool? verticalScroll;
+
+  /// Vertical scroll for reflowable content. Default is false, meaning horizontal pagination.
+  final bool? scroll;
+
+  /// Indicates if the fixed-layout publication should be rendered with a synthetic spread (dual-page).
   final String? spread;
+
+  /// Text alignment
   final TextAlign? textAlign;
+
+  /// Text color.
   final Color? textColor;
+
+  /// Normalize text styles to increase accessibility
   final bool? textNormalization;
+
+  /// Reader theme.
   final EpubThemeType? theme;
+
+  /// Scale applied to all element font sizes.
   final double? typeScale;
+
+  /// Indicates whether the text should be laid out vertically. This is used
+  /// for example with CJK languages. This setting is automatically derived from the language if
+  /// no preference is given.
   final bool? verticalText;
+
+  /// Space between words.
   final double? wordSpacing;
 
   /// Black and white mode for Nota Comic Books.
   /// When enabled, this mode applies a black and white filter to the comic book pages.
   /// Note: ImageFilter is not supported when this mode is enabled.
   final bool blackAndWhiteComicMode;
+
+  /// Disabled position synchronization between the TTS / SyncAudio navigators and the EPUB navigator.
+  /// Highlight decorations will still be applied, but it won't scroll it into view or switch current chapter/file.
   final bool disableSynchronization;
 
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
@@ -93,7 +147,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     final readingProgression = readingProgressionStr != null
         ? EpubReadingProgression.fromJson(readingProgressionStr)
         : null;
-    final verticalScroll = jsonObject.optNullableBoolean('verticalScroll', remove: true);
+    final scroll = jsonObject.optNullableBoolean('scroll', remove: true);
     final spread = jsonObject.opt('spread', remove: true);
     final textAlign = jsonObject.optEnumFromString('textAlign', TextAlign.values, remove: true);
     final textColorStr = jsonObject.optNullableString('textColor', remove: true);
@@ -124,7 +178,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       paragraphSpacing: paragraphSpacing,
       publisherStyles: publisherStyles,
       readingProgression: readingProgression,
-      verticalScroll: verticalScroll,
+      scroll: scroll,
       spread: spread,
       textAlign: textAlign,
       textColor: textColor,
@@ -156,7 +210,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('paragraphSpacing', paragraphSpacing)
     ..putOpt('publisherStyles', publisherStyles)
     ..putOpt('readingProgression', readingProgression?.toJson())
-    ..putOpt('verticalScroll', verticalScroll)
+    ..putOpt('scroll', scroll)
     ..putOpt('spread', spread)
     ..putOpt('textAlign', textAlign?.name)
     ..putOpt('textColor', textColor?.toCSS())
@@ -185,7 +239,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     double? paragraphSpacing,
     bool? publisherStyles,
     EpubReadingProgression? readingProgression,
-    bool? verticalScroll,
+    bool? scroll,
     String? spread,
     TextAlign? textAlign,
     Color? textColor,
@@ -213,7 +267,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
     publisherStyles: publisherStyles ?? this.publisherStyles,
     readingProgression: readingProgression ?? this.readingProgression,
-    verticalScroll: verticalScroll ?? this.verticalScroll,
+    scroll: scroll ?? this.scroll,
     spread: spread ?? this.spread,
     textAlign: textAlign ?? this.textAlign,
     textColor: textColor ?? this.textColor,
@@ -244,7 +298,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     paragraphSpacing,
     publisherStyles,
     readingProgression,
-    verticalScroll,
+    scroll,
     spread,
     textAlign,
     textColor,
