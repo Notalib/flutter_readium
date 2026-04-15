@@ -313,8 +313,8 @@ extension EPUBPreferences {
           fontFamily = FontFamily(rawValue: fontFamilyStr)
         }
       case "fontSize":
-        if let fontSizeValue = value as? Int32 {
-          fontSize = Double(fontSizeValue)
+        if let fontSizeValue = value as? Double {
+          fontSize = Double(fontSizeValue / 100.0)
         }
       case "fontWeight":
         if let fontWeightValue = value as? Double {
@@ -376,7 +376,7 @@ extension EPUBPreferences {
       case "wordSpacing":
         wordSpacing = value as? Double
       default:
-        Log.readium.warn("EPUBPreferences unable to map JSON property: \(key)=\(value)")
+        Log.readium.debug("EPUBPreferences unable to map JSON property: \(key)=\(value)")
       }
     }
   }
