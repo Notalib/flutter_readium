@@ -142,7 +142,9 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonString =
             this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "")
+        val duration = link.duration?.takeIf { it > 0.0 } ?: return@mapIndexedNotNull null
+
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "", duration)
     }
         .map { mo ->
             val items = mo.items.map { item ->
@@ -202,7 +204,7 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
                         title = item.title
                     )
                 }
-        }
+        }.filter { it.duration != null && it.duration!! > 0.0 }
     )
 
     val pseudoPublication = Publication.Builder(manifest, container).build()
@@ -230,9 +232,17 @@ fun Locator.getTextId(): String? {
  * Make a new copy with a new time fragment
  */
 fun Locator.copyWithTimeFragment(time: Double): Locator {
+    // IMPORTANT: Readium expects time fragment to be an integer.
+    return copyWithTimeFragment(time.toInt())
+}
+
+/**
+ * Make a new copy with a new time fragment
+ */
+fun Locator.copyWithTimeFragment(time: Int): Locator {
     return copy(
         locations = locations.copy(
-            fragments = listOf("t=${time}")
+            fragments = listOf("t=${time.toInt()}")
         )
     )
 }

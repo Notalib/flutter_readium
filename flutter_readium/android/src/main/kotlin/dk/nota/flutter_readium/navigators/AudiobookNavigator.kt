@@ -8,6 +8,7 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
@@ -28,7 +29,6 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
-import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -67,6 +67,21 @@ open class AudiobookNavigator(
     protected var mediaServiceFacade: PluginMediaServiceFacade? = null
 
     override suspend fun initNavigator() {
+        if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
+            Log.d(TAG, "::initNavigator - not an audiobook profile - ${publication.metadata.conformsTo}")
+            throw Exception("Publication doesn't conform to audiobook profile")
+        }
+
+        if (publication.readingOrder.isEmpty()) {
+            Log.d(TAG, "::initNavigator - missing reading order")
+            throw Exception("Publication doesn't conform to audiobook profile")
+        }
+
+        if (publication.readingOrder.any { it.duration == 0.0 }) {
+            Log.d(TAG, "::initNavigator - has at least one empty publication.readingOrder item")
+            throw Exception("Publication doesn't conform to audiobook profile")
+        }
+
         // Create AudioNavigatorFactory
         val navigatorFactory = ExoPlayerNavigatorFactory(
             publication,
@@ -167,7 +182,28 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: return
         withScope(mainScope) {
-            navigator.go(locator)
+            var toLocator = locator
+
+            if (locator.locations.progression != null) {
+                val progression = locator.locations.progression ?: 0.0
+                val readingOrderLink =
+                    publication.readingOrder.find { link ->
+                        link.href.toString() == locator.href.toString()
+                    } ?: run {
+                        Log.d(TAG, "::goToLocator - ${locator.href} not found in reading order")
+                        return@withScope
+                    }
+
+                val timeOffset = readingOrderLink.duration?.takeIf { it > 0 }?.let { duration -> duration * progression } ?: run {
+                    Log.d(TAG, "::goToLocator - reading order link is missing a duration")
+                    return@withScope
+                }
+
+                toLocator = locator.copyWithTimeFragment(timeOffset)
+            }
+            val res = navigator.go(toLocator)
+
+            Log.d(TAG, "::goToLocator - success? $res")
         }
     }
 
