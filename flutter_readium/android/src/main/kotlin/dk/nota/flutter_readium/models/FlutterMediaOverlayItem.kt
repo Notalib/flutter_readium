@@ -1,5 +1,6 @@
 package dk.nota.flutter_readium.models
 
+import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.letIfBothNotNull
 import org.json.JSONObject
@@ -35,7 +36,13 @@ data class FlutterMediaOverlayItem(
     /**
      * The title of the chapter or section this item belongs to
      */
-    val title: String
+    val title: String,
+
+    /**
+     * Known duration of the reading order item. Needed to find items from a locator's progression
+     * value and to calculate an updated time fragment.
+     */
+    val readingOrderItemDuration: Double,
 ) : Serializable {
     /**
      * The audio file without the fragment (e.g. "chapter1.mp3")
@@ -73,6 +80,16 @@ data class FlutterMediaOverlayItem(
      */
     val audioStart: Double? = audioTime?.substringBefore(",")?.toDoubleOrNull()
 
+    val progressionStart: Double?
+        get() = letIfBothNotNull(
+            audioStart,
+            readingOrderItemDuration.takeIf { it > 0.0 })?.let { (start, riDuration) -> start / riDuration }
+
+    val progressionEnd: Double?
+        get() = letIfBothNotNull(
+            audioEnd,
+            readingOrderItemDuration.takeIf { it > 0.0 })?.let { (end, riDuration) -> end / riDuration }
+
     /**
      * The end time in seconds, or null if none
      */
@@ -81,7 +98,8 @@ data class FlutterMediaOverlayItem(
     /**
      * The duration of the segment.
      */
-    val duration: Double? = letIfBothNotNull(audioEnd, audioStart)?.let { (end, start) -> end - start }
+    val duration: Double? =
+        letIfBothNotNull(audioEnd, audioStart)?.let { (end, start) -> end - start }
 
     /**
      * Is this item in range for the given file reference and time offset?
@@ -94,8 +112,21 @@ data class FlutterMediaOverlayItem(
         }
 
         val start = audioStart ?: return false
-        val end = audioEnd ?: return time >= start
+        val end = audioEnd ?: return time >= start // No end value, check if time is after start.
         return time in start..end || time < start
+    }
+
+    fun isInProgression(fileRef: Url, progression: Double): Boolean {
+        if (!fileRef.isEquivalent(Url.invoke(textFile))) {
+            if (!fileRef.isEquivalent(Url.invoke(audioFile))) {
+                return false
+            }
+        }
+
+        val start = progressionStart ?: return false
+        val end = progressionEnd
+            ?: return progression >= start // No end value, check if progress is after start.
+        return progression in start..end
     }
 
     /**
@@ -122,13 +153,7 @@ data class FlutterMediaOverlayItem(
      * NOTE: You might need to update the time fragment.
      */
     val flutterAudioLocator: Locator? by lazy {
-        syncTextLocator?.let { textLocator ->
-            textLocator.copy(
-                locations = textLocator.locations.copy(
-                    fragments = listOf("t=${audioStart ?: 0.0}"),
-                ),
-            ).copyWithTocHref(tocHref)
-        }
+        syncTextLocator?.copyWithTimeFragment(audioStart ?: 0.0)?.copyWithTocHref(tocHref)
     }
 
     /**
@@ -143,7 +168,7 @@ data class FlutterMediaOverlayItem(
                 title = title,
                 mediaType = audioMediaType,
                 locations = Locator.Locations(
-                    fragments = listOf("t=${audioStart ?: 0.0}"),
+                    fragments = listOf("t=${audioStart?.toInt() ?: 0}"),
                 ),
             )
         }
@@ -158,12 +183,20 @@ data class FlutterMediaOverlayItem(
             json: JSONObject,
             position: Int,
             tocHref: Url?,
-            title: String
+            title: String,
+            readiumOrderItemDuration: Double
         ): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
             return if (audio != "" && text != "") {
-                FlutterMediaOverlayItem(audio, text, position, tocHref, title)
+                FlutterMediaOverlayItem(
+                    audio,
+                    text,
+                    position,
+                    tocHref,
+                    title,
+                    readiumOrderItemDuration
+                )
             } else {
                 null
             }

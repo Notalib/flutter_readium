@@ -78,7 +78,10 @@ class SyncAudiobookNavigator(
                     )
                 }?.takeIf { it.syncTextLocator != null }
                     ?.let { mediaOverlay ->
-                        Log.d(TAG, ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator")
+                        Log.d(
+                            TAG,
+                            ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator"
+                        )
                         Pair(mediaOverlay, mediaOverlay.syncTextLocator!!)
                     }
             }
@@ -208,13 +211,22 @@ class SyncAudiobookNavigator(
     }
 
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
-        val newLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+        val mediaOverlay = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
-        }?.skipToAudioLocator ?: return null
+        }
 
-        return letIfBothNotNull(newLocator, locator.getTimeOffset())?.let { (nl, timeOffset) ->
+        val newLocator = mediaOverlay?.skipToAudioLocator ?: return null
+
+        val timeOffset =
+            locator.locations.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
+                ?: locator.getTimeOffset()
+
+        val res = letIfBothNotNull(newLocator, timeOffset)?.let { (nl, timeOffset) ->
             nl.copyWithTimeFragment(timeOffset)
         } ?: newLocator
+
+        Log.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $res")
+        return res
     }
 
     override fun dispose() {
