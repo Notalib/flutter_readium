@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show Locator, Publication, RuntimePlatform, TimebasedState;
 import 'package:flutter_readium_example/state/index.dart';
 import 'package:flutter_readium_example/extensions/index.dart';
+import 'package:flutter_readium_example/widgets/chapter_progress_slider.dart';
 
 import '../state/player_controls_bloc.dart';
 
@@ -88,16 +89,31 @@ class PlayerControls extends StatelessWidget {
   );
 
   Widget _buildChapterProgressSlider(BuildContext context, bool isAudioBook) {
+    // TODO: this currently does not work for audiobooks and tts
     if (isAudioBook) {
       return BlocSelector<PlayerControlsBloc, PlayerControlsState, double>(
         selector: (s) => s.audioChapterProgression,
-        builder: (context, value) => Slider.adaptive(value: value.clamp(0.0, 1.0), onChanged: null),
+        builder: (context, value) => ChapterProgressSlider(
+          value: value,
+          onChangeEnd: (v) {
+            final base = savedLocators[publication.identifier];
+            if (base == null) return;
+            context.read<PlayerControlsBloc>().add(GoToLocator(base.copyWithLocations(progression: v)));
+          },
+        ),
       );
     }
 
     return BlocSelector<PlayerControlsBloc, PlayerControlsState, double>(
       selector: (s) => s.progression,
-      builder: (context, value) => Slider.adaptive(value: value.clamp(0.0, 1.0), onChanged: null),
+      builder: (context, value) => ChapterProgressSlider(
+        value: value,
+        onChangeEnd: (v) {
+          final base = savedLocators[publication.identifier];
+          if (base == null) return;
+          context.read<PlayerControlsBloc>().add(GoToLocator(base.copyWithLocations(progression: v)));
+        },
+      ),
     );
   }
 
