@@ -7,6 +7,7 @@ import dk.nota.flutter_readium.FlutterTtsPreferences
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +33,11 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.Content
+import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.util.getOrElse
+import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
 import org.readium.r2.shared.util.tokenizer.TextUnit
 import kotlin.time.Duration.Companion.milliseconds
@@ -47,8 +52,6 @@ private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
 
 private const val ttsPreferencesKey = "ttsPreferences"
-
-// TODO: Extend locator with chapter info
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -219,15 +222,72 @@ class TTSNavigator(
             val wasPlaying = isPlaying
 
             stopTtsNavigator()
-            initialLocator = locator
+            initialLocator = resolveLocatorWithProgression(locator)
             val navigator = ensureNavigator()
             ensureMediaSessionIsOpen()
-            decorateCurrentUtterance(locator)
+            decorateCurrentUtterance(initialLocator)
 
             if (wasPlaying) {
                 navigator.play()
             }
         }
+    }
+
+    /**
+     * Workaround helper:
+     * Readium's TTSNavigator doesn't support locators with progression
+     * and cssSelector.
+     *
+     * This resolves the progression by iterating over the content of the publication and
+     * finding elements that match the desired progression value.
+     */
+    private suspend fun resolveLocatorWithProgression(locator: Locator): Locator {
+        if (locator.locations.cssSelector != null) {
+            // This locator has a cssSelector, no need to look anything up.
+            return locator
+        }
+
+        // Extract the progression from the locator, return locator if we can't.
+        val progression = locator.locations.progression ?: return locator
+
+        val cleanHref = locator.href.cleanHref()
+
+        // Get an iterator for the content of book.
+        val contentItems = publication.content(Locator(
+            href = cleanHref,
+            mediaType = MediaType.XHTML
+        )) ?: run {
+            Log.d(TAG, ":resolveLocator - no content service found")
+            return locator
+        }
+
+        // Last element with a lower progression than the locator's progression value.
+        var lastElement: Content.Element? = null
+
+        for (element in contentItems) {
+            if (element !is Content.TextElement) {
+                continue
+            }
+
+            if (element.locator.href.cleanHref().path != cleanHref.path) {
+                // We iterated to the next document, stopping
+                break
+            }
+
+            // Skip to next, if we don't have a progression.
+            val elementProgression = element.locator.locations.progression ?: continue
+
+            // This locator is an exact match, return it.
+            if (elementProgression == progression) return element.locator
+
+            // We have moved past the locator's progression
+            if (elementProgression > progression) break
+
+            lastElement = element
+        }
+
+        // If we found an element, return its locator otherwise return the original.
+        return lastElement?.locator ?: locator
     }
 
     override suspend fun seekTo(offset: Double) {
@@ -281,7 +341,7 @@ class TTSNavigator(
     override fun setupNavigatorListeners() {
         val navigator = ttsNavigator ?: run {
             Log.d(TAG, "::setupNavigatorListeners() - no ttsNavigator?")
-            return;
+            return
         }
 
         // Listen to state changes

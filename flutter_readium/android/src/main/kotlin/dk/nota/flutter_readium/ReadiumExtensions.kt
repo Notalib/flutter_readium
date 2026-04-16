@@ -16,7 +16,7 @@ import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
-import org.readium.r2.shared.publication.services.content.ContentService
+import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
@@ -242,7 +242,7 @@ fun Locator.copyWithTimeFragment(time: Double): Locator {
 fun Locator.copyWithTimeFragment(time: Int): Locator {
     return copy(
         locations = locations.copy(
-            fragments = listOf("t=${time.toInt()}")
+            fragments = listOf("t=${time}")
         )
     )
 }
@@ -256,20 +256,18 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
         return null
     }
 
-    val contentService = findService(ContentService::class) ?: run {
+    val cleanHref = href.cleanHref()
+
+    val contentItems = content(Locator(
+        href = cleanHref,
+        mediaType = MediaType.XHTML
+    )) ?: run {
         Log.d(TAG, ":findAllCssSelectors - no content service found")
         return null
     }
 
-    val cleanHref = href.cleanHref()
-
     val ids = arrayListOf<String>()
-    for (element in contentService.content(
-        Locator(
-            href = cleanHref,
-            mediaType = MediaType.XHTML
-        )
-    )) {
+    for (element in contentItems) {
         if (element !is Content.TextElement) {
             continue
         }
