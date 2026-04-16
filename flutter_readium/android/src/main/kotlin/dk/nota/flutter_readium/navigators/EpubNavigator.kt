@@ -176,7 +176,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             epubNavigator?.updatePreferences(preferences.toEpubPreferences())
 
             if (preferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
-                epubNavigator?.evaluateJavascript("window.SetBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
+                epubNavigator?.evaluateJavascript("window.setBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
             }
             state[epubPreferencesKey] = preferences
         } catch (ex: Exception) {

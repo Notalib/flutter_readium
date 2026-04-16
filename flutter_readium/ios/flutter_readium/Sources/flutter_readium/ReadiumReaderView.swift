@@ -277,12 +277,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
     self.readiumViewController.submitPreferences(preferences.readium)
-    
+
     if let blackAndWhiteMode = preferences.blackAndWhite {
       Task.detached(priority: .high) { [blackAndWhiteMode] in
-        let result = await self.readiumViewController.evaluateJavaScript("window.SetBlackAndWhiteMode(\(blackAndWhiteMode));")
+        let result = await self.readiumViewController.evaluateJavaScript("window.setBlackAndWhiteMode(\(blackAndWhiteMode));")
         if case .failure(let err) = result {
-          Log.reader.error("setUserPreferences.SetBlackAndWhiteMode error: \(err)")
+          Log.reader.error("setUserPreferences.setBlackAndWhiteMode error: \(err)")
         }
       }
     }
