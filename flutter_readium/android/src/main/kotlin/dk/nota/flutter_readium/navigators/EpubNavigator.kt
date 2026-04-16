@@ -197,8 +197,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
                 "window.flutterReadium.setFirstElementTopMargin(${flutterEpubPreferences.blackAndWhiteComicMode ?: "null"});"
             }
 
-            if (updateScript.isNotEmpty())
-            {
+            if (updateScript.isNotEmpty()) {
                 navigator.evaluateJavascript(updateScript)
             }
 
