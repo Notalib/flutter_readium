@@ -7,10 +7,13 @@ import 'package:rxdart/rxdart.dart';
 
 final Map<String, Locator> savedLocators = {};
 
+@immutable
 abstract class PublicationEvent {}
 
+@immutable
 class ClosePublication extends PublicationEvent {}
 
+@immutable
 class OpenPublication extends PublicationEvent {
   OpenPublication({required this.publicationUrl, this.initialLocator, this.autoPlay});
   final String publicationUrl;

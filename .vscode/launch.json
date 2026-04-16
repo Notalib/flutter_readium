@@ -9,21 +9,31 @@
       "cwd": "flutter_readium/example",
       "request": "launch",
       "type": "dart",
-      "flutterMode": "debug"
+      "flutterMode": "debug",
+      "preLaunchTask": "build_helper_scripts"
     },
     {
       "name": "example (profile mode)",
       "cwd": "flutter_readium/example",
       "request": "launch",
       "type": "dart",
-      "flutterMode": "profile"
+      "flutterMode": "profile",
+      "preLaunchTask": "build_helper_scripts"
     },
     {
       "name": "example (release mode)",
       "cwd": "flutter_readium/example",
       "request": "launch",
       "type": "dart",
-      "flutterMode": "release"
-    }
+      "flutterMode": "release",
+      "preLaunchTask": "build_helper_scripts"
+    },
+    {
+      "command": "npm run start",
+      "name": "Run comicbook demo",
+      "cwd": "${workspaceFolder}/flutter_readium/assets/_helper_scripts",
+      "request": "launch",
+      "type": "node-terminal"
+    },
   ]
 }

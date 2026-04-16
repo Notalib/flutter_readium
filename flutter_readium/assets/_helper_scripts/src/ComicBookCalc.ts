@@ -1,79 +1,92 @@
-import { AnimeAnimParams } from 'animejs';
-import { CanvasSize, ComicFrame, ComicFramePosition } from 'types';
+import { type AnimeAnimParams } from 'animejs';
+import { ViewSize, type ComicPageSize, type ComicPanel } from './types';
 
 // At which factor should we pane over a frame?
 const panningFactor = 1.75;
-const focusDuration = 750;
+const focusDuration = 500;
 const MAX_ZOOM_VALUE = 3;
-const framePadding = 10;
+const framePadding = 15;
 
 export class ComicBookCalc {
-  public static MakeKeyFrames(
-    currentFrame: ComicFrame,
-    canvasSize: CanvasSize,
+  /**
+   * Calculate the position and size of the full page frame.
+   * This is needed for the initial zoomed out view of the comic page, where the full page is shown within the container without
+   * odd flicker or unneeded animation of the image resizing.
+   * @param canvasSize
+   * @param availableWidth
+   * @param availableHeight
+   * @returns
+   */
+  public static calcFullPageComicFrame(canvasSize: ComicPageSize, availableWidth: number, availableHeight: number): ComicPanel {
+    return this.calcFramePositionAndSize({ ...canvasSize, top: 0, left: 0 }, canvasSize, availableWidth, availableHeight);
+  }
+
+  /**
+   * Make animation keyframes for a given frame and container size.
+   * @param currentFrame
+   * @param canvasSize
+   * @param availableWidth
+   * @param availableHeight
+   * @param duration
+   * @returns
+   */
+  public static makeKeyFrames(
+    currentFrame: ComicPanel,
+    canvasSize: ComicPageSize,
     availableWidth: number,
     availableHeight: number,
     duration: number,
   ): AnimeAnimParams[] {
-    const framePosition = ComicBookCalc.makeFramePosition(currentFrame);
-
     const keyframes: AnimeAnimParams[] = [
       {
-        ...ComicBookCalc.calcFramePositionAndSize(framePosition, canvasSize, availableWidth, availableHeight),
-        duration: focusDuration,
+        ...this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight),
+        duration: Math.max(0, Math.min(focusDuration, duration)),
         opacity: 1, // fixes odd jump at first render of the new image.
       },
     ];
 
-    let panFramePosition: ComicFramePosition;
-    let finalFramePosition: ComicFramePosition;
-    if (ComicBookCalc.shouldDoVerticalPanning(framePosition, availableHeight)) {
-      // Vertical pan from top to bottom
-      const topHalfFrame = {
-        ...currentFrame,
-        height: currentFrame.width,
-      };
+    if (!duration || duration <= focusDuration) {
+      return keyframes;
+    }
 
+    let panFramePosition: ComicPanel | undefined;
+    let finalFramePosition: ComicPanel | undefined;
+    if (this.shouldDoVerticalPanning(currentFrame, availableHeight)) {
       // Step 1.: Move to the top of the frame.
-      panFramePosition = ComicBookCalc.makeFramePosition(topHalfFrame);
+      panFramePosition = makeTopHalfComicFrame(currentFrame);
 
       // Step 2.: Pan downwards from the top of the frame to the bottom of the frame.
       // This means the top/left y coordinate end up being is frame's height - width;
-      finalFramePosition = ComicBookCalc.makeFramePosition(topHalfFrame);
-      finalFramePosition.topLeft.y += currentFrame.height - currentFrame.width + framePadding;
-
-      // this.debug(`${cls} - vertical panning from start: ${JSON.stringify(panFramePosition)} to tl.y: ${finalFramePosition.topLeft.y}`);
-    } else if (ComicBookCalc.shouldDoHorizontalPanning(framePosition, availableWidth)) {
-      // Horizontal pan from left to right
-      const leftHalfFrame = {
-        ...currentFrame,
-        width: currentFrame.height,
-      };
-
+      finalFramePosition = makeBottomHalfComicFrame(currentFrame);
+    } else if (this.shouldDoHorizontalPanning(currentFrame, availableWidth)) {
       // Step 1. Move to the left side of the frame.
-      panFramePosition = ComicBookCalc.makeFramePosition(leftHalfFrame);
+      panFramePosition = makeLeftHalfComicFrame(currentFrame);
 
       // Step 2. Pan leftwards from the left of the frame to the right side of the frame.
       // This means top/left x coordinate end up being frame's width - height.
-      finalFramePosition = ComicBookCalc.makeFramePosition(leftHalfFrame);
-      finalFramePosition.topLeft.x += currentFrame.width - currentFrame.height + framePadding;
-
-      // this.debug(`${cls} - horizontal panning from start: ${JSON.stringify(panFramePosition)} to tl.x: ${finalFramePosition.topLeft.x}`);
+      finalFramePosition = makeRightHalfComicFrame(currentFrame);
     }
 
-    if (panFramePosition && finalFramePosition) {
-      keyframes.push(
-        {
-          ...ComicBookCalc.calcFramePositionAndSize(panFramePosition, canvasSize, availableWidth, availableHeight),
-          duration: focusDuration,
-        },
-        {
-          ...ComicBookCalc.calcFramePositionAndSize(finalFramePosition, canvasSize, availableWidth, availableHeight),
-          // duration here is segment duration minus the 2x focusDuration from the first two steps of animation
-          duration: duration ?? 0 - 2 * focusDuration,
-        },
-      );
+    if (!panFramePosition || !finalFramePosition) {
+      return keyframes;
     }
+
+    if (duration <= focusDuration * 2) {
+      console.warn("ComicBookCalc.MakeKeyFrames() -> duration is too short for panning, skipping pan animation. duration: " + duration);
+      return keyframes;
+    }
+
+    keyframes.push(
+      {
+        ...this.calcFramePositionAndSize(panFramePosition, canvasSize, availableWidth, availableHeight),
+        duration: 0,
+      },
+      {
+        ...this.calcFramePositionAndSize(finalFramePosition, canvasSize, availableWidth, availableHeight),
+        // duration here is segment duration minus the 2x focusDuration from the first two steps of animation
+        duration: Math.max(0, (duration ?? 0) - 2 * focusDuration),
+      },
+    );
 
     return keyframes;
   }
@@ -85,7 +98,7 @@ export class ComicBookCalc {
    * AND
    * The frame's height is larger than the containers height * panningFactor
    */
-  protected static shouldDoVerticalPanning(framePosition: ComicFramePosition, availableHeight: number): boolean {
+  public static shouldDoVerticalPanning(framePosition: ComicPanel, availableHeight: number): boolean {
     return framePosition.height / framePosition.width >= panningFactor && framePosition.height > availableHeight * panningFactor;
   }
 
@@ -96,25 +109,34 @@ export class ComicBookCalc {
    * AND
    * The frame's width is larger than the containers width * panningFactor
    */
-  protected static shouldDoHorizontalPanning(framePosition: ComicFramePosition, availableWidth: number): boolean {
+  public static shouldDoHorizontalPanning(framePosition: ComicPanel, availableWidth: number): boolean {
     return framePosition.width / framePosition.height >= panningFactor && framePosition.width > availableWidth * panningFactor;
   }
 
+  public static calcScaleToFit(frame: ComicPanel, availableWidth: number, availableHeight: number): number {
+    // Start by getting width and height of the container minus the padding.
+    const { viewWidth, viewHeight } = this.getAvailableViewSize(availableWidth, availableHeight);
+
+    // Destruct the framing info into size and top/left-coordinates.
+    const {
+      width: frameWidth,
+      height: frameHeight,
+    } = frame;
+
+    return Math.min(MAX_ZOOM_VALUE, viewWidth / frameWidth, viewHeight / frameHeight);
+  }
+
   /**
-   * Convert a ComicFrame to a ComicFramePosition.
+   * Get available rendering viewport. Which is the container's size minus padding.
+   *
+   * @param availableWidth
+   * @param availableHeight
+   * @returns
    */
-  public static makeFramePosition({ left: x, top: y, width, height }: ComicFrame): ComicFramePosition {
+  private static getAvailableViewSize(availableWidth: number, availableHeight: number): ViewSize {
     return {
-      width,
-      height,
-      topLeft: {
-        x,
-        y,
-      },
-      bottomRight: {
-        x: x + width,
-        y: y + height,
-      },
+      viewWidth: availableWidth - framePadding * 2,
+      viewHeight: availableHeight - framePadding * 2,
     };
   }
 
@@ -124,10 +146,9 @@ export class ComicBookCalc {
    *
    * If the frame too large to fit within the container, the image will be resized.
    */
-  public static calcFramePositionAndSize(frame: ComicFramePosition, canvasSize: CanvasSize, availableWidth: number, availableHeight: number): ComicFrame {
+  public static calcFramePositionAndSize(frame: ComicPanel, canvasSize: ComicPageSize, availableWidth: number, availableHeight: number): ComicPanel {
     // Start by getting width and height of the container minus the padding.
-    const clientWidth = availableWidth - framePadding * 2;
-    const clientHeight = availableHeight - framePadding * 2;
+    const { viewWidth, viewHeight } = this.getAvailableViewSize(availableWidth, availableHeight);
 
     // Get image size info.
     const { width: imageWidth, height: imageHeight } = canvasSize;
@@ -136,48 +157,92 @@ export class ComicBookCalc {
     const {
       width: frameWidth,
       height: frameHeight,
-      topLeft: { x: frameX0, y: frameY0 },
+      top: frameY0,
+      left: frameX0,
     } = frame;
 
-    /*
-     * Scale factor for the frame to fit into the container
-     *
-     * If the frame is bigger than the container, the comic book page must be scaled down.
-     * The image will max be scaled up to value of MAX_ZOOM_VALUE
-     */
-    const scale = Math.min(MAX_ZOOM_VALUE, clientWidth / frameWidth, clientHeight / frameHeight);
-
-    // eslint-disable-next-line max-len
-    // this.debug(`ComicViewerComponent.calcFramePositionAndSize() -> scale: ${scale} -> ${MAX_ZOOM_VALUE} -> ${clientWidth / frameWidth} -> ${clientHeight / frameHeight}`);
+    // Calculate the scale factor needed to fit the frame within the container.
+    const scaleFactor = this.calcScaleToFit(frame, availableWidth, availableHeight);
 
     // Resize the image if needed
-    const scaledImageWidth = imageWidth * scale;
-    const scaledImageHeight = imageHeight * scale;
+    const scaledImageWidth = imageWidth * scaleFactor;
+    const scaledImageHeight = imageHeight * scaleFactor;
 
-    // Scaled top/left coordinates are a result of the original coordinate * scale.
-    const scaledFrameX0 = -(frameX0 * scale);
-    const scaledFrameY0 = -(frameY0 * scale);
+    // Scaled top/left coordinates are a result of the original coordinate * scaleFactor.
+    const scaledFrameX0 = -(frameX0 * scaleFactor);
+    const scaledFrameY0 = -(frameY0 * scaleFactor);
 
     // The frame needs to be centered, if the scaled frame size is smaller than the container size.
-    const scaledFrameWidth = frameWidth * scale;
+    const scaledFrameWidth = frameWidth * scaleFactor;
+    const scaledFrameHeight = frameHeight * scaleFactor;
 
-    let xCentering = 0;
-    let yCentering = 0;
+    // Centering is done by calculating the difference between the container size and the scaled frame size, and dividing it by 2 to get the centering offset.
+    const xCentering = (viewWidth - scaledFrameWidth) / 2;
+    const yCentering = (viewHeight - scaledFrameHeight) / 2;
 
-    if (scaledFrameWidth < clientWidth) {
-      xCentering = (clientWidth - scaledFrameWidth) / 2;
-    }
-
-    const scaledFrameHeight = frameHeight * scale;
-    if (scaledFrameHeight < clientHeight) {
-      yCentering = (clientHeight - scaledFrameHeight) / 2;
-    }
+    // Final top/left coordinates are a result of the scaled frame coordinates plus the centering offset.
+    const scaledTopOffset = yCentering + scaledFrameY0 + framePadding;
+    const scaledLeftOffset = xCentering + scaledFrameX0 + framePadding;
 
     return {
-      top: yCentering + scaledFrameY0 + framePadding,
-      left: xCentering + scaledFrameX0 + framePadding,
+      top: scaledTopOffset,
+      left: scaledLeftOffset,
       width: scaledImageWidth,
       height: scaledImageHeight,
     };
+  }
+}
+
+/**
+ * Make a comic frame that is the top half of the original frame.
+ * This is used as the starting position for vertical panning, where we start at the top of the frame and pan downwards to the bottom of the frame.
+ * @param frame
+ * @returns
+ */
+function makeTopHalfComicFrame(frame: ComicPanel): ComicPanel {
+  return {
+    ...frame,
+    height: frame.width,
+  };
+}
+
+/**
+ * Make a comic frame that is the bottom half of the original frame.
+ * This is used as the ending position for vertical panning, where we start at the top of the frame and pan to the bottom of the frame.
+ * The top/left y coordinate end up being is frame's height - width.
+ * @param frame
+ * @returns
+ */
+function makeBottomHalfComicFrame(frame: ComicPanel): ComicPanel {
+  return {
+    ...makeTopHalfComicFrame(frame),
+    top: frame.top + frame.height - frame.width + framePadding,
+  }
+}
+
+/**
+ * Make a comic frame that is the left half of the original frame.
+ * This is used as the starting position for horizontal panning, where we start at the left of the frame and pan to the right side of the frame.
+ * @param frame
+ * @returns
+ */
+function makeLeftHalfComicFrame(frame: ComicPanel): ComicPanel {
+  return {
+    ...frame,
+    width: frame.height,
+  };
+}
+
+/**
+ * Make a comic frame that is the right half of the original frame.
+ * This is used as the ending position for horizontal panning, where we start at the left of the frame and pan to the right side of the frame.
+ * The top/left x coordinate end up being frame's width - height.
+ * @param frame
+ * @returns
+ */
+function makeRightHalfComicFrame(frame: ComicPanel): ComicPanel {
+  return {
+    ...makeLeftHalfComicFrame(frame),
+    left: frame.left + frame.width - frame.height + framePadding,
   }
 }

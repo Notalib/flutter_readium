@@ -1,4 +1,4 @@
-import * as MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import * as webpack from 'webpack';
 import { merge } from 'webpack-merge';
 import devConfig from './webpack.dev';
@@ -10,7 +10,6 @@ export default function (): webpack.Configuration {
 
   const commonConfig = <webpack.Configuration>{
     entry: {
-      comics: './src/ComicBookPage.ts',
       flutterReadiumTools: './src/FlutterReadiumTools.ts',
     },
     output: {

@@ -118,7 +118,7 @@ function _checkIfMostlyEmptyTable(table: HTMLTableElement) {
 
 function _flattenTable(table: HTMLTableElement) {
   // If headlines in the columns, transform the table so that the script following can transform it to match the other tables correctly
-  const theadThText = table.querySelector('thead th').textContent;
+  const theadThText = table.querySelector('thead th')!.textContent;
   const tbodyTds = Array.from(table.querySelectorAll('tbody td'));
 
   // Clear the table and start the transformation

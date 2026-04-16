@@ -6,39 +6,55 @@ import '../extensions/text_settings_theme.dart';
 
 abstract class TextSettingsEvent {}
 
+@immutable
 class ChangeFontSize extends TextSettingsEvent {
   ChangeFontSize(this.value);
   final int value;
 }
 
+@immutable
 class ToggleVerticalScroll extends TextSettingsEvent {}
 
+@immutable
 class ChangeTheme extends TextSettingsEvent {
   ChangeTheme(this.theme);
   final TextSettingsTheme theme;
 }
 
+@immutable
 class ChangeHighlight extends TextSettingsEvent {
   ChangeHighlight(this.highlight);
   final TextSettingsTheme highlight;
 }
 
+@immutable
 class OpenPubSuccess extends TextSettingsEvent {}
 
+@immutable
+class ToggleBlackAndWhiteComicMode extends TextSettingsEvent {}
+
+@immutable
+class ToggleDisableSynchronization extends TextSettingsEvent {}
+
+@immutable
 class TextSettingsState {
-  TextSettingsState({
+  const TextSettingsState({
     required this.verticalScroll,
     required this.fontSize,
     required this.theme,
     required this.highlight,
     this.pageMargins,
+    this.blackAndWhiteComicMode = false,
+    this.disableSynchronization = false,
   });
 
-  bool verticalScroll;
-  int fontSize;
-  TextSettingsTheme theme;
-  TextSettingsTheme highlight;
-  double? pageMargins;
+  final bool verticalScroll;
+  final int fontSize;
+  final TextSettingsTheme theme;
+  final TextSettingsTheme highlight;
+  final double? pageMargins;
+  final bool blackAndWhiteComicMode;
+  final bool disableSynchronization;
 
   @override
   String toString() =>
@@ -50,6 +66,8 @@ class TextSettingsState {
     final TextSettingsTheme? theme,
     final TextSettingsTheme? highlight,
     final double? pageMargins,
+    final bool? blackAndWhiteComicMode,
+    final bool? disableSynchronization,
   }) {
     final newState = TextSettingsState(
       verticalScroll: verticalScroll ?? this.verticalScroll,
@@ -57,6 +75,8 @@ class TextSettingsState {
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
       pageMargins: pageMargins ?? this.pageMargins,
+      blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+      disableSynchronization: disableSynchronization ?? this.disableSynchronization,
     );
 
     return newState;
@@ -71,10 +91,12 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       fontFamily: 'Original',
       fontSize: state.fontSize,
       fontWeight: 1.0,
-      verticalScroll: state.verticalScroll,
+      scroll: state.verticalScroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
+      disableSynchronization: state.disableSynchronization,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
@@ -84,30 +106,28 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       fontFamily: 'Original',
       fontSize: state.fontSize,
       fontWeight: 1.0,
-      verticalScroll: state.verticalScroll,
+      scroll: state.verticalScroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
+      disableSynchronization: state.disableSynchronization,
     );
     instance.setDefaultPreferences(defaultPreferences);
   }
 
   TextSettingsBloc()
-      : super(
-          TextSettingsState(
-            verticalScroll: false,
-            fontSize: 120,
-            theme: TextSettingsTheme(
-              textColor: themes[1].textColor,
-              backgroundColor: themes[1].backgroundColor,
-            ),
-            highlight: TextSettingsTheme(
-              textColor: highlights[0].textColor,
-              backgroundColor: highlights[0].backgroundColor,
-            ),
-            pageMargins: kIsWeb ? 35 : null,
-          ),
-        ) {
+    : super(
+        TextSettingsState(
+          verticalScroll: false,
+          fontSize: 120,
+          theme: themes[1],
+          highlight: highlights[0],
+          pageMargins: kIsWeb ? 35 : null,
+          blackAndWhiteComicMode: false,
+          disableSynchronization: false,
+        ),
+      ) {
     on<ChangeFontSize>((final event, final emit) {
       emit(state.copyWith(fontSize: event.value));
       submitPreferenceUpdate();
@@ -115,6 +135,16 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
 
     on<ToggleVerticalScroll>((final event, final emit) {
       emit(state.copyWith(verticalScroll: !state.verticalScroll));
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleBlackAndWhiteComicMode>((final event, final emit) {
+      emit(state.copyWith(blackAndWhiteComicMode: !state.blackAndWhiteComicMode));
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleDisableSynchronization>((final event, final emit) {
+      emit(state.copyWith(disableSynchronization: !state.disableSynchronization));
       submitPreferenceUpdate();
     });
 

@@ -7,7 +7,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
-import org.readium.r2.shared.util.mediatype.MediaType
 import java.io.Serializable
 
 private const val TAG = "FlutterMediaOverlay"
@@ -29,17 +28,20 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     /**
      * The audio file Url.
      */
-    private val audioUrl = Url.invoke(audioFile)
+    private val audioUrl
+        get() = Url.invoke(audioFile)
 
     /**
      * The text file Url.
      */
-    private val textUrl = Url.invoke(textFile)
+    private val textUrl
+        get() = Url.invoke(textFile)
 
     /**
      * The total duration of the audio, based on the end time of the last item.
      */
-    val duration = items.lastOrNull()?.audioEnd ?: 0.0
+    val duration
+        get() = items.lastOrNull()?.audioEnd ?: 0.0
 
     /**
      * Find the media overlay item for the given file and time.
@@ -91,7 +93,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
             return findItemFromTextId(href, textId)
         }
 
-        if (locator.locations.fragments.isEmpty() && (locator.mediaType == MediaType.HTML || locator.mediaType == MediaType.XHTML)) {
+        if (locator.locations.fragments.isEmpty() && locator.mediaType.isHtml) {
             // If there is no fragment, and it is a HTML locator, we return the first item for the href
             Log.d(
                 TAG,

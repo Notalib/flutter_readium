@@ -74,7 +74,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
         self.nowPlayingUpdater.updateChapterNo(chapterNo)
         self.nowPlayingUpdater.updateCommandCenterControls()
-        listener?.timebasedNavigator(self, reachedLocator: locator)
+        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
       }
       .store(in: &subscriptions)
 
@@ -88,7 +88,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
         }
 
         Log.navigator.debug("Sync reader-view to new TTS locator")
-        listener?.timebasedNavigator(self, reachedLocator: locator)
+        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
       }
       .store(in: &subscriptions)
   }

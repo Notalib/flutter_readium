@@ -1,9 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
+import 'package:meta/meta.dart';
 
 import '../utils/jsonable.dart';
 import 'reader_audio_preferences.dart';
 
-class TTSPreferences implements JSONable {
+@immutable
+class TTSPreferences with EquatableMixin implements JSONable {
   factory TTSPreferences.fromJson(final Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -11,7 +14,7 @@ class TTSPreferences implements JSONable {
     final pitch = jsonObject.optDouble('pitch', remove: true);
     final voiceIdentifier = jsonObject.optNullableString('voiceIdentifier', remove: true);
     final voicesJson = jsonObject.optJsonObject('voices', remove: true) ?? {};
-    final Map<String, String> voices = Map.fromEntries(
+    final voices = Map<String, String>.fromEntries(
       voicesJson.entries
           .where((entry) => entry.value is String)
           .map((entry) => MapEntry(entry.key, entry.value as String)),
@@ -74,4 +77,7 @@ class TTSPreferences implements JSONable {
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
     ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last);
+
+  @override
+  List<Object?> get props => [speed, pitch, voiceIdentifier, voices, languageOverride, controlPanelInfoType];
 }
