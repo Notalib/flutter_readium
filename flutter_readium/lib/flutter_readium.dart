@@ -172,7 +172,7 @@ class FlutterReadium {
   /// A negative [offset] seeks backward; a positive value seeks forward.
   Future<void> audioSeekBy(Duration offset) => _platform.audioSeekBy(offset);
 
-  /// Navigates the reader to the physical page matching [index] within [pub].
+  /// Navigates the reader to the physical page matching [index] within the Publication [pub].
   ///
   /// The lookup is case-insensitive and matched against the publication's page list.
   /// Throws a [ReadiumException] if no matching page link is found.
@@ -184,21 +184,13 @@ class FlutterReadium {
       throw const ReadiumException('Page link not found');
     }
 
-    return _goByLink(pageLink, pub);
+    return goByLink(pageLink, pub);
   }
 
-  /// Searches for [searchKey] in the currently opened publication and returns a list of matching results.
-  Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
-      _platform.searchInPublication(searchKey);
-
-  ///////////////////////
-  /// Private helpers ///
-  ///////////////////////
-
-  /// Helper method for navigating the reader to the position corresponding to the given [link] within [pub].
+  /// Navigates the reader to the position corresponding to the given [link] within the Publication [pub].
   ///
   /// Throws a [ReadiumException] if the link cannot be resolved to a locator.
-  Future<bool> _goByLink(final Link link, final Publication pub) async {
+  Future<bool> goByLink(final Link link, final Publication pub) async {
     R2Log.d(() => 'Navigating to link: $link');
 
     final locator = pub.locatorFromLink(link);
@@ -211,6 +203,14 @@ class FlutterReadium {
 
     return goToLocator(locator);
   }
+
+  /// Searches for [searchKey] in the currently opened publication and returns a list of matching results.
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
+      _platform.searchInPublication(searchKey);
+
+  ///////////////////////
+  /// Private helpers ///
+  ///////////////////////
 
   /// Helper method to skip to the next or previous TOC item based on the given [direction] (1 for next, -1 for previous).
   Future<void> _skipToTOCItem(Publication publication, String currentTocHref, int direction) async {
