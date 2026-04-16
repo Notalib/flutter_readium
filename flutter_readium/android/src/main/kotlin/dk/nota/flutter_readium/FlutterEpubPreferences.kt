@@ -45,7 +45,8 @@ data class FlutterEpubPreferences(
     val verticalText: Boolean? = null,
     val wordSpacing: Double? = null,
     val blackAndWhiteComicMode: Boolean? = false,
-    val disableSynchronization: Boolean? = false
+    val disableSynchronization: Boolean? = false,
+    val firstElementTopMargin: Int? = null,
 ) : Configurable.Preferences<FlutterEpubPreferences> {
     override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences {
         return FlutterEpubPreferences(
@@ -76,6 +77,7 @@ data class FlutterEpubPreferences(
             wordSpacing = other.wordSpacing ?: wordSpacing,
             blackAndWhiteComicMode = other.blackAndWhiteComicMode ?: blackAndWhiteComicMode,
             disableSynchronization = other.disableSynchronization ?: disableSynchronization,
+            firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin
         )
     }
 

@@ -11,7 +11,7 @@
 }
 
 body > *:first-child {
-  margin-top: 50px !important;
+  margin-top: var(--FLUTTER_READIUM-first-element-top-margin) !important;
 }
 
 //TODO: Temporary fix for https://github.com/readium/readium-css/issues/129#issue-1856586505
