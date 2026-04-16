@@ -334,9 +334,9 @@ declare global {
 
     isNotaComicBook: () => boolean;
     comicBookPage?: NotaComicBook;
-    GotoComicFrame: (id: string, duration: number) => void;
-    SetBlackAndWhiteMode: (enable: boolean) => void;
-    IsBlackAndWhiteEnabled: () => boolean;
+    gotoComicFrame: (id: string, duration: number) => void;
+    setBlackAndWhiteMode: (enable: boolean) => void;
+    isBlackAndWhiteEnabled: () => boolean;
   }
 }
 
@@ -364,18 +364,18 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', Setup);
 }
 
-window.IsBlackAndWhiteEnabled = () => {
+window.isBlackAndWhiteEnabled = () => {
   return !!NotaComicBook.isBlackAndWhiteEnabled()
 };
 
-window.SetBlackAndWhiteMode = (enable: boolean) => {
+window.setBlackAndWhiteMode = (enable: boolean) => {
   NotaComicBook.setBlackAndWhiteMode(enable);
 };
 
-window.GotoComicFrame = (id: string, duration: number) => {
+window.gotoComicFrame = (id: string, duration: number) => {
   if (window.comicBookPage) {
     window.comicBookPage.gotoComicFrame(id, duration);
   } else {
-    console.warn("GotoComicFrame: Comic book page is not available.");
+    console.warn("gotoComicFrame: Comic book page is not available.");
   }
 }
