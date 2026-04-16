@@ -5,6 +5,10 @@ import { getCssSelector } from "css-selector-generator";
 import './FlutterReadiumTools.scss';
 
 class FlutterReadiumTools {
+  constructor() {
+    this.setFirstElementTopMargin(this.#getFirstElementTopMargin());
+  }
+
   get #isScrollModeEnabled(): boolean {
     return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
@@ -69,6 +73,30 @@ class FlutterReadiumTools {
     if (window.comicBookPage) {
       window.comicBookPage.segmentDuration = duration;
     }
+  }
+
+  public setFirstElementTopMargin(margin: number | void | null) {
+    const cssVariableName = '--FLUTTER_READIUM-first-element-top-margin';
+    if (margin == null) {
+      document.documentElement.style.removeProperty(cssVariableName);
+      window.sessionStorage.removeItem('flutterReadium_firstElementTopMargin');
+    } else {
+      document.documentElement.style.setProperty(cssVariableName, `${margin}px`);
+      window.sessionStorage.setItem('flutterReadium_firstElementTopMargin', `${margin}`);
+    }
+  }
+
+  firstElementTopMarginKeyname = 'flutterReadium_firstElementTopMargin';
+  #getFirstElementTopMargin(): number | null {
+    const marginStr = window.sessionStorage.getItem(this.firstElementTopMarginKeyname);
+    if (marginStr) {
+      const margin = parseInt(marginStr, 10);
+      if (!isNaN(margin)) {
+        return margin;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -236,7 +264,7 @@ class FlutterReadiumTools {
     const result = document.evaluate(
       'preceding::*[@epub:type="pagebreak" or @type="pagebreak" or @role="doc-pagebreak" or contains(@class,"pagebreak")][1]',
       element,
-      (prefix: string | null) => {
+      (prefix: string | null) => {
         if (prefix === "epub") {
           return "http://www.idpf.org/2007/ops";
         }
@@ -337,6 +365,7 @@ declare global {
     gotoComicFrame: (id: string, duration: number) => void;
     setBlackAndWhiteMode: (enable: boolean) => void;
     isBlackAndWhiteEnabled: () => boolean;
+    setFirstElementTopMargin: (margin: number | void | null) => void;
   }
 }
 
@@ -379,3 +408,4 @@ window.gotoComicFrame = (id: string, duration: number) => {
     console.warn("gotoComicFrame: Comic book page is not available.");
   }
 }
+
