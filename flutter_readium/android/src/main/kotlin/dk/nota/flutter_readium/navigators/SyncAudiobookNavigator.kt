@@ -6,7 +6,6 @@ import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.getTimeOffset
-import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -215,18 +214,25 @@ class SyncAudiobookNavigator(
             mo?.findItemFromLocator(locator)
         }
 
-        val newLocator = mediaOverlay?.skipToAudioLocator ?: return null
+        val syncAudioLocator = mediaOverlay?.skipToAudioLocator ?: run {
+            Log.e(
+                TAG,
+                "::mapTextLocatorToMediaOverlayLocator couldn't resolve $locator to a media overlay with an audio locator"
+            )
+            return null
+        }
 
         val timeOffset =
             locator.locations.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
-                ?: locator.getTimeOffset()
+                ?: locator.getTimeOffset() ?: run {
+                    // No time offset, return as is.
+                    return syncAudioLocator
+                }
 
-        val res = letIfBothNotNull(newLocator, timeOffset)?.let { (nl, timeOffset) ->
-            nl.copyWithTimeFragment(timeOffset)
-        } ?: newLocator
+        val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
 
-        Log.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $res")
-        return res
+        Log.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $updateSyncAudioLocator")
+        return updateSyncAudioLocator
     }
 
     override fun dispose() {
