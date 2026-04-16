@@ -28,6 +28,7 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
+import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi

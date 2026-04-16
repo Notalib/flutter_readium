@@ -22,10 +22,7 @@ class TextSettingsWidget extends StatelessWidget {
               header: true,
               child: const Align(
                 alignment: Alignment.center,
-                child: Text(
-                  'Text settings',
-                  style: TextStyle(fontSize: 25),
-                ),
+                child: Text('Text settings', style: TextStyle(fontSize: 25)),
               ),
             ),
           ),
@@ -59,47 +56,57 @@ class TextSettingsWidget extends StatelessWidget {
                 ),
                 const Divider(),
                 ListItemWidget(
-                  label: 'Theme',
-                  child: ThemeSelectorWidget(
-                    themes: themes,
-                    isHighlight: false,
+                  label: 'Black and White Comic Mode',
+                  isVerticalAlignment: true,
+                  child: Switch(
+                    value: state.blackAndWhiteComicMode,
+                    onChanged: (final value) {
+                      textSettingsBloc.add(ToggleBlackAndWhiteComicMode());
+                    },
                   ),
                 ),
                 const Divider(),
                 ListItemWidget(
-                  label: 'Highlight',
-                  child: ThemeSelectorWidget(
-                    themes: highlights,
-                    isHighlight: true,
+                  label: 'Disable Synchronization',
+                  isVerticalAlignment: true,
+                  child: Switch(
+                    value: state.disableSynchronization,
+                    onChanged: (final value) {
+                      textSettingsBloc.add(ToggleDisableSynchronization());
+                    },
                   ),
                 ),
                 const Divider(),
+                ListItemWidget(
+                  label: 'Theme',
+                  child: ThemeSelectorWidget(themes: themes, isHighlight: false),
+                ),
+                const Divider(),
+                ListItemWidget(
+                  label: 'Highlight',
+                  child: ThemeSelectorWidget(themes: highlights, isHighlight: true),
+                ),
+                const Divider(),
                 TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: ButtonStyle(
-                      padding: WidgetStateProperty.all<EdgeInsets>(
-                        const EdgeInsets.symmetric(vertical: 16.0),
-                      ),
-                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0.0),
-                        ),
-                      ),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
+                    shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      spacing: 8.0,
-                      children: [
-                        Icon(Icons.close, size: 20),
-                        // SizedBox(width: 10),
-                        Text(
-                          'Close',
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      ],
-                    ))
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: 8.0,
+                    children: [
+                      Icon(Icons.close, size: 20),
+                      // SizedBox(width: 10),
+                      Text('Close', style: TextStyle(fontSize: 20)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

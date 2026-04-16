@@ -1,6 +1,7 @@
 package dk.nota.flutter_readium.models
 
 import dk.nota.flutter_readium.copyWithTocHref
+import dk.nota.flutter_readium.letIfBothNotNull
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
@@ -78,6 +79,11 @@ data class FlutterMediaOverlayItem(
     val audioEnd: Double? = audioTime?.substringAfter(",")?.toDoubleOrNull()
 
     /**
+     * The duration of the segment.
+     */
+    val duration: Double? = letIfBothNotNull(audioEnd, audioStart)?.let { (end, start) -> end - start }
+
+    /**
      * Is this item in range for the given file reference and time offset?
      */
     fun isInRange(fileRef: Url, time: Double): Boolean {
@@ -148,7 +154,12 @@ data class FlutterMediaOverlayItem(
          * Creates a [FlutterMediaOverlayItem] from a JSON object.
          * Returns null if the JSON object does not contain valid "audio" and "text"
          */
-        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String): FlutterMediaOverlayItem? {
+        fun fromJson(
+            json: JSONObject,
+            position: Int,
+            tocHref: Url?,
+            title: String
+        ): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
             return if (audio != "" && text != "") {

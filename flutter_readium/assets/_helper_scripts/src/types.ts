@@ -1,32 +1,33 @@
-export interface CanvasSize {
+/**
+ * The comic book page's real size.
+ */
+export interface ComicPageSize {
   height: number;
   width: number;
 }
 
-export interface ComicFrame extends CanvasSize {
+/**
+ * The size and position of a comic panel on a comic book page.
+ */
+export interface ComicPanel extends ComicPageSize {
   left: number;
   top: number;
 }
 
-export interface ComicFramePosition {
-  width: number;
-  height: number;
-  topLeft: {
-    x: number;
-    y: number;
-  };
-  bottomRight: {
-    x: number;
-    y: number;
-  };
+/**
+ * The size of the viewport that the comic book page is being displayed in.
+ */
+export interface ViewSize {
+  viewHeight: number;
+  viewWidth: number;
 }
 
 /**
  * Readium JS library injected by kotlin/swift-toolkit.
  **/
 export interface Readium {
-  get isFixedLayout(): boolean | undefined;
-  get isReflowable(): boolean | undefined;
+  isFixedLayout: boolean | undefined;
+  isReflowable: boolean | undefined;
 
   /**
    * @param progression // Position must be in the range [0 - 1], 0-100%.
@@ -150,4 +151,13 @@ export interface PageInformation {
    * The id of the nearest ToC element to the current reading position. Either the first visible ToC element id or the nearest preceding ToC element id. This is null if no ToC element is found.
    */
   tocId?: string | null;
+}
+
+export const figureQuerySelector = 'body > figure:has(img:first-child + div.area)';
+
+
+declare global {
+  interface Window {
+    readium?: Readium;
+  }
 }

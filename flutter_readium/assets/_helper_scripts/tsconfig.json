@@ -5,8 +5,7 @@
     "noImplicitAny": true,
     "inlineSourceMap": true,
     "module": "commonjs",
-    "target": "es6",
-    "outDir": "./dist",
+    "target": "es2016",
     "allowJs": true,
     "moduleResolution": "node",
     "baseUrl": ".",
@@ -14,7 +13,8 @@
       "*": [
         "src/*"
       ]
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": [
     "src/**/*",

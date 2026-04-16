@@ -37,6 +37,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
 
   var publicationIdentifier: String?
@@ -67,7 +68,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     self.publication = publication
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
-    let defaultPreferences = preferencesMap == nil ? nil : EPUBPreferences.init(fromMap: preferencesMap!!)
+    let initWithPreferences = preferencesMap == nil ? nil : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
     var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
@@ -104,8 +105,9 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
-    if (defaultPreferences != nil) {
-      config.preferences = defaultPreferences!
+    if let preferences = initWithPreferences {
+      config.preferences = preferences.readium
+      self.preferences = preferences
     }
 
     readiumViewController = try! EPUBNavigatorViewController(
@@ -138,7 +140,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
     publicationIdentifier = publication.metadata.identifier
-    
+
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
       self.initUserScripts(registrar: registrar)
@@ -273,8 +275,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  private func setUserPreferences(preferences: EPUBPreferences) {
-    self.readiumViewController.submitPreferences(preferences)
+  private func setUserPreferences(preferences: FlutterEPUBPreferences) {
+    self.readiumViewController.submitPreferences(preferences.readium)
+    
+    if let blackAndWhiteMode = preferences.blackAndWhite {
+      Task.detached(priority: .high) { [blackAndWhiteMode] in
+        let result = await self.readiumViewController.evaluateJavaScript("window.SetBlackAndWhiteMode(\(blackAndWhiteMode));")
+        if case .failure(let err) = result {
+          Log.reader.error("setUserPreferences.SetBlackAndWhiteMode error: \(err)")
+        }
+      }
+    }
   }
 
   private func emitOnPageChanged(locator: Locator) -> Void {
@@ -324,6 +335,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+  }
+  
+  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+    Log.reader.debug("syncToLocator: \(locator)")
+    if (preferences?.disableSync == true) {
+      return false
+    }
+    if let duration = segmentDuration {
+      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(duration * 1000.0));");
+    }
+    return await goToLocator(locator, animated: animated)
   }
 
   private func emitOnPageChanged() {
@@ -389,10 +411,11 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       }
       break
     case "setPreferences":
-      let args = call.arguments as! [String: String]
+      let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
-      let preferences = EPUBPreferences.init(fromMap: args)
+      let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
+      self.preferences = preferences
       break
     case "applyDecorations":
       let args = call.arguments as! [Any?]
@@ -423,16 +446,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   }
 
   func initUserScripts(registrar: FlutterPluginRegistrar) {
-    let comicJsKey = registrar.lookupKey(forAsset: "assets/helpers/comics.js", fromPackage: "flutter_readium")
-    let comicCssKey = registrar.lookupKey(forAsset: "assets/helpers/comics.css", fromPackage: "flutter_readium")
     let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
     let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-    let jsScripts = [comicJsKey, flutterReadiumJsKey].map { sourceFile -> String in
+    let jsScripts = [flutterReadiumJsKey].map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!
       return String(data: data, encoding: .utf8)!
     }
-    let addCssScripts = [comicCssKey, flutterReadiumCssKey].map { sourceFile -> String in
+    let addCssScripts = [flutterReadiumCssKey].map { sourceFile -> String in
       let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
       let data = FileManager().contents(atPath: path)!.base64EncodedString()
       return """
@@ -454,13 +475,13 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    
+
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
       let data = try JSONEncoder().encode(tocFragments)
       if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
-        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON); console.log('ToC IDs were injected!')"
+        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON);"
         userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
       }
     } catch (let err) {

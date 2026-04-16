@@ -39,7 +39,6 @@ import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
 import org.readium.r2.navigator.Decoration
-import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -298,6 +297,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
                             initNavigator()
                             Log.d(TAG, ":storeState - epubNavigator restored")
+                            setDecorationStyle(decorationStyle)
                         }
                 }
             }
@@ -429,8 +429,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
                 val tocIds = manifest.tableOfContents.flattenChildren()
                     .mapNotNull { it.href.resolve().fragment }
-                container = TransformingContainer(container) { _: Url, resource: Resource ->
-                    resource.injectScriptsAndStyles(tocIds)
+                container = TransformingContainer(container) { url: Url, resource: Resource ->
+                    if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
+                        resource.injectScriptsAndStyles(tocIds)
+                    else
+                        resource
+
                 }
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")
@@ -652,7 +656,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     override fun onTimebasedLocationChanged(locator: Locator) {
         Log.d(TAG, ":onTimebasedLocationChanged $locator")
 
-        currentReaderWidget?.go(locator, true)
+        epubSyncToLocator(locator, true)
     }
 
     /**
@@ -713,7 +717,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     @OptIn(InternalReadiumApi::class)
     suspend fun epubEnable(
         initialLocator: Locator?,
-        initialPreferences: EpubPreferences,
+        initialPreferences: FlutterEpubPreferences,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget
@@ -737,6 +741,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 initNavigator()
                 epubNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
+                setDecorationStyle(decorationStyle)
                 return@withScope
             }
         }
@@ -831,10 +836,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun play(locator: Locator?) {
-        val fromLocator = locator ?:
-            currentTimebasedLocator.value ?:
-            currentTextLocator.value ?:
-            epubFirstVisibleElementLocator()
+        val fromLocator = locator ?: currentTimebasedLocator.value ?: currentTextLocator.value
+        ?: epubFirstVisibleElementLocator()
 
         Log.d(TAG, ":play($locator) - fromLocator:$fromLocator")
 
@@ -892,9 +895,11 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun goToLocator(locator: Locator) {
         if (timebasedNavigator != null) {
             Log.d(TAG, "::goToLocator - timebased $locator")
-            timebasedNavigator!!.goToLocator(locator.copy(
-                text = Locator.Text()
-            ))
+            timebasedNavigator?.goToLocator(
+                locator.copy(
+                    text = Locator.Text()
+                )
+            )
         } else {
             epubGoToLocator(locator, true)
         }
@@ -907,7 +912,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         val resultIterator = pub.search(query, SearchService.Options()) ?: return failure(
             Error("SearchService unavailable")
         )
-        var results = mutableListOf<LocatorCollection>()
+        val results = mutableListOf<LocatorCollection>()
         while (true) {
             val result = resultIterator.next()
             if (result.isFailure) break
@@ -964,7 +969,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun applyDecorations(
         decorations: List<Decoration>, group: String
     ) {
-        epubNavigator?.applyDecorations(decorations, group)
+        val navigator = epubNavigator ?: return
+
+        navigator.applyDecorations(decorations, group)
     }
 
     override fun onPageLoaded() {
@@ -990,40 +997,82 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     suspend fun epubFirstVisibleElementLocator(): Locator? {
-        return epubNavigator?.firstVisibleElementLocator()
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubFirstVisibleElementLocator called without a epubNavigator")
+            return null
+        }
+
+        return navigator.firstVisibleElementLocator()
     }
 
     suspend fun epubEvaluateJavascript(script: String): String? {
-        return epubNavigator?.evaluateJavascript(script)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubEvaluateJavascript called without a epubNavigator")
+            return null
+        }
+
+        return navigator.evaluateJavascript(script)
     }
 
     /**
      * Update EPUB navigator preferences.
      */
-    fun epubUpdatePreferences(preferences: EpubPreferences) {
-        epubNavigator?.updatePreferences(preferences)
+    suspend fun epubUpdatePreferences(preferences: FlutterEpubPreferences) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubUpdatePreferences called without a epubNavigator")
+            return
+        }
+
+        navigator.updatePreferences(preferences)
     }
 
     /**
      * Navigate backward in the EPUB navigator.
      */
     suspend fun epubGoBackward(animated: Boolean) {
-        epubNavigator?.goBackward(animated)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoBackward called without a epubNavigator")
+            return
+        }
+
+        navigator.goBackward(animated)
     }
 
     /**
      * Navigate forward in the EPUB navigator.
      */
     suspend fun epubGoForward(animated: Boolean) {
-        epubNavigator?.goForward(animated)
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoForward called without a epubNavigator")
+            return
+        }
+
+        navigator.goForward(animated)
     }
 
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    fun epubGoToLocator(locator: Locator, animated: Boolean) {
+    suspend fun epubGoToLocator(locator: Locator, animated: Boolean) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoToLocator called without a epubNavigator")
+            return
+        }
+
+        navigator.goToLocator(locator, animated)
+    }
+
+    /**
+     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator]
+     */
+    fun epubSyncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
+        val navigator = epubNavigator ?: return
         mainScope.launch {
-            epubNavigator?.goToLocator(locator, animated)
+            if (navigator.preferences?.disableSynchronization == true) {
+                return@launch
+            }
+
+            navigator.goToLocator(locator, animated, segmentDuration)
         }
     }
 
