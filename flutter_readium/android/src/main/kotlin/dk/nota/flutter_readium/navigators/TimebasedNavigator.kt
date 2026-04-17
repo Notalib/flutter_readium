@@ -58,6 +58,8 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
 
     // Possible states for a time-based navigator.
     enum class TimebasedState {
+        None,
+
         Playing,
 
         Paused,

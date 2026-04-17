@@ -858,13 +858,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             audiobookNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         syncAudiobookNavigator?.apply {
             pause()
             dispose()
 
-            audiobookNavigator = null
+            syncAudiobookNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         ttsNavigator?.apply {
@@ -872,6 +874,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             ttsNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
     }
 
