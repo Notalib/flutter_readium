@@ -36,6 +36,7 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
@@ -234,6 +235,12 @@ class TTSNavigator(
     }
 
     /**
+     * List of locators from the TTS content service, this is needed to optime performance for
+     * progression lookup.
+     */
+    private var progressionLookup = mutableMapOf<Url, List<Locator>>()
+
+    /**
      * Workaround helper:
      * Readium's TTSNavigator doesn't support locators with progression
      * and cssSelector.
@@ -252,42 +259,59 @@ class TTSNavigator(
 
         val cleanHref = locator.href.cleanHref()
 
-        // Get an iterator for the content of book.
-        val contentItems = publication.content(Locator(
-            href = cleanHref,
-            mediaType = MediaType.XHTML
-        )) ?: run {
-            Log.d(TAG, ":resolveLocator - no content service found")
-            return locator
+        if (!progressionLookup.contains(cleanHref)) {
+            // Get an iterator for the content of book.
+            val contentItems = publication.content(
+                Locator(
+                    href = cleanHref,
+                    mediaType = MediaType.XHTML
+                )
+            ) ?: run {
+                Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
+                return locator
+            }
+
+
+            val items = mutableListOf<Locator>()
+            for (element in contentItems) {
+                if (element !is Content.TextElement) {
+                    // Not a text element, skip this.
+                    continue
+                }
+
+                val elementLocator = element.locator
+
+                if (elementLocator.locations.progression == null) {
+                    // No progression, skip this one
+                    continue
+                }
+
+                if (elementLocator.href.cleanHref() == cleanHref) {
+                    // Reached next file, break
+                    break
+                }
+
+                items.add(elementLocator)
+            }
+
+            progressionLookup[cleanHref] = items.toList()
         }
 
-        // Last element with a lower progression than the locator's progression value.
-        var lastElement: Content.Element? = null
-
-        for (element in contentItems) {
-            if (element !is Content.TextElement) {
-                continue
-            }
-
-            if (element.locator.href.cleanHref().path != cleanHref.path) {
-                // We iterated to the next document, stopping
-                break
-            }
-
+        var toLocator = locator
+        for (item in progressionLookup[cleanHref] ?: listOf()) {
             // Skip to next, if we don't have a progression.
-            val elementProgression = element.locator.locations.progression ?: continue
-
-            // This locator is an exact match, return it.
-            if (elementProgression == progression) return element.locator
+            val elementProgression = item.locations.progression ?: continue
 
             // We have moved past the locator's progression
             if (elementProgression > progression) break
 
-            lastElement = element
+            toLocator = item
+
+            // This locator is an exact match
+            if (elementProgression == progression) break
         }
 
-        // If we found an element, return its locator otherwise return the original.
-        return lastElement?.locator ?: locator
+        return toLocator
     }
 
     override suspend fun seekTo(offset: Double) {
