@@ -247,6 +247,9 @@ fun Locator.copyWithTimeFragment(time: Int): Locator {
     )
 }
 
+val Locator.progression: Double?
+    get() = locations.progression
+
 /**
  * Helper for getting all cssSelectors for a HTML document.
  */

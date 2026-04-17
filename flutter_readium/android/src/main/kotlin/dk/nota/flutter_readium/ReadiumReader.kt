@@ -643,7 +643,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         val timeOffset =
             locator.locations.time?.inWholeSeconds?.toDouble()
                 ?: (duration?.let { duration ->
-                    locator.locations.progression?.let { prog -> duration * prog }
+                    locator.progression?.let { progression -> duration * progression }
                 })
 
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator, timeOffset=$timeOffset")

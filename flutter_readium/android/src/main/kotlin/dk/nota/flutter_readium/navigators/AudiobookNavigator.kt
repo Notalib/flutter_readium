@@ -11,6 +11,7 @@ import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
+import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
 import dk.nota.flutter_readium.withScope
@@ -68,7 +69,10 @@ open class AudiobookNavigator(
 
     override suspend fun initNavigator() {
         if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
-            Log.d(TAG, "::initNavigator - not an audiobook profile - ${publication.metadata.conformsTo}")
+            Log.d(
+                TAG,
+                "::initNavigator - not an audiobook profile - ${publication.metadata.conformsTo}"
+            )
             throw Exception("Publication doesn't conform to audiobook profile")
         }
 
@@ -182,10 +186,7 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: return
         withScope(mainScope) {
-            var toLocator = locator
-
-            if (locator.locations.progression != null) {
-                val progression = locator.locations.progression ?: 0.0
+            val toLocator = locator.progression?.let { progression ->
                 val readingOrderLink =
                     publication.readingOrder.find { link ->
                         link.href.toString() == locator.href.toString()
@@ -194,16 +195,16 @@ open class AudiobookNavigator(
                         return@withScope
                     }
 
-                val timeOffset = readingOrderLink.duration?.takeIf { it > 0 }?.let { duration -> duration * progression } ?: run {
+                val timeOffset = readingOrderLink.duration?.takeIf { it > 0 }
+                    ?.let { duration -> duration * progression } ?: run {
                     Log.d(TAG, "::goToLocator - reading order link is missing a duration")
                     return@withScope
                 }
 
-                toLocator = locator.copyWithTimeFragment(timeOffset)
-            }
-            val res = navigator.go(toLocator)
+                locator.copyWithTimeFragment(timeOffset)
+            } ?: locator
 
-            Log.d(TAG, "::goToLocator - success? $res")
+            navigator.go(toLocator)
         }
     }
 
