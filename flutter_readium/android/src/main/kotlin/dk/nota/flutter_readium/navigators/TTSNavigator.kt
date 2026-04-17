@@ -9,6 +9,7 @@ import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.letIfBothNotNull
+import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -255,7 +256,7 @@ class TTSNavigator(
         }
 
         // Extract the progression from the locator, return locator if we can't.
-        val progression = locator.locations.progression ?: return locator
+        val progression = locator.progression ?: return locator
 
         val cleanHref = locator.href.cleanHref()
 
@@ -271,7 +272,6 @@ class TTSNavigator(
                 return locator
             }
 
-
             val items = mutableListOf<Locator>()
             for (element in contentItems) {
                 if (element !is Content.TextElement) {
@@ -286,7 +286,7 @@ class TTSNavigator(
                     continue
                 }
 
-                if (elementLocator.href.cleanHref() == cleanHref) {
+                if (elementLocator.href.cleanHref() != cleanHref) {
                     // Reached next file, break
                     break
                 }
@@ -297,21 +297,22 @@ class TTSNavigator(
             progressionLookup[cleanHref] = items.toList()
         }
 
-        var toLocator = locator
-        for (item in progressionLookup[cleanHref] ?: listOf()) {
-            // Skip to next, if we don't have a progression.
-            val elementProgression = item.locations.progression ?: continue
+        val items = progressionLookup[cleanHref] ?: return locator
 
-            // We have moved past the locator's progression
-            if (elementProgression > progression) break
-
-            toLocator = item
-
-            // This locator is an exact match
-            if (elementProgression == progression) break
+        if (progression == 1.0) {
+            return items.last()
         }
 
-        return toLocator
+        var lastItem: Locator? = null
+        for (item in items) {
+            if (item.progression == progression) return item
+
+            item.progression?.takeIf { it > progression }?.let { return lastItem ?: locator }
+
+            lastItem = item
+        }
+
+        return locator
     }
 
     override suspend fun seekTo(offset: Double) {

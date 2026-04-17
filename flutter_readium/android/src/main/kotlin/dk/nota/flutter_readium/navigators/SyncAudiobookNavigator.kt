@@ -7,6 +7,7 @@ import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.getTimeOffset
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import dk.nota.flutter_readium.progression
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -68,7 +69,7 @@ class SyncAudiobookNavigator(
 
                 val duration = readingOrderLink?.duration
                 val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-                    locator.locations.progression?.let { prog -> duration * prog }
+                    locator.progression?.let { progression -> duration * progression }
                 })
                 mediaOverlays.firstNotNullOfOrNull {
                     it?.findItemInRange(
@@ -103,7 +104,7 @@ class SyncAudiobookNavigator(
 
         val duration = readingOrderLink?.duration
         val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-            locator.locations.progression?.let { prog -> duration * prog }
+            locator.progression?.let { progression -> duration * progression }
         })
 
         val mediaOverlay = mediaOverlays.firstNotNullOfOrNull {
@@ -223,7 +224,7 @@ class SyncAudiobookNavigator(
         }
 
         val timeOffset =
-            locator.locations.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
+            locator.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
                 ?: locator.getTimeOffset() ?: run {
                     // No time offset, return as is.
                     return syncAudioLocator

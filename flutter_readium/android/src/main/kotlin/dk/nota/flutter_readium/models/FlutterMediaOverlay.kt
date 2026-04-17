@@ -3,6 +3,7 @@ package dk.nota.flutter_readium.models
 import android.util.Log
 import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.getTimeOffset
+import dk.nota.flutter_readium.progression
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.InternalReadiumApi
@@ -95,7 +96,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
             return findItemFromTextId(href, textId)
         }
 
-        locator.locations.progression?.let { progression ->
+        locator.progression?.let { progression ->
             val item = items.firstOrNull { item -> item.isInProgression(href, progression) }
 
             // FIXME: This item?skipToAudioLocator will have an incorrect time value, since it is the original audioStart and not calculated from progression.
@@ -122,14 +123,32 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     }
 
     companion object {
-        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String, readiumOrderItemDuration: Double): FlutterMediaOverlay? {
+        fun fromJson(
+            json: JSONObject,
+            position: Int,
+            tocHref: Url?,
+            title: String,
+            readiumOrderItemDuration: Double
+        ): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
             val items = mutableListOf<FlutterMediaOverlayItem>()
             for (i in 0 until topNarration.length()) {
                 val itemJson = topNarration.getJSONObject(i)
-                FlutterMediaOverlayItem.fromJson(itemJson, position, tocHref, title, readiumOrderItemDuration)?.let { items.add(it) }
+                FlutterMediaOverlayItem.fromJson(
+                    itemJson,
+                    position,
+                    tocHref,
+                    title,
+                    readiumOrderItemDuration
+                )?.let { items.add(it) }
 
-                fromJson(itemJson, position, tocHref, title, readiumOrderItemDuration)?.let { items.addAll(it.items) }
+                fromJson(
+                    itemJson,
+                    position,
+                    tocHref,
+                    title,
+                    readiumOrderItemDuration
+                )?.let { items.addAll(it.items) }
             }
 
             return FlutterMediaOverlay(items)
