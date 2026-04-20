@@ -69,21 +69,21 @@ open class AudiobookNavigator(
 
     override suspend fun initNavigator() {
         if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
-            Log.d(
+            Log.e(
                 TAG,
-                "::initNavigator - not an audiobook profile - ${publication.metadata.conformsTo}"
+                "::initNavigator - doesn't conform to audiobook profile - ${publication.metadata.conformsTo}"
             )
             throw Exception("Publication doesn't conform to audiobook profile")
         }
 
         if (publication.readingOrder.isEmpty()) {
-            Log.d(TAG, "::initNavigator - missing reading order")
-            throw Exception("Publication doesn't conform to audiobook profile")
+            Log.e(TAG, "::initNavigator - missing reading order")
+            throw Exception("Publication is missing its reading order, cannot be opened as an audiobook")
         }
 
         if (publication.readingOrder.any { it.duration == 0.0 }) {
-            Log.d(TAG, "::initNavigator - has at least one empty publication.readingOrder item")
-            throw Exception("Publication doesn't conform to audiobook profile")
+            Log.e(TAG, "::initNavigator - has at least one readium order item with duration = 0")
+            throw Exception("Publication has at least one readium order item with duration = 0")
         }
 
         // Create AudioNavigatorFactory
@@ -142,7 +142,7 @@ open class AudiobookNavigator(
     override suspend fun play(fromLocator: Locator?) {
         mainScope.async {
             if (fromLocator != null) {
-                audioNavigator?.go(fromLocator)
+                goToLocator(fromLocator)
             }
 
             try {

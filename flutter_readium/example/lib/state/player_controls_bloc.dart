@@ -117,10 +117,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   StreamSubscription? timebasedStateSub;
   StreamSubscription? currentTocHrefSub;
   StreamSubscription? readerStatusSub;
+  Locator? currentLocator;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
     timebasedStateSub = instance.onTimebasedPlayerStateChanged
-        .map((state) => state.state)
+        .map((state) {
+          currentLocator = state.currentLocator;
+          return state.state;
+        })
         .distinct()
         .debounceTime(const Duration(milliseconds: 50))
         .listen((playerState) {
@@ -196,7 +200,22 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.stop());
     });
 
-    on<SkipToNext>((final event, final emit) => instance.next());
+    on<SkipToNext>((final event, final emit) {
+      print("SkipToNext, currentLocator: $currentLocator");
+      if (currentLocator == null) {
+        return instance.next();
+      }
+
+      final newProgression = (currentLocator?.locations?.progression ?? 0) + 0.2;
+      if (newProgression > 1) {
+        return instance.next();
+      }
+
+      final nl = currentLocator!.copyWith(locations: Locations(progression: newProgression));
+      print("SkipToNext, new locator: $nl");
+
+      return instance.goToLocator(nl);
+    });
 
     on<SkipToPrevious>((final event, final emit) => instance.previous());
 

@@ -258,22 +258,48 @@ class TTSNavigator(
         // Extract the progression from the locator, return locator if we can't.
         val progression = locator.progression ?: return locator
 
-        val cleanHref = locator.href.cleanHref()
+        val items = updateProgressionLocatorMap(locator.href) ?: return locator
 
-        if (!progressionLookup.contains(cleanHref)) {
+        if (progression == 1.0) {
+            return items.last()
+        }
+
+        var lastItem: Locator? = null
+        for (item in items) {
+            // Progression is an exact match, return it.
+            if (item.progression == progression) return item
+
+            // We moved past the wanted progression, return the last item as it should within the range.
+            item.progression?.takeIf { it > progression }?.let {
+                return lastItem ?: locator
+            }
+
+            lastItem = item
+        }
+
+        return locator
+    }
+
+    private suspend fun updateProgressionLocatorMap(href: Url): List<Locator>? {
+        val cleanHref = href.cleanHref()
+        progressionLookup[cleanHref]?.let {
+            return it
+        }
+
+        return withScope(ioScope) {
             // Get an iterator for the content of book.
-            val contentItems = publication.content(
+            val content = publication.content(
                 Locator(
                     href = cleanHref,
                     mediaType = MediaType.XHTML
                 )
             ) ?: run {
                 Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
-                return locator
+                return@withScope null
             }
 
             val items = mutableListOf<Locator>()
-            for (element in contentItems) {
+            for (element in content) {
                 if (element !is Content.TextElement) {
                     // Not a text element, skip this.
                     continue
@@ -295,24 +321,9 @@ class TTSNavigator(
             }
 
             progressionLookup[cleanHref] = items.toList()
+
+            return@withScope items
         }
-
-        val items = progressionLookup[cleanHref] ?: return locator
-
-        if (progression == 1.0) {
-            return items.last()
-        }
-
-        var lastItem: Locator? = null
-        for (item in items) {
-            if (item.progression == progression) return item
-
-            item.progression?.takeIf { it > progression }?.let { return lastItem ?: locator }
-
-            lastItem = item
-        }
-
-        return locator
     }
 
     override suspend fun seekTo(offset: Double) {
@@ -414,6 +425,13 @@ class TTSNavigator(
             }
             .launchIn(mainScope)
             .let { jobs.add(it) }
+
+        navigator.currentLocator
+            .map { it.href.cleanHref() }
+            .distinctUntilChanged()
+            .onEach { cleanHref -> updateProgressionLocatorMap(cleanHref) }
+            .launchIn(ioScope)
+            .let { jobs.add(it) }
     }
 
     /**
@@ -504,11 +522,12 @@ class TTSNavigator(
     }
 
     override fun dispose() {
-        super.dispose()
-
         mainScope.async {
             stopTtsNavigator()
+            progressionLookup.clear()
         }
+
+        super.dispose()
     }
 
     override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
