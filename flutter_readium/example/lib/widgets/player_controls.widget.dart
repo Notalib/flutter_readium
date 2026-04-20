@@ -52,9 +52,11 @@ class PlayerControls extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.fast_forward),
-            onPressed: () => context.read<PlayerControlsBloc>().add(
-              state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
-            ),
+            onPressed: () {
+              context.read<PlayerControlsBloc>().add(
+                state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
+              );
+            },
             tooltip: state.ttsEnabled ? 'Skip to next paragraph' : 'Skip to next page',
           ),
           IconButton(
