@@ -34,7 +34,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   public init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     self._publication = publication
     self._preferences = preferences
-    self._initialLocator = initialLocator
+    self._initialLocator = initialLocator?.skipToAudioLocator
     self._nowPlayingUpdater = NowPlayingInfoUpdater(
       withPublication: publication,
       infoType: preferences.controlPanelInfoType
@@ -51,15 +51,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     )
     _audioNavigator?.delegate = self
 
-    // TODO: Why is this public, if always called from itself?
-    self.setupNavigatorListeners()
+    self.setupNavigatorStateListeners()
 
     Task {
       cover = try? await publication.cover().get()
     }
   }
 
-  public func setupNavigatorListeners() {
+  private func setupNavigatorStateListeners() {
     /// Subscribe to changes
     $playback
       .throttle(for: .seconds(self._preferences.updateIntervalSecs), scheduler: RunLoop.main, latest: true)
@@ -85,8 +84,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if (fromLocator != nil) {
-      let _ = await seek(toLocator: fromLocator!)
+    if let skipToLocator = fromLocator?.skipToAudioLocator {
+      let _ = await seek(toLocator: skipToLocator)
     }
     _audioNavigator?.play()
     _nowPlayingUpdater.setupNowPlayingInfo()
@@ -125,7 +124,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func seek(toLocator: Locator) async -> Bool {
     let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
-    let navigated = await _audioNavigator?.go(to: toLocator) ?? false
+    let navigated = await _audioNavigator?.go(to: toLocator.skipToAudioLocator) ?? false
     if (wasPlaying && navigated) {
       _audioNavigator?.play()
     }

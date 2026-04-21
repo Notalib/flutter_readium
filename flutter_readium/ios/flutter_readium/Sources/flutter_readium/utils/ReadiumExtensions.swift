@@ -8,13 +8,34 @@ extension Locator {
   var timeOffset: TimeInterval? {
     // Get time offset
     let fragment: String? = locations.fragments.first(where: { $0.hasPrefix("t=") })
-    let offsetStr = fragment?.removingPrefix("t=")
-    return offsetStr != nil ? TimeInterval(offsetStr!) : nil
+    if let offsetStr = fragment?.removingPrefix("t=") {
+      return TimeInterval(offsetStr)
+    } else {
+      return nil
+    }
   }
 
   var textId: String? {
     let cssFragment = locations.fragments.first(where: { $0.hasPrefix("#") }) ?? locations.cssSelector
     return cssFragment?.removingPrefix("#")
+  }
+  
+  var skipToAudioLocator: Locator {
+    if let timeOffset = timeOffset {
+      return copyWith(locations: locations.copyWith(fragments: ["t=\(Int(timeOffset))"]))
+    } else {
+      return self
+    }
+  }
+  
+  func copyWith(href: AnyURL? = nil, mediaType: MediaType? = nil, title: String? = nil, locations: Locations? = nil, text: Text? = nil) -> Locator {
+    return Locator(href: href ?? self.href, mediaType: mediaType ?? self.mediaType, title: title ?? self.title, locations: locations ?? self.locations, text: text ?? self.text)
+  }
+}
+
+extension Locator.Locations {
+  func copyWith(fragments: [String]? = nil, otherLocations: [String: String]? = nil) -> Locator.Locations {
+    return Locator.Locations(fragments: fragments ?? self.fragments, progression: progression, totalProgression: totalProgression, position: position, otherLocations: otherLocations ?? self.otherLocations)
   }
 }
 
