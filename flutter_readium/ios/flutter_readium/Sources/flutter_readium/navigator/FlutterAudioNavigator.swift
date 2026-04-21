@@ -80,7 +80,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._audioNavigator?.pause()
     self._audioNavigator?.delegate = nil
     self._audioNavigator = nil
-    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .ended))
+    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
     self.listener = nil
   }
 
