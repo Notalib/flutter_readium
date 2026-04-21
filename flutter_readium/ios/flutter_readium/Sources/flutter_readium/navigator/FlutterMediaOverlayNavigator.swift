@@ -134,8 +134,9 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
     if let textLocatorTime = textLocator.locations.time,
        let textLocatorTimeBegin = textLocatorTime.begin {
-      Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
-      audioLocator.locations.fragments = ["t=\(textLocatorTimeBegin)"]
+      let textLocatorTimeBeginInt = Int(textLocatorTimeBegin)
+      Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBeginInt)")
+      audioLocator.locations.fragments = ["t=\(textLocatorTimeBeginInt)"]
     }
     return audioLocator
   }

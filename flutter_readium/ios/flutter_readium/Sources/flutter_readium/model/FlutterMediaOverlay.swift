@@ -176,7 +176,7 @@ struct FlutterMediaOverlayItem {
     return Locator(
       href: href,
       mediaType: audioMediaType,
-      locations: .init(fragments: ["t=\(start)"])
+      locations: .init(fragments: ["t=\(Int(start))"])
     )
   }
   

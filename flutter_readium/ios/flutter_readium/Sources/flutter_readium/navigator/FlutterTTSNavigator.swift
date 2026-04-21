@@ -58,11 +58,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     engine?.delegate = self
     self.synthesizer?.delegate = self
 
-    // TODO: Why is this public, if always called from itself?
-    self.setupNavigatorListeners()
+    self.setupNavigatorStateListeners()
   }
 
-  public func setupNavigatorListeners() -> Void {
+  private func setupNavigatorStateListeners() -> Void {
     $playingUtterance
       .removeDuplicates()
       .sink { [weak self] locator in
@@ -80,7 +79,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
     playingWordRangeSubject
       .removeDuplicates()
-    // Improve performances by throttling the reader sync
+    // Improve performance by throttling the reader sync
       .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
       .sink { [weak self] locator in
         guard let self = self else {

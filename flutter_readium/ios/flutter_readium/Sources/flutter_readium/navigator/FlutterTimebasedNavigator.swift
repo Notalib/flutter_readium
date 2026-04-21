@@ -18,7 +18,6 @@ public protocol FlutterTimebasedNavigator
   //var currentLocator: PassthroughSubject<Locator, Never> { get }
   
   func initNavigator() async -> Void
-  func setupNavigatorListeners() -> Void
   @MainActor
   func dispose() -> Void
   @MainActor
