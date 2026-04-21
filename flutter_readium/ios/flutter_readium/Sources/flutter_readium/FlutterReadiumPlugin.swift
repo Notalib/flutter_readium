@@ -269,9 +269,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "stop":
       Task { @MainActor in
-        self.timebasedNavigator?.dispose()
-        self.timebasedNavigator = nil
-        self.updateReaderViewTimebasedDecorations([])
+        if let timbasedNavigator = self.timebasedNavigator {
+          self.timebasedNavigator?.dispose()
+          self.timebasedNavigator = nil
+          self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
+          self.updateReaderViewTimebasedDecorations([])
+        }
       }
       result(nil)
     case "pause":
@@ -465,7 +468,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           state.currentLocator = locator
         }
       }
-      
+
       Task { @MainActor [state] in
         self.lastTimebasedPlayerState = state
         self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
@@ -592,7 +595,7 @@ extension FlutterReadiumPlugin {
       Log.toc.warn("no currentPublication")
       return nil
     }
-    
+
     /// If we already have a ToC ID from the viewer, use that for lookup.
     if let tocId = locator.locations.otherLocations["tocId"] {
       let tocHref = "\(locator.href)#\(tocId)"

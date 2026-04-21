@@ -99,7 +99,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.synthesizer?.stop()
     self.synthesizer?.delegate = nil
     self.engine?.delegate = nil
-    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .ended))
+    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
     self.listener = nil
   }
 
