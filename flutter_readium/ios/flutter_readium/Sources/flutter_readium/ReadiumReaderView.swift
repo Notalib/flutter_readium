@@ -67,7 +67,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
     self.publication = publication
 
-    let preferencesMap = creationParams["preferences"] as? Dictionary<String, String>?
+    let preferencesMap = creationParams["preferences"] as? Dictionary<String, Any>?
     let initWithPreferences = preferencesMap == nil ? nil : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
