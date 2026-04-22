@@ -306,7 +306,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task.detached(priority: .high) {
         guard let args = call.arguments as? [Any?],
               let locatorJson = args.first as? Dictionary<String, Any>,
-              let locator = try? Locator(json: locatorJson, warnings: self)
+              var locator = try? Locator(json: locatorJson, warnings: self)
         else {
           await MainActor.run {
             result(FlutterError.init(
@@ -320,12 +320,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
         // Timebased Naviagor seek
         if (self.timebasedNavigator != nil) {
+          // TODO: May want to do this within the AudioNavigator, as TTSNav and MediaOverlayNav should resolve progression differently
+          if let progression = locator.locations.progression, progression.isFinite,
+             let readingOrder = self.currentPublication?.readingOrder,
+             let link = readingOrder.firstWithHREF(locator.href),
+             let duration = link.duration, duration.isFinite {
+            /// Modify time offset to match desired progression.
+            let timeOffset = duration * progression
+            locator = locator.toLocatorWithReadiumCompOffset(timeOffset)
+          }
           navigated = await self.timebasedNavigator?.seek(toLocator: locator) ?? false
         }
         // ReaderView goTo
-        else if (self.currentReaderView != nil) {
-          await self.currentReaderView?.goToLocator(locator, animated: false)
-          navigated = true
+        else if let readerView = self.currentReaderView {
+          navigated = await readerView.goToLocator(locator, animated: false)
         }
         await MainActor.run { [navigated] in
           result(navigated)
