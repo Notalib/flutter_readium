@@ -22,20 +22,15 @@ extension Locator {
   
   var skipToAudioLocator: Locator {
     if let timeOffset = timeOffset {
-      return copyWith(locations: locations.copyWith(fragments: ["t=\(Int(timeOffset))"]))
+      return toLocatorWithReadiumCompOffset(timeOffset)
     } else {
       return self
     }
   }
   
-  func copyWith(href: AnyURL? = nil, mediaType: MediaType? = nil, title: String? = nil, locations: Locations? = nil, text: Text? = nil) -> Locator {
-    return Locator(href: href ?? self.href, mediaType: mediaType ?? self.mediaType, title: title ?? self.title, locations: locations ?? self.locations, text: text ?? self.text)
-  }
-}
-
-extension Locator.Locations {
-  func copyWith(fragments: [String]? = nil, otherLocations: [String: String]? = nil) -> Locator.Locations {
-    return Locator.Locations(fragments: fragments ?? self.fragments, progression: progression, totalProgression: totalProgression, position: position, otherLocations: otherLocations ?? self.otherLocations)
+  /// Gets a Locator copy with a Readium compatible time offset (fragment). Currently this must be an Int.
+  func toLocatorWithReadiumCompOffset(_ offset: Double) -> Locator {
+    return copy(locations: { locs in locs.fragments = ["t=\(Int(offset))"] })
   }
 }
 
