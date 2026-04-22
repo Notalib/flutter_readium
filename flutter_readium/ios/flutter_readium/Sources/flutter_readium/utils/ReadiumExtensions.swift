@@ -54,24 +54,27 @@ extension Publication {
 
     let narrationLinks = self.narrationLinks
 
-    let toc: [(String, Link)] = getFlattenedToC().map { ($0.href, $0) }
-    var lastTocMatch: (String, Link)? = nil
+    let toc: [Link] = getFlattenedToC()
+    var lastTocMatch: Link? = nil
 
     let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
     let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
-      FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil)
-    }).map({
-      let items = $0.items.map { item in
+      let roLink = readingOrder[idx]
+      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roLink.duration)
+    }).map({ (overlay: FlutterMediaOverlay) in
+      let items = overlay.items.map { item in
         // Find best matching title from ToC (via text URL)
-        if let match = toc.first(where: { tocItem in tocItem.0 == item.text }) {
+        if let match = toc.first(where: { tocItem in tocItem.href == item.text }) {
           lastTocMatch = match
-          return item.copyWith(tocTitle: match.1.title, tocHref: match.1.href)
-        } else if (lastTocMatch?.1 != nil && lastTocMatch?.0.substringBeforeLast("#") == item.textFile) {
-          return item.copyWith(tocTitle: lastTocMatch?.1.title, tocHref: lastTocMatch?.1.href)
+          return item.copyWith(tocTitle: match.title, tocHref: match.href)
+        } else if (lastTocMatch != nil && lastTocMatch?.href.substringBeforeLast("#") == item.textFile) {
+          return item.copyWith(tocTitle: lastTocMatch?.title, tocHref: lastTocMatch?.href)
         }
         return item
       }
-      return FlutterMediaOverlay(items: items)
+      /// Re-create the top-level MediaOverlay item with its items and reading-order duration
+      /// Uses a calculated fallback duration fallback if none is provided in the reading-order.
+      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     })
 
     // Assert that we did not lose any MediaOverlays during JSON deserialization.

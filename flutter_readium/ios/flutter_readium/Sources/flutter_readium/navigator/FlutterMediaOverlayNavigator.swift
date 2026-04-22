@@ -126,18 +126,28 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator,
-          let matchingItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
-          var audioLocator = matchingItem.asAudioLocator else {
+          let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
+          var audioLocator = matchingMediaOverlayItem.asAudioLocator else {
       return nil
     }
+    
+    // If progression is given, try to resolve that to a time offset.
+    if let progression = textLocator.locations.progression,
+       let duration = matchingMediaOverlayItem.readingOrderDuration {
+      let timeOffset = progression * duration
+      Log.navigator.debug("Used progression to calculate time offset: \(progression) progress => \(timeOffset) offset")
+      audioLocator = audioLocator.toLocatorWithReadiumCompOffset(timeOffset)
+    }
+    
     // If the input Text Locator, is a combined locator with a time fragment
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
-    if let textLocatorTime = textLocator.locations.time,
-       let textLocatorTimeBegin = textLocatorTime.begin {
-      let textLocatorTimeBeginInt = Int(textLocatorTimeBegin)
-      Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBeginInt)")
-      audioLocator.locations.fragments = ["t=\(textLocatorTimeBeginInt)"]
+    else if let textLocatorTime = textLocator.locations.time,
+            let textLocatorTimeBegin = textLocatorTime.begin {
+      Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
+      let timeOffset = textLocatorTimeBegin
+      audioLocator = audioLocator.toLocatorWithReadiumCompOffset(timeOffset)
     }
+    
     return audioLocator
   }
 }
