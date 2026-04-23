@@ -209,9 +209,36 @@ open class AudiobookNavigator(
     }
 
     override suspend fun seekTo(offset: Double) {
-        mainScope.async {
-            audioNavigator?.skip(offset.seconds)
-        }.await()
+        val navigator = audioNavigator ?: run {
+            Log.d(TAG, ":seekToProgression - called without navigator")
+            return
+        }
+
+        withScope(mainScope) {
+            navigator.skip(offset.seconds)
+        }
+    }
+
+    override suspend fun seekToProgression(progression: Double): Boolean {
+        val navigator = audioNavigator ?: run {
+            Log.d(TAG, ":seekToProgression - called without navigator")
+            return false
+        }
+
+        if (progression !in 0.0..1.0) {
+            Log.d(TAG, ":seekToProgression - progression $progression is not between 0.0 and 1.0")
+            return false
+        }
+
+        return withScope(mainScope) {
+            val duration = navigator.asMedia3Player().duration
+            val timeOffset = duration * progression
+
+            val toLocator = navigator.currentLocator.value.copyWithTimeFragment(timeOffset)
+
+            goToLocator(toLocator)
+            return@withScope true
+        }
     }
 
     /**

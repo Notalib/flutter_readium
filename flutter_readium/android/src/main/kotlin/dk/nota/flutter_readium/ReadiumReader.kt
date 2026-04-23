@@ -908,6 +908,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
     }
 
+    suspend fun goToProgression(progression: Double) {
+        if (timebasedNavigator != null) {
+            Log.d(TAG, "::goToProgression - timebased $progression")
+            timebasedNavigator?.seekToProgression(progression)
+        } else {
+            epubGoToProgression(progression)
+        }
+    }
+
     suspend fun searchInPublication(query: String): Try<List<LocatorCollection>, Error> {
         val pub = currentPublication ?: return failure(
             Error("no publication")
@@ -1066,6 +1075,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         navigator.goToLocator(locator, animated)
+    }
+
+    suspend fun epubGoToProgression(progression: Double) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoToProgression called without a epubNavigator")
+            return
+        }
+
+        navigator.scrollToProgression(progression)
     }
 
     /**
