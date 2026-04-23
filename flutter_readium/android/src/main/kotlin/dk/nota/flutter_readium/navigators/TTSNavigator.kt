@@ -258,7 +258,11 @@ class TTSNavigator(
         // Extract the progression from the locator, return locator if we can't.
         val progression = locator.progression ?: return locator
 
-        val items = updateProgressionLocatorMap(locator.href) ?: return locator
+        return findLocatorFromProgression(locator.href, progression) ?: locator
+    }
+
+    private suspend fun findLocatorFromProgression(href: Url, progression: Double): Locator? {
+        val items = updateProgressionLocatorMap(href) ?: return null
 
         if (progression == 1.0) {
             return items.last()
@@ -271,13 +275,13 @@ class TTSNavigator(
 
             // We moved past the wanted progression, return the last item as it should within the range.
             item.progression?.takeIf { it > progression }?.let {
-                return lastItem ?: locator
+                return lastItem ?: item
             }
 
             lastItem = item
         }
 
-        return locator
+        return null
     }
 
     private suspend fun updateProgressionLocatorMap(href: Url): List<Locator>? {
@@ -328,6 +332,22 @@ class TTSNavigator(
 
     override suspend fun seekTo(offset: Double) {
         Log.d(TAG, ":seekTo is not implemented for TTS playback")
+    }
+
+    override suspend fun seekToProgression(progression: Double): Boolean {
+        val currentLocator = ttsNavigator?.currentLocator?.value ?: run {
+            Log.d(TAG, "::seekToProgression - no currentLocator")
+            return false
+        }
+
+        val toLocator = findLocatorFromProgression(currentLocator.href,progression) ?: run {
+            Log.e(TAG, "::seekToProgression - couldn't find a matching locator")
+            return false
+        }
+
+        goToLocator(toLocator)
+
+        return true
     }
 
     /**

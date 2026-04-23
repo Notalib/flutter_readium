@@ -175,4 +175,9 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
      * Seek to a specific offset in seconds from the current position. Can be negative or positive.
      */
     abstract suspend fun seekTo(offset: Double)
+
+    /**
+     * Seek to a progression in the current file.
+     */
+    abstract suspend fun seekToProgression(progression: Double): Boolean
 }
