@@ -269,7 +269,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "stop":
       Task { @MainActor in
-        if let timbasedNavigator = self.timebasedNavigator {
+        if self.timebasedNavigator != nil {
           self.timebasedNavigator?.dispose()
           self.timebasedNavigator = nil
           self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
