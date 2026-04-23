@@ -98,13 +98,15 @@ internal class PublicationMethodCallHandler() :
 
             "ttsEnable" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                val ttsPrefs =
+                    FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
                 return ttsEnable(ttsPrefs)
             }
 
             "ttsSetPreferences" -> {
                 val args = arguments as Map<*, *>?
-                val ttsPrefs = FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
+                val ttsPrefs =
+                    FlutterTtsPreferences.fromMap(args, ReadiumReader.ttsGetAvailableVoices())
                 return ttsSetPreferences(ttsPrefs)
             }
 
@@ -112,7 +114,8 @@ internal class PublicationMethodCallHandler() :
                 val args = arguments as List<*>
                 val uttDecoMap = args[0] as Map<*, *>?
                 val rangeDecoMap = args[1] as Map<*, *>?
-                val decorationPreferences = FlutterDecorationPreferences.fromMap(uttDecoMap, rangeDecoMap)
+                val decorationPreferences =
+                    FlutterDecorationPreferences.fromMap(uttDecoMap, rangeDecoMap)
 
                 return setDecorationStyle(decorationPreferences)
             }
@@ -225,13 +228,34 @@ internal class PublicationMethodCallHandler() :
                 )
                 val query = arguments as String
                 val searchResult = ReadiumReader.searchInPublication(query).getOrElse {
-                    return Try.failure(PublicationError.Unknown(message = it.message ?: "Search failed"))
+                    return Try.failure(
+                        PublicationError.Unknown(
+                            message = it.message ?: "Search failed"
+                        )
+                    )
                 }
 
                 val textSearchResults = searchResult.flatMap { col ->
-                    col.locators.map { TextSearchResult(locator = it, chapterTitle = it.title, pageNumbers = null) }
+                    col.locators.map {
+                        TextSearchResult(
+                            locator = it,
+                            chapterTitle = it.title,
+                            pageNumbers = null
+                        )
+                    }
                 }
                 return Try.success(textSearchResults.map { it.toJSON().toString() })
+            }
+
+            "goToProgression" -> {
+                val duration = (arguments as? Double)?.takeIf { it in 0.0..1.0 }
+
+                if (duration != null) {
+                    ReadiumReader.goToProgression(duration)
+                    return Try.success(true)
+                } else {
+                    return Try.failure(PublicationError.Unknown("Missing or invalid duration argument: ${arguments}"))
+                }
             }
 
             else -> {
