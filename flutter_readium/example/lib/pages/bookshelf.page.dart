@@ -194,7 +194,8 @@ class BookshelfPageState extends State<BookshelfPage> {
         // Use an in-memory saved locator as initial locator when opening the publication,
         // so that we can restore the last reading position.
         // This is just for demo purposes, in a real app you would probably want to persist the locator.
-        final savedInitialLocator = savedLocators[publication.identifier];
+        final pubUrlHashCode = publicationUrl.hashCode.toString();
+        final savedInitialLocator = savedLocators[pubUrlHashCode];
 
         try {
           context.read<PublicationBloc>().add(
