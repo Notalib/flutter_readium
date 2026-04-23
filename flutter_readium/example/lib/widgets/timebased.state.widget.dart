@@ -1,10 +1,18 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../state/index.dart';
 
-class TimebasedStateWidget extends StatelessWidget {
+class TimebasedStateWidget extends StatefulWidget {
   const TimebasedStateWidget({super.key});
+
+  @override
+  State<TimebasedStateWidget> createState() => _TimebasedStateWidgetState();
+}
+
+class _TimebasedStateWidgetState extends State<TimebasedStateWidget> {
+  double? isDraggingSliderValue;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +34,20 @@ class TimebasedStateWidget extends StatelessWidget {
               // Text('TotalProgression: ${snapshot.data?.currentLocator?.locations?.totalProgression}'),
               SizedBox(height: 22),
               Text('Chapter progress:'),
-              Slider.adaptive(value: snapshot.data?.currentLocator?.locations?.progression ?? 0, onChanged: null),
+              Slider(
+                value: isDraggingSliderValue ?? snapshot.data?.currentLocator?.locations?.progression ?? 0.0,
+                allowedInteraction: SliderInteraction.tapAndSlide,
+                onChanged: (double value) {
+                  setState(() => isDraggingSliderValue = value);
+                },
+                onChangeStart: (double value) {
+                  setState(() => isDraggingSliderValue = value);
+                },
+                onChangeEnd: (double value) {
+                  setState(() => isDraggingSliderValue = null);
+                  context.read<PlayerControlsBloc>().add(GoToProgression(value));
+                },
+              ),
               Text('Total book progress:'),
               LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0),
             ],
@@ -37,4 +58,6 @@ class TimebasedStateWidget extends StatelessWidget {
       },
     );
   }
+
+  void onPositionSliderChangedByUser(double value) {}
 }

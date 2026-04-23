@@ -14,9 +14,6 @@ public protocol FlutterTimebasedNavigator
   var initialLocator: Locator? { get }
   var listener: TimebasedListener? { get set }
   
-  // Current Locator which should be sent back over the bridge to Flutter.
-  //var currentLocator: PassthroughSubject<Locator, Never> { get }
-  
   func initNavigator() async -> Void
   @MainActor
   func dispose() -> Void
@@ -34,6 +31,8 @@ public protocol FlutterTimebasedNavigator
   func seekBackward() async -> Bool
   @MainActor
   func seek(toLocator: Locator) async -> Bool
+  @MainActor
+  func seek(toProgression: Double) async -> Bool
   @MainActor
   func seek(toOffset: Double) async -> Bool
   @MainActor

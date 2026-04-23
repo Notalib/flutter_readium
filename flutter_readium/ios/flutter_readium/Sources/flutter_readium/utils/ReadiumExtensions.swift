@@ -22,15 +22,23 @@ extension Locator {
   
   var skipToAudioLocator: Locator {
     if let timeOffset = timeOffset {
-      return toLocatorWithReadiumCompOffset(timeOffset)
+      return copyWithReadiumCompOffset(timeOffset)
     } else {
       return self
     }
   }
   
   /// Gets a Locator copy with a Readium compatible time offset (fragment). Currently this must be an Int.
-  func toLocatorWithReadiumCompOffset(_ offset: Double) -> Locator {
+  func copyWithReadiumCompOffset(_ offset: Double) -> Locator {
     return copy(locations: { locs in locs.fragments = ["t=\(Int(offset))"] })
+  }
+  
+  func copyWithProgressionLocations(progression: Double) -> Locator {
+    return copy(locations: { locs in
+      locs.fragments = []
+      locs.otherLocations = [:]
+      locs.progression = progression
+    })
   }
 }
 
@@ -59,9 +67,11 @@ extension Publication {
 
     let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
     let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
-      let roLink = readingOrder[idx]
-      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roLink.duration)
+      /// Fetch the expected total duration of this MediaOverlay from the reading-order.
+      let roDuration = readingOrder.getOrNil(idx)?.duration
+      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
     }).map({ (overlay: FlutterMediaOverlay) in
+      /// For each item in the top-level MediaOverlay enrich it with href and title from the ToC where matchable.
       let items = overlay.items.map { item in
         // Find best matching title from ToC (via text URL)
         if let match = toc.first(where: { tocItem in tocItem.href == item.text }) {
@@ -72,8 +82,8 @@ extension Publication {
         }
         return item
       }
-      /// Re-create the top-level MediaOverlay item with its items and reading-order duration
-      /// Uses a calculated fallback duration fallback if none is provided in the reading-order.
+      /// Re-create the top-level MediaOverlay item with its enriched items and reading-order duration
+      /// If no duration in the reading-order, it calculates a total duration for all its items.
       return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     })
 

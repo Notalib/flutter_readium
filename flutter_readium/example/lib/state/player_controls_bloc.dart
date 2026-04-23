@@ -69,6 +69,13 @@ class GoToLocator extends PlayerControlsEvent {
 }
 
 @immutable
+class GoToProgression extends PlayerControlsEvent {
+  GoToProgression(this.progression);
+
+  final double progression;
+}
+
+@immutable
 class GetAvailableVoices extends PlayerControlsEvent {}
 
 @immutable
@@ -77,6 +84,9 @@ class UpdateCurrentTocHref extends PlayerControlsEvent {
 
   final String tocHref;
 }
+
+@immutable
+class PlayerClosed extends PlayerControlsEvent {}
 
 class PlayerControlsState {
   PlayerControlsState({
@@ -136,11 +146,17 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
               if (state.playing != true) {
                 add(TogglePlayingState(isPlaying: true));
               }
+              break;
             case TimebasedState.paused:
+              if (state.playing != false) {
+                add(TogglePlayingState(isPlaying: false));
+              }
+              break;
             case TimebasedState.ended:
             case TimebasedState.failure:
             case TimebasedState.none:
-              add(TogglePlayingState(isPlaying: false));
+              add(PlayerClosed());
+              break;
           }
         });
 
@@ -180,8 +196,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
           fromLocator: event.fromLocator,
         );
-        emit(state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref));
         await instance.play(event.fromLocator);
+        emit(state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref));
       } else {
         await instance.resume();
       }
@@ -200,8 +216,12 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.stop());
     });
 
+    on<PlayerClosed>((final event, final emit) async {
+      emit(state.stop());
+    });
+
     on<SkipToNext>((final event, final emit) {
-      print("SkipToNext, currentLocator: $currentLocator");
+      R2Log.i("SkipToNext, currentLocator: $currentLocator");
       if (currentLocator == null) {
         return instance.next();
       }
@@ -211,10 +231,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         return instance.next();
       }
 
-      final nl = currentLocator!.copyWith(locations: Locations(progression: newProgression));
-      print("SkipToNext, new locator: $nl");
-
-      return instance.goToLocator(nl);
+      return instance.goToProgression(newProgression);
     });
 
     on<SkipToPrevious>((final event, final emit) => instance.previous());
@@ -235,15 +252,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       return instance.skipToPreviousTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
     });
 
-    on<SkipToNextPage>((final event, final emit) => instance.goForward());
+    on<SkipToNextPage>((final event, final emit) async => await instance.goForward());
 
-    on<SkipToPreviousPage>((final event, final emit) => instance.goBackward());
+    on<SkipToPreviousPage>((final event, final emit) async => await instance.goBackward());
 
-    on<GoToLocator>((event, emit) => instance.goToLocator(event.locator));
+    on<GoToLocator>((event, emit) async => await instance.goToLocator(event.locator));
 
-    on<UpdateCurrentTocHref>((event, emit) async {
-      emit(state.setTocHref(event.tocHref));
-    });
+    on<GoToProgression>((event, emit) async => await instance.goToProgression(event.progression));
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
@@ -270,14 +285,17 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       }
     });
 
-    @override
-    // ignore: unused_element
-    Future<void> close() async {
-      await timebasedStateSub?.cancel();
-      await readerStatusSub?.cancel();
-      await currentTocHrefSub?.cancel();
-      super.close();
-    }
+    on<UpdateCurrentTocHref>((event, emit) async {
+      emit(state.setTocHref(event.tocHref));
+    });
+  }
+
+  @override
+  Future<void> close() async {
+    await timebasedStateSub?.cancel();
+    await readerStatusSub?.cancel();
+    await currentTocHrefSub?.cancel();
+    return super.close();
   }
 
   Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
