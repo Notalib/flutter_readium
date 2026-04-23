@@ -337,6 +337,15 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
   
+  func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
+    Log.reader.debug("goToProgression:\(progression)")
+    guard let locator = getCurrentLocation() else {
+      return false
+    }
+    let newLocator = locator.copyWithProgressionLocations(progression: progression)
+    return await readiumViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
+  }
+  
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     Log.reader.debug("syncToLocator: \(locator)")
     if (preferences?.disableSync == true) {

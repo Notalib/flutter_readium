@@ -93,13 +93,15 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   }
 
   public func dispose() -> Void {
-    nowPlayingUpdater.clearNowPlaying()
     self.subscriptions.forEach { $0.cancel() }
-    self.synthesizer?.stop()
-    self.synthesizer?.delegate = nil
-    self.engine?.delegate = nil
-    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
+    if (self.synthesizer != nil) {
+      self.synthesizer?.stop()
+      self.synthesizer?.delegate = nil
+      self.engine?.delegate = nil
+      self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
+    }
     self.listener = nil
+    nowPlayingUpdater.clearNowPlaying()
   }
 
   public func play(fromLocator: Locator?) async -> Void {
@@ -144,6 +146,11 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   public func seek(toLocator: Locator) async -> Bool {
     self.synthesizer?.start(from: toLocator)
     return true
+  }
+  
+  public func seek(toProgression: Double) async -> Bool {
+    // Cannot be implemented for TTS
+    return false
   }
 
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {

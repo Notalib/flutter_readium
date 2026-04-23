@@ -76,11 +76,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func dispose() -> Void {
-    self._audioNavigator?.pause()
-    self._audioNavigator?.delegate = nil
-    self._audioNavigator = nil
-    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
+    if (self._audioNavigator != nil) {
+      self._audioNavigator?.pause()
+      self._audioNavigator?.delegate = nil
+      self._audioNavigator = nil
+      self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
+    }
     self.listener = nil
+    self.subscriptions.forEach { $0.cancel() }
+    _nowPlayingUpdater.clearNowPlaying()
   }
 
   public func play(fromLocator: Locator?) async -> Void {
@@ -128,17 +132,33 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     /// Progression is resolved to a time fragment here, as this resolution is unique to AudioNavigator.
     // TODO: This should really be handled by the Readium Navigator (upstream issue).
     if let progression = toLocator.locations.progression, progression.isFinite,
-       let link = publication.readingOrder.firstWithHREF(toLocator.href),
-       let duration = link.duration, duration.isFinite {
-      /// Modify time offset to match desired progression.
-      timeOffset = duration * progression
+       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: toLocator, progression: progression) {
+        timeOffset = preciseTimeOffset
     }
-    let resolvedLocator = toLocator.toLocatorWithReadiumCompOffset(timeOffset ?? 0.0)
+    let resolvedLocator = toLocator.copyWithReadiumCompOffset(timeOffset ?? 0.0)
     let navigated = await _audioNavigator?.go(to: resolvedLocator) ?? false
     if (wasPlaying && navigated) {
       _audioNavigator?.play()
     }
     return navigated
+  }
+  
+  public func seek(toProgression: Double) async -> Bool {
+    if let locator = audioLocator,
+       let timeOffset = getTimeOffsetForLocatorWithProgression(locator: locator, progression: toProgression) {
+      /// Modify time offset  of current Locator to match desired progression.
+      return await self.seek(toOffset: timeOffset)
+    }
+    return false
+  }
+  
+  private func getTimeOffsetForLocatorWithProgression(locator: Locator, progression: Double) -> Double? {
+    guard let locator = audioLocator,
+          let link = publication.readingOrder.firstWithHREF(locator.href),
+          let duration = link.duration, duration.isFinite else {
+      return nil
+    }
+      return duration * progression
   }
 
   public func seek(toOffset: Double) async -> Bool {

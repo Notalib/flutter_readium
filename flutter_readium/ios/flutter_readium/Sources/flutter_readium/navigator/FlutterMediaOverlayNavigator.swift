@@ -55,19 +55,32 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     await super.initNavigator()
   }
   
-  override public func play(fromLocator: Locator?) async {
+  public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
     await super.play(fromLocator: audioFromLocator)
   }
   
-  override public func seek(toLocator: Locator) async -> Bool {
+  public override func seek(toLocator: Locator) async -> Bool {
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       return false
     }
     // Found a matching Audio Locator from given Text-based Locator.
     let navigated = await navigator.go(to: audioLocator)
+    // Go will sometimes result in a pause, if buffering was necessary.
+    // So we actively ensure we resume playing.
+    navigator.play()
+    return navigated
+  }
+  
+  public override func seek(toProgression: Double) async -> Bool {
+    guard let navigator = _audioNavigator,
+          let locator = audioLocator?.copyWithProgressionLocations(progression: toProgression) else {
+      Log.navigator.warn("Could not modify Locator when seeking to progression: \(toProgression)")
+      return false
+    }
+    let navigated = await navigator.go(to: locator)
     // Go will sometimes result in a pause, if buffering was necessary.
     // So we actively ensure we resume playing.
     navigator.play()
@@ -91,8 +104,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
        let textLocator = mediaOverlayItem.asTextLocator {
       
-      
-      let syncKey = textLocator.href.string + "#" + (textLocator.locations.cssSelector ?? "")
+      let syncKey = textLocator.href.string + (textLocator.locations.cssSelector ?? "")
       if syncKey != lastTextSyncKey {
         lastTextSyncKey = syncKey
         self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration)
@@ -136,16 +148,16 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
        let duration = matchingMediaOverlayItem.readingOrderDuration {
       let timeOffset = progression * duration
       Log.navigator.debug("Used progression to calculate time offset: \(progression) progress => \(timeOffset) offset")
-      audioLocator = audioLocator.toLocatorWithReadiumCompOffset(timeOffset)
+      audioLocator = audioLocator.copyWithReadiumCompOffset(timeOffset)
     }
     
     // If the input Text Locator, is a combined locator with a time fragment
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
-    else if let textLocatorTime = textLocator.locations.time,
+    if let textLocatorTime = textLocator.locations.time,
             let textLocatorTimeBegin = textLocatorTime.begin {
       Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
       let timeOffset = textLocatorTimeBegin
-      audioLocator = audioLocator.toLocatorWithReadiumCompOffset(timeOffset)
+      audioLocator = audioLocator.copyWithReadiumCompOffset(timeOffset)
     }
     
     return audioLocator

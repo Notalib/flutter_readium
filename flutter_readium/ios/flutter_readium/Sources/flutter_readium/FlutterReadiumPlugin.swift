@@ -302,6 +302,29 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         await self.timebasedNavigator?.seekBackward()
       }
       result(nil)
+    case "goToProgression":
+      Task.detached(priority: .high) {
+        guard let progression = call.arguments as? Double
+        else {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "InvalidArgument",
+              message: "Failed to parse progression",
+              details: nil))
+          }
+          return
+        }
+        var navigated = false
+        if (self.timebasedNavigator != nil) {
+          navigated = await self.timebasedNavigator?.seek(toProgression: progression) ?? false
+        }
+        if let readerView = self.currentReaderView {
+          navigated = await readerView.goToProgression(progression, animated: false)
+        }
+        await MainActor.run { [navigated] in
+          result(navigated)
+        }
+      }
     case "goToLocator":
       Task.detached(priority: .high) {
         guard let args = call.arguments as? [Any?],
