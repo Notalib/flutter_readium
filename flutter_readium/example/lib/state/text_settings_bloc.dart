@@ -46,6 +46,7 @@ class TextSettingsState {
     this.pageMargins,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
+    this.firstElementTopMargin = 50,
   });
 
   final bool verticalScroll;
@@ -55,6 +56,7 @@ class TextSettingsState {
   final double? pageMargins;
   final bool blackAndWhiteComicMode;
   final bool disableSynchronization;
+  final int? firstElementTopMargin;
 
   @override
   String toString() =>
@@ -68,6 +70,7 @@ class TextSettingsState {
     final double? pageMargins,
     final bool? blackAndWhiteComicMode,
     final bool? disableSynchronization,
+    final int? firstElementTopMargin,
   }) {
     final newState = TextSettingsState(
       verticalScroll: verticalScroll ?? this.verticalScroll,
@@ -97,6 +100,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       pageMargins: state.pageMargins,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
+      firstElementTopMargin: state.firstElementTopMargin,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
@@ -112,6 +116,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       pageMargins: state.pageMargins,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
+      firstElementTopMargin: 50,
     );
     instance.setDefaultPreferences(defaultPreferences);
   }
