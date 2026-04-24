@@ -306,8 +306,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?
-          .sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
       }
     }
   }

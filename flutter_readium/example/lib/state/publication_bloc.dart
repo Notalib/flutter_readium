@@ -100,6 +100,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
       try {
         final publication = await instance.openPublication(event.publicationUrl);
         final pubUrlHashCode = event.publicationUrl.hashCode.toString();
+        bool timebasedLocatorReceived = false;
 
         emit(state.openPublicationSuccess(publication, event.initialLocator));
 
@@ -111,13 +112,13 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             .listen((locator) {
               debugPrint('onTimebasedPlayerState.currentLocator: $locator');
               savedLocators[pubUrlHashCode] = locator;
+              timebasedLocatorReceived = true;
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
           debugPrint('onTextLocatorChanged: $locator');
-          // TODO: should only be used if NOT audioEnabled.
-          if (publication.conformsToReadiumAudiobook || publication.containsMediaOverlays == true) {
-            // For audio books, we want to save the locator from the timebased state changes,
-            // which is more accurate for tracking the current visual position in the book.
+          if (publication.containsMediaOverlays && timebasedLocatorReceived) {
+            // TODO: would be better to check if audio is currently enabled for the publication.
+            // If the publication has media overlays, we prefer the locator from the timebased player state.
             return;
           }
           savedLocators[pubUrlHashCode] = locator;
