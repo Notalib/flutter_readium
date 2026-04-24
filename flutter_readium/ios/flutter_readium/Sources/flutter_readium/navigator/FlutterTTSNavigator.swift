@@ -29,6 +29,11 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       return self._initialLocator
     }
   }
+  public var currentLocator: Locator? {
+    get {
+      return playingUtterance
+    }
+  }
 
   public var listener: (any TimebasedListener)?
 

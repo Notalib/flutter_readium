@@ -28,6 +28,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return self._initialLocator
     }
   }
+  public var currentLocator: Locator? {
+    get {
+      return self.audioLocator
+    }
+  }
 
   public var listener: (any TimebasedListener)?
 

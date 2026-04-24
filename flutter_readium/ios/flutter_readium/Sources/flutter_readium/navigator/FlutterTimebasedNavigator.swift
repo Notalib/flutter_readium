@@ -12,6 +12,7 @@ public protocol FlutterTimebasedNavigator
 {
   var publication: Publication { get }
   var initialLocator: Locator? { get }
+  var currentLocator: Locator? { get }
   var listener: TimebasedListener? { get set }
   
   func initNavigator() async -> Void

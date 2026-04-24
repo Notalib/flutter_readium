@@ -13,6 +13,18 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   internal var mediaOverlays: [FlutterMediaOverlay] = []
   internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
   
+  public override var currentLocator: Locator? {
+    get {
+      if let audioLocator = audioLocator,
+         let mediaOverlayItem = mediaOverlayItemFromAudioLocator(audioLocator),
+         let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: audioLocator) {
+        return combinedLocator
+      } else {
+        return audioLocator
+      }
+    }
+  }
+  
   public override init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     super.init(publication: publication, preferences: preferences, initialLocator: initialLocator)
     

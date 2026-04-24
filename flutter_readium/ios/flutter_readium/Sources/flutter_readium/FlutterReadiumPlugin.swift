@@ -257,9 +257,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
 
       Task.detached(priority: .high) {
-        // If no locator provided, try to start from current ReaderView position.
-        if (locator == nil) {
-          locator = await self.currentReaderView?.getFirstVisibleLocator()
+        if locator == nil {
+          /// If no locator provided, try to re-start from latest timebased locator, or lastly the current ReaderView position.
+          if let currentTimebasedLocator = self.timebasedNavigator?.currentLocator {
+            locator = currentTimebasedLocator
+          } else {
+            locator = await self.currentReaderView?.getFirstVisibleLocator()
+          }
         }
         await self.timebasedNavigator?.play(fromLocator: locator)
 
@@ -329,7 +333,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task.detached(priority: .high) {
         guard let args = call.arguments as? [Any?],
               let locatorJson = args.first as? Dictionary<String, Any>,
-              var locator = try? Locator(json: locatorJson, warnings: self)
+              let locator = try? Locator(json: locatorJson, warnings: self)
         else {
           await MainActor.run {
             result(FlutterError.init(
