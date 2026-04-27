@@ -3,8 +3,10 @@ package dk.nota.flutter_readium.models
 import android.util.Log
 import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.getTimeOffset
+import dk.nota.flutter_readium.progression
 import org.json.JSONArray
 import org.json.JSONObject
+import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
 import java.io.Serializable
@@ -71,7 +73,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
             return null
         }
 
-        return items.find { item -> item.textId == textId }
+        return items.firstOrNull { item -> item.textId == textId }
     }
 
     /**
@@ -79,6 +81,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
      * A locator can either be an audio+time based locator or a text+id based locator.
      * This allows us to map back and forth between audio and text.
      */
+    @OptIn(InternalReadiumApi::class)
     fun findItemFromLocator(locator: Locator): FlutterMediaOverlayItem? {
         val href = locator.href
         if (!href.isEquivalent(Url.invoke(textFile)) && !href.isEquivalent(Url.invoke(audioFile))) {
@@ -91,6 +94,13 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
 
         locator.getTextId()?.let { textId ->
             return findItemFromTextId(href, textId)
+        }
+
+        locator.progression?.let { progression ->
+            val item = items.firstOrNull { item -> item.isInProgression(href, progression) }
+
+            // FIXME: This item?skipToAudioLocator will have an incorrect time value, since it is the original audioStart and not calculated from progression.
+            return item
         }
 
         if (locator.locations.fragments.isEmpty() && locator.mediaType.isHtml) {
@@ -113,14 +123,32 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Seria
     }
 
     companion object {
-        fun fromJson(json: JSONObject, position: Int, tocHref: Url?, title: String): FlutterMediaOverlay? {
+        fun fromJson(
+            json: JSONObject,
+            position: Int,
+            tocHref: Url?,
+            title: String,
+            readiumOrderItemDuration: Double
+        ): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
             val items = mutableListOf<FlutterMediaOverlayItem>()
             for (i in 0 until topNarration.length()) {
                 val itemJson = topNarration.getJSONObject(i)
-                FlutterMediaOverlayItem.fromJson(itemJson, position, tocHref, title)?.let { items.add(it) }
+                FlutterMediaOverlayItem.fromJson(
+                    itemJson,
+                    position,
+                    tocHref,
+                    title,
+                    readiumOrderItemDuration
+                )?.let { items.add(it) }
 
-                fromJson(itemJson, position, tocHref, title)?.let { items.addAll(it.items) }
+                fromJson(
+                    itemJson,
+                    position,
+                    tocHref,
+                    title,
+                    readiumOrderItemDuration
+                )?.let { items.addAll(it.items) }
             }
 
             return FlutterMediaOverlay(items)

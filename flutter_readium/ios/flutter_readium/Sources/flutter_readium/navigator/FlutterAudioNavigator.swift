@@ -28,13 +28,18 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return self._initialLocator
     }
   }
+  public var currentLocator: Locator? {
+    get {
+      return self.audioLocator
+    }
+  }
 
   public var listener: (any TimebasedListener)?
 
   public init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     self._publication = publication
     self._preferences = preferences
-    self._initialLocator = initialLocator
+    self._initialLocator = initialLocator?.skipToAudioLocator
     self._nowPlayingUpdater = NowPlayingInfoUpdater(
       withPublication: publication,
       infoType: preferences.controlPanelInfoType
@@ -51,15 +56,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     )
     _audioNavigator?.delegate = self
 
-    // TODO: Why is this public, if always called from itself?
-    self.setupNavigatorListeners()
+    self.setupNavigatorStateListeners()
 
     Task {
       cover = try? await publication.cover().get()
     }
   }
 
-  public func setupNavigatorListeners() {
+  private func setupNavigatorStateListeners() {
     /// Subscribe to changes
     $playback
       .throttle(for: .seconds(self._preferences.updateIntervalSecs), scheduler: RunLoop.main, latest: true)
@@ -77,16 +81,20 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func dispose() -> Void {
-    self._audioNavigator?.pause()
-    self._audioNavigator?.delegate = nil
-    self._audioNavigator = nil
-    self.listener?.timebasedNavigator(self, didChangeState: .init(state: .ended))
+    if (self._audioNavigator != nil) {
+      self._audioNavigator?.pause()
+      self._audioNavigator?.delegate = nil
+      self._audioNavigator = nil
+      self.listener?.timebasedNavigator(self, didChangeState: .init(state: .none))
+    }
     self.listener = nil
+    self.subscriptions.forEach { $0.cancel() }
+    _nowPlayingUpdater.clearNowPlaying()
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if (fromLocator != nil) {
-      let _ = await seek(toLocator: fromLocator!)
+    if let skipToLocator = fromLocator?.skipToAudioLocator {
+      let _ = await seek(toLocator: skipToLocator)
     }
     _audioNavigator?.play()
     _nowPlayingUpdater.setupNowPlayingInfo()
@@ -124,12 +132,38 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seek(toLocator: Locator) async -> Bool {
+    var timeOffset = toLocator.timeOffset
     let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
-    let navigated = await _audioNavigator?.go(to: toLocator) ?? false
+    /// Progression is resolved to a time fragment here, as this resolution is unique to AudioNavigator.
+    // TODO: This should really be handled by the Readium Navigator (upstream issue).
+    if let progression = toLocator.locations.progression, progression.isFinite,
+       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: toLocator, progression: progression) {
+        timeOffset = preciseTimeOffset
+    }
+    let resolvedLocator = toLocator.copyWithReadiumCompOffset(timeOffset ?? 0.0)
+    let navigated = await _audioNavigator?.go(to: resolvedLocator) ?? false
     if (wasPlaying && navigated) {
       _audioNavigator?.play()
     }
     return navigated
+  }
+  
+  public func seek(toProgression: Double) async -> Bool {
+    if let locator = audioLocator,
+       let timeOffset = getTimeOffsetForLocatorWithProgression(locator: locator, progression: toProgression) {
+      /// Modify time offset  of current Locator to match desired progression.
+      return await self.seek(toOffset: timeOffset)
+    }
+    return false
+  }
+  
+  private func getTimeOffsetForLocatorWithProgression(locator: Locator, progression: Double) -> Double? {
+    guard let locator = audioLocator,
+          let link = publication.readingOrder.firstWithHREF(locator.href),
+          let duration = link.duration, duration.isFinite else {
+      return nil
+    }
+      return duration * progression
   }
 
   public func seek(toOffset: Double) async -> Bool {

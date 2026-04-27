@@ -306,8 +306,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?
-          .sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
       }
     }
   }
@@ -335,6 +334,15 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+  }
+  
+  func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
+    Log.reader.debug("goToProgression:\(progression)")
+    guard let locator = getCurrentLocation() else {
+      return false
+    }
+    let newLocator = locator.copyWithProgressionLocations(progression: progression)
+    return await readiumViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
   
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {

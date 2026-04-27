@@ -257,9 +257,13 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
 
       Task.detached(priority: .high) {
-        // If no locator provided, try to start from current ReaderView position.
-        if (locator == nil) {
-          locator = await self.currentReaderView?.getFirstVisibleLocator()
+        if locator == nil {
+          /// If no locator provided, try to re-start from latest timebased locator, or lastly the current ReaderView position.
+          if let currentTimebasedLocator = self.timebasedNavigator?.currentLocator {
+            locator = currentTimebasedLocator
+          } else {
+            locator = await self.currentReaderView?.getFirstVisibleLocator()
+          }
         }
         await self.timebasedNavigator?.play(fromLocator: locator)
 
@@ -269,9 +273,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
     case "stop":
       Task { @MainActor in
-        self.timebasedNavigator?.dispose()
-        self.timebasedNavigator = nil
-        self.updateReaderViewTimebasedDecorations([])
+        if self.timebasedNavigator != nil {
+          self.timebasedNavigator?.dispose()
+          self.timebasedNavigator = nil
+          self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
+          self.updateReaderViewTimebasedDecorations([])
+        }
       }
       result(nil)
     case "pause":
@@ -299,6 +306,29 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         await self.timebasedNavigator?.seekBackward()
       }
       result(nil)
+    case "goToProgression":
+      Task.detached(priority: .high) {
+        guard let progression = call.arguments as? Double
+        else {
+          await MainActor.run {
+            result(FlutterError.init(
+              code: "InvalidArgument",
+              message: "Failed to parse progression",
+              details: nil))
+          }
+          return
+        }
+        var navigated = false
+        if (self.timebasedNavigator != nil) {
+          navigated = await self.timebasedNavigator?.seek(toProgression: progression) ?? false
+        }
+        if let readerView = self.currentReaderView {
+          navigated = await readerView.goToProgression(progression, animated: false)
+        }
+        await MainActor.run { [navigated] in
+          result(navigated)
+        }
+      }
     case "goToLocator":
       Task.detached(priority: .high) {
         guard let args = call.arguments as? [Any?],
@@ -320,9 +350,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           navigated = await self.timebasedNavigator?.seek(toLocator: locator) ?? false
         }
         // ReaderView goTo
-        else if (self.currentReaderView != nil) {
-          await self.currentReaderView?.goToLocator(locator, animated: false)
-          navigated = true
+        else if let readerView = self.currentReaderView {
+          navigated = await readerView.goToLocator(locator, animated: false)
         }
         await MainActor.run { [navigated] in
           result(navigated)
@@ -465,7 +494,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           state.currentLocator = locator
         }
       }
-      
+
       Task { @MainActor [state] in
         self.lastTimebasedPlayerState = state
         self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
@@ -592,7 +621,7 @@ extension FlutterReadiumPlugin {
       Log.toc.warn("no currentPublication")
       return nil
     }
-    
+
     /// If we already have a ToC ID from the viewer, use that for lookup.
     if let tocId = locator.locations.otherLocations["tocId"] {
       let tocHref = "\(locator.href)#\(tocId)"
