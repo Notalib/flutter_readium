@@ -144,7 +144,7 @@ export class DemoComicPanning extends LitElement {
 
   readonly #enableBlackAndWhite = () => {
     const enabled = !this.blackAndWhiteModeEnabled;
-    this.iframe?.contentWindow?.setBlackAndWhiteMode?.(enabled);
+    this.iframe?.contentWindow?.readium?.setCSSProperties?.({ "--FLUTTER_READIUM-black-white-comic-mode": enabled ? '1' : '' });
     this.blackAndWhiteModeEnabled = enabled;
   };
 

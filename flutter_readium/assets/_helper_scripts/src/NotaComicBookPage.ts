@@ -3,10 +3,6 @@ import { type ComicPageSize, type ComicPanel, figureQuerySelector } from './type
 import { ComicBookCalc } from './ComicBookCalc';
 import './NotaComicBookPage.scss';
 
-const BLACK_AND_WHITE_MODE_KEY = 'black-and-white-rendering';
-
-const blackAndWhiteCssClass = 'black-white-comic-mode';
-
 const activeComicPageContainerClass = 'nota-comic-is-active';
 
 function sanitizeId(id: string): string {
@@ -34,10 +30,6 @@ export class NotaComicBook {
     if (figureElements.length === 0) {
       console.debug('This page does not appear to be a comic book page. NotaComicBookPage will not be initialized.');
       return this;
-    }
-
-    if (NotaComicBook.isBlackAndWhiteEnabled()) {
-      NotaComicBook.setBlackAndWhiteMode(true);
     }
 
     this.#container = document.createElement('div');
@@ -96,21 +88,6 @@ export class NotaComicBook {
 
   public gotoComicFrame(id: string, duration?: number) {
     this.scrollToId(id, duration);
-  }
-
-  public static isBlackAndWhiteEnabled() {
-    return window.sessionStorage.getItem(BLACK_AND_WHITE_MODE_KEY) === 'true';
-  }
-
-
-  public static setBlackAndWhiteMode(enable: boolean) {
-    window.sessionStorage.setItem(BLACK_AND_WHITE_MODE_KEY, enable ? 'true' : 'false');
-
-    if (enable) {
-      document.body.classList.add(blackAndWhiteCssClass);
-    } else {
-      document.body.classList.remove(blackAndWhiteCssClass);
-    }
   }
 
   #onResize = (): void => this.scrollToId(this.#lastElementId ?? '');

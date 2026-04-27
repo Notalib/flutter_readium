@@ -8,7 +8,6 @@ import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
-import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withScope
@@ -120,7 +119,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             vm = EpubReaderViewModel().apply {
                 navigatorFactory = EpubNavigatorFactory(publication)
                 locator = this@EpubNavigator.initialLocator
-                preferences = this@EpubNavigator.initialPreferences.toEpubPreferences()
+                preferences = this@EpubNavigator.initialPreferences
             }
             listener = this@EpubNavigator
         }
@@ -180,26 +179,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
 
         try {
-            val oldPrefs = preferences
-            val oldBlackAndWhiteComicMode =
-                oldPrefs?.blackAndWhiteComicMode
-                    ?: false
-
-            val oldFirstElementTopMargin = oldPrefs?.firstElementTopMargin
-            navigator.updatePreferences(flutterEpubPreferences.toEpubPreferences())
-
-            var updateScript = ""
-            if (flutterEpubPreferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
-                updateScript += "window.setBlackAndWhiteMode(${flutterEpubPreferences.blackAndWhiteComicMode});"
-            }
-
-            if (flutterEpubPreferences.firstElementTopMargin != oldFirstElementTopMargin) {
-                "window.flutterReadium.setFirstElementTopMargin(${flutterEpubPreferences.blackAndWhiteComicMode ?: "null"});"
-            }
-
-            if (updateScript.isNotEmpty()) {
-                navigator.evaluateJavascript(updateScript)
-            }
+            navigator.updatePreferences(flutterEpubPreferences)
 
             preferences = flutterEpubPreferences
         } catch (ex: Exception) {
@@ -264,17 +244,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         hasNotifiedIsReady = true
         visualListener.onVisualReaderIsReady()
         setupNavigatorListeners()
-
-        mainScope.launch {
-            letIfBothNotNull(epubNavigator, preferences)?.let { (navigator, preferences) ->
-                navigator.evaluateJavascript(
-                    "" +
-                        "window.setBlackAndWhiteMode(${preferences.blackAndWhiteComicMode});" +
-                        "window.flutterReadium.setFirstElementTopMargin(${preferences.firstElementTopMargin ?: "null"})"
-                )
-            }
-        }
-
     }
 
     override fun onPageChanged(

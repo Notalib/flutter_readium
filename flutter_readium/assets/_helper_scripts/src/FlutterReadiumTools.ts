@@ -5,10 +5,6 @@ import { getCssSelector } from "css-selector-generator";
 import './FlutterReadiumTools.scss';
 
 class FlutterReadiumTools {
-  constructor() {
-    this.setFirstElementTopMargin(this.#getFirstElementTopMargin());
-  }
-
   get #isScrollModeEnabled(): boolean {
     return window.readium?.isReflowable === true && getComputedStyle(document.documentElement).getPropertyValue('--USER__view')?.trim() === 'readium-scroll-on"';
   }
@@ -73,30 +69,6 @@ class FlutterReadiumTools {
     if (window.comicBookPage) {
       window.comicBookPage.segmentDuration = duration;
     }
-  }
-
-  public setFirstElementTopMargin(margin: number | void | null) {
-    const cssVariableName = '--FLUTTER_READIUM-first-element-top-margin';
-    if (margin == null) {
-      document.documentElement.style.removeProperty(cssVariableName);
-      window.sessionStorage.removeItem('flutterReadium_firstElementTopMargin');
-    } else {
-      document.documentElement.style.setProperty(cssVariableName, `${margin}px`);
-      window.sessionStorage.setItem('flutterReadium_firstElementTopMargin', `${margin}`);
-    }
-  }
-
-  firstElementTopMarginKeyname = 'flutterReadium_firstElementTopMargin';
-  #getFirstElementTopMargin(): number | null {
-    const marginStr = window.sessionStorage.getItem(this.firstElementTopMarginKeyname);
-    if (marginStr) {
-      const margin = parseInt(marginStr, 10);
-      if (!isNaN(margin)) {
-        return margin;
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -169,21 +141,23 @@ class FlutterReadiumTools {
       return cssSelectorElement.id;
     }
 
-    // Now look backwards from the cssSelector to find the nearest preceding ToC element.
-    const predicate = tocIds.map((id) => `@id="${id}"`).join(" or ");
+    if (tocIds.length !== 0) {
+      // Now look backwards from the cssSelector to find the nearest preceding ToC element.
+      const predicate = tocIds.map((id) => `@id="${id}"`).join(" or ");
 
-    const precedingElementXPath = `preceding::*[${predicate}][1]`;
-    const result = document.evaluate(
-      precedingElementXPath,
-      cssSelectorElement,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null
-    );
+      const precedingElementXPath = `preceding::*[${predicate}][1]`;
+      const result = document.evaluate(
+        precedingElementXPath,
+        cssSelectorElement,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      );
 
-    // We found one, return it.
-    if (result.singleNodeValue instanceof Element && result.singleNodeValue.id) {
-      return result.singleNodeValue.id
+      // We found one, return it.
+      if (result.singleNodeValue instanceof Element && result.singleNodeValue.id) {
+        return result.singleNodeValue.id
+      }
     }
 
     // This might be a special case, where we start just before the first ToC element.
@@ -363,9 +337,7 @@ declare global {
     isNotaComicBook: () => boolean;
     comicBookPage?: NotaComicBook;
     gotoComicFrame: (id: string, duration: number) => void;
-    setBlackAndWhiteMode: (enable: boolean) => void;
-    isBlackAndWhiteEnabled: () => boolean;
-    setFirstElementTopMargin: (margin: number | void | null) => void;
+    debugCaptureReadiumFunctionCalls: () => void;
   }
 }
 
@@ -376,6 +348,24 @@ function Setup() {
   }
 
   document.removeEventListener('DOMContentLoaded', Setup);
+  try {
+    // Copy the custom css variables from style-elment to the root element's style property.
+    // This is needed for the CSS selectors to work correctly.
+    const styles = getComputedStyle(document.documentElement)
+    for (let i = 0; i < styles.length; i += 1) {
+      const key = styles[i];
+      if (key.startsWith('--FLUTTER_READIUM')) {
+        const value = styles.getPropertyValue(key);
+
+        // We can't reliably use the readium.setCSSProperties at this time. Use the DOM function directly.
+        document.documentElement.style.setProperty(key, value, 'important');
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to copy CSS variables to root element. This might cause some styles to not work correctly.", e);
+  }
+
+  // Create the tools in an animation frame to prevent it from blocking the webview initial rendering.
   requestAnimationFrame(() => {
     window.flutterReadium = new FlutterReadiumTools();
 
@@ -393,14 +383,6 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', Setup);
 }
 
-window.isBlackAndWhiteEnabled = () => {
-  return !!NotaComicBook.isBlackAndWhiteEnabled()
-};
-
-window.setBlackAndWhiteMode = (enable: boolean) => {
-  NotaComicBook.setBlackAndWhiteMode(enable);
-};
-
 window.gotoComicFrame = (id: string, duration: number) => {
   if (window.comicBookPage) {
     window.comicBookPage.gotoComicFrame(id, duration);
@@ -409,3 +391,33 @@ window.gotoComicFrame = (id: string, duration: number) => {
   }
 }
 
+let hasCapturedReadiumFunctions = false;
+
+window.debugCaptureReadiumFunctionCalls = () => {
+  if (hasCapturedReadiumFunctions) {
+    return;
+  }
+
+  hasCapturedReadiumFunctions = true;
+
+  if (typeof window.readium !== 'undefined') {
+    const readium = window.readium;
+    const readiumProxy = readium as unknown as Record<string, unknown>;
+
+    Object.keys(readiumProxy).forEach((key) => {
+      if (key === 'scrollToId') {
+        return;
+      }
+
+      const originalFn = readiumProxy[key] as (...args: any[]) => unknown;
+      console.log(`Checking readium function: ${key}`, originalFn);
+      if (typeof originalFn === 'function') {
+        // Proxy other readium functions to preserve original functionality, except for scrollToId which we override to handle comic frame scrolling.
+        readiumProxy[key] = (...args: any[]) => {
+          console.log(`Calling readium function: ${key} with arguments:`, args);
+          return originalFn.apply(readium, args);
+        };
+      }
+    });
+  }
+}

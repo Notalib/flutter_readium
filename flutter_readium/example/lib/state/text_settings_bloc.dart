@@ -46,6 +46,7 @@ class TextSettingsState {
     this.pageMargins,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
+    this.firstElementTopMargin,
   });
 
   final bool verticalScroll;
@@ -55,6 +56,7 @@ class TextSettingsState {
   final double? pageMargins;
   final bool blackAndWhiteComicMode;
   final bool disableSynchronization;
+  final int? firstElementTopMargin;
 
   @override
   String toString() =>
@@ -68,6 +70,7 @@ class TextSettingsState {
     final double? pageMargins,
     final bool? blackAndWhiteComicMode,
     final bool? disableSynchronization,
+    final int? firstElementTopMargin,
   }) {
     final newState = TextSettingsState(
       verticalScroll: verticalScroll ?? this.verticalScroll,
@@ -77,6 +80,7 @@ class TextSettingsState {
       pageMargins: pageMargins ?? this.pageMargins,
       blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
       disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+      firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
     );
 
     return newState;
@@ -97,6 +101,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       pageMargins: state.pageMargins,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
+      firstElementTopMargin: state.firstElementTopMargin,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
@@ -126,10 +131,11 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
           pageMargins: kIsWeb ? 35 : null,
           blackAndWhiteComicMode: false,
           disableSynchronization: false,
+          firstElementTopMargin: 40,
         ),
       ) {
     on<ChangeFontSize>((final event, final emit) {
-      emit(state.copyWith(fontSize: event.value));
+      emit(state.copyWith(fontSize: event.value, firstElementTopMargin: (state.firstElementTopMargin ?? 0) + 10));
       submitPreferenceUpdate();
     });
 
