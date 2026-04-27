@@ -46,7 +46,7 @@ class TextSettingsState {
     this.pageMargins,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
-    this.firstElementTopMargin,
+    this.firstElementTopMargin = 50,
   });
 
   final bool verticalScroll;
@@ -117,6 +117,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       pageMargins: state.pageMargins,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
+      firstElementTopMargin: state.firstElementTopMargin,
     );
     instance.setDefaultPreferences(defaultPreferences);
   }
@@ -135,7 +136,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
         ),
       ) {
     on<ChangeFontSize>((final event, final emit) {
-      emit(state.copyWith(fontSize: event.value, firstElementTopMargin: (state.firstElementTopMargin ?? 0) + 10));
+      emit(state.copyWith(fontSize: event.value));
       submitPreferenceUpdate();
     });
 
