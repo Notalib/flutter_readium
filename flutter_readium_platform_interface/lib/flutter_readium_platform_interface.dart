@@ -78,6 +78,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Go directly to the given [Locator] in the publication, whether visual or audio.
   Future<bool> goToLocator(Locator locator) => throw UnimplementedError('goToLocator() has not been implemented.');
 
+  /// Go to a specific progression in the current resource of the publication, where 0.0 is the start and 1.0 is the end.
+  Future<bool> goToProgression(double progression) =>
+      throw UnimplementedError('goToProgression() has not been implemented.');
+
   // COMMON PLAYBACK API - BEGIN
   /// Play the publication from the given locator, or resume if null.
   Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');

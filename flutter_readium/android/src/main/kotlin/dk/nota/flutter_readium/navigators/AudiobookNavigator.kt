@@ -8,8 +8,10 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
+import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
 import dk.nota.flutter_readium.withScope
@@ -28,7 +30,6 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
-import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -67,6 +68,24 @@ open class AudiobookNavigator(
     protected var mediaServiceFacade: PluginMediaServiceFacade? = null
 
     override suspend fun initNavigator() {
+        if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
+            Log.e(
+                TAG,
+                "::initNavigator - doesn't conform to audiobook profile - ${publication.metadata.conformsTo}"
+            )
+            throw Exception("Publication doesn't conform to audiobook profile")
+        }
+
+        if (publication.readingOrder.isEmpty()) {
+            Log.e(TAG, "::initNavigator - missing reading order")
+            throw Exception("Publication is missing its reading order, cannot be opened as an audiobook")
+        }
+
+        if (publication.readingOrder.any { it.duration == 0.0 }) {
+            Log.e(TAG, "::initNavigator - has at least one readium order item with duration = 0")
+            throw Exception("Publication has at least one readium order item with duration = 0")
+        }
+
         // Create AudioNavigatorFactory
         val navigatorFactory = ExoPlayerNavigatorFactory(
             publication,
@@ -123,7 +142,7 @@ open class AudiobookNavigator(
     override suspend fun play(fromLocator: Locator?) {
         mainScope.async {
             if (fromLocator != null) {
-                audioNavigator?.go(fromLocator)
+                goToLocator(fromLocator)
             }
 
             try {
@@ -167,14 +186,59 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: return
         withScope(mainScope) {
-            navigator.go(locator)
+            val toLocator = locator.progression?.let { progression ->
+                val readingOrderLink =
+                    publication.readingOrder.find { link ->
+                        link.href.toString() == locator.href.toString()
+                    } ?: run {
+                        Log.d(TAG, "::goToLocator - ${locator.href} not found in reading order")
+                        return@withScope
+                    }
+
+                val timeOffset = readingOrderLink.duration?.takeIf { it > 0 }
+                    ?.let { duration -> duration * progression } ?: run {
+                    Log.d(TAG, "::goToLocator - reading order link is missing a duration")
+                    return@withScope
+                }
+
+                locator.copyWithTimeFragment(timeOffset)
+            } ?: locator
+
+            navigator.go(toLocator)
         }
     }
 
     override suspend fun seekTo(offset: Double) {
-        mainScope.async {
-            audioNavigator?.skip(offset.seconds)
-        }.await()
+        val navigator = audioNavigator ?: run {
+            Log.d(TAG, ":seekToProgression - called without navigator")
+            return
+        }
+
+        withScope(mainScope) {
+            navigator.skip(offset.seconds)
+        }
+    }
+
+    override suspend fun seekToProgression(progression: Double): Boolean {
+        val navigator = audioNavigator ?: run {
+            Log.d(TAG, ":seekToProgression - called without navigator")
+            return false
+        }
+
+        if (progression !in 0.0..1.0) {
+            Log.d(TAG, ":seekToProgression - progression $progression is not between 0.0 and 1.0")
+            return false
+        }
+
+        return withScope(mainScope) {
+            val duration = navigator.asMedia3Player().duration
+            val timeOffset = duration * progression
+
+            val toLocator = navigator.currentLocator.value.copyWithTimeFragment(timeOffset)
+
+            goToLocator(toLocator)
+            return@withScope true
+        }
     }
 
     /**

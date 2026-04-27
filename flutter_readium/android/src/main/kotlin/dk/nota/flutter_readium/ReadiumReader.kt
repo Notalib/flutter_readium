@@ -430,7 +430,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 val tocIds = manifest.tableOfContents.flattenChildren()
                     .mapNotNull { it.href.resolve().fragment }
                 container = TransformingContainer(container) { url: Url, resource: Resource ->
-                    if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
+                    if (manifest.linkWithHref(url)?.mediaType?.isHtml == true)
                         resource.injectScriptsAndStyles(tocIds)
                     else
                         resource
@@ -643,7 +643,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         val timeOffset =
             locator.locations.time?.inWholeSeconds?.toDouble()
                 ?: (duration?.let { duration ->
-                    locator.locations.progression?.let { prog -> duration * prog }
+                    locator.progression?.let { progression -> duration * progression }
                 })
 
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator, timeOffset=$timeOffset")
@@ -858,13 +858,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             audiobookNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         syncAudiobookNavigator?.apply {
             pause()
             dispose()
 
-            audiobookNavigator = null
+            syncAudiobookNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         ttsNavigator?.apply {
@@ -872,6 +874,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             ttsNavigator = null
+            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
     }
 
@@ -902,6 +905,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             )
         } else {
             epubGoToLocator(locator, true)
+        }
+    }
+
+    suspend fun goToProgression(progression: Double) {
+        if (timebasedNavigator != null) {
+            Log.d(TAG, "::goToProgression - timebased $progression")
+            timebasedNavigator?.seekToProgression(progression)
+        } else {
+            epubGoToProgression(progression)
         }
     }
 
@@ -940,12 +952,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             syncAudiobookNavigator = null
 
             if (overlays == null) {
+                Log.d(TAG, "::audioEnable - plain audiobook")
+
                 audiobookNavigator = AudiobookNavigator(
                     ap, this@ReadiumReader, initialLocator, preferences
                 ).apply {
                     initNavigator()
                 }
             } else {
+                Log.d(TAG, "::audioEnable - media-overlay book")
                 val ail = initialLocator ?: epubNavigator?.currentLocator?.value
                 syncAudiobookNavigator = SyncAudiobookNavigator(
                     ap, overlays, this@ReadiumReader, ail, preferences
@@ -1060,6 +1075,15 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         navigator.goToLocator(locator, animated)
+    }
+
+    suspend fun epubGoToProgression(progression: Double) {
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, ":epubGoToProgression called without a epubNavigator")
+            return
+        }
+
+        navigator.scrollToProgression(progression)
     }
 
     /**

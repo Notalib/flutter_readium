@@ -16,7 +16,7 @@ import org.readium.r2.shared.publication.Manifest
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
-import org.readium.r2.shared.publication.services.content.ContentService
+import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
@@ -142,7 +142,9 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         val jsonString =
             this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
         val jsonObject = JSONObject(jsonString)
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "")
+        val duration = link.duration?.takeIf { it > 0.0 } ?: return@mapIndexedNotNull null
+
+        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "", duration)
     }
         .map { mo ->
             val items = mo.items.map { item ->
@@ -202,7 +204,7 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
                         title = item.title
                     )
                 }
-        }
+        }.filter { it.duration != null && it.duration!! > 0.0 }
     )
 
     val pseudoPublication = Publication.Builder(manifest, container).build()
@@ -230,12 +232,23 @@ fun Locator.getTextId(): String? {
  * Make a new copy with a new time fragment
  */
 fun Locator.copyWithTimeFragment(time: Double): Locator {
+    // IMPORTANT: Readium expects time fragment to be an integer.
+    return copyWithTimeFragment(time.toInt())
+}
+
+/**
+ * Make a new copy with a new time fragment
+ */
+fun Locator.copyWithTimeFragment(time: Int): Locator {
     return copy(
         locations = locations.copy(
             fragments = listOf("t=${time}")
         )
     )
 }
+
+val Locator.progression: Double?
+    get() = locations.progression
 
 /**
  * Helper for getting all cssSelectors for a HTML document.
@@ -246,20 +259,18 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
         return null
     }
 
-    val contentService = findService(ContentService::class) ?: run {
+    val cleanHref = href.cleanHref()
+
+    val contentItems = content(Locator(
+        href = cleanHref,
+        mediaType = MediaType.XHTML
+    )) ?: run {
         Log.d(TAG, ":findAllCssSelectors - no content service found")
         return null
     }
 
-    val cleanHref = href.cleanHref()
-
     val ids = arrayListOf<String>()
-    for (element in contentService.content(
-        Locator(
-            href = cleanHref,
-            mediaType = MediaType.XHTML
-        )
-    )) {
+    for (element in contentItems) {
         if (element !is Content.TextElement) {
             continue
         }

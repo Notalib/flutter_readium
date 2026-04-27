@@ -1,6 +1,7 @@
 import ReadiumShared
 
 public enum TimebasedState: String {
+  case none
   case playing
   case loading
   case paused
@@ -9,7 +10,7 @@ public enum TimebasedState: String {
 }
 
 public class ReadiumTimebasedState : Equatable {
-  
+
   var state: TimebasedState
   var currentOffset: TimeInterval?
   var currentBuffered: TimeInterval?

@@ -3,6 +3,8 @@ import ReadiumShared
 struct FlutterMediaOverlay {
   let items: [FlutterMediaOverlayItem]
   
+  let readingOrderDuration: TimeInterval?
+  
   var audioFile: String? {
     items.first?.audioFile
   }
@@ -11,8 +13,8 @@ struct FlutterMediaOverlay {
     items.first?.textFile
   }
   
-  var duration: Double? {
-    items.last?.audioEnd ?? 0.0
+  var totalDuration: TimeInterval? {
+    items.reduce(0) { $0 + ($1.audioDuration ?? 0.0) }
   }
 
   func itemInRangeOfTime(_ time: Double, inHref href: String) -> FlutterMediaOverlayItem? {
@@ -56,20 +58,20 @@ struct FlutterMediaOverlay {
     return nil
   }
   
-  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String? = nil) -> FlutterMediaOverlay? {
+  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String? = nil, readingOrderDuration: TimeInterval? = nil) -> FlutterMediaOverlay? {
     guard let topNarration = json["narration"] as? [[String: Any]] else { return nil }
     var acc: [FlutterMediaOverlayItem] = []
     
     for obj in topNarration {
-      if let item = FlutterMediaOverlayItem.fromJson(obj, atPosition: position, atTocHref: atTocHref) {
+      if let item = FlutterMediaOverlayItem.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
         acc.append(item)
       }
       // recurse if nested containers also have "narration"
-      if let nested = FlutterMediaOverlay.fromJson(obj, atPosition: position, atTocHref: atTocHref) {
+      if let nested = FlutterMediaOverlay.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
         acc.append(contentsOf: nested.items)
       }
     }
-    return FlutterMediaOverlay(items: acc)
+    return FlutterMediaOverlay(items: acc, readingOrderDuration: readingOrderDuration)
   }
 }
 
@@ -77,6 +79,7 @@ struct FlutterMediaOverlayItem {
   let audio: String
   let text: String
   let position: Int
+  let readingOrderDuration: TimeInterval?
   
   let audioFile: String
   let audioMediaType: MediaType
@@ -97,12 +100,13 @@ struct FlutterMediaOverlayItem {
   let tocTitle: String?
   let tocHref: String?
   
-  init(audio: String, text: String, position: Int, tocTitle: String? = nil, tocHref: String? = nil) {
+  init(audio: String, text: String, position: Int, tocTitle: String? = nil, tocHref: String? = nil, readingOrderDuration: TimeInterval? = nil) {
     self.audio = audio
     self.text = text
     self.position = position
     self.tocTitle = tocTitle
     self.tocHref = tocHref
+    self.readingOrderDuration = readingOrderDuration
     self.audioFile = audio.split(separator: "#", maxSplits: 1).first.map(String.init) ?? audio
     self.audioFragment = audio.split(separator: "#", maxSplits: 1).getOrNil(1).map(String.init) ?? ""
     self.audioTime = audioFragment.hasPrefix("t=") ? String(audioFragment.dropFirst(2)) : nil
@@ -126,7 +130,7 @@ struct FlutterMediaOverlayItem {
   }
   
   func copyWith(tocTitle: String?, tocHref: String?) -> FlutterMediaOverlayItem {
-    return FlutterMediaOverlayItem(audio: audio, text: text, position: position, tocTitle: tocTitle, tocHref: tocHref)
+    return FlutterMediaOverlayItem(audio: audio, text: text, position: position, tocTitle: tocTitle, tocHref: tocHref, readingOrderDuration: readingOrderDuration)
   }
   
   static func == (lhs: FlutterMediaOverlayItem, rhs: FlutterMediaOverlayItem) -> Bool {
@@ -157,7 +161,7 @@ struct FlutterMediaOverlayItem {
       mediaType: MediaType.xhtml,
       title: tocTitle,
       locations: .init(
-        fragments: frag.map { ["#\($0)"] } ?? [],
+        fragments: frag.map { [$0] } ?? [],
       )
     )
     if (frag != nil) {
@@ -173,10 +177,11 @@ struct FlutterMediaOverlayItem {
   var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
+    // TODO: Ensure the start is integer, currently seems Readium component expects this.
     return Locator(
       href: href,
       mediaType: audioMediaType,
-      locations: .init(fragments: ["t=\(start)"])
+      locations: .init(fragments: ["t=\(Int(start))"])
     )
   }
   
@@ -198,11 +203,11 @@ struct FlutterMediaOverlayItem {
   }
   
   // MARK: JSON
-  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String?) -> FlutterMediaOverlayItem? {
+  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String?, readingOrderDuration: TimeInterval?) -> FlutterMediaOverlayItem? {
     guard
       let audio = json["audio"] as? String, !audio.isEmpty,
       let text  = json["text"]  as? String, !text.isEmpty
     else { return nil }
-    return FlutterMediaOverlayItem(audio: audio, text: text, position: position, tocHref: atTocHref)
+    return FlutterMediaOverlayItem(audio: audio, text: text, position: position, tocHref: atTocHref, readingOrderDuration: readingOrderDuration)
   }
 }
