@@ -53,7 +53,7 @@ figure.nota-comicbook-page {
   }
 }
 
-body.black-white-comic-mode {
+:root[style*='--FLUTTER_READIUM-black-white-comic-mode'] {
   /**
      * Apply a filter to make the comic page black and white. This helps certain visual impairments to read the content more easily.
      */

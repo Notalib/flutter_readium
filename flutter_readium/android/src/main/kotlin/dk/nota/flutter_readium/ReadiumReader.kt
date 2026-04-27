@@ -58,6 +58,7 @@ import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
+import org.readium.r2.shared.util.data.Container
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.shared.util.http.HttpRequest
@@ -423,19 +424,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     private suspend fun assetToPublication(
-        asset: Asset
+        asset: Asset,
+        transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null
     ): Try<Publication, OpenError> {
         val publication: Publication =
             publicationOpener.open(asset, allowUserInteraction = true, onCreatePublication = {
-                val tocIds = manifest.tableOfContents.flattenChildren()
-                    .mapNotNull { it.href.resolve().fragment }
-                container = TransformingContainer(container) { url: Url, resource: Resource ->
-                    if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
-                        resource.injectScriptsAndStyles(tocIds)
-                    else
-                        resource
-
-                }
+                container = transformingContainerFactory?.let { it(container) } ?: container
             }).getOrElse { err: OpenError ->
                 Log.e(TAG, "Error opening publication: $err")
                 asset.close()
@@ -473,7 +467,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      * Note: Remember to close the publication to avoid leaks.
      */
     suspend fun loadPublication(
-        pubUrl: AbsoluteUrl
+        pubUrl: AbsoluteUrl,
+        transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null
     ): Try<Publication, PublicationError> {
         if (currentPublicationUrl == pubUrl.toString()) {
             // Current publication is the same as the one we are trying to load, return it.
@@ -490,7 +485,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                         Log.e(TAG, "Error retrieving asset: $error from url:$pubUrl")
                         return@withContext failure(PublicationError.invoke(error))
                     }
-                val pub = assetToPublication(asset).getOrElse { error: OpenError ->
+                val pub = assetToPublication(asset, transformingContainerFactory).getOrElse { error: OpenError ->
                     Log.e(TAG, "Error loading asset to Publication object: $error from url:$pubUrl")
                     return@withContext failure(PublicationError.invoke(error))
                 }
@@ -540,7 +535,22 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         // Close previously opened publication to avoid leaks.
         closePublication()
 
-        val pub = loadPublication(pubUrl).getOrElse { e -> return failure(e) }
+        val transformingContainerFactory = fun (container: Container<Resource>): Container<Resource> {
+            return TransformingContainer(container) { url: Url, resource: Resource ->
+                val publication = currentPublication ?: return@TransformingContainer resource
+                val navigator = epubNavigator ?: return@TransformingContainer resource
+
+                val tocIds = publication.tableOfContents.flattenChildren().mapNotNull { it.href.resolve().fragment }
+                val epubPreferences = navigator.preferences
+                if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
+                    resource.injectScriptsAndStyles(tocIds, epubPreferences)
+                else
+                    resource
+
+            }
+        }
+
+        val pub = loadPublication(pubUrl, transformingContainerFactory).getOrElse { e -> return failure(e) }
 
         _currentPublication = pub
         currentPublicationUrl = pubUrl.toString()

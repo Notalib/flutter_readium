@@ -73,7 +73,10 @@ private const val READIUM_FLUTTER_PATH_PREFIX =
     "https://readium/assets/flutter_assets/packages/flutter_readium"
 
 // Helper for injecting extra files into an epub
-fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
+fun Resource.injectScriptsAndStyles(
+    tocIds: List<String>,
+    epubPreferences: FlutterEpubPreferences?
+): Resource =
     TransformingResource(this) { bytes ->
         val props = this.properties().getOrNull()
         val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
@@ -90,7 +93,22 @@ fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
             return@TransformingResource Try.success(bytes)
         }
 
+        val injectStyle = epubPreferences?.toInjectableStyleSheet()
+
         if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
+            injectStyle?.let {
+                if (!content.contains(it)) {
+                    Log.d(TAG, "Scripts already loaded for $filename, but custom css needs to be updated.")
+                    return@TransformingResource Try.success(
+                        content.replace(
+                            "</head>",
+                            "$it</head>",
+                            true
+                        ).toByteArray()
+                    );
+                }
+            }
+
             Log.d(TAG, "Skip injecting - already done for: $filename")
             return@TransformingResource Try.success(bytes)
         }
@@ -99,9 +117,14 @@ fun Resource.injectScriptsAndStyles(tocIds: List<String>): Resource =
 
         val injectLines = listOf(
             """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
-            """<script type="text/javascript">const isAndroid = true; const isIos = false;</script>""",
             """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
-            """<script type="text/javascript">window.readiumTocIDs = ${jsonEncode(tocIds)};</script>"""
+            """<script type="text/javascript">
+                const isAndroid = true;
+                const isIos = false;
+                window.readiumTocIDs = ${jsonEncode(tocIds)};
+            </script>
+            $injectStyle
+            """
         )
         val newContent = StringBuilder(content)
             .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
