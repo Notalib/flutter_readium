@@ -46,7 +46,7 @@ class TextSettingsState {
     this.pageMargins,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
-    this.firstElementTopMargin = 50,
+    this.firstElementTopMargin = 40,
   });
 
   final bool verticalScroll;
