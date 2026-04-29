@@ -16,6 +16,9 @@ import org.readium.r2.shared.util.Language
 
 private const val TAG = "FlutterEpubPreferences"
 
+private const val topMarginCssVariable = "--FLUTTER_READIUM-first-element-top-margin"
+private const val blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode";
+
 @OptIn(ExperimentalReadiumApi::class)
 @Serializable
 data class FlutterEpubPreferences(
@@ -45,7 +48,8 @@ data class FlutterEpubPreferences(
     val verticalText: Boolean? = null,
     val wordSpacing: Double? = null,
     val blackAndWhiteComicMode: Boolean? = false,
-    val disableSynchronization: Boolean? = false
+    val disableSynchronization: Boolean? = false,
+    val firstElementTopMargin: Int? = null,
 ) : Configurable.Preferences<FlutterEpubPreferences> {
     override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences {
         return FlutterEpubPreferences(
@@ -76,6 +80,7 @@ data class FlutterEpubPreferences(
             wordSpacing = other.wordSpacing ?: wordSpacing,
             blackAndWhiteComicMode = other.blackAndWhiteComicMode ?: blackAndWhiteComicMode,
             disableSynchronization = other.disableSynchronization ?: disableSynchronization,
+            firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin
         )
     }
 
@@ -107,6 +112,21 @@ data class FlutterEpubPreferences(
             verticalText,
             wordSpacing
         )
+    }
+
+    fun toCustomCssVariables(): Map<String, String?> {
+        val map = mutableMapOf<String, String?>()
+        map[topMarginCssVariable] = firstElementTopMargin?.let { "${it}px" }
+        map[blackAndWhiteComicModeCssVariable] = if (blackAndWhiteComicMode == true) "1" else null
+        return map
+    }
+
+    fun toInjectableStyleSheet(): String {
+        return """<style id="flutter_readium_style">:root {${
+            toCustomCssVariables().filter { it.value != null }
+                .map { (key, value) -> "$key: $value !important" }
+                .joinToString(separator = ";")
+        }}</style>""".trimIndent()
     }
 
     companion object {

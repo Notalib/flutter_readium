@@ -96,8 +96,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Current EPUB preferences.
      */
-    val preferences: FlutterEpubPreferences?
+    var preferences: FlutterEpubPreferences?
         get() = state[epubPreferencesKey] as? FlutterEpubPreferences
+        set(value) {
+            state[epubPreferencesKey] = value
+        }
 
     /**
      * Current locator in the EPUB navigator.
@@ -116,7 +119,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             vm = EpubReaderViewModel().apply {
                 navigatorFactory = EpubNavigatorFactory(publication)
                 locator = this@EpubNavigator.initialLocator
-                preferences = this@EpubNavigator.initialPreferences.toEpubPreferences()
+                preferences = this@EpubNavigator.initialPreferences
             }
             listener = this@EpubNavigator
         }
@@ -176,19 +179,19 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Update EPUB navigator preferences.
      */
-    suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
+    suspend fun updatePreferences(flutterEpubPreferences: FlutterEpubPreferences) {
         Log.d(TAG, "::updatePreferences")
 
-        try {
-            val oldBlackAndWhiteComicMode =
-                (state[epubPreferencesKey] as? FlutterEpubPreferences)?.blackAndWhiteComicMode
-                    ?: false
-            epubNavigator?.updatePreferences(preferences.toEpubPreferences())
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, "Tried to update preferences without a navigator")
+            preferences = flutterEpubPreferences
+            return
+        }
 
-            if (preferences.blackAndWhiteComicMode != oldBlackAndWhiteComicMode) {
-                epubNavigator?.evaluateJavascript("window.SetBlackAndWhiteMode(${preferences.blackAndWhiteComicMode})")
-            }
-            state[epubPreferencesKey] = preferences
+        try {
+            navigator.updatePreferences(flutterEpubPreferences)
+
+            preferences = flutterEpubPreferences
         } catch (ex: Exception) {
             Log.e(TAG, "Error applying EpubPreferences: $ex")
         }

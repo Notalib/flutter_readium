@@ -25,9 +25,9 @@ private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
 private func emitReaderStatusChanged(status: String) {
-  let jsonData = try! jsonEncoder.encode(status)
-  if let jsonStsring = String(data: jsonData, encoding: .utf8){
-    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(jsonStsring)
+  if let jsonData = try? jsonEncoder.encode(status),
+     let jsonString = String(data: jsonData, encoding: .utf8) {
+    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(jsonString)
   }
 }
 
@@ -37,6 +37,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
 
@@ -66,9 +67,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
     let publication = FlutterReadiumPlugin.instance!.getCurrentPublication()!
     self.publication = publication
+    self.publicationIdentifier = publication.metadata.identifier
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, Any>?
-    let initWithPreferences = preferencesMap == nil ? nil : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
+    self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
     var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
@@ -89,6 +91,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // Remove undocumented Readium default 20dp or 44dp top/bottom padding.
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
+
+    // TODO: Use config.readiumCSSRSProperties.overrides to add custom CSS variables
+    //config.readiumCSSRSProperties.overrides = [:]
+
     config.contentInset = [
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
@@ -97,17 +103,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // Might want it to be higher for a local publication than remote. Default is 2 previous and 6 next resources.
     config.preloadPreviousPositionCount = 2
     config.preloadNextPositionCount = 4
-    config.debugState = true
+    config.debugState = false
 
-    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of in-front.
+    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
-    config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
+    //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
+    //config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
-    if let preferences = initWithPreferences {
-      config.preferences = preferences.readium
-      self.preferences = preferences
+    if let readiumPreferences = self.preferences?.readium {
+      config.preferences = readiumPreferences
     }
 
     readiumViewController = try! EPUBNavigatorViewController(
@@ -139,12 +145,6 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     )
 
     FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
-    publicationIdentifier = publication.metadata.identifier
-
-    /// Ensure userScripts are initialized for later injection.
-    if userScripts.isEmpty {
-      self.initUserScripts(registrar: registrar)
-    }
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -152,10 +152,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
 
     /// This adapter will automatically turn pages when the user taps the
-    /// screen edges or press arrow keys.
-    ///
-    /// Bind it to the navigator before adding your own observers to prevent
-    /// triggering your actions when turning pages.
+    /// screen edges or presses arrow keys.
     DirectionalNavigationAdapter(
       pointerPolicy: .init(types: [.mouse, .touch])
     ).bind(to: readiumViewController)
@@ -176,11 +173,24 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     }
   }
 
-  // override EPUBNavigatorDelegate::navigator:setupUserScripts
+  // implements EPUBNavigatorDelegate::navigator:setupUserScripts
   public func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
     Log.reader.debug("setupUserScripts: adding \(userScripts.count) scripts")
     for script in userScripts {
       userContentController.addUserScript(script)
+    }
+    
+    /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
+    if let preferencesStylesheet = self.preferences?.toInjectableStyleSheet() {
+      let source = """
+        (function() {
+        var parent = document.getElementsByTagName('head').item(0);
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = '\(preferencesStylesheet)';
+        parent.appendChild(style)})();
+      """
+      userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
     }
   }
 
@@ -193,12 +203,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     return .init(top: 0, left: 0, bottom: 0, right: 0)
   }
 
-  // override EPUBNavigatorDelegate::navigator:presentError
+  // implements EPUBNavigatorDelegate::navigator:presentError
   public func navigator(_ navigator: Navigator, presentError error: NavigatorError) {
     Log.reader.error("Should present error: \(error)")
   }
 
-  // override EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
+  // implements EPUBNavigatorDelegate::navigator:didFailToLoadResourceAt
   public func navigator(_ navigator: Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
     Log.reader.warn("didFailToLoadResourceAt: \(href). err: \(error)")
 
@@ -209,12 +219,19 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(error)
   }
 
-  // override NavigatorDelegate::navigator:locationDidChange
+  // implements NavigatorDelegate::navigator:locationDidChange
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     Log.reader.debug("onPageChanged: \(locator)")
     if (!hasSentReady) {
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
+    }
+    if (lastHrefLocation != locator.href.string) {
+      lastHrefLocation = locator.href.string
+      /// Ensure that custom preference CSS variables are set, when changing resources.
+      if let preferences = self.preferences {
+        updateCustomPreferences(preferences)
+      }
     }
     emitOnPageChanged(locator: locator)
   }
@@ -277,13 +294,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
     self.readiumViewController.submitPreferences(preferences.readium)
-    
-    if let blackAndWhiteMode = preferences.blackAndWhite {
-      Task.detached(priority: .high) { [blackAndWhiteMode] in
-        let result = await self.readiumViewController.evaluateJavaScript("window.SetBlackAndWhiteMode(\(blackAndWhiteMode));")
-        if case .failure(let err) = result {
-          Log.reader.error("setUserPreferences.SetBlackAndWhiteMode error: \(err)")
-        }
+    self.updateCustomPreferences(preferences)
+  }
+
+  private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
+    let cssVariables = preferences.toCustomCssVariables()
+    if cssVariables.isEmpty == false,
+       let jsonData = try? jsonEncoder.encode(cssVariables),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+      Task.detached(priority: .high) { [jsonString] in
+        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
+        Log.reader.info("updated custom preferences: \(result)")
       }
     }
   }
@@ -333,6 +354,12 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
+
+    // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
+    // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
+    var locator = locator
+    locator.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
+
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
   
@@ -345,13 +372,15 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     return await readiumViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
   
+
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     Log.reader.debug("syncToLocator: \(locator)")
     if (preferences?.disableSync == true) {
       return false
     }
     if let duration = segmentDuration {
-      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(duration * 1000.0));");
+      let segmentDurationMs = duration * 1000.0
+      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
     }
     return await goToLocator(locator, animated: animated)
   }
@@ -473,27 +502,33 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         parent.appendChild(style)})();
       """
     }
+    
+    /// INJECTED AT DOCUMENT START
+    
     /// Add JS scripts right away, before loading the rest of the document.
     for jsScript in jsScripts {
       userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     }
-    /// Add css injection scripts after primary document finished loading.
-    for addCssScript in addCssScripts {
-      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-    }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-
+    
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
-      let data = try JSONEncoder().encode(tocFragments)
+      let data = try jsonEncoder.encode(tocFragments)
       if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
         let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON);"
         userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
       }
     } catch (let err) {
       Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
+    }
+    
+    /// INJECTED AT DOCUMENT END
+    
+    /// Add css injection scripts after primary document finished loading.
+    for addCssScript in addCssScripts {
+      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
     }
   }
 

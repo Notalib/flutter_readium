@@ -141,21 +141,23 @@ class FlutterReadiumTools {
       return cssSelectorElement.id;
     }
 
-    // Now look backwards from the cssSelector to find the nearest preceding ToC element.
-    const predicate = tocIds.map((id) => `@id="${id}"`).join(" or ");
+    if (tocIds.length !== 0) {
+      // Now look backwards from the cssSelector to find the nearest preceding ToC element.
+      const predicate = tocIds.map((id) => `@id="${id}"`).join(" or ");
 
-    const precedingElementXPath = `preceding::*[${predicate}][1]`;
-    const result = document.evaluate(
-      precedingElementXPath,
-      cssSelectorElement,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null
-    );
+      const precedingElementXPath = `preceding::*[${predicate}][1]`;
+      const result = document.evaluate(
+        precedingElementXPath,
+        cssSelectorElement,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      );
 
-    // We found one, return it.
-    if (result.singleNodeValue instanceof Element && result.singleNodeValue.id) {
-      return result.singleNodeValue.id
+      // We found one, return it.
+      if (result.singleNodeValue instanceof Element && result.singleNodeValue.id) {
+        return result.singleNodeValue.id
+      }
     }
 
     // This might be a special case, where we start just before the first ToC element.
@@ -236,7 +238,7 @@ class FlutterReadiumTools {
     const result = document.evaluate(
       'preceding::*[@epub:type="pagebreak" or @type="pagebreak" or @role="doc-pagebreak" or contains(@class,"pagebreak")][1]',
       element,
-      (prefix: string | null) => {
+      (prefix: string | null) => {
         if (prefix === "epub") {
           return "http://www.idpf.org/2007/ops";
         }
@@ -334,9 +336,8 @@ declare global {
 
     isNotaComicBook: () => boolean;
     comicBookPage?: NotaComicBook;
-    GotoComicFrame: (id: string, duration: number) => void;
-    SetBlackAndWhiteMode: (enable: boolean) => void;
-    IsBlackAndWhiteEnabled: () => boolean;
+    gotoComicFrame: (id: string, duration: number) => void;
+    debugCaptureReadiumFunctionCalls: () => void;
   }
 }
 
@@ -347,6 +348,24 @@ function Setup() {
   }
 
   document.removeEventListener('DOMContentLoaded', Setup);
+  try {
+    // Copy the custom css variables from style-elment to the root element's style property.
+    // This is needed for the CSS selectors to work correctly.
+    const styles = getComputedStyle(document.documentElement)
+    for (let i = 0; i < styles.length; i += 1) {
+      const key = styles[i];
+      if (key.startsWith('--FLUTTER_READIUM')) {
+        const value = styles.getPropertyValue(key);
+
+        // We can't reliably use the readium.setCSSProperties at this time. Use the DOM function directly.
+        document.documentElement.style.setProperty(key, value, 'important');
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to copy CSS variables to root element. This might cause some styles to not work correctly.", e);
+  }
+
+  // Create the tools in an animation frame to prevent it from blocking the webview initial rendering.
   requestAnimationFrame(() => {
     window.flutterReadium = new FlutterReadiumTools();
 
@@ -364,18 +383,41 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', Setup);
 }
 
-window.IsBlackAndWhiteEnabled = () => {
-  return !!NotaComicBook.isBlackAndWhiteEnabled()
-};
-
-window.SetBlackAndWhiteMode = (enable: boolean) => {
-  NotaComicBook.setBlackAndWhiteMode(enable);
-};
-
-window.GotoComicFrame = (id: string, duration: number) => {
+window.gotoComicFrame = (id: string, duration: number) => {
   if (window.comicBookPage) {
     window.comicBookPage.gotoComicFrame(id, duration);
   } else {
-    console.warn("GotoComicFrame: Comic book page is not available.");
+    console.warn("gotoComicFrame: Comic book page is not available.");
+  }
+}
+
+let hasCapturedReadiumFunctions = false;
+
+window.debugCaptureReadiumFunctionCalls = () => {
+  if (hasCapturedReadiumFunctions) {
+    return;
+  }
+
+  hasCapturedReadiumFunctions = true;
+
+  if (typeof window.readium !== 'undefined') {
+    const readium = window.readium;
+    const readiumProxy = readium as unknown as Record<string, unknown>;
+
+    Object.keys(readiumProxy).forEach((key) => {
+      if (key === 'scrollToId') {
+        return;
+      }
+
+      const originalFn = readiumProxy[key] as (...args: any[]) => unknown;
+      console.log(`Checking readium function: ${key}`, originalFn);
+      if (typeof originalFn === 'function') {
+        // Proxy other readium functions to preserve original functionality, except for scrollToId which we override to handle comic frame scrolling.
+        readiumProxy[key] = (...args: any[]) => {
+          console.log(`Calling readium function: ${key} with arguments:`, args);
+          return originalFn.apply(readium, args);
+        };
+      }
+    });
   }
 }

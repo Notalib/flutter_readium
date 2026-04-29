@@ -136,7 +136,7 @@ export class DemoComicPanning extends LitElement {
         ?.reverse()
         ?.reduce((p, v) => p + v, 0) ?? 0;
 
-      iframe.contentWindow?.GotoComicFrame?.(textUrl.hash, duration * 1000);
+      iframe.contentWindow?.gotoComicFrame?.(textUrl.hash, duration * 1000);
     }
 
     this.requestUpdate();
@@ -144,7 +144,7 @@ export class DemoComicPanning extends LitElement {
 
   readonly #enableBlackAndWhite = () => {
     const enabled = !this.blackAndWhiteModeEnabled;
-    this.iframe?.contentWindow?.SetBlackAndWhiteMode?.(enabled);
+    this.iframe?.contentWindow?.readium?.setCSSProperties?.({ "--FLUTTER_READIUM-black-white-comic-mode": enabled ? '1' : '' });
     this.blackAndWhiteModeEnabled = enabled;
   };
 

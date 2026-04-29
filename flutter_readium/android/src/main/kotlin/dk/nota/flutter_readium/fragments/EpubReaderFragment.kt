@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
+import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
@@ -15,10 +16,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
-import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -62,7 +63,8 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         get() = epubNavigator?.settings?.value?.scroll == true
 
     val layoutMode: EpubLayout
-        get() = ReadiumReader.currentPublication?.metadata?.presentation?.layout ?: EpubLayout.REFLOWABLE
+        get() = ReadiumReader.currentPublication?.metadata?.presentation?.layout
+            ?: EpubLayout.REFLOWABLE
 
     private val instance = ++instanceNo
 
@@ -91,6 +93,9 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
     override fun onPageLoaded() {
         Log.d(TAG, "::onPageLoaded")
+        lifecycleScope.launch {
+            applyCustomCssVariables()
+        }
         listener?.onPageLoaded()
     }
 
@@ -134,7 +139,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     /**
      * Update the reader preferences.
      */
-    fun updatePreferences(preferences: EpubPreferences) {
+    suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
         val model = epubVm ?: run {
             Log.d(TAG, "::updatePreferences - No epubVm available, how did this happen?")
             return
@@ -149,7 +154,31 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         }
 
         Log.d(TAG, "::updatePreferences: $preferences")
-        navigator.submitPreferences(preferences)
+
+        applyCustomCssVariables()
+        navigator.submitPreferences(preferences.toEpubPreferences())
+    }
+
+    suspend fun applyCustomCssVariables() {
+        val navigator = epubNavigator
+        if (navigator == null) {
+            Log.d(TAG, "::applyCustomCssVariables. Navigator not ready.")
+            return
+        }
+
+        val model = epubVm ?: run {
+            Log.d(TAG, "::applyCustomCssVariables - No epubVm available, how did this happen?")
+            return
+        }
+
+        val cssVariables = model.preferences?.toCustomCssVariables() ?: run {
+            Log.d(TAG, "::applyCustomCssVariables - no css variables")
+            return
+        }
+
+        Log.d(TAG, "::applyCustomCssVariables - update cssVariables:$cssVariables")
+
+        navigator.evaluateJavascript("readium.setCSSProperties(${JSONObject(cssVariables)});")
     }
 
     /**
@@ -480,9 +509,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val preferences = model.preferences ?: EpubPreferences()
+        val preferences = model.preferences ?: FlutterEpubPreferences()
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
+
         val fragmentFactory = navigatorFactory.createFragmentFactory(
             configuration = EpubNavigatorFragment.Configuration(
                 shouldApplyInsetsPadding = false,
@@ -492,12 +522,12 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
                 // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                 servedAssets = listOf(
                     "flutter_assets/packages/flutter_readium/assets/.*",
-                )
+                ),
             ),
             initialLocator = model.locator,
             listener = this,
             paginationListener = this,
-            initialPreferences = preferences,
+            initialPreferences = preferences.toEpubPreferences(),
         )
 
         val epubNavigator = fragmentFactory.instantiate(
