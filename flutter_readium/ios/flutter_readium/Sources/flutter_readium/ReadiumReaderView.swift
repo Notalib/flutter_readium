@@ -25,9 +25,9 @@ private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
 private func emitReaderStatusChanged(status: String) {
-  let jsonData = try! jsonEncoder.encode(status)
-  if let jsonStsring = String(data: jsonData, encoding: .utf8){
-    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(jsonStsring)
+  if let jsonData = try? jsonEncoder.encode(status),
+     let jsonString = String(data: jsonData, encoding: .utf8) {
+    FlutterReadiumPlugin.instance?.readerStatusStreamHandler?.sendEvent(jsonString)
   }
 }
 
@@ -37,6 +37,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
 
@@ -225,6 +226,13 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
     }
+    if (lastHrefLocation != locator.href.string) {
+      lastHrefLocation = locator.href.string
+      /// Ensure that custom preference CSS variables are set, when changing resources.
+      if let preferences = self.preferences {
+        updateCustomPreferences(preferences)
+      }
+    }
     emitOnPageChanged(locator: locator)
   }
 
@@ -292,9 +300,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
     let cssVariables = preferences.toCustomCssVariables()
     if cssVariables.isEmpty == false,
-       let jsonData = try? jsonEncoder.encode(cssVariables) {
-      Task.detached(priority: .high) { [jsonData] in
-        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonData));")
+       let jsonData = try? jsonEncoder.encode(cssVariables),
+       let jsonString = String(data: jsonData, encoding: .utf8) {
+      Task.detached(priority: .high) { [jsonString] in
+        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
         Log.reader.info("updated custom preferences: \(result)")
       }
     }
@@ -506,7 +515,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
-      let data = try JSONEncoder().encode(tocFragments)
+      let data = try jsonEncoder.encode(tocFragments)
       if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
         let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON);"
         userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
