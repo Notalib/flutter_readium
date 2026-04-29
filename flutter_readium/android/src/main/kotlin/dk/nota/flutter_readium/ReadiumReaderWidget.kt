@@ -154,10 +154,10 @@ class ReadiumReaderWidget(
     private var lastPageLoadedKey: String? = null
 
     override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
-        val currentKey = "${locator.href}@${locator.locations.progression}"
+        val currentKey = "${locator.href}@${locator.progression}"
         Log.d(
             TAG,
-            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression} ${locator.locations}"
+            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression} ${locator.locations}"
         )
 
         if (lastPageLoadedKey == currentKey) {

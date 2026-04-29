@@ -92,27 +92,36 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   StreamSubscription? textLocatorSub;
   StreamSubscription? errorEventSub;
 
+  final instance = FlutterReadium();
+
   PublicationBloc() : super(PublicationState()) {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading(event.initialLocator));
       try {
-        final instance = FlutterReadium();
         final publication = await instance.openPublication(event.publicationUrl);
+        final pubUrlHashCode = event.publicationUrl.hashCode.toString();
+        bool timebasedLocatorReceived = false;
 
         emit(state.openPublicationSuccess(publication, event.initialLocator));
 
         // Listen to timebased player state changes to log current locator for debugging purposes.
         timebasedStateSub = instance.onTimebasedPlayerStateChanged
-            .where((state) => state.currentLocator != null)
             .map((state) => state.currentLocator)
+            .whereNotNull()
             .throttleTime(const Duration(milliseconds: 5000), leading: false, trailing: true)
             .listen((locator) {
               debugPrint('onTimebasedPlayerState.currentLocator: $locator');
-              savedLocators[publication.identifier] = locator!;
+              savedLocators[pubUrlHashCode] = locator;
+              timebasedLocatorReceived = true;
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
           debugPrint('onTextLocatorChanged: $locator');
-          savedLocators[publication.identifier] = locator;
+          if (publication.containsMediaOverlays && timebasedLocatorReceived) {
+            // TODO: would be better to check if audio is currently enabled for the publication.
+            // If the publication has media overlays, we prefer the locator from the timebased player state.
+            return;
+          }
+          savedLocators[pubUrlHashCode] = locator;
         });
         errorEventSub = instance.onErrorEvent.listen((error) {
           debugPrint('onFlutterReadiumErrorEvent: $error');
@@ -129,9 +138,10 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
 
     on<ClosePublication>((final event, final emit) async {
       try {
-        await FlutterReadium().closePublication();
+        instance.closePublication();
         timebasedStateSub?.cancel();
-        timebasedStateSub = null;
+        textLocatorSub?.cancel();
+        errorEventSub?.cancel();
       } on Exception catch (error) {
         debugPrint('Exception while closing publication: ${error.toString()}');
       }

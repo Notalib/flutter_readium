@@ -34,14 +34,16 @@ class PlayerControls extends StatelessWidget {
             onPressed: state.playing
                 ? () => context.read<PlayerControlsBloc>().add(Pause())
                 : () {
-                    Locator? fakeInitialLocator;
+                    // Use the saved initialLocator from PublicationBloc, which may be set when opening a publication.
+                    Locator? initialLocator = context.read<PublicationBloc>().state.initialLocator;
+
                     // DEMO: Start from the 3rd item in readingOrder.
                     // final pub = context.read<PublicationBloc>().state.publication;
                     // final fakeInitialLink = pub?.readingOrder[2];
                     // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                     isAudioBook
-                        ? context.read<PlayerControlsBloc>().add(Play(fromLocator: fakeInitialLocator))
-                        : context.read<PlayerControlsBloc>().add(PlayTTS(fromLocator: fakeInitialLocator));
+                        ? context.read<PlayerControlsBloc>().add(Play(fromLocator: initialLocator))
+                        : context.read<PlayerControlsBloc>().add(PlayTTS(fromLocator: initialLocator));
                   },
             tooltip: state.playing ? 'Pause' : 'Play',
           ),
@@ -52,9 +54,11 @@ class PlayerControls extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.fast_forward),
-            onPressed: () => context.read<PlayerControlsBloc>().add(
-              state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
-            ),
+            onPressed: () {
+              context.read<PlayerControlsBloc>().add(
+                state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
+              );
+            },
             tooltip: state.ttsEnabled ? 'Skip to next paragraph' : 'Skip to next page',
           ),
           IconButton(

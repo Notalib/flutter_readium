@@ -10,6 +10,7 @@ import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.models.ViewPortSize
+import dk.nota.flutter_readium.progression
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
@@ -84,7 +85,7 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
         Log.d(
             TAG,
-            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.locations.progression}"
+            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression}"
         )
 
         listener?.onPageChanged(pageIndex, totalPages, locator)

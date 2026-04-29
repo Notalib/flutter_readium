@@ -120,6 +120,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod<bool>('goToLocator', [locator.toJson()]) ?? false;
 
   @override
+  Future<bool> goToProgression(double progression) async =>
+      await methodChannel.invokeMethod<bool>('goToProgression', progression) ?? false;
+
+  @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     defaultPreferences = preferences;
     await currentReaderWidget?.setEPUBPreferences(preferences);

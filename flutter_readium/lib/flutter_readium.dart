@@ -160,6 +160,11 @@ class FlutterReadium {
   /// Returns `true` if navigation succeeded, `false` otherwise.
   Future<bool> goToLocator(Locator locator) => _platform.goToLocator(locator);
 
+  /// Navigates the reader to a specific progression in the current resource, where 0.0 is the start and 1.0 is the end.
+  ///
+  /// Returns `true` if navigation succeeded, `false` otherwise.
+  Future<bool> goToProgression(double progression) => _platform.goToProgression(progression);
+
   /// Enables audio playback for the currently opened publication, optionally applying [prefs] and starting from [fromLocator].
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);

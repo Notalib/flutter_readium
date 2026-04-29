@@ -6,8 +6,8 @@ import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.getTimeOffset
-import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import dk.nota.flutter_readium.progression
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -69,7 +69,7 @@ class SyncAudiobookNavigator(
 
                 val duration = readingOrderLink?.duration
                 val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-                    locator.locations.progression?.let { prog -> duration * prog }
+                    locator.progression?.let { progression -> duration * progression }
                 })
                 mediaOverlays.firstNotNullOfOrNull {
                     it?.findItemInRange(
@@ -78,7 +78,10 @@ class SyncAudiobookNavigator(
                     )
                 }?.takeIf { it.syncTextLocator != null }
                     ?.let { mediaOverlay ->
-                        Log.d(TAG, ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator")
+                        Log.d(
+                            TAG,
+                            ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator"
+                        )
                         Pair(mediaOverlay, mediaOverlay.syncTextLocator!!)
                     }
             }
@@ -101,7 +104,7 @@ class SyncAudiobookNavigator(
 
         val duration = readingOrderLink?.duration
         val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-            locator.locations.progression?.let { prog -> duration * prog }
+            locator.progression?.let { progression -> duration * progression }
         })
 
         val mediaOverlay = mediaOverlays.firstNotNullOfOrNull {
@@ -208,13 +211,29 @@ class SyncAudiobookNavigator(
     }
 
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
-        val newLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
+        val mediaOverlay = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
-        }?.skipToAudioLocator ?: return null
+        }
 
-        return letIfBothNotNull(newLocator, locator.getTimeOffset())?.let { (nl, timeOffset) ->
-            nl.copyWithTimeFragment(timeOffset)
-        } ?: newLocator
+        val syncAudioLocator = mediaOverlay?.skipToAudioLocator ?: run {
+            Log.e(
+                TAG,
+                "::mapTextLocatorToMediaOverlayLocator couldn't resolve $locator to a media overlay with an audio locator"
+            )
+            return null
+        }
+
+        val timeOffset =
+            locator.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
+                ?: locator.getTimeOffset() ?: run {
+                    // No time offset, return as is.
+                    return syncAudioLocator
+                }
+
+        val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
+
+        Log.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $updateSyncAudioLocator")
+        return updateSyncAudioLocator
     }
 
     override fun dispose() {
