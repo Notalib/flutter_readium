@@ -166,6 +166,16 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         }
     }
 
+    suspend fun scrollToProgression(progression: Double) {
+        val navigator = epubNavigator ?: run {
+            Log.e(TAG, "::scrollToProgression - epubNavigator is null")
+
+            return
+        }
+
+        navigator.scrollToProgression(progression)
+    }
+
     /**
      * Update EPUB navigator preferences.
      */
@@ -188,8 +198,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     }
 
     override fun setupNavigatorListeners() {
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
             return
         }
@@ -351,10 +360,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
 
         withScope(mainScope) {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
-
-            // Remove old decorations, this prevents old decorator from hanging around when sync is
-            // disabled, and the TTS / SyncAudio navigators goes to next file.
-            navigator.applyDecorations(listOf(), group)
 
             navigator.applyDecorations(decorations, group)
         }

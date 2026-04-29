@@ -13,6 +13,18 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   internal var mediaOverlays: [FlutterMediaOverlay] = []
   internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
   
+  public override var currentLocator: Locator? {
+    get {
+      if let audioLocator = audioLocator,
+         let mediaOverlayItem = mediaOverlayItemFromAudioLocator(audioLocator),
+         let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: audioLocator) {
+        return combinedLocator
+      } else {
+        return audioLocator
+      }
+    }
+  }
+  
   public override init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     super.init(publication: publication, preferences: preferences, initialLocator: initialLocator)
     
@@ -55,19 +67,32 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     await super.initNavigator()
   }
   
-  override public func play(fromLocator: Locator?) async {
+  public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
     await super.play(fromLocator: audioFromLocator)
   }
   
-  override public func seek(toLocator: Locator) async -> Bool {
+  public override func seek(toLocator: Locator) async -> Bool {
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       return false
     }
     // Found a matching Audio Locator from given Text-based Locator.
     let navigated = await navigator.go(to: audioLocator)
+    // Go will sometimes result in a pause, if buffering was necessary.
+    // So we actively ensure we resume playing.
+    navigator.play()
+    return navigated
+  }
+  
+  public override func seek(toProgression: Double) async -> Bool {
+    guard let navigator = _audioNavigator,
+          let locator = audioLocator?.copyWithProgressionLocations(progression: toProgression) else {
+      Log.navigator.warn("Could not modify Locator when seeking to progression: \(toProgression)")
+      return false
+    }
+    let navigated = await navigator.go(to: locator)
     // Go will sometimes result in a pause, if buffering was necessary.
     // So we actively ensure we resume playing.
     navigator.play()
@@ -91,8 +116,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
        let textLocator = mediaOverlayItem.asTextLocator {
       
-      
-      let syncKey = textLocator.href.string + "#" + (textLocator.locations.cssSelector ?? "")
+      let syncKey = textLocator.href.string + (textLocator.locations.cssSelector ?? "")
       if syncKey != lastTextSyncKey {
         lastTextSyncKey = syncKey
         self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration)
@@ -126,17 +150,28 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator,
-          let matchingItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
-          var audioLocator = matchingItem.asAudioLocator else {
+          let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
+          var audioLocator = matchingMediaOverlayItem.asAudioLocator else {
       return nil
     }
+    
+    // If progression is given, try to resolve that to a time offset.
+    if let progression = textLocator.locations.progression,
+       let duration = matchingMediaOverlayItem.readingOrderDuration {
+      let timeOffset = progression * duration
+      Log.navigator.debug("Used progression to calculate time offset: \(progression) progress => \(timeOffset) offset")
+      audioLocator = audioLocator.copyWithReadiumCompOffset(timeOffset)
+    }
+    
     // If the input Text Locator, is a combined locator with a time fragment
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
     if let textLocatorTime = textLocator.locations.time,
-       let textLocatorTimeBegin = textLocatorTime.begin {
+            let textLocatorTimeBegin = textLocatorTime.begin {
       Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
-      audioLocator.locations.fragments = ["t=\(textLocatorTimeBegin)"]
+      let timeOffset = textLocatorTimeBegin
+      audioLocator = audioLocator.copyWithReadiumCompOffset(timeOffset)
     }
+    
     return audioLocator
   }
 }
