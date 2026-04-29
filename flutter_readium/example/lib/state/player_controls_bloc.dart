@@ -124,57 +124,66 @@ class PlayerControlsState {
 }
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
-  StreamSubscription? timebasedStateSub;
-  StreamSubscription? currentTocHrefSub;
-  StreamSubscription? readerStatusSub;
+  List<StreamSubscription> subscriptions = [];
   Locator? currentLocator;
 
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
-    timebasedStateSub = instance.onTimebasedPlayerStateChanged
-        .map((state) {
-          currentLocator = state.currentLocator;
-          return state.state;
-        })
-        .distinct()
-        .debounceTime(const Duration(milliseconds: 50))
-        .listen((playerState) {
-          debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
+    subscriptions.add(
+      instance.onTimebasedPlayerStateChanged
+          .map((state) {
+            currentLocator = state.currentLocator;
+            return state.state;
+          })
+          .distinct()
+          .debounceTime(const Duration(milliseconds: 50))
+          .listen((playerState) {
+            debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
 
-          switch (playerState) {
-            case TimebasedState.playing:
-            case TimebasedState.loading:
-              if (state.playing != true) {
-                add(TogglePlayingState(isPlaying: true));
-              }
-              break;
-            case TimebasedState.paused:
-              if (state.playing != false) {
-                add(TogglePlayingState(isPlaying: false));
-              }
-              break;
-            case TimebasedState.ended:
-            case TimebasedState.failure:
-            case TimebasedState.none:
-              add(PlayerClosed());
-              break;
-          }
-        });
+            switch (playerState) {
+              case TimebasedState.playing:
+              case TimebasedState.loading:
+                if (state.playing != true) {
+                  add(TogglePlayingState(isPlaying: true));
+                }
+                break;
+              case TimebasedState.paused:
+                if (state.playing != false) {
+                  add(TogglePlayingState(isPlaying: false));
+                }
+                break;
+              case TimebasedState.ended:
+              case TimebasedState.failure:
+              case TimebasedState.none:
+                add(PlayerClosed());
+                break;
+            }
+          }),
+    );
+
+    subscriptions.add(
+      instance.onTextLocatorChanged.listen((locator) {
+        debugPrint('onTextLocatorChanged: $locator');
+      }),
+    );
 
     // NOTE: This does not include the tocHref for the initial locator.
-    currentTocHrefSub =
-        Rx.merge([
-          instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator?.locations?.tocHref),
-          instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
-        ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
-          if (tocHref != state.currentTocHref) {
-            debugPrint('Current TOC href: $tocHref');
-            add(UpdateCurrentTocHref(tocHref));
-          }
-        });
+    subscriptions.add(
+      Rx.merge([
+        instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator?.locations?.tocHref),
+        instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
+      ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
+        if (tocHref != state.currentTocHref) {
+          debugPrint('Current TOC href: $tocHref');
+          add(UpdateCurrentTocHref(tocHref));
+        }
+      }),
+    );
 
-    readerStatusSub = instance.onReaderStatusChanged.listen((status) {
-      debugPrint('onReaderStatusChanged: ${status.name}');
-    });
+    subscriptions.add(
+      instance.onReaderStatusChanged.listen((status) {
+        debugPrint('onReaderStatusChanged: ${status.name}');
+      }),
+    );
 
     on<TogglePlayingState>((final event, final emit) async {
       emit(state.togglePlay(event.isPlaying));
@@ -292,9 +301,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
   @override
   Future<void> close() async {
-    await timebasedStateSub?.cancel();
-    await readerStatusSub?.cancel();
-    await currentTocHrefSub?.cancel();
+    for (StreamSubscription sub in subscriptions) {
+      await sub.cancel();
+    }
     return super.close();
   }
 

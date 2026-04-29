@@ -12,8 +12,6 @@ private let ReadiumReaderStatusError = "error"
 
 let readiumReaderViewType = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
-let allowedInitialFragments = ["id", "t", "viewrect", "xywh"]
-
 class ReadiumBugLogger: ReadiumShared.WarningLogger {
   func log(_ warning: Warning) {
     Log.reader.error("Error in Readium while deserializing: \(warning)")
@@ -73,12 +71,8 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    var locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
     Log.reader.debug("publication = \(publication)")
-
-    // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
-    // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
-    locator?.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
 
     channel = ReadiumReaderChannel(
       name: "\(readiumReaderViewType):\(viewId)", binaryMessenger: registrar.messenger())
@@ -179,7 +173,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     for script in userScripts {
       userContentController.addUserScript(script)
     }
-    
+
     /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
     if let preferencesStylesheet = self.preferences?.toInjectableStyleSheet() {
       let source = """
@@ -355,14 +349,9 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
 
-    // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
-    // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
-    var locator = locator
-    locator.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
-
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
-  
+
   func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
     Log.reader.debug("goToProgression:\(progression)")
     guard let locator = getCurrentLocation() else {
@@ -371,7 +360,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let newLocator = locator.copyWithProgressionLocations(progression: progression)
     return await readiumViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
-  
+
 
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     Log.reader.debug("syncToLocator: \(locator)")
@@ -502,16 +491,16 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         parent.appendChild(style)})();
       """
     }
-    
+
     /// INJECTED AT DOCUMENT START
-    
+
     /// Add JS scripts right away, before loading the rest of the document.
     for jsScript in jsScripts {
       userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    
+
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
@@ -523,9 +512,9 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     } catch (let err) {
       Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
     }
-    
+
     /// INJECTED AT DOCUMENT END
-    
+
     /// Add css injection scripts after primary document finished loading.
     for addCssScript in addCssScripts {
       userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
