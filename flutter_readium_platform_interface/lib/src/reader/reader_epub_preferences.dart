@@ -36,6 +36,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     this.wordSpacing,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
+    this.firstElementTopMargin,
   });
 
   /// Default page background color.
@@ -124,6 +125,10 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Highlight decorations will still be applied, but it won't scroll it into view or switch current chapter/file.
   final bool disableSynchronization;
 
+  /// Margin applied to the top of the first element in the content.
+  /// This is used to create space for UI elements like a toolbar without overlapping the content.
+  final int? firstElementTopMargin;
+
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final backgroundColorStr = jsonObject.optNullableString('backgroundColor', remove: true);
@@ -160,6 +165,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     final wordSpacing = jsonObject.optNullableDouble('wordSpacing', remove: true);
     final blackAndWhiteComicMode = jsonObject.optBoolean('blackAndWhiteComicMode', remove: true);
     final disableSynchronization = jsonObject.optBoolean('disableSynchronization', remove: true);
+    final firstElementTopMargin = jsonObject.optNullableInt('firstElementTopMargin', remove: true);
 
     return EPUBPreferences(
       backgroundColor: backgroundColorStr != null ? ReadiumColorExtension.fromCSS(backgroundColorStr) : null,
@@ -189,6 +195,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       wordSpacing: wordSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode,
       disableSynchronization: disableSynchronization,
+      firstElementTopMargin: firstElementTopMargin,
     );
   }
 
@@ -220,7 +227,8 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('verticalText', verticalText)
     ..putOpt('wordSpacing', wordSpacing)
     ..put('blackAndWhiteComicMode', blackAndWhiteComicMode)
-    ..put('disableSynchronization', disableSynchronization);
+    ..put('disableSynchronization', disableSynchronization)
+    ..putOpt('firstElementTopMargin', firstElementTopMargin);
 
   EPUBPreferences copyWith({
     Color? backgroundColor,
