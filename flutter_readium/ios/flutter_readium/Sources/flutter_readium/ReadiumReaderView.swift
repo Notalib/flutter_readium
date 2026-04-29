@@ -90,10 +90,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // Remove undocumented Readium default 20dp or 44dp top/bottom padding.
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
-    
+
     // TODO: Use config.readiumCSSRSProperties.overrides to add custom CSS variables
     //config.readiumCSSRSProperties.overrides = [:]
-    
+
     config.contentInset = [
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
@@ -179,8 +179,17 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       userContentController.addUserScript(script)
     }
     
-    if let preferences = self.preferences {
-      updateCustomPreferences(preferences)
+    /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
+    if let preferencesStylesheet = self.preferences?.toInjectableStyleSheet() {
+      let source = """
+        (function() {
+        var parent = document.getElementsByTagName('head').item(0);
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.innerHTML = '\(preferencesStylesheet)';
+        parent.appendChild(style)})();
+      """
+      userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
     }
   }
 
@@ -279,22 +288,14 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     self.readiumViewController.submitPreferences(preferences.readium)
     self.updateCustomPreferences(preferences)
   }
-  
+
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
-    if let blackAndWhiteMode = preferences.blackAndWhite {
-      Task.detached(priority: .high) { [blackAndWhiteMode] in
-        let result = await self.readiumViewController.evaluateJavaScript("window.setBlackAndWhiteMode(\(blackAndWhiteMode));")
-        if case .failure(let err) = result {
-          Log.reader.error("setUserPreferences.setBlackAndWhiteMode error: \(err)")
-        }
-      }
-    }
-    if let firstElementTopMargin = preferences.firstElementTopMargin {
-      Task.detached(priority: .high) { [firstElementTopMargin] in
-        let result = await self.readiumViewController.evaluateJavaScript("window.flutterReadium.setFirstElementTopMargin(\(firstElementTopMargin));")
-        if case .failure(let err) = result {
-          Log.reader.error("setUserPreferences.firstElementTopMargin error: \(err)")
-        }
+    let cssVariables = preferences.toCustomCssVariables()
+    if cssVariables.isEmpty == false,
+       let jsonData = try? jsonEncoder.encode(cssVariables) {
+      Task.detached(priority: .high) { [jsonData] in
+        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonData));")
+        Log.reader.info("updated custom preferences: \(result)")
       }
     }
   }
@@ -344,15 +345,15 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
-    
+
     // TODO: Our custom fragments (particularly page=x) messes up the in-chapter location.
     // only allow whitelist from https://readium.org/architecture/models/locators/best-practices/format.html
     var locator = locator
     locator.locations.fragments.removeAll(where: { !allowedInitialFragments.contains(String($0.split(separator: "=").first ?? "none")) })
-    
+
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
-  
+
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     Log.reader.debug("syncToLocator: \(locator)")
     if (preferences?.disableSync == true) {
@@ -482,17 +483,16 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
         parent.appendChild(style)})();
       """
     }
+    
+    /// INJECTED AT DOCUMENT START
+    
     /// Add JS scripts right away, before loading the rest of the document.
     for jsScript in jsScripts {
       userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     }
-    /// Add css injection scripts after primary document finished loading.
-    for addCssScript in addCssScripts {
-      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-    }
     /// Add simple script used by our JS to detect OS
     userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
-
+    
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {
       let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
@@ -503,6 +503,13 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
       }
     } catch (let err) {
       Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
+    }
+    
+    /// INJECTED AT DOCUMENT END
+    
+    /// Add css injection scripts after primary document finished loading.
+    for addCssScript in addCssScripts {
+      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
     }
   }
 
