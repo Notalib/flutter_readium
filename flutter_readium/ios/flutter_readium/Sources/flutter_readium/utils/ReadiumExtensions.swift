@@ -337,6 +337,10 @@ extension EPUBPreferences {
         if let columnCountStr = value as? String {
           columnCount = ColumnCount(rawValue: columnCountStr)
         }
+      case "fit":
+        if let fitStr = value as? String {
+          fit = Fit(rawValue: fitStr)
+        }
       case "fontFamily":
         if let fontFamilyStr = value as? String {
           fontFamily = FontFamily(rawValue: fontFamilyStr)
@@ -367,13 +371,17 @@ extension EPUBPreferences {
         ligatures = value as? Bool
       case "lineHeight":
         lineHeight = value as? Double
+      case "offsetFirstPage":
+        offsetFirstPage = value as? Bool
       case "pageMargins":
         pageMargins = value as? Double
       case "paragraphIndent":
         paragraphIndent = value as? Double
       case "paragraphSpacing":
         paragraphSpacing = value as? Double
-      // TODO: publisherStyles?
+        
+      case "publisherStyles":
+        publisherStyles = value as? Bool
       case "readingProgression":
         if let readingProgressionStr = value as? String {
           readingProgression = ReadingProgression(rawValue: readingProgressionStr)

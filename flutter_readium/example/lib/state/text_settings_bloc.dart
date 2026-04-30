@@ -44,6 +44,7 @@ class TextSettingsState {
     required this.theme,
     required this.highlight,
     this.pageMargins,
+    this.paragraphSpacing = 1.0,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
     this.firstElementTopMargin = 40,
@@ -54,6 +55,7 @@ class TextSettingsState {
   final TextSettingsTheme theme;
   final TextSettingsTheme highlight;
   final double? pageMargins;
+  final double? paragraphSpacing;
   final bool blackAndWhiteComicMode;
   final bool disableSynchronization;
   final int? firstElementTopMargin;
@@ -68,6 +70,7 @@ class TextSettingsState {
     final TextSettingsTheme? theme,
     final TextSettingsTheme? highlight,
     final double? pageMargins,
+    final double? paragraphSpacing,
     final bool? blackAndWhiteComicMode,
     final bool? disableSynchronization,
     final int? firstElementTopMargin,
@@ -78,6 +81,7 @@ class TextSettingsState {
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
       pageMargins: pageMargins ?? this.pageMargins,
+      paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
       disableSynchronization: disableSynchronization ?? this.disableSynchronization,
       firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
@@ -99,6 +103,9 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      paragraphSpacing: state.paragraphSpacing,
+      // Always disable publisher styles, in order for the user preferences to be applied correctly.
+      publisherStyles: false,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
@@ -115,6 +122,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
+      paragraphSpacing: state.paragraphSpacing,
+      publisherStyles: false,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
