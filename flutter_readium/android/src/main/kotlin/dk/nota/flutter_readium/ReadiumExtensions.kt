@@ -98,7 +98,10 @@ fun Resource.injectScriptsAndStyles(
         if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
             injectStyle?.let {
                 if (!content.contains(it)) {
-                    Log.d(TAG, "Scripts already loaded for $filename, but custom css needs to be updated.")
+                    Log.d(
+                        TAG,
+                        "Scripts already loaded for $filename, but custom css needs to be updated."
+                    )
                     return@TransformingResource Try.success(
                         content.replace(
                             "</head>",
@@ -247,7 +250,9 @@ fun Locator.getTimeOffset(): Double? {
  */
 fun Locator.getTextId(): String? {
     val cssFragment =
-        locations.fragments.find { it.startsWith("#") } ?: locations.cssSelector ?: return null
+        locations.cssSelector ?: locations.fragments.find {
+            it.isNotEmpty() && !it.contains("=")
+        } ?: return null
     return cssFragment.removePrefix("#")
 }
 
@@ -284,10 +289,12 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
 
     val cleanHref = href.cleanHref()
 
-    val contentItems = content(Locator(
-        href = cleanHref,
-        mediaType = MediaType.XHTML
-    )) ?: run {
+    val contentItems = content(
+        Locator(
+            href = cleanHref,
+            mediaType = MediaType.XHTML
+        )
+    ) ?: run {
         Log.d(TAG, ":findAllCssSelectors - no content service found")
         return null
     }
