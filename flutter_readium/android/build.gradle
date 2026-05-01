@@ -14,7 +14,7 @@ buildscript {
 }
 
 plugins {
-  id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.10'
+  id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.21'
 }
 
 group 'dk.nota.lyt.flutter_readium'
@@ -87,6 +87,6 @@ dependencies {
   implementation "androidx.media3:media3-exoplayer:$media_version"
 
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
-  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0"
+  implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0"
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 }
