@@ -38,4 +38,7 @@ public protocol FlutterTimebasedNavigator
   func seek(toOffset: Double) async -> Bool
   @MainActor
   func seekRelative(byOffsetSeconds: Double) async -> Bool
+  /// Notify TimebasedNavigator that its decorations should be updated.
+  @MainActor
+  func decorationsUpdated() -> Void
 }

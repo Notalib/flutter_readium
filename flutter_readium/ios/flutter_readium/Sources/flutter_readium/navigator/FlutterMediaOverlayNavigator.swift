@@ -99,6 +99,16 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     return navigated
   }
   
+  public override func decorationsUpdated() -> Void {
+    if let audioLocator = audioLocator,
+       let mediaOverlayItem = mediaOverlayItemFromAudioLocator(audioLocator),
+       let textLocator = mediaOverlayItem.asTextLocator {
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)
+    } else {
+      Log.navigator.warn("Could not update decorations, no current Locator")
+    }
+  }
+  
   private func mediaOverlayItemFromAudioLocator(_ audioLocator: Locator) -> FlutterMediaOverlayItem? {
     if let timeOffsetStr = audioLocator.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
        let timeOffset = Double(timeOffsetStr),

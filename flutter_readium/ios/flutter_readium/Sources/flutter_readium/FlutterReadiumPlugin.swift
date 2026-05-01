@@ -230,6 +230,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
         ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
+      Task { @MainActor in
+        self.timebasedNavigator?.decorationsUpdated()
+      }
+      
       result(nil)
     case "ttsSetPreferences":
       let args = call.arguments as? Dictionary<String, Any>
