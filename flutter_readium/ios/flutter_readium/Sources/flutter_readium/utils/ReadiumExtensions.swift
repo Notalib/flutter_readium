@@ -379,7 +379,6 @@ extension EPUBPreferences {
         paragraphIndent = value as? Double
       case "paragraphSpacing":
         paragraphSpacing = value as? Double
-        
       case "publisherStyles":
         publisherStyles = value as? Bool
       case "readingProgression":

@@ -147,7 +147,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     return navigated
   }
-  
+
   public func seek(toProgression: Double) async -> Bool {
     if let locator = audioLocator,
        let timeOffset = getTimeOffsetForLocatorWithProgression(locator: locator, progression: toProgression) {
@@ -156,7 +156,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     return false
   }
-  
+
   private func getTimeOffsetForLocatorWithProgression(locator: Locator, progression: Double) -> Double? {
     guard let locator = audioLocator,
           let link = publication.readingOrder.firstWithHREF(locator.href),
@@ -264,6 +264,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return false
     }
     return await _audioNavigator?.goBackward() ?? false
+  }
+
+  @MainActor
+  public func decorationsUpdated() -> Void {
+    // No decorations for AudioNavigator
   }
 
   // MARK: Internal AudioNavigator API

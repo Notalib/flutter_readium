@@ -15,7 +15,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
   /// TTS related variables
   @Published internal var playingUtterance: Locator?
-  internal let playingWordRangeSubject = PassthroughSubject<Locator, Never>()
+  @Published internal var playingWordRange: Locator?
   internal var subscriptions: Set<AnyCancellable> = []
   internal var isMoving = false
 
@@ -82,12 +82,12 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       }
       .store(in: &subscriptions)
 
-    playingWordRangeSubject
+    $playingWordRange
       .removeDuplicates()
     // Improve performance by throttling the reader sync
       .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
       .sink { [weak self] locator in
-        guard let self = self else {
+        guard let self = self, let locator = locator else {
           return
         }
 
@@ -167,6 +167,15 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     // Cannot be implemented for TTS
     return false
   }
+  
+  public func decorationsUpdated() -> Void {
+    if let currentUtterance = playingUtterance {
+      let currentWordRange = playingWordRange
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: currentUtterance, withWordLocator: currentWordRange)
+    } else {
+      Log.navigator.warn("Could not update decorations, no current Locator")
+    }
+  }
 
   // MARK: TTS Specific APIs
 
@@ -206,7 +215,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       /// utterance is a full sentence/paragraph, while range is the currently spoken part.
       playingUtterance = utt.locator
       if let wordRange = wordRange {
-        playingWordRangeSubject.send(wordRange)
+        playingWordRange = wordRange
       }
       self.listener?.timebasedNavigator(self, requestsHighlightAt: utt.locator, withWordLocator: wordRange)
     case let .paused(utt):

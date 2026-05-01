@@ -212,6 +212,10 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(error)
   }
+  
+  public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {
+    Log.reader.debug("didJumpTo: \(locator)")
+  }
 
   // implements NavigatorDelegate::navigator:locationDidChange
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
