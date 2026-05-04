@@ -35,6 +35,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   private let _view: UIView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
+  private var isJumpingToLocator = false
   private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
@@ -215,6 +216,7 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
   
   public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {
     Log.reader.debug("didJumpTo: \(locator)")
+    isJumpingToLocator = false
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -352,6 +354,8 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
+    
+    isJumpingToLocator = true
 
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
@@ -367,10 +371,11 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
 
 
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
-    Log.reader.debug("syncToLocator: \(locator)")
-    if (preferences?.disableSync == true) {
+    if (isJumpingToLocator || preferences?.disableSync == true) {
+      Log.reader.debug("syncToLocator: skipped")
       return false
     }
+    Log.reader.debug("syncToLocator: \(locator)")
     if let duration = segmentDuration {
       let segmentDurationMs = duration * 1000.0
       await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");

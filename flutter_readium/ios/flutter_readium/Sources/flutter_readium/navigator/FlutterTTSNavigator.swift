@@ -17,7 +17,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   @Published internal var playingUtterance: Locator?
   @Published internal var playingWordRange: Locator?
   internal var subscriptions: Set<AnyCancellable> = []
-  internal var isMoving = false
+  internal var progressionLookup: [AnyURL: [Locator]] = [:]
 
   public var publication: Publication {
     get {
@@ -154,8 +154,14 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   }
   
   public func seek(toProgression: Double) async -> Bool {
-    // Cannot be implemented for TTS
-    return false
+    guard let currentHref = (currentLocator ?? initialLocator)?.href else {
+      return false
+    }
+    let link = publication.readingOrder.firstWithHREF(currentHref)
+    let baseLocator = Locator(href: currentHref, mediaType: link?.mediaType ?? .xhtml)
+      .copyWithProgressionLocations(progression: toProgression)
+    let resolvedLocator = await resolveLocatorWithProgression(baseLocator) ?? baseLocator
+    return await seek(toLocator: resolvedLocator)
   }
 
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
@@ -253,5 +259,64 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     // This is the place to hook into, in order to change rate & pitch for TTS.
     utterance.rate = preferences.rate ?? AVSpeechUtteranceDefaultSpeechRate
     utterance.pitchMultiplier = preferences.pitch ?? 1.0
+  }
+  
+  // MARK: From progression
+
+  private func resolveLocatorWithProgression(_ locator: Locator) async -> Locator? {
+    guard locator.locations.cssSelector == nil,
+          let progression = locator.locations.progression else {
+      return locator
+    }
+    return await findLocatorFromProgression(progression, inHref: locator.href) ?? locator
+  }
+
+  private func findLocatorFromProgression(_ progression: Double, inHref href: AnyURL) async -> Locator? {
+    guard let items = await getProgressionLocators(forHref: href) else {
+      return nil
+    }
+
+    if progression == 1.0 {
+      return items.last
+    }
+
+    /// Find the Locator inside this resource with nearest progression.
+    var lastItem: Locator? = nil
+    for item in items {
+      if item.locations.progression == progression { return item }
+      if let itemProgression = item.locations.progression, itemProgression > progression {
+        return lastItem ?? item
+      }
+      lastItem = item
+    }
+
+    return nil
+  }
+
+  private func getProgressionLocators(forHref href: AnyURL) async -> [Locator]? {
+    if let cached = progressionLookup[href] {
+      return cached
+    }
+
+    let mediaType = publication.readingOrder.firstWithHREF(href)?.mediaType ?? .xhtml
+    let startLocator = Locator(href: href, mediaType: mediaType)
+
+    guard let content = publication.content(from: startLocator) else {
+      Log.navigator.error("updateProgressionLocatorMap - no content service found")
+      return nil
+    }
+
+    var items: [Locator] = []
+    let iterator = content.iterator()
+    while let element = try? await iterator.next() {
+      guard let textElement = element as? TextContentElement else { continue }
+      let elementLocator = textElement.locator
+      guard elementLocator.locations.progression != nil else { continue }
+      guard elementLocator.href.isEquivalentTo(href) else { break }
+      items.append(elementLocator)
+    }
+
+    progressionLookup[href] = items
+    return items
   }
 }

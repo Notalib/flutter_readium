@@ -323,10 +323,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
         var navigated = false
+        /// Only navigate on the TimebasedNavigator OR the ReaderView.
+        /// If a TimebasedNavigator is playing, it will sync the underlying reader after seeking.
         if (self.timebasedNavigator != nil) {
           navigated = await self.timebasedNavigator?.seek(toProgression: progression) ?? false
         }
-        if let readerView = self.currentReaderView {
+        else if let readerView = self.currentReaderView {
           navigated = await readerView.goToProgression(progression, animated: false)
         }
         await MainActor.run { [navigated] in
