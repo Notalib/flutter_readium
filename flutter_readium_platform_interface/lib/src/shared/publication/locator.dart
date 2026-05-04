@@ -307,12 +307,12 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     );
   }
 
-  int get timestamp {
+  double get timestamp {
     if (fragments.isEmpty) {
       return 0;
     }
     final timeFragment = fragments.firstWhere((e) => e.startsWith('t='), orElse: () => 't=0');
-    return int.parse(timeFragment.replaceFirst('t=', ''));
+    return double.parse(timeFragment.replaceFirst('t=', ''));
   }
 
   @override
