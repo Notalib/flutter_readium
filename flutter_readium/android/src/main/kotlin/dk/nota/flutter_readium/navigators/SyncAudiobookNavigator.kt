@@ -135,7 +135,9 @@ class SyncAudiobookNavigator(
             return
         }
 
-        super.onCurrentLocatorChanges(audioLocator)
+        // NOTE: Important, don't call base classes here, as they will trigger incorrect values for
+        // readingOrderLink
+        timebaseListener.onTimebasedCurrentLocatorChanges(audioLocator, readingOrderLink)
     }
 
     override fun storeState(): Bundle {
