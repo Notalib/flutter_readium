@@ -49,7 +49,7 @@ class FlutterReadium {
   /// Returns a [Publication] object representing the opened publication.
   Future<Publication> openPublication(String pubUrl) {
     return _platform.openPublication(pubUrl).onError((err, _) {
-      debugPrint('OpenPublication error: ${err.toString()}');
+      R2Log.e('OpenPublication error: ${err.toString()}');
       throw ReadiumException.fromError(err);
     });
   }
