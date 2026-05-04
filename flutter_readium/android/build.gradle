@@ -49,7 +49,7 @@ android {
     }
   }
 
-  compileSdkVersion 35
+  compileSdkVersion 36
 
   sourceSets {
     main.java.srcDirs += 'src/main/kotlin'
