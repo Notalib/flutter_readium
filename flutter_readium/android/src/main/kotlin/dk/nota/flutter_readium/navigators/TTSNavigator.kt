@@ -236,7 +236,7 @@ class TTSNavigator(
     }
 
     /**
-     * List of locators from the TTS content service, this is needed to optime performance for
+     * List of locators from the TTS content service, this is needed to optimize performance for
      * progression lookup.
      */
     private var progressionLookup = mutableMapOf<Url, List<Locator>>()
