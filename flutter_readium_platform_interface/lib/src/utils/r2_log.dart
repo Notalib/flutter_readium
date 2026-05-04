@@ -27,7 +27,6 @@ abstract class R2Log {
       final caseInsensitiveLog = log.toLowerCase();
 
       if (_trace.any((final trace) => caseInsensitiveLog.contains(trace.toLowerCase()))) {
-        // debugPrintSynchronously(log, wrapWidth: wrapWidth);
         debugPrintThrottled(log, wrapWidth: wrapWidth);
       }
     }

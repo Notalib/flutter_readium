@@ -57,13 +57,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
-      debugPrint('Received reader status event: $event');
+      R2Log.i('Received reader status event: $event');
       try {
         return ReadiumReaderStatus.fromString(json.decode(event) as String) ??
             ReadiumReaderStatus.fromString(event) ??
             ReadiumReaderStatus.error;
       } catch (e) {
-        debugPrint('Error parsing reader status event: $e');
+        R2Log.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
     });
