@@ -1,31 +1,37 @@
 package dk.nota.flutter_readium.models
 
+import android.os.Parcelable
 import android.util.Log
 import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.getTimeOffset
 import dk.nota.flutter_readium.progression
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
-import java.io.Serializable
 
 private const val TAG = "FlutterMediaOverlay"
 
 /**
  * Simple media overlay mapping.
  */
-data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Serializable {
+@Parcelize
+data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parcelable {
     /**
      * The audio file name (without fragment).
      */
-    private val audioFile = items.firstOrNull()?.audioFile ?: ""
+    private val audioFile
+        get() = items.firstOrNull()?.audioFile ?: ""
 
     /**
      * The text file name (without fragment).
      */
-    private val textFile = items.firstOrNull()?.textFile ?: ""
+    @IgnoredOnParcel
+    private val textFile
+        get() = items.firstOrNull()?.textFile ?: ""
 
     /**
      * The audio file Url.
