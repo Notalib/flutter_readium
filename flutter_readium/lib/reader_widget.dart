@@ -17,7 +17,7 @@ const _viewType = 'dk.nota.flutter_readium/ReadiumReaderWidget';
 class ReadiumReaderWidget extends StatefulWidget {
   const ReadiumReaderWidget({
     required this.publication,
-    this.loadingWidget = const Center(child: CircularProgressIndicator()),
+    this.loadingWidget,
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
@@ -29,7 +29,11 @@ class ReadiumReaderWidget extends StatefulWidget {
   });
 
   final Publication publication;
-  final Widget loadingWidget;
+
+  /// Optional widget to show while the reader is loading, e.g. a spinner.
+  /// It will be shown until the reader sends its first onPageChanged event.
+  /// It should typically be a full-screen widget, since it will be stacked on top of the reader widget.
+  final Widget? loadingWidget;
   final Locator? initialLocator;
   final ValueNotifier<bool>? shouldShowControls;
   final Function(String)? onExternalLinkActivated;
@@ -68,7 +72,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   void initState() {
     super.initState();
-    R2Log.d('ReadiumReaderWidget initiated');
+    R2Log.d('ReadiumReaderWidget init');
 
     _readerWidget = _buildNativeReader();
     _enableWakelock();
@@ -77,7 +81,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   void dispose() {
-    R2Log.d('ReadiumReaderWidget disposed');
+    R2Log.d('ReadiumReaderWidget dispose');
     _cleanup();
     _channel?.dispose();
     _channel = null;
@@ -164,6 +168,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
             child: _readerWidget,
           ),
         ),
+        if (!isReady && widget.loadingWidget != null) Positioned.fill(child: widget.loadingWidget!),
       ],
     );
   }
@@ -174,7 +179,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
     await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
 
-    R2Log.d('Done');
+    R2Log.d('Go to locator completed');
   }
 
   @override
@@ -276,7 +281,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
       onPageChanged: (final locator) {
-        debugPrint('onPageChanged: ${locator.toJson()}');
+        R2Log.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
 
         if (isReady == false) {
