@@ -9,7 +9,6 @@ import dk.nota.flutter_readium.getTimeOffset
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.progression
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
@@ -24,8 +23,6 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 
 private const val TAG = "SyncAudiobookNavigator"
-
-private const val mediaOverlaysKey = "MediaOverlays"
 
 private const val SYNC_AUDIO_DECORATION_ID_UTTERANCE = "synced-utterance"
 
@@ -142,9 +139,9 @@ class SyncAudiobookNavigator(
     }
 
     override fun storeState(): Bundle {
-        return super.storeState().apply {
-            putSerializable(mediaOverlaysKey, ArrayList(mediaOverlays))
-        }
+        // We don't add media-overlays to the state, because they are always restored from the
+        // ReadiumReader.currentPublication.
+        return super.storeState()
     }
 
     override suspend fun play(fromLocator: Locator?) {
@@ -198,10 +195,12 @@ class SyncAudiobookNavigator(
         val locator = navigator.currentLocator.value
         val textLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
-        }?.syncTextLocator ?: return
-        mainScope.async {
-            decorateCurrentUtterance(textLocator)
-        }.await()
+        }?.syncTextLocator ?: run {
+            Log.d(TAG, ":setDecorationStyle - didn't find a current text locator")
+            return
+        }
+
+        decorateCurrentUtterance(textLocator)
     }
 
     override fun onEnded() {
