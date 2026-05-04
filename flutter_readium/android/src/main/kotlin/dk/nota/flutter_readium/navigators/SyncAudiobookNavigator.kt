@@ -190,7 +190,7 @@ class SyncAudiobookNavigator(
     suspend fun decorationsUpdated() {
         val navigator = audioNavigator
         if (navigator == null) {
-            Log.d(TAG, ":setDecorationStyle: navigator is null")
+            Log.d(TAG, ":decorationsUpdated: navigator is null")
             return
         }
 
@@ -198,7 +198,7 @@ class SyncAudiobookNavigator(
         val textLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
             mo?.findItemFromLocator(locator)
         }?.syncTextLocator ?: run {
-            Log.d(TAG, ":setDecorationStyle - didn't find a current text locator")
+            Log.d(TAG, ":decorationsUpdated - didn't find a current text locator")
             return
         }
 

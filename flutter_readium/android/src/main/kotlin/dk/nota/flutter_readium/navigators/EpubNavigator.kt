@@ -295,6 +295,9 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
 
         mainScope.launch {
             if (currentVisualLocator?.href != locator.href) {
+                // Since the visual href changed, we clear old decorations.
+                // This should remove stale decorations from the old file when switching back
+                // and forth between the files.
                 epubNavigator?.let { navigator ->
                     currentDecorations.keys.forEach { group ->
                         navigator.applyDecorations(

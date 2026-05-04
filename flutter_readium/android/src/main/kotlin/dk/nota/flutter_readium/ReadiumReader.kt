@@ -145,7 +145,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 return@combine null
             }
 
-            ReadiumTimebasedState(locator, state, offset, buffer, duration ?: 0.0)
+            ReadiumTimebasedState(locator, state, offset, buffer, duration)
         }.throttleLatest(100.milliseconds).distinctUntilChanged()
     }
 
