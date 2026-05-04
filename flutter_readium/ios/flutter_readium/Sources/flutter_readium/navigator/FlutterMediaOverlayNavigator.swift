@@ -70,7 +70,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
-    await super.play(fromLocator: audioFromLocator)
+    await super.play(fromLocator: audioFromLocator ?? initialLocator)
   }
   
   public override func seek(toLocator: Locator) async -> Bool {

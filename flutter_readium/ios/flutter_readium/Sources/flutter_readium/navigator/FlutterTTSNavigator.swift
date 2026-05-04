@@ -110,7 +110,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    self.synthesizer?.start(from: fromLocator)
+    self.synthesizer?.start(from: fromLocator ?? initialLocator)
     nowPlayingUpdater.setupNowPlayingInfo()
     nowPlayingUpdater.setupCommandCenterControls(
       preferredIntervals: [],
