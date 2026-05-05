@@ -14,12 +14,14 @@ import kotlinx.coroutines.cancelChildren
  * @param messenger The BinaryMessenger used to create the EventChannel.
  * @param name The name of the EventChannel.
  */
-abstract class EventChannelWrapper<T>(messenger: BinaryMessenger, name: String) : EventChannel.StreamHandler {
+abstract class EventChannelWrapper<T>(
+    messenger: BinaryMessenger,
+    name: String,
+) : EventChannel.StreamHandler {
     private val eventChannel: EventChannel = EventChannel(messenger, name)
     protected var eventSink: EventChannel.EventSink? = null
 
     protected val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
 
     init {
         eventChannel.setStreamHandler(this)
@@ -27,7 +29,7 @@ abstract class EventChannelWrapper<T>(messenger: BinaryMessenger, name: String) 
 
     override fun onListen(
         arguments: Any?,
-        events: EventChannel.EventSink?
+        events: EventChannel.EventSink?,
     ) {
         eventSink = events
     }
@@ -47,4 +49,3 @@ abstract class EventChannelWrapper<T>(messenger: BinaryMessenger, name: String) 
      */
     abstract fun sendEvent(data: T)
 }
-

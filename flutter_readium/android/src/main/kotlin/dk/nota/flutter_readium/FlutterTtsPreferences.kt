@@ -26,7 +26,8 @@ data class FlutterTtsPreferences(
     @OptIn(ExperimentalReadiumApi::class)
     fun toAndroidTtsPreferences(): AndroidTtsPreferences {
         val androidVoices =
-            voices?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
+            voices
+                ?.map { (lang, id) -> Language(lang) to AndroidTtsEngine.Voice.Id(id) }
                 ?.toMap()
 
         // If no language in preferences, use the first language of the preferred voices.
@@ -36,7 +37,7 @@ data class FlutterTtsPreferences(
             language = androidLanguage,
             pitch = pitch,
             speed = speed,
-            voices = androidVoices
+            voices = androidVoices,
         )
     }
 
@@ -46,16 +47,14 @@ data class FlutterTtsPreferences(
             pitch = other.pitch ?: pitch,
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
-            controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType
+            controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType,
         )
 
     companion object {
         /**
          * Create FlutterTtsPreferences from JSON string.
          */
-        fun fromJSON(json: String): FlutterTtsPreferences {
-            return fromJSON(JSONObject(json))
-        }
+        fun fromJSON(json: String): FlutterTtsPreferences = fromJSON(JSONObject(json))
 
         /**
          * Create FlutterTtsPreferences from JSON object.
@@ -74,12 +73,13 @@ data class FlutterTtsPreferences(
                 pitch = jsonObject.optDouble("pitch").let { if (it.isNaN()) null else it },
                 speed = jsonObject.optDouble("speed").let { if (it.isNaN()) null else it },
                 voices = voicesMap.ifEmpty { null },
-                controlPanelInfoType = ControlPanelInfoType.fromString(
-                    jsonObject.optString(
-                        "controlPanelInfoType",
-                        "standard"
-                    )
-                )
+                controlPanelInfoType =
+                    ControlPanelInfoType.fromString(
+                        jsonObject.optString(
+                            "controlPanelInfoType",
+                            "standard",
+                        ),
+                    ),
             )
         }
 
@@ -106,17 +106,18 @@ data class FlutterTtsPreferences(
         @OptIn(ExperimentalReadiumApi::class)
         fun fromMap(
             ttsPrefs: Map<*, *>?,
-            androidVoices: Set<AndroidTtsEngine.Voice>
+            androidVoices: Set<AndroidTtsEngine.Voice>,
         ): FlutterTtsPreferences {
             val voices = mutableMapOf<String, String>()
 
             ttsPrefs?.let { prefs ->
                 (prefs["voiceIdentifier"] as? String)?.let { voiceId ->
-                    androidVoices.firstOrNull {
-                        it.id.value.equals(voiceId, true)
-                    }?.let {
-                        voices[it.language.code] = it.id.value
-                    }
+                    androidVoices
+                        .firstOrNull {
+                            it.id.value.equals(voiceId, true)
+                        }?.let {
+                            voices[it.language.code] = it.id.value
+                        }
                 }
 
                 (prefs["voices"] as? Map<*, *>?)?.forEach {
@@ -133,9 +134,10 @@ data class FlutterTtsPreferences(
                 pitch = ttsPrefs?.get("pitch") as? Double,
                 speed = ttsPrefs?.get("speed") as? Double,
                 voices = voices.ifEmpty { null },
-                controlPanelInfoType = ControlPanelInfoType.fromString(
-                    ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard"
-                )
+                controlPanelInfoType =
+                    ControlPanelInfoType.fromString(
+                        ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard",
+                    ),
             )
         }
     }

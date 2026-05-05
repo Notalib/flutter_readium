@@ -17,7 +17,7 @@ import org.readium.r2.shared.util.Language
 private const val TAG = "FlutterEpubPreferences"
 
 private const val topMarginCssVariable = "--FLUTTER_READIUM-first-element-top-margin"
-private const val blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode";
+private const val blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode"
 
 @OptIn(ExperimentalReadiumApi::class)
 @Serializable
@@ -51,8 +51,8 @@ data class FlutterEpubPreferences(
     val disableSynchronization: Boolean? = false,
     val firstElementTopMargin: Int? = null,
 ) : Configurable.Preferences<FlutterEpubPreferences> {
-    override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences {
-        return FlutterEpubPreferences(
+    override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences =
+        FlutterEpubPreferences(
             backgroundColor = other.backgroundColor ?: backgroundColor,
             columnCount = other.columnCount ?: columnCount,
             fontFamily = other.fontFamily ?: fontFamily,
@@ -80,12 +80,11 @@ data class FlutterEpubPreferences(
             wordSpacing = other.wordSpacing ?: wordSpacing,
             blackAndWhiteComicMode = other.blackAndWhiteComicMode ?: blackAndWhiteComicMode,
             disableSynchronization = other.disableSynchronization ?: disableSynchronization,
-            firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin
+            firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin,
         )
-    }
 
-    fun toEpubPreferences(): EpubPreferences {
-        return EpubPreferences(
+    fun toEpubPreferences(): EpubPreferences =
+        EpubPreferences(
             backgroundColor = backgroundColor?.let { readiumColorFromCSS(it) },
             columnCount,
             fontFamily,
@@ -110,9 +109,8 @@ data class FlutterEpubPreferences(
             theme,
             typeScale,
             verticalText,
-            wordSpacing
+            wordSpacing,
         )
-    }
 
     fun toCustomCssVariables(): Map<String, String?> {
         val map = mutableMapOf<String, String?>()
@@ -121,13 +119,12 @@ data class FlutterEpubPreferences(
         return map
     }
 
-    fun toInjectableStyleSheet(): String {
-        return """<style id="flutter_readium_style">:root {${
+    fun toInjectableStyleSheet(): String =
+        """<style id="flutter_readium_style">:root {${
             toCustomCssVariables().filter { it.value != null }
                 .map { (key, value) -> "$key: $value !important" }
                 .joinToString(separator = ";")
         }}</style>""".trimIndent()
-    }
 
     companion object {
         fun fromMap(map: Map<String, Any>): FlutterEpubPreferences {
@@ -135,8 +132,6 @@ data class FlutterEpubPreferences(
             return Json.decodeFromJsonElement(serializer(), element)
         }
 
-        fun fromJson(jsonString: String): FlutterEpubPreferences {
-            return Json.decodeFromString<FlutterEpubPreferences>(jsonString)
-        }
+        fun fromJson(jsonString: String): FlutterEpubPreferences = Json.decodeFromString<FlutterEpubPreferences>(jsonString)
     }
 }

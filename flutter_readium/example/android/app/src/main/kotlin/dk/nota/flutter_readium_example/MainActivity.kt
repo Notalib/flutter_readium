@@ -13,7 +13,10 @@ import io.flutter.embedding.engine.FlutterEngine
 private const val TAG = "MainActivity"
 
 class MainActivity : FlutterFragmentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?, persistentState: PersistableBundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?,
+        persistentState: PersistableBundle?,
+    ) {
         Log.d(TAG, "::onCreate($savedInstanceState, $persistentState)")
         super.onCreate(savedInstanceState, persistentState)
     }

@@ -18,13 +18,16 @@ import java.io.IOException
 private const val TAG = "FlutterReadiumPlugin"
 
 @ExperimentalCoroutinesApi
-class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
+class FlutterReadiumPlugin :
+    FlutterPlugin,
+    ActivityAware,
+    MethodCallHandler {
     /**
-      * The MethodChannel that will the communication between Flutter and native Android
-      *
-      * This local reference serves to register the plugin with the Flutter Engine and unregister it
-      * when the Flutter Engine is detached from the Activity
-      */
+     * The MethodChannel that will the communication between Flutter and native Android
+     *
+     * This local reference serves to register the plugin with the Flutter Engine and unregister it
+     * when the Flutter Engine is detached from the Activity
+     */
     private lateinit var publicationChannel: MethodChannel
 
     private lateinit var publicationMethodCallHandler: PublicationMethodCallHandler
@@ -38,14 +41,15 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         // Register reader view factory
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             viewTypeChannelName,
-            ReadiumReaderViewFactory(binaryMessenger)
+            ReadiumReaderViewFactory(binaryMessenger),
         )
 
         // TODO: Remove this, just for debugging.
-        val files = listAssetFiles(
-            flutterPluginBinding.applicationContext,
-            "flutter_assets/packages/flutter_readium/assets/helpers"
-        )
+        val files =
+            listAssetFiles(
+                flutterPluginBinding.applicationContext,
+                "flutter_assets/packages/flutter_readium/assets/helpers",
+            )
         for (file in files) {
             Log.i("ListAssetFiles", "Asset: $file")
         }
@@ -56,7 +60,10 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         publicationChannel.setMethodCallHandler(publicationMethodCallHandler)
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result) {
+    override fun onMethodCall(
+        call: MethodCall,
+        result: Result,
+    ) {
         Log.d(TAG, "onMethodCall")
         result.notImplemented()
     }
@@ -70,7 +77,10 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     /**
      * Recursively list all asset files in the given root path.
      */
-    private fun listAssetFiles(c: Context, rootPath: String): List<String> {
+    private fun listAssetFiles(
+        c: Context,
+        rootPath: String,
+    ): List<String> {
         Log.i("ListAssetFiles", "Listing assets in $rootPath")
         val files: MutableList<String> = ArrayList()
         try {
@@ -79,8 +89,11 @@ class FlutterReadiumPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
                 // This is a folder
                 for (filePath in paths) {
                     val path = "$rootPath/$filePath"
-                    if (File(path).isDirectory()) files.addAll(listAssetFiles(c, path))
-                    else files.add(path)
+                    if (File(path).isDirectory()) {
+                        files.addAll(listAssetFiles(c, path))
+                    } else {
+                        files.add(path)
+                    }
                 }
             }
         } catch (e: IOException) {

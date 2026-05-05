@@ -43,22 +43,23 @@ class PluginMediaServiceFacade(
     /**
      * Throws an IllegalStateException if binding to the MyMediaService fails.
      */
-    suspend fun <N> openSession(
-        navigator: N,
-    ) where N : AnyMediaNavigator, N : Media3Adapter {
+    suspend fun <N> openSession(navigator: N) where N : AnyMediaNavigator, N : Media3Adapter {
         coroutineQueue.await {
             PluginMediaService.start(application)
-            binder = try {
-                PluginMediaService.bind(application)
-            } catch (e: Exception) {
-                // Failed to bind to the service.
-                PluginMediaService.stop(application)
-                throw e
-            }
+            binder =
+                try {
+                    PluginMediaService.bind(application)
+                } catch (e: Exception) {
+                    // Failed to bind to the service.
+                    PluginMediaService.stop(application)
+                    throw e
+                }
 
-            bindingJob = binder!!.session
-                .onEach { sessionMutable.value = it }
-                .launchIn(coroutineScope)
+            bindingJob =
+                binder!!
+                    .session
+                    .onEach { sessionMutable.value = it }
+                    .launchIn(coroutineScope)
             binder!!.openSession(navigator)
         }
     }

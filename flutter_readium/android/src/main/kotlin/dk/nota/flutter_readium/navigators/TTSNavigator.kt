@@ -61,7 +61,7 @@ class TTSNavigator(
     publication: Publication,
     timebaseListener: TimebasedListener,
     initialLocator: Locator?,
-    var preferences: FlutterTtsPreferences = FlutterTtsPreferences()
+    var preferences: FlutterTtsPreferences = FlutterTtsPreferences(),
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     val decorationGroup = "tts"
 
@@ -71,38 +71,41 @@ class TTSNavigator(
     private var mediaServiceFacade: PluginMediaServiceFacade? = null
 
     override suspend fun initNavigator() {
-        val navigatorFactory = TtsNavigatorFactory(
-            ReadiumReader.application,
-            publication,
-            tokenizerFactory = { language ->
-                DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
-            },
-            metadataProvider = { pub ->
-                DatabaseMediaMetadataFactory(
-                    publication = publication,
-                    trackCount = pub.readingOrder.size,
-                    controlPanelInfoType = preferences.controlPanelInfoType
-                        ?: ControlPanelInfoType.STANDARD
-                )
-            }
-        ) ?: throw Exception("This publication cannot be played with the TTS navigator")
+        val navigatorFactory =
+            TtsNavigatorFactory(
+                ReadiumReader.application,
+                publication,
+                tokenizerFactory = { language ->
+                    DefaultTextContentTokenizer(unit = TextUnit.Sentence, language = language)
+                },
+                metadataProvider = { pub ->
+                    DatabaseMediaMetadataFactory(
+                        publication = publication,
+                        trackCount = pub.readingOrder.size,
+                        controlPanelInfoType =
+                            preferences.controlPanelInfoType
+                                ?: ControlPanelInfoType.STANDARD,
+                    )
+                },
+            ) ?: throw Exception("This publication cannot be played with the TTS navigator")
 
-        val listener = object : Listener {
-            override fun onStopRequested() {
-                Log.d(TAG, "TtsListener::onStopRequested")
-                mediaServiceFacade?.closeSession()
+        val listener =
+            object : Listener {
+                override fun onStopRequested() {
+                    Log.d(TAG, "TtsListener::onStopRequested")
+                    mediaServiceFacade?.closeSession()
+                }
             }
-        }
 
         val initialAndroidPreferences = preferences.toAndroidTtsPreferences()
         withScope(mainScope) {
             ttsNavigator =
-                navigatorFactory.createNavigator(
-                    listener,
-                    initialLocator,
-                    initialAndroidPreferences
-                )
-                    .getOrElse {
+                navigatorFactory
+                    .createNavigator(
+                        listener,
+                        initialLocator,
+                        initialAndroidPreferences,
+                    ).getOrElse {
                         Log.e(TAG, "ttsEnable: failed to create navigator: $it")
                         throw Exception("ttsEnable: failed to create navigator: $it")
                     }
@@ -110,27 +113,28 @@ class TTSNavigator(
             // Setup streaming listeners for locator & decoration updates.
             setupNavigatorListeners()
 
-            mediaServiceFacade = PluginMediaServiceFacade(ReadiumReader.application)
-                .apply {
-                    session
-                        .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
-                        .onEach { playback ->
-                            when (val state = (playback?.state as? TtsNavigator.State)) {
-                                null, TtsNavigator.State.Ready -> {
-                                    // Do nothing
-                                }
+            mediaServiceFacade =
+                PluginMediaServiceFacade(ReadiumReader.application)
+                    .apply {
+                        session
+                            .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
+                            .onEach { playback ->
+                                when (val state = (playback?.state as? TtsNavigator.State)) {
+                                    null, TtsNavigator.State.Ready -> {
+                                        // Do nothing
+                                    }
 
-                                is TtsNavigator.State.Ended -> {
-                                    mediaServiceFacade?.closeSession()
-                                }
+                                    is TtsNavigator.State.Ended -> {
+                                        mediaServiceFacade?.closeSession()
+                                    }
 
-                                is TtsNavigator.State.Failure -> {
-                                    Log.e(TAG, "TTSNavigator failure: ${state.error}")
-                                    //onPlaybackError(state.error)
+                                    is TtsNavigator.State.Failure -> {
+                                        Log.e(TAG, "TTSNavigator failure: ${state.error}")
+                                        // onPlaybackError(state.error)
+                                    }
                                 }
-                            }
-                        }.launchIn(mainScope)
-                }
+                            }.launchIn(mainScope)
+                    }
         }
     }
 
@@ -158,10 +162,11 @@ class TTSNavigator(
     }
 
     override suspend fun pause() {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, "Cannot pause TTS playback: navigator is null")
-            return
-        }
+        val navigator =
+            ttsNavigator ?: run {
+                Log.e(TAG, "Cannot pause TTS playback: navigator is null")
+                return
+            }
 
         withScope(mainScope) {
             try {
@@ -187,10 +192,11 @@ class TTSNavigator(
      * Skip to previous utterance (sentence).
      */
     override suspend fun goBackward() {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, "::goBack ttsNavigator is null")
-            return
-        }
+        val navigator =
+            ttsNavigator ?: run {
+                Log.e(TAG, "::goBack ttsNavigator is null")
+                return
+            }
 
         withScope(mainScope) {
             if (navigator.hasPreviousUtterance()) {
@@ -203,10 +209,11 @@ class TTSNavigator(
      * Skip to next utterance (sentence).
      */
     override suspend fun goForward() {
-        val navigator = ttsNavigator ?: run {
-            Log.e(TAG, "::goBack goForward is null")
-            return
-        }
+        val navigator =
+            ttsNavigator ?: run {
+                Log.e(TAG, "::goBack goForward is null")
+                return
+            }
 
         withScope(mainScope) {
             if (navigator.hasNextUtterance()) {
@@ -215,14 +222,15 @@ class TTSNavigator(
         }
     }
 
-    override suspend fun goToLocator(locator: Locator) {
-        return goToLocator(locator, isPlaying)
-    }
+    override suspend fun goToLocator(locator: Locator) = goToLocator(locator, isPlaying)
 
     /**
      * Go to a [locator] and start playback, if [play] == true.
      */
-    private suspend fun goToLocator(locator: Locator, play: Boolean) {
+    private suspend fun goToLocator(
+        locator: Locator,
+        play: Boolean,
+    ) {
         withScope(mainScope) {
             stopTtsNavigator()
             initialLocator = resolveLocatorWithProgression(locator)
@@ -261,7 +269,10 @@ class TTSNavigator(
         return findLocatorFromProgression(locator.href, progression) ?: locator
     }
 
-    private suspend fun findLocatorFromProgression(href: Url, progression: Double): Locator? {
+    private suspend fun findLocatorFromProgression(
+        href: Url,
+        progression: Double,
+    ): Locator? {
         val items = updateProgressionLocatorMap(href) ?: return null
 
         if (progression == 1.0) {
@@ -292,15 +303,16 @@ class TTSNavigator(
 
         return withScope(ioScope) {
             // Get an iterator for the content of book.
-            val content = publication.content(
-                Locator(
-                    href = cleanHref,
-                    mediaType = MediaType.XHTML
-                )
-            ) ?: run {
-                Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
-                return@withScope null
-            }
+            val content =
+                publication.content(
+                    Locator(
+                        href = cleanHref,
+                        mediaType = MediaType.XHTML,
+                    ),
+                ) ?: run {
+                    Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
+                    return@withScope null
+                }
 
             val items = mutableListOf<Locator>()
             for (element in content) {
@@ -335,15 +347,17 @@ class TTSNavigator(
     }
 
     override suspend fun seekToProgression(progression: Double): Boolean {
-        val currentLocator = ttsNavigator?.currentLocator?.value ?: run {
-            Log.d(TAG, "::seekToProgression - no currentLocator")
-            return false
-        }
+        val currentLocator =
+            ttsNavigator?.currentLocator?.value ?: run {
+                Log.d(TAG, "::seekToProgression - no currentLocator")
+                return false
+            }
 
-        val toLocator = findLocatorFromProgression(currentLocator.href, progression) ?: run {
-            Log.e(TAG, "::seekToProgression - couldn't find a matching locator")
-            return false
-        }
+        val toLocator =
+            findLocatorFromProgression(currentLocator.href, progression) ?: run {
+                Log.e(TAG, "::seekToProgression - couldn't find a matching locator")
+                return false
+            }
 
         goToLocator(toLocator)
 
@@ -354,17 +368,17 @@ class TTSNavigator(
      * Called when decorations (e.g., highlights) need to be updated.
      */
     suspend fun decorationsUpdated() {
-        val navigator = ttsNavigator ?: run {
-            Log.d(TAG, ":decorationsUpdated: navigator is null")
-            return
-        }
+        val navigator =
+            ttsNavigator ?: run {
+                Log.d(TAG, ":decorationsUpdated: navigator is null")
+                return
+            }
 
         val location = navigator.location.value
         decorateCurrentUtterance(location.utteranceLocator, location.tokenLocator)
     }
 
-
-    /// Updates TTS preferences, does not override current preferences if props are null
+    // / Updates TTS preferences, does not override current preferences if props are null
     suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
         withScope(mainScope) {
             preferences = preferences.plus(prefs)
@@ -379,7 +393,10 @@ class TTSNavigator(
     /**
      * Set preferred voice for a given language. If lang is null, override voice for currently spoken language.
      */
-    suspend fun setPreferredVoice(voiceId: String, lang: String) {
+    suspend fun setPreferredVoice(
+        voiceId: String,
+        lang: String,
+    ) {
         // Modify existing map of voice overrides, in case user sets multiple preferred voices.
         val voices = preferences.voices?.toMutableMap() ?: mutableMapOf()
 
@@ -395,21 +412,20 @@ class TTSNavigator(
 
     @OptIn(FlowPreview::class)
     override fun setupNavigatorListeners() {
-        val navigator = ttsNavigator ?: run {
-            Log.d(TAG, "::setupNavigatorListeners() - no ttsNavigator?")
-            return
-        }
+        val navigator =
+            ttsNavigator ?: run {
+                Log.d(TAG, "::setupNavigatorListeners() - no ttsNavigator?")
+                return
+            }
 
         // Listen to state changes
         navigator.playback
             .distinctUntilChangedBy { pb ->
                 "${pb.state}|${pb.playWhenReady}"
-            }
-            .onEach { pb ->
+            }.onEach { pb ->
                 onPlaybackStateChanged(pb)
                 timebaseListener.onTimebasedBufferChanged(null)
-            }
-            .launchIn(mainScope)
+            }.launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to utterance updates and apply decorations
@@ -418,8 +434,7 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { (uttLocator, tokenLocator) ->
                 decorateCurrentUtterance(uttLocator, tokenLocator)
-            }
-            .launchIn(mainScope)
+            }.launchIn(mainScope)
             .let { jobs.add(it) }
 
         // Listen to location changes and turn pages (throttled).
@@ -429,8 +444,7 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { locator ->
                 ReadiumReader.onTimebasedLocationChanged(locator)
-            }
-            .launchIn(mainScope)
+            }.launchIn(mainScope)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -442,8 +456,7 @@ class TTSNavigator(
                 onCurrentLocatorChanges(emittingLocator)
                 state[currentTimebasedLocatorKey] = emittingLocator
                 initialLocator = emittingLocator
-            }
-            .launchIn(mainScope)
+            }.launchIn(mainScope)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -459,7 +472,7 @@ class TTSNavigator(
      */
     private suspend fun decorateCurrentUtterance(
         uttLocator: Locator?,
-        tokenLocator: Locator? = null
+        tokenLocator: Locator? = null,
     ) {
         val decorations = mutableListOf<Decoration>()
         val utteranceStyle = ReadiumReader.decorationStyle.utteranceStyle
@@ -470,7 +483,7 @@ class TTSNavigator(
                     id = TTS_DECORATION_ID_UTTERANCE,
                     locator = locator,
                     style = style,
-                )
+                ),
             )
         }
         letIfBothNotNull(tokenLocator, currentRangeStyle)?.let { (locator, style) ->
@@ -479,7 +492,7 @@ class TTSNavigator(
                     id = TTS_DECORATION_ID_CURRENT_RANGE,
                     locator = locator,
                     style = style,
-                )
+                ),
             )
         }
 
@@ -492,19 +505,18 @@ class TTSNavigator(
         }
     }
 
-    override fun storeState(): Bundle {
-        return Bundle().apply {
+    override fun storeState(): Bundle =
+        Bundle().apply {
             putString(
                 currentTimebasedLocatorKey,
-                (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString()
+                (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString(),
             )
 
             putString(
                 ttsPreferencesKey,
-                FlutterTtsPreferences.toJSON(preferences).toString()
+                FlutterTtsPreferences.toJSON(preferences).toString(),
             )
         }
-    }
 
     private suspend fun ensureNavigator(): TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice> {
         if (ttsNavigator == null) initNavigator()
@@ -560,14 +572,13 @@ class TTSNavigator(
                 // TODO: Handle TTS-specific errors?
                 Log.e(
                     TAG,
-                    ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}"
+                    ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}",
                 )
 
                 timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
                 timebaseListener.onTimebasedPlaybackFailure(
-                    PublicationError.invoke(error)
+                    PublicationError.invoke(error),
                 )
-
             }
 
             else -> {
@@ -580,13 +591,17 @@ class TTSNavigator(
         fun restoreState(
             publication: Publication,
             listener: TimebasedListener,
-            state: Bundle
+            state: Bundle,
         ): TTSNavigator {
-            val locator = state.getString(currentTimebasedLocatorKey)
-                ?.let { Locator.fromJSON(JSONObject(it)) }
-            val preferences = state.getString(ttsPreferencesKey)
-                ?.let { FlutterTtsPreferences.fromJSON(it) }
-                ?: FlutterTtsPreferences()
+            val locator =
+                state
+                    .getString(currentTimebasedLocatorKey)
+                    ?.let { Locator.fromJSON(JSONObject(it)) }
+            val preferences =
+                state
+                    .getString(ttsPreferencesKey)
+                    ?.let { FlutterTtsPreferences.fromJSON(it) }
+                    ?: FlutterTtsPreferences()
 
             return TTSNavigator(publication, listener, locator, preferences)
         }

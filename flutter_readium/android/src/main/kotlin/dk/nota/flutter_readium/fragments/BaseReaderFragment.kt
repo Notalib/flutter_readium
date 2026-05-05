@@ -21,15 +21,19 @@ abstract class BaseReaderFragment : Fragment() {
 
     val currentLocator get() = navigator?.currentLocator
 
-    open fun go(locator: Locator?, animated: Boolean): Boolean {
+    open fun go(
+        locator: Locator?,
+        animated: Boolean,
+    ): Boolean {
         if (locator == null) {
             return false
         }
 
-        val n = navigator ?: run {
-            Log.d(TAG, "::go - navigator not ready.")
-            return false
-        }
+        val n =
+            navigator ?: run {
+                Log.d(TAG, "::go - navigator not ready.")
+                return false
+            }
 
         Log.d(TAG, "::go - to:$locator, animated:$animated")
         return n.go(locator, animated)
@@ -38,7 +42,7 @@ abstract class BaseReaderFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
         Log.d(TAG, "::onCreateView")
         return super.onCreateView(inflater, container, savedInstanceState)

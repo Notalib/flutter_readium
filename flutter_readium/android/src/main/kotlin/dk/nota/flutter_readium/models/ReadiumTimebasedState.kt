@@ -13,35 +13,32 @@ data class ReadiumTimebasedState(
      * Current timebased locator
      */
     val currentLocator: Locator?,
-
     /**
      *  Current state of the timebased navigator
      */
     val state: TimebasedNavigator.TimebasedState,
-
     /**
      *  Current offset in milliseconds
      */
     val currentOffset: Double?,
-
     /**
      *  Current buffered position in milliseconds
      */
     val currentBuffered: Long?,
-
     /**
      *  Current duration in milliseconds
      */
-    val currentDuration: Double?
+    val currentDuration: Double?,
 ) : JSONable {
     /**
      * Convert to JSON object
      */
-    override fun toJSON(): JSONObject = JSONObject().apply {
-        put("currentLocator", currentLocator?.toJSON())
-        put("state", state.name)
-        putOpt("currentOffset", currentOffset)
-        putOpt("currentBuffered", currentBuffered)
-        putOpt("currentDuration", currentDuration)
-    }
+    override fun toJSON(): JSONObject =
+        JSONObject().apply {
+            put("currentLocator", currentLocator?.toJSON())
+            put("state", state.name)
+            putOpt("currentOffset", currentOffset)
+            putOpt("currentBuffered", currentBuffered)
+            putOpt("currentDuration", currentDuration)
+        }
 }

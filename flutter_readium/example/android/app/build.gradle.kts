@@ -11,13 +11,13 @@ android {
   ndkVersion = flutter.ndkVersion
 
   compileOptions {
-      isCoreLibraryDesugaringEnabled = true
-      sourceCompatibility = JavaVersion.VERSION_18
-      targetCompatibility = JavaVersion.VERSION_18
+    isCoreLibraryDesugaringEnabled = true
+    sourceCompatibility = JavaVersion.VERSION_18
+    targetCompatibility = JavaVersion.VERSION_18
   }
 
   kotlinOptions {
-      jvmTarget = JavaVersion.VERSION_18.toString()
+    jvmTarget = JavaVersion.VERSION_18.toString()
   }
 
   defaultConfig {
@@ -41,7 +41,7 @@ android {
   }
 
   buildFeatures {
-        buildConfig = true
+    buildConfig = true
   }
 }
 

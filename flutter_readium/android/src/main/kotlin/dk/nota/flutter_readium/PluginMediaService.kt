@@ -67,29 +67,34 @@ enum class NotificationPlayerCustomCommandButton(
 ) {
     REWIND(
         customAction = CUSTOM_COMMAND_REWIND_ACTION_ID,
-        commandButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK)
-            .setDisplayName("Rewind")
-            .setSlots(CommandButton.SLOT_BACK)
-            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REWIND_ACTION_ID, Bundle()))
-            .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_back)
-            .build(),
+        commandButton =
+            CommandButton
+                .Builder(CommandButton.ICON_SKIP_BACK)
+                .setDisplayName("Rewind")
+                .setSlots(CommandButton.SLOT_BACK)
+                .setSessionCommand(SessionCommand(CUSTOM_COMMAND_REWIND_ACTION_ID, Bundle()))
+                .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_back)
+                .build(),
     ),
     FORWARD(
         customAction = CUSTOM_COMMAND_FORWARD_ACTION_ID,
-        commandButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD)
-            .setDisplayName("Forward")
-            .setSlots(CommandButton.SLOT_FORWARD)
-            .setSessionCommand(SessionCommand(CUSTOM_COMMAND_FORWARD_ACTION_ID, Bundle()))
-            .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_forward)
-            .build(),
-    );
+        commandButton =
+            CommandButton
+                .Builder(CommandButton.ICON_SKIP_FORWARD)
+                .setDisplayName("Forward")
+                .setSlots(CommandButton.SLOT_FORWARD)
+                .setSessionCommand(SessionCommand(CUSTOM_COMMAND_FORWARD_ACTION_ID, Bundle()))
+                .setCustomIconResId(androidx.media3.session.R.drawable.media3_icon_skip_forward)
+                .build(),
+    ),
 }
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 @androidx.annotation.OptIn(UnstableApi::class)
-class PluginMediaService : MediaSessionService(), MediaSession.Callback {
-
+class PluginMediaService :
+    MediaSessionService(),
+    MediaSession.Callback {
     class Session(
         val navigator: AnyMediaNavigator,
         val mediaSession: MediaSession,
@@ -102,12 +107,12 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 
     override fun onConnect(
         session: MediaSession,
-        controller: MediaSession.ControllerInfo
+        controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
         val connectionResult = super.onConnect(session, controller)
         val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
 
-        /* Registering custom player command buttons for player notification. */
+        // Registering custom player command buttons for player notification.
         notificationPlayerCustomCommandButtons.forEach { commandButton ->
             commandButton.sessionCommand?.let(availableSessionCommands::add)
         }
@@ -118,11 +123,14 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
         )
     }
 
-    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+    override fun onPostConnect(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+    ) {
         super.onPostConnect(session, controller)
         if (notificationPlayerCustomCommandButtons.isNotEmpty()) {
-            /* Setting custom player command buttons to mediaLibrarySession for player notification. */
-            /* Set media-button preferences, so that skip buttons are replaces with seek */
+            // Setting custom player command buttons to mediaLibrarySession for player notification.
+            // Set media-button preferences, so that skip buttons are replaces with seek
             session.setCustomLayout(notificationPlayerCustomCommandButtons)
             session.setMediaButtonPreferences(notificationPlayerCustomCommandButtons)
         }
@@ -132,9 +140,9 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
         customCommand: SessionCommand,
-        args: Bundle
+        args: Bundle,
     ): ListenableFuture<SessionResult> {
-        /* Handle custom command buttons from player notification. */
+        // Handle custom command buttons from player notification.
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.REWIND.customAction) {
             CoroutineScope(Dispatchers.Main).async {
                 ReadiumReader.previous()
@@ -152,7 +160,6 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
      * The service interface to be used by the app.
      */
     inner class Binder : android.os.Binder() {
-
         private val sessionMutable: MutableStateFlow<Session?> =
             MutableStateFlow(null)
 
@@ -170,9 +177,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
         }
 
         @OptIn(FlowPreview::class)
-        fun <N> openSession(
-            navigator: N,
-        ) where N : AnyMediaNavigator, N : Media3Adapter {
+        fun <N> openSession(navigator: N) where N : AnyMediaNavigator, N : Media3Adapter {
             Log.d(TAG, "openSession")
 
             val activityIntent = createSessionActivityIntent()
@@ -180,18 +185,21 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             // Create our SimpleBasePlayer override to override some media-button mapping.
             val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences)
 
-            val mediaSession = MediaSession.Builder(applicationContext, pluginForwardingPlayer)
-                .setSessionActivity(activityIntent)
-                .setCallback(this@PluginMediaService)
-                .setCustomLayout(notificationPlayerCustomCommandButtons)
-                .build()
+            val mediaSession =
+                MediaSession
+                    .Builder(applicationContext, pluginForwardingPlayer)
+                    .setSessionActivity(activityIntent)
+                    .setCallback(this@PluginMediaService)
+                    .setCustomLayout(notificationPlayerCustomCommandButtons)
+                    .build()
 
             addSession(mediaSession)
 
-            val session = Session(
-                navigator,
-                mediaSession
-            )
+            val session =
+                Session(
+                    navigator,
+                    mediaSession,
+                )
 
             sessionMutable.value = session
 
@@ -204,7 +212,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
                 .onEach { locator ->
                     Log.d(TAG, "Progression update: $locator")
                     // TODO: Submit on the plugin audio-locator stream?
-                    //app.bookRepository.saveProgression(locator, bookId)
+                    // app.bookRepository.saveProgression(locator, bookId)
                 }.launchIn(session.coroutineScope)
         }
 
@@ -215,9 +223,10 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
                 flags = flags or PendingIntent.FLAG_IMMUTABLE
             }
 
-            val intent = application.packageManager.getLaunchIntentForPackage(
-                application.packageName
-            )
+            val intent =
+                application.packageManager.getLaunchIntentForPackage(
+                    application.packageName,
+                )
 
             return PendingIntent.getActivity(applicationContext, 0, intent, flags)
         }
@@ -226,7 +235,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             closeSession()
             ServiceCompat.stopForeground(
                 this@PluginMediaService,
-                ServiceCompat.STOP_FOREGROUND_REMOVE
+                ServiceCompat.STOP_FOREGROUND_REMOVE,
             )
             this@PluginMediaService.stopSelf()
         }
@@ -251,7 +260,11 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         super.onStartCommand(intent, flags, startId)
 
         // TODO: Handle restoration properly when activated from a stale notification.
@@ -280,9 +293,7 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
         return START_NOT_STICKY
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        return binder.session.value?.mediaSession
-    }
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = binder.session.value?.mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
@@ -302,7 +313,6 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
     }
 
     companion object {
-
         const val SERVICE_INTERFACE = "dk.nota.flutter_readium.MediaService"
 
         fun start(application: Application) {
@@ -319,29 +329,32 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
             val mediaServiceBinder: CompletableDeferred<Binder> =
                 CompletableDeferred()
 
-            val mediaServiceConnection = object : ServiceConnection {
-
-                override fun onServiceConnected(name: ComponentName?, service: IBinder) {
-                    Log.d(TAG, "MediaService bound.")
-                    mediaServiceBinder.complete(service as Binder)
-                }
-
-                override fun onServiceDisconnected(name: ComponentName) {
-                    Log.d(TAG, "MediaService disconnected.")
-                }
-
-                override fun onNullBinding(name: ComponentName) {
-                    if (mediaServiceBinder.isCompleted) {
-                        // This happens when the service has successfully connected and later
-                        // stopped and disconnected.
-                        return
+            val mediaServiceConnection =
+                object : ServiceConnection {
+                    override fun onServiceConnected(
+                        name: ComponentName?,
+                        service: IBinder,
+                    ) {
+                        Log.d(TAG, "MediaService bound.")
+                        mediaServiceBinder.complete(service as Binder)
                     }
-                    val errorMessage = "Failed to bind to MediaService."
-                    Log.e(TAG, errorMessage)
-                    val exception = IllegalStateException(errorMessage)
-                    mediaServiceBinder.completeExceptionally(exception)
+
+                    override fun onServiceDisconnected(name: ComponentName) {
+                        Log.d(TAG, "MediaService disconnected.")
+                    }
+
+                    override fun onNullBinding(name: ComponentName) {
+                        if (mediaServiceBinder.isCompleted) {
+                            // This happens when the service has successfully connected and later
+                            // stopped and disconnected.
+                            return
+                        }
+                        val errorMessage = "Failed to bind to MediaService."
+                        Log.e(TAG, errorMessage)
+                        val exception = IllegalStateException(errorMessage)
+                        mediaServiceBinder.completeExceptionally(exception)
+                    }
                 }
-            }
 
             val intent = intent(application)
             application.bindService(intent, mediaServiceConnection, 0)
@@ -357,12 +370,14 @@ class PluginMediaService : MediaSessionService(), MediaSession.Callback {
 }
 
 @UnstableApi
-class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPreferences) : ForwardingSimpleBasePlayer(player) {
-
+class PluginSimpleBasePlayer(
+    player: Player,
+    val preferences: FlutterAudioPreferences,
+) : ForwardingSimpleBasePlayer(player) {
     override fun handleSeek(
         mediaItemIndex: Int,
         positionMs: Long,
-        seekCommand: Int
+        seekCommand: Int,
     ): ListenableFuture<*> {
         // NOTE: Maps seek to next/previous track, to seek forward/backward in current track.
         if (seekCommand == COMMAND_SEEK_TO_NEXT) {
@@ -389,10 +404,11 @@ class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPrefer
         if (preferences.allowExternalSeeking) {
             state.setAvailableCommands(player.availableCommands)
         } else {
-            val commandsWithoutSeeking = player.availableCommands
-                .buildUpon()
-                .remove(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-                .build()
+            val commandsWithoutSeeking =
+                player.availableCommands
+                    .buildUpon()
+                    .remove(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+                    .build()
             state.setAvailableCommands(commandsWithoutSeeking)
         }
 
@@ -405,9 +421,9 @@ class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPrefer
         if (player.isCommandAvailable(COMMAND_GET_TEXT)) {
             state.setCurrentCues(player.currentCues)
         }
-        //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
+        // if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
         state.setCurrentMediaItemIndex(player.currentMediaItemIndex)
-        //}
+        // }
         state.setDeviceInfo(player.getDeviceInfo())
         if (player.isCommandAvailable(COMMAND_GET_DEVICE_VOLUME)) {
             state.setDeviceVolume(player.deviceVolume)
@@ -419,16 +435,17 @@ class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPrefer
         state.setPlaybackState(player.playbackState)
         state.setPlaybackSuppressionReason(player.playbackSuppressionReason)
         state.setPlayerError(player.playerError)
-        //if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
+        // if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
         val tracks =
-            if (player.isCommandAvailable(COMMAND_GET_TRACKS))
+            if (player.isCommandAvailable(COMMAND_GET_TRACKS)) {
                 player.currentTracks
-            else
+            } else {
                 Tracks.EMPTY
+            }
         val mediaMetadata =
             if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
         state.setPlaylist(player.currentTimeline, tracks, mediaMetadata)
-        //}
+        // }
         if (player.isCommandAvailable(COMMAND_GET_METADATA)) {
             state.setPlaylistMetadata(player.playlistMetadata)
         }
@@ -438,7 +455,7 @@ class PluginSimpleBasePlayer(player: Player, val preferences: FlutterAudioPrefer
         state.setSeekForwardIncrementMs(player.seekForwardIncrement)
         state.setShuffleModeEnabled(player.shuffleModeEnabled)
         state.setSurfaceSize(player.surfaceSize)
-        //state.setTimedMetadata(lastTimedMetadata)
+        // state.setTimedMetadata(lastTimedMetadata)
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
             state.setTotalBufferedDurationMs { player.totalBufferedDuration }
         }
