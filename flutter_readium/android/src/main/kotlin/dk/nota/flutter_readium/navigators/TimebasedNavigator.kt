@@ -31,22 +31,22 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
      */
     interface TimebasedListener {
         /**
-         * Called when the playback state changes.
+         * Called when the playback [timebasedState] changes.
          */
         fun onTimebasedPlaybackStateChanged(timebasedState: TimebasedState)
 
         /**
-         * Called when the time-based buffer changes.
+         * Called when the time-based [buffer] changes.
          */
         fun onTimebasedBufferChanged(buffer: Duration?)
 
         /**
-         * Called when there is a playback error.
+         * Called when there is a playback [error].
          */
         fun onTimebasedPlaybackFailure(error: PublicationError)
 
         /**
-         * Called when the current locator changes.
+         * Called when the current [locator] changes and provides [currentReadingOrderLink].
          */
         fun onTimebasedCurrentLocatorChanges(locator: Locator, currentReadingOrderLink: Link?)
 
@@ -142,7 +142,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     }
 
     /**
-     * Start playing. If fromLocator is provided from that position.
+     * Start playing. If [fromLocator] is provided from that position.
      */
     abstract suspend fun play(fromLocator: Locator?)
 
@@ -167,17 +167,17 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     abstract suspend fun goForward()
 
     /**
-     * Seek to a specific position in the playback.
+     * Seek to a specific [locator] in the playback.
      */
     abstract suspend fun goToLocator(locator: Locator)
 
     /**
-     * Seek to a specific offset in seconds from the current position. Can be negative or positive.
+     * Seek to a specific [offset] in seconds from the current position. Can be negative or positive.
      */
     abstract suspend fun seekTo(offset: Double)
 
     /**
-     * Seek to a progression in the current file.
+     * Seek to a [progression] in the current file.
      */
     abstract suspend fun seekToProgression(progression: Double): Boolean
 }
