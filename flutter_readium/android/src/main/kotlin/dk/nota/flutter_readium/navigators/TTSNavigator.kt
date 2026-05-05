@@ -145,13 +145,12 @@ class TTSNavigator(
         }
 
         if (fromLocator != null) {
-            goToLocator(fromLocator)
+            goToLocator(fromLocator, true)
             return
         }
 
         withScope(mainScope) {
-            val navigator = ensureNavigator()
-            ensureMediaSessionIsOpen()
+            val navigator = ensureNavigatorWithOpenMediaSession()
             navigator.play()
 
             decorateCurrentUtterance(initialLocator)
@@ -176,7 +175,7 @@ class TTSNavigator(
     override suspend fun resume() {
         withScope(mainScope) {
             try {
-                val navigator = ensureNavigator()
+                val navigator = ensureNavigatorWithOpenMediaSession()
                 navigator.play()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resume TTS playback: $e")
@@ -217,19 +216,20 @@ class TTSNavigator(
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        withScope(mainScope) {
-            // Workaround to flickering and restart chapter issue.
-            // We tear down the existing TTS navigator, updates the initialLocator and recreates
-            // the ttsNavigator and mediaService
-            val wasPlaying = isPlaying
+        return goToLocator(locator, isPlaying)
+    }
 
+    /**
+     * Go to a [locator] and start playback, if [play] == true.
+     */
+    private suspend fun goToLocator(locator: Locator, play: Boolean) {
+        withScope(mainScope) {
             stopTtsNavigator()
             initialLocator = resolveLocatorWithProgression(locator)
-            val navigator = ensureNavigator()
-            ensureMediaSessionIsOpen()
+            val navigator = ensureNavigatorWithOpenMediaSession()
             decorateCurrentUtterance(initialLocator)
 
-            if (wasPlaying) {
+            if (play) {
                 navigator.play()
             }
         }
@@ -511,7 +511,7 @@ class TTSNavigator(
         return ttsNavigator!!
     }
 
-    private suspend fun ensureMediaSessionIsOpen() {
+    private suspend fun ensureNavigatorWithOpenMediaSession(): TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice> {
         val navigator = ensureNavigator()
         try {
             val mediaSession = mediaServiceFacade!!
@@ -521,9 +521,9 @@ class TTSNavigator(
             }
         } catch (e: Exception) {
             Log.e(TAG, "::play - Failed to open MediaSession: $e")
-            navigator.close()
-            return
         }
+
+        return navigator
     }
 
     /**
