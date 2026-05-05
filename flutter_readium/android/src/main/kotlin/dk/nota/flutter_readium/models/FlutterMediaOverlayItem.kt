@@ -1,17 +1,20 @@
 package dk.nota.flutter_readium.models
 
+import android.os.Parcelable
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.letIfBothNotNull
+import kotlinx.parcelize.IgnoredOnParcel
+import kotlinx.parcelize.Parcelize
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
-import java.io.Serializable
 
 /**
  * A single media overlay item mapping audio to text.
  */
+@Parcelize
 data class FlutterMediaOverlayItem(
     /**
      * The audio reference, e.g. "chapter1.mp3#t=12.34,15.67" or "chapter1.mp3"
@@ -43,48 +46,62 @@ data class FlutterMediaOverlayItem(
      * value and to calculate an updated time fragment.
      */
     val readingOrderItemDuration: Double,
-) : Serializable {
+) : Parcelable {
     /**
      * The audio file without the fragment (e.g. "chapter1.mp3")
      */
-    val audioFile = audio.substringBefore("#")
+    val audioFile
+        get() = audio.substringBefore("#")
 
     /**
      * The media type of the audio file
      */
-    val audioMediaType = when (audioFile.split('.').lastOrNull()) {
-        "mp3" -> MediaType.MP3
-        "opus" -> MediaType.OPUS
-        else -> MediaType.MP3
-    }
+    val audioMediaType
+        get() = when (audioFile.split('.').lastOrNull()) {
+            "mp3" -> MediaType.MP3
+            "opus" -> MediaType.OPUS
+            else -> MediaType.MP3
+        }
 
     /**
      * The text file without the fragment (e.g. "chapter1.html")
      */
-    val textFile = text.substringBefore("#")
+    val textFile
+        get() = text.substringBefore("#")
 
     /**
      * The text fragment identifier (e.g. "para34"), or empty string if none
      */
-    val textId = text.substringAfter("#", "")
-    private val audioFragment = audio.substringAfter("#", "")
+    val textId
+        get() = text.substringAfter("#", "")
+
+    private val audioFragment
+        get() = audio.substringAfter("#", "")
 
     /**
      * The audio time fragment minus the t= (e.g. "12.34,15.67"), or null if none
      */
-    private val audioTime =
-        if (audioFragment.startsWith("t=")) audioFragment.substringAfter("t=") else null
+    private val audioTime
+        get() =
+            if (audioFragment.startsWith("t=")) audioFragment.substringAfter("t=") else null
 
     /**
      * The start time in seconds, or null if none
      */
-    val audioStart: Double? = audioTime?.substringBefore(",")?.toDoubleOrNull()
+    val audioStart: Double?
+        get() = audioTime?.substringBefore(",")?.toDoubleOrNull()
 
+    /**
+     * Start progression of this segment, e.g. percentages into the audio file, between 0 and 1.
+     */
     val progressionStart: Double?
         get() = letIfBothNotNull(
             audioStart,
             readingOrderItemDuration.takeIf { it > 0.0 })?.let { (start, riDuration) -> start / riDuration }
 
+    /**
+     * End progression of this segment, e.g. percentages into the audio file, between 0 and 1
+     */
     val progressionEnd: Double?
         get() = letIfBothNotNull(
             audioEnd,
@@ -93,13 +110,15 @@ data class FlutterMediaOverlayItem(
     /**
      * The end time in seconds, or null if none
      */
-    val audioEnd: Double? = audioTime?.substringAfter(",")?.toDoubleOrNull()
+    val audioEnd: Double?
+        get() = audioTime?.substringAfter(",")?.toDoubleOrNull()
 
     /**
      * The duration of the segment.
      */
-    val duration: Double? =
-        letIfBothNotNull(audioEnd, audioStart)?.let { (end, start) -> end - start }
+    val duration: Double?
+        get() =
+            letIfBothNotNull(audioEnd, audioStart)?.let { (end, start) -> end - start }
 
     /**
      * Is this item in range for the given file reference and time offset?
@@ -116,6 +135,9 @@ data class FlutterMediaOverlayItem(
         return time in start..end || time < start
     }
 
+    /**
+     * Is this item within range of the given progression?
+     */
     fun isInProgression(fileRef: Url, progression: Double): Boolean {
         if (!fileRef.isEquivalent(Url.invoke(textFile))) {
             if (!fileRef.isEquivalent(Url.invoke(audioFile))) {
@@ -132,6 +154,7 @@ data class FlutterMediaOverlayItem(
     /**
      * Locator used to navigate to and highlight the text in the publication
      */
+    @IgnoredOnParcel
     val syncTextLocator: Locator? by lazy {
         Url.invoke(textFile)?.let { href ->
             Locator(
@@ -152,6 +175,7 @@ data class FlutterMediaOverlayItem(
      *
      * NOTE: You might need to update the time fragment.
      */
+    @IgnoredOnParcel
     val flutterAudioLocator: Locator? by lazy {
         syncTextLocator?.copyWithTimeFragment(audioStart ?: 0.0)?.copyWithTocHref(tocHref)
     }
@@ -161,6 +185,7 @@ data class FlutterMediaOverlayItem(
      *
      * NOTE: You might need to update the time fragment.
      */
+    @IgnoredOnParcel
     val skipToAudioLocator: Locator? by lazy {
         Url.invoke(audioFile)?.let { href ->
             Locator(
