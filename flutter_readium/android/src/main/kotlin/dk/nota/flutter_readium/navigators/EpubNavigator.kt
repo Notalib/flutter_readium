@@ -29,8 +29,11 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EpubNavigator"
-private const val currentVisualCurrentLocatorKey = "currentVisualCurrentLocator"
+private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
+
 private const val epubPreferencesKey = "epubPreferences"
+
+private const val currentDecorationListKey = "currentDecorationsList"
 
 /**
  * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
@@ -39,20 +42,28 @@ private const val epubPreferencesKey = "epubPreferences"
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
 class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
-    private val initialPreferences: FlutterEpubPreferences
-
     constructor(
         publication: Publication,
         initialLocator: Locator?,
         visualListener: VisualListener,
-        initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences()
+        initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences(),
+        initialDecorations: MutableMap<String, List<Decoration>> = mutableMapOf()
     ) : super(publication, initialLocator) {
-        this.initialPreferences = initialPreferences
+        this.preferences = initialPreferences
         this.visualListener = visualListener
-
-        this.state[currentVisualCurrentLocatorKey] = initialLocator
-        this.state[epubPreferencesKey] = initialPreferences
+        this.currentDecorations = initialDecorations
+        this.currentVisualLocator = initialLocator
     }
+
+    private var currentDecorations: MutableMap<String, List<Decoration>> = mutableMapOf()
+
+    val visualListener: VisualListener
+
+    private var currentVisualLocator: Locator?
+        get() = state[currentVisualLocatorKey] as? Locator
+        set(value) {
+            state[currentVisualLocatorKey] = value
+        }
 
     /**
      * A VisualListener is used to listen to events from the Visual navigators like EpubNavigator.
@@ -86,8 +97,6 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         fun onVisualReaderIsReady()
     }
 
-    val visualListener: VisualListener
-
     /**
      * EpubReaderFragment instance used as navigator.
      */
@@ -119,7 +128,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             vm = EpubReaderViewModel().apply {
                 navigatorFactory = EpubNavigatorFactory(publication)
                 locator = this@EpubNavigator.initialLocator
-                preferences = this@EpubNavigator.initialPreferences
+                preferences = this@EpubNavigator.preferences
             }
             listener = this@EpubNavigator
         }
@@ -209,7 +218,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
                 .distinctUntilChanged()
                 .onEach { locator ->
                     onCurrentLocatorChanges(locator)
-                    state[currentVisualCurrentLocatorKey] = locator
+                    currentVisualLocator = locator
                 }
                 .launchIn(mainScope)
                 .let { jobs.add(it) }
@@ -221,9 +230,22 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     override fun storeState(): Bundle {
         return Bundle().apply {
             putString(
-                currentVisualCurrentLocatorKey,
-                (state[currentVisualCurrentLocatorKey] as? Locator)?.toJSON()?.toString()
+                currentVisualLocatorKey,
+                currentVisualLocator?.toJSON()?.toString()
             )
+
+            currentDecorations.takeIf { it.isNotEmpty() }?.let { decorations ->
+                val decorationBundle = Bundle()
+
+                decorations.forEach { (key, value) ->
+                    decorationBundle.putParcelableArrayList(
+                        key,
+                        ArrayList(value)
+                    )
+                }
+
+                putBundle(currentDecorationListKey, decorationBundle)
+            }
 
             preferences?.let { prefs ->
                 putString(
@@ -240,6 +262,15 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         visualListener.onPageLoaded()
 
         notifyIsReady()
+
+        mainScope.launch {
+            currentDecorations.forEach { (group, decorations) ->
+                epubNavigator?.applyDecorations(
+                    decorations = decorations,
+                    group = group
+                )
+            }
+        }
     }
 
     private var hasNotifiedIsReady = false
@@ -261,7 +292,24 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         locator: Locator
     ) {
         visualListener.onPageChanged(pageIndex, totalPages, locator)
-        state[currentVisualCurrentLocatorKey] = locator
+
+        mainScope.launch {
+            if (currentVisualLocator?.href != locator.href) {
+                // Since the visual href changed, we clear old decorations.
+                // This should remove stale decorations from the old file when switching back
+                // and forth between the files.
+                epubNavigator?.let { navigator ->
+                    currentDecorations.keys.forEach { group ->
+                        navigator.applyDecorations(
+                            listOf(),
+                            group
+                        )
+                    }
+                }
+            }
+
+            currentVisualLocator = locator
+        }
     }
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
@@ -362,6 +410,12 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
 
             navigator.applyDecorations(decorations, group)
+
+            if (decorations.isNotEmpty()) {
+                currentDecorations[group] = decorations
+            } else {
+                currentDecorations.remove(group)
+            }
         }
     }
 
@@ -380,15 +434,23 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             listener: VisualListener,
             state: Bundle
         ): EpubNavigator {
-            val locator = state.getString(currentVisualCurrentLocatorKey)
+            val locator = state.getString(currentVisualLocatorKey)
                 ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences = state.getString(epubPreferencesKey)
                 ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
                 ?: FlutterEpubPreferences()
 
+            val currentDecorations = mutableMapOf<String, List<Decoration>>()
+            state.getBundle(currentDecorationListKey)?.let { bundle ->
+                for (key in bundle.keySet()) {
+                    val list: ArrayList<Decoration>? = bundle.getParcelableArrayList(key)
+                    if (list != null) currentDecorations[key] = list
+                }
+            }
+
             Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 
-            return EpubNavigator(publication, locator, listener, preferences)
+            return EpubNavigator(publication, locator, listener, preferences, currentDecorations)
         }
     }
 }
