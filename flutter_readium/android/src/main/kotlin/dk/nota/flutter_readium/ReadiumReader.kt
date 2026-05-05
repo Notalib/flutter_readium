@@ -145,7 +145,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 return@combine null
             }
 
-            ReadiumTimebasedState(locator, state, offset, buffer, duration ?: 0.0)
+            ReadiumTimebasedState(locator, state, offset, buffer, duration)
         }.throttleLatest(100.milliseconds).distinctUntilChanged()
     }
 
@@ -485,7 +485,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                         Log.e(TAG, "Error retrieving asset: $error from url:$pubUrl")
                         return@withContext failure(PublicationError.invoke(error))
                     }
-                val pub = assetToPublication(asset, transformingContainerFactory).getOrElse { error: OpenError ->
+                val pub = assetToPublication(
+                    asset,
+                    transformingContainerFactory
+                ).getOrElse { error: OpenError ->
                     Log.e(TAG, "Error loading asset to Publication object: $error from url:$pubUrl")
                     return@withContext failure(PublicationError.invoke(error))
                 }
@@ -535,22 +538,27 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         // Close previously opened publication to avoid leaks.
         closePublication()
 
-        val transformingContainerFactory = fun (container: Container<Resource>): Container<Resource> {
-            return TransformingContainer(container) { url: Url, resource: Resource ->
-                val publication = currentPublication ?: return@TransformingContainer resource
-                val navigator = epubNavigator ?: return@TransformingContainer resource
+        val transformingContainerFactory =
+            fun(container: Container<Resource>): Container<Resource> {
+                return TransformingContainer(container) { url: Url, resource: Resource ->
+                    val publication = currentPublication ?: return@TransformingContainer resource
+                    val navigator = epubNavigator ?: return@TransformingContainer resource
 
-                val tocIds = publication.tableOfContents.flattenChildren().mapNotNull { it.href.resolve().fragment }
-                val epubPreferences = navigator.preferences
-                if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
-                    resource.injectScriptsAndStyles(tocIds, epubPreferences)
-                else
-                    resource
+                    val tocIds = publication.tableOfContents.flattenChildren()
+                        .mapNotNull { it.href.resolve().fragment }
+                    val epubPreferences = navigator.preferences
+                    if (url.extension?.value?.endsWith("html", ignoreCase = true) == true)
+                        resource.injectScriptsAndStyles(tocIds, epubPreferences)
+                    else
+                        resource
 
+                }
             }
-        }
 
-        val pub = loadPublication(pubUrl, transformingContainerFactory).getOrElse { e -> return failure(e) }
+        val pub = loadPublication(
+            pubUrl,
+            transformingContainerFactory
+        ).getOrElse { e -> return failure(e) }
 
         _currentPublication = pub
         currentPublicationUrl = pubUrl.toString()
@@ -759,13 +767,21 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     suspend fun attachEpubNavigator(fragmentManager: FragmentManager?, viewGroup: ViewGroup?) {
         if (fragmentManager == null || viewGroup == null) {
-            Log.d(TAG, "attachEpubNavigator: Missing fragmentManager or viewGroup")
+            Log.d(TAG, "::attachEpubNavigator: Missing fragmentManager or viewGroup")
             return
         }
 
-        mainScope.async {
-            epubNavigator?.attachNavigator(fragmentManager, viewGroup)
-        }.await()
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
+            return
+        }
+
+        withScope(mainScope) {
+            // Queue decorations to be applied when the epubNavigator is attached.
+            decorationsUpdated()
+
+            navigator.attachNavigator(fragmentManager, viewGroup)
+        }
     }
 
     fun epubClose() {
@@ -791,8 +807,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     suspend fun setDecorationStyle(style: FlutterDecorationPreferences) {
         decorationStyle = style
 
+        decorationsUpdated()
+    }
+
+    suspend fun decorationsUpdated() {
         ttsNavigator?.decorationsUpdated()
         syncAudiobookNavigator?.decorationsUpdated()
+
     }
 
     /**

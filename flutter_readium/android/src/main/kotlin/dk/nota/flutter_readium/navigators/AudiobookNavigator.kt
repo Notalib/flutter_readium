@@ -261,7 +261,7 @@ open class AudiobookNavigator(
 
         return withScope(mainScope) {
             val duration = navigator.asMedia3Player().duration
-            val timeOffset = duration * progression
+            val timeOffset = duration * progression / 1000.0
 
             val toLocator = navigator.currentLocator.value.copyWithTimeFragment(timeOffset)
 
