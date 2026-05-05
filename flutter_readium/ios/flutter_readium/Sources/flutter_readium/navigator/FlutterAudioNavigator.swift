@@ -39,11 +39,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   public init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     self._publication = publication
     self._preferences = preferences
-    self._initialLocator = initialLocator?.skipToAudioLocator
     self._nowPlayingUpdater = NowPlayingInfoUpdater(
       withPublication: publication,
       infoType: preferences.controlPanelInfoType
     )
+    self._initialLocator = resolveLocator(initialLocator)
   }
 
   public func initNavigator() async -> Void {
@@ -93,8 +93,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if let skipToLocator = fromLocator?.skipToAudioLocator {
-      let _ = await seek(toLocator: skipToLocator)
+    if let locator = resolveLocator(fromLocator) {
+      let _ = await seek(toLocator: locator)
     }
     _audioNavigator?.play()
     _nowPlayingUpdater.setupNowPlayingInfo()
@@ -132,15 +132,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seek(toLocator: Locator) async -> Bool {
-    var timeOffset = toLocator.timeOffset
-    let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
-    /// Progression is resolved to a time fragment here, as this resolution is unique to AudioNavigator.
-    // TODO: This should really be handled by the Readium Navigator (upstream issue).
-    if let progression = toLocator.locations.progression, progression.isFinite,
-       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: toLocator, progression: progression) {
-        timeOffset = preciseTimeOffset
+    guard let resolvedLocator = resolveLocator(toLocator) else {
+      Log.navigator.warn("Could not resolve Locator: \(toLocator)")
+      return false
     }
-    let resolvedLocator = toLocator.copyWithReadiumCompOffset(timeOffset ?? 0.0)
+    let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
     let navigated = await _audioNavigator?.go(to: resolvedLocator) ?? false
     if (wasPlaying && navigated) {
       _audioNavigator?.play()
@@ -294,6 +290,29 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     } else {
       Log.navigator.debug("Skipped state emission - duplicate")
     }
+  }
+  
+  internal func resolveLocator(_ locator: Locator?) -> Locator? {
+    guard let locator = locator else {
+      return nil
+    }
+    var resolvedLocator = locator
+    /// Fix href if not in readingOrder, by using position.
+    let readingOrderContainsHref = publication.readingOrder.contains(where: { $0.href == locator.href.string.removingPrefix("/") })
+    if readingOrderContainsHref == false,
+       let position = locator.locations.position {
+      resolvedLocator = locator.copy(href: publication.readingOrder[position - 1].url())
+    }
+    /// Set time offset fragment from progression
+    var timeOffset = locator.timeOffset
+    /// Progression is resolved to a time fragment here, as this resolution is unique to AudioNavigator.
+    // TODO: This should really be handled by the Readium Navigator (upstream issue).
+    if let progression = locator.locations.progression, progression.isFinite,
+       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: locator, progression: progression) {
+        timeOffset = preciseTimeOffset
+    }
+    resolvedLocator = resolvedLocator.copyWithOffset(timeOffset ?? 0.0)
+    return resolvedLocator
   }
 
   internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
