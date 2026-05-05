@@ -340,7 +340,7 @@ class TTSNavigator(
             return false
         }
 
-        val toLocator = findLocatorFromProgression(currentLocator.href,progression) ?: run {
+        val toLocator = findLocatorFromProgression(currentLocator.href, progression) ?: run {
             Log.e(TAG, "::seekToProgression - couldn't find a matching locator")
             return false
         }

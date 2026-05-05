@@ -141,7 +141,7 @@ open class AudiobookNavigator(
 
     override suspend fun play(fromLocator: Locator?) {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::play called without an active navigator");
+            Log.e(TAG, "::play called without an active navigator")
             return
         }
 
@@ -165,7 +165,7 @@ open class AudiobookNavigator(
 
     override suspend fun pause() {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::pause called without an active navigator");
+            Log.e(TAG, "::pause called without an active navigator")
             return
         }
 
@@ -176,7 +176,7 @@ open class AudiobookNavigator(
 
     override suspend fun resume() {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::pause called without an active navigator");
+            Log.e(TAG, "::pause called without an active navigator")
             return
         }
 
@@ -188,7 +188,7 @@ open class AudiobookNavigator(
 
     override suspend fun goBackward() {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::pause called without an active navigator");
+            Log.e(TAG, "::pause called without an active navigator")
             return
         }
 
@@ -199,7 +199,7 @@ open class AudiobookNavigator(
 
     override suspend fun goForward() {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::pause called without an active navigator");
+            Log.e(TAG, "::pause called without an active navigator")
             return
         }
 
@@ -210,7 +210,7 @@ open class AudiobookNavigator(
 
     override suspend fun goToLocator(locator: Locator) {
         val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::goToLocator called without an active navigator");
+            Log.e(TAG, "::goToLocator called without an active navigator")
             return
         }
 
