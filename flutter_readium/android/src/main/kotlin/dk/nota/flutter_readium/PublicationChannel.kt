@@ -22,22 +22,24 @@ private const val TAG = "PublicationChannel"
 internal const val publicationChannelName = "dk.nota.flutter_readium/main"
 
 @ExperimentalCoroutinesApi
-internal class PublicationMethodCallHandler() :
-    MethodChannel.MethodCallHandler {
-
+internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
     @OptIn(InternalReadiumApi::class, ExperimentalReadiumApi::class)
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    override fun onMethodCall(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
             Log.d(TAG, ":onMethodCall method:${call.method} args:${call.arguments}")
 
             try {
-                val res = handleMethodCallsQueue(
-                    call.method,
-                    call.arguments
-                ).getOrElse { error ->
-                    result.publicationError(call.method, error)
-                    return@launch
-                }
+                val res =
+                    handleMethodCallsQueue(
+                        call.method,
+                        call.arguments,
+                    ).getOrElse { error ->
+                        result.publicationError(call.method, error)
+                        return@launch
+                    }
 
                 if (res is Unit) {
                     result.success(null)
@@ -55,7 +57,7 @@ internal class PublicationMethodCallHandler() :
                 result.error(
                     e.javaClass.toString(),
                     e.toString(),
-                    e.stackTraceToString()
+                    e.stackTraceToString(),
                 )
             }
         }
@@ -66,7 +68,7 @@ internal class PublicationMethodCallHandler() :
      */
     private suspend fun handleMethodCallsQueue(
         method: String,
-        arguments: Any?
+        arguments: Any?,
     ): Try<Any?, PublicationError> {
         when (method) {
             "setCustomHeaders" -> {
@@ -136,9 +138,10 @@ internal class PublicationMethodCallHandler() :
 
             "play" -> {
                 val args = arguments as List<*>
-                val fromLocator = (args[0] as? Map<*, *>)?.let {
-                    Locator.fromJSON(JSONObject(it))
-                }
+                val fromLocator =
+                    (args[0] as? Map<*, *>)?.let {
+                        Locator.fromJSON(JSONObject(it))
+                    }
 
                 ReadiumReader.play(fromLocator)
 
@@ -177,9 +180,10 @@ internal class PublicationMethodCallHandler() :
 
             "goToLocator" -> {
                 val args = arguments as List<*>
-                val locator = (args[0] as? Map<*, *>)?.let {
-                    Locator.fromJSON(JSONObject(it))
-                }
+                val locator =
+                    (args[0] as? Map<*, *>)?.let {
+                        Locator.fromJSON(JSONObject(it))
+                    }
 
                 if (locator == null) {
                     throw Exception("goToLocator: failed to go to locator. Missing locator: ${args[0]} ")
@@ -195,12 +199,14 @@ internal class PublicationMethodCallHandler() :
                 // 0 is AudioPreferences
                 val prefs = args[0] as Map<*, *>?
 
-                val preferences = prefs?.let { FlutterAudioPreferences.fromMap(it) }
-                    ?: FlutterAudioPreferences()
+                val preferences =
+                    prefs?.let { FlutterAudioPreferences.fromMap(it) }
+                        ?: FlutterAudioPreferences()
 
-                val locator = (args[1] as? Map<*, *>)?.let {
-                    Locator.fromJSON(JSONObject(it))
-                }
+                val locator =
+                    (args[1] as? Map<*, *>)?.let {
+                        Locator.fromJSON(JSONObject(it))
+                    }
 
                 return audioEnable(locator, preferences)
             }
@@ -224,26 +230,28 @@ internal class PublicationMethodCallHandler() :
 
             "searchInPublication" -> {
                 ReadiumReader.currentPublication ?: return Try.failure(
-                    PublicationError.Unavailable()
+                    PublicationError.Unavailable(),
                 )
                 val query = arguments as String
-                val searchResult = ReadiumReader.searchInPublication(query).getOrElse {
-                    return Try.failure(
-                        PublicationError.Unknown(
-                            message = it.message ?: "Search failed"
-                        )
-                    )
-                }
-
-                val textSearchResults = searchResult.flatMap { col ->
-                    col.locators.map {
-                        TextSearchResult(
-                            locator = it,
-                            chapterTitle = it.title,
-                            pageNumbers = null
+                val searchResult =
+                    ReadiumReader.searchInPublication(query).getOrElse {
+                        return Try.failure(
+                            PublicationError.Unknown(
+                                message = it.message ?: "Search failed",
+                            ),
                         )
                     }
-                }
+
+                val textSearchResults =
+                    searchResult.flatMap { col ->
+                        col.locators.map {
+                            TextSearchResult(
+                                locator = it,
+                                chapterTitle = it.title,
+                                pageNumbers = null,
+                            )
+                        }
+                    }
                 return Try.success(textSearchResults.map { it.toJSON().toString() })
             }
 
@@ -254,7 +262,7 @@ internal class PublicationMethodCallHandler() :
                     ReadiumReader.goToProgression(duration)
                     return Try.success(true)
                 } else {
-                    return Try.failure(PublicationError.Unknown("Missing or invalid duration argument: ${arguments}"))
+                    return Try.failure(PublicationError.Unknown("Missing or invalid duration argument: $arguments"))
                 }
             }
 
@@ -274,7 +282,10 @@ internal class PublicationMethodCallHandler() :
             }
 
         val pubJsonManifest =
-            publication.manifest.toJSON().toString().replace("\\/", "/")
+            publication.manifest
+                .toJSON()
+                .toString()
+                .replace("\\/", "/")
 
         // Close the publication to avoid leaks.
         publication.close()
@@ -293,7 +304,10 @@ internal class PublicationMethodCallHandler() :
             }
 
         val pubJsonManifest =
-            publication.manifest.toJSON().toString().replace("\\/", "/")
+            publication.manifest
+                .toJSON()
+                .toString()
+                .replace("\\/", "/")
 
         return Try.success(pubJsonManifest)
     }
@@ -304,7 +318,7 @@ internal class PublicationMethodCallHandler() :
     private suspend fun ttsEnable(prefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable()
+            PublicationError.Unavailable(),
         )
 
         ReadiumReader.ttsEnable(prefs)
@@ -317,16 +331,14 @@ internal class PublicationMethodCallHandler() :
     private suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable()
+            PublicationError.Unavailable(),
         )
 
         ReadiumReader.ttsSetPreferences(ttsPrefs)
         return Try.success(null)
     }
 
-    suspend fun setDecorationStyle(
-        decorationPreferences: FlutterDecorationPreferences
-    ): Try<Any?, PublicationError> {
+    suspend fun setDecorationStyle(decorationPreferences: FlutterDecorationPreferences): Try<Any?, PublicationError> {
         try {
             ReadiumReader.setDecorationStyle(decorationPreferences)
             return Try.success(null)
@@ -345,19 +357,21 @@ internal class PublicationMethodCallHandler() :
         val ttsPrefs = ReadiumReader.ttsGetPreferences()
         val voices = ttsPrefs?.voices?.values?.toSet() ?: setOf()
 
-        val voicesJson = androidVoices.map {
-            JSONObject().apply {
-                put("identifier", it.id.value)
-                put(
-                    "name",
-                    it.id.value
-                ) // ID should be mapped to a readable name on Flutter side.
-                put("quality", it.quality.name.lowercase())
-                put("networkRequired", it.requiresNetwork)
-                put("language", it.language.code)
-                put("active", voices.contains(it.id.value))
-            }.toString()
-        }
+        val voicesJson =
+            androidVoices.map {
+                JSONObject()
+                    .apply {
+                        put("identifier", it.id.value)
+                        put(
+                            "name",
+                            it.id.value,
+                        ) // ID should be mapped to a readable name on Flutter side.
+                        put("quality", it.quality.name.lowercase())
+                        put("networkRequired", it.requiresNetwork)
+                        put("language", it.language.code)
+                        put("active", voices.contains(it.id.value))
+                    }.toString()
+            }
 
         return voicesJson
     }
@@ -367,11 +381,11 @@ internal class PublicationMethodCallHandler() :
      */
     private suspend fun audioEnable(
         locator: Locator?,
-        preferences: FlutterAudioPreferences
+        preferences: FlutterAudioPreferences,
     ): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable()
+            PublicationError.Unavailable(),
         )
 
         ReadiumReader.audioEnable(locator, preferences)
@@ -382,15 +396,18 @@ internal class PublicationMethodCallHandler() :
 /**
  * Send a PublicationError back to Flutter via MethodChannel.Result
  */
-fun MethodChannel.Result.publicationError(method: String, error: PublicationError) {
+fun MethodChannel.Result.publicationError(
+    method: String,
+    error: PublicationError,
+) {
     Log.e(
         TAG,
-        "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}"
+        "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}",
     )
 
     this.error(
         error.errorCode.name,
         error.message,
-        error.cause
+        error.cause,
     )
 }

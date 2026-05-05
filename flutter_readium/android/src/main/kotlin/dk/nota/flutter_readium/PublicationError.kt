@@ -18,30 +18,36 @@ import org.readium.r2.streamer.PublicationOpener
 @OptIn(ExperimentalReadiumApi::class)
 sealed class PublicationError(
     val errorCode: ReadiumExceptionType,
-
     override val message: String,
     override val cause: Error? = null,
 ) : Error {
-    class Reading(override val cause: ReadError) :
-        PublicationError(ReadiumExceptionType.readingError, cause.message, cause.cause)
+    class Reading(
+        override val cause: ReadError,
+    ) : PublicationError(ReadiumExceptionType.readingError, cause.message, cause.cause)
 
-    class UnsupportedScheme(cause: Error) :
-        PublicationError( ReadiumExceptionType.unsupportedScheme, cause.message, cause.cause)
+    class UnsupportedScheme(
+        cause: Error,
+    ) : PublicationError(ReadiumExceptionType.unsupportedScheme, cause.message, cause.cause)
 
-    class FormatNotSupported(cause: Error) :
-        PublicationError(ReadiumExceptionType.formatNotSupported,cause.message, cause.cause)
+    class FormatNotSupported(
+        cause: Error,
+    ) : PublicationError(ReadiumExceptionType.formatNotSupported, cause.message, cause.cause)
 
-    class InvalidPublicationUrl(msg: String) :
-        PublicationError(ReadiumExceptionType.notFound, msg)
+    class InvalidPublicationUrl(
+        msg: String,
+    ) : PublicationError(ReadiumExceptionType.notFound, msg)
 
-    class Unexpected(cause: Error) :
-        PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
+    class Unexpected(
+        cause: Error,
+    ) : PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
 
-    class Unavailable(message: String = "Resource unavailable") :
-        PublicationError(ReadiumExceptionType.unavailable, message)
+    class Unavailable(
+        message: String = "Resource unavailable",
+    ) : PublicationError(ReadiumExceptionType.unavailable, message)
 
-    class Unknown(message: String = "Unknown error") :
-        PublicationError(ReadiumExceptionType.unknown, message)
+    class Unknown(
+        message: String = "Unknown error",
+    ) : PublicationError(ReadiumExceptionType.unknown, message)
 
     enum class ReadiumExceptionType {
         formatNotSupported,
@@ -57,56 +63,61 @@ sealed class PublicationError(
     companion object {
         operator fun invoke(error: AssetRetriever.RetrieveUrlError): PublicationError =
             when (error) {
-                is AssetRetriever.RetrieveUrlError.Reading ->
+                is AssetRetriever.RetrieveUrlError.Reading -> {
                     Reading(error.cause)
+                }
 
-                is AssetRetriever.RetrieveUrlError.FormatNotSupported ->
+                is AssetRetriever.RetrieveUrlError.FormatNotSupported -> {
                     FormatNotSupported(error)
+                }
 
-                is AssetRetriever.RetrieveUrlError.SchemeNotSupported ->
+                is AssetRetriever.RetrieveUrlError.SchemeNotSupported -> {
                     UnsupportedScheme(error)
+                }
             }
 
         operator fun invoke(error: AssetRetriever.RetrieveError): PublicationError =
             when (error) {
-                is AssetRetriever.RetrieveError.Reading ->
+                is AssetRetriever.RetrieveError.Reading -> {
                     Reading(error.cause)
+                }
 
-                is AssetRetriever.RetrieveError.FormatNotSupported ->
+                is AssetRetriever.RetrieveError.FormatNotSupported -> {
                     FormatNotSupported(error)
+                }
             }
 
         operator fun invoke(error: PublicationOpener.OpenError): PublicationError =
             when (error) {
-                is PublicationOpener.OpenError.Reading ->
+                is PublicationOpener.OpenError.Reading -> {
                     Reading(error.cause)
+                }
 
-                is PublicationOpener.OpenError.FormatNotSupported ->
+                is PublicationOpener.OpenError.FormatNotSupported -> {
                     FormatNotSupported(error)
+                }
             }
 
-        operator fun invoke(error: ReadError): PublicationError =
-            Reading(error)
+        operator fun invoke(error: ReadError): PublicationError = Reading(error)
 
-        operator fun invoke(error: AudioEngine.Error): PublicationError =
-            Unexpected(error)
+        operator fun invoke(error: AudioEngine.Error): PublicationError = Unexpected(error)
 
         operator fun invoke(error: AudioNavigatorFactory.Error): PublicationError =
             when (error) {
-                is AudioNavigatorFactory.Error.UnsupportedPublication
-                    -> FormatNotSupported(error)
+                is AudioNavigatorFactory.Error.UnsupportedPublication,
+                -> FormatNotSupported(error)
 
-                is AudioNavigatorFactory.Error.EngineInitialization
-                    -> Unexpected(error)
+                is AudioNavigatorFactory.Error.EngineInitialization,
+                -> Unexpected(error)
             }
 
         operator fun invoke(error: TtsNavigator.Error): PublicationError =
             when (error) {
-                is TtsNavigator.Error.EngineError<*>
-                    -> Unexpected(error)
+                is TtsNavigator.Error.EngineError<*>,
+                -> Unexpected(error)
 
-                is TtsNavigator.Error.ContentError
-                    -> FormatNotSupported(error)
+                is TtsNavigator.Error.ContentError,
+                -> FormatNotSupported(error)
             }
     }
 }

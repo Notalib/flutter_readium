@@ -9,23 +9,22 @@ data class TextSearchResult(
      * The locator for this search result
      */
     val locator: Locator,
-
     /**
      * Optional chapter title
      */
     val chapterTitle: String? = null,
-
     /**
      * Optional list of page numbers
      */
-    val pageNumbers: List<String>? = null
+    val pageNumbers: List<String>? = null,
 ) : JSONable {
     /**
      * Convert to JSON object
      */
-    override fun toJSON(): JSONObject = JSONObject().apply {
-        put("locator", locator.toJSON())
-        put("chapterTitle", chapterTitle)
-        put("pageNumbers", pageNumbers?.joinToString(","))
-    }
+    override fun toJSON(): JSONObject =
+        JSONObject().apply {
+            put("locator", locator.toJSON())
+            put("chapterTitle", chapterTitle)
+            put("pageNumbers", pageNumbers?.joinToString(","))
+        }
 }

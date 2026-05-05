@@ -41,13 +41,15 @@ private const val currentDecorationListKey = "currentDecorationsList"
  */
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
-class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
+class EpubNavigator :
+    BaseNavigator,
+    EpubReaderFragment.Listener {
     constructor(
         publication: Publication,
         initialLocator: Locator?,
         visualListener: VisualListener,
         initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences(),
-        initialDecorations: MutableMap<String, List<Decoration>> = mutableMapOf()
+        initialDecorations: MutableMap<String, List<Decoration>> = mutableMapOf(),
     ) : super(publication, initialLocator) {
         this.preferences = initialPreferences
         this.visualListener = visualListener
@@ -79,7 +81,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
          * Called when the current page has changed. Can be a new file or a new page in the
          * same file.
          */
-        fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+        fun onPageChanged(
+            pageIndex: Int,
+            totalPages: Int,
+            locator: Locator,
+        )
 
         /**
          * Called when an external link has been tapped.
@@ -124,20 +130,25 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         get() = epubNavigator!!.started
 
     override suspend fun initNavigator() {
-        epubNavigator = EpubReaderFragment().apply {
-            vm = EpubReaderViewModel().apply {
-                navigatorFactory = EpubNavigatorFactory(publication)
-                locator = this@EpubNavigator.initialLocator
-                preferences = this@EpubNavigator.preferences
+        epubNavigator =
+            EpubReaderFragment().apply {
+                vm =
+                    EpubReaderViewModel().apply {
+                        navigatorFactory = EpubNavigatorFactory(publication)
+                        locator = this@EpubNavigator.initialLocator
+                        preferences = this@EpubNavigator.preferences
+                    }
+                listener = this@EpubNavigator
             }
-            listener = this@EpubNavigator
-        }
     }
 
     /**
      * Attach the EPUB navigator fragment to the given FragmentManager and ViewGroup.
      */
-    fun attachNavigator(fragmentManager: FragmentManager, viewGroup: ViewGroup) {
+    fun attachNavigator(
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+    ) {
         val navigator = epubNavigator ?: return
         mainScope.launch {
             fragmentManager.commitNow {
@@ -149,7 +160,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Go to a specific locator in the EPUB navigator, this does not scroll to the locator position.
      */
-    suspend fun go(locator: Locator, animated: Boolean, segmentDuration: Double? = null): Boolean {
+    suspend fun go(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double? = null,
+    ): Boolean {
         val navigator = epubNavigator
         if (navigator == null) {
             Log.d(TAG, "::go - epubNavigator is null!")
@@ -176,11 +191,12 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     }
 
     suspend fun scrollToProgression(progression: Double) {
-        val navigator = epubNavigator ?: run {
-            Log.e(TAG, "::scrollToProgression - epubNavigator is null")
+        val navigator =
+            epubNavigator ?: run {
+                Log.e(TAG, "::scrollToProgression - epubNavigator is null")
 
-            return
-        }
+                return
+            }
 
         navigator.scrollToProgression(progression)
     }
@@ -191,11 +207,12 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     suspend fun updatePreferences(flutterEpubPreferences: FlutterEpubPreferences) {
         Log.d(TAG, "::updatePreferences")
 
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "Tried to update preferences without a navigator")
-            preferences = flutterEpubPreferences
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "Tried to update preferences without a navigator")
+                preferences = flutterEpubPreferences
+                return
+            }
 
         try {
             navigator.updatePreferences(flutterEpubPreferences)
@@ -207,31 +224,32 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     }
 
     override fun setupNavigatorListeners() {
-        val navigator = epubNavigator ?: run {
-            Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
+                return
+            }
 
         val currentLocator = navigator.currentLocator
         if (currentLocator != null) {
-            currentLocator.throttleLatest(100.milliseconds)
+            currentLocator
+                .throttleLatest(100.milliseconds)
                 .distinctUntilChanged()
                 .onEach { locator ->
                     onCurrentLocatorChanges(locator)
                     currentVisualLocator = locator
-                }
-                .launchIn(mainScope)
+                }.launchIn(mainScope)
                 .let { jobs.add(it) }
         } else {
             Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
         }
     }
 
-    override fun storeState(): Bundle {
-        return Bundle().apply {
+    override fun storeState(): Bundle =
+        Bundle().apply {
             putString(
                 currentVisualLocatorKey,
-                currentVisualLocator?.toJSON()?.toString()
+                currentVisualLocator?.toJSON()?.toString(),
             )
 
             currentDecorations.takeIf { it.isNotEmpty() }?.let { decorations ->
@@ -240,7 +258,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
                 decorations.forEach { (key, value) ->
                     decorationBundle.putParcelableArrayList(
                         key,
-                        ArrayList(value)
+                        ArrayList(value),
                     )
                 }
 
@@ -250,11 +268,10 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             preferences?.let { prefs ->
                 putString(
                     epubPreferencesKey,
-                    Json.encodeToString(FlutterEpubPreferences.serializer(), prefs)
+                    Json.encodeToString(FlutterEpubPreferences.serializer(), prefs),
                 )
             }
         }
-    }
 
     override fun onPageLoaded() {
         Log.d(TAG, "::onPageLoaded")
@@ -267,7 +284,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
             currentDecorations.forEach { (group, decorations) ->
                 epubNavigator?.applyDecorations(
                     decorations = decorations,
-                    group = group
+                    group = group,
                 )
             }
         }
@@ -289,7 +306,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     override fun onPageChanged(
         pageIndex: Int,
         totalPages: Int,
-        locator: Locator
+        locator: Locator,
     ) {
         visualListener.onPageChanged(pageIndex, totalPages, locator)
 
@@ -302,7 +319,7 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
                     currentDecorations.keys.forEach { group ->
                         navigator.applyDecorations(
                             listOf(),
-                            group
+                            group,
                         )
                     }
                 }
@@ -387,10 +404,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
-        val navigator = epubNavigator ?: run {
-            Log.e(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
-            return null
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.e(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
+                return null
+            }
 
         return withScope(mainScope) {
             navigator.firstVisibleElementLocator()
@@ -399,12 +417,13 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
 
     suspend fun applyDecorations(
         decorations: List<Decoration>,
-        group: String
+        group: String,
     ) {
-        val navigator = epubNavigator ?: run {
-            Log.e(TAG, "::applyDecorations: navigator is null")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.e(TAG, "::applyDecorations: navigator is null")
+                return
+            }
 
         withScope(mainScope) {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
@@ -422,7 +441,11 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    suspend fun goToLocator(locator: Locator, animated: Boolean, segmentDuration: Double? = null) {
+    suspend fun goToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double? = null,
+    ) {
         withScope(mainScope) {
             go(locator, animated, segmentDuration)
         }
@@ -432,13 +455,17 @@ class EpubNavigator : BaseNavigator, EpubReaderFragment.Listener {
         fun restoreState(
             publication: Publication,
             listener: VisualListener,
-            state: Bundle
+            state: Bundle,
         ): EpubNavigator {
-            val locator = state.getString(currentVisualLocatorKey)
-                ?.let { json -> Locator.fromJSON(JSONObject(json)) }
-            val preferences = state.getString(epubPreferencesKey)
-                ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
-                ?: FlutterEpubPreferences()
+            val locator =
+                state
+                    .getString(currentVisualLocatorKey)
+                    ?.let { json -> Locator.fromJSON(JSONObject(json)) }
+            val preferences =
+                state
+                    .getString(epubPreferencesKey)
+                    ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
+                    ?: FlutterEpubPreferences()
 
             val currentDecorations = mutableMapOf<String, List<Decoration>>()
             state.getBundle(currentDecorationListKey)?.let { bundle ->

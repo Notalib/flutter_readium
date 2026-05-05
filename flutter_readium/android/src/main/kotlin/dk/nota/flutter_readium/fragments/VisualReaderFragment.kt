@@ -16,7 +16,7 @@ abstract class VisualReaderFragment : BaseReaderFragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
         Log.d(TAG, "::onCreateView")
         binding = FragmentReaderBinding.inflate(inflater, container, false)
