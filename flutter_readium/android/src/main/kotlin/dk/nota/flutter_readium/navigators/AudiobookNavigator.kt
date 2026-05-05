@@ -140,7 +140,12 @@ open class AudiobookNavigator(
     }
 
     override suspend fun play(fromLocator: Locator?) {
-        mainScope.async {
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::play called without an active navigator");
+            return
+        }
+
+        withScope(mainScope) {
             if (fromLocator != null) {
                 goToLocator(fromLocator)
             }
@@ -150,41 +155,65 @@ open class AudiobookNavigator(
                 mediaServiceFacade?.openSession(audioNavigator!!)
             } catch (e: Exception) {
                 Log.e(TAG, "Error opening MediaSession: ${e.message}")
-                audioNavigator?.close()
-                return@async
+                navigator.close()
+                return@withScope
             }
 
-            audioNavigator?.play()
-        }.await()
+            navigator.play()
+        }
     }
 
     override suspend fun pause() {
-        mainScope.async {
-            audioNavigator?.pause()
-        }.await()
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::pause called without an active navigator");
+            return
+        }
+
+        withScope(mainScope) {
+            navigator.pause()
+        }
     }
 
     override suspend fun resume() {
-        mainScope.async {
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::pause called without an active navigator");
+            return
+        }
+
+        withScope(mainScope) {
             // TODO: Do we need to check if already playing?
-            audioNavigator?.play()
-        }.await()
+            navigator.play()
+        }
     }
 
     override suspend fun goBackward() {
-        mainScope.async {
-            audioNavigator?.skip((-preferences.seekInterval).seconds)
-        }.await()
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::pause called without an active navigator");
+            return
+        }
+
+        withScope(mainScope) {
+            navigator.skip((-preferences.seekInterval).seconds)
+        }
     }
 
     override suspend fun goForward() {
-        mainScope.async {
-            audioNavigator?.skip((preferences.seekInterval).seconds)
-        }.await()
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::pause called without an active navigator");
+            return
+        }
+
+        withScope(mainScope) {
+            navigator.skip((preferences.seekInterval).seconds)
+        }
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        val navigator = audioNavigator ?: return
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::goToLocator called without an active navigator");
+            return
+        }
+
         withScope(mainScope) {
             val toLocator = locator.progression?.let { progression ->
                 val readingOrderLink =
@@ -210,7 +239,7 @@ open class AudiobookNavigator(
 
     override suspend fun seekTo(offset: Double) {
         val navigator = audioNavigator ?: run {
-            Log.d(TAG, ":seekToProgression - called without navigator")
+            Log.d(TAG, ":seekTo - called without navigator")
             return
         }
 
@@ -232,7 +261,7 @@ open class AudiobookNavigator(
 
         return withScope(mainScope) {
             val duration = navigator.asMedia3Player().duration
-            val timeOffset = duration * progression
+            val timeOffset = duration * progression / 1000.0
 
             val toLocator = navigator.currentLocator.value.copyWithTimeFragment(timeOffset)
 
@@ -247,14 +276,18 @@ open class AudiobookNavigator(
     fun updatePreferences(prefs: FlutterAudioPreferences) {
         preferences += prefs
 
-        mainScope.async {
-            audioNavigator?.submitPreferences(preferences.toExoPlayerPreferences())
+        val navigator = audioNavigator ?: run {
+            Log.d(TAG, ":updatePreferences - called without navigator")
+            return
+        }
+
+        mainScope.launch {
+            navigator.submitPreferences(preferences.toExoPlayerPreferences())
         }
     }
 
     override fun setupNavigatorListeners() {
-        val navigator = audioNavigator
-        if (navigator == null) {
+        val navigator = audioNavigator ?: run {
             Log.e(TAG, ": setupNavigatorListeners - navigator is null")
             return
         }
