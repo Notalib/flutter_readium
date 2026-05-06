@@ -14,7 +14,7 @@ class FlutterReadiumError {
   let code: String?
   let data: Any?
   let stack: [String: Any]?
-  
+
   init(
     message: String,
     code: String? = nil,
@@ -26,7 +26,7 @@ class FlutterReadiumError {
     self.data = data
     self.stack = details
   }
-  
+
   func toJson() -> [String: Any?] {
     let map: [String: Any?] = [
       "message": message,
@@ -34,7 +34,7 @@ class FlutterReadiumError {
       "data": data,
       "stack": stack
     ]
-    
+
     return map
   }
 }
@@ -100,13 +100,75 @@ extension PublicationOpenError {
   }
 }
 
+extension HTTPError {
+  var statusCode: HTTPStatus? {
+    if case let .errorResponse(response) = self {
+      return response.status
+    }
+    return nil
+  }
+  var responseHeaders: [String: String]? {
+    if case let .errorResponse(response) = self {
+      return response.headers
+    }
+    return nil
+  }
+  var responseBody: Data? {
+    if case let .errorResponse(response) = self {
+      return response.body
+    }
+    return nil
+  }
+}
+
+extension AccessError {
+  var httpError: HTTPError? {
+    if case let .http(httpError) = self {
+      return httpError
+    }
+    return nil
+  }
+  var fsError: FileSystemError? {
+    if case let .fileSystem(fsErr) = self {
+      return fsErr
+    }
+    return nil
+  }
+}
+
+extension ReadError {
+  var httpError: HTTPError? {
+    if case let .access(.http(httpError)) = self {
+      return httpError
+    }
+    return nil
+  }
+  var fsError: FileSystemError? {
+    if case let .access(.fileSystem(fsErr)) = self {
+      return fsErr
+    }
+    return nil
+  }
+}
+
 extension ReadiumError: UserErrorConvertible {
   func toFlutterError() -> FlutterError {
     switch self {
     case .formatNotSupported(let msg):
       return FlutterError(code: "formatNotSupported", message: self.localizedDescription, details: msg)
     case .readingError(let err):
-      return FlutterError(code: "readingError", message: self.localizedDescription, details: err.localizedDescription)
+      switch err {
+      case ReadiumShared.ArchiveOpenError.reading(.access(.http(let httpError))),
+           ReadiumShared.ReadError.access(.http(let httpError)),
+           ReadiumShared.AccessError.http(let httpError):
+        return FlutterError(code: "readingError", message: "HTTPError(\(httpError.statusCode?.rawValue ?? 0)", details: httpError.responseHeaders)
+      case ReadiumShared.ArchiveOpenError.reading(.access(.fileSystem(let fsError))),
+           ReadiumShared.ReadError.access(.fileSystem(let fsError)),
+           ReadiumShared.AccessError.fileSystem(let fsError):
+        return FlutterError(code: "readingError", message: "FilesystemError", details: fsError.localizedDescription)
+      default:
+        return FlutterError(code: "readingError", message: self.localizedDescription, details: err.localizedDescription)
+      }
     case .notFound(let msg):
       return FlutterError(code: "notFound", message: self.localizedDescription, details: msg)
     case .publicationIsRestricted(let err):
