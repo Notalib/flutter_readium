@@ -269,7 +269,7 @@ fun Locator.copyWithTimeFragment(time: Double): Locator {
  */
 fun Locator.copyWithTimeFragment(time: Int): Locator {
     return copy(
-        locations = locations.copy(
+        locations = Locator.Locations(
             fragments = listOf("t=${time}")
         )
     )

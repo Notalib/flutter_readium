@@ -224,12 +224,28 @@ class SyncAudiobookNavigator(
             return null
         }
 
-        val timeOffset =
+        val timeOffsetFromProgression =
             locator.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
-                ?: locator.getTimeOffset() ?: run {
-                    // No time offset, return as is.
-                    return syncAudioLocator
-                }
+                ?.toInt()
+        val timeOffsetFromFragment = locator.getTimeOffset()?.toInt()
+
+        if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
+            Log.d(
+                TAG,
+                "::mapTextLocatorToMediaOverlayLocator couldn't find time offset from $locator, return $syncAudioLocator"
+            )
+            return syncAudioLocator
+        }
+
+        if (timeOffsetFromProgression != null && timeOffsetFromFragment != null && timeOffsetFromProgression != timeOffsetFromFragment) {
+            Log.d(
+                TAG,
+                "::mapTextLocatorToMediaOverlayLocator - time offset from both progression $timeOffsetFromProgression and time fragment $timeOffsetFromFragment but they differ"
+            )
+        }
+
+
+        val timeOffset = timeOffsetFromProgression ?: timeOffsetFromFragment ?: 0
 
         val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
 
