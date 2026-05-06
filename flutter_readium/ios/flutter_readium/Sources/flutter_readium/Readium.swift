@@ -33,11 +33,12 @@ final class Readium : DefaultHTTPClientDelegate {
 
   func setupWithHeaders(headers: [String: String]?) {
     self.httpClient = DefaultHTTPClient(
-        cachePolicy: .useProtocolCachePolicy, // default = useProtocolCachePolicy
-        additionalHeaders: headers,
-        requestTimeout: nil,  // default = 60 seconds
-        resourceTimeout: nil, // default = 7 days
-        delegate: self)
+      userAgent: makeSanitizedUserAgent(),
+      cachePolicy: .useProtocolCachePolicy, // default = useProtocolCachePolicy
+      additionalHeaders: headers,
+      requestTimeout: nil,  // default = 60 seconds
+      resourceTimeout: nil, // default = 7 days
+      delegate: self)
     self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
     self.httpServer = GCDHTTPServer(assetRetriever: self.assetRetriever!)
     self.publicationOpener = PublicationOpener(
@@ -52,6 +53,36 @@ final class Readium : DefaultHTTPClientDelegate {
 
   func setAdditionalHeaders(_ headers: [String: String]) -> Void {
     self.additionalHeaders = headers
+  }
+
+  private func makeSanitizedUserAgent() -> String {
+    let bundle = Bundle.main
+
+    let rawName = (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String) ?? "App"
+    ///FIX: Below line revealed characters not compatible with some server's header parsing. We now sanitize it.
+    //debugPrint(rawName.unicodeScalars.map { String(format: "%04X", $0.value) })
+    let appName = sanitizeForUserAgent(rawName).replacingOccurrences(of: " ", with: "")
+
+    let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+
+    let system = UIDevice.current.systemVersion
+    let device = UIDevice.current.model
+
+    return "\(appName)/\(version) (\(build); iOS \(system); \(device))"
+  }
+
+  private func sanitizeForUserAgent(_ input: String) -> String {
+    let decomposed = input.folding(options: .diacriticInsensitive, locale: .current)
+
+    let asciiOnly = decomposed.unicodeScalars.compactMap { scalar -> Character? in
+      guard scalar.isASCII && scalar.value >= 0x20 && scalar.value != 0x7F else {
+        return nil
+      }
+      return Character(scalar)
+    }
+
+    return String(asciiOnly)
   }
 
   //--- MARK: DefaultHTTPClientDelegate
