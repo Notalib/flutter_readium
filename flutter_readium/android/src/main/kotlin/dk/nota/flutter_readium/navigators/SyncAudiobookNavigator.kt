@@ -238,7 +238,7 @@ class SyncAudiobookNavigator(
         }
 
         if (timeOffsetFromProgression != null && timeOffsetFromFragment != null && timeOffsetFromProgression != timeOffsetFromFragment) {
-            Log.e(
+            Log.d(
                 TAG,
                 "::mapTextLocatorToMediaOverlayLocator - time offset from both progression $timeOffsetFromProgression and time fragment $timeOffsetFromFragment but they differ"
             )
