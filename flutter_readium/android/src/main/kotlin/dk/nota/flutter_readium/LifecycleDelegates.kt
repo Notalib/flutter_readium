@@ -13,8 +13,9 @@ import kotlin.reflect.KProperty
  * This is especially useful for binding properties to avoid memory leaks when Fragments are on
  * the back stack without any view attached.
  */
-class LifecycleDelegates(private val fragment: Fragment) : DefaultLifecycleObserver {
-
+class LifecycleDelegates(
+    private val fragment: Fragment,
+) : DefaultLifecycleObserver {
     /**
      * This delegate is very similar to [Delegates.notNull].
      * We still need it to be able to reset the value to null.
@@ -22,12 +23,18 @@ class LifecycleDelegates(private val fragment: Fragment) : DefaultLifecycleObser
     private class ViewLifecycleAwareVar<T : Any> : ReadWriteProperty<Fragment, T> {
         var nullableValue: T? = null
 
-        override fun getValue(thisRef: Fragment, property: KProperty<*>): T {
-            return nullableValue
+        override fun getValue(
+            thisRef: Fragment,
+            property: KProperty<*>,
+        ): T =
+            nullableValue
                 ?: throw IllegalStateException("Lifecycle-aware value not available at the moment.")
-        }
 
-        override fun setValue(thisRef: Fragment, property: KProperty<*>, value: T) {
+        override fun setValue(
+            thisRef: Fragment,
+            property: KProperty<*>,
+            value: T,
+        ) {
             nullableValue = value
         }
     }
@@ -36,11 +43,13 @@ class LifecycleDelegates(private val fragment: Fragment) : DefaultLifecycleObser
 
     override fun onCreate(owner: LifecycleOwner) {
         fragment.viewLifecycleOwnerLiveData.observe(fragment) { viewLifecycleOwner ->
-            viewLifecycleOwner?.lifecycle?.addObserver(object : DefaultLifecycleObserver {
-                override fun onDestroy(owner: LifecycleOwner) {
-                    onViewDestroy()
-                }
-            })
+            viewLifecycleOwner?.lifecycle?.addObserver(
+                object : DefaultLifecycleObserver {
+                    override fun onDestroy(owner: LifecycleOwner) {
+                        onViewDestroy()
+                    }
+                },
+            )
         }
     }
 

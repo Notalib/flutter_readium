@@ -18,11 +18,10 @@ abstract class BaseNavigator(
      * The publication to navigate.
      */
     protected var publication: Publication,
-
     /**
      * The initial locator to open the publication at.
      */
-    protected var initialLocator: Locator?
+    protected var initialLocator: Locator?,
 ) {
     /**
      * List of active jobs, to be cancelled on dispose
@@ -75,4 +74,3 @@ abstract class BaseNavigator(
      */
     abstract fun storeState(): Bundle
 }
-

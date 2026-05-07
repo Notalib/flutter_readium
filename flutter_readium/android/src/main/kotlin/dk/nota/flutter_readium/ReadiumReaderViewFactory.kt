@@ -8,9 +8,14 @@ import io.flutter.plugin.platform.PlatformViewFactory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class ReadiumReaderViewFactory(private val messenger: BinaryMessenger) :
-    PlatformViewFactory(StandardMessageCodec.INSTANCE) {
-    override fun create(context: Context?, viewId: Int, args: Any?): PlatformView {
+internal class ReadiumReaderViewFactory(
+    private val messenger: BinaryMessenger,
+) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
+    override fun create(
+        context: Context?,
+        viewId: Int,
+        args: Any?,
+    ): PlatformView {
         @Suppress("UNCHECKED_CAST")
         val creationParams = args as Map<String?, Any?>
         return ReadiumReaderWidget(context!!, viewId, creationParams, messenger)

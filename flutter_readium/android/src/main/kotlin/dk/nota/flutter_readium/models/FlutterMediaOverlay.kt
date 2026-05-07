@@ -19,7 +19,9 @@ private const val TAG = "FlutterMediaOverlay"
  * Simple media overlay mapping.
  */
 @Parcelize
-data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parcelable {
+data class FlutterMediaOverlay(
+    val items: List<FlutterMediaOverlayItem>,
+) : Parcelable {
     /**
      * The audio file name (without fragment).
      */
@@ -55,14 +57,19 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parce
      * Find the media overlay item for the given file and time.
      * Returns null if no item is found.
      */
-    fun findItemInRange(fileHref: Url, time: Double): FlutterMediaOverlayItem? =
-        findItemInRange(fileHref.toString(), time)
+    fun findItemInRange(
+        fileHref: Url,
+        time: Double,
+    ): FlutterMediaOverlayItem? = findItemInRange(fileHref.toString(), time)
 
     /**
      * Find the media overlay item for the given file and time.
      * Returns null if no item is found.
      */
-    fun findItemInRange(fileHref: String, time: Double): FlutterMediaOverlayItem? {
+    fun findItemInRange(
+        fileHref: String,
+        time: Double,
+    ): FlutterMediaOverlayItem? {
         val href = Url.invoke(fileHref) ?: return null
         if (!href.isEquivalent(textUrl) && !href.isEquivalent(audioUrl)) {
             return null
@@ -74,7 +81,10 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parce
     /**
      * Find the media overlay item from the text reference.
      */
-    fun findItemFromTextId(href: Url, textId: String): FlutterMediaOverlayItem? {
+    fun findItemFromTextId(
+        href: Url,
+        textId: String,
+    ): FlutterMediaOverlayItem? {
         if (!href.isEquivalent(textUrl) && !href.isEquivalent(audioUrl)) {
             return null
         }
@@ -113,7 +123,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parce
             // If there is no fragment, and it is a HTML locator, we return the first item for the href
             Log.d(
                 TAG,
-                "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}"
+                "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}",
             )
             return items.firstOrNull { item ->
                 item.textFile == href.path
@@ -122,7 +132,7 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parce
 
         Log.d(
             TAG,
-            "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator"
+            "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator",
         )
 
         return null
@@ -134,26 +144,27 @@ data class FlutterMediaOverlay(val items: List<FlutterMediaOverlayItem>) : Parce
             position: Int,
             tocHref: Url?,
             title: String,
-            readiumOrderItemDuration: Double
+            readiumOrderItemDuration: Double,
         ): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
             val items = mutableListOf<FlutterMediaOverlayItem>()
             for (i in 0 until topNarration.length()) {
                 val itemJson = topNarration.getJSONObject(i)
-                FlutterMediaOverlayItem.fromJson(
-                    itemJson,
-                    position,
-                    tocHref,
-                    title,
-                    readiumOrderItemDuration
-                )?.let { items.add(it) }
+                FlutterMediaOverlayItem
+                    .fromJson(
+                        itemJson,
+                        position,
+                        tocHref,
+                        title,
+                        readiumOrderItemDuration,
+                    )?.let { items.add(it) }
 
                 fromJson(
                     itemJson,
                     position,
                     tocHref,
                     title,
-                    readiumOrderItemDuration
+                    readiumOrderItemDuration,
                 )?.let { items.addAll(it.items) }
             }
 

@@ -40,10 +40,11 @@ class ReadiumReaderWidget(
     id: Int,
     creationParams: Map<String?, Any?>,
     messenger: BinaryMessenger,
-    attrs: AttributeSet? = null
-) : PlatformView, MethodChannel.MethodCallHandler, EpubReaderFragment.Listener,
+    attrs: AttributeSet? = null,
+) : PlatformView,
+    MethodChannel.MethodCallHandler,
+    EpubReaderFragment.Listener,
     EpubNavigator.VisualListener {
-
     private val channel: ReadiumReaderChannel
 
     /**
@@ -62,7 +63,7 @@ class ReadiumReaderWidget(
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun getView(): View {
-        //Log.d(TAG, "::getView")
+        // Log.d(TAG, "::getView")
         return layout
     }
 
@@ -94,7 +95,8 @@ class ReadiumReaderWidget(
     init {
         Log.d(TAG, "::init")
 
-        @Suppress("UNCHECKED_CAST") val initPrefsMap =
+        @Suppress("UNCHECKED_CAST")
+        val initPrefsMap =
             creationParams["preferences"] as Map<String, String>?
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
@@ -153,11 +155,15 @@ class ReadiumReaderWidget(
     // To avoid duplicate onPageChanged events.
     private var lastPageLoadedKey: String? = null
 
-    override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
+    override fun onPageChanged(
+        pageIndex: Int,
+        totalPages: Int,
+        locator: Locator,
+    ) {
         val currentKey = "${locator.href}@${locator.progression}"
         Log.d(
             TAG,
-            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression} ${locator.locations}"
+            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression} ${locator.locations}",
         )
 
         if (lastPageLoadedKey == currentKey) {
@@ -204,19 +210,25 @@ class ReadiumReaderWidget(
         updatePreferences(newPreferences)
     }
 
-    private suspend fun emitOnPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
+    private suspend fun emitOnPageChanged(
+        pageIndex: Int,
+        totalPages: Int,
+        locator: Locator,
+    ) {
         try {
             var emittingLocator = locator
 
             try {
-                evaluateJavascript("window.flutterReadium.getPageInformation()")?.let {
-                    PageInformation.fromJson(
-                        it, locator.href
-                    )
-                }?.let { pageInfo ->
-                    emittingLocator =
-                        emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                } ?: {
+                evaluateJavascript("window.flutterReadium.getPageInformation()")
+                    ?.let {
+                        PageInformation.fromJson(
+                            it,
+                            locator.href,
+                        )
+                    }?.let { pageInfo ->
+                        emittingLocator =
+                            emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                    } ?: {
                     Log.d(TAG, "::emitOnPageChanged - no page information")
                 }
             } catch (e: Error) {
@@ -239,7 +251,10 @@ class ReadiumReaderWidget(
         channel.onExternalLinkActivated(url)
     }
 
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+    override fun onMethodCall(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
         // TODO: To be safe we're doing everything on the Main thread right now.
         // Could probably optimize by using .IO and then change to Main
         // when affecting readerView or returning a result.
@@ -248,12 +263,13 @@ class ReadiumReaderWidget(
             when (call.method) {
                 "setPreferences" -> {
                     try {
-                        @Suppress("UNCHECKED_CAST") val prefsMap =
+                        @Suppress("UNCHECKED_CAST")
+                        val prefsMap =
                             call.arguments as? Map<String, Any> ?: run {
                                 result.error(
                                     "FlutterReadium",
                                     "Failed to set preferences",
-                                    "Invalid argument"
+                                    "Invalid argument",
                                 )
                                 return@launch
                             }
@@ -272,7 +288,8 @@ class ReadiumReaderWidget(
                     if (locatorJson.optString("type") == "") {
                         locatorJson.put("type", " ")
                         Log.e(
-                            TAG, "Got locator with empty type! This shouldn't happen. $locatorJson"
+                            TAG,
+                            "Got locator with empty type! This shouldn't happen. $locatorJson",
                         )
                     }
                     val locator = Locator.fromJSON(locatorJson)!!
@@ -296,7 +313,8 @@ class ReadiumReaderWidget(
                     val args = call.arguments as List<*>
                     val groupId = args[0] as String
 
-                    @Suppress("UNCHECKED_CAST") val decorationListStr =
+                    @Suppress("UNCHECKED_CAST")
+                    val decorationListStr =
                         args[1] as List<Map<String, String>>
                     val decorations = decorationListStr.mapNotNull { decorationFromMap(it) }
 

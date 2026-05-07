@@ -16,15 +16,20 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-inline fun <T : Any> guardLet(vararg elements: T?, closure: () -> Nothing): List<T> {
-    return if (elements.all { it != null }) {
+inline fun <T : Any> guardLet(
+    vararg elements: T?,
+    closure: () -> Nothing,
+): List<T> =
+    if (elements.all { it != null }) {
         elements.filterNotNull()
     } else {
         closure()
     }
-}
 
-inline fun <T : Any> ifLet(vararg elements: T?, closure: (List<T>) -> Unit) {
+inline fun <T : Any> ifLet(
+    vararg elements: T?,
+    closure: (List<T>) -> Unit,
+) {
     if (elements.all { it != null }) {
         closure(elements.filterNotNull())
     }
@@ -39,25 +44,37 @@ fun String?.takeIfNotEmpty(): String? {
     return null
 }
 
-fun <T : Any, U : Any> letIfBothNotNull(t: T?, u: U?): Pair<T, U>? {
+fun <T : Any, U : Any> letIfBothNotNull(
+    t: T?,
+    u: U?,
+): Pair<T, U>? {
     if (t == null || u == null) {
         return null
     }
     return Pair(t, u)
 }
 
-
 fun jsonDecode(json: String): Any = JSONArray("[$json]")[0]
 
-fun jsonEncode(json: Any?): String = when (json) {
-    is JSONArray -> json.toString()
-    is JSONObject -> json.toString()
-    is Nothing? -> "null"
-    else -> {
-        val ret = JSONArray(listOf(json)).toString()
-        ret.substring(1, ret.length - 1)
+fun jsonEncode(json: Any?): String =
+    when (json) {
+        is JSONArray -> {
+            json.toString()
+        }
+
+        is JSONObject -> {
+            json.toString()
+        }
+
+        is Nothing? -> {
+            "null"
+        }
+
+        else -> {
+            val ret = JSONArray(listOf(json)).toString()
+            ret.substring(1, ret.length - 1)
+        }
     }
-}
 
 // Unwrap ContextWrapper chain to find Application
 fun unwrapToApplication(context: Context?): Application? {
@@ -83,12 +100,10 @@ fun unwrapToApplication(context: Context?): Application? {
 /**
  * Run a suspend block with the given CoroutineScope's context.
  */
- suspend fun <T> withScope(
-    scope:  CoroutineScope,
-    block: suspend CoroutineScope.() -> T
-): T {
-    return withContext(scope.coroutineContext, block)
-}
+suspend fun <T> withScope(
+    scope: CoroutineScope,
+    block: suspend CoroutineScope.() -> T,
+): T = withContext(scope.coroutineContext, block)
 
 /**
  * Update the value of a MutableStateFlow only if it is different from the current value.
@@ -106,22 +121,24 @@ fun JSONArray.toList(): List<Any> {
     return list
 }
 
-fun anyToJsonElement(value: Any?): JsonElement = when (value) {
-    null -> JsonNull
-    is Map<*, *> -> mapToJsonObject(value)
-    is List<*> -> JsonArray(value.map { anyToJsonElement(it) })
-    is Double -> JsonPrimitive(value)
-    is Float -> JsonPrimitive(value.toDouble())
-    is Number -> JsonPrimitive(value.toLong())
-    is Boolean -> JsonPrimitive(value)
-    is String -> JsonPrimitive(value)
-    else -> JsonPrimitive(value.toString())
-}
+fun anyToJsonElement(value: Any?): JsonElement =
+    when (value) {
+        null -> JsonNull
+        is Map<*, *> -> mapToJsonObject(value)
+        is List<*> -> JsonArray(value.map { anyToJsonElement(it) })
+        is Double -> JsonPrimitive(value)
+        is Float -> JsonPrimitive(value.toDouble())
+        is Number -> JsonPrimitive(value.toLong())
+        is Boolean -> JsonPrimitive(value)
+        is String -> JsonPrimitive(value)
+        else -> JsonPrimitive(value.toString())
+    }
 
 fun mapToJsonObject(map: Map<*, *>): JsonObject {
-    val content = map.entries.associate { (k, v) ->
-        val key = k?.toString() ?: "null"
-        key to anyToJsonElement(v)
-    }
+    val content =
+        map.entries.associate { (k, v) ->
+            val key = k?.toString() ?: "null"
+            key to anyToJsonElement(v)
+        }
     return JsonObject(content)
 }
