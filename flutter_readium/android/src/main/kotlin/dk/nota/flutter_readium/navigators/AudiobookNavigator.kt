@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -123,8 +124,10 @@ open class AudiobookNavigator(
                     PluginMediaServiceFacade(ReadiumReader.application).apply {
                         session
                             .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
-                            .onEach { playback ->
-                                when (val state = (playback?.state as? AudioNavigator.State)) {
+                            .map { playback -> playback?.state as? AudioNavigator.State }
+                            .distinctUntilChanged()
+                            .onEach { state ->
+                                when (state) {
                                     null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
                                         // Do nothing
                                     }
@@ -158,11 +161,9 @@ open class AudiobookNavigator(
             }
 
             try {
-                Log.d(TAG, "Opening MediaSession")
-                mediaServiceFacade?.openSession(audioNavigator!!)
+                navigatorWithOpenMediaSession()
             } catch (e: Exception) {
                 Log.e(TAG, "Error opening MediaSession: ${e.message}")
-                navigator.close()
                 return@withScope
             }
 
@@ -285,6 +286,25 @@ open class AudiobookNavigator(
             goToLocator(toLocator)
             return@withScope true
         }
+    }
+
+    private suspend fun navigatorWithOpenMediaSession(): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+        val navigator = audioNavigator ?: run {
+            Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - no audio navigator")
+            return null
+        }
+
+        try {
+            val mediaSession = mediaServiceFacade!!
+            if (mediaSession.session.value == null) {
+                Log.d(TAG, ":ensureMediaSessionIsOpen - open session")
+                mediaSession.openSession(navigator)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "::play - Failed to open MediaSession: $e")
+        }
+
+        return navigator
     }
 
     /**
