@@ -29,7 +29,6 @@ private const val SYNC_AUDIO_DECORATION_ID_UTTERANCE = "synced-utterance"
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalReadiumApi::class)
 class SyncAudiobookNavigator(
     publication: Publication,
-
     /**
      * The media overlays for the current publication, if any. These are used to map between the audio narration and the text
      */
@@ -38,7 +37,6 @@ class SyncAudiobookNavigator(
     initialLocator: Locator?,
     preferences: FlutterAudioPreferences,
 ) : AudiobookNavigator(publication, timebasedListener, initialLocator, preferences) {
-
     init {
         // We need to translate the epub based locator to an audio based locator
         this.initialLocator =
@@ -46,7 +44,6 @@ class SyncAudiobookNavigator(
     }
 
     val decorationGroup = "sync-audio"
-
 
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
@@ -65,31 +62,33 @@ class SyncAudiobookNavigator(
                     }
 
                 val duration = readingOrderLink?.duration
-                val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-                    locator.progression?.let { progression -> duration * progression }
-                })
-                mediaOverlays.firstNotNullOfOrNull {
-                    it?.findItemInRange(
-                        locator.href,
-                        timeOffset ?: 0.0
+                val timeOffset =
+                    locator.getTimeOffset() ?: (
+                        duration?.let { duration ->
+                            locator.progression?.let { progression -> duration * progression }
+                        }
                     )
-                }?.takeIf { it.syncTextLocator != null }
+                mediaOverlays
+                    .firstNotNullOfOrNull {
+                        it?.findItemInRange(
+                            locator.href,
+                            timeOffset ?: 0.0,
+                        )
+                    }?.takeIf { it.syncTextLocator != null }
                     ?.let { mediaOverlay ->
                         Log.d(
                             TAG,
-                            ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator"
+                            ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator",
                         )
                         Pair(mediaOverlay, mediaOverlay.syncTextLocator!!)
                     }
-            }
-            .filterNotNull()
+            }.filterNotNull()
             .distinctUntilChangedBy { (_, locator) -> locator.href.toString() + locator.locations.cssSelector }
             .onEach { (mediaOverlay, textLocator) ->
                 ReadiumReader.epubSyncToLocator(textLocator, false, mediaOverlay.duration)
 
                 decorateCurrentUtterance(textLocator)
-            }
-            .launchIn(mainScope)
+            }.launchIn(mainScope)
             .let { jobs.add(it) }
     }
 
@@ -100,34 +99,40 @@ class SyncAudiobookNavigator(
             }
 
         val duration = readingOrderLink?.duration
-        val timeOffset = locator.getTimeOffset() ?: (duration?.let { duration ->
-            locator.progression?.let { progression -> duration * progression }
-        })
+        val timeOffset =
+            locator.getTimeOffset() ?: (
+                duration?.let { duration ->
+                    locator.progression?.let { progression -> duration * progression }
+                }
+            )
 
-        val mediaOverlay = mediaOverlays.firstNotNullOfOrNull {
-            it?.findItemInRange(
-                locator.href,
-                timeOffset ?: 0.0
-            )
-        } ?: run {
-            Log.d(
-                TAG,
-                ":onCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset"
-            )
-            return
-        }
+        val mediaOverlay =
+            mediaOverlays.firstNotNullOfOrNull {
+                it?.findItemInRange(
+                    locator.href,
+                    timeOffset ?: 0.0,
+                )
+            } ?: run {
+                Log.d(
+                    TAG,
+                    ":onCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset",
+                )
+                return
+            }
 
         // Get the flutter audio locator from the media-overlay and enrich it with progression
         // total progression from the player's locator.
-        val audioLocator = mediaOverlay.flutterAudioLocator?.let { fal ->
-            fal.copy(
-                locations = fal.locations.copy(
-                    fragments = locator.locations.fragments,
-                    progression = locator.locations.progression,
-                    totalProgression = locator.locations.totalProgression,
+        val audioLocator =
+            mediaOverlay.flutterAudioLocator?.let { fal ->
+                fal.copy(
+                    locations =
+                        fal.locations.copy(
+                            fragments = locator.locations.fragments,
+                            progression = locator.locations.progression,
+                            totalProgression = locator.locations.totalProgression,
+                        ),
                 )
-            )
-        }
+            }
 
         if (audioLocator == null) {
             Log.d(TAG, "::Couldn't resolve currentLocator $locator to audio-locator")
@@ -177,7 +182,7 @@ class SyncAudiobookNavigator(
                     id = SYNC_AUDIO_DECORATION_ID_UTTERANCE,
                     locator = uttLocator,
                     style = style,
-                )
+                ),
             )
         }
 
@@ -195,12 +200,14 @@ class SyncAudiobookNavigator(
         }
 
         val locator = navigator.currentLocator.value
-        val textLocator = mediaOverlays.firstNotNullOfOrNull { mo ->
-            mo?.findItemFromLocator(locator)
-        }?.syncTextLocator ?: run {
-            Log.d(TAG, ":decorationsUpdated - didn't find a current text locator")
-            return
-        }
+        val textLocator =
+            mediaOverlays
+                .firstNotNullOfOrNull { mo ->
+                    mo?.findItemFromLocator(locator)
+                }?.syncTextLocator ?: run {
+                Log.d(TAG, ":decorationsUpdated - didn't find a current text locator")
+                return
+            }
 
         decorateCurrentUtterance(textLocator)
     }
@@ -212,27 +219,30 @@ class SyncAudiobookNavigator(
     }
 
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
-        val mediaOverlay = mediaOverlays.firstNotNullOfOrNull { mo ->
-            mo?.findItemFromLocator(locator)
-        }
+        val mediaOverlay =
+            mediaOverlays.firstNotNullOfOrNull { mo ->
+                mo?.findItemFromLocator(locator)
+            }
 
-        val syncAudioLocator = mediaOverlay?.skipToAudioLocator ?: run {
-            Log.e(
-                TAG,
-                "::mapTextLocatorToMediaOverlayLocator couldn't resolve $locator to a media overlay with an audio locator"
-            )
-            return null
-        }
+        val syncAudioLocator =
+            mediaOverlay?.skipToAudioLocator ?: run {
+                Log.e(
+                    TAG,
+                    "::mapTextLocatorToMediaOverlayLocator couldn't resolve $locator to a media overlay with an audio locator",
+                )
+                return null
+            }
 
         val timeOffsetFromProgression =
-            locator.progression?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
+            locator.progression
+                ?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
                 ?.toInt()
         val timeOffsetFromFragment = locator.getTimeOffset()?.toInt()
 
         if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
             Log.d(
                 TAG,
-                "::mapTextLocatorToMediaOverlayLocator couldn't find time offset from $locator, return $syncAudioLocator"
+                "::mapTextLocatorToMediaOverlayLocator couldn't find time offset from $locator, return $syncAudioLocator",
             )
             return syncAudioLocator
         }
@@ -240,10 +250,9 @@ class SyncAudiobookNavigator(
         if (timeOffsetFromProgression != null && timeOffsetFromFragment != null && timeOffsetFromProgression != timeOffsetFromFragment) {
             Log.d(
                 TAG,
-                "::mapTextLocatorToMediaOverlayLocator - time offset from both progression $timeOffsetFromProgression and time fragment $timeOffsetFromFragment but they differ"
+                "::mapTextLocatorToMediaOverlayLocator - time offset from both progression $timeOffsetFromProgression and time fragment $timeOffsetFromFragment but they differ",
             )
         }
-
 
         val timeOffset = timeOffsetFromProgression ?: timeOffsetFromFragment ?: 0
 
@@ -266,20 +275,24 @@ class SyncAudiobookNavigator(
             publication: Publication,
             mediaOverlays: List<FlutterMediaOverlay?>,
             listener: TimebasedListener,
-            state: Bundle
+            state: Bundle,
         ): SyncAudiobookNavigator {
-            val locator = state.getString(currentTimebaseLocatorKey)
-                ?.let { json -> Locator.fromJSON(JSONObject(json)) }
-            val preferences = state.getString(audioPreferencesKey)
-                ?.let { json -> FlutterAudioPreferences.fromJSON(json) }
-                ?: FlutterAudioPreferences()
+            val locator =
+                state
+                    .getString(currentTimebaseLocatorKey)
+                    ?.let { json -> Locator.fromJSON(JSONObject(json)) }
+            val preferences =
+                state
+                    .getString(audioPreferencesKey)
+                    ?.let { json -> FlutterAudioPreferences.fromJSON(json) }
+                    ?: FlutterAudioPreferences()
 
             return SyncAudiobookNavigator(
                 publication,
                 mediaOverlays,
                 listener,
                 locator,
-                preferences
+                preferences,
             )
         }
     }

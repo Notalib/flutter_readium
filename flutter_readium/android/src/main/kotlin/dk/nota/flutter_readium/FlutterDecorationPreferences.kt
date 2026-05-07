@@ -20,11 +20,10 @@ data class FlutterDecorationPreferences(
      * Style for utterance decoration.
      */
     var utteranceStyle: Decoration.Style? = defaultUtteranceStyle,
-
     /**
      * Style for current reading range decoration.
      */
-    var currentRangeStyle: Decoration.Style? = defaultCurrentRangeStyle
+    var currentRangeStyle: Decoration.Style? = defaultCurrentRangeStyle,
 ) : Parcelable {
     companion object {
         /**
@@ -32,12 +31,11 @@ data class FlutterDecorationPreferences(
          */
         fun fromMap(
             uttDecoMap: Map<*, *>?,
-            rangeDecoMap: Map<*, *>?
-        ): FlutterDecorationPreferences {
-            return FlutterDecorationPreferences(
+            rangeDecoMap: Map<*, *>?,
+        ): FlutterDecorationPreferences =
+            FlutterDecorationPreferences(
                 decorationStyleFromMap(uttDecoMap) ?: defaultUtteranceStyle,
                 decorationStyleFromMap(rangeDecoMap) ?: defaultCurrentRangeStyle,
             )
-        }
     }
 }

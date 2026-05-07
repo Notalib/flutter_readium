@@ -20,27 +20,22 @@ data class FlutterMediaOverlayItem(
      * The audio reference, e.g. "chapter1.mp3#t=12.34,15.67" or "chapter1.mp3"
      */
     val audio: String,
-
     /**
      * The text reference, e.g. "chapter1.html#para34" or "chapter1.html"
      */
     val text: String,
-
     /**
      * The position in the reading order (1-based index)
      */
     val position: Int,
-
     /**
      * The ToC item for this item.
      */
     val tocHref: Url?,
-
     /**
      * The title of the chapter or section this item belongs to
      */
     val title: String,
-
     /**
      * Known duration of the reading order item. Needed to find items from a locator's progression
      * value and to calculate an updated time fragment.
@@ -57,11 +52,12 @@ data class FlutterMediaOverlayItem(
      * The media type of the audio file
      */
     val audioMediaType
-        get() = when (audioFile.split('.').lastOrNull()) {
-            "mp3" -> MediaType.MP3
-            "opus" -> MediaType.OPUS
-            else -> MediaType.MP3
-        }
+        get() =
+            when (audioFile.split('.').lastOrNull()) {
+                "mp3" -> MediaType.MP3
+                "opus" -> MediaType.OPUS
+                else -> MediaType.MP3
+            }
 
     /**
      * The text file without the fragment (e.g. "chapter1.html")
@@ -95,17 +91,21 @@ data class FlutterMediaOverlayItem(
      * Start progression of this segment, e.g. percentages into the audio file, between 0 and 1.
      */
     val progressionStart: Double?
-        get() = letIfBothNotNull(
-            audioStart,
-            readingOrderItemDuration.takeIf { it > 0.0 })?.let { (start, riDuration) -> start / riDuration }
+        get() =
+            letIfBothNotNull(
+                audioStart,
+                readingOrderItemDuration.takeIf { it > 0.0 },
+            )?.let { (start, riDuration) -> start / riDuration }
 
     /**
      * End progression of this segment, e.g. percentages into the audio file, between 0 and 1
      */
     val progressionEnd: Double?
-        get() = letIfBothNotNull(
-            audioEnd,
-            readingOrderItemDuration.takeIf { it > 0.0 })?.let { (end, riDuration) -> end / riDuration }
+        get() =
+            letIfBothNotNull(
+                audioEnd,
+                readingOrderItemDuration.takeIf { it > 0.0 },
+            )?.let { (end, riDuration) -> end / riDuration }
 
     /**
      * The end time in seconds, or null if none
@@ -123,7 +123,10 @@ data class FlutterMediaOverlayItem(
     /**
      * Is this item in range for the given file reference and time offset?
      */
-    fun isInRange(fileRef: Url, time: Double): Boolean {
+    fun isInRange(
+        fileRef: Url,
+        time: Double,
+    ): Boolean {
         if (!fileRef.isEquivalent(Url.invoke(textFile))) {
             if (!fileRef.isEquivalent(Url.invoke(audioFile))) {
                 return false
@@ -138,7 +141,10 @@ data class FlutterMediaOverlayItem(
     /**
      * Is this item within range of the given progression?
      */
-    fun isInProgression(fileRef: Url, progression: Double): Boolean {
+    fun isInProgression(
+        fileRef: Url,
+        progression: Double,
+    ): Boolean {
         if (!fileRef.isEquivalent(Url.invoke(textFile))) {
             if (!fileRef.isEquivalent(Url.invoke(audioFile))) {
                 return false
@@ -146,8 +152,9 @@ data class FlutterMediaOverlayItem(
         }
 
         val start = progressionStart ?: return false
-        val end = progressionEnd
-            ?: return progression >= start // No end value, check if progress is after start.
+        val end =
+            progressionEnd
+                ?: return progression >= start // No end value, check if progress is after start.
         return progression in start..end
     }
 
@@ -161,11 +168,12 @@ data class FlutterMediaOverlayItem(
                 href,
                 mediaType = MediaType.XHTML,
                 title = title,
-                locations = Locator.Locations(
-                    listOf("#$textId"),
-                    otherLocations = mapOf("cssSelector" to "#$textId"),
-                    position = position,
-                ),
+                locations =
+                    Locator.Locations(
+                        listOf("#$textId"),
+                        otherLocations = mapOf("cssSelector" to "#$textId"),
+                        position = position,
+                    ),
             )
         }
     }
@@ -192,9 +200,10 @@ data class FlutterMediaOverlayItem(
                 href,
                 title = title,
                 mediaType = audioMediaType,
-                locations = Locator.Locations(
-                    fragments = listOf("t=${audioStart?.toInt() ?: 0}"),
-                ),
+                locations =
+                    Locator.Locations(
+                        fragments = listOf("t=${audioStart?.toInt() ?: 0}"),
+                    ),
             )
         }
     }
@@ -209,7 +218,7 @@ data class FlutterMediaOverlayItem(
             position: Int,
             tocHref: Url?,
             title: String,
-            readiumOrderItemDuration: Double
+            readiumOrderItemDuration: Double,
         ): FlutterMediaOverlayItem? {
             val audio = json.optString("audio")
             val text = json.optString("text")
@@ -220,7 +229,7 @@ data class FlutterMediaOverlayItem(
                     position,
                     tocHref,
                     title,
-                    readiumOrderItemDuration
+                    readiumOrderItemDuration,
                 )
             } else {
                 null

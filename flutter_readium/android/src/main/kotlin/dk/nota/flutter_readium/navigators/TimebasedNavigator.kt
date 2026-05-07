@@ -17,12 +17,11 @@ private const val TAG = "TimebasedNavigator"
 @OptIn(ExperimentalReadiumApi::class)
 abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     publication: Publication,
-
     /**
      * Listener for time-based navigator events.
      */
     protected val timebaseListener: TimebasedListener,
-    initialLocator: Locator?
+    initialLocator: Locator?,
 ) : BaseNavigator(publication, initialLocator) {
     var isPlaying = false
 
@@ -48,7 +47,10 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
         /**
          * Called when the current [locator] changes and provides [currentReadingOrderLink].
          */
-        fun onTimebasedCurrentLocatorChanges(locator: Locator, currentReadingOrderLink: Link?)
+        fun onTimebasedCurrentLocatorChanges(
+            locator: Locator,
+            currentReadingOrderLink: Link?,
+        )
 
         /**
          * Called when there is a time-based location change, this is used to highlight text while reading.
@@ -97,7 +99,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
 
         Log.d(
             TAG,
-            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}"
+            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}",
         )
 
         isPlaying = timebasedState == TimebasedState.Playing
@@ -116,13 +118,16 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
             }
 
         if (emittingLocator.locations.position == null) {
-            publication.readingOrder.indexOfFirst { link ->
-                link == readingOrderLink
-            }.takeIf { it > -1 }?.let { index ->
-                emittingLocator = emittingLocator.copy(
-                    locations = locator.locations.copy(position = index + 1)
-                )
-            }
+            publication.readingOrder
+                .indexOfFirst { link ->
+                    link == readingOrderLink
+                }.takeIf { it > -1 }
+                ?.let { index ->
+                    emittingLocator =
+                        emittingLocator.copy(
+                            locations = locator.locations.copy(position = index + 1),
+                        )
+                }
         }
 
         timebaseListener.onTimebasedCurrentLocatorChanges(emittingLocator, readingOrderLink)

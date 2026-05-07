@@ -24,17 +24,14 @@ class PageInformation(
      * Physical page information, usually an integer as a string, but can be in other formats.
      */
     val physicalPage: String?,
-
     /**
      * First visible cssSelector. Can be any valid cssSelector.
      */
     val cssSelector: String?,
-
     /**
      * Href for the current file, not retrieved from javascript.
      */
     val href: String,
-
     /**
      * Current ToC id.
      */
@@ -63,14 +60,19 @@ class PageInformation(
         /**
          * Parse JSON string from window.flutterReadium.getPageInformation()
          */
-        fun fromJson(json: String, href: Url): PageInformation =
-            fromJson(jsonDecode(json) as JSONObject, href)
+        fun fromJson(
+            json: String,
+            href: Url,
+        ): PageInformation = fromJson(jsonDecode(json) as JSONObject, href)
 
         /**
          * Parse JSON object from window.flutterReadium.getPageInformation()
          */
         @OptIn(InternalReadiumApi::class)
-        fun fromJson(json: JSONObject, href: Url): PageInformation {
+        fun fromJson(
+            json: JSONObject,
+            href: Url,
+        ): PageInformation {
             val physicalPage = json.optNullableString("physicalPage").takeIfNotEmpty()
             val cssSelector = json.optNullableString("cssSelector").takeIfNotEmpty()
             val tocId = json.optNullableString("tocId").takeIfNotEmpty()
@@ -84,4 +86,3 @@ class PageInformation(
         }
     }
 }
-

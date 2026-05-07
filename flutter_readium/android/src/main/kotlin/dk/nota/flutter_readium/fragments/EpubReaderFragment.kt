@@ -28,16 +28,17 @@ import org.readium.r2.shared.publication.epub.EpubLayout
 import org.readium.r2.shared.publication.presentation.presentation
 import org.readium.r2.shared.util.AbsoluteUrl
 
-
 private const val TAG = "EpubReaderFragment"
 
 private var instanceNo = 0
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
-class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listener,
-    EpubNavigatorFragment.PaginationListener, CoroutineScope by MainScope() {
-
+class EpubReaderFragment :
+    VisualReaderFragment(),
+    EpubNavigatorFragment.Listener,
+    EpubNavigatorFragment.PaginationListener,
+    CoroutineScope by MainScope() {
     interface Listener {
         /**
          * Called when a page has finished loading.
@@ -47,7 +48,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         /**
          * Called when the current page has changed.
          */
-        fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator)
+        fun onPageChanged(
+            pageIndex: Int,
+            totalPages: Int,
+            locator: Locator,
+        )
 
         /**
          * Called when an external link is activated.
@@ -63,8 +68,12 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         get() = epubNavigator?.settings?.value?.scroll == true
 
     val layoutMode: EpubLayout
-        get() = ReadiumReader.currentPublication?.metadata?.presentation?.layout
-            ?: EpubLayout.REFLOWABLE
+        get() =
+            ReadiumReader.currentPublication
+                ?.metadata
+                ?.presentation
+                ?.layout
+                ?: EpubLayout.REFLOWABLE
 
     private val instance = ++instanceNo
 
@@ -82,10 +91,14 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         listener?.onExternalLinkActivated(url)
     }
 
-    override fun onPageChanged(pageIndex: Int, totalPages: Int, locator: Locator) {
+    override fun onPageChanged(
+        pageIndex: Int,
+        totalPages: Int,
+        locator: Locator,
+    ) {
         Log.d(
             TAG,
-            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression}"
+            "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression}",
         )
 
         listener?.onPageChanged(pageIndex, totalPages, locator)
@@ -140,10 +153,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
      * Update the reader preferences.
      */
     suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
-        val model = epubVm ?: run {
-            Log.d(TAG, "::updatePreferences - No epubVm available, how did this happen?")
-            return
-        }
+        val model =
+            epubVm ?: run {
+                Log.d(TAG, "::updatePreferences - No epubVm available, how did this happen?")
+                return
+            }
 
         model.preferences = preferences
 
@@ -166,15 +180,17 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val model = epubVm ?: run {
-            Log.d(TAG, "::applyCustomCssVariables - No epubVm available, how did this happen?")
-            return
-        }
+        val model =
+            epubVm ?: run {
+                Log.d(TAG, "::applyCustomCssVariables - No epubVm available, how did this happen?")
+                return
+            }
 
-        val cssVariables = model.preferences?.toCustomCssVariables() ?: run {
-            Log.d(TAG, "::applyCustomCssVariables - no css variables")
-            return
-        }
+        val cssVariables =
+            model.preferences?.toCustomCssVariables() ?: run {
+                Log.d(TAG, "::applyCustomCssVariables - no css variables")
+                return
+            }
 
         Log.d(TAG, "::applyCustomCssVariables - update cssVariables:$cssVariables")
 
@@ -212,10 +228,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             Log.e(TAG, "::goBackwardVertical - this is only meant for vertical scroll mode")
         }
 
-        val locator = currentLocator?.value ?: run {
-            Log.e(TAG, "::goBackwardVertical - no current locator")
-            return
-        }
+        val locator =
+            currentLocator?.value ?: run {
+                Log.e(TAG, "::goBackwardVertical - no current locator")
+                return
+            }
 
         val navigator = epubNavigator
         if (navigator == null) {
@@ -223,26 +240,29 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val viewPortSize = currentViewPortSize() ?: run {
-            Log.e(TAG, "::goBackwardVertical - failed to load view port size")
-            return
-        }
+        val viewPortSize =
+            currentViewPortSize() ?: run {
+                Log.e(TAG, "::goBackwardVertical - failed to load view port size")
+                return
+            }
 
-        val publication = ReadiumReader.currentPublication ?: run {
-            Log.e(TAG, ":goBackwardVertical - no current publication?")
-            return
-        }
+        val publication =
+            ReadiumReader.currentPublication ?: run {
+                Log.e(TAG, ":goBackwardVertical - no current publication?")
+                return
+            }
 
         val prevProgression = viewPortSize.prevProgression
         if (viewPortSize.progression <= 0.0 && prevProgression <= 0.0) {
-            val position = publication.readingOrder.indexOfFirst {
-                it.href.resolve().isEquivalent(locator.href)
-            }
+            val position =
+                publication.readingOrder.indexOfFirst {
+                    it.href.resolve().isEquivalent(locator.href)
+                }
 
             if (position < 0) {
                 Log.e(
                     TAG,
-                    ":goBackwardVertical - current reading order item not from {${locator.href}}"
+                    ":goBackwardVertical - current reading order item not from {${locator.href}}",
                 )
                 return
             }
@@ -258,13 +278,14 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
 
             Log.d(TAG, "::goBackwardVertical go to previous chapter, progression:$prevProgression")
             publication.readingOrder.getOrNull(prevPosition)?.let { prevLink ->
-                val locator = publication.locatorFromLink(prevLink)?.copyWithLocations(
-                    progression = 1.0,
-                    totalProgression = null
-                ) ?: run {
-                    Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
-                    return
-                }
+                val locator =
+                    publication.locatorFromLink(prevLink)?.copyWithLocations(
+                        progression = 1.0,
+                        totalProgression = null,
+                    ) ?: run {
+                        Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
+                        return
+                    }
                 navigator.go(locator, animated)
             } ?: run {
                 // Reached the beginning
@@ -310,10 +331,11 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             Log.e(TAG, "::goForwardVertical - this is only meant for vertical scroll mode")
         }
 
-        val locator = currentLocator?.value ?: run {
-            Log.e(TAG, "::goBackwardVertical - no current locator")
-            return
-        }
+        val locator =
+            currentLocator?.value ?: run {
+                Log.e(TAG, "::goBackwardVertical - no current locator")
+                return
+            }
 
         val navigator = epubNavigator
         if (navigator == null) {
@@ -321,28 +343,31 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
             return
         }
 
-        val viewPortSize = currentViewPortSize() ?: run {
-            Log.e(TAG, "::goBackwardVertical - failed to load view port size")
-            return
-        }
+        val viewPortSize =
+            currentViewPortSize() ?: run {
+                Log.e(TAG, "::goBackwardVertical - failed to load view port size")
+                return
+            }
 
-        val publication = ReadiumReader.currentPublication ?: run {
-            Log.e(TAG, ":goBackwardVertical - no current publication?")
-            return
-        }
+        val publication =
+            ReadiumReader.currentPublication ?: run {
+                Log.e(TAG, ":goBackwardVertical - no current publication?")
+                return
+            }
 
         val endProgression = viewPortSize.endProgression
         val nextProgression = viewPortSize.nextProgression
 
         if (nextProgression >= 1.0 && endProgression >= 1.0) {
-            val position = publication.readingOrder.indexOfFirst {
-                it.href.resolve().isEquivalent(locator.href)
-            }
+            val position =
+                publication.readingOrder.indexOfFirst {
+                    it.href.resolve().isEquivalent(locator.href)
+                }
 
             if (position < 0) {
                 Log.e(
                     TAG,
-                    "::goForwardVertical - current reading order item not from {${locator.href}}"
+                    "::goForwardVertical - current reading order item not from {${locator.href}}",
                 )
                 return
             }
@@ -374,13 +399,14 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
      */
     suspend fun currentViewPortSize(): ViewPortSize? {
         try {
-            val viewPortSize = ViewPortSize.fromJson(
-                evaluateJavascript("window.flutterReadium.getViewPortSize()") ?: "", scrollMode
-            )
+            val viewPortSize =
+                ViewPortSize.fromJson(
+                    evaluateJavascript("window.flutterReadium.getViewPortSize()") ?: "",
+                    scrollMode,
+                )
             return viewPortSize
         } catch (_: Exception) {
             return null
-
         } catch (_: Error) {
             return null
         }
@@ -430,7 +456,10 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
     /**
      * Android lifecycle view created method, creates and attaches the navigator.
      */
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         try {
             super.onViewCreated(view, savedInstanceState)
 
@@ -513,27 +542,30 @@ class EpubReaderFragment : VisualReaderFragment(), EpubNavigatorFragment.Listene
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
 
-        val fragmentFactory = navigatorFactory.createFragmentFactory(
-            configuration = EpubNavigatorFragment.Configuration(
-                shouldApplyInsetsPadding = false,
+        val fragmentFactory =
+            navigatorFactory.createFragmentFactory(
+                configuration =
+                    EpubNavigatorFragment.Configuration(
+                        shouldApplyInsetsPadding = false,
+                        // DFG: This will be relative to your app's src/main/assets/ folder.
+                        // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
+                        // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
+                        servedAssets =
+                            listOf(
+                                "flutter_assets/packages/flutter_readium/assets/.*",
+                            ),
+                    ),
+                initialLocator = model.locator,
+                listener = this,
+                paginationListener = this,
+                initialPreferences = preferences.toEpubPreferences(),
+            )
 
-                // DFG: This will be relative to your app's src/main/assets/ folder.
-                // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
-                // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
-                servedAssets = listOf(
-                    "flutter_assets/packages/flutter_readium/assets/.*",
-                ),
-            ),
-            initialLocator = model.locator,
-            listener = this,
-            paginationListener = this,
-            initialPreferences = preferences.toEpubPreferences(),
-        )
-
-        val epubNavigator = fragmentFactory.instantiate(
-            requireActivity().classLoader,
-            EpubNavigatorFragment::class.java.name
-        ) as EpubNavigatorFragment
+        val epubNavigator =
+            fragmentFactory.instantiate(
+                requireActivity().classLoader,
+                EpubNavigatorFragment::class.java.name,
+            ) as EpubNavigatorFragment
 
         Log.d(TAG, "::attachNavigator - $instance - add fragment")
         childFragmentManager.commitNow {

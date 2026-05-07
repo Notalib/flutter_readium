@@ -15,9 +15,8 @@ import org.readium.r2.shared.publication.services.coverFitting
 class DatabaseMediaMetadataFactory(
     private val publication: Publication,
     private val trackCount: Int,
-    private val controlPanelInfoType: ControlPanelInfoType
+    private val controlPanelInfoType: ControlPanelInfoType,
 ) : MediaMetadataFactory {
-
     /**
      * The title of the publication.
      */
@@ -29,19 +28,23 @@ class DatabaseMediaMetadataFactory(
      * The authors of the publication, joined as a single string.
      */
     private val authors: String by lazy {
-        publication.metadata.authors.map { it.name }.filter { !it.isEmpty() }.joinToString(", ")
+        publication.metadata.authors
+            .map { it.name }
+            .filter { !it.isEmpty() }
+            .joinToString(", ")
     }
 
     private val chapterTitleFallback by lazy {
-        LocalizedString.fromStrings(
-            mapOf(
-                "en" to "Chapter",
-                "da" to "Kapitel",
-                "sv" to "Kapitel",
-                "no" to "Kapittel",
-                "is" to "Kafli",
-            )
-        ).getOrFallback(publication.metadata.language?.code)
+        LocalizedString
+            .fromStrings(
+                mapOf(
+                    "en" to "Chapter",
+                    "da" to "Kapitel",
+                    "sv" to "Kapitel",
+                    "no" to "Kapittel",
+                    "is" to "Kafli",
+                ),
+            ).getOrFallback(publication.metadata.language?.code)
     }
 
     /**
@@ -49,11 +52,9 @@ class DatabaseMediaMetadataFactory(
      */
     private var coverImage: ByteArray? = null
 
-    override suspend fun publicationMetadata(): MediaMetadata =
-        builder()?.build() ?: MediaMetadata.EMPTY
+    override suspend fun publicationMetadata(): MediaMetadata = builder()?.build() ?: MediaMetadata.EMPTY
 
-    override suspend fun resourceMetadata(index: Int): MediaMetadata =
-        builder(index)?.build() ?: MediaMetadata.EMPTY
+    override suspend fun resourceMetadata(index: Int): MediaMetadata = builder(index)?.build() ?: MediaMetadata.EMPTY
 
     /**
      * Load the cover image as a byte array. Handles resizing.
@@ -67,16 +68,19 @@ class DatabaseMediaMetadataFactory(
     }
 
     private suspend fun builder(index: Int? = null): MediaMetadata.Builder? {
-        var currentChapterTitle = index?.let {
-            publication.readingOrder.getOrNull(it)?.title
-        }
+        var currentChapterTitle =
+            index?.let {
+                publication.readingOrder.getOrNull(it)?.title
+            }
 
         if (currentChapterTitle == null && index != null) {
             currentChapterTitle = "$chapterTitleFallback ${index + 1}"
         }
 
-        val builder = MediaMetadata.Builder()
-            .setTotalTrackCount(trackCount)
+        val builder =
+            MediaMetadata
+                .Builder()
+                .setTotalTrackCount(trackCount)
 
         when (controlPanelInfoType) {
             ControlPanelInfoType.STANDARD, ControlPanelInfoType.STANDARD_WCH -> {
@@ -112,4 +116,3 @@ class DatabaseMediaMetadataFactory(
         return builder
     }
 }
-

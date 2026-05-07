@@ -38,12 +38,14 @@ fun readiumColorFromCSS(cssColor: String): ReadiumColor {
 fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     try {
         val id = decoMap["decorationId"] as String
-        val locator = Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
-            ?: throw Exception("Failed to deserialize locator")
+        val locator =
+            Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
+                ?: throw Exception("Failed to deserialize locator")
 
         @Suppress("UNCHECKED_CAST")
-        val style = decorationStyleFromMap(decoMap["style"] as Map<String, String>)
-            ?: throw Exception("Failed to deserialize decoration")
+        val style =
+            decorationStyleFromMap(decoMap["style"] as Map<String, String>)
+                ?: throw Exception("Failed to deserialize decoration")
         return Decoration(id, locator, style)
     } catch (ex: Exception) {
         Log.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
@@ -57,11 +59,12 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
 
         val styleStr = decoMap["style"] as String
         val tintColorStr = decoMap["tint"] as String
-        val style = when (styleStr) {
-            "underline" -> Decoration.Style.Underline(readiumColorFromCSS(tintColorStr).int)
-            "highlight" -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
-            else -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
-        }
+        val style =
+            when (styleStr) {
+                "underline" -> Decoration.Style.Underline(readiumColorFromCSS(tintColorStr).int)
+                "highlight" -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
+                else -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
+            }
         return style
     } catch (ex: Exception) {
         Log.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
@@ -75,7 +78,7 @@ private const val READIUM_FLUTTER_PATH_PREFIX =
 // Helper for injecting extra files into an epub
 fun Resource.injectScriptsAndStyles(
     tocIds: List<String>,
-    epubPreferences: FlutterEpubPreferences?
+    epubPreferences: FlutterEpubPreferences?,
 ): Resource =
     TransformingResource(this) { bytes ->
         val props = this.properties().getOrNull()
@@ -100,15 +103,16 @@ fun Resource.injectScriptsAndStyles(
                 if (!content.contains(it)) {
                     Log.d(
                         TAG,
-                        "Scripts already loaded for $filename, but custom css needs to be updated."
+                        "Scripts already loaded for $filename, but custom css needs to be updated.",
                     )
                     return@TransformingResource Try.success(
-                        content.replace(
-                            "</head>",
-                            "$it</head>",
-                            true
-                        ).toByteArray()
-                    );
+                        content
+                            .replace(
+                                "</head>",
+                                "$it</head>",
+                                true,
+                            ).toByteArray(),
+                    )
                 }
             }
 
@@ -118,20 +122,22 @@ fun Resource.injectScriptsAndStyles(
 
         Log.d(TAG, "Injecting files into: $filename")
 
-        val injectLines = listOf(
-            """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
-            """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
-            """<script type="text/javascript">
+        val injectLines =
+            listOf(
+                """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
+                """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
+                """<script type="text/javascript">
                 const isAndroid = true;
                 const isIos = false;
                 window.readiumTocIDs = ${jsonEncode(tocIds)};
             </script>
             $injectStyle
-            """
-        )
-        val newContent = StringBuilder(content)
-            .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
-            .toString()
+            """,
+            )
+        val newContent =
+            StringBuilder(content)
+                .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
+                .toString()
 
         Try.success(newContent.toByteArray())
     }
@@ -141,11 +147,12 @@ val syncNarrationsMediaType = MediaType("application/vnd.syncnarr+json")
 /**
  * Check if the publication has any media overlays.
  */
-fun Publication.hasMediaOverlays() = this.readingOrder.any { r ->
-    r.alternates.any { a ->
-        a.mediaType == syncNarrationsMediaType
-    } || r.properties["media-overlay"] != null
-}
+fun Publication.hasMediaOverlays() =
+    this.readingOrder.any { r ->
+        r.alternates.any { a ->
+            a.mediaType == syncNarrationsMediaType
+        } || r.properties["media-overlay"] != null
+    }
 
 /**
  * Get the media overlays for the publication, if any.
@@ -160,40 +167,47 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // Remember last matched TOC item for titles
     var lastTocMatch: Pair<String, Link>? = null
 
-    return this.readingOrder.mapNotNull { r ->
-        r.alternates.find { a ->
-            a.mediaType == MediaType("application/vnd.syncnarr+json")
-        }?.copy(title = r.title)
-    }.mapIndexedNotNull { index, link ->
-        val jsonString =
-            this.get(link)?.read()?.getOrNull()?.let { String(it) } ?: return@mapIndexedNotNull null
-        val jsonObject = JSONObject(jsonString)
-        val duration = link.duration?.takeIf { it > 0.0 } ?: return@mapIndexedNotNull null
+    return this.readingOrder
+        .mapNotNull { r ->
+            r.alternates
+                .find { a ->
+                    a.mediaType == MediaType("application/vnd.syncnarr+json")
+                }?.copy(title = r.title)
+        }.mapIndexedNotNull { index, link ->
+            val jsonString =
+                this
+                    .get(link)
+                    ?.read()
+                    ?.getOrNull()
+                    ?.let { String(it) } ?: return@mapIndexedNotNull null
+            val jsonObject = JSONObject(jsonString)
+            val duration = link.duration?.takeIf { it > 0.0 } ?: return@mapIndexedNotNull null
 
-        FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "", duration)
-    }
-        .map { mo ->
-            val items = mo.items.map { item ->
-                // Find best matching title from TOC
-                val match = toc.find { tocItem ->
-                    tocItem.first == item.text
-                }
+            FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "", duration)
+        }.map { mo ->
+            val items =
+                mo.items.map { item ->
+                    // Find best matching title from TOC
+                    val match =
+                        toc.find { tocItem ->
+                            tocItem.first == item.text
+                        }
 
-                if (match?.second != null) {
-                    lastTocMatch = match
-                    item.copy(
-                        title = match.second.title ?: "",
-                        tocHref = match.second.href.resolve()
-                    )
-                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(
-                        title = lastTocMatch.second.title ?: "",
-                        tocHref = lastTocMatch.second.href.resolve()
-                    )
-                } else {
-                    item
+                    if (match?.second != null) {
+                        lastTocMatch = match
+                        item.copy(
+                            title = match.second.title ?: "",
+                            tocHref = match.second.href.resolve(),
+                        )
+                    } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
+                        item.copy(
+                            title = lastTocMatch.second.title ?: "",
+                            tocHref = lastTocMatch.second.href.resolve(),
+                        )
+                    } else {
+                        item
+                    }
                 }
-            }
 
             return@map FlutterMediaOverlay(items)
         }
@@ -213,25 +227,29 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
 
     val mediaOverlays = getMediaOverlays() ?: return Pair(this, null)
 
-    val manifest = Manifest(
-        context = context,
-        metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
-        resources = resources,
-        links = links,
-        readingOrder = mediaOverlays.mapNotNull { overlay ->
-            val item = overlay?.items?.first() ?: return@mapNotNull null
+    val manifest =
+        Manifest(
+            context = context,
+            metadata = metadata.copy(conformsTo = setOf(Publication.Profile.AUDIOBOOK)),
+            resources = resources,
+            links = links,
+            readingOrder =
+                mediaOverlays
+                    .mapNotNull { overlay ->
+                        val item = overlay?.items?.first() ?: return@mapNotNull null
 
-            Href.invoke(item.audioFile)
-                ?.let { href ->
-                    Link(
-                        href,
-                        mediaType = item.audioMediaType,
-                        duration = overlay.duration,
-                        title = item.title
-                    )
-                }
-        }.filter { it.duration != null && it.duration!! > 0.0 }
-    )
+                        Href
+                            .invoke(item.audioFile)
+                            ?.let { href ->
+                                Link(
+                                    href,
+                                    mediaType = item.audioMediaType,
+                                    duration = overlay.duration,
+                                    title = item.title,
+                                )
+                            }
+                    }.filter { it.duration != null && it.duration!! > 0.0 },
+        )
 
     val pseudoPublication = Publication.Builder(manifest, container).build()
     return Pair(pseudoPublication, mediaOverlays)
@@ -267,13 +285,13 @@ fun Locator.copyWithTimeFragment(time: Double): Locator {
 /**
  * Make a new copy with a new time fragment
  */
-fun Locator.copyWithTimeFragment(time: Int): Locator {
-    return copy(
-        locations = Locator.Locations(
-            fragments = listOf("t=${time}")
-        )
+fun Locator.copyWithTimeFragment(time: Int): Locator =
+    copy(
+        locations =
+            Locator.Locations(
+                fragments = listOf("t=$time"),
+            ),
     )
-}
 
 val Locator.progression: Double?
     get() = locations.progression
@@ -289,15 +307,16 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
 
     val cleanHref = href.cleanHref()
 
-    val contentItems = content(
-        Locator(
-            href = cleanHref,
-            mediaType = MediaType.XHTML
-        )
-    ) ?: run {
-        Log.d(TAG, ":findAllCssSelectors - no content service found")
-        return null
-    }
+    val contentItems =
+        content(
+            Locator(
+                href = cleanHref,
+                mediaType = MediaType.XHTML,
+            ),
+        ) ?: run {
+            Log.d(TAG, ":findAllCssSelectors - no content service found")
+            return null
+        }
 
     val ids = arrayListOf<String>()
     for (element in contentItems) {
@@ -305,14 +324,18 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
             continue
         }
 
-        if (element.locator.href.cleanHref().path != cleanHref.path) {
+        if (element.locator.href
+                .cleanHref()
+                .path != cleanHref.path
+        ) {
             // We iterated to the next document, stopping
             break
         }
 
         // We are only interested in #id type of cssSelectors.
         val cssSelector =
-            element.locator.locations.cssSelector?.takeIf { it.startsWith("#") } ?: continue
+            element.locator.locations.cssSelector
+                ?.takeIf { it.startsWith("#") } ?: continue
 
         ids.add(cssSelector)
     }
@@ -327,7 +350,11 @@ fun Publication.getTitleFromTocHref(tocHref: String?): String? {
     if (tocHref == null || tocHref.isEmpty()) return null
 
     for (tocLink in tableOfContents.flattenChildren()) {
-        if (tocLink.href.resolve().toString().equals(tocHref, ignoreCase = true)) {
+        if (tocLink.href
+                .resolve()
+                .toString()
+                .equals(tocHref, ignoreCase = true)
+        ) {
             return tocLink.title
         }
     }
@@ -341,17 +368,17 @@ fun Publication.getTitleFromTocHref(tocHref: String?): String? {
 fun Url.cleanHref() = removeFragment().removeQuery()
 
 val Href.fragmentParameters: Map<String, String>
-    get() = resolve()
-        .fragment
-        // Splits parameters
-        ?.split("&")
-        ?.filter { !it.startsWith("=") }
-        ?.map { it.split("=") }
-        // Only keep named parameters
-        ?.filter { it.size == 2 }
-        ?.associate { it[0].trim().lowercase(Locale.ROOT) to it[1].trim() }
-        ?: mapOf()
-
+    get() =
+        resolve()
+            .fragment
+            // Splits parameters
+            ?.split("&")
+            ?.filter { !it.startsWith("=") }
+            ?.map { it.split("=") }
+            // Only keep named parameters
+            ?.filter { it.size == 2 }
+            ?.associate { it[0].trim().lowercase(Locale.ROOT) to it[1].trim() }
+            ?: mapOf()
 
 /**
  * Media fragment, used for example in audiobooks.
@@ -366,9 +393,7 @@ val Href.time: Duration?
  * Returns a list of `Link` after flattening the `children`.
  */
 fun List<Link>.flattenChildren(): List<Link> {
-    fun Link.flattenChildren(): List<Link> {
-        return listOf(this) + children.flattenChildren()
-    }
+    fun Link.flattenChildren(): List<Link> = listOf(this) + children.flattenChildren()
 
     return flatMap { it.flattenChildren() }
 }
@@ -398,16 +423,20 @@ fun Locator.copyWithTocHref(tocUrl: Url?): Locator {
 /**
  * Make a copy of the locator by adding more values to Locator.Locations.otherLocations.
  */
-fun Locator.copyWithAdditionalLocations(additionalValues: Map<String, Any>) = copyWithLocations(
-    otherLocations = locations.otherLocations + additionalValues
-)
+fun Locator.copyWithAdditionalLocations(additionalValues: Map<String, Any>) =
+    copyWithLocations(
+        otherLocations = locations.otherLocations + additionalValues,
+    )
 
 /**
  * Add currentPage and totalPages to [Locator.locations]
  */
-fun Locator.addPageNumber(pageIndex: Int, totalPages: Int) = copyWithAdditionalLocations(
+fun Locator.addPageNumber(
+    pageIndex: Int,
+    totalPages: Int,
+) = copyWithAdditionalLocations(
     mapOf(
         "currentPage" to pageIndex,
-        "totalPages" to totalPages
-    )
+        "totalPages" to totalPages,
+    ),
 )

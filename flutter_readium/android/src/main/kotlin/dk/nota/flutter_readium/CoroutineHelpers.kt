@@ -13,4 +13,3 @@ fun <T> Flow<T>.throttleLatest(period: Duration): Flow<T> =
             delay(period)
         }
     }
-

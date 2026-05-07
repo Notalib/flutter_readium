@@ -17,7 +17,6 @@ data class FlutterAudioPreferences(
     val allowExternalSeeking: Boolean = true,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
-
     override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
         FlutterAudioPreferences(
             volume = other.volume ?: volume,
@@ -25,40 +24,36 @@ data class FlutterAudioPreferences(
             speed = other.speed ?: speed,
             seekInterval = other.seekInterval,
             allowExternalSeeking = other.allowExternalSeeking,
-            controlPanelInfoType = other.controlPanelInfoType
+            controlPanelInfoType = other.controlPanelInfoType,
         )
 
     /**
      * Converts FlutterAudioPreferences to ExoPlayerPreferences.
      */
-    fun toExoPlayerPreferences(): ExoPlayerPreferences {
-        return ExoPlayerPreferences(
+    fun toExoPlayerPreferences(): ExoPlayerPreferences =
+        ExoPlayerPreferences(
             pitch = this.pitch,
-            speed = this.speed
+            speed = this.speed,
         )
-    }
 
     companion object {
         /**
          * Creates FlutterAudioPreferences from a JSON string.
          */
-        fun fromJSON(json: String): FlutterAudioPreferences {
-            return fromJSON(JSONObject(json))
-        }
+        fun fromJSON(json: String): FlutterAudioPreferences = fromJSON(JSONObject(json))
 
         /**
          * Creates FlutterAudioPreferences from a JSON object.
          */
-        fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences {
-            return FlutterAudioPreferences(
+        fun fromJSON(jsonObject: JSONObject): FlutterAudioPreferences =
+            FlutterAudioPreferences(
                 volume = jsonObject.getDouble("volume"),
                 pitch = jsonObject.getDouble("pitch"),
                 speed = jsonObject.getDouble("speed"),
                 seekInterval = jsonObject.getDouble("seekInterval"),
                 allowExternalSeeking = jsonObject.getBoolean("allowExternalSeeking"),
-                controlPanelInfoType = ControlPanelInfoType.fromString( jsonObject.getString("controlPanelInfoType"))
+                controlPanelInfoType = ControlPanelInfoType.fromString(jsonObject.getString("controlPanelInfoType")),
             )
-        }
 
         /**
          * Converts FlutterAudioPreferences to a JSON object.
@@ -77,17 +72,15 @@ data class FlutterAudioPreferences(
         /**
          * Creates FlutterAudioPreferences from a Map.
          */
-        fun fromMap(prefs: Map<*, *>): FlutterAudioPreferences {
-            return FlutterAudioPreferences(
+        fun fromMap(prefs: Map<*, *>): FlutterAudioPreferences =
+            FlutterAudioPreferences(
                 volume = prefs["volume"] as? Double ?: 1.0,
                 pitch = prefs["pitch"] as? Double ?: 1.0,
                 speed = prefs["speed"] as? Double ?: 1.0,
                 seekInterval = prefs["seekInterval"] as? Double ?: 30.0,
                 allowExternalSeeking = prefs["allowExternalSeeking"] as? Boolean ?: true,
                 // TODO: Not sure if this is correct
-                controlPanelInfoType = ControlPanelInfoType.fromString( prefs["controlPanelInfoType"] as? String ?: "standard"),
+                controlPanelInfoType = ControlPanelInfoType.fromString(prefs["controlPanelInfoType"] as? String ?: "standard"),
             )
-        }
     }
 }
-
