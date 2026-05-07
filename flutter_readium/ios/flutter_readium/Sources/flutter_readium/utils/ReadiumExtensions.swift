@@ -20,17 +20,9 @@ extension Locator {
     return cssFragment?.removingPrefix("#")
   }
   
-  var skipToAudioLocator: Locator {
-    if let timeOffset = timeOffset {
-      return copyWithReadiumCompOffset(timeOffset)
-    } else {
-      return self
-    }
-  }
-  
   /// Gets a Locator copy with a Readium compatible time offset (fragment). Currently this must be an Int.
-  func copyWithReadiumCompOffset(_ offset: Double) -> Locator {
-    return copy(locations: { locs in locs.fragments = ["t=\(Int(offset))"] })
+  func copyWithOffset(_ offset: Double) -> Locator {
+    return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
   }
   
   func copyWithProgressionLocations(progression: Double) -> Locator {

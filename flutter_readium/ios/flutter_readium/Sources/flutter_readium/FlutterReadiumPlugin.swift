@@ -559,18 +559,17 @@ extension FlutterReadiumPlugin {
   private func loadPublication (
     fromUrlStr: String,
   ) async -> Result<Publication, ReadiumError> {
-    var pubUrlStr = fromUrlStr
-    if (!pubUrlStr.hasPrefix("http") && !pubUrlStr.hasPrefix("file")) {
-      // Assume URLs without a supported prefix are local file paths.
-      pubUrlStr = "file://\(pubUrlStr)"
-    }
-
-    let encodedUrlStr = "\(pubUrlStr)".addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed)
-    guard let url = URL(string: encodedUrlStr!) else {
-      return .failure(ReadiumError.notFound("Invalid pub URL: \(pubUrlStr)"))
+    var url: URL
+    if fromUrlStr.hasPrefix("http") {
+      guard let httpUrl = URL(string: fromUrlStr) else {
+        return .failure(ReadiumError.notFound("Invalid pub URL: \(fromUrlStr)"))
+      }
+      url = httpUrl
+    } else {
+      url = URL(fileURLWithPath: fromUrlStr)
     }
     guard let absUrl = url.anyURL.absoluteURL else {
-      return .failure(ReadiumError.notFound("Failed to get AbsoluteUrl: \(pubUrlStr)"))
+      return .failure(ReadiumError.notFound("Failed to get AbsoluteUrl: \(url)"))
     }
 
     Log.readium.info("Attempting to open publication at: \(absUrl)")

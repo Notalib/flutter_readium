@@ -235,14 +235,12 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
         jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
         jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
-    final progression = jsonObject
-        .optNullableDouble('progression', remove: true)
-        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
-    final position = jsonObject.optNullableInt('position', remove: true)?.takeIf((it) => it > 0);
+    final progression = jsonObject.optPositiveDouble('progression', remove: true)?.let((it) => it.clamp(0.0, 1.0));
+    final position = jsonObject.optPositiveInt('position', remove: true)?.takeIf((it) => it > 0);
 
     final totalProgression = jsonObject
         .optPositiveDouble('totalProgression', remove: true)
-        ?.takeIf((it) => 0.0 <= it && it <= 1.0);
+        ?.let((it) => it.clamp(0.0, 1.0));
 
     final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
     final domRange = DomRange.fromJson(jsonObject.optJsonObject('domRange', remove: true));
