@@ -40,7 +40,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     _onTextLocatorChanged ??= textLocatorChannel.receiveBroadcastStream().map((dynamic event) {
       final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
       return newLocator!;
-    });
+    }).asBroadcastStream();
     return _onTextLocatorChanged!;
   }
 
@@ -50,7 +50,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
       final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
       return state;
-    });
+    }).asBroadcastStream();
     return _onTimebasedPlayerStateChanged!;
   }
 
@@ -75,7 +75,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     _onErrorEvent ??= errorEventChannel.receiveBroadcastStream().map((dynamic event) {
       final errorEvent = json.decode(event) as ReadiumError;
       return errorEvent;
-    });
+    }).asBroadcastStream();
     return _onErrorEvent!;
   }
 
