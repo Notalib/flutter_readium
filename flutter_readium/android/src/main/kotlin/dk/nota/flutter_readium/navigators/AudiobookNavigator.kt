@@ -8,12 +8,11 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
-import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
-import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
+import dk.nota.flutter_readium.timeWithDuration
 import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -31,13 +30,16 @@ import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.adapter.exoplayer.audio.ExoPlayerSettings
 import org.readium.navigator.media.audio.AudioNavigator
+import org.readium.r2.navigator.extensions.normalizeLocator
 import org.readium.r2.navigator.extensions.time
+import org.readium.r2.shared.DelicateReadiumApi
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -220,6 +222,7 @@ open class AudiobookNavigator(
         }
     }
 
+    @OptIn(InternalReadiumApi::class)
     override suspend fun goToLocator(locator: Locator) {
         val navigator =
             audioNavigator ?: run {
@@ -228,28 +231,23 @@ open class AudiobookNavigator(
             }
 
         withScope(mainScope) {
-            val toLocator =
-                locator.progression?.let { progression ->
-                    val readingOrderLink =
-                        publication.readingOrder.find { link ->
-                            link.href.toString() == locator.href.toString()
-                        } ?: run {
-                            Log.d(TAG, "::goToLocator - ${locator.href} not found in reading order")
-                            return@withScope
-                        }
+            val itemIndex =
+                navigator.readingOrder.items
+                    .indexOfFirst { it.href == locator.href }
+                    .takeIf { it > -1 }
 
-                    val timeOffset =
-                        readingOrderLink.duration
-                            ?.takeIf { it > 0 }
-                            ?.let { duration -> duration * progression } ?: run {
-                            Log.d(TAG, "::goToLocator - reading order link is missing a duration")
-                            return@withScope
-                        }
+            if (itemIndex == null) {
+                Log.e(TAG, "::goToLocator - ${locator.href} not found in navigator's readingOrder")
+                return@withScope
+            }
 
-                    locator.copyWithTimeFragment(timeOffset)
-                } ?: locator
-
-            navigator.go(toLocator)
+            val item = navigator.readingOrder.items[itemIndex]
+            val timeOffset = locator.locations.timeWithDuration(item.duration)
+            if (timeOffset == null) {
+                Log.e(TAG, "::goToLocator - couldn't find timeOffset from starting file over.")
+            }
+            navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
+            return@withScope
         }
     }
 
@@ -265,6 +263,7 @@ open class AudiobookNavigator(
         }
     }
 
+    @OptIn(DelicateReadiumApi::class)
     override suspend fun seekToProgression(progression: Double): Boolean {
         val navigator =
             audioNavigator ?: run {
@@ -281,18 +280,31 @@ open class AudiobookNavigator(
             val duration = navigator.asMedia3Player().duration
             val timeOffset = duration * progression / 1000.0
 
-            val toLocator = navigator.currentLocator.value.copyWithTimeFragment(timeOffset)
+            val locator = publication.normalizeLocator(navigator.currentLocator.value)
+            val itemIndex =
+                navigator.readingOrder.items
+                    .indexOfFirst { it.href == locator.href }
+                    .takeUnless { it == -1 }
 
-            goToLocator(toLocator)
-            return@withScope true
+            if (itemIndex != null) {
+                // Use seekTo directly, this allow us to be more precise,
+                // since time fragments are rounded to whole seconds.
+                navigator.skipTo(itemIndex, timeOffset.seconds)
+                return@withScope true
+            }
+
+            Log.e(TAG, "::seekToProgression - didn't find the current item in the navigator.readingOrder, can't seek without it.")
+
+            return@withScope false
         }
     }
 
     private suspend fun navigatorWithOpenMediaSession(): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
-        val navigator = audioNavigator ?: run {
-            Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - no audio navigator")
-            return null
-        }
+        val navigator =
+            audioNavigator ?: run {
+                Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - no audio navigator")
+                return null
+            }
 
         try {
             val mediaSession = mediaServiceFacade!!
@@ -310,7 +322,7 @@ open class AudiobookNavigator(
     /**
      * Updates Audio preferences, does not override current preferences if props are null
      */
-    fun updatePreferences(prefs: FlutterAudioPreferences) {
+    suspend fun updatePreferences(prefs: FlutterAudioPreferences) {
         preferences += prefs
 
         val navigator =
@@ -319,7 +331,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        mainScope.launch {
+        withScope(mainScope) {
             navigator.submitPreferences(preferences.toExoPlayerPreferences())
         }
     }

@@ -1,9 +1,11 @@
 ﻿import 'package:json_annotation/json_annotation.dart';
+import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';
 import 'utils/jsonable.dart';
 
+@immutable
 class ReadiumTimebasedState implements JSONable {
   const ReadiumTimebasedState({
     required this.state,
@@ -38,7 +40,9 @@ class ReadiumTimebasedState implements JSONable {
       'ReadiumTimebasedState($state,offset=$currentOffset,duration=$currentDuration,buffered=$currentBuffered,'
       'href=${currentLocator?.href},'
       'progression=${currentLocator?.locations?.progression},'
-      'totalProgression=${currentLocator?.locations?.totalProgression})';
+      'totalProgression=${currentLocator?.locations?.totalProgression}),'
+      'title=${currentLocator?.title}),'
+      'chapterPosition=${currentLocator?.locations?.position})';
 
   /// Current time-based player state.
   final TimebasedState state;
