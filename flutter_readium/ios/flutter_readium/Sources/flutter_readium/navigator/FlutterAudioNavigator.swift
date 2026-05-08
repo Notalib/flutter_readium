@@ -51,7 +51,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       publication: publication,
       initialLocation: initialLocator,
       config: AudioNavigator.Configuration(
-        preferences: AudioPreferences(fromFlutterPrefs: _preferences)
+        preferences: AudioPreferences(fromFlutterPrefs: _preferences),
+        playbackRefreshInterval: _preferences.updateIntervalSecs,
       )
     )
     _audioNavigator?.delegate = self
@@ -73,9 +74,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         }
         Log.navigator.debug("$playback updated: state=\(info.state),index=\(info.resourceIndex),time=\(info.time),progress=\(info.progress)")
 
-        if let location = _audioNavigator?.currentLocation {
-          self.submitTimebasedPlayerStateToListener(info: info, location: location)
-        }
+        self.submitTimebasedPlayerStateToListener(info: info, location: _audioNavigator?.currentLocation)
       }
       .store(in: &subscriptions)
   }
@@ -159,7 +158,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
           let duration = link.duration, duration.isFinite else {
       return nil
     }
-      return duration * progression
+    return duration * progression
   }
 
   public func seek(toOffset: Double) async -> Bool {
@@ -216,7 +215,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, presentError error: ReadiumNavigator.NavigatorError) {
     Log.navigator.error("Should present error: \(error)")
-    // TODO: Ignored for now, only relevant when supporting LCP.
+    // TODO: LCP related errors, ignored until supporting LCP.
   }
 
   public func navigator(_ navigator: any ReadiumNavigator.Navigator, didFailToLoadResourceAt href: ReadiumShared.RelativeURL, withError error: ReadiumShared.ReadError) {
@@ -278,7 +277,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self.listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
   }
 
-  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+  internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
 
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
@@ -291,7 +290,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       Log.navigator.debug("Skipped state emission - duplicate")
     }
   }
-  
+
   internal func resolveLocator(_ locator: Locator?) -> Locator? {
     guard let locator = locator else {
       return nil
@@ -315,17 +314,24 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return resolvedLocator
   }
 
-  internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
-    // Fetch MediaPlaybackState and convert it to TimebasedState
+  internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
+    var locator = location
+    
+    /// Enrich Locator with position before submitting to listeners.
+    if locator != nil {
+      locator?.locations.position = info.resourceIndex + 1
+      /// Ensure timeOffset is rounded to 2 decimals
+      locator = locator?.toClientFriendlyLocator()
+    }
+    
+    /// Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
     if (info.state == .paused && info.progress >= 1.0 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
       /// If paused at progress 1 of the last resource in readingOrder, we can assume the book has ended.
       playerState = .ended
+      /// FIX: totalProgression will be very close to 1.0, but not always exactly there, so we have to force it.
+      locator?.locations.totalProgression = 1.0
     }
-
-    /// Enrich Locator with position before submitting to listeners.
-    var locator = location
-    locator.locations.position = info.resourceIndex + 1
 
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = ReadiumTimebasedState(

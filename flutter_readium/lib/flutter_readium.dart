@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
