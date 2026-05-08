@@ -138,14 +138,15 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     }
   }
   
-  internal override func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator, bufferedInterval: TimeInterval? = nil) {
+  internal override func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
 
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
     
     /// Map audio Locator to a combined Text-based Locator, before submitting to listener.
-    if let mediaOverlayItem = mediaOverlayItemFromAudioLocator(location),
-       let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: location) {
+    if let locator = location,
+       let mediaOverlayItem = mediaOverlayItemFromAudioLocator(locator),
+       let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: locator) {
       timebasedState.currentLocator = combinedLocator
     }
 

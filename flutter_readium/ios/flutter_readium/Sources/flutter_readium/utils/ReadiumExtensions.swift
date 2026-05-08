@@ -8,7 +8,7 @@ extension Locator {
   var timeOffset: TimeInterval? {
     // Get time offset
     let fragment: String? = locations.fragments.first(where: { $0.hasPrefix("t=") })
-    if let offsetStr = fragment?.removingPrefix("t=") {
+    if let offsetStr = fragment?.removingPrefix("t=").removingPrefix("npt:") {
       return TimeInterval(offsetStr)
     } else {
       return nil
@@ -20,9 +20,25 @@ extension Locator {
     return cssFragment?.removingPrefix("#")
   }
   
-  /// Gets a Locator copy with a Readium compatible time offset (fragment). Currently this must be an Int.
+  /// Prepares the Locator data to be sent over the Flutter bridge to clients.
+  /// Some fields are better off rounded before being passed over the bridge.
+  func toClientFriendlyLocator() -> Locator {
+    let offset = timeOffset
+    var totalProgress = locations.totalProgression
+    
+    if totalProgress != nil {
+      totalProgress = Double(String(format: "%.4f", totalProgress!))
+    }
+    
+    return copy(locations: { locs in
+      locs.fragments = offset != nil ? [String(format: "t=%.2f", offset!)] : []
+      locs.totalProgression = totalProgress
+    })
+  }
+  
+  /// Gets a Locator copy overriding fragments with a Readium compatible time fragment.
   func copyWithOffset(_ offset: Double) -> Locator {
-    return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
+    return copy(locations: { locs in locs.fragments = [String(format: "t=%.2f", offset)] })
   }
   
   func copyWithProgressionLocations(progression: Double) -> Locator {
