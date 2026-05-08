@@ -48,7 +48,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
+      debugPrint('Received timebased player state event: $event');
       final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
+      if (state.currentLocator != null) {
+        if (state.currentLocator!.locations?.position == null || state.currentLocator!.locations!.position == 0) {
+          debugPrint('currentLocator is missing position.');
+        }
+      }
       return state;
     }).asBroadcastStream();
     return _onTimebasedPlayerStateChanged!;

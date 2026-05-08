@@ -5,9 +5,11 @@ import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
-import dk.nota.flutter_readium.getTimeOffset
+import dk.nota.flutter_readium.findReadingOrderLink
+import dk.nota.flutter_readium.getReadingOrderItemDuration
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.progression
+import dk.nota.flutter_readium.timeWithDuration
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
@@ -17,10 +19,13 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "SyncAudiobookNavigator"
 
@@ -56,23 +61,14 @@ class SyncAudiobookNavigator(
 
         navigator.currentLocator
             .map { locator ->
-                val readingOrderLink =
-                    publication.readingOrder.find { link ->
-                        link.href.toString() == locator.href.toString()
-                    }
+                val duration = publication.getReadingOrderItemDuration(locator.href)
+                val timeOffset = locator.locations.timeWithDuration(duration) ?: 0.seconds
 
-                val duration = readingOrderLink?.duration
-                val timeOffset =
-                    locator.getTimeOffset() ?: (
-                        duration?.let { duration ->
-                            locator.progression?.let { progression -> duration * progression }
-                        }
-                    )
                 mediaOverlays
                     .firstNotNullOfOrNull {
                         it?.findItemInRange(
                             locator.href,
-                            timeOffset ?: 0.0,
+                            timeOffset,
                         )
                     }?.takeIf { it.syncTextLocator != null }
                     ?.let { mediaOverlay ->
@@ -92,26 +88,21 @@ class SyncAudiobookNavigator(
             .let { jobs.add(it) }
     }
 
+    @OptIn(InternalReadiumApi::class)
     override fun onCurrentLocatorChanges(locator: Locator) {
-        val readingOrderLink =
-            publication.readingOrder.find { link ->
-                link.href.toString() == locator.href.toString()
-            }
+        val readingOrderLink = publication.findReadingOrderLink(locator.href)
 
-        val duration = readingOrderLink?.duration
-        val timeOffset =
-            locator.getTimeOffset() ?: (
-                duration?.let { duration ->
-                    locator.progression?.let { progression -> duration * progression }
-                }
-            )
+        val duration = publication.getReadingOrderItemDuration(locator.href)
+        val timeOffset = locator.locations.timeWithDuration(duration)
 
         val mediaOverlay =
-            mediaOverlays.firstNotNullOfOrNull {
-                it?.findItemInRange(
-                    locator.href,
-                    timeOffset ?: 0.0,
-                )
+            timeOffset?.let { timeOffset ->
+                mediaOverlays.firstNotNullOfOrNull {
+                    it?.findItemInRange(
+                        locator.href,
+                        timeOffset,
+                    )
+                }
             } ?: run {
                 Log.d(
                     TAG,
@@ -218,6 +209,7 @@ class SyncAudiobookNavigator(
         }
     }
 
+    @OptIn(InternalReadiumApi::class)
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
         val mediaOverlay =
             mediaOverlays.firstNotNullOfOrNull { mo ->
@@ -237,7 +229,10 @@ class SyncAudiobookNavigator(
             locator.progression
                 ?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
                 ?.toInt()
-        val timeOffsetFromFragment = locator.getTimeOffset()?.toInt()
+        val timeOffsetFromFragment =
+            locator.locations.time
+                ?.inWholeSeconds
+                ?.toInt()
 
         if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
             Log.d(

@@ -3,15 +3,16 @@ package dk.nota.flutter_readium.models
 import android.os.Parcelable
 import android.util.Log
 import dk.nota.flutter_readium.getTextId
-import dk.nota.flutter_readium.getTimeOffset
 import dk.nota.flutter_readium.progression
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import org.json.JSONObject
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
+import kotlin.time.Duration
 
 private const val TAG = "FlutterMediaOverlay"
 
@@ -67,6 +68,24 @@ data class FlutterMediaOverlay(
      * Returns null if no item is found.
      */
     fun findItemInRange(
+        fileHref: Url,
+        duration: Duration,
+    ): FlutterMediaOverlayItem? = findItemInRange(fileHref, duration.inWholeSeconds.toDouble())
+
+    /**
+     * Find the media overlay item for the given file and time.
+     * Returns null if no item is found.
+     */
+    fun findItemInRange(
+        fileHref: String,
+        duration: Duration,
+    ): FlutterMediaOverlayItem? = findItemInRange(fileHref, duration.inWholeSeconds.toDouble())
+
+    /**
+     * Find the media overlay item for the given file and time.
+     * Returns null if no item is found.
+     */
+    fun findItemInRange(
         fileHref: String,
         time: Double,
     ): FlutterMediaOverlayItem? {
@@ -104,7 +123,7 @@ data class FlutterMediaOverlay(
             return null
         }
 
-        locator.getTimeOffset()?.let { timeOffset ->
+        locator.locations.time?.let { timeOffset ->
             return findItemInRange(href, timeOffset)
         }
 
