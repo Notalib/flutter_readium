@@ -126,8 +126,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seekBackward() async -> Bool {
-    await _audioNavigator?.seek(by: -1 * self._preferences.seekInterval)
-    return true
+    await seekRelative(byOffsetSeconds: -1 * self._preferences.seekInterval)
   }
 
   public func seek(toLocator: Locator) async -> Bool {
@@ -171,8 +170,78 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
-    await _audioNavigator?.seek(by: byOffsetSeconds)
-    return true
+    if byOffsetSeconds >= 0 || !_preferences.continuousSeeking {
+      await _audioNavigator?.seek(by: byOffsetSeconds)
+      return true
+    }
+
+    return await rewindBy(
+      seconds: abs(byOffsetSeconds),
+    )
+  }
+
+  private func rewindBy(seconds rewindSeconds: TimeInterval) async -> Bool {
+    guard let audioNavigator = _audioNavigator else {
+      return false
+    }
+
+    let info = audioNavigator.playbackInfo
+    let currentIndex = info.resourceIndex
+
+    var durations: [TimeInterval?] = publication.readingOrder.map { link in
+      link.duration
+    }
+    if durations.indices.contains(currentIndex), durations[currentIndex] == nil {
+      durations[currentIndex] = info.duration
+    }
+
+    guard let target = AudioRewindPolicy.resolveRewindTarget(
+      currentIndex: currentIndex,
+      currentOffsetSeconds: info.time,
+      rewindSeconds: rewindSeconds,
+      durations: durations
+    ) else {
+      return false
+    }
+
+    if target.readingOrderIndex == currentIndex {
+      return await seek(toOffset: target.offsetSeconds)
+    }
+
+    guard let currentLocator = audioNavigator.currentLocation else {
+      return false
+    }
+    guard let targetLocator = makeAudioLocator(
+      from: currentLocator,
+      target: target
+    ) else {
+      return false
+    }
+
+    return await seek(toLocator: targetLocator)
+  }
+
+  private func makeAudioLocator(
+    from currentLocator: Locator,
+    target: AudioRewindPolicy.Target
+  ) -> Locator? {
+    guard publication.readingOrder.indices.contains(target.readingOrderIndex) else {
+      return nil
+    }
+
+    let link = publication.readingOrder[target.readingOrderIndex]
+
+    var locator = currentLocator.copy(href: link.url())
+
+    locator.locations.position = target.readingOrderIndex + 1
+    locator.locations.progression = nil
+    locator.locations.totalProgression = nil
+    locator.locations.otherLocations.removeValue(forKey: "tocHref")
+    locator.locations.otherLocations.removeValue(forKey: "tocId")
+
+    locator = locator.copyWithOffset(target.offsetSeconds)
+
+    return locator
   }
 
   // MARK: AudioNavigatorDelegate
