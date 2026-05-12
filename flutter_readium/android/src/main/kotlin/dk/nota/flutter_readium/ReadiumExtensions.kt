@@ -5,6 +5,12 @@ package dk.nota.flutter_readium
 import android.util.Log
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.extensions.time
@@ -168,50 +174,83 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // Remember last matched TOC item for titles
     var lastTocMatch: Pair<String, Link>? = null
 
-    return this.readingOrder
-        .mapNotNull { r ->
+    val overlayLinks =
+        this.readingOrder.mapNotNull { r ->
             r.alternates
-                .find { a ->
-                    a.mediaType == MediaType("application/vnd.syncnarr+json")
-                }?.copy(title = r.title)
-        }.mapIndexedNotNull { index, link ->
-            val jsonString =
-                this
-                    .get(link)
-                    ?.read()
-                    ?.getOrNull()
-                    ?.let { String(it) } ?: return@mapIndexedNotNull null
-            val jsonObject = JSONObject(jsonString)
-            val duration = link.duration?.takeIf { it > 0.0 } ?: return@mapIndexedNotNull null
-
-            FlutterMediaOverlay.fromJson(jsonObject, index + 1, null, link.title ?: "", duration)
-        }.map { mo ->
-            val items =
-                mo.items.map { item ->
-                    // Find best matching title from TOC
-                    val match =
-                        toc.find { tocItem ->
-                            tocItem.first == item.text
-                        }
-
-                    if (match?.second != null) {
-                        lastTocMatch = match
-                        item.copy(
-                            title = match.second.title ?: "",
-                            tocHref = match.second.href.resolve(),
-                        )
-                    } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                        item.copy(
-                            title = lastTocMatch.second.title ?: "",
-                            tocHref = lastTocMatch.second.href.resolve(),
-                        )
-                    } else {
-                        item
-                    }
-                }
-
-            return@map FlutterMediaOverlay(items)
+                .find { a -> a.mediaType == syncNarrationsMediaType }
+                ?.copy(title = r.title)
         }
+
+    // Fetch+parse every overlay JSON in parallel on IO. Cap is configurable so we don't open
+    // dozens of sockets to the origin at once.
+    val parsed: List<FlutterMediaOverlay?> =
+        coroutineScope {
+            val gate = Semaphore(permits = BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY)
+            overlayLinks
+                .mapIndexed { index, link ->
+                    async(Dispatchers.IO) {
+                        gate.withPermit {
+                            val resource = get(link)
+                            if (resource == null) {
+                                Log.i(TAG, "::getMediaOverlays() - no resource for ${link.href}")
+                                return@withPermit null
+                            }
+
+                            val jsonString = resource.read().getOrNull()?.let { String(it) }
+                            if (jsonString == null) {
+                                Log.i(
+                                    TAG,
+                                    "::getMediaOverlays() - unable to load resource ${link.href}",
+                                )
+                                return@withPermit null
+                            }
+
+                            val duration =
+                                link.duration?.takeIf { it > 0.0 } ?: return@withPermit null
+
+                            return@withPermit FlutterMediaOverlay.fromJson(
+                                JSONObject(jsonString),
+                                index + 1,
+                                null,
+                                link.title ?: "",
+                                duration,
+                            )
+                        }
+                    }
+                }.awaitAll()
+        }
+
+    // TOC-matching pass stays sequential — it walks shared mutable state
+    // (`lastTocMatch`) in reading order. It's pure CPU and not the bottleneck.
+    return parsed.map { mo ->
+        if (mo == null) return@map null
+
+        val items =
+            mo.items.map { item ->
+                // Find best matching title from TOC
+                val match =
+                    toc.find { tocItem ->
+                        tocItem.first == item.text
+                    }
+
+                if (match?.second != null) {
+                    lastTocMatch = match
+                    item.copy(
+                        title = match.second.title ?: "",
+                        tocHref = match.second.href.resolve(),
+                    )
+                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
+                    item.copy(
+                        title = lastTocMatch.second.title ?: "",
+                        tocHref = lastTocMatch.second.href.resolve(),
+                    )
+                } else {
+                    item
+                }
+            }
+
+        return@map FlutterMediaOverlay(items)
+    }
 }
 
 /**

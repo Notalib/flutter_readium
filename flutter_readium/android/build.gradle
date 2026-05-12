@@ -57,10 +57,22 @@ android {
   }
   defaultConfig {
     minSdkVersion 24
+
+    // Max number of media-overlay JSON files fetched in parallel by the Sync
+    // Audiobook navigator. Consumers can override by adding to their
+    // `android/gradle.properties`:
+    //
+    //   flutterReadium.mediaOverlayFetchConcurrency=16
+    buildConfigField(
+      "int",
+      "MEDIA_OVERLAY_FETCH_CONCURRENCY",
+      (project.findProperty("flutterReadium.mediaOverlayFetchConcurrency") ?: "8").toString()
+    )
   }
 
   buildFeatures {
     viewBinding = true
+    buildConfig = true
   }
 }
 

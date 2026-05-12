@@ -46,6 +46,21 @@ Also, update your Android and iOS projects as follows:
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 ```
 
+#### Build-time configuration
+
+The Android plugin exposes the following Gradle properties. Set them in your
+app's `android/gradle.properties` to override the defaults at build time:
+
+| Property                                      | Default | Description                                                                                                                                                                                           |
+| --------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `flutterReadium.mediaOverlayFetchConcurrency` | `8`     | Max number of media-overlay JSON files the Sync Audiobook navigator fetches in parallel. Higher values speed up opening publications with many overlays at the cost of more concurrent HTTP requests. |
+
+Example `android/gradle.properties`:
+
+```properties
+flutterReadium.mediaOverlayFetchConcurrency=16
+```
+
 ### iOS
 
 - Manually add the `pod` lines to your `ios/Podfile`:
