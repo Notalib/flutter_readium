@@ -14,7 +14,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     final speed = jsonObject.optNullableDouble('speed', remove: true);
     final pitch = jsonObject.optNullableDouble('pitch', remove: true);
     final seekInterval = jsonObject.optNullableDouble('seekInterval', remove: true);
-    final continuousSeeking = jsonObject.optNullableBoolean('continuousSeeking', remove: false);
+    final continuousSeeking = jsonObject.optNullableBoolean('continuousSeeking', remove: true);
     final allowExternalSeeking = jsonObject.optNullableBoolean('allowExternalSeeking', remove: true);
     final updateIntervalSecs = jsonObject.optNullableDouble('updateIntervalSecs', remove: true);
     final controlPanelInfoTypeStr = jsonObject.optNullableString('controlPanelInfoType', remove: true);
