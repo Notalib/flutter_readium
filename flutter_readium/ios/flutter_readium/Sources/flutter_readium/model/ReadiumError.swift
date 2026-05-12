@@ -9,33 +9,28 @@ import ReadiumShared
 import ReadiumStreamer
 import Flutter
 
-class FlutterReadiumError {
+struct FlutterReadiumError {
   let message: String
   let code: String?
-  let data: Any?
-  let stack: [String: Any]?
+  let data: String?
 
-  init(
-    message: String,
-    code: String? = nil,
-    data: Any? = nil,
-    details: [String: Any]? = nil
-  ) {
+  init(message: String, code: String? = nil, data: String? = nil) {
     self.message = message
     self.code = code
     self.data = data
-    self.stack = details
   }
 
-  func toJson() -> [String: Any?] {
-    let map: [String: Any?] = [
-      "message": message,
-      "code": code,
-      "data": data,
-      "stack": stack
-    ]
-
-    return map
+  func toJsonString() -> String {
+    var map: [String: String] = ["message": message]
+    if let code { map["code"] = code }
+    if let data { map["data"] = data }
+    guard
+      let bytes = try? JSONSerialization.data(withJSONObject: map),
+      let str = String(data: bytes, encoding: .utf8)
+    else {
+      return #"{"message":"FlutterReadiumError serialization failed"}"#
+    }
+    return str
   }
 }
 
