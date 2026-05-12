@@ -9,6 +9,8 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutter_readium.events.ReadiumError
+import dk.nota.flutter_readium.events.ReadiumErrorEventChannel
 import dk.nota.flutter_readium.events.ReadiumReaderStatus
 import dk.nota.flutter_readium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutter_readium.events.TextLocatorEventChannel
@@ -104,6 +106,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     private var textLocatorEventChannel: TextLocatorEventChannel? = null
 
     private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
+
+    private var errorChannel: ReadiumErrorEventChannel? = null
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
@@ -223,8 +227,14 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
 
+        textLocatorEventChannel?.dispose()
         textLocatorEventChannel = TextLocatorEventChannel(messenger)
+
+        readiumReaderStatusEventChannel?.dispose()
         readiumReaderStatusEventChannel = ReadiumReaderStatusEventChannel(messenger)
+
+        errorChannel?.dispose()
+        errorChannel = ReadiumErrorEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -383,7 +393,10 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         textLocatorEventChannel = null
 
         readiumReaderStatusEventChannel?.dispose()
-        textLocatorEventChannel = null
+        readiumReaderStatusEventChannel = null
+
+        errorChannel?.dispose()
+        errorChannel = null
 
         jobs.forEach { it.cancel() }
         jobs.clear()
@@ -665,7 +678,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     override fun onTimebasedPlaybackFailure(error: PublicationError) {
         Log.d(TAG, ":onTimebasedPlaybackFailure $error")
-        // TODO: Notify client
+
+        errorChannel?.sendEvent(ReadiumError.invoke(error))
     }
 
     @OptIn(InternalReadiumApi::class)
@@ -1249,6 +1263,13 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
      */
     fun emitReaderStatusUpdate(statusUpdate: ReadiumReaderStatus) {
         readiumReaderStatusEventChannel?.sendEvent(statusUpdate)
+    }
+
+    /**
+     * Emit an error event to the flutter layer.
+     */
+    fun emitError(error: ReadiumError) {
+        errorChannel?.sendEvent(error)
     }
 
     /**
