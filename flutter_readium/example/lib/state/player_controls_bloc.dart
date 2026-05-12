@@ -127,7 +127,21 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
   List<StreamSubscription> subscriptions = [];
   Locator? currentLocator;
 
+  /// Broadcasts the current resource [Locator] regardless of media type, retaining
+  /// the latest value so late subscribers (e.g. a slider rebuilt by the parent
+  /// `BlocBuilder`) immediately receive the current progression.
+  final BehaviorSubject<Locator> _currentLocatorSubject = BehaviorSubject<Locator>();
+
   PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
+    subscriptions.add(
+      Rx.merge<Locator>([
+        instance.onTextLocatorChanged,
+        instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator).whereNotNull(),
+      ]).listen((val) {
+        _currentLocatorSubject.add(val);
+      }),
+    );
+
     subscriptions.add(
       instance.onTimebasedPlayerStateChanged
           .map((state) {
@@ -304,10 +318,16 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     for (StreamSubscription sub in subscriptions) {
       await sub.cancel();
     }
+    await _currentLocatorSubject.close();
     return super.close();
   }
 
   Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
+
+  /// Emits the current [Locator] for the active publication, regardless of media type.
+  /// Backed by a [BehaviorSubject] so a single underlying subscription is reused and
+  /// late subscribers receive the most recent value on subscribe.
+  Stream<Locator> get currentLocatorStream => _currentLocatorSubject.stream;
 
   final FlutterReadium instance = FlutterReadium();
 }
