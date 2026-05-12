@@ -185,7 +185,16 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // dozens of sockets to the origin at once.
     val parsed: List<FlutterMediaOverlay?> =
         coroutineScope {
-            val gate = Semaphore(permits = BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY)
+            val fetchConcurrency =
+                BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
+                    Log.w(
+                        TAG,
+                        "::getMediaOverlays() - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
+                            "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
+                    )
+                    1
+                }
+            val gate = Semaphore(permits = fetchConcurrency)
             overlayLinks
                 .mapIndexed { index, link ->
                     async(Dispatchers.IO) {
