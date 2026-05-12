@@ -2,6 +2,7 @@ package dk.nota.flutter_readium.navigators
 
 import android.util.Log
 import dk.nota.flutter_readium.PublicationError
+import dk.nota.flutter_readium.findReadingOrderLink
 import org.readium.navigator.media.common.MediaNavigator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
@@ -112,10 +113,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     override fun onCurrentLocatorChanges(locator: Locator) {
         var emittingLocator = locator
 
-        val readingOrderLink =
-            publication.readingOrder.find { link ->
-                link.href.toString() == locator.href.toString()
-            }
+        val readingOrderLink = publication.findReadingOrderLink(locator.href)
 
         if (emittingLocator.locations.position == null) {
             publication.readingOrder

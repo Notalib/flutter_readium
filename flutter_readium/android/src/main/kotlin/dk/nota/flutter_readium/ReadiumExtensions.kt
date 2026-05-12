@@ -7,6 +7,7 @@ import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Href
@@ -256,14 +257,6 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
 }
 
 /**
- * Get the time offset from a Locator's fragments, if any.
- */
-fun Locator.getTimeOffset(): Double? {
-    val timeFragment = locations.fragments.find { it.startsWith("t=") } ?: return null
-    return timeFragment.substringAfter("t=").toDoubleOrNull()
-}
-
-/**
  * Get the text id from a Locator's fragments or css selector, if any.
  */
 fun Locator.getTextId(): String? {
@@ -277,24 +270,62 @@ fun Locator.getTextId(): String? {
 /**
  * Make a new copy with a new time fragment
  */
-fun Locator.copyWithTimeFragment(time: Double): Locator {
+fun Locator.copyWithTimeFragment(time: Duration): Locator {
     // IMPORTANT: Readium expects time fragment to be an integer.
-    return copyWithTimeFragment(time.toInt())
+    return copyWithTimeFragment(time.inWholeSeconds)
 }
 
 /**
  * Make a new copy with a new time fragment
  */
-fun Locator.copyWithTimeFragment(time: Int): Locator =
-    copy(
-        locations =
-            Locator.Locations(
-                fragments = listOf("t=$time"),
-            ),
+fun Locator.copyWithTimeFragment(time: Number): Locator =
+    copyWithLocations(
+        fragments = makeTimeFragments(time),
     )
 
+/**
+ * Helper for making a valid t=<time> fragment for kotlin-toolkit.
+ * TODO: Once https://github.com/readium/kotlin-toolkit/issues/782 is fixed, we will no longer need
+ * to cast to int.
+ */
+fun makeTimeFragments(time: Number): List<String> = listOf("t=${time.toInt()}")
+
+/**
+ * Get progression from [Locator.Locations.progression]
+ */
 val Locator.progression: Double?
     get() = locations.progression
+
+/**
+ * Computes the time position from the resource duration.
+ * This takes progression value over time fragment, if both are present
+ */
+@OptIn(InternalReadiumApi::class)
+fun Locator.Locations.timeWithDuration(duration: Duration?): Duration? =
+    letIfBothNotNull(duration?.inWholeSeconds?.seconds, progression)?.let { (d, p) -> d * p }
+        ?: time
+
+/**
+ * Computes the time position from the resource duration.
+ * This takes progression value over time fragment, if both are present
+ */
+fun Locator.Locations.timeWithDuration(duration: Int?): Duration? = timeWithDuration(duration?.seconds)
+
+/**
+ * Computes the time position from the resource duration.
+ * This takes progression value over time fragment, if both are present
+ */
+fun Locator.Locations.timeWithDuration(duration: Double?): Duration? = timeWithDuration(duration?.seconds)
+
+/**
+ * Find a link in the reading order from its href.
+ */
+fun Publication.findReadingOrderLink(href: Url): Link? = readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
+
+/**
+ * Get the duration for an item in the reading order.
+ */
+fun Publication.getReadingOrderItemDuration(href: Url): Duration? = findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
 
 /**
  * Helper for getting all cssSelectors for a HTML document.
