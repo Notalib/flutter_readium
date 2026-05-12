@@ -210,8 +210,8 @@ public class ReadiumReaderView: NSObject, FlutterPlatformView, EPUBNavigatorDele
     // TODO: Should we send resource-load error like this?
     emitReaderStatusChanged(status: ReadiumReaderStatusError)
 
-    let error = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(error)
+    let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
   
   public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {

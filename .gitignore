@@ -1,3 +1,6 @@
+# Claude Code (personal/local overrides only — .claude/settings.json IS committed)
+.claude/settings.local.json
+
 # Miscellaneous
 *.class
 *.log

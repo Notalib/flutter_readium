@@ -57,12 +57,39 @@ class FlutterReadiumTools {
     const physicalPage = this.#findCurrentPhysicalPage();
     const cssSelector = this.#findCssSelector();
     const tocId = this.#findTocId(cssSelector);
+    const { currentPage, totalPages } = this.#findResourcePagination();
 
     return {
       physicalPage,
       cssSelector,
       tocId,
+      currentPage,
+      totalPages,
     };
+  }
+
+  /**
+   * Compute the current page index and total page count within the current resource.
+   *
+   * Only meaningful in paginated (horizontal) layouts. In scroll mode there is no
+   * page concept, so both values are returned as `null`.
+   */
+  #findResourcePagination(): { currentPage: number | null; totalPages: number | null } {
+    if (this.#isScrollModeEnabled) {
+      return { currentPage: null, totalPages: null };
+    }
+
+    const scrollingElement = document.scrollingElement ?? document.documentElement;
+    const width = scrollingElement.clientWidth;
+    const scrollWidth = scrollingElement.scrollWidth;
+    if (width <= 0 || scrollWidth <= 0) {
+      return { currentPage: null, totalPages: null };
+    }
+
+    const totalPages = Math.max(1, Math.round(scrollWidth / width));
+    const currentPage = Math.min(totalPages, Math.floor(scrollingElement.scrollLeft / width) + 1);
+
+    return { currentPage, totalPages };
   }
 
   public setSegmentDuration(duration: number) {

@@ -34,20 +34,7 @@ class _TimebasedStateWidgetState extends State<TimebasedStateWidget> {
               // Text('TotalProgression: ${snapshot.data?.currentLocator?.locations?.totalProgression}'),
               SizedBox(height: 22),
               Text('Chapter progress:'),
-              Slider(
-                value: isDraggingSliderValue ?? snapshot.data?.currentLocator?.locations?.progression ?? 0.0,
-                allowedInteraction: SliderInteraction.tapAndSlide,
-                onChanged: (double value) {
-                  setState(() => isDraggingSliderValue = value);
-                },
-                onChangeStart: (double value) {
-                  setState(() => isDraggingSliderValue = value);
-                },
-                onChangeEnd: (double value) {
-                  setState(() => isDraggingSliderValue = null);
-                  context.read<PlayerControlsBloc>().add(GoToProgression(value));
-                },
-              ),
+              LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.progression ?? 0.0),
               Text('Total book progress:'),
               LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0),
             ],

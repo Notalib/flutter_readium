@@ -84,8 +84,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumError> get onErrorEvent {
     _onErrorEvent ??= errorEventChannel.receiveBroadcastStream().map((dynamic event) {
-      final errorEvent = ReadiumError.fromJson(json.decode(event) as Map<String, dynamic>);
-      return errorEvent;
+      final jsonMap = json.decode(event as String) as Map<String, dynamic>;
+      return ReadiumError.fromJson(jsonMap);
     }).asBroadcastStream();
 
     return _onErrorEvent!;

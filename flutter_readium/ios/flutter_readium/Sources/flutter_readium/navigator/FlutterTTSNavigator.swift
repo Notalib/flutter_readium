@@ -250,7 +250,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
     self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
 
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text))
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text).toJsonString())
   }
 
   // MARK: AVTTSEngineDelegate
