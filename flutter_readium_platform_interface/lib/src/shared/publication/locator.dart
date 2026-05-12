@@ -26,8 +26,24 @@ extension IntCheck on int? {
   int? check(int? defaultValue) => (this == _emptyIntValue) ? defaultValue : this;
 }
 
-extension DoubleCheck on double? {
+extension DoubleNullableCheck on double? {
   double? check(double? defaultValue) => (this == _emptyDoubleValue) ? defaultValue : this;
+
+  /// Ensure that this double? is within [epsilon] of [defaultValue], otherwise return this double? (or defaultValue if this is null).
+  double roundToIfCloseTo(double defaultValue, {double epsilon = _defaultEpsilon}) =>
+      this?.isCloseTo(defaultValue, epsilon: epsilon) ?? false ? defaultValue : this ?? defaultValue;
+}
+
+const double _defaultEpsilon = 1e-3;
+
+extension DoubleCheck on double {
+  /// Returns true if this double is within [epsilon] of [other].
+  /// Useful for comparing doubles that may have been subject to rounding errors.
+  bool isCloseTo(double other, {double epsilon = _defaultEpsilon}) => (this - other).abs() <= epsilon;
+
+  /// If the double is within [epsilon] of [other], returns [other], otherwise returns this double.
+  double roundToIfCloseTo(double other, {double epsilon = _defaultEpsilon}) =>
+      isCloseTo(other, epsilon: epsilon) ? other : this;
 }
 
 /// Provides a precise location in a publication in a format that can be stored and shared.
