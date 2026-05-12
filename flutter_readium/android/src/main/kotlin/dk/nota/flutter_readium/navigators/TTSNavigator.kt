@@ -13,7 +13,6 @@ import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.withScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -554,12 +553,12 @@ class TTSNavigator(
     }
 
     override fun dispose() {
-        mainScope.async {
+        super.dispose()
+
+        mainScope.launch {
             stopTtsNavigator()
             progressionLookup.clear()
         }
-
-        super.dispose()
     }
 
     override fun onPlaybackStateChanged(pb: TtsNavigator.Playback) {
