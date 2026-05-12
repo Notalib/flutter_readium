@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dfunc/dfunc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -48,15 +49,19 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
-      debugPrint('Received timebased player state event: $event');
       final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
-      if (state.currentLocator != null) {
-        if (state.currentLocator!.locations?.position == null || state.currentLocator!.locations!.position == 0) {
-          debugPrint('currentLocator is missing position.');
+
+      state.currentLocator?.locations?.let((locations) {
+        if (locations.position == null) {
+          debugPrint('Received timebased player state with currentLocator missing position: $state');
+        } else if (locations.position! <= 0) {
+          debugPrint('Received timebased player state with currentLocator invalid position: $state');
         }
-      }
+      });
+
       return state;
     }).asBroadcastStream();
+
     return _onTimebasedPlayerStateChanged!;
   }
 
