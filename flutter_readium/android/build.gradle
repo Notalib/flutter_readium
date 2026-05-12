@@ -63,10 +63,18 @@ android {
     // `android/gradle.properties`:
     //
     //   flutterReadium.mediaOverlayFetchConcurrency=16
+    def defaultMediaOverlayFetchConcurrency = 8
+    def configuredMediaOverlayFetchConcurrency =
+      project.findProperty("flutterReadium.mediaOverlayFetchConcurrency")?.toString()?.trim()
+    def parsedMediaOverlayFetchConcurrency = configuredMediaOverlayFetchConcurrency?.isInteger()
+      ? configuredMediaOverlayFetchConcurrency.toInteger()
+      : defaultMediaOverlayFetchConcurrency
+    def mediaOverlayFetchConcurrency = Math.max(1, parsedMediaOverlayFetchConcurrency)
+
     buildConfigField(
       "int",
       "MEDIA_OVERLAY_FETCH_CONCURRENCY",
-      (project.findProperty("flutterReadium.mediaOverlayFetchConcurrency") ?: "8").toString()
+      mediaOverlayFetchConcurrency.toString()
     )
   }
 
