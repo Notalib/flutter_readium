@@ -151,6 +151,18 @@ export interface PageInformation {
    * The id of the nearest ToC element to the current reading position. Either the first visible ToC element id or the nearest preceding ToC element id. This is null if no ToC element is found.
    */
   tocId?: string | null;
+
+  /**
+   * 1-based index of the current page within the current resource (HTML file).
+   * Only meaningful for paginated layouts; omitted in scroll mode.
+   */
+  currentPage?: number | null;
+
+  /**
+   * Total number of pages within the current resource (HTML file).
+   * Only meaningful for paginated layouts; omitted in scroll mode.
+   */
+  totalPages?: number | null;
 }
 
 export const figureQuerySelector = 'body > figure:has(img:first-child + div.area)';
