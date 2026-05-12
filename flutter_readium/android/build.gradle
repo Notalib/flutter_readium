@@ -17,7 +17,7 @@ plugins {
   id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.21'
 }
 
-group 'dk.nota.lyt.flutter_readium'
+group 'dk.nota.flutter_readium'
 version '1.0-SNAPSHOT'
 
 rootProject.allprojects {

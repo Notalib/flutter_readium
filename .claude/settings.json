@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(dart analyze *)",
+      "Bash(dart format *)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter test *)",
+      "Bash(flutter pub get)",
+      "Bash(flutter pub outdated)",
+      "Bash(bin/forAll *)",
+      "Bash(bin/code_gen)",
+      "Bash(bin/build_js)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:readium.org)"
+    ]
+  }
+}
