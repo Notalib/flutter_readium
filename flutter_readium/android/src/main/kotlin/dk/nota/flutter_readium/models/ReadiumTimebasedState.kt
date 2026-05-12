@@ -10,25 +10,25 @@ import org.readium.r2.shared.publication.Locator
  */
 data class ReadiumTimebasedState(
     /**
-     * Current timebased locator
-     */
-    val currentLocator: Locator?,
-    /**
      *  Current state of the timebased navigator
      */
-    val state: TimebasedNavigator.TimebasedState,
+    val state: TimebasedNavigator.TimebasedState = TimebasedNavigator.TimebasedState.None,
+    /**
+     * Current timebased locator
+     */
+    val currentLocator: Locator? = null,
     /**
      *  Current offset in milliseconds
      */
-    val currentOffset: Double?,
+    val currentOffset: Double? = null,
     /**
      *  Current buffered position in milliseconds
      */
-    val currentBuffered: Long?,
+    val currentBuffered: Long? = null,
     /**
      *  Current duration in milliseconds
      */
-    val currentDuration: Double?,
+    val currentDuration: Double? = null,
 ) : JSONable {
     /**
      * Convert to JSON object
