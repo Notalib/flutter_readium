@@ -38,7 +38,7 @@ extension Locator {
   
   /// Gets a Locator copy overriding fragments with a Readium compatible time fragment.
   func copyWithOffset(_ offset: Double) -> Locator {
-    return copy(locations: { locs in locs.fragments = [String(format: "t=%.2f", offset)] })
+    return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
   }
   
   func copyWithProgressionLocations(progression: Double) -> Locator {
