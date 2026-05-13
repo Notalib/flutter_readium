@@ -43,7 +43,7 @@ enum ReadiumReaderStatus {
   error;
 
   /// Returns the [ReadiumReaderStatus] matching [status] (case-insensitive), or `null` if unknown.
-  static ReadiumReaderStatus? fromString(final String status) =>
+  static ReadiumReaderStatus? optFromString(final String status) =>
       ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name.toLowerCase() == status.toLowerCase());
 
   /// Whether the reader is in the loading state.
