@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../enums.dart';
@@ -113,14 +112,4 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
     quality: quality ?? this.quality,
     active: active ?? this.active,
   );
-}
-
-class ReaderTTSVoiceJsonConverter extends JsonConverter<ReaderTTSVoice, Map<String, dynamic>> {
-  const ReaderTTSVoiceJsonConverter();
-
-  @override
-  ReaderTTSVoice fromJson(Map<String, dynamic> json) => ReaderTTSVoice.fromJson(json);
-
-  @override
-  Map<String, dynamic> toJson(ReaderTTSVoice voice) => voice.toJson();
 }
