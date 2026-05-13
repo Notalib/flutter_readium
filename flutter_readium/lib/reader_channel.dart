@@ -9,11 +9,17 @@ enum _ReaderChannelMethodInvoke { applyDecorations, go, goBackward, goForward, d
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
 class ReadiumReaderChannel extends MethodChannel {
+  /// Creates a channel bound to [name]. [onPageChanged] is called when the
+  /// native navigator reports a page change. [onExternalLinkActivated] is
+  /// called when an external (non-publication) link is tapped.
   ReadiumReaderChannel(super.name, {required this.onPageChanged, this.onExternalLinkActivated}) {
     setMethodCallHandler(onMethodCall);
   }
 
+  /// Called by the native side whenever the visible page changes.
   final void Function(Locator) onPageChanged;
+
+  /// Called when the reader activates a link that points outside the publication.
   void Function(String)? onExternalLinkActivated;
 
   /// Go e.g. navigate to a specific locator in the publication.
@@ -49,6 +55,7 @@ class ReadiumReaderChannel extends MethodChannel {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
 
+  /// Tears down the method channel handler and signals the native side to clean up.
   Future<void> dispose() async {
     try {
       await _invokeMethod(_ReaderChannelMethodInvoke.dispose);
