@@ -28,18 +28,33 @@ class ReadiumReaderWidget extends StatefulWidget {
     super.key,
   });
 
+  /// The publication to display, obtained from [FlutterReadium.openPublication].
   final Publication publication;
 
   /// Optional widget to show while the reader is loading, e.g. a spinner.
   /// It will be shown until the reader sends its first onPageChanged event.
   /// It should typically be a full-screen widget, since it will be stacked on top of the reader widget.
   final Widget? loadingWidget;
+
+  /// Optional locator to restore a previously saved reading position. `null` starts from the beginning.
   final Locator? initialLocator;
+
+  /// Notifier that tells client whether it should show controls, based on user-interaction with the native viewer.
   final ValueNotifier<bool>? shouldShowControls;
+
+  /// Callback invoked when the reader activates an external (non-publication) link.
   final Function(String)? onExternalLinkActivated;
+
+  /// Accessibility label for the backward navigation semantic region.
   final String goBackwardSemanticLabel;
+
+  /// Accessibility label for the forward navigation semantic region.
   final String goForwardSemanticLabel;
+
+  /// Accessibility label for the controls toggle semantic region.
   final String toggleShowControlsSemanticLabel;
+
+  /// Whether the reader should use continuous vertical scroll (`true`) or paginated mode (`false`).
   final bool verticalScroll;
 
   @override

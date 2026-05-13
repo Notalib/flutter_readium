@@ -1,8 +1,18 @@
 name: flutter_readium_platform_interface
-description: A common platform interface for the flutter_readium plugin.
+description: >-
+  Platform interface for the flutter_readium plugin. Provides shared Dart
+  models, the method-channel contract, and the reader API surface used by
+  native implementations.
 version: 0.0.1
 homepage: https://github.com/notalib/flutter_readium
 repository: https://github.com/notalib/flutter_readium
+issue_tracker: https://github.com/notalib/flutter_readium/issues
+topics:
+  - epub
+  - ebook
+  - readium
+  - reader
+  - tts
 publish_to: none
 
 environment:
