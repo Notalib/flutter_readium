@@ -12,6 +12,7 @@
       "Bash(bin/code_gen)",
       "Bash(bin/build_js)",
       "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:readium.org)"
     ]
   }
