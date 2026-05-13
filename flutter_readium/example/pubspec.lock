@@ -49,14 +49,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
-  code_assets:
-    dependency: transitive
-    description:
-      name: code_assets
-      sha256: "83ccdaa064c980b5596c35dd64a8d3ecc68620174ab9b90b6343b753aa721687"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   collection:
     dependency: "direct main"
     description:
@@ -81,6 +73,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
+  dart_style:
+    dependency: transitive
+    description:
+      name: dart_style
+      sha256: "15a7db352c8fc6a4d2bc475ba901c25b39fe7157541da4c16eacce6f8be83e49"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.1.5"
   dartx:
     dependency: transitive
     description:
@@ -216,14 +216,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.19.3"
-  hooks:
-    dependency: transitive
-    description:
-      name: hooks
-      sha256: "7a08a0d684cb3b8fb604b78455d5d352f502b68079f7b80b831c62220ab0a4f6"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
   http:
     dependency: transitive
     description:
@@ -333,14 +325,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.17.0"
-  native_toolchain_c:
-    dependency: transitive
-    description:
-      name: native_toolchain_c
-      sha256: "89e83885ba09da5fdf2cdacc8002a712ca238c28b7f717910b34bcd27b0d03ac"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.17.4"
   nested:
     dependency: transitive
     description:
@@ -349,14 +333,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
-  objective_c:
+  package_config:
     dependency: transitive
     description:
-      name: objective_c
-      sha256: "100a1c87616ab6ed41ec263b083c0ef3261ee6cd1dc3b0f35f8ddfa4f996fe52"
+      name: package_config
+      sha256: f096c55ebb7deb7e384101542bfba8c52696c1b56fca2eb62827989ef2353bbc
       url: "https://pub.dev"
     source: hosted
-    version: "9.3.0"
+    version: "2.2.0"
   package_info_plus:
     dependency: "direct main"
     description:
