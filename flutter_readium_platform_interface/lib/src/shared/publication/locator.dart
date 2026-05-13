@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../extensions/readium_string_extensions.dart';
@@ -419,36 +418,4 @@ extension HTMLLocationsExtension on Locations {
 
   /// An HTML DOM range.
   DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
-}
-
-class LocatorNullableJsonConverter extends JsonConverter<Locator?, Map<String, dynamic>?> {
-  const LocatorNullableJsonConverter();
-
-  @override
-  Locator? fromJson(Map<String, dynamic>? json) => Locator.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Locator? locator) => locator?.toJson();
-}
-
-/// A [JsonConverter] for [Locator] that logs errors instead of throwing exceptions when parsing fails.
-/// Note: Creates a dummy [Locator] with empty [href] and [type] if parsing fails, since these properties are required.
-class LocatorJsonConverter extends JsonConverter<Locator, Map<String, dynamic>> {
-  const LocatorJsonConverter();
-
-  static final FimberLog _logger = FimberLog('LocatorJsonConverter');
-
-  @override
-  Locator fromJson(Map<String, dynamic> json) {
-    final locator = Locator.fromJson(json);
-    if (locator == null) {
-      _logger.e('Failed to parse Locator from json: $json');
-
-      return Locator(href: '', type: '');
-    }
-    return locator;
-  }
-
-  @override
-  Map<String, dynamic> toJson(Locator locator) => locator.toJson();
 }

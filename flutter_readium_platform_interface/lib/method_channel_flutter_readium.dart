@@ -87,6 +87,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       final jsonMap = json.decode(event as String) as Map<String, dynamic>;
       return ReadiumError.fromJson(jsonMap);
     }).asBroadcastStream();
+
     return _onErrorEvent!;
   }
 

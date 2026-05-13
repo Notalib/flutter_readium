@@ -10,7 +10,6 @@
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -211,35 +210,4 @@ class Publication with EquatableMixin implements JSONable {
 
   bool get containsMediaOverlays =>
       readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
-}
-
-class PublicationJsonConverter extends JsonConverter<Publication, Map<String, dynamic>> {
-  const PublicationJsonConverter();
-
-  static final FimberLog _logger = FimberLog('PublicationJsonConverter');
-
-  @override
-  Publication fromJson(Map<String, dynamic> json) {
-    final publication = Publication.fromJson(json);
-    if (publication == null) {
-      _logger.w('Publication.fromJson returned null, creating dummy Publication');
-      return Publication(
-        metadata: Metadata(localizedTitle: LocalizedString.empty(), identifier: 'dummy'),
-      );
-    }
-    return publication;
-  }
-
-  @override
-  Map<String, dynamic> toJson(Publication publication) => publication.toJson();
-}
-
-class PublicationNullableJsonConverter extends JsonConverter<Publication?, Map<String, dynamic>?> {
-  const PublicationNullableJsonConverter();
-
-  @override
-  Publication? fromJson(Map<String, dynamic>? json) => Publication.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Publication? publication) => publication?.toJson();
 }

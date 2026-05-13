@@ -5,7 +5,6 @@
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
@@ -487,33 +486,4 @@ class MetadataContains extends AdditionalProperties with EquatableMixin implemen
     volumes: volumes ?? this.volumes,
     additionalProperties: additionalProperties,
   );
-}
-
-class MetadataJsonConverter extends JsonConverter<Metadata, Map<String, dynamic>> {
-  const MetadataJsonConverter();
-
-  static final FimberLog _logger = FimberLog('MetadataJsonConverter');
-
-  @override
-  Metadata fromJson(Map<String, dynamic> json) {
-    final metadata = Metadata.fromJson(json);
-    if (metadata == null) {
-      _logger.w('Metadata.fromJson returned null, creating dummy Metadata');
-      return Metadata(localizedTitle: LocalizedString.empty());
-    }
-    return metadata;
-  }
-
-  @override
-  Map<String, dynamic> toJson(Metadata metadata) => metadata.toJson();
-}
-
-class MetadataNullableJsonConverter extends JsonConverter<Metadata?, Map<String, dynamic>?> {
-  const MetadataNullableJsonConverter();
-
-  @override
-  Metadata? fromJson(Map<String, dynamic>? json) => Metadata.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(Metadata? metadata) => metadata?.toJson();
 }
