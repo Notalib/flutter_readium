@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.LinearLayout.generateViewId
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.commitNow
+import dk.nota.flutter_readium.events.ReadiumError
 import dk.nota.flutter_readium.events.ReadiumReaderStatus
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.PageInformation
@@ -19,6 +20,7 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -138,13 +140,21 @@ class ReadiumReaderWidget(
         }
 
         mainScope.launch {
-            ReadiumReader.epubEnable(
-                initialLocator,
-                initialPreferences,
-                fragmentManager,
-                layout,
-                this@ReadiumReaderWidget,
-            )
+            try {
+                ReadiumReader.epubEnable(
+                    initialLocator,
+                    initialPreferences,
+                    fragmentManager,
+                    layout,
+                    this@ReadiumReaderWidget,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "::init - epubEnable failed", e)
+                ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
+                ReadiumReader.emitError(ReadiumError(e))
+            }
         }
     }
 

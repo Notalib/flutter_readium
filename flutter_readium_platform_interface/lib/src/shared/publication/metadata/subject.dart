@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
@@ -95,14 +94,6 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
         ..putIterableIfNotEmpty('links', links);
     }
   }
-}
-
-class SubjectJsonConverter implements JsonConverter<Subject, Map<String, dynamic>> {
-  @override
-  Subject fromJson(Map<String, dynamic> json) => Subject.fromJson(json);
-
-  @override
-  Map<String, dynamic> toJson(Subject object) => object.toJson();
 }
 
 extension ListSubjectExtension on List<Subject>? {

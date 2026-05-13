@@ -1,6 +1,5 @@
 import 'package:dartx/dartx.dart';
 import 'package:fimber/fimber.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -57,33 +56,4 @@ class OpdsPublication implements JSONable {
       return null;
     }).toList();
   }
-}
-
-class OpdsPublicationJsonConverter extends JsonConverter<OpdsPublication, Map<String, dynamic>> {
-  const OpdsPublicationJsonConverter();
-
-  static final FimberLog _logger = FimberLog('OpdsPublicationJsonConverter');
-
-  @override
-  OpdsPublication fromJson(Map<String, dynamic> json) {
-    final publication = OpdsPublication.fromJson(json);
-    if (publication == null) {
-      _logger.w('Received null OpdsPublication from JSON, creating dummy.');
-      return OpdsPublication(OpdsMetadata(localizedTitle: LocalizedString()), [], images: []);
-    }
-    return publication;
-  }
-
-  @override
-  Map<String, dynamic> toJson(OpdsPublication publication) => publication.toJson();
-}
-
-class OpdsPublicationNullableJsonConverter extends JsonConverter<OpdsPublication?, Map<String, dynamic>?> {
-  const OpdsPublicationNullableJsonConverter();
-
-  @override
-  OpdsPublication? fromJson(Map<String, dynamic>? json) => OpdsPublication.fromJson(json);
-
-  @override
-  Map<String, dynamic>? toJson(OpdsPublication? publication) => publication?.toJson();
 }

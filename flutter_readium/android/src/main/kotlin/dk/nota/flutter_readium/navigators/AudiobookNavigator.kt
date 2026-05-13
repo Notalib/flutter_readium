@@ -372,12 +372,11 @@ open class AudiobookNavigator(
             }.launchIn(mainScope)
             .let { jobs.add(it) }
 
-        mainScope.async {
-            navigator.settings
-                .collect { s ->
-                    Log.d(TAG, ": AudioNavigator settings changed: $s")
-                }
-        }
+        navigator.settings
+            .onEach { s ->
+                Log.d(TAG, ": AudioNavigator settings changed: $s")
+            }.launchIn(mainScope)
+            .let { jobs.add(it) }
     }
 
     @OptIn(InternalReadiumApi::class)
