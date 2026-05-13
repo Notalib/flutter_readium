@@ -1,5 +1,4 @@
-﻿import 'package:json_annotation/json_annotation.dart';
-import 'package:meta/meta.dart';
+﻿import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';
@@ -90,14 +89,4 @@ class ReadiumTimebasedState implements JSONable {
     currentDuration: currentDuration ?? this.currentDuration,
     currentLocator: currentLocator ?? this.currentLocator,
   );
-}
-
-class ReadiumTimebasedStateJsonConverter extends JsonConverter<ReadiumTimebasedState, Map<String, dynamic>> {
-  const ReadiumTimebasedStateJsonConverter();
-
-  @override
-  ReadiumTimebasedState fromJson(final Map<String, dynamic> json) => ReadiumTimebasedState.fromJson(json);
-
-  @override
-  Map<String, dynamic> toJson(final ReadiumTimebasedState object) => object.toJson();
 }
