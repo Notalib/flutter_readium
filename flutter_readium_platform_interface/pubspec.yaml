@@ -18,7 +18,6 @@ dependencies:
   dfunc: ^0.10.0
   fimber: ^0.7.0
   equatable: ^2.0.8
-  json_serializable: ^6.12.0
 
 dev_dependencies:
   flutter_test:
