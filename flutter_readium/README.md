@@ -1,6 +1,11 @@
 # flutter_readium
 
 [![pub package](https://img.shields.io/pub/v/flutter_readium.svg)](https://pub.dev/packages/flutter_readium)
+[![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
+[![Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
+[![Build Android](https://github.com/notalib/flutter_readium/actions/workflows/build-android.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/build-android.yml)
+[![Build iOS](https://github.com/notalib/flutter_readium/actions/workflows/build-ios.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/build-ios.yml)
+[![Build Web](https://github.com/notalib/flutter_readium/actions/workflows/build-web.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/build-web.yml)
 
 A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping the [Readium](https://readium.org) toolkits behind a unified Dart API.
 

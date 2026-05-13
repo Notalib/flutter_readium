@@ -1,0 +1,31 @@
+name: Build Web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: flutter_readium/example
+
+      - name: Build web
+        run: flutter build web
+        working-directory: flutter_readium/example

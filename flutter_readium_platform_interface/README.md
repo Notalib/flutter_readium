@@ -1,6 +1,8 @@
 # flutter_readium_platform_interface
 
 [![pub package](https://img.shields.io/pub/v/flutter_readium_platform_interface.svg)](https://pub.dev/packages/flutter_readium_platform_interface)
+[![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
+[![Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
 
 The platform interface package for [`flutter_readium`](https://pub.dev/packages/flutter_readium).
 
