@@ -70,10 +70,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
       R2Log.i('Received reader status event: $event');
       try {
-        return ReadiumReaderStatus.fromString(json.decode(event) as String) ??
-            ReadiumReaderStatus.fromString(event) ??
+        return ReadiumReaderStatus.optFromString(json.decode(event) as String) ??
+            ReadiumReaderStatus.optFromString(event) ??
             ReadiumReaderStatus.error;
-      } catch (e) {
+      } on Exception catch (e) {
         R2Log.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
@@ -215,7 +215,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     try {
       final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
       return results;
-    } catch (e) {
+    } on Exception catch (e) {
       throw Exception('Failed to parse search results: $e');
     }
   }

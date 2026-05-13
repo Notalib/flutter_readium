@@ -43,7 +43,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   @js_interop.JSExport()
   void onReaderStatusChanged(final String statusString) {
     R2Log.d('Reader status changed: $statusString');
-    final status = ReadiumReaderStatus.fromString(statusString);
+    final status = ReadiumReaderStatus.optFromString(statusString);
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {
