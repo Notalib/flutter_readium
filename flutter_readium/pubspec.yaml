@@ -1,7 +1,17 @@
 name: flutter_readium
-description: 'Flutter plugin wrapping the Readium toolkit components for EPUB reading.'
+description: >-
+  Flutter plugin for reading EPUB, audiobook, and WebPub publications. Wraps
+  the Readium toolkits on iOS, macOS, Android, and Web.
 version: 0.0.1
 homepage: https://github.com/notalib/flutter_readium
+repository: https://github.com/notalib/flutter_readium
+issue_tracker: https://github.com/notalib/flutter_readium/issues
+topics:
+  - epub
+  - ebook
+  - readium
+  - reader
+  - tts
 publish_to: none
 
 environment:
@@ -41,6 +51,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   plugin_platform_interface: ^2.0.2
+  mocktail: ^1.0.0
 
 executables:
   copy_js_file: bin/copy_js_file.dart
