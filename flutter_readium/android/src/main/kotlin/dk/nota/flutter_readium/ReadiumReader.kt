@@ -28,10 +28,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -72,7 +69,6 @@ import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ReadiumReader"
 
@@ -116,15 +112,8 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     // in-memory cached state
     private val state = mutableMapOf<String, Any?>()
 
-    private val currentTimebasedState = MutableStateFlow(TimebasedNavigator.TimebasedState.None)
-
-    private val currentTimebasedDuration = MutableStateFlow<Double?>(null)
-
-    private val currentTimebasedOffset = MutableStateFlow<Double?>(null)
-
-    private val currentTimebasedBuffer = MutableStateFlow<Long?>(null)
-
-    private val currentTimebasedLocator = MutableStateFlow<Locator?>(null)
+    private val currentReadiumTimebasedState =
+        MutableStateFlow(ReadiumTimebasedState.none())
 
     private val currentTextLocator = MutableStateFlow<Locator?>(null)
 
@@ -137,17 +126,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         set(value) {
             state[decorationStyleKey] = value
         }
-
-    fun createCurrentTimebasedReaderState(): Flow<ReadiumTimebasedState> =
-        combine(
-            currentTimebasedState.throttleLatest(100.milliseconds).distinctUntilChanged(),
-            currentTimebasedLocator.throttleLatest(100.milliseconds).distinctUntilChanged(),
-            currentTimebasedOffset.throttleLatest(100.milliseconds).distinctUntilChanged(),
-            currentTimebasedBuffer.throttleLatest(250.milliseconds).distinctUntilChanged(),
-            currentTimebasedDuration.throttleLatest(100.milliseconds).distinctUntilChanged(),
-        ) { state, locator, offset, buffer, duration ->
-            ReadiumTimebasedState(state, locator, offset, buffer, duration)
-        }.throttleLatest(100.milliseconds).distinctUntilChanged()
 
     private val httpClient by lazy {
         DefaultHttpClient(
@@ -246,7 +224,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             restoreState(it.consumeRestoredStateForKey(stateKey))
         }
 
-        createCurrentTimebasedReaderState()
+        currentReadiumTimebasedState
             .onEach {
                 Log.d(
                     TAG,
@@ -656,24 +634,21 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         _audioPreferences = FlutterAudioPreferences()
 
+        currentReadiumTimebasedState.value = ReadiumTimebasedState()
         currentTextLocator.value = null
-        currentTimebasedLocator.value = null
-        currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
-        currentTimebasedBuffer.value = null
-        currentTimebasedDuration.value = null
-        currentTimebasedOffset.value = null
 
         state.clear()
     }
 
     override fun onTimebasedPlaybackStateChanged(timebasedState: TimebasedNavigator.TimebasedState) {
         Log.d(TAG, ":onTimebasedPlaybackStateChanged $timebasedState")
-        currentTimebasedState.value = timebasedState
+        currentReadiumTimebasedState.value = currentReadiumTimebasedState.value.copyWith(state = timebasedState)
     }
 
     override fun onTimebasedBufferChanged(buffer: Duration?) {
         Log.d(TAG, ":onTimebasedBufferChanged $buffer")
-        currentTimebasedBuffer.value = buffer?.inWholeMilliseconds
+
+        currentReadiumTimebasedState.value = currentReadiumTimebasedState.value.copyWith(currentBuffered = buffer?.inWholeMilliseconds)
     }
 
     override fun onTimebasedPlaybackFailure(error: PublicationError) {
@@ -692,9 +667,12 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
         Log.d(TAG, ":onTimebasedCurrentLocatorChanges $locator, timeOffset=$timeOffset")
 
-        currentTimebasedOffset.value = timeOffset?.inWholeMilliseconds?.toDouble()
-        currentTimebasedDuration.value = duration?.let { it * 1000 }
-        currentTimebasedLocator.value = locator
+        currentReadiumTimebasedState.value =
+            currentReadiumTimebasedState.value.copyWith(
+                currentOffset = timeOffset?.inWholeMilliseconds?.toDouble(),
+                currentDuration = duration?.let { it * 1000 },
+                currentLocator = locator,
+            )
     }
 
     override fun onTimebasedLocationChanged(locator: Locator) {
@@ -910,7 +888,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
 
     suspend fun play(locator: Locator?) {
         val fromLocator =
-            locator ?: currentTimebasedLocator.value ?: currentTextLocator.value
+            locator ?: currentReadiumTimebasedState.value.currentLocator ?: currentTextLocator.value
                 ?: epubFirstVisibleElementLocator()
 
         Log.d(TAG, ":play($locator) - fromLocator:$fromLocator")
@@ -932,7 +910,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             audiobookNavigator = null
-            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         syncAudiobookNavigator?.apply {
@@ -940,7 +917,6 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             syncAudiobookNavigator = null
-            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
 
         ttsNavigator?.apply {
@@ -948,8 +924,9 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             dispose()
 
             ttsNavigator = null
-            currentTimebasedState.value = TimebasedNavigator.TimebasedState.None
         }
+
+        currentReadiumTimebasedState.value = ReadiumTimebasedState.none()
     }
 
     /**
