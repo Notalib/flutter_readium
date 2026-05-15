@@ -89,7 +89,7 @@ class FlutterReadiumPlugin :
                 // This is a folder
                 for (filePath in paths) {
                     val path = "$rootPath/$filePath"
-                    if (File(path).isDirectory()) {
+                    if (File(path).isDirectory) {
                         files.addAll(listAssetFiles(c, path))
                     } else {
                         files.add(path)
