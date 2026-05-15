@@ -57,7 +57,7 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 ## Build / toolchain facts
 
 - Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.3.0`.
-- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.2.20, AGP 8.13.0, Java 18 source/target.
+- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
 - iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
 - Web: webpack 5, TypeScript 5.7+.
 

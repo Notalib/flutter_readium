@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.isFixed
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.models.ViewPortSize
 import dk.nota.flutter_readium.progression
@@ -23,9 +24,8 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
-import org.readium.r2.shared.publication.epub.EpubLayout
-import org.readium.r2.shared.publication.presentation.presentation
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "EpubReaderFragment"
@@ -67,13 +67,12 @@ class EpubReaderFragment :
     val scrollMode: Boolean
         get() = epubNavigator?.settings?.value?.scroll == true
 
-    val layoutMode: EpubLayout
+    val layoutMode: Layout
         get() =
             ReadiumReader.currentPublication
                 ?.metadata
-                ?.presentation
                 ?.layout
-                ?: EpubLayout.REFLOWABLE
+                ?: Layout.REFLOWABLE
 
     private val instance = ++instanceNo
 
@@ -208,7 +207,7 @@ class EpubReaderFragment :
             return
         }
 
-        if (layoutMode != EpubLayout.FIXED && scrollMode) {
+        if (!layoutMode.isFixed && scrollMode) {
             goBackwardVertical(animated)
             return
         }
@@ -224,7 +223,7 @@ class EpubReaderFragment :
      * Go backwards in vertical scroll mode.
      */
     private suspend fun goBackwardVertical(animated: Boolean) {
-        if (layoutMode == EpubLayout.FIXED || !scrollMode) {
+        if (layoutMode.isFixed || !scrollMode) {
             Log.e(TAG, "::goBackwardVertical - this is only meant for vertical scroll mode")
         }
 
@@ -311,7 +310,7 @@ class EpubReaderFragment :
             return
         }
 
-        if (layoutMode != EpubLayout.FIXED && scrollMode) {
+        if (!layoutMode.isFixed && scrollMode) {
             goForwardVertical(animated)
             return
         }
@@ -327,7 +326,7 @@ class EpubReaderFragment :
      * Go forward in vertical scroll mode
      */
     private suspend fun goForwardVertical(animated: Boolean) {
-        if (layoutMode == EpubLayout.FIXED || !scrollMode) {
+        if (layoutMode.isFixed || !scrollMode) {
             Log.e(TAG, "::goForwardVertical - this is only meant for vertical scroll mode")
         }
 

@@ -17,6 +17,7 @@ import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Href
+import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Manifest
@@ -80,7 +81,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
 }
 
 private const val READIUM_FLUTTER_PATH_PREFIX =
-    "https://readium/assets/flutter_assets/packages/flutter_readium"
+    "https://readium_assets/flutter_assets/packages/flutter_readium"
 
 // Helper for injecting extra files into an epub
 fun Resource.injectScriptsAndStyles(
@@ -519,3 +520,12 @@ fun Locator.addPageNumber(
         "totalPages" to totalPages,
     ),
 )
+
+val Layout.isFixed: Boolean
+    get() = this == Layout.FIXED
+
+val Layout.isReflowable: Boolean
+    get() = this == Layout.REFLOWABLE
+
+val Layout.isScrolled: Boolean
+    get() = this == Layout.SCROLLED
