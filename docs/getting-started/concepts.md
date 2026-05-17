@@ -117,4 +117,4 @@ await reader.setEPUBPreferences(
 );
 ```
 
-See [Preferences guide](../guides/preferences.md) for the full option list.
+See the [Preferences guide](../guides/preferences.md) for the full option list.

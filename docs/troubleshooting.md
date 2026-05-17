@@ -71,8 +71,4 @@ Common causes:
 
 ## Getting debug logs
 
-```dart
-await FlutterReadium().setLogLevel(LogLevel.debug);
-```
-
-On native platforms, also filter logcat (Android) or the Xcode console (iOS) for the tag `flutter_readium`.
+See the [Logging section of the Error Handling guide](guides/error-handling.md#logging) for the full setup — `setLogLevel`, the Dart-side fimber tree, and native log filtering on Android / iOS / macOS.

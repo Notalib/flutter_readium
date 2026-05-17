@@ -1,5 +1,7 @@
 # Preferences
 
+This guide covers all of the preferences APIs: EPUB display, TTS, and audio. As well as the plugin-specific options that this plugin layers on top of Readium's standard Preferences API.
+
 ## EPUB display preferences
 
 ```dart

@@ -37,7 +37,7 @@ ReadiumReaderWidget(
 | Platform | Implementation |
 |----------|---------------|
 | iOS | `UiKitView` wrapping a native `UIView` |
-| macOS | `AppKitView` wrapping a native `NSView` |
+| macOS | Not implemented — the plugin registers on macOS but no reader view is available yet. See the README's [macOS setup section](https://github.com/notalib/flutter_readium#macos). |
 | Android | `PlatformViewLink` with `AndroidViewSurface` |
 | Web | JavaScript interop via `ReadiumWebView` |
 
