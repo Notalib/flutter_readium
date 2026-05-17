@@ -7,7 +7,7 @@
 | Flutter SDK | ≥ 3.3.0 |
 | Dart SDK | ≥ 3.8.0 |
 | Android minSdk | 24 |
-| iOS | 13.0+ |
+| iOS | 15.0+ |
 | Xcode | 14+ |
 | CocoaPods | 1.15+ |
 
@@ -55,6 +55,7 @@ For TTS and audiobook background playback, add to `AndroidManifest.xml`:
 ```xml
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 ```
 
 ## 3. iOS setup

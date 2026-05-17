@@ -118,7 +118,7 @@ ReadiumReaderWidget(
 await reader.setEPUBPreferences(EPUBPreferences(
   fontSize: 130,
   fontFamily: 'Georgia',
-  verticalScroll: false,
+  scroll: false,
   publisherStyles: true,
 ));
 ```

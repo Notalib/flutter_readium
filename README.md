@@ -12,7 +12,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 - EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
-- Synchronized Media Overlays (text-and-audio read-along)
+- Synchronized Media Overlays in WebPubs (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
 - Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
 - Highlights and annotations via the Decorator API
@@ -28,7 +28,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 | EPUB 2    |   ✓    |  ✓  |   —   |       -        |
 | EPUB 3    |   ✓    |  ✓  |   ✓   |       -        |
 | WebPub    |   ✓    |  ✓  |   ✓   |       ✓ (EPUB profile) |
-| Audiobook |   —    |  —  |   ✓   |       ✓        |
+| Audiobook |   —    |  —  |   ✓   |       -        |
 
 PDF, CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include LCP and PDF adapters; they may be enabled in a future release.
 
@@ -159,7 +159,7 @@ Full documentation is in [docs/](docs/):
 
 - **Getting Started** — [Installation](docs/getting-started/installation.md) · [Quick Start](docs/getting-started/quick-start.md) · [Core Concepts](docs/getting-started/concepts.md)
 - **Guides** — [EPUB Reading](docs/guides/epub-reading.md) · [Audiobook Playback](docs/guides/audiobook-playback.md) · [Text-to-Speech](docs/guides/text-to-speech.md) · [Preferences](docs/guides/preferences.md) · [Highlights & Annotations](docs/guides/highlights-annotations.md) · [Saving Progress](docs/guides/saving-progress.md) · [Error Handling](docs/guides/error-handling.md)
-- **API Reference** — [FlutterReadium class](docs/api-reference/reader-class.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Publication](docs/api-reference/publication.md)
+- **API Reference** — [FlutterReadium class](docs/api-reference/readium-interface.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Publication](docs/api-reference/publication.md)
 - **Architecture** — [Overview](docs/architecture/overview.md)
 - **Troubleshooting** — [Troubleshooting](docs/troubleshooting.md)
 
