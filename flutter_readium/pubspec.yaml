@@ -7,12 +7,10 @@ homepage: https://github.com/notalib/flutter_readium
 repository: https://github.com/notalib/flutter_readium
 issue_tracker: https://github.com/notalib/flutter_readium/issues
 topics:
-  - ebook
   - readium
-  - epub
+  - ebook
   - audiobook
-  - webpub
-  - comics
+  - comic
   - tts
 
 environment:
