@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
@@ -36,7 +35,7 @@ Map<String, List<ReadiumSpeechVoice>> _readiumVoiceData = {};
 abstract class ReaderTTSVoiceUtils {
   /// Ensure the Readium Speech voice data is loaded from the bundled asset before trying to match against it.
   static Future<void> ensureReadiumVoiceDataLoaded() async {
-    if (!Platform.isAndroid) {
+    if (!RuntimePlatform.isAndroid) {
       // The voice data is currently only used to enrich Android voices with missing metadata, so we can skip loading it on other platforms.
       return;
     }
@@ -57,7 +56,7 @@ abstract class ReaderTTSVoiceUtils {
   /// For android we need to resolve the name of the voice, we do that from the Readium Speech data unless we have a
   /// hardcoded mapping for that voice.
   static String getVoiceName(final String language, final String identifier, final String? name) {
-    if (Platform.isAndroid) {
+    if (RuntimePlatform.isAndroid) {
       return _androidName(language, identifier, name);
     } else {
       return name ?? identifier;
@@ -67,7 +66,7 @@ abstract class ReaderTTSVoiceUtils {
   /// Resolve the gender for the voice. For Android we look up in the Readium Speech data, for other platforms we trust
   /// the platform to provide it.
   static TTSVoiceGender getVoiceGender(final String language, final String identifier, TTSVoiceGender fallback) {
-    if (Platform.isAndroid) {
+    if (RuntimePlatform.isAndroid) {
       final voice = _findMatchingVoiceData(language, identifier);
       if (voice != null && voice.gender.isNotEmpty) {
         return TTSVoiceGender.optFromString(voice.gender) ?? fallback;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'dart:io';
+import 'dart:ui';
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
@@ -110,7 +110,7 @@ class LocalizedString with EquatableMixin implements JSONable {
   ///    4. the first translation found
   Translation? getOrFallback(String? language) =>
       translations[language] ??
-      translations[Platform.localeName] ??
+      translations[PlatformDispatcher.instance.locale.toString()] ??
       translations[null] ??
       translations[undefinedLanguage] ??
       translations['en'] ??
