@@ -89,7 +89,7 @@ await _reader.setEPUBPreferences(
   EPUBPreferences(
     fontSize: 120,          // 120% of default
     fontFamily: 'Georgia',
-    verticalScroll: false,  // paginated mode
+    scroll: false,          // paginated mode
   ),
 );
 ```

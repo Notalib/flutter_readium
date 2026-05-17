@@ -6,13 +6,13 @@
 await reader.setEPUBPreferences(EPUBPreferences(
   fontSize: 130,           // percentage: 50–200
   fontFamily: 'Georgia',
-  verticalScroll: false,   // false = paginated, true = continuous scroll
+  scroll: false,           // false = paginated, true = continuous scroll
   publisherStyles: true,
   lineHeight: 1.5,
   wordSpacing: 0.1,
   letterSpacing: 0.05,
   paragraphSpacing: 1.2,
-  columnCount: 1,
+  columnCount: EpubColumnCount.one,
 ));
 ```
 
