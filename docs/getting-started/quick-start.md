@@ -103,14 +103,14 @@ ReadiumReaderWidget(
   initialLocator: _savedLocator, // nullable
 )
 
-// Save when position changes
+// Save when position changes — serialise locator.toJson() however your storage layer expects
 _reader.onTextLocatorChanged.listen((locator) {
-  prefs.setString('lastLocator', locator.json);
+  prefs.setString('lastLocator', jsonEncode(locator.toJson()));
 });
 
 // Restore
-final json = prefs.getString('lastLocator');
-final locator = json != null ? Locator.fromJsonString(json) : null;
+final stored = prefs.getString('lastLocator')!;
+final locator = Locator.fromJsonString(stored);
 ```
 
 ## Next steps

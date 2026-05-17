@@ -18,33 +18,23 @@ await reader.setEPUBPreferences(EPUBPreferences(
 
 ### Theme presets
 
-```dart
-// Light
-EPUBPreferences(backgroundColor: Colors.white, textColor: Colors.black)
-
-// Sepia
-EPUBPreferences(
-  backgroundColor: const Color(0xFFFBF0D9),
-  textColor: const Color(0xFF5B4636),
-)
-
-// Dark
-EPUBPreferences(
-  backgroundColor: const Color(0xFF1A1A1A),
-  textColor: const Color(0xFFE0E0E0),
-)
-```
-
-### Extended CSS properties
+The `theme` property (of type `EpubThemeType`) is a shortcut that applies a predetermined `backgroundColor` and `textColor` pair. When set, it overrides any explicit `backgroundColor` / `textColor` preferences.
 
 ```dart
-EPUBPreferences(cssProperties: {
-  '--USER__lineHeight': '1.8',
-  '--USER__firstLineIndent': '1rem',
-})
+// Built-in presets: light, sepia, dark
+EPUBPreferences(theme: EpubThemeType.light)
+EPUBPreferences(theme: EpubThemeType.sepia)
+EPUBPreferences(theme: EpubThemeType.dark)
 ```
 
-See the [Readium CSS docs](https://github.com/readium/css) for all supported custom properties.
+For custom themes, leave `theme` unset and provide your own colors:
+
+```dart
+EPUBPreferences(
+  backgroundColor: const Color(0xFF002B36),
+  textColor: const Color(0xFF839496),
+)
+```
 
 ### Persisting preferences
 

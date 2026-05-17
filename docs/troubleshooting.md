@@ -41,9 +41,9 @@ Event channels register lazily inside the native view initialiser. Subscribe to 
 
 ## Web: reader not showing / JS errors
 
-1. Verify you ran `dart run flutter_readium:copy_js_file web/` after installing the package.
+1. Verify you ran `dart run flutter_readium:copy_js_file <dest_dir>` after installing the package.
 2. Check that both `flutter.js` and `readiumReader.js` script tags appear in `index.html`.
-3. If the JS file path differs from `web/readiumReader.js`, update the `src` attribute.
+3. Check the file path of your `readiumReader.js` and see if it differs from the one in `index.html`.
 
 ## TTS not working on Android
 

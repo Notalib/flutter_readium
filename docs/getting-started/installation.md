@@ -120,10 +120,10 @@ Same pod lines as iOS, added to `macos/Podfile`. Also enable outbound networking
 Run once from your app root after installing the package:
 
 ```bash
-dart run flutter_readium:copy_js_file web/
+dart run flutter_readium:copy_js_file <dest_dir>
 ```
 
-This copies `readiumReader.js` into your `web/` directory.
+This copies `readiumReader.js` into your chosen `dest_dir`. We recommend using the `web/` directory.
 
 ### Add script tags to index.html
 

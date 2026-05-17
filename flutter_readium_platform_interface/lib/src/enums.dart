@@ -21,7 +21,7 @@ enum TimebasedState {
   failure;
 
   /// Returns the [TimebasedState] matching [state] (case-insensitive), defaulting to [none].
-  static TimebasedState? fromString(final String state) =>
+  static TimebasedState fromString(final String state) =>
       TimebasedState.values.firstWhereOrNull((e) => e.name.toLowerCase() == state.toLowerCase()) ?? TimebasedState.none;
 }
 

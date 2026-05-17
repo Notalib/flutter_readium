@@ -52,6 +52,7 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 - **Smoke test**: the example app at `flutter_readium/example/` is the canonical end-to-end smoke test. If a change can't be exercised in the example, say so explicitly rather than claiming it's verified.
 - **Models & method-channel contract**: keep the Dart side in `flutter_readium_platform_interface` in sync with both native implementations. If you add a method-channel call, all three native sides (Swift, Kotlin, web) need a matching handler — or an explicit `UnimplementedError` if intentionally unsupported.
 - **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
+- **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased, until a release.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
 
 ## Build / toolchain facts
@@ -64,6 +65,5 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 ## Gotchas
 
 - The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
-- Android consumers must extend `FlutterFragmentActivity` (not `FlutterActivity`), otherwise the reader view crashes at runtime.
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
 - The plugin currently targets EPUB / WebPub (with or without pre-recorded audio); LCP and PDF adapter code is present-but-commented in `android/build.gradle` — don't enable it without a deliberate plan.

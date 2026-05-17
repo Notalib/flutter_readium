@@ -66,6 +66,7 @@ _sub = reader.onTimebasedPlayerStateChanged.listen((state) {
 ## Saving and restoring position
 
 ```dart
+import 'dart:convert';
 import 'package:rxdart/rxdart.dart';
 
 _sub = reader.onTimebasedPlayerStateChanged
@@ -73,7 +74,8 @@ _sub = reader.onTimebasedPlayerStateChanged
     .whereType<Locator>()
     .debounceTime(const Duration(seconds: 5))
     .listen((locator) {
-  prefs.setString('audio_locator', locator.json);
+  // Serialise the toJson() map however your storage layer expects.
+  prefs.setString('audio_locator', jsonEncode(locator.toJson()));
 });
 ```
 
