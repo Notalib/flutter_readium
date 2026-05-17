@@ -80,3 +80,43 @@ await reader.audioSetPreferences(AudioPreferences(
   allowExternalSeeking: true,
 ));
 ```
+
+## Plugin-specific preferences
+
+The following `EPUBPreferences` fields are not part of the Readium Preferences API but are added by this plugin to support app-level behavior.
+
+### `firstElementTopMargin`
+
+Adds a top margin (in pixels) to the first element of each spine item. Use this to prevent content from being obscured by a floating toolbar or status bar overlay.
+
+```dart
+await reader.setEPUBPreferences(EPUBPreferences(
+  firstElementTopMargin: 56, // match your AppBar height
+));
+```
+
+The margin is re-applied whenever the chapter changes, so you only need to set it once.
+
+### `blackAndWhiteComicMode`
+
+Applies a black-and-white filter to the entire page. Intended for comic books. When `true`, any `imageFilter` setting is ignored.
+
+```dart
+await reader.setEPUBPreferences(EPUBPreferences(
+  blackAndWhiteComicMode: true,
+));
+```
+
+Defaults to `false`.
+
+### `disableSynchronization`
+
+Prevents the TTS and Sync-Audio navigators from scrolling the visual EPUB view or switching chapters as playback progresses. Highlight decorations (word/sentence highlighting) still apply — only the automatic navigation is suppressed.
+
+```dart
+await reader.setEPUBPreferences(EPUBPreferences(
+  disableSynchronization: true,
+));
+```
+
+Defaults to `false`.
