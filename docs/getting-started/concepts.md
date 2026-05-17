@@ -1,21 +1,24 @@
 # Core Concepts
 
-Understanding a handful of types makes everything else click.
+To properly use Flutter Readium, it will be very helpful to familiarize yourself with the following core concepts.
 
 ## Publication
 
 A `Publication` is the loaded container for an ebook, audiobook, or WebPub. It follows the [Readium Web Publication Manifest](https://readium.org/webpub-manifest/) format.
 
+Use `loadPublication` to fetch just the manifest (for example, to populate a bookshelf). Use `openPublication` before any reading, navigation, audio, or TTS operation — it initialises the native reader for that publication.
+
 ```dart
 final pub = await FlutterReadium().openPublication(url);
 
-print(pub.metadata.title);            // "Moby Dick"
-print(pub.conformsToReadiumEbook);    // true for EPUB/WebPub
-print(pub.containsMediaOverlays);     // true for sync-narration books
-print(pub.coverUri);                  // Uri? for the cover image
+print(pub.metadata.title);             // "Moby Dick"
+print(pub.conformsToReadiumEbook);     // true if it declares the Readium EPUB profile
+print(pub.conformsToReadiumAudiobook); // true if it declares the Readium Audiobook profile
+print(pub.containsMediaOverlays);      // true for sync-narration books with media-overlays
+print(pub.coverUri);                   // Uri? for the cover image
 ```
 
-Key properties: `metadata`, `readingOrder`, `tableOfContents`, `resources`, `pageList`.
+Key properties: `metadata`, `readingOrder`, `tableOfContents` (aliased as `toc`), `resources`, `pageList`.
 
 ## Locator
 
@@ -28,14 +31,16 @@ final total = locator.locations?.totalProgression;
 // Progression within the current resource (0.0 → 1.0)
 final local = locator.locations?.progression;
 
-// Persist
-final json = locator.json;
+// Persist — serialise the map however your storage layer expects
+final map = locator.toJson();
 
-// Restore
-final restored = Locator.fromJsonString(json);
+// Restore — accepts either a Map or a JSON string
+final restored = Locator.fromJsonDynamic(stored);
 
 // Navigate
-await FlutterReadium().goToLocator(restored);
+if (restored != null) {
+  await FlutterReadium().goToLocator(restored);
+}
 ```
 
 ## Link
@@ -56,8 +61,8 @@ Nested TOC entries are accessed via `link.children`. Use `pub.tocFlattened` to g
 | Mode | Publication type | Enable via |
 |------|-----------------|------------|
 | Visual (EPUB/WebPub) | EPUB, WebPub | `openPublication` + `ReadiumReaderWidget` |
-| Audiobook | `.audiobook` | `audioEnable()` |
-| MediaOverlay (sync narration) | WebPub + overlays | `audioEnable()` |
+| Audiobook | Readium Audiobook | `audioEnable()` |
+| MediaOverlay (sync narration) | WebPub + media-overlays | `audioEnable()` |
 | TTS | any visual | `ttsEnable()` |
 
 Navigation methods (`goForward`, `goBackward`, `goToLocator`, `goToProgression`) are shared across modes.
@@ -71,7 +76,7 @@ final reader = FlutterReadium();
 
 reader.onTextLocatorChanged.listen((locator) { /* position updated */ });
 reader.onTimebasedPlayerStateChanged.listen((state) { /* audio/TTS state */ });
-reader.onReaderStatusChanged.listen((status) { /* loading, ready, … */ });
+reader.onReaderStatusChanged.listen((status) { /* loading, ready, closed, reachedEndOfPublication, error */ });
 reader.onErrorEvent.listen((error) { /* non-fatal errors */ });
 ```
 
@@ -106,7 +111,7 @@ await reader.setEPUBPreferences(
   EPUBPreferences(
     fontSize: 140,
     fontFamily: 'Helvetica',
-    verticalScroll: true,
+    scroll: true, // vertical scroll instead of horizontal pagination
     publisherStyles: false,
   ),
 );

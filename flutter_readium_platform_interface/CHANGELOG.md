@@ -36,4 +36,3 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `PageInformation` — page counter snapshot with `currentPage` and `totalPages`.
 - `ReadiumException` — Dart exception wrapping a `ReadiumError`.
 - `ReaderTTSVoiceUtils` — utility to load and query the bundled Readium voice-data JSON.
-- `R2Log` — structured logger facade wrapping `fimber`.

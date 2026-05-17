@@ -99,12 +99,12 @@ void dispose() {
 ## Persisting position
 
 ```dart
-// Save
-prefs.setString('locator_${pub.metadata.identifier}', locator.json);
+// Save — serialise locator.toJson() however your storage layer expects
+prefs.setString('locator_${pub.metadata.identifier}', jsonEncode(locator.toJson()));
 
 // Restore — pass as initialLocator
-final json = prefs.getString('locator_${pub.metadata.identifier}');
-final saved = json != null ? Locator.fromJsonString(json) : null;
+final stored = prefs.getString('locator_${pub.metadata.identifier}');
+final saved = stored != null ? Locator.fromJsonString(stored) : null;
 
 ReadiumReaderWidget(
   publication: _publication,

@@ -4,17 +4,18 @@
 
 1. Listen to `onTextLocatorChanged`
 2. Debounce writes (saves per scroll event are too frequent)
-3. Store `locator.json` keyed by publication identifier
-4. On re-open, pass the saved `Locator` as `initialLocator`
+3. Persist `locator.toJson()` keyed by publication identifier — serialise the map however your storage layer expects
+4. On re-open, pass the restored `Locator` as `initialLocator`
 
 ```dart
+import 'dart:convert';
 import 'package:rxdart/rxdart.dart';
 
 _sub = reader.onTextLocatorChanged
     .debounceTime(const Duration(seconds: 2))
     .listen((locator) {
   final key = 'locator_${_publication.metadata.identifier}';
-  prefs.setString(key, locator.json);
+  prefs.setString(key, jsonEncode(locator.toJson()));
 });
 ```
 
@@ -22,8 +23,8 @@ _sub = reader.onTextLocatorChanged
 
 ```dart
 final key = 'locator_${pub.metadata.identifier}';
-final json = prefs.getString(key);
-final saved = json != null ? Locator.fromJsonString(json) : null;
+final stored = prefs.getString(key);
+final saved = stored != null ? Locator.fromJsonString(stored) : null;
 
 ReadiumReaderWidget(
   publication: pub,
@@ -51,7 +52,7 @@ _sub = reader.onTimebasedPlayerStateChanged
     .whereType<Locator>()
     .debounceTime(const Duration(seconds: 5))
     .listen((locator) {
-  prefs.setString('audio_${pub.metadata.identifier}', locator.json);
+  prefs.setString('audio_${pub.metadata.identifier}', jsonEncode(locator.toJson()));
 });
 ```
 

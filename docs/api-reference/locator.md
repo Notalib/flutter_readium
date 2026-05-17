@@ -1,6 +1,6 @@
 # Locator
 
-A `Locator` identifies an exact position within a publication resource. It is used for bookmarks, highlights, navigation, and progress tracking.
+A `Locator` identifies an exact position within a publication resource. It is used for bookmarks, highlights, navigation, and progress tracking. See the Readium spec on the [Locator model](https://readium.org/architecture/models/locators/).
 
 ## Structure
 
@@ -26,18 +26,21 @@ Locator(
 
 ## Serialisation
 
+`Locator` exposes a `toJson()` map and matching factories — serialise the map however your storage layer expects (e.g. `jsonEncode`, a database row, a message payload).
+
 ```dart
-// To string (for SharedPreferences / database)
-final json = locator.json;
-
-// From string
-final restored = Locator.fromJsonString(json);
-
 // To/from Map
 final map  = locator.toJson();
 final loc2 = Locator.fromJson(map);
+
+// From a JSON string
+final loc3 = Locator.fromJsonString(jsonString);
+
+// Accept either a Map or a JSON string
+final loc4 = Locator.fromJsonDynamic(anything);
 ```
 
+### Note on href
 `href` is stored decoded internally and percent-encoded during serialisation.
 
 ## Common patterns
@@ -64,3 +67,15 @@ final loc = pub.locatorFromLink(tocLink);
 | `cssSelector` | `String?` | CSS selector for the target element |
 | `domRange` | `String?` | DOM range (precise sub-element position) |
 | `fragments` | `List<String>` | Additional URI fragments |
+
+## Our additions to otherLocations
+
+We try to enrich the Locator's `otherLocations` with the following data,
+before it is sent over the bridge:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tocHref` | `string` | Current Table of Contents position in `href#identifier` format |
+| `currentPage` | `int` | Current dynamic page-number of the rendered resource |
+| `totalPages` | `int` | Total number of dynamic pages of the rendered resource |
+| `physicalPage` | `string` | Identifier for the most-recently passed physical page reference |

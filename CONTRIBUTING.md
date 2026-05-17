@@ -27,10 +27,10 @@ cd flutter_readium
 bin/install
 ```
 
-`bin/install` does the following in order:
+Setup script `bin/install` does the following in order:
 
 1. `flutter pub get` in both `flutter_readium/` and `flutter_readium_platform_interface/`
-2. `pod update && pod install` for the iOS example (macOS only)
+2. `pod update && pod install` for the iOS example app
 3. Builds the `assets/_helper_scripts` TypeScript bundle
 4. Builds the web JS bundle and copies it into `example/web/`
 
@@ -50,10 +50,12 @@ This is a **federated Flutter plugin** with two pub packages:
 
 ## Running the example app
 
+Make sure you've run `./bin/install` first.
+
 ```bash
 cd flutter_readium/example
-flutter run                   # pick a device when prompted
-flutter run -d chrome         # web
+flutter run                   # for native platforms, pick a device when prompted
+flutter run -d chrome         # for web platform
 ```
 
 For web, make sure you have run `bin/update_web_example` after any TypeScript change.
@@ -64,13 +66,29 @@ For web, make sure you have run `bin/update_web_example` after any TypeScript ch
 
 ```bash
 # Platform interface unit tests
-flutter test flutter_readium_platform_interface/test/
+cd flutter_readium_platform_interface && flutter test
 
 # Plugin unit tests
-flutter test flutter_readium/test/
+cd flutter_readium && flutter test
 ```
 
-There are no integration tests requiring a device at this time. Native behavior should be verified manually in the example app.
+### Integration tests
+
+End-to-end tests that exercise the Dart → native → Dart contract live under [flutter_readium/example/integration_test/](flutter_readium/example/integration_test/).
+
+Run them against a booted simulator/emulator or attached device:
+
+```bash
+cd flutter_readium/example
+
+# iOS — pick a booted simulator UDID via `xcrun simctl list devices`
+flutter test integration_test --device-id=<udid>
+
+# Android — start an emulator or attach a device first
+flutter test integration_test
+```
+
+The same suite runs in CI on every push/PR via [.github/workflows/integration-test.yml](.github/workflows/integration-test.yml) on an iOS simulator and Android emulators. Feel free to add relevant integration tests, especially when implementing new features and use-cases.
 
 ---
 
