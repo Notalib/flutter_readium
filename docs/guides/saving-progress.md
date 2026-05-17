@@ -1,5 +1,7 @@
 # Saving Progress
 
+This guide focuses on *when* and *where* to persist a `Locator`. For the full set of serialization factories (`fromJson`, `fromJsonString`, `fromJsonDynamic`) and the `Locations` field reference, see the [Locator API reference](../api-reference/locator.md).
+
 ## Basic pattern
 
 1. Listen to `onTextLocatorChanged`

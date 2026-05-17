@@ -39,8 +39,8 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
-  flutter_readium_platform_interface:
-    path: ../flutter_readium_platform_interface
+  dependencies:
+  flutter_readium_platform_interface: ^0.0.1   # or whatever the published version is
   wakelock_plus: ^1.4.0
   web: ^1.1.1
   collection: ^1.19.1
@@ -52,5 +52,9 @@ dev_dependencies:
   plugin_platform_interface: ^2.0.2
   mocktail: ^1.0.0
 
+dependency_overrides:
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface
+
 executables:
-  copy_js_file: bin/copy_js_file.dart
+  copy_js_file:
