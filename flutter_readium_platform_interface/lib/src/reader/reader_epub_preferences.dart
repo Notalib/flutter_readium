@@ -259,6 +259,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     double? wordSpacing,
     bool? blackAndWhiteComicMode,
     bool? disableSynchronization,
+    int? firstElementTopMargin,
   }) => EPUBPreferences(
     backgroundColor: backgroundColor ?? this.backgroundColor,
     columnCount: columnCount ?? this.columnCount,
@@ -287,6 +288,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     wordSpacing: wordSpacing ?? this.wordSpacing,
     blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
     disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+    firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
   );
 
   @override
@@ -318,6 +320,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     wordSpacing,
     blackAndWhiteComicMode,
     disableSynchronization,
+    firstElementTopMargin,
   ];
 }
 
