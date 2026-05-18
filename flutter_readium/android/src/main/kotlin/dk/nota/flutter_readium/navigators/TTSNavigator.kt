@@ -91,7 +91,7 @@ class TTSNavigator(
         val listener =
             object : Listener {
                 override fun onStopRequested() {
-                    Log.d(TAG, "TtsListener::onStopRequested")
+                    Log.d(TAG, "::onStopRequested")
                     mediaServiceFacade?.closeSession()
                 }
             }
@@ -105,8 +105,8 @@ class TTSNavigator(
                         initialLocator,
                         initialAndroidPreferences,
                     ).getOrElse {
-                        Log.e(TAG, "ttsEnable: failed to create navigator: $it")
-                        throw Exception("ttsEnable: failed to create navigator: $it")
+                        Log.e(TAG, "::initNavigator - failed to create navigator: $it")
+                        throw Exception("::initNavigator - failed to create navigator: $it")
                     }
 
             // Setup streaming listeners for locator & decoration updates.
@@ -128,7 +128,7 @@ class TTSNavigator(
                                     }
 
                                     is TtsNavigator.State.Failure -> {
-                                        Log.e(TAG, "TTSNavigator failure: ${state.error}")
+                                        Log.e(TAG, "::initNavigator - failure: ${state.error}")
                                         // onPlaybackError(state.error)
                                     }
                                 }
@@ -163,7 +163,7 @@ class TTSNavigator(
     override suspend fun pause() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "Cannot pause TTS playback: navigator is null")
+                Log.e(TAG, "::pause - navigator is null")
                 return
             }
 
@@ -171,7 +171,7 @@ class TTSNavigator(
             try {
                 navigator.pause()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to pause TTS playback: $e")
+                Log.e(TAG, "::pause - failed: $e")
             }
         }
     }
@@ -182,7 +182,7 @@ class TTSNavigator(
                 val navigator = ensureNavigatorWithOpenMediaSession()
                 navigator.play()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume TTS playback: $e")
+                Log.e(TAG, "::resume - failed: $e")
             }
         }
     }
@@ -193,7 +193,7 @@ class TTSNavigator(
     override suspend fun goBackward() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "::goBack ttsNavigator is null")
+                Log.e(TAG, "::goBackward - ttsNavigator is null")
                 return
             }
 
@@ -210,7 +210,7 @@ class TTSNavigator(
     override suspend fun goForward() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "::goBack goForward is null")
+                Log.e(TAG, "::goForward - ttsNavigator is null")
                 return
             }
 
@@ -309,7 +309,7 @@ class TTSNavigator(
                         mediaType = MediaType.XHTML,
                     ),
                 ) ?: run {
-                    Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
+                    Log.e(TAG, "::updateProgressionLocatorMap - no content service found")
                     return@withScope null
                 }
 
@@ -342,7 +342,7 @@ class TTSNavigator(
     }
 
     override suspend fun seekTo(offset: Double) {
-        Log.d(TAG, ":seekTo is not implemented for TTS playback")
+        Log.d(TAG, "::seekTo - not implemented for TTS playback")
     }
 
     override suspend fun seekToProgression(progression: Double): Boolean {
@@ -369,7 +369,7 @@ class TTSNavigator(
     suspend fun decorationsUpdated() {
         val navigator =
             ttsNavigator ?: run {
-                Log.d(TAG, ":decorationsUpdated: navigator is null")
+                Log.d(TAG, "::decorationsUpdated - navigator is null")
                 return
             }
 
@@ -527,11 +527,11 @@ class TTSNavigator(
         try {
             val mediaSession = mediaServiceFacade!!
             if (mediaSession.session.value == null) {
-                Log.d(TAG, ":ensureMediaSessionIsOpen - open session")
+                Log.d(TAG, "::ensureNavigatorWithOpenMediaSession - open session")
                 mediaSession.openSession(navigator)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "::play - Failed to open MediaSession: $e")
+            Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - failed to open MediaSession: $e")
         }
 
         return navigator
@@ -571,7 +571,7 @@ class TTSNavigator(
                 // TODO: Handle TTS-specific errors?
                 Log.e(
                     TAG,
-                    ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}",
+                    "::onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}",
                 )
 
                 timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
