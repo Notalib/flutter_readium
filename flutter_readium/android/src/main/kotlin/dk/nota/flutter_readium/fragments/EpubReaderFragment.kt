@@ -17,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
@@ -112,26 +113,28 @@ class EpubReaderFragment :
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::firstVisibleElementLocator. Navigator not ready.")
             return null
         }
 
-        return navigator.firstVisibleElementLocator()
+        return withContext(coroutineContext) {
+            navigator.firstVisibleElementLocator()
+        }
     }
 
     suspend fun applyDecorations(
         decorations: List<Decoration>,
         group: String,
     ) {
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::applyDecorations. Navigator not ready.")
             return
         }
 
-        navigator.applyDecorations(decorations, group)
+        return withContext(coroutineContext) {
+            navigator.applyDecorations(decorations, group)
+        }
     }
 
     /**
@@ -139,13 +142,14 @@ class EpubReaderFragment :
      * NOTE: Returns null on error and if script returns null/undefined.
      */
     suspend fun evaluateJavascript(script: String): String? {
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::evaluateJavascript. Navigator not ready.")
             return null
         }
 
-        return navigator.evaluateJavascript(script)
+        return withContext(coroutineContext) {
+            return@withContext navigator.evaluateJavascript(script)
+        }
     }
 
     /**
@@ -160,25 +164,20 @@ class EpubReaderFragment :
 
         model.preferences = preferences
 
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::updatePreferences. Navigator not ready.")
             return
         }
 
-        Log.d(TAG, "::updatePreferences: $preferences")
+        return withContext(coroutineContext) {
+            Log.d(TAG, "::updatePreferences: $preferences")
 
-        applyCustomCssVariables()
-        navigator.submitPreferences(preferences.toEpubPreferences())
+            applyCustomCssVariables()
+            navigator.submitPreferences(preferences.toEpubPreferences())
+        }
     }
 
     suspend fun applyCustomCssVariables() {
-        val navigator = epubNavigator
-        if (navigator == null) {
-            Log.d(TAG, "::applyCustomCssVariables. Navigator not ready.")
-            return
-        }
-
         val model =
             epubVm ?: run {
                 Log.d(TAG, "::applyCustomCssVariables - No epubVm available, how did this happen?")
@@ -193,7 +192,7 @@ class EpubReaderFragment :
 
         Log.d(TAG, "::applyCustomCssVariables - update cssVariables:$cssVariables")
 
-        navigator.evaluateJavascript("readium.setCSSProperties(${JSONObject(cssVariables)});")
+        evaluateJavascript("readium.setCSSProperties(${JSONObject(cssVariables)});")
     }
 
     /**
@@ -201,8 +200,7 @@ class EpubReaderFragment :
      */
     suspend fun goBackward(animated: Boolean) {
         Log.d(TAG, "::goBackward")
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::goBackward. Navigator not ready.")
             return
         }
@@ -212,10 +210,12 @@ class EpubReaderFragment :
             return
         }
 
-        if (navigator.goBackward(animated)) {
-            Log.d(TAG, "::goBackward: Went back.")
-        } else {
-            Log.d(TAG, "::goBackward: Couldn't go back.")
+        return withContext(coroutineContext) {
+            if (navigator.goBackward(animated)) {
+                Log.d(TAG, "::goBackward: Went back.")
+            } else {
+                Log.d(TAG, "::goBackward: Couldn't go back.")
+            }
         }
     }
 
@@ -233,8 +233,7 @@ class EpubReaderFragment :
                 return
             }
 
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
             return
         }
@@ -247,7 +246,7 @@ class EpubReaderFragment :
 
         val publication =
             ReadiumReader.currentPublication ?: run {
-                Log.e(TAG, ":goBackwardVertical - no current publication?")
+                Log.e(TAG, "::goBackwardVertical - no current publication?")
                 return
             }
 
@@ -261,7 +260,7 @@ class EpubReaderFragment :
             if (position < 0) {
                 Log.e(
                     TAG,
-                    ":goBackwardVertical - current reading order item not from {${locator.href}}",
+                    "::goBackwardVertical - current reading order item not from {${locator.href}}",
                 )
                 return
             }
@@ -271,28 +270,25 @@ class EpubReaderFragment :
             val prevPosition = position - 1
             if (prevPosition < 0) {
                 // Reached the beginning
-                Log.d(TAG, ":goBackwardVertical - reached the beginning.")
+                Log.d(TAG, "::goBackwardVertical - reached the beginning.")
                 return
             }
 
             Log.d(TAG, "::goBackwardVertical go to previous chapter, progression:$prevProgression")
-            publication.readingOrder.getOrNull(prevPosition)?.let { prevLink ->
-                val locator =
-                    publication.locatorFromLink(prevLink)?.copyWithLocations(
-                        progression = 1.0,
-                        totalProgression = null,
-                    ) ?: run {
-                        Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
-                        return
-                    }
-                navigator.go(locator, animated)
-            } ?: run {
-                // Reached the beginning
-                Log.d(TAG, ":goBackwardVertical - reached the beginning.")
-                return
-            }
-
-            return
+            val prevLink =
+                publication.readingOrder.getOrNull(prevPosition) ?: run {
+                    Log.d(TAG, "::goBackwardVertical - reached the beginning.")
+                    return
+                }
+            val prevLocator =
+                publication.locatorFromLink(prevLink)?.copyWithLocations(
+                    progression = 1.0,
+                    totalProgression = null,
+                ) ?: run {
+                    Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
+                    return
+                }
+            return withContext(coroutineContext) { navigator.go(prevLocator, animated) }
         }
 
         scrollToProgression(prevProgression)
@@ -304,8 +300,7 @@ class EpubReaderFragment :
     @OptIn(InternalReadiumApi::class)
     suspend fun goForward(animated: Boolean) {
         Log.d(TAG, "::goForward")
-        val navigator = epubNavigator
-        if (navigator == null) {
+        val navigator = epubNavigator ?: run {
             Log.d(TAG, "::goForward. Navigator not ready.")
             return
         }
@@ -315,10 +310,12 @@ class EpubReaderFragment :
             return
         }
 
-        if (navigator.goForward(animated)) {
-            Log.d(TAG, "::goForward: Went forward.")
-        } else {
-            Log.d(TAG, "::goForward: Couldn't go forward.")
+        return withContext(coroutineContext) {
+            if (navigator.goForward(animated)) {
+                Log.d(TAG, "::goForward: Went forward.")
+            } else {
+                Log.d(TAG, "::goForward: Couldn't go forward.")
+            }
         }
     }
 
@@ -332,25 +329,24 @@ class EpubReaderFragment :
 
         val locator =
             currentLocator?.value ?: run {
-                Log.e(TAG, "::goBackwardVertical - no current locator")
+                Log.e(TAG, "::goForwardVertical - no current locator")
                 return
             }
 
-        val navigator = epubNavigator
-        if (navigator == null) {
-            Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
+        val navigator = epubNavigator ?: run {
+            Log.d(TAG, "::goForwardVertical. Navigator not ready.")
             return
         }
 
         val viewPortSize =
             currentViewPortSize() ?: run {
-                Log.e(TAG, "::goBackwardVertical - failed to load view port size")
+                Log.e(TAG, "::goForwardVertical - failed to load view port size")
                 return
             }
 
         val publication =
             ReadiumReader.currentPublication ?: run {
-                Log.e(TAG, ":goBackwardVertical - no current publication?")
+                Log.e(TAG, "::goForwardVertical - no current publication?")
                 return
             }
 
@@ -379,15 +375,12 @@ class EpubReaderFragment :
             }
 
             Log.d(TAG, "::goForwardVertical. load next chapter, progression:$nextProgression")
-
-            publication.readingOrder.getOrNull(nextPosition)?.let { nextLink ->
-                navigator.go(nextLink, animated)
-            } ?: run {
-                Log.d(TAG, "::goForwardVertical - reached end.")
-                return
-            }
-
-            return
+            val nextLink =
+                publication.readingOrder.getOrNull(nextPosition) ?: run {
+                    Log.d(TAG, "::goForwardVertical - reached end.")
+                    return
+                }
+            return withContext(coroutineContext) { navigator.go(nextLink, animated) }
         }
 
         scrollToProgression(nextProgression)
@@ -415,16 +408,9 @@ class EpubReaderFragment :
      * Scroll to progression, coerce to >=0.0 and <=1.0
      */
     suspend fun scrollToProgression(progression: Double) {
-        val navigator = epubNavigator
-        if (navigator == null) {
-            Log.d(TAG, "::scrollToProgression. Navigator not ready.")
-            return
-        }
-
         val coercedProgression = progression.coerceIn(0.0, 1.0)
         Log.d(TAG, "::scrollToProgression - scroll to progression - $coercedProgression")
-
-        navigator.evaluateJavascript("readium.scrollToPosition($coercedProgression)")
+        evaluateJavascript("readium.scrollToPosition($coercedProgression)")
     }
 
     /**
@@ -566,7 +552,7 @@ class EpubReaderFragment :
                 EpubNavigatorFragment::class.java.name,
             ) as EpubNavigatorFragment
 
-        Log.d(TAG, "::attachNavigator - $instance - add fragment")
+        Log.d(TAG, "::attachNavigator() - $instance - add fragment")
         childFragmentManager.commitNow {
             add(
                 R.id.fragment_reader_container,
