@@ -242,7 +242,7 @@ class ReadiumReaderWidget(
                     Log.d(TAG, "::emitOnPageChanged - no page information")
                 }
             } catch (e: Error) {
-                Log.d(TAG, ":pageInformation error: $e")
+                Log.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
             }
 
             emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)

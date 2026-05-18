@@ -379,7 +379,7 @@ fun Publication.getReadingOrderItemDuration(href: Url): Duration? = findReadingO
  */
 suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
     if (!conformsTo(Publication.Profile.EPUB)) {
-        Log.d(TAG, ":findAllCssSelectors - this only works for an EPUB Profile")
+        Log.d(TAG, "::findAllCssSelectors - this only works for an EPUB Profile")
         return null
     }
 
@@ -392,7 +392,7 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
                 mediaType = MediaType.XHTML,
             ),
         ) ?: run {
-            Log.d(TAG, ":findAllCssSelectors - no content service found")
+            Log.d(TAG, "::findAllCssSelectors - no content service found")
             return null
         }
 
