@@ -46,7 +46,8 @@ class ReadiumReaderWidget(
 ) : PlatformView,
     MethodChannel.MethodCallHandler,
     EpubReaderFragment.Listener,
-    EpubNavigator.VisualListener {
+    EpubNavigator.VisualListener,
+    CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private val channel: ReadiumReaderChannel
 
     /**
@@ -60,9 +61,6 @@ class ReadiumReaderWidget(
         get() = (context as ContextWrapper).baseContext as FragmentActivity
     private val fragmentManager
         get() = activity.supportFragmentManager
-
-    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun getView(): View {
         // Log.d(TAG, "::getView")
@@ -78,7 +76,7 @@ class ReadiumReaderWidget(
 
         channel.setMethodCallHandler(null)
 
-        mainScope.coroutineContext.cancelChildren()
+        coroutineContext.cancelChildren()
         layout.removeAllViews()
     }
 
@@ -105,7 +103,8 @@ class ReadiumReaderWidget(
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
         var initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
-        val initialPreferences = initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
+        val initialPreferences =
+            initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
 
         Log.d(TAG, "publication = $publication")
 
@@ -139,7 +138,7 @@ class ReadiumReaderWidget(
             }
         }
 
-        mainScope.launch {
+        launch {
             try {
                 ReadiumReader.epubEnable(
                     initialLocator,
@@ -184,7 +183,7 @@ class ReadiumReaderWidget(
 
         lastPageLoadedKey = currentKey
 
-        mainScope.launch {
+        launch {
             if (!hasSentReady) {
                 hasSentReady = true
 
@@ -197,7 +196,7 @@ class ReadiumReaderWidget(
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         Log.d(TAG, "::onExternalLinkActivated $url")
-        mainScope.launch { emitOnExternalLinkActivated(url) }
+        emitOnExternalLinkActivated(url)
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
@@ -225,26 +224,26 @@ class ReadiumReaderWidget(
         totalPages: Int,
         locator: Locator,
     ) {
+        var emittingLocator = locator
+
         try {
-            var emittingLocator = locator
-
-            try {
-                evaluateJavascript("window.flutterReadium.getPageInformation()")
-                    ?.let {
-                        PageInformation.fromJson(
-                            it,
-                            locator.href,
-                        )
-                    }?.let { pageInfo ->
-                        emittingLocator =
-                            emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                    } ?: {
-                    Log.d(TAG, "::emitOnPageChanged - no page information")
-                }
-            } catch (e: Error) {
-                Log.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+            evaluateJavascript("window.flutterReadium.getPageInformation()")
+                ?.let {
+                    PageInformation.fromJson(
+                        it,
+                        locator.href,
+                    )
+                }?.let { pageInfo ->
+                    emittingLocator =
+                        emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                } ?: {
+                Log.d(TAG, "::emitOnPageChanged - no page information")
             }
+        } catch (e: Error) {
+            Log.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+        }
 
+        try {
             emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
 
             emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
@@ -268,7 +267,7 @@ class ReadiumReaderWidget(
         // TODO: To be safe we're doing everything on the Main thread right now.
         // Could probably optimize by using .IO and then change to Main
         // when affecting readerView or returning a result.
-        mainScope.launch {
+        launch {
             Log.d(TAG, "::onMethodCall ${call.method}")
             when (call.method) {
                 "setPreferences" -> {

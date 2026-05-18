@@ -150,7 +150,7 @@ class EpubNavigator :
         viewGroup: ViewGroup,
     ) {
         val navigator = epubNavigator ?: return
-        mainScope.launch {
+        launch {
             fragmentManager.commitNow {
                 add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
             }
@@ -173,7 +173,7 @@ class EpubNavigator :
 
         Log.d(TAG, "::go $locator animated:$animated")
 
-        return withScope(mainScope) {
+        return withScope(this) {
             afterFragmentStarted()
             segmentDuration?.takeIf { it > 0 }?.let {
                 navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
@@ -238,7 +238,7 @@ class EpubNavigator :
                 .onEach { locator ->
                     onCurrentLocatorChanges(locator)
                     currentVisualLocator = locator
-                }.launchIn(mainScope)
+                }.launchIn(this)
                 .let { jobs.add(it) }
         } else {
             Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
@@ -280,7 +280,7 @@ class EpubNavigator :
 
         notifyIsReady()
 
-        mainScope.launch {
+        launch {
             currentDecorations.forEach { (group, decorations) ->
                 epubNavigator?.applyDecorations(
                     decorations = decorations,
@@ -310,7 +310,7 @@ class EpubNavigator :
     ) {
         visualListener.onPageChanged(pageIndex, totalPages, locator)
 
-        mainScope.launch {
+        launch {
             if (currentVisualLocator?.href != locator.href) {
                 // Since the visual href changed, we clear old decorations.
                 // This should remove stale decorations from the old file when switching back
@@ -340,12 +340,12 @@ class EpubNavigator :
     override fun dispose() {
         super.dispose()
 
-        mainScope.launch {
+        launch {
             epubNavigator?.let { fragment ->
                 fragment.parentFragmentManager.commitNow { remove(fragment) }
             }
 
-            mainScope.coroutineContext.cancelChildren()
+            coroutineContext.cancelChildren()
             epubNavigator = null
         }
 
@@ -360,7 +360,7 @@ class EpubNavigator :
         }
 
         afterFragmentStarted()
-        return withScope(mainScope) {
+        return withScope(this) {
             navigator.evaluateJavascript(script)
         }
     }
@@ -375,7 +375,7 @@ class EpubNavigator :
             return
         }
 
-        withScope(mainScope) {
+        withScope(this) {
             Log.d(TAG, "::goBackward")
             navigator.goBackward(animated)
         }
@@ -391,7 +391,7 @@ class EpubNavigator :
             return
         }
 
-        withScope(mainScope) {
+        withScope(this) {
             Log.d(TAG, "::goForward")
             navigator.goForward(animated)
         }
@@ -410,7 +410,7 @@ class EpubNavigator :
                 return null
             }
 
-        return withScope(mainScope) {
+        return withScope(this) {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -425,7 +425,7 @@ class EpubNavigator :
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
 
             navigator.applyDecorations(decorations, group)
@@ -446,7 +446,7 @@ class EpubNavigator :
         animated: Boolean,
         segmentDuration: Double? = null,
     ) {
-        withScope(mainScope) {
+        withScope(this) {
             go(locator, animated, segmentDuration)
         }
     }

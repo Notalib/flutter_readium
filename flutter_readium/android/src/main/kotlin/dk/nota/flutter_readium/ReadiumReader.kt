@@ -25,7 +25,6 @@ import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,10 +89,10 @@ private const val decorationStyleKey = "decorationStyle"
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class, DelicateReadiumApi::class)
-object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.VisualListener {
-    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-
-    private val jobs = mutableListOf<Job>()
+object ReadiumReader :
+    TimebasedNavigator.TimebasedListener,
+    EpubNavigator.VisualListener,
+    CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
 
     private var appRef: WeakReference<Application>? = null
 
@@ -236,8 +235,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 )
 
                 timedBasedStateEventChannel?.sendEvent(it)
-            }.launchIn(mainScope)
-            .let { jobs.add(it) }
+            }.launchIn(this)
     }
 
     private fun storeState(): Bundle {
@@ -274,7 +272,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         }
 
         Log.d(TAG, "::restoreState - currentPublicationUrl - $pubUrl")
-        mainScope.launch {
+        launch {
             val pub =
                 openPublication(pubUrl).getOrElse {
                     Log.d(TAG, "::restoreState - failed to restore publication")
@@ -348,9 +346,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     }
 
     fun detach() {
-        mainScope.launch {
-            closePublication()
-        }
+        closePublication()
 
         appRef?.clear()
         appRef = null
@@ -376,9 +372,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         errorChannel?.dispose()
         errorChannel = null
 
-        jobs.forEach { it.cancel() }
-        jobs.clear()
-        mainScope.coroutineContext.cancelChildren()
+        coroutineContext.cancelChildren()
     }
 
     // Safe getter — returns applicationContext or throws if not available.
@@ -678,7 +672,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
     override fun onTimebasedLocationChanged(locator: Locator) {
         Log.d(TAG, "::onTimebasedLocationChanged $locator")
 
-        mainScope.launch {
+        launch {
             epubSyncToLocator(locator, true)
         }
     }
@@ -764,7 +758,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
 
-        withScope(mainScope) {
+        withScope(this) {
             epubNavigator?.let {
                 attachEpubNavigator(fragmentManager, viewGroup)
                 return@withScope
@@ -795,7 +789,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             // Queue decorations to be applied when the epubNavigator is attached.
             decorationsUpdated()
 
@@ -1210,7 +1204,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         segmentDuration: Double? = null,
     ) {
         val navigator = epubNavigator ?: return
-        withScope(mainScope) {
+        withScope(this) {
             if (navigator.preferences?.disableSynchronization == true) {
                 return@withScope
             }

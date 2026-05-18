@@ -11,7 +11,7 @@ class ReadiumReaderStatusEventChannel(
     messenger: BinaryMessenger,
 ) : EventChannelWrapper<ReadiumReaderStatus>(messenger, "dk.nota.flutter_readium/reader-status") {
     override fun sendEvent(data: ReadiumReaderStatus) {
-        mainScope.launch {
+        launch {
             Log.d("ReadiumReaderStatus", "::sendEvent $data")
             eventSink?.success(Json.encodeToString(data))
         }

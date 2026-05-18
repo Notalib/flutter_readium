@@ -4,6 +4,7 @@ import android.os.Bundle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -22,9 +23,9 @@ abstract class BaseNavigator(
      * The initial locator to open the publication at.
      */
     protected var initialLocator: Locator?,
-) {
+): CoroutineScope by MainScope() {
     /**
-     * List of active jobs, to be cancelled on dispose
+     * List of active jobs, to be canceled on dispose
      */
     protected val jobs: MutableList<Job> = mutableListOf<Job>()
 
@@ -32,12 +33,6 @@ abstract class BaseNavigator(
      * The state map for storing navigator-specific state
      */
     protected val state = mutableMapOf<String, Any?>()
-
-    /**
-     * The main coroutine scope for the navigator. Most operations should be done on the main thread.
-     */
-    protected val mainScope: CoroutineScope =
-        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * The IO coroutine scope.
@@ -55,7 +50,7 @@ abstract class BaseNavigator(
     open fun dispose() {
         jobs.forEach { it.cancel() }
         jobs.clear()
-        mainScope.coroutineContext.cancelChildren()
+        coroutineContext.cancelChildren()
         ioScope.coroutineContext.cancelChildren()
     }
 
