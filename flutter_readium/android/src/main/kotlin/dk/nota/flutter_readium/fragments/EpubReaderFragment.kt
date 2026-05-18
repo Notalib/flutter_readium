@@ -17,7 +17,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
@@ -113,12 +112,13 @@ class EpubReaderFragment :
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::firstVisibleElementLocator. Navigator not ready.")
-            return null
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::firstVisibleElementLocator. Navigator not ready.")
+                return null
+            }
 
-        return withContext(coroutineContext) {
+        return coroutineContext.run {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -127,12 +127,13 @@ class EpubReaderFragment :
         decorations: List<Decoration>,
         group: String,
     ) {
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::applyDecorations. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::applyDecorations. Navigator not ready.")
+                return
+            }
 
-        return withContext(coroutineContext) {
+        return coroutineContext.run {
             navigator.applyDecorations(decorations, group)
         }
     }
@@ -142,13 +143,14 @@ class EpubReaderFragment :
      * NOTE: Returns null on error and if script returns null/undefined.
      */
     suspend fun evaluateJavascript(script: String): String? {
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::evaluateJavascript. Navigator not ready.")
-            return null
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::evaluateJavascript. Navigator not ready.")
+                return null
+            }
 
-        return withContext(coroutineContext) {
-            return@withContext navigator.evaluateJavascript(script)
+        return coroutineContext.run {
+            return@run navigator.evaluateJavascript(script)
         }
     }
 
@@ -164,12 +166,13 @@ class EpubReaderFragment :
 
         model.preferences = preferences
 
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::updatePreferences. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::updatePreferences. Navigator not ready.")
+                return
+            }
 
-        return withContext(coroutineContext) {
+        return coroutineContext.run {
             Log.d(TAG, "::updatePreferences: $preferences")
 
             applyCustomCssVariables()
@@ -200,17 +203,18 @@ class EpubReaderFragment :
      */
     suspend fun goBackward(animated: Boolean) {
         Log.d(TAG, "::goBackward")
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::goBackward. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::goBackward. Navigator not ready.")
+                return
+            }
 
         if (!layoutMode.isFixed && scrollMode) {
             goBackwardVertical(animated)
             return
         }
 
-        return withContext(coroutineContext) {
+        return coroutineContext.run {
             if (navigator.goBackward(animated)) {
                 Log.d(TAG, "::goBackward: Went back.")
             } else {
@@ -233,10 +237,11 @@ class EpubReaderFragment :
                 return
             }
 
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::goBackwardVertical. Navigator not ready.")
+                return
+            }
 
         val viewPortSize =
             currentViewPortSize() ?: run {
@@ -288,7 +293,7 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
                     return
                 }
-            return withContext(coroutineContext) { navigator.go(prevLocator, animated) }
+            return coroutineContext.run { navigator.go(prevLocator, animated) }
         }
 
         scrollToProgression(prevProgression)
@@ -300,17 +305,18 @@ class EpubReaderFragment :
     @OptIn(InternalReadiumApi::class)
     suspend fun goForward(animated: Boolean) {
         Log.d(TAG, "::goForward")
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::goForward. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::goForward. Navigator not ready.")
+                return
+            }
 
         if (!layoutMode.isFixed && scrollMode) {
             goForwardVertical(animated)
             return
         }
 
-        return withContext(coroutineContext) {
+        return coroutineContext.run {
             if (navigator.goForward(animated)) {
                 Log.d(TAG, "::goForward: Went forward.")
             } else {
@@ -333,10 +339,11 @@ class EpubReaderFragment :
                 return
             }
 
-        val navigator = epubNavigator ?: run {
-            Log.d(TAG, "::goForwardVertical. Navigator not ready.")
-            return
-        }
+        val navigator =
+            epubNavigator ?: run {
+                Log.d(TAG, "::goForwardVertical. Navigator not ready.")
+                return
+            }
 
         val viewPortSize =
             currentViewPortSize() ?: run {
@@ -380,7 +387,7 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goForwardVertical - reached end.")
                     return
                 }
-            return withContext(coroutineContext) { navigator.go(nextLink, animated) }
+            return coroutineContext.run { navigator.go(nextLink, animated) }
         }
 
         scrollToProgression(nextProgression)
