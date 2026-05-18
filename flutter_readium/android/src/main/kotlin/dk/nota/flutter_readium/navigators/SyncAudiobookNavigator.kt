@@ -25,6 +25,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "SyncAudiobookNavigator"
@@ -228,11 +229,9 @@ class SyncAudiobookNavigator(
         val timeOffsetFromProgression =
             locator.progression
                 ?.let { progression -> mediaOverlay.readingOrderItemDuration * progression }
-                ?.toInt()
+                ?.seconds
         val timeOffsetFromFragment =
             locator.locations.time
-                ?.inWholeSeconds
-                ?.toInt()
 
         if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
             Log.d(
@@ -249,7 +248,7 @@ class SyncAudiobookNavigator(
             )
         }
 
-        val timeOffset = timeOffsetFromProgression ?: timeOffsetFromFragment ?: 0
+        val timeOffset = timeOffsetFromProgression ?: timeOffsetFromFragment ?: Duration.ZERO
 
         val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
 
@@ -269,10 +268,10 @@ class SyncAudiobookNavigator(
         fun restoreState(
             publication: Publication,
             mediaOverlays: List<FlutterMediaOverlay?>,
-            listener: TimebasedListener,
+            timebasedListener: TimebasedListener,
             state: Bundle,
         ): SyncAudiobookNavigator {
-            val locator =
+            val initialLocator =
                 state
                     .getString(currentTimebaseLocatorKey)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
@@ -285,8 +284,8 @@ class SyncAudiobookNavigator(
             return SyncAudiobookNavigator(
                 publication,
                 mediaOverlays,
-                listener,
-                locator,
+                timebasedListener,
+                initialLocator,
                 preferences,
             )
         }

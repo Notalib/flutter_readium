@@ -34,6 +34,7 @@ import org.readium.r2.shared.util.resource.filename
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
@@ -306,23 +307,21 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
 }
 
 /**
- * Get the text id from a Locator's fragments or css selector, if any.
+ * Get the text id from a Locator's fragments or cssSelector, if any.
  */
 fun Locator.getTextId(): String? {
     val cssFragment =
         locations.cssSelector ?: locations.fragments.find {
             it.isNotEmpty() && !it.contains("=")
         } ?: return null
+
     return cssFragment.removePrefix("#")
 }
 
 /**
  * Make a new copy with a new time fragment
  */
-fun Locator.copyWithTimeFragment(time: Duration): Locator {
-    // IMPORTANT: Readium expects time fragment to be an integer.
-    return copyWithTimeFragment(time.inWholeSeconds)
-}
+fun Locator.copyWithTimeFragment(time: Duration): Locator = copyWithTimeFragment(time.toSeconds)
 
 /**
  * Make a new copy with a new time fragment
@@ -334,10 +333,9 @@ fun Locator.copyWithTimeFragment(time: Number): Locator =
 
 /**
  * Helper for making a valid t=<time> fragment for kotlin-toolkit.
- * TODO: Once https://github.com/readium/kotlin-toolkit/issues/782 is fixed, we will no longer need
  * to cast to int.
  */
-fun makeTimeFragments(time: Number): List<String> = listOf("t=${time.toInt()}")
+fun makeTimeFragments(time: Number): List<String> = listOf("t=$time")
 
 /**
  * Get progression from [Locator.Locations.progression]
@@ -351,7 +349,7 @@ val Locator.progression: Double?
  */
 @OptIn(InternalReadiumApi::class)
 fun Locator.Locations.timeWithDuration(duration: Duration?): Duration? =
-    letIfBothNotNull(duration?.inWholeSeconds?.seconds, progression)?.let { (d, p) -> d * p }
+    letIfBothNotNull(duration?.toSeconds, progression)?.let { (d, p) -> d * p }?.seconds
         ?: time
 
 /**
@@ -529,3 +527,9 @@ val Layout.isReflowable: Boolean
 
 val Layout.isScrolled: Boolean
     get() = this == Layout.SCROLLED
+
+/**
+ * Get the duration in seconds, that includes decimals. Unlike [Duration.inWholeSeconds]
+ */
+val Duration.toSeconds: Double
+    get() = toDouble(DurationUnit.SECONDS)

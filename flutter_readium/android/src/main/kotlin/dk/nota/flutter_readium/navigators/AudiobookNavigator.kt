@@ -8,6 +8,7 @@ import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
+import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.copyWithTocHref
 import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
@@ -263,7 +264,7 @@ open class AudiobookNavigator(
         }
     }
 
-    @OptIn(DelicateReadiumApi::class)
+    @OptIn(DelicateReadiumApi::class, InternalReadiumApi::class)
     override suspend fun seekToProgression(progression: Double): Boolean {
         val navigator =
             audioNavigator ?: run {
@@ -277,25 +278,22 @@ open class AudiobookNavigator(
         }
 
         return withScope(mainScope) {
-            val duration = navigator.asMedia3Player().duration
-            val timeOffset = duration * progression / 1000.0
+            val duration = navigator.asMedia3Player().duration.milliseconds
+            val timeOffset = duration.inWholeSeconds * progression
 
-            val locator = publication.normalizeLocator(navigator.currentLocator.value)
-            val itemIndex =
-                navigator.readingOrder.items
-                    .indexOfFirst { it.href == locator.href }
-                    .takeUnless { it == -1 }
+            val locator =
+                publication
+                    .normalizeLocator(navigator.currentLocator.value)
+                    .copyWithTimeFragment(timeOffset)
 
-            if (itemIndex != null) {
-                // Use seekTo directly, this allow us to be more precise,
-                // since time fragments are rounded to whole seconds.
-                navigator.skipTo(itemIndex, timeOffset.seconds)
-                return@withScope true
-            }
+            Log.d(
+                TAG,
+                "::seekToProgression - navigate to ${locator.href} @ ${locator.locations.time}",
+            )
 
-            Log.e(TAG, "::seekToProgression - didn't find the current item in the navigator.readingOrder, can't seek without it.")
+            navigator.go(locator)
 
-            return@withScope false
+            return@withScope true
         }
     }
 
