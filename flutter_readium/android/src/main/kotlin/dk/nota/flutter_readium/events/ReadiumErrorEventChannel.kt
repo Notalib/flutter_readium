@@ -15,7 +15,7 @@ class ReadiumErrorEventChannel(
 ) : EventChannelWrapper<ReadiumError>(messenger, "dk.nota.flutter_readium/error") {
     override fun sendEvent(data: ReadiumError) {
         mainScope.launch {
-            Log.d("ReadiumError", ":sendEvent $data")
+            Log.d("ReadiumError", "::sendEvent $data")
             eventSink?.success(Json.encodeToString(data))
         }
     }

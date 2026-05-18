@@ -54,7 +54,7 @@ class SyncAudiobookNavigator(
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
         if (navigator == null) {
-            Log.e(TAG, ": setupNavigatorListeners - navigator is null")
+            Log.e(TAG, "::setupNavigatorListeners - navigator is null")
             return
         }
 
@@ -75,7 +75,7 @@ class SyncAudiobookNavigator(
                     ?.let { mediaOverlay ->
                         Log.d(
                             TAG,
-                            ":syncTexLocator $timeOffset, locator:$mediaOverlay.syncTextLocator",
+                            "::setupNavigatorListeners - syncTextLocator $timeOffset, locator:${mediaOverlay.syncTextLocator}",
                         )
                         Pair(mediaOverlay, mediaOverlay.syncTextLocator!!)
                     }
