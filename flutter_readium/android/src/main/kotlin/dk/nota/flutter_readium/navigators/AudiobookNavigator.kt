@@ -112,42 +112,42 @@ open class AudiobookNavigator(
         }
 
         async {
-                audioNavigator =
-                    navigatorFactory
-                        .createNavigator(
-                            this@AudiobookNavigator.initialLocator,
-                            preferences.toExoPlayerPreferences(),
-                        ).getOrElse { error ->
-                            Log.e(TAG, "::initNavigator - $error")
-                            throw Exception(PublicationError.invoke(error).message)
-                        }
-
-                mediaServiceFacade =
-                    PluginMediaServiceFacade(ReadiumReader.application).apply {
-                        session
-                            .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
-                            .map { playback -> playback?.state as? AudioNavigator.State }
-                            .distinctUntilChanged()
-                            .onEach { state ->
-                                when (state) {
-                                    null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
-                                        // Do nothing
-                                    }
-
-                                    is AudioNavigator.State.Ended -> {
-                                        mediaServiceFacade?.closeSession()
-                                    }
-
-                                    is AudioNavigator.State.Failure<*> -> {
-                                        Log.e(TAG, "::initNavigator - failure: ${state.error}")
-                                        // onPlaybackError(state.error)
-                                    }
-                                }
-                            }.launchIn(this@AudiobookNavigator)
+            audioNavigator =
+                navigatorFactory
+                    .createNavigator(
+                        this@AudiobookNavigator.initialLocator,
+                        preferences.toExoPlayerPreferences(),
+                    ).getOrElse { error ->
+                        Log.e(TAG, "::initNavigator - $error")
+                        throw Exception(PublicationError.invoke(error).message)
                     }
 
-                setupNavigatorListeners()
-            }.await()
+            mediaServiceFacade =
+                PluginMediaServiceFacade(ReadiumReader.application).apply {
+                    session
+                        .flatMapLatest { it?.navigator?.playback ?: MutableStateFlow(null) }
+                        .map { playback -> playback?.state as? AudioNavigator.State }
+                        .distinctUntilChanged()
+                        .onEach { state ->
+                            when (state) {
+                                null, AudioNavigator.State.Ready, AudioNavigator.State.Buffering -> {
+                                    // Do nothing
+                                }
+
+                                is AudioNavigator.State.Ended -> {
+                                    mediaServiceFacade?.closeSession()
+                                }
+
+                                is AudioNavigator.State.Failure<*> -> {
+                                    Log.e(TAG, "::initNavigator - failure: ${state.error}")
+                                    // onPlaybackError(state.error)
+                                }
+                            }
+                        }.launchIn(this@AudiobookNavigator)
+                }
+
+            setupNavigatorListeners()
+        }.await()
     }
 
     override suspend fun play(fromLocator: Locator?) {
