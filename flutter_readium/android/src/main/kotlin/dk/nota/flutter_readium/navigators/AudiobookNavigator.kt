@@ -14,7 +14,7 @@ import dk.nota.flutter_readium.flattenChildren
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.time
 import dk.nota.flutter_readium.timeWithDuration
-import dk.nota.flutter_readium.withScope
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -157,7 +157,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             if (fromLocator != null) {
                 goToLocator(fromLocator)
             }
@@ -166,7 +166,7 @@ open class AudiobookNavigator(
                 navigatorWithOpenMediaSession()
             } catch (e: Exception) {
                 Log.e(TAG, "::play - error opening MediaSession: ${e.message}")
-                return@withScope
+                return@withMainContext
             }
 
             navigator.play()
@@ -180,7 +180,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             navigator.pause()
         }
     }
@@ -192,7 +192,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             // TODO: Do we need to check if already playing?
             navigator.play()
         }
@@ -205,7 +205,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             navigator.skip((-preferences.seekInterval).seconds)
         }
     }
@@ -217,7 +217,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             navigator.skip((preferences.seekInterval).seconds)
         }
     }
@@ -230,7 +230,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             val itemIndex =
                 navigator.readingOrder.items
                     .indexOfFirst { it.href == locator.href }
@@ -238,7 +238,7 @@ open class AudiobookNavigator(
 
             if (itemIndex == null) {
                 Log.e(TAG, "::goToLocator - ${locator.href} not found in navigator's readingOrder")
-                return@withScope
+                return@withMainContext
             }
 
             val item = navigator.readingOrder.items[itemIndex]
@@ -247,7 +247,7 @@ open class AudiobookNavigator(
                 Log.e(TAG, "::goToLocator - couldn't find timeOffset from starting file over.")
             }
             navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
-            return@withScope
+            return@withMainContext
         }
     }
 
@@ -258,7 +258,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             navigator.skip(offset.seconds)
         }
     }
@@ -276,7 +276,7 @@ open class AudiobookNavigator(
             return false
         }
 
-        return withScope(this) {
+        return withMainContext {
             val duration = navigator.asMedia3Player().duration.milliseconds
             val timeOffset = duration.inWholeSeconds * progression
 
@@ -292,7 +292,7 @@ open class AudiobookNavigator(
 
             navigator.go(locator)
 
-            return@withScope true
+            return@withMainContext true
         }
     }
 
@@ -303,7 +303,7 @@ open class AudiobookNavigator(
                 return null
             }
 
-        return withScope(this) {
+        return withMainContext {
             try {
                 val mediaSession = mediaServiceFacade!!
                 if (mediaSession.session.value == null) {
@@ -330,7 +330,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             navigator.submitPreferences(preferences.toExoPlayerPreferences())
         }
     }

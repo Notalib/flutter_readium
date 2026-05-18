@@ -5,7 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -13,37 +13,26 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.json.JSONArray
-import org.json.JSONException
 import org.json.JSONObject
 
-inline fun <T : Any> guardLet(
-    vararg elements: T?,
-    closure: () -> Nothing,
-): List<T> =
-    if (elements.all { it != null }) {
-        elements.filterNotNull()
-    } else {
-        closure()
-    }
-
-inline fun <T : Any> ifLet(
-    vararg elements: T?,
-    closure: (List<T>) -> Unit,
-) {
-    if (elements.all { it != null }) {
-        closure(elements.filterNotNull())
-    }
+/**
+ * Only if if the string is not null or empty.
+ */
+fun String?.letIfNotEmpty(closure: (String) -> Unit) {
+    if (!this.isNullOrEmpty()) closure(this)
 }
 
-fun String?.ifNotEmptyLet(closure: (String) -> Unit) {
-    if (this != null && this.isNotEmpty()) closure(this)
-}
-
+/**
+ * Returns null if the string is null or empty, otherwise return as is.
+ */
 fun String?.takeIfNotEmpty(): String? {
-    if (this != null && this.isNotEmpty()) return this
+    if (!this.isNullOrEmpty()) return this
     return null
 }
 
+/**
+ * Only [let] if both values are not null.
+ */
 fun <T : Any, U : Any> letIfBothNotNull(
     t: T?,
     u: U?,
@@ -56,6 +45,9 @@ fun <T : Any, U : Any> letIfBothNotNull(
 
 fun jsonDecode(json: String): Any = JSONArray("[$json]")[0]
 
+/**
+ * Encode object into JSON string.
+ */
 fun jsonEncode(json: Any?): String =
     when (json) {
         is JSONArray -> {
@@ -76,7 +68,9 @@ fun jsonEncode(json: Any?): String =
         }
     }
 
-// Unwrap ContextWrapper chain to find Application
+/**
+ * Unwrap ContextWrapper chain to find Application
+ */
 fun unwrapToApplication(context: Context?): Application? {
     if (context is Application) {
         return context
@@ -98,29 +92,18 @@ fun unwrapToApplication(context: Context?): Application? {
 }
 
 /**
- * Run a suspend block with the given CoroutineScope's context.
+ * Run a suspend block on the main dispatcher.
  */
-suspend fun <T> withScope(
-    scope: CoroutineScope,
-    block: suspend CoroutineScope.() -> T,
-): T = withContext(scope.coroutineContext, block)
+suspend fun <T> withMainContext(block: suspend CoroutineScope.() -> T): T = withContext(Dispatchers.Main.immediate, block)
 
 /**
- * Update the value of a MutableStateFlow only if it is different from the current value.
+ * Run a suspend block on the IO dispatcher.
  */
-fun <T> MutableStateFlow<T>.update(new: T) {
-    if (this.value != new) this.value = new
-}
+suspend fun <T> withIOContext(block: suspend CoroutineScope.() -> T): T = withContext(Dispatchers.IO, block)
 
-@Throws(JSONException::class)
-fun JSONArray.toList(): List<Any> {
-    val list = mutableListOf<Any>()
-    for (i in 0 until this.length()) {
-        list.add(this[i])
-    }
-    return list
-}
-
+/**
+ * Turn any value into a [JsonElement]
+ */
 fun anyToJsonElement(value: Any?): JsonElement =
     when (value) {
         null -> JsonNull
@@ -134,6 +117,9 @@ fun anyToJsonElement(value: Any?): JsonElement =
         else -> JsonPrimitive(value.toString())
     }
 
+/**
+ * Turn a map into a [JsonObject]
+ */
 fun mapToJsonObject(map: Map<*, *>): JsonObject {
     val content =
         map.entries.associate { (k, v) ->

@@ -757,10 +757,10 @@ object ReadiumReader :
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
 
-        withScope(this) {
+        withMainContext {
             epubNavigator?.let {
                 attachEpubNavigator(fragmentManager, viewGroup)
-                return@withScope
+                return@withMainContext
             } // Already enabled - assume from restored state.
 
             EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
@@ -768,7 +768,7 @@ object ReadiumReader :
                 epubNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
                 setDecorationStyle(decorationStyle)
-                return@withScope
+                return@withMainContext
             }
         }
     }
@@ -788,7 +788,7 @@ object ReadiumReader :
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             // Queue decorations to be applied when the epubNavigator is attached.
             decorationsUpdated()
 
@@ -1203,9 +1203,9 @@ object ReadiumReader :
         segmentDuration: Double? = null,
     ) {
         val navigator = epubNavigator ?: return
-        withScope(this) {
+        withMainContext {
             if (navigator.preferences?.disableSynchronization == true) {
-                return@withScope
+                return@withMainContext
             }
 
             navigator.goToLocator(locator, animated, segmentDuration)

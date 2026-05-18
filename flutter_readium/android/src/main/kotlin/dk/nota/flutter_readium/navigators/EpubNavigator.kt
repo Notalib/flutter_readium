@@ -10,7 +10,7 @@ import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
-import dk.nota.flutter_readium.withScope
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -173,7 +173,7 @@ class EpubNavigator :
 
         Log.d(TAG, "::go $locator animated:$animated")
 
-        return withScope(this) {
+        return withMainContext {
             afterFragmentStarted()
             segmentDuration?.takeIf { it > 0 }?.let {
                 navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
@@ -181,12 +181,12 @@ class EpubNavigator :
 
             if (!navigator.go(locator, animated)) {
                 Log.w(TAG, "::go -  FAILED!")
-                return@withScope false
+                return@withMainContext false
             }
 
             Log.d(TAG, "::go - returned true")
 
-            return@withScope true
+            return@withMainContext true
         }
     }
 
@@ -360,7 +360,7 @@ class EpubNavigator :
         }
 
         afterFragmentStarted()
-        return withScope(this) {
+        return withMainContext {
             navigator.evaluateJavascript(script)
         }
     }
@@ -375,7 +375,7 @@ class EpubNavigator :
             return
         }
 
-        withScope(this) {
+        withMainContext {
             Log.d(TAG, "::goBackward")
             navigator.goBackward(animated)
         }
@@ -391,7 +391,7 @@ class EpubNavigator :
             return
         }
 
-        withScope(this) {
+        withMainContext {
             Log.d(TAG, "::goForward")
             navigator.goForward(animated)
         }
@@ -410,7 +410,7 @@ class EpubNavigator :
                 return null
             }
 
-        return withScope(this) {
+        return withMainContext {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -425,7 +425,7 @@ class EpubNavigator :
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             Log.d(TAG, "::applyDecorations: $decorations for group:$group")
 
             navigator.applyDecorations(decorations, group)
@@ -446,7 +446,7 @@ class EpubNavigator :
         animated: Boolean,
         segmentDuration: Double? = null,
     ) {
-        withScope(this) {
+        withMainContext {
             go(locator, animated, segmentDuration)
         }
     }

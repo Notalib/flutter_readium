@@ -10,7 +10,8 @@ import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.progression
-import dk.nota.flutter_readium.withScope
+import dk.nota.flutter_readium.withIOContext
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,7 +98,7 @@ class TTSNavigator(
             }
 
         val initialAndroidPreferences = preferences.toAndroidTtsPreferences()
-        withScope(this) {
+        withMainContext {
             ttsNavigator =
                 navigatorFactory
                     .createNavigator(
@@ -152,7 +153,7 @@ class TTSNavigator(
             return
         }
 
-        withScope(this) {
+        withMainContext {
             val navigator = ensureNavigatorWithOpenMediaSession()
             navigator.play()
 
@@ -167,7 +168,7 @@ class TTSNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             try {
                 navigator.pause()
             } catch (e: Exception) {
@@ -177,7 +178,7 @@ class TTSNavigator(
     }
 
     override suspend fun resume() {
-        withScope(this) {
+        withMainContext {
             try {
                 val navigator = ensureNavigatorWithOpenMediaSession()
                 navigator.play()
@@ -197,7 +198,7 @@ class TTSNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             if (navigator.hasPreviousUtterance()) {
                 navigator.skipToPreviousUtterance()
             }
@@ -214,7 +215,7 @@ class TTSNavigator(
                 return
             }
 
-        withScope(this) {
+        withMainContext {
             if (navigator.hasNextUtterance()) {
                 navigator.skipToNextUtterance()
             }
@@ -230,11 +231,11 @@ class TTSNavigator(
         locator: Locator,
         play: Boolean,
     ) {
-        withScope(this) {
+        withMainContext {
             stopTtsNavigator()
             initialLocator = resolveLocatorWithProgression(locator)
-            val navigator = ensureNavigatorWithOpenMediaSession()
             decorateCurrentUtterance(initialLocator)
+            val navigator = ensureNavigatorWithOpenMediaSession()
 
             if (play) {
                 navigator.play()
@@ -300,7 +301,7 @@ class TTSNavigator(
             return it
         }
 
-        return withScope(ioScope) {
+        return withIOContext {
             // Get an iterator for the content of book.
             val content =
                 publication.content(
@@ -310,7 +311,7 @@ class TTSNavigator(
                     ),
                 ) ?: run {
                     Log.e(TAG, "::updateProgressionLocatorMap - no content service found")
-                    return@withScope null
+                    return@withIOContext null
                 }
 
             val items = mutableListOf<Locator>()
@@ -337,7 +338,7 @@ class TTSNavigator(
 
             progressionLookup[cleanHref] = items.toList()
 
-            return@withScope items
+            return@withIOContext items
         }
     }
 
@@ -379,7 +380,7 @@ class TTSNavigator(
 
     // / Updates TTS preferences, does not override current preferences if props are null
     suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
-        withScope(this) {
+        withMainContext {
             preferences = preferences.plus(prefs)
 
             ttsNavigator?.let { navigator ->
@@ -541,7 +542,7 @@ class TTSNavigator(
      * Stop the current ttsNavigator. This is needed because we have to restart it when navigating.
      */
     private suspend fun stopTtsNavigator() {
-        withScope(this) {
+        withMainContext {
             ttsNavigator?.let { navigator ->
                 // Save currentLocator.
                 initialLocator = navigator.currentLocator.value
