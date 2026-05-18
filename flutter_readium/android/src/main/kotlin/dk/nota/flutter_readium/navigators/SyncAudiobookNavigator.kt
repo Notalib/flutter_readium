@@ -107,7 +107,7 @@ class SyncAudiobookNavigator(
             } ?: run {
                 Log.d(
                     TAG,
-                    ":onCurrentLocatorChanges no media-overlay item found for locator=$locator, timeOffset=$timeOffset",
+                    "::onCurrentLocatorChanges - no media-overlay item found for locator=$locator, timeOffset=$timeOffset",
                 )
                 return
             }
@@ -127,7 +127,7 @@ class SyncAudiobookNavigator(
             }
 
         if (audioLocator == null) {
-            Log.d(TAG, "::Couldn't resolve currentLocator $locator to audio-locator")
+            Log.d(TAG, "::onCurrentLocatorChanges - couldn't resolve $locator to audio-locator")
 
             return
         }
@@ -161,7 +161,7 @@ class SyncAudiobookNavigator(
         if (audioLocator != null) {
             super.goToLocator(audioLocator)
         } else {
-            Log.d(TAG, "goToLocator: no audio locator found for $locator")
+            Log.d(TAG, "::goToLocator - no audio locator found for $locator")
         }
     }
 
@@ -187,7 +187,7 @@ class SyncAudiobookNavigator(
     suspend fun decorationsUpdated() {
         val navigator = audioNavigator
         if (navigator == null) {
-            Log.d(TAG, ":decorationsUpdated: navigator is null")
+            Log.d(TAG, "::decorationsUpdated - navigator is null")
             return
         }
 
@@ -197,7 +197,7 @@ class SyncAudiobookNavigator(
                 .firstNotNullOfOrNull { mo ->
                     mo?.findItemFromLocator(locator)
                 }?.syncTextLocator ?: run {
-                Log.d(TAG, ":decorationsUpdated - didn't find a current text locator")
+                Log.d(TAG, "::decorationsUpdated - didn't find a current text locator")
                 return
             }
 

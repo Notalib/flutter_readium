@@ -209,7 +209,7 @@ class EpubNavigator :
 
         val navigator =
             epubNavigator ?: run {
-                Log.d(TAG, "Tried to update preferences without a navigator")
+                Log.d(TAG, "::updatePreferences - tried to update without a navigator")
                 preferences = flutterEpubPreferences
                 return
             }
@@ -219,7 +219,7 @@ class EpubNavigator :
 
             preferences = flutterEpubPreferences
         } catch (ex: Exception) {
-            Log.e(TAG, "Error applying EpubPreferences: $ex")
+            Log.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
         }
     }
 
