@@ -23,7 +23,7 @@ abstract class BaseNavigator(
      * The initial locator to open the publication at.
      */
     protected var initialLocator: Locator?,
-): CoroutineScope by MainScope() {
+) : CoroutineScope by MainScope() {
     /**
      * List of active jobs, to be canceled on dispose
      */

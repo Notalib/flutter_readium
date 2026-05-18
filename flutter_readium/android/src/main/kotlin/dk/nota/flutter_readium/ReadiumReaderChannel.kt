@@ -14,13 +14,13 @@ internal class ReadiumReaderChannel(
     name: String,
 ) : MethodChannel(messenger, name),
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
-    fun onPageChanged(locator: Locator?) = launch {
-        invokeMethod(
-            "onPageChanged",
-            locator?.toJSON().toString()
-        )
-    }
+    fun onPageChanged(locator: Locator?) =
+        launch {
+            invokeMethod(
+                "onPageChanged",
+                locator?.toJSON().toString(),
+            )
+        }
 
-    fun onExternalLinkActivated(url: AbsoluteUrl) =
-        launch { invokeMethod("onExternalLinkActivated", url.toString()) }
+    fun onExternalLinkActivated(url: AbsoluteUrl) = launch { invokeMethod("onExternalLinkActivated", url.toString()) }
 }

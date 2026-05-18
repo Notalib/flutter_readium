@@ -93,7 +93,6 @@ object ReadiumReader :
     TimebasedNavigator.TimebasedListener,
     EpubNavigator.VisualListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
-
     private var appRef: WeakReference<Application>? = null
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
