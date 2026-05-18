@@ -118,7 +118,7 @@ class EpubReaderFragment :
                 return null
             }
 
-        return coroutineContext.run {
+        return run {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -133,7 +133,7 @@ class EpubReaderFragment :
                 return
             }
 
-        return coroutineContext.run {
+        return run {
             navigator.applyDecorations(decorations, group)
         }
     }
@@ -149,7 +149,7 @@ class EpubReaderFragment :
                 return null
             }
 
-        return coroutineContext.run {
+        return run {
             return@run navigator.evaluateJavascript(script)
         }
     }
@@ -172,7 +172,7 @@ class EpubReaderFragment :
                 return
             }
 
-        return coroutineContext.run {
+        return run {
             Log.d(TAG, "::updatePreferences: $preferences")
 
             applyCustomCssVariables()
@@ -214,7 +214,7 @@ class EpubReaderFragment :
             return
         }
 
-        return coroutineContext.run {
+        return run {
             if (navigator.goBackward(animated)) {
                 Log.d(TAG, "::goBackward: Went back.")
             } else {
@@ -293,7 +293,7 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
                     return
                 }
-            return coroutineContext.run { navigator.go(prevLocator, animated) }
+            return run { navigator.go(prevLocator, animated) }
         }
 
         scrollToProgression(prevProgression)
@@ -316,7 +316,7 @@ class EpubReaderFragment :
             return
         }
 
-        return coroutineContext.run {
+        return run {
             if (navigator.goForward(animated)) {
                 Log.d(TAG, "::goForward: Went forward.")
             } else {
@@ -387,7 +387,7 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goForwardVertical - reached end.")
                     return
                 }
-            return coroutineContext.run { navigator.go(nextLink, animated) }
+            return run { navigator.go(nextLink, animated) }
         }
 
         scrollToProgression(nextProgression)

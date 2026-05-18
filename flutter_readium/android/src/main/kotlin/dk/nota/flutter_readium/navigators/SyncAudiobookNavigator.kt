@@ -85,7 +85,7 @@ class SyncAudiobookNavigator(
                 ReadiumReader.epubSyncToLocator(textLocator, false, mediaOverlay.duration)
 
                 decorateCurrentUtterance(textLocator)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
     }
 
@@ -185,11 +185,11 @@ class SyncAudiobookNavigator(
      * Called when decorations (e.g., highlights) need to be updated.
      */
     suspend fun decorationsUpdated() {
-        val navigator = audioNavigator
-        if (navigator == null) {
-            Log.d(TAG, "::decorationsUpdated - navigator is null")
-            return
-        }
+        val navigator =
+            audioNavigator ?: run {
+                Log.d(TAG, "::decorationsUpdated - navigator is null")
+                return
+            }
 
         val locator = navigator.currentLocator.value
         val textLocator =
@@ -205,7 +205,7 @@ class SyncAudiobookNavigator(
     }
 
     override fun onEnded() {
-        mainScope.launch {
+        launch {
             ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
         }
     }
@@ -257,7 +257,7 @@ class SyncAudiobookNavigator(
     }
 
     override fun dispose() {
-        mainScope.launch {
+        launch {
             ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
         }
 

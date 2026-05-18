@@ -111,8 +111,7 @@ open class AudiobookNavigator(
             throw Exception("Couldn't create AudioNavigatorFactory")
         }
 
-        mainScope
-            .async {
+        async {
                 audioNavigator =
                     navigatorFactory
                         .createNavigator(
@@ -144,7 +143,7 @@ open class AudiobookNavigator(
                                         // onPlaybackError(state.error)
                                     }
                                 }
-                            }.launchIn(mainScope)
+                            }.launchIn(this@AudiobookNavigator)
                     }
 
                 setupNavigatorListeners()
@@ -158,7 +157,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             if (fromLocator != null) {
                 goToLocator(fromLocator)
             }
@@ -181,7 +180,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             navigator.pause()
         }
     }
@@ -193,7 +192,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             // TODO: Do we need to check if already playing?
             navigator.play()
         }
@@ -206,7 +205,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             navigator.skip((-preferences.seekInterval).seconds)
         }
     }
@@ -218,7 +217,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             navigator.skip((preferences.seekInterval).seconds)
         }
     }
@@ -231,7 +230,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             val itemIndex =
                 navigator.readingOrder.items
                     .indexOfFirst { it.href == locator.href }
@@ -259,7 +258,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             navigator.skip(offset.seconds)
         }
     }
@@ -277,7 +276,7 @@ open class AudiobookNavigator(
             return false
         }
 
-        return withScope(mainScope) {
+        return withScope(this) {
             val duration = navigator.asMedia3Player().duration.milliseconds
             val timeOffset = duration.inWholeSeconds * progression
 
@@ -304,17 +303,19 @@ open class AudiobookNavigator(
                 return null
             }
 
-        try {
-            val mediaSession = mediaServiceFacade!!
-            if (mediaSession.session.value == null) {
-                Log.d(TAG, "::navigatorWithOpenMediaSession - open session")
-                mediaSession.openSession(navigator)
+        return withScope(this) {
+            try {
+                val mediaSession = mediaServiceFacade!!
+                if (mediaSession.session.value == null) {
+                    Log.d(TAG, "::navigatorWithOpenMediaSession - open session")
+                    mediaSession.openSession(navigator)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "::navigatorWithOpenMediaSession - failed to open MediaSession: $e")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "::navigatorWithOpenMediaSession - failed to open MediaSession: $e")
-        }
 
-        return navigator
+            navigator
+        }
     }
 
     /**
@@ -329,7 +330,7 @@ open class AudiobookNavigator(
                 return
             }
 
-        withScope(mainScope) {
+        withScope(this) {
             navigator.submitPreferences(preferences.toExoPlayerPreferences())
         }
     }
@@ -348,7 +349,7 @@ open class AudiobookNavigator(
                 "${pb.state}|${pb.playWhenReady}"
             }.onEach { pb ->
                 onPlaybackStateChanged(pb)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         // Handle buffered changes
@@ -357,7 +358,7 @@ open class AudiobookNavigator(
             .distinctUntilChangedBy { pb -> pb.buffered }
             .onEach { pb ->
                 timebaseListener.onTimebasedBufferChanged(pb.buffered)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         // Handle current locator changes
@@ -367,13 +368,13 @@ open class AudiobookNavigator(
             .onEach { locator ->
                 onCurrentLocatorChanges(locator)
                 state[currentTimebaseLocatorKey] = locator
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         navigator.settings
             .onEach { s ->
                 Log.d(TAG, "::setupNavigatorListeners - AudioNavigator settings changed: $s")
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
     }
 
@@ -444,7 +445,7 @@ open class AudiobookNavigator(
     override fun dispose() {
         super.dispose()
 
-        mainScope.launch {
+        launch {
             mediaServiceFacade?.closeSession()
 
             audioNavigator?.close()
