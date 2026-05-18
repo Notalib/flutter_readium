@@ -16,8 +16,10 @@ android {
     targetCompatibility = JavaVersion.VERSION_18
   }
 
-  kotlinOptions {
-    jvmTarget = JavaVersion.VERSION_18.toString()
+  kotlin {
+    compilerOptions {
+      jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_18
+    }
   }
 
   defaultConfig {
