@@ -208,6 +208,9 @@ class Publication with EquatableMixin implements JSONable {
   bool get conformsToReadiumEbook =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
+  bool get conformsToReadiumPDF =>
+      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/pdf') == true;
+
   bool get containsMediaOverlays =>
       readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
 }
