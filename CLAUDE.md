@@ -54,6 +54,7 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 - **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
 - **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased, until a release.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
+- **PDF locator shape**: PDFs are represented as a single-resource publication. The canonical position lives in `Locator.locations.position` as a **1-based page number** — this matches the upstream `PDFPositionsService` (swift-toolkit) and `Locator.locations.position` from `PdfNavigatorFragment.currentLocator` (kotlin-toolkit). The PDF resource href is always the single reading-order entry, and the locator's `fragments` carry `"page=N"` on iOS (where the upstream parser produces it). Do not invent a parallel `pageIndex` convention; consumers should read `locations.position` for page navigation and round-trip via `goToLocator`.
 
 ## Build / toolchain facts
 
@@ -66,4 +67,4 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 
 - The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
-- The plugin currently targets EPUB / WebPub (with or without pre-recorded audio); LCP and PDF adapter code is present-but-commented in `android/build.gradle` — don't enable it without a deliberate plan.
+- The plugin targets EPUB / WebPub (with or without pre-recorded audio) and PDF on iOS + Android. PDF support uses PDFKit on iOS (already in `ReadiumNavigator`) and PDFium via `readium-adapter-pdfium` on Android — the PSPDFKit adapter remains commented out in `android/build.gradle` for the commercial-license path. LCP support is still gated behind a `#if LCP` flag on iOS and a commented `readium-lcp` dependency on Android — don't enable it without a deliberate plan.
