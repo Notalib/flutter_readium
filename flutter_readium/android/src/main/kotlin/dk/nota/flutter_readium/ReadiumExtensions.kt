@@ -180,18 +180,56 @@ fun Publication.hasGuidedNavigationMediaOverlays() =
  */
 fun Publication.hasSyncNarration() = hasMediaOverlays() || hasGuidedNavigationMediaOverlays()
 
+private val mediaOverlayFetchConcurrency =
+    BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
+        Log.w(
+            TAG,
+            "::getGuidedNavigationMediaOverlays - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
+                "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
+        )
+        1
+    }
+
+/**
+ * Enriches a list of [FlutterMediaOverlay] with title and [FlutterMediaOverlayItem.tocHref] from
+ * the publication's table of contents. Uses a sliding-window approach: items that don't match a
+ * ToC entry directly inherit the last matched entry when they share the same text file.
+ * Null overlay slots are passed through unchanged.
+ */
+private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+    val toc = tableOfContents.flattenChildren().map { it.href.toString() to it }
+    var lastTocMatch: Pair<String, Link>? = null
+
+    fun FlutterMediaOverlayItem.enrich(): FlutterMediaOverlayItem {
+        val match = toc.find { it.first == text }
+        return when {
+            match != null -> {
+                lastTocMatch = match
+                copy(title = match.second.title ?: "", tocHref = match.second.href.resolve())
+            }
+
+            lastTocMatch != null && lastTocMatch!!.first.substringBefore("#") == textFile -> {
+                copy(
+                    title = lastTocMatch!!.second.title ?: "",
+                    tocHref = lastTocMatch!!.second.href.resolve()
+                )
+            }
+
+            else -> {
+                this
+            }
+        }
+    }
+
+    return overlays.map { overlay -> overlay?.let { ov -> FlutterMediaOverlay(ov.items.map { it.enrich() }) } }
+}
+
 /**
  * Get the media overlays for the publication, if any.
  * Note: If an item in the reading order does not have a media overlay, it will be represented by null
  */
 suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
-
-    // Flatten TOC for title lookup
-    val toc = tableOfContents.flattenChildren().map { Pair(it.href.toString(), it) }
-
-    // Remember last matched TOC item for titles
-    var lastTocMatch: Pair<String, Link>? = null
 
     val overlayLinks =
         this.readingOrder.mapNotNull { r ->
@@ -204,16 +242,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // dozens of sockets to the origin at once.
     val parsed: List<FlutterMediaOverlay?> =
         coroutineScope {
-            val fetchConcurrency =
-                BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
-                    Log.w(
-                        TAG,
-                        "::getMediaOverlays() - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
-                            "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
-                    )
-                    1
-                }
-            val gate = Semaphore(permits = fetchConcurrency)
+            val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
             overlayLinks
                 .mapIndexed { index, link ->
                     async(Dispatchers.IO) {
@@ -248,37 +277,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    // TOC-matching pass stays sequential — it walks shared mutable state
-    // (`lastTocMatch`) in reading order. It's pure CPU and not the bottleneck.
-    return parsed.map { mo ->
-        if (mo == null) return@map null
-
-        val items =
-            mo.items.map { item ->
-                // Find best matching title from TOC
-                val match =
-                    toc.find { tocItem ->
-                        tocItem.first == item.text
-                    }
-
-                if (match?.second != null) {
-                    lastTocMatch = match
-                    item.copy(
-                        title = match.second.title ?: "",
-                        tocHref = match.second.href.resolve(),
-                    )
-                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(
-                        title = lastTocMatch.second.title ?: "",
-                        tocHref = lastTocMatch.second.href.resolve(),
-                    )
-                } else {
-                    item
-                }
-            }
-
-        return@map FlutterMediaOverlay(items)
-    }
+    return enrichOverlaysWithToc(parsed)
 }
 
 /**
@@ -290,55 +289,44 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
  * Returns null if the publication contains no guided navigation.
  */
 suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOverlay>? {
-    val toc = tableOfContents.flattenChildren().map { it.href.toString() to it }
-    var lastTocMatch: Pair<String, Link>? = null
-
-    fun FlutterMediaOverlayItem.enrichWithToc(): FlutterMediaOverlayItem {
-        val match = toc.find { it.first == text }
-        return when {
-            match != null -> {
-                lastTocMatch = match
-                copy(title = match.second.title ?: "", tocHref = match.second.href.resolve())
-            }
-
-            lastTocMatch != null && lastTocMatch!!.first.substringBefore("#") == textFile -> {
-                copy(title = lastTocMatch!!.second.title ?: "", tocHref = lastTocMatch!!.second.href.resolve())
-            }
-
-            else -> {
-                this
-            }
-        }
-    }
+    if (!hasGuidedNavigationMediaOverlays()) return null
 
     // Strategy 1: single guided navigation document in publication links (preferred).
     val singleDocLink = links.find { it.mediaType == guidedNavigationMediaType }
     if (singleDocLink != null) {
         val jsonString =
             get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
-                Log.i(TAG, "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}")
+                Log.i(
+                    TAG,
+                    "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}"
+                )
                 return null
             }
         val document =
             GuidedNavigationDocument.fromJSON(jsonString) ?: run {
-                Log.i(TAG, "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}")
+                Log.i(
+                    TAG,
+                    "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}"
+                )
                 return null
             }
 
-        return document.toMediaOverlays().mapNotNull { overlay ->
-            val textFile = overlay.items.firstOrNull()?.textFile ?: return@mapNotNull null
-            val roEntry =
-                readingOrder.withIndex().firstOrNull { (_, link) ->
-                    Url.invoke(textFile)?.let { link.href.resolve().isEquivalent(it) } == true
-                }
-            val position = (roEntry?.index ?: -1) + 1
-            val duration = roEntry?.value?.duration ?: 0.0
-            FlutterMediaOverlay(
-                overlay.items.map { item ->
-                    item.copy(position = position, readingOrderItemDuration = duration).enrichWithToc()
-                },
-            )
-        }
+        val rawOverlays =
+            document.toMediaOverlays().mapNotNull { overlay ->
+                val textFile = overlay.items.firstOrNull()?.textFile ?: return@mapNotNull null
+                val roEntry =
+                    readingOrder.withIndex().firstOrNull { (_, link) ->
+                        Url.invoke(textFile)?.let { link.href.resolve().isEquivalent(it) } == true
+                    }
+                val position = (roEntry?.index ?: -1) + 1
+                val duration = roEntry?.value?.duration ?: 0.0
+                FlutterMediaOverlay(
+                    overlay.items.map { item ->
+                        item.copy(position = position, readingOrderItemDuration = duration)
+                    },
+                )
+            }
+        return enrichOverlaysWithToc(rawOverlays).filterNotNull()
     }
 
     // Strategy 2: per-item alternates in reading order.
@@ -346,19 +334,9 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
         readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
     if (!hasGuidedNav) return null
 
-    val fetchConcurrency =
-        BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
-            Log.w(
-                TAG,
-                "::getGuidedNavigationMediaOverlays - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
-                    "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
-            )
-            1
-        }
-
     val parsed: List<List<FlutterMediaOverlay>?> =
         coroutineScope {
-            val gate = Semaphore(permits = fetchConcurrency)
+            val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
             readingOrder
                 .mapIndexed { index, roLink ->
                     async(Dispatchers.IO) {
@@ -387,9 +365,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                 }.awaitAll()
         }
 
-    return parsed.flatMap { it ?: emptyList() }.map { overlay ->
-        FlutterMediaOverlay(overlay.items.map { it.enrichWithToc() })
-    }
+    return enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() }).filterNotNull()
 }
 
 /**
@@ -491,23 +467,27 @@ fun Locator.Locations.timeWithDuration(duration: Duration?): Duration? =
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Int?): Duration? = timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Int?): Duration? =
+    timeWithDuration(duration?.seconds)
 
 /**
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Double?): Duration? = timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Double?): Duration? =
+    timeWithDuration(duration?.seconds)
 
 /**
  * Find a link in the reading order from its href.
  */
-fun Publication.findReadingOrderLink(href: Url): Link? = readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
+fun Publication.findReadingOrderLink(href: Url): Link? =
+    readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
 
 /**
  * Get the duration for an item in the reading order.
  */
-fun Publication.getReadingOrderItemDuration(href: Url): Duration? = findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
+fun Publication.getReadingOrderItemDuration(href: Url): Duration? =
+    findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
 
 /**
  * Helper for getting all cssSelectors for a HTML document.
