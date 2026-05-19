@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
@@ -208,8 +209,7 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                                 context,
                                 assetRetriever = assetRetriever,
                                 httpClient = httpClient,
-                                // Only required if you want to support PDF files using the PDFium adapter.
-                                pdfFactory = null, // PdfiumDocumentFactory(context)
+                                pdfFactory = PdfiumDocumentFactory(context),
                             ),
                     )
             }
