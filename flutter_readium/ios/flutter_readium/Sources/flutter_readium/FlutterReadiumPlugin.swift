@@ -233,7 +233,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task { @MainActor in
         self.timebasedNavigator?.decorationsUpdated()
       }
-      
+
       result(nil)
     case "ttsSetPreferences":
       let args = call.arguments as? Dictionary<String, Any>
@@ -628,7 +628,7 @@ extension FlutterReadiumPlugin {
     }
 
     /// If we already have a ToC ID from the viewer, use that for lookup.
-    if let tocId = locator.locations.otherLocations["tocId"] {
+    if let tocId = locator.locations.otherLocations["tocHref"] {
       let tocHref = "\(locator.href)#\(tocId)"
       let tocLink = publication.getFlattenedToC().first(where: { $0.href == tocHref })
       return tocLink
