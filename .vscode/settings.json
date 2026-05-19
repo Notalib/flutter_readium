@@ -51,6 +51,7 @@
     "animejs",
     "ascii",
     "Ascii",
+    "audioref",
     "charsets",
     "Charsets",
     "comicbook",
@@ -64,6 +65,7 @@
     "epubcfi",
     "fimber",
     "Fimber",
+    "imgref",
     "jsonable",
     "kotlin",
     "kotlinx",
@@ -86,7 +88,9 @@
     "subcollection",
     "Subcollection",
     "subcollections",
-    "Transformability"
+    "textref",
+    "Transformability",
+    "videoref"
   ],
   "java.configuration.updateBuildConfiguration": "interactive"
 }
