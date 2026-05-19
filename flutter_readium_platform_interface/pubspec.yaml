@@ -27,6 +27,7 @@ dependencies:
   dfunc: ^0.10.0
   fimber: ^0.7.0
   equatable: ^2.0.8
+  collection: ^1.19.1
 
 dev_dependencies:
   flutter_test:
