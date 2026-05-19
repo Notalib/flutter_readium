@@ -210,4 +210,12 @@ class Publication with EquatableMixin implements JSONable {
 
   bool get containsMediaOverlays =>
       readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
+
+  bool get containsGuidedNavigation =>
+      links.any((link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type)) ||
+      readingOrder.any(
+        (link) => link.alternates.any((alt) => MediaType.syncMediaNarrationManifest.matchesFromName(alt.type)),
+      );
+
+  bool get isAudioBook => conformsToReadiumAudiobook || containsMediaOverlays || containsGuidedNavigation;
 }

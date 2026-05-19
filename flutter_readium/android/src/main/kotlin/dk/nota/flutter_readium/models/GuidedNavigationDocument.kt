@@ -62,8 +62,9 @@ val guidedNavigationMediaType = MediaType("application/guided-navigation+json")
 
 /**
  * Converts this document to a list of [FlutterMediaOverlay] by flattening all
- * [GuidedNavigationObject]s that carry both an [audioref] and a [textref], then
- * grouping the resulting items by their (audioFile, textFile) pair.
+ * [GuidedNavigationObject]s that carry both an [GuidedNavigationObject.audioref]
+ * and a [GuidedNavigationObject.textref], then grouping the resulting items by
+ * their (audioFile, textFile) pair.
  *
  * @param position    Reading-order position (1-based) shared by all generated items.
  * @param tocHref     ToC href to attach to every item, or null if unknown.

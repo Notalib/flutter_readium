@@ -19,28 +19,28 @@ extension Locator {
     let cssFragment = locations.fragments.first(where: { $0.hasPrefix("#") }) ?? locations.cssSelector
     return cssFragment?.removingPrefix("#")
   }
-  
+
   /// Prepares the Locator data to be sent over the Flutter bridge to clients.
   /// Some fields are better off rounded before being passed over the bridge.
   func toClientFriendlyLocator() -> Locator {
     let offset = timeOffset
     var totalProgress = locations.totalProgression
-    
+
     if totalProgress != nil {
       totalProgress = Double(String(format: "%.4f", totalProgress!))
     }
-    
+
     return copy(locations: { locs in
       locs.fragments = offset != nil ? [String(format: "t=%.2f", offset!)] : []
       locs.totalProgression = totalProgress
     })
   }
-  
+
   /// Gets a Locator copy overriding fragments with a Readium compatible time fragment.
   func copyWithOffset(_ offset: Double) -> Locator {
     return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
   }
-  
+
   func copyWithProgressionLocations(progression: Double) -> Locator {
     return copy(locations: { locs in
       locs.fragments = []
@@ -75,6 +75,26 @@ extension Publication {
     containsMediaOverlays || containsGuidedNavigationMediaOverlays
   }
 
+  /// Enriches a list of overlays with title and tocHref from the publication's table of contents.
+  /// Uses a sliding-window approach: items that don't match a ToC entry directly inherit the last
+  /// matched entry when they share the same text file.
+  private func enrichOverlaysWithToc(_ overlays: [FlutterMediaOverlay]) -> [FlutterMediaOverlay] {
+    let toc = getFlattenedToC()
+    var lastTocMatch: Link? = nil
+    return overlays.map { overlay in
+      let items = overlay.items.map { item -> FlutterMediaOverlayItem in
+        if let match = toc.first(where: { $0.href == item.text }) {
+          lastTocMatch = match
+          return item.copyWith(tocTitle: match.title, tocHref: match.href)
+        } else if let last = lastTocMatch, last.href.substringBeforeLast("#") == item.textFile {
+          return item.copyWith(tocTitle: last.title, tocHref: last.href)
+        }
+        return item
+      }
+      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
+    }
+  }
+
   func getMediaOverlays() async -> [FlutterMediaOverlay] {
     if (!containsMediaOverlays) {
       return []
@@ -82,51 +102,22 @@ extension Publication {
 
     let narrationLinks = self.narrationLinks
 
-    let toc: [Link] = getFlattenedToC()
-    var lastTocMatch: Link? = nil
-
     let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
-    let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
-      /// Fetch the expected total duration of this MediaOverlay from the reading-order.
+    let rawOverlays = narrationJson.enumerated().compactMap({ idx, json in
       let roDuration = readingOrder.getOrNil(idx)?.duration
       return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
-    }).map({ (overlay: FlutterMediaOverlay) in
-      /// For each item in the top-level MediaOverlay enrich it with href and title from the ToC where matchable.
-      let items = overlay.items.map { item in
-        // Find best matching title from ToC (via text URL)
-        if let match = toc.first(where: { tocItem in tocItem.href == item.text }) {
-          lastTocMatch = match
-          return item.copyWith(tocTitle: match.title, tocHref: match.href)
-        } else if (lastTocMatch != nil && lastTocMatch?.href.substringBeforeLast("#") == item.textFile) {
-          return item.copyWith(tocTitle: lastTocMatch?.title, tocHref: lastTocMatch?.href)
-        }
-        return item
-      }
-      /// Re-create the top-level MediaOverlay item with its enriched items and reading-order duration
-      /// If no duration in the reading-order, it calculates a total duration for all its items.
-      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     })
 
     // Assert that we did not lose any MediaOverlays during JSON deserialization.
-    assert(mediaOverlays.count == narrationLinks.count)
+    assert(rawOverlays.count == narrationLinks.count)
 
-    return mediaOverlays
+    return enrichOverlaysWithToc(rawOverlays)
   }
 
   func getGuidedNavigationMediaOverlays() async -> [FlutterMediaOverlay]? {
-    let guidedNavMediaType = MediaType("application/guided-navigation+json")!
-    let toc = getFlattenedToC()
-    var lastTocMatch: Link? = nil
+    guard containsGuidedNavigationMediaOverlays else { return nil }
 
-    func resolveToc(_ item: FlutterMediaOverlayItem) -> (tocTitle: String?, tocHref: String?) {
-      if let match = toc.first(where: { $0.href == item.text }) {
-        lastTocMatch = match
-        return (match.title, match.href)
-      } else if let last = lastTocMatch, last.href.substringBeforeLast("#") == item.textFile {
-        return (last.title, last.href)
-      }
-      return (nil, nil)
-    }
+    let guidedNavMediaType = MediaType("application/guided-navigation+json")!
 
     // Strategy 1: single guided navigation document in publication links (preferred).
     if let singleDocLink = links.filterByMediaType(guidedNavMediaType).first {
@@ -136,7 +127,7 @@ extension Publication {
       else { return nil }
 
       let rawOverlays = document.toMediaOverlays()
-      return rawOverlays.compactMap { overlay -> FlutterMediaOverlay? in
+      let positionedOverlays = rawOverlays.compactMap { overlay -> FlutterMediaOverlay? in
         guard let textFile = overlay.textFile else { return nil }
         let roEntry = readingOrder.enumerated().first {
           $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
@@ -144,13 +135,12 @@ extension Publication {
         let position = (roEntry?.offset ?? -1) + 1
         let duration = roEntry?.element.duration
         let items = overlay.items.map { item -> FlutterMediaOverlayItem in
-          let (tocTitle, tocHref) = resolveToc(item)
-          return FlutterMediaOverlayItem(
-            audio: item.audio, text: item.text, position: position,
-            tocTitle: tocTitle, tocHref: tocHref, readingOrderDuration: duration)
+          FlutterMediaOverlayItem(
+            audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
         }
         return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
       }
+      return enrichOverlaysWithToc(positionedOverlays)
     }
 
     // Strategy 2: per-item alternates in reading order.
@@ -166,15 +156,7 @@ extension Publication {
       allOverlays += document.toMediaOverlays(atPosition: idx + 1, readingOrderDuration: roLink.duration)
     }
     guard hasAny else { return nil }
-
-    return allOverlays.map { overlay in
-      FlutterMediaOverlay(
-        items: overlay.items.map { item in
-          let (tocTitle, tocHref) = resolveToc(item)
-          return item.copyWith(tocTitle: tocTitle ?? item.tocTitle, tocHref: tocHref ?? item.tocHref)
-        },
-        readingOrderDuration: overlay.readingOrderDuration)
-    }
+    return enrichOverlaysWithToc(allOverlays)
   }
 
   func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection], Error> {
