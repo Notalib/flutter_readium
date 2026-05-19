@@ -137,23 +137,23 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
 
   // MARK: - ReadiumReaderView protocol
 
-  func getCurrentLocation() -> Locator? {
+  public func getCurrentLocation() -> Locator? {
     return self.pdfViewController.currentLocation
   }
 
-  func getFirstVisibleLocator() async -> Locator? {
+  public func getFirstVisibleLocator() async -> Locator? {
     // PDF shows a single page at a time — the current location is the first
     // (and only) visible locator.
     return self.pdfViewController.currentLocation
   }
 
-  func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+  public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
     isJumpingToLocator = true
     return await pdfViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
-  func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
+  public func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
     Log.reader.debug("goToProgression: \(progression)")
     guard let locator = getCurrentLocation() else {
       return false
@@ -162,16 +162,20 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     return await pdfViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
 
-  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool {
+  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool {
     // PDF has no media-overlay or pre-recorded-audio sync to honour.
     Log.reader.debug("syncToLocator: ignored for PDF")
     return false
   }
 
-  func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
+  public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     // PDFNavigatorViewController does not conform to DecorableNavigator in
     // swift-toolkit 3.7.0. Surface the call but no-op.
     Log.reader.debug("applyDecorations: not supported for PDF (group=\(groupIdentifier), count=\(decorations.count))")
+  }
+  
+  public func onCustomEditingAction() -> Void {
+    Log.reader.debug("onCustomEditingAction: not supported for PDF")
   }
 
   // MARK: - Locator emission

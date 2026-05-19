@@ -38,11 +38,12 @@ let readiumBugLogger = ReadiumBugLogger()
 /// part of the protocol. The PDF implementation accepts them and no-ops with a
 /// warning — PDF has no media-overlay sync and no `DecorableNavigator`
 /// conformance in swift-toolkit 3.7.0.
-protocol ReadiumReaderView: AnyObject {
+public protocol ReadiumReaderView: AnyObject {
   func getCurrentLocation() -> Locator?
   func getFirstVisibleLocator() async -> Locator?
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool
   func goToProgression(_ progression: Double, animated: Bool) async -> Bool
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String)
+  func onCustomEditingAction() -> Void
 }
