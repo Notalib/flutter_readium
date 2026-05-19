@@ -220,7 +220,7 @@ CHANGELOG entries are **deferred until the full PDF feature is complete** — do
 - ✅ **Phase 0** — native deps & parser wiring (Android `readium-adapter-pdfium` + `PdfiumDocumentFactory`; iOS already wired)
 - ✅ **Phase 1** — Dart format detection (`PublicationFormat.pdf`, `Publication.conformsToReadiumPDF`)
 - ✅ **Phase 2** — iOS PDF navigator. `ReadiumReaderView` (class) split into a `ReadiumReaderView` (protocol) + concrete `EPUBReaderView` + new `PDFReaderView`. `ReadiumReaderViewFactory` dispatches on `Publication.Profile.pdf` / first reading-order `MediaType.pdf`. PDF view no-ops `applyDecorations` (no `DecorableNavigator`) and `syncToLocator` (no media-overlay sync); `setPreferences` is stubbed pending Phase 5.
-- _(unstarted)_ Phase 3 — Android PDF navigator
+- ✅ **Phase 3** — Android PDF navigator. New `navigators/PdfNavigator.kt` wraps `PdfNavigatorFactory(publication, PdfiumEngineProvider())`. New `fragments/PdfReaderFragment.kt` installs the navigator's `FragmentFactory` on `childFragmentManager` before `super.onCreate`, then commits `PdfNavigatorFragment` via `replace(class, args, tag)`. New `models/PdfReaderViewModel.kt`. `ReadiumReader` gains `pdfEnable`/`attachPdfNavigator`/`pdfClose`/`pdfGoTo*` parallel to EPUB. `ReadiumReaderWidget` reads `Publication.Profile.PDF` / `MediaType.PDF` at init and dispatches all method-channel calls accordingly. State save records `pdfEnabledKey` but does **not** restore the navigator (upstream `PdfNavigatorFragment` does not support process-death restoration). PDF `setPreferences` / `applyDecorations` are graceful no-ops returning success.
 - _(unstarted)_ Phase 4 — locator convention
 - _(unstarted)_ Phase 5 — preferences
 - _(unstarted)_ Phase 6 — selection
