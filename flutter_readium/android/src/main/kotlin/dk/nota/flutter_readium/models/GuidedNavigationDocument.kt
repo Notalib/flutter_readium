@@ -3,6 +3,8 @@ package dk.nota.flutter_readium.models
 import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.publication.Link
+import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.mediatype.MediaType
 
 /**
  * A Readium Guided Navigation Document, describing a structured sequence of
@@ -54,4 +56,56 @@ data class GuidedNavigationDocument(
 
         fun fromJSON(jsonString: String): GuidedNavigationDocument? = fromJSON(JSONObject(jsonString))
     }
+}
+
+val guidedNavigationMediaType = MediaType("application/guided-navigation+json")
+
+/**
+ * Converts this document to a list of [FlutterMediaOverlay] by flattening all
+ * [GuidedNavigationObject]s that carry both an [audioref] and a [textref], then
+ * grouping the resulting items by their (audioFile, textFile) pair.
+ *
+ * @param position    Reading-order position (1-based) shared by all generated items.
+ * @param tocHref     ToC href to attach to every item, or null if unknown.
+ * @param title       Fallback chapter/section title. Overridden by each object's own text if present.
+ * @param readiumOrderItemDuration  Total duration of the reading-order item, used for progression calculations.
+ */
+fun GuidedNavigationDocument.toMediaOverlays(
+    position: Int = 0,
+    tocHref: Url? = null,
+    title: String = "",
+    readiumOrderItemDuration: Double = 0.0,
+): List<FlutterMediaOverlay> {
+    fun GuidedNavigationObject.flatten(): List<FlutterMediaOverlayItem> {
+        val items = mutableListOf<FlutterMediaOverlayItem>()
+        if (audioref != null && textref != null) {
+            items +=
+                FlutterMediaOverlayItem(
+                    audio = audioref,
+                    text = textref,
+                    position = position,
+                    tocHref = tocHref,
+                    title = title,
+                    readingOrderItemDuration = readiumOrderItemDuration,
+                )
+        }
+        children.forEach { items += it.flatten() }
+        return items
+    }
+
+    val allItems = guided.flatMap { it.flatten() }
+
+    // Group by (audioFile, textFile), preserving insertion order.
+    val orderedKeys = mutableListOf<Pair<String, String>>()
+    val itemsByKey = linkedMapOf<Pair<String, String>, MutableList<FlutterMediaOverlayItem>>()
+    for (item in allItems) {
+        val key = item.audioFile to item.textFile
+        itemsByKey
+            .getOrPut(key) {
+                orderedKeys.add(key)
+                mutableListOf()
+            }.add(item)
+    }
+
+    return orderedKeys.map { key -> FlutterMediaOverlay(itemsByKey.getValue(key)) }
 }

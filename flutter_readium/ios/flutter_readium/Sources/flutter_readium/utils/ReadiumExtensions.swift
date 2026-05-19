@@ -63,6 +63,18 @@ extension Publication {
     }
   }
 
+  var containsGuidedNavigationMediaOverlays: Bool {
+    let mt = MediaType("application/guided-navigation+json")!
+    return !links.filterByMediaType(mt).isEmpty ||
+      readingOrder.contains(where: { !$0.alternates.filterByMediaType(mt).isEmpty })
+  }
+
+  /// Whether the publication has any audio-text synchronization data,
+  /// either as syncnarr media overlays or as guided navigation.
+  var containsSyncNarration: Bool {
+    containsMediaOverlays || containsGuidedNavigationMediaOverlays
+  }
+
   func getMediaOverlays() async -> [FlutterMediaOverlay] {
     if (!containsMediaOverlays) {
       return []
@@ -99,6 +111,70 @@ extension Publication {
     assert(mediaOverlays.count == narrationLinks.count)
 
     return mediaOverlays
+  }
+
+  func getGuidedNavigationMediaOverlays() async -> [FlutterMediaOverlay]? {
+    let guidedNavMediaType = MediaType("application/guided-navigation+json")!
+    let toc = getFlattenedToC()
+    var lastTocMatch: Link? = nil
+
+    func resolveToc(_ item: FlutterMediaOverlayItem) -> (tocTitle: String?, tocHref: String?) {
+      if let match = toc.first(where: { $0.href == item.text }) {
+        lastTocMatch = match
+        return (match.title, match.href)
+      } else if let last = lastTocMatch, last.href.substringBeforeLast("#") == item.textFile {
+        return (last.title, last.href)
+      }
+      return (nil, nil)
+    }
+
+    // Strategy 1: single guided navigation document in publication links (preferred).
+    if let singleDocLink = links.filterByMediaType(guidedNavMediaType).first {
+      guard
+        let json = try? await get(singleDocLink)?.readAsJSONObject().get(),
+        let document = GuidedNavigationDocument.fromJson(json)
+      else { return nil }
+
+      let rawOverlays = document.toMediaOverlays()
+      return rawOverlays.compactMap { overlay -> FlutterMediaOverlay? in
+        guard let textFile = overlay.textFile else { return nil }
+        let roEntry = readingOrder.enumerated().first {
+          $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
+        }
+        let position = (roEntry?.offset ?? -1) + 1
+        let duration = roEntry?.element.duration
+        let items = overlay.items.map { item -> FlutterMediaOverlayItem in
+          let (tocTitle, tocHref) = resolveToc(item)
+          return FlutterMediaOverlayItem(
+            audio: item.audio, text: item.text, position: position,
+            tocTitle: tocTitle, tocHref: tocHref, readingOrderDuration: duration)
+        }
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+      }
+    }
+
+    // Strategy 2: per-item alternates in reading order.
+    var hasAny = false
+    var allOverlays: [FlutterMediaOverlay] = []
+    for (idx, roLink) in readingOrder.enumerated() {
+      guard let gnLink = roLink.alternates.filterByMediaType(guidedNavMediaType).first else { continue }
+      hasAny = true
+      guard
+        let json = try? await get(gnLink)?.readAsJSONObject().get(),
+        let document = GuidedNavigationDocument.fromJson(json)
+      else { continue }
+      allOverlays += document.toMediaOverlays(atPosition: idx + 1, readingOrderDuration: roLink.duration)
+    }
+    guard hasAny else { return nil }
+
+    return allOverlays.map { overlay in
+      FlutterMediaOverlay(
+        items: overlay.items.map { item in
+          let (tocTitle, tocHref) = resolveToc(item)
+          return item.copyWith(tocTitle: tocTitle ?? item.tocTitle, tocHref: tocHref ?? item.tocHref)
+        },
+        readingOrderDuration: overlay.readingOrderDuration)
+    }
   }
 
   func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection], Error> {
