@@ -219,7 +219,7 @@ CHANGELOG entries are **deferred until the full PDF feature is complete** — do
 
 - ✅ **Phase 0** — native deps & parser wiring (Android `readium-adapter-pdfium` + `PdfiumDocumentFactory`; iOS already wired)
 - ✅ **Phase 1** — Dart format detection (`PublicationFormat.pdf`, `Publication.conformsToReadiumPDF`)
-- _(unstarted)_ Phase 2 — iOS PDF navigator
+- ✅ **Phase 2** — iOS PDF navigator. `ReadiumReaderView` (class) split into a `ReadiumReaderView` (protocol) + concrete `EPUBReaderView` + new `PDFReaderView`. `ReadiumReaderViewFactory` dispatches on `Publication.Profile.pdf` / first reading-order `MediaType.pdf`. PDF view no-ops `applyDecorations` (no `DecorableNavigator`) and `syncToLocator` (no media-overlay sync); `setPreferences` is stubbed pending Phase 5.
 - _(unstarted)_ Phase 3 — Android PDF navigator
 - _(unstarted)_ Phase 4 — locator convention
 - _(unstarted)_ Phase 5 — preferences
