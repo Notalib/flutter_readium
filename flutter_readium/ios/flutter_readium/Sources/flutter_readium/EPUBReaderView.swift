@@ -134,19 +134,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("init success")
   }
 
-  @objc public func onCustomEditingAction() {
-    Log.reader.debug("EditingAction::NOTA")
-    // NOTE: This method will not actually be hit. It will try to find an "onCustomEditingAction" function in the Responder chain!
-    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call back into the plugin from there.
-    // see https://github.com/readium/swift-toolkit/issues/466
-
-    if let selection = readiumViewController.currentSelection {
-      let selectionLocator = selection.locator
-      readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
-      readiumViewController.clearSelection()
-    }
-  }
-
   // implements EPUBNavigatorDelegate::navigator:setupUserScripts
   public func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
     Log.reader.debug("setupUserScripts: adding \(userScripts.count) scripts")
@@ -233,17 +220,30 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     return true
   }
 
-  func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
+  public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     Log.reader.debug("applyDecorations: \(decorations) identifier: \(groupIdentifier)")
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
   }
 
-  func getFirstVisibleLocator() async -> Locator? {
+  public func getFirstVisibleLocator() async -> Locator? {
     return await self.readiumViewController.firstVisibleElementLocator()
   }
 
-  func getCurrentLocation() -> Locator? {
+  public func getCurrentLocation() -> Locator? {
     return self.readiumViewController.currentLocation
+  }
+
+  @objc public func onCustomEditingAction() {
+    Log.reader.debug("onCustomEditingAction")
+    // NOTE: This method will not actually be hit. It will try to find an "onCustomEditingAction" function in the Responder chain!
+    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call back into the plugin from there.
+    // see https://github.com/readium/swift-toolkit/issues/466
+
+    if let selection = readiumViewController.currentSelection {
+      let selectionLocator = selection.locator
+      readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
+      readiumViewController.clearSelection()
+    }
   }
 
   func getCurrentSelection() -> Locator? {
@@ -331,7 +331,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
-  func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
+  public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
     
     isJumpingToLocator = true
@@ -339,7 +339,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
-  func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
+  public func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
     Log.reader.debug("goToProgression:\(progression)")
     guard let locator = getCurrentLocation() else {
       return false
@@ -349,7 +349,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
 
-  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
     if (isJumpingToLocator || preferences?.disableSync == true) {
       Log.reader.debug("syncToLocator: skipped")
       return false
