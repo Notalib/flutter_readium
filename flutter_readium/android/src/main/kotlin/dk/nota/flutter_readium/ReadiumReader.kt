@@ -938,6 +938,40 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
         navigator.go(toLocator, animated)
     }
 
+    suspend fun pdfUpdatePreferences(preferences: FlutterPdfPreferences) {
+        val navigator =
+            pdfNavigator ?: run {
+                Log.e(TAG, "::pdfUpdatePreferences called without a pdfNavigator")
+                return
+            }
+        navigator.updatePreferences(preferences)
+    }
+
+    fun pdfEnrichLocatorWithTocHref(locator: Locator): Locator {
+        val publication = currentPublication ?: return locator
+        val page = locator.locations.position ?: return locator
+
+        // Find the last TOC entry whose "#page=N" fragment is ≤ the current page.
+        val tocEntry =
+            publication.tableOfContents
+                .flattenChildren()
+                .asSequence()
+                .mapNotNull { link ->
+                    val href = link.href.toString()
+                    val fragment = href.substringAfterLast("#", "")
+                    if (!fragment.startsWith("page=")) return@mapNotNull null
+                    val tocPage = fragment.removePrefix("page=").toIntOrNull() ?: return@mapNotNull null
+                    Pair(tocPage, link)
+                }
+                .filter { it.first <= page }
+                .maxByOrNull { it.first }
+                ?.second ?: return locator
+
+        return locator
+            .copy(title = tocEntry.title)
+            .copyWithTocHref(tocEntry)
+    }
+
     fun epubClose() {
         currentReaderWidget = null
         epubNavigator?.dispose()

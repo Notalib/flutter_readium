@@ -107,6 +107,9 @@ class FlutterReadium {
   /// These preferences will override any default preferences set by [setDefaultPreferences] for this publication.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
 
+  /// Sets the PDF preferences for the currently opened PDF publication.
+  Future<void> setPDFPreferences(PDFPreferences preferences) => _platform.setPDFPreferences(preferences);
+
   /// Applies a list of decorations to the visual reader.
   ///
   /// The decorations will be identified by the given [id], which can be used to update or remove them later by calling this method again with the same [id].

@@ -68,6 +68,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {}
 
   @override
+  Future<void> setPDFPreferences(PDFPreferences preferences) async {}
+
+  @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {}
 
   @override
