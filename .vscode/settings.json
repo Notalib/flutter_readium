@@ -88,5 +88,6 @@
     "subcollections",
     "Transformability"
   ],
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "dart.mcpServer": true
 }
