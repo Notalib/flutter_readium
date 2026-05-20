@@ -20,7 +20,7 @@ FlutterReadiumPlatform (abstract interface)
     │
     ├── MethodChannelFlutterReadium  (default implementation)
     │       │
-    │       ├── iOS/macOS  — Swift / swift-toolkit 3.7.0+
+    │       ├── iOS/macOS  — Swift / swift-toolkit 3.9.0+
     │       ├── Android    — Kotlin / kotlin-toolkit 3.1.2+
     │       └── Web        — TypeScript / @readium/navigator
     │
@@ -60,7 +60,7 @@ After any TypeScript change run `bin/update_web_example` to rebuild and deploy t
 
 | Platform | Toolkit | Version |
 |----------|---------|---------|
-| iOS, macOS | swift-toolkit | 3.7.0 |
+| iOS, macOS | swift-toolkit | 3.9.0 |
 | Android | kotlin-toolkit | 3.1.2 |
 | Web | @readium/navigator (npm) | see `flutter_readium/package.json` |
 

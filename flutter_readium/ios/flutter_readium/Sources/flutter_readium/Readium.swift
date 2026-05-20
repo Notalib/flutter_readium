@@ -151,8 +151,12 @@ extension ReadiumShared.ReadError: UserErrorConvertible {
         return error.userError().message
       case .decoding:
         return "error_decoding".localized
+      case .outOfMemory:
+        return "error_oom".localized
       case .unsupportedOperation:
         return "error_read".localized
+      case .cancelled:
+        return "error_cancelled".localized
       }
     }
   }
@@ -204,6 +208,8 @@ extension ReadiumShared.FileSystemError: UserErrorConvertible {
       case .forbidden:
         return "error_forbidden".localized
       case .io:
+        return "error_io".localized
+      case .outOfSpace:
         return "error_io".localized
       }
     }

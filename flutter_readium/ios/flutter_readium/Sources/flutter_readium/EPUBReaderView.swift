@@ -18,6 +18,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
+  private var lastViewport: NavigatorViewport?
 
   var publicationIdentifier: String?
 
@@ -27,7 +28,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   deinit {
-    Log.reader.info("dispose")
+    Log.reader.info("deinit EPUBReaderView")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
@@ -51,7 +52,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -179,10 +180,19 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
-  
+
   public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {
     Log.reader.debug("didJumpTo: \(locator)")
     isJumpingToLocator = false
+  }
+
+  public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
+    lastViewport = viewport
+    // Re-emit so consumers see updated visible-portion data without waiting
+    // for the next locationDidChange (e.g. mid-resource scroll in scroll mode).
+    if let locator = readiumViewController.currentLocation {
+      emitOnPageChanged(locator: locator)
+    }
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -291,7 +301,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    Task.detached(priority: .high) { [locator] in
+    let viewport = lastViewport
+
+    Task.detached(priority: .high) { [locator, viewport] in
       /// Enrich Locator with PageInformation and ToC.
       var resultLocator = locator
       if let pageInfo = await self.getPageInformation() {
@@ -299,14 +311,23 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
       if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
         resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = tocLink.href
+        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+      }
+      if let viewport = viewport {
+        // TODO: Decide if we want to use & emit this.
+        resultLocator.locations.otherLocations["visibleProgressionStart"] = .double(viewport.progression.lowerBound)
+        resultLocator.locations.otherLocations["visibleProgressionEnd"] = .double(viewport.progression.upperBound)
+        if let positions = viewport.positions {
+          resultLocator.locations.otherLocations["visiblePositionStart"] = .integer(positions.lowerBound)
+          resultLocator.locations.otherLocations["visiblePositionEnd"] = .integer(positions.upperBound)
+        }
       }
 
       /// Immutable ref, so that we can use it on the main thread
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())
       }
     }
   }
@@ -333,7 +354,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
-    
+
     isJumpingToLocator = true
 
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
@@ -376,7 +397,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     switch call.method {
     case "go":
       let args = call.arguments as! [Any?]
-      let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
+      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
       let animated = args[1] as! Bool
 
       Task.detached(priority: .high) {
@@ -449,6 +470,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
+      FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break

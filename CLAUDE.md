@@ -15,7 +15,7 @@ This is a **federated Flutter plugin** with two pub packages and a multi-package
 
 The native sides are thin wrappers around upstream Readium code — when debugging native behavior, the source of truth is upstream:
 
-- swift-toolkit: https://github.com/readium/swift-toolkit/ — pinned to **3.7.0** in `flutter_readium/ios/flutter_readium.podspec` and the example `Podfile`.
+- swift-toolkit: https://github.com/readium/swift-toolkit/ — pinned to **3.9.0** in `flutter_readium/ios/flutter_readium.podspec` and the example `Podfile`.
 - kotlin-toolkit: https://github.com/readium/kotlin-toolkit/ — pinned to **3.1.2** via `ext.readium_version` in `flutter_readium/android/build.gradle`.
 - ts-toolkit (Web): consumed via npm — `@readium/shared`, `@readium/navigator`, `@readium/navigator-html-injectables` (see `flutter_readium/package.json`).
 
