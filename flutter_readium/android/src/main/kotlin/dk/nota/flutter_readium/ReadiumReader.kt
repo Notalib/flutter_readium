@@ -18,6 +18,7 @@ import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
+import dk.nota.flutter_readium.navigators.FlutterVisualNavigator
 import dk.nota.flutter_readium.navigators.PdfNavigator
 import dk.nota.flutter_readium.navigators.SyncAudiobookNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
@@ -167,7 +168,11 @@ object ReadiumReader :
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
 
-    private var epubNavigator: EpubNavigator? = null
+    private var visualNavigator: FlutterVisualNavigator? = null
+
+    /** Typed accessor for EPUB-specific operations. */
+    private val epubNavigator: EpubNavigator?
+        get() = visualNavigator as? EpubNavigator
 
     private var pdfNavigator: PdfNavigator? = null
 
@@ -296,7 +301,7 @@ object ReadiumReader :
             if (bundle.getBoolean(epubEnabledKey)) {
                 Log.d(TAG, "::restoreState - restore epub navigator")
                 bundle.getBundle(epubNavigatorStateKey)?.let { state ->
-                    epubNavigator =
+                    visualNavigator =
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
                             initNavigator()
                             Log.d(TAG, "::restoreState - epubNavigator restored")
@@ -794,7 +799,7 @@ object ReadiumReader :
 
             EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
-                epubNavigator = this
+                visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
                 setDecorationStyle(decorationStyle)
                 return@withMainContext
@@ -812,7 +817,7 @@ object ReadiumReader :
         }
 
         val navigator =
-            epubNavigator ?: run {
+            visualNavigator ?: run {
                 Log.d(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
                 return
             }
@@ -956,8 +961,8 @@ object ReadiumReader :
 
     fun epubClose() {
         currentReaderWidget = null
-        epubNavigator?.dispose()
-        epubNavigator = null
+        visualNavigator?.dispose()
+        visualNavigator = null
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
@@ -1297,7 +1302,7 @@ object ReadiumReader :
      */
     suspend fun epubGoBackward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
+            visualNavigator ?: run {
                 Log.d(TAG, "::epubGoBackward called without a epubNavigator")
                 return
             }
@@ -1310,7 +1315,7 @@ object ReadiumReader :
      */
     suspend fun epubGoForward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
+            visualNavigator ?: run {
                 Log.d(TAG, "::epubGoForward called without a epubNavigator")
                 return
             }
@@ -1334,7 +1339,7 @@ object ReadiumReader :
         val toLocator = publication.normalizeLocator(locator)
 
         val navigator =
-            epubNavigator ?: run {
+            visualNavigator ?: run {
                 Log.d(TAG, "::epubGoToLocator called without a epubNavigator")
                 return
             }
@@ -1344,7 +1349,7 @@ object ReadiumReader :
 
     suspend fun epubGoToProgression(progression: Double) {
         val navigator =
-            epubNavigator ?: run {
+            visualNavigator ?: run {
                 Log.d(TAG, "::epubGoToProgression called without a epubNavigator")
                 return
             }
