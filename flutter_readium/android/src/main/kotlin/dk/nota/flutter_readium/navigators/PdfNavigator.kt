@@ -9,7 +9,7 @@ import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_
 import dk.nota.flutter_readium.fragments.PdfReaderFragment
 import dk.nota.flutter_readium.models.PdfReaderViewModel
 import dk.nota.flutter_readium.throttleLatest
-import dk.nota.flutter_readium.withScope
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -44,7 +44,8 @@ private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
 @OptIn(ExperimentalReadiumApi::class)
 class PdfNavigator :
   BaseNavigator,
-  PdfReaderFragment.Listener {
+  PdfReaderFragment.Listener,
+  FlutterVisualNavigator {
   constructor(
     publication: Publication,
     initialLocator: Locator?,
@@ -64,7 +65,7 @@ class PdfNavigator :
 
   private var pdfNavigator: PdfReaderFragment? = null
 
-  val currentLocator
+  override val currentLocator
     get() = pdfNavigator?.currentLocator
 
   private val navigatorStarted
@@ -87,12 +88,12 @@ class PdfNavigator :
       }
   }
 
-  fun attachNavigator(
+  override fun attachNavigator(
     fragmentManager: FragmentManager,
     viewGroup: ViewGroup,
   ) {
     val navigator = pdfNavigator ?: return
-    mainScope.launch {
+    launch {
       fragmentManager.commitNow {
         add(viewGroup, navigator, NAVIGATOR_FRAGMENT_TAG)
       }
@@ -109,38 +110,50 @@ class PdfNavigator :
       return false
     }
     Log.d(TAG, "::go $locator animated:$animated")
-    return withScope(mainScope) {
+    return withMainContext {
       afterFragmentStarted()
       if (!navigator.go(locator, animated)) {
         Log.w(TAG, "::go - FAILED!")
-        return@withScope false
+        return@withMainContext false
       }
-      return@withScope true
+      return@withMainContext true
     }
   }
 
-  suspend fun goBackward(animated: Boolean = true) {
+  override suspend fun goBackward(animated: Boolean) {
     val navigator = pdfNavigator
     if (navigator == null) {
       Log.e(TAG, "::goBackward - pdfNavigator is null!")
       return
     }
-    withScope(mainScope) {
+    withMainContext {
       Log.d(TAG, "::goBackward")
       navigator.goBackward(animated)
     }
   }
 
-  suspend fun goForward(animated: Boolean = true) {
+  override suspend fun goForward(animated: Boolean) {
     val navigator = pdfNavigator
     if (navigator == null) {
       Log.e(TAG, "::goForward - pdfNavigator is null!")
       return
     }
-    withScope(mainScope) {
+    withMainContext {
       Log.d(TAG, "::goForward")
       navigator.goForward(animated)
     }
+  }
+
+  override suspend fun goToLocator(
+    locator: Locator,
+    animated: Boolean,
+    segmentDuration: Double?,
+  ) {
+    go(locator, animated)
+  }
+
+  override suspend fun scrollToProgression(progression: Double) {
+    Log.d(TAG, "::scrollToProgression - not supported by PdfNavigator, ignoring")
   }
 
   suspend fun updatePreferences(preferences: FlutterPdfPreferences) {
@@ -149,7 +162,7 @@ class PdfNavigator :
       Log.e(TAG, "::updatePreferences - pdfNavigator is null!")
       return
     }
-    withScope(mainScope) {
+    withMainContext {
       afterFragmentStarted()
       fragment.updatePreferences(preferences.toPdfiumPreferences())
     }
@@ -170,7 +183,7 @@ class PdfNavigator :
         .onEach { locator ->
           onCurrentLocatorChanges(locator)
           currentVisualLocator = locator
-        }.launchIn(mainScope)
+        }.launchIn(this)
         .let { jobs.add(it) }
     } else {
       Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
@@ -201,7 +214,7 @@ class PdfNavigator :
   ) {
     notifyIsReady()
     visualListener.onPageChanged(pageIndex, totalPages, locator)
-    mainScope.launch {
+    launch {
       currentVisualLocator = locator
     }
   }
@@ -216,11 +229,11 @@ class PdfNavigator :
 
   override fun dispose() {
     super.dispose()
-    mainScope.launch {
+    launch {
       pdfNavigator?.let { fragment ->
         fragment.parentFragmentManager.commitNow { remove(fragment) }
       }
-      mainScope.coroutineContext.cancelChildren()
+      coroutineContext.cancelChildren()
       pdfNavigator = null
     }
     state.clear()
