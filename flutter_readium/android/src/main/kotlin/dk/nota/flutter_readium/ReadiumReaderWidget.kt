@@ -332,7 +332,7 @@ class ReadiumReaderWidget(
                     if (ReadiumReader.isPdf) {
                         // Pdfium-backed PdfNavigatorFragment does not expose a
                         // DecorableNavigator surface in kotlin-toolkit 3.1.2.
-                        Log.d(TAG, "::applyDecorations - not supported for PDF")
+                        PluginLog.d(TAG, "::applyDecorations - not supported for PDF")
                         result.success(null)
                         return@launch
                     }
@@ -365,12 +365,12 @@ class ReadiumReaderWidget(
      * Navigate backward in the active visual navigator.
      */
     private suspend fun goBackward(animated: Boolean) {
-        Log.d(TAG, "::goBackward")
+        PluginLog.d(TAG, "::goBackward")
         ReadiumReader.visualGoBackward(animated)
     }
 
     private suspend fun goForward(animated: Boolean) {
-        Log.d(TAG, "::goForward")
+        PluginLog.d(TAG, "::goForward")
         ReadiumReader.visualGoForward(animated)
     }
 

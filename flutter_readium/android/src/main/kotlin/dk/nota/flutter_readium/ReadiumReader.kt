@@ -465,7 +465,7 @@ object ReadiumReader :
                         is OpenError.FormatNotSupported -> "FormatNotSupported: ${unwrapCause(err.cause)}"
                         else -> err.toString()
                     }
-                    PluginLog.e(TAG, "Error opening publication: $detail", err)
+                    PluginLog.e(TAG, "Error opening publication: $detail")
                     asset.close()
                     return failure(err)
                 }
