@@ -43,7 +43,8 @@ private const val currentDecorationListKey = "currentDecorationsList"
 @OptIn(ExperimentalReadiumApi::class)
 class EpubNavigator :
     BaseNavigator,
-    EpubReaderFragment.Listener {
+    EpubReaderFragment.Listener,
+    FlutterVisualNavigator {
     constructor(
         publication: Publication,
         initialLocator: Locator?,
@@ -120,7 +121,7 @@ class EpubNavigator :
     /**
      * Current locator in the EPUB navigator.
      */
-    val currentLocator
+    override val currentLocator
         get() = epubNavigator?.currentLocator
 
     /**
@@ -145,7 +146,7 @@ class EpubNavigator :
     /**
      * Attach the EPUB navigator fragment to the given FragmentManager and ViewGroup.
      */
-    fun attachNavigator(
+    override fun attachNavigator(
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
     ) {
@@ -190,7 +191,7 @@ class EpubNavigator :
         }
     }
 
-    suspend fun scrollToProgression(progression: Double) {
+    override suspend fun scrollToProgression(progression: Double) {
         val navigator =
             epubNavigator ?: run {
                 PluginLog.w(TAG, "::scrollToProgression - epubNavigator is null")
@@ -368,7 +369,7 @@ class EpubNavigator :
     /**
      * Navigate backward. Readium component handles RTL / LTR
      */
-    suspend fun goBackward(animated: Boolean = true) {
+    override suspend fun goBackward(animated: Boolean) {
         val navigator = epubNavigator
         if (navigator == null) {
             PluginLog.w(TAG, "::goBackward - epubNavigator is null!")
@@ -384,7 +385,7 @@ class EpubNavigator :
     /**
      * Navigate forward. Readium component handles RTL / LTR
      */
-    suspend fun goForward(animated: Boolean = true) {
+    override suspend fun goForward(animated: Boolean) {
         val navigator = epubNavigator
         if (navigator == null) {
             PluginLog.w(TAG, "::goForward - epubNavigator is null!")
@@ -441,10 +442,10 @@ class EpubNavigator :
     /**
      * Go to a specific locator in the EPUB navigator, this scrolls to the locator position if needed.
      */
-    suspend fun goToLocator(
+    override suspend fun goToLocator(
         locator: Locator,
         animated: Boolean,
-        segmentDuration: Double? = null,
+        segmentDuration: Double?,
     ) {
         withMainContext {
             go(locator, animated, segmentDuration)
