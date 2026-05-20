@@ -176,6 +176,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   }
 
   @override
+  Future<bool> goToProgression(double progression) {
+    // TODO: implement goToProgression
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> audioSeekBy(Duration offset) {
     // TODO: implement audioSeekBy
     throw UnimplementedError();
