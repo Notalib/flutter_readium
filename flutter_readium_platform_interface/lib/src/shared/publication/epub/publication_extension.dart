@@ -10,6 +10,22 @@ extension PublicationLists on Publication {
   /// page boundaries present in a print source being represented by this EPUB Publication.
   List<Link> get pageList => collectionLinks('pageList');
 
+  /// Returns [pageList] if available, or generates a page list from [metadata.numberOfPages]
+  /// for PDFs without an embedded page list.
+  List<Link> get pageListOrGenerated {
+    final existing = pageList;
+    if (existing.isNotEmpty) return existing;
+    if (!conformsToReadiumPDF) return [];
+    // For PDFs without an embedded page list, we generate one based on the total number of pages in the PDF.
+    final totalPages = metadata.numberOfPages ?? 0;
+    if (totalPages == 0) return [];
+    final basePath = readingOrder.firstOrNull?.href.split('#').first ?? '';
+    return List.generate(totalPages, (i) {
+      final page = i + 1;
+      return Link(href: '$basePath#page=$page', title: 'Page $page');
+    });
+  }
+
   /// Identifies fundamental structural components of the publication in order to enable Reading
   /// Systems to provide the User efficient access to them.
   List<Link> get landmarks => collectionLinks('landmarks');
