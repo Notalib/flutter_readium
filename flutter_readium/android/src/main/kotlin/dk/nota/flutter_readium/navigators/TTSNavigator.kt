@@ -10,7 +10,8 @@ import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.cleanHref
 import dk.nota.flutter_readium.letIfBothNotNull
 import dk.nota.flutter_readium.progression
-import dk.nota.flutter_readium.withScope
+import dk.nota.flutter_readium.withIOContext
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,13 +92,13 @@ class TTSNavigator(
         val listener =
             object : Listener {
                 override fun onStopRequested() {
-                    Log.d(TAG, "TtsListener::onStopRequested")
+                    Log.d(TAG, "::onStopRequested")
                     mediaServiceFacade?.closeSession()
                 }
             }
 
         val initialAndroidPreferences = preferences.toAndroidTtsPreferences()
-        withScope(mainScope) {
+        withMainContext {
             ttsNavigator =
                 navigatorFactory
                     .createNavigator(
@@ -105,8 +106,8 @@ class TTSNavigator(
                         initialLocator,
                         initialAndroidPreferences,
                     ).getOrElse {
-                        Log.e(TAG, "ttsEnable: failed to create navigator: $it")
-                        throw Exception("ttsEnable: failed to create navigator: $it")
+                        Log.e(TAG, "::initNavigator - failed to create navigator: $it")
+                        throw Exception("::initNavigator - failed to create navigator: $it")
                     }
 
             // Setup streaming listeners for locator & decoration updates.
@@ -128,11 +129,11 @@ class TTSNavigator(
                                     }
 
                                     is TtsNavigator.State.Failure -> {
-                                        Log.e(TAG, "TTSNavigator failure: ${state.error}")
+                                        Log.e(TAG, "::initNavigator - failure: ${state.error}")
                                         // onPlaybackError(state.error)
                                     }
                                 }
-                            }.launchIn(mainScope)
+                            }.launchIn(this@TTSNavigator)
                     }
         }
     }
@@ -152,7 +153,7 @@ class TTSNavigator(
             return
         }
 
-        withScope(mainScope) {
+        withMainContext {
             val navigator = ensureNavigatorWithOpenMediaSession()
             navigator.play()
 
@@ -163,26 +164,26 @@ class TTSNavigator(
     override suspend fun pause() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "Cannot pause TTS playback: navigator is null")
+                Log.e(TAG, "::pause - navigator is null")
                 return
             }
 
-        withScope(mainScope) {
+        withMainContext {
             try {
                 navigator.pause()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to pause TTS playback: $e")
+                Log.e(TAG, "::pause - failed: $e")
             }
         }
     }
 
     override suspend fun resume() {
-        withScope(mainScope) {
+        withMainContext {
             try {
                 val navigator = ensureNavigatorWithOpenMediaSession()
                 navigator.play()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume TTS playback: $e")
+                Log.e(TAG, "::resume - failed: $e")
             }
         }
     }
@@ -193,11 +194,11 @@ class TTSNavigator(
     override suspend fun goBackward() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "::goBack ttsNavigator is null")
+                Log.e(TAG, "::goBackward - ttsNavigator is null")
                 return
             }
 
-        withScope(mainScope) {
+        withMainContext {
             if (navigator.hasPreviousUtterance()) {
                 navigator.skipToPreviousUtterance()
             }
@@ -210,11 +211,11 @@ class TTSNavigator(
     override suspend fun goForward() {
         val navigator =
             ttsNavigator ?: run {
-                Log.e(TAG, "::goBack goForward is null")
+                Log.e(TAG, "::goForward - ttsNavigator is null")
                 return
             }
 
-        withScope(mainScope) {
+        withMainContext {
             if (navigator.hasNextUtterance()) {
                 navigator.skipToNextUtterance()
             }
@@ -230,11 +231,11 @@ class TTSNavigator(
         locator: Locator,
         play: Boolean,
     ) {
-        withScope(mainScope) {
+        withMainContext {
             stopTtsNavigator()
             initialLocator = resolveLocatorWithProgression(locator)
-            val navigator = ensureNavigatorWithOpenMediaSession()
             decorateCurrentUtterance(initialLocator)
+            val navigator = ensureNavigatorWithOpenMediaSession()
 
             if (play) {
                 navigator.play()
@@ -300,7 +301,7 @@ class TTSNavigator(
             return it
         }
 
-        return withScope(ioScope) {
+        return withIOContext {
             // Get an iterator for the content of book.
             val content =
                 publication.content(
@@ -309,8 +310,8 @@ class TTSNavigator(
                         mediaType = MediaType.XHTML,
                     ),
                 ) ?: run {
-                    Log.e(TAG, ":resolveLocatorWithProgression - no content service found")
-                    return@withScope null
+                    Log.e(TAG, "::updateProgressionLocatorMap - no content service found")
+                    return@withIOContext null
                 }
 
             val items = mutableListOf<Locator>()
@@ -337,12 +338,12 @@ class TTSNavigator(
 
             progressionLookup[cleanHref] = items.toList()
 
-            return@withScope items
+            return@withIOContext items
         }
     }
 
     override suspend fun seekTo(offset: Double) {
-        Log.d(TAG, ":seekTo is not implemented for TTS playback")
+        Log.d(TAG, "::seekTo - not implemented for TTS playback")
     }
 
     override suspend fun seekToProgression(progression: Double): Boolean {
@@ -369,7 +370,7 @@ class TTSNavigator(
     suspend fun decorationsUpdated() {
         val navigator =
             ttsNavigator ?: run {
-                Log.d(TAG, ":decorationsUpdated: navigator is null")
+                Log.d(TAG, "::decorationsUpdated - navigator is null")
                 return
             }
 
@@ -379,7 +380,7 @@ class TTSNavigator(
 
     // / Updates TTS preferences, does not override current preferences if props are null
     suspend fun updatePreferences(prefs: FlutterTtsPreferences) {
-        withScope(mainScope) {
+        withMainContext {
             preferences = preferences.plus(prefs)
 
             ttsNavigator?.let { navigator ->
@@ -424,7 +425,7 @@ class TTSNavigator(
             }.onEach { pb ->
                 onPlaybackStateChanged(pb)
                 timebaseListener.onTimebasedBufferChanged(null)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         // Listen to utterance updates and apply decorations
@@ -433,7 +434,7 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { (uttLocator, tokenLocator) ->
                 decorateCurrentUtterance(uttLocator, tokenLocator)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         // Listen to location changes and turn pages (throttled).
@@ -443,7 +444,7 @@ class TTSNavigator(
             .distinctUntilChanged()
             .onEach { locator ->
                 ReadiumReader.onTimebasedLocationChanged(locator)
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -455,7 +456,7 @@ class TTSNavigator(
                 onCurrentLocatorChanges(emittingLocator)
                 state[currentTimebasedLocatorKey] = emittingLocator
                 initialLocator = emittingLocator
-            }.launchIn(mainScope)
+            }.launchIn(this)
             .let { jobs.add(it) }
 
         navigator.currentLocator
@@ -499,7 +500,7 @@ class TTSNavigator(
     }
 
     override fun onEnded() {
-        mainScope.launch {
+        launch {
             ReadiumReader.applyDecorations(listOf(), group = decorationGroup)
         }
     }
@@ -527,11 +528,11 @@ class TTSNavigator(
         try {
             val mediaSession = mediaServiceFacade!!
             if (mediaSession.session.value == null) {
-                Log.d(TAG, ":ensureMediaSessionIsOpen - open session")
+                Log.d(TAG, "::ensureNavigatorWithOpenMediaSession - open session")
                 mediaSession.openSession(navigator)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "::play - Failed to open MediaSession: $e")
+            Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - failed to open MediaSession: $e")
         }
 
         return navigator
@@ -541,21 +542,24 @@ class TTSNavigator(
      * Stop the current ttsNavigator. This is needed because we have to restart it when navigating.
      */
     private suspend fun stopTtsNavigator() {
-        ttsNavigator?.let { navigator ->
-            initialLocator = navigator.currentLocator.value
+        withMainContext {
+            ttsNavigator?.let { navigator ->
+                // Save currentLocator.
+                initialLocator = navigator.currentLocator.value
+            }
+            mediaServiceFacade?.closeSession()
+
+            ReadiumReader.applyDecorations(emptyList(), decorationGroup)
+
+            ttsNavigator?.close()
+            ttsNavigator = null
         }
-        mediaServiceFacade?.closeSession()
-
-        ReadiumReader.applyDecorations(emptyList(), decorationGroup)
-
-        ttsNavigator?.close()
-        ttsNavigator = null
     }
 
     override fun dispose() {
         super.dispose()
 
-        mainScope.launch {
+        launch {
             stopTtsNavigator()
             progressionLookup.clear()
         }
@@ -571,7 +575,7 @@ class TTSNavigator(
                 // TODO: Handle TTS-specific errors?
                 Log.e(
                     TAG,
-                    ": onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}",
+                    "::onPlaybackStateChanged - TTS error: Message=${error.message} cause=${error.cause}",
                 )
 
                 timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
