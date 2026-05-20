@@ -12,6 +12,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   private var hasSentReady = false
   private var isJumpingToLocator = false
   private let publication: Publication
+  private var lastViewport: NavigatorViewport?
 
   var publicationIdentifier: String?
 
@@ -21,7 +22,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   }
 
   deinit {
-    Log.reader.info("dispose")
+    Log.reader.info("deinit PDFReaderView")
     pdfViewController.view.removeFromSuperview()
     pdfViewController.delegate = nil
     channel.setMethodCallHandler(nil)
@@ -42,7 +43,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     self.publicationIdentifier = publication.metadata.identifier
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -118,6 +119,13 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     isJumpingToLocator = false
   }
 
+  public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
+    lastViewport = viewport
+    if let locator = pdfViewController.currentLocation {
+      emitOnPageChanged(locator: locator)
+    }
+  }
+
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     Log.reader.debug("onPageChanged: \(locator)")
     if (!hasSentReady) {
@@ -184,7 +192,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
 
   public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     // PDFNavigatorViewController does not conform to DecorableNavigator in
-    // swift-toolkit 3.7.0. Surface the call but no-op.
+    // swift-toolkit 3.9.0. Surface the call but no-op.
     Log.reader.debug("applyDecorations: not supported for PDF (group=\(groupIdentifier), count=\(decorations.count))")
   }
 
@@ -197,7 +205,9 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    Task.detached(priority: .high) { [locator] in
+    let viewport = lastViewport
+
+    Task.detached(priority: .high) { [locator, viewport] in
       var resultLocator = locator
 
       // PDF TOC enrichment: find the last TOC entry whose "#page=N" fragment
@@ -216,14 +226,24 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
           .max(by: { $0.0 < $1.0 })?.1
         if let entry = tocEntry {
           resultLocator.title = entry.title
-          resultLocator.locations.otherLocations["tocHref"] = entry.href
+          resultLocator.locations.otherLocations["tocHref"] = .string(entry.href)
+        }
+      }
+
+      if let viewport = viewport {
+        // TODO: Decide if we want to use & emit this.
+        resultLocator.locations.otherLocations["visibleProgressionStart"] = .double(viewport.progression.lowerBound)
+        resultLocator.locations.otherLocations["visibleProgressionEnd"] = .double(viewport.progression.upperBound)
+        if let positions = viewport.positions {
+          resultLocator.locations.otherLocations["visiblePositionStart"] = .integer(positions.lowerBound)
+          resultLocator.locations.otherLocations["visiblePositionEnd"] = .integer(positions.upperBound)
         }
       }
 
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())
       }
     }
   }
@@ -244,7 +264,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     switch call.method {
     case "go":
       let args = call.arguments as! [Any?]
-      let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
+      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
       let animated = args[1] as! Bool
 
       Task.detached(priority: .high) {
@@ -298,6 +318,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
       Log.reader.info("Disposing pdfViewController")
       pdfViewController.view.removeFromSuperview()
       pdfViewController.delegate = nil
+      FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
     default:

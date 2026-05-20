@@ -47,7 +47,7 @@ public class ReadiumTimebasedState : Equatable {
       map["currentDuration"] = Int(currentDuration * 1000)
     }
     if let locator = currentLocator {
-      map["currentLocator"] = locator.jsonString
+      map["currentLocator"] = try? locator.jsonString()
     }
 
     return map

@@ -166,10 +166,10 @@ struct FlutterMediaOverlayItem {
       )
     )
     if (frag != nil) {
-      locator.locations.otherLocations["cssSelector"] = "#\(frag!)"
+      locator.locations.otherLocations["cssSelector"] = .string("#\(frag!)")
     }
     if (tocHref != nil) {
-      locator.locations.otherLocations["tocHref"] = tocHref
+      locator.locations.otherLocations["tocHref"] = .string(tocHref!)
     }
     return locator
   }

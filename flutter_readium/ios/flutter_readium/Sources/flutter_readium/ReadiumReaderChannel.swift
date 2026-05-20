@@ -10,7 +10,7 @@ class ReadiumReaderChannel: FlutterMethodChannel {
   }
 
   func onPageChanged(locator: Locator) {
-    invokeMethod("onPageChanged", arguments: locator.jsonString as String?)
+    invokeMethod("onPageChanged", arguments: try? locator.jsonString())
   }
 
   func onExternalLinkActivated(url: URL) {
