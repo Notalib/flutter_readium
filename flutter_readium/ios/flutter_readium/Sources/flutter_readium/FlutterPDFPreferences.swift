@@ -14,7 +14,7 @@ struct FlutterPDFPreferences {
       prefs.scroll = scroll
     }
     if let rpString = map["readingProgression"] as? String,
-       let rp = ReadingProgression(rawValue: rpString) {
+       let rp = ReadiumNavigator.ReadingProgression(rawValue: rpString) {
       prefs.readingProgression = rp
     }
     readium = prefs

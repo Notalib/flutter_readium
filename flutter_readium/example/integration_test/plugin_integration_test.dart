@@ -157,8 +157,8 @@ void main() {
     });
 
     testWidgets('mounting PDF reader widget emits initial textLocator with page position', (tester) async {
-      final path = fixturePaths['flatland.pdf'];
-      expect(path, isNotNull, reason: 'Fixture flatland.pdf missing from asset bundle');
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -194,8 +194,8 @@ void main() {
     });
 
     testWidgets('goForward() in PDF advances the page position by 1', (tester) async {
-      final path = fixturePaths['flatland.pdf'];
-      expect(path, isNotNull, reason: 'Fixture flatland.pdf missing from asset bundle');
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -236,8 +236,8 @@ void main() {
     });
 
     testWidgets('goToLocator round-trips back to a saved PDF page', (tester) async {
-      final path = fixturePaths['flatland.pdf'];
-      expect(path, isNotNull, reason: 'Fixture flatland.pdf missing from asset bundle');
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -288,8 +288,8 @@ void main() {
     });
 
     testWidgets('setPDFPreferences applies without throwing', (tester) async {
-      final path = fixturePaths['flatland.pdf'];
-      expect(path, isNotNull, reason: 'Fixture flatland.pdf missing from asset bundle');
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
