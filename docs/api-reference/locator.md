@@ -76,6 +76,6 @@ before it is sent over the bridge:
 | Field | Type | Description |
 |-------|------|-------------|
 | `tocHref` | `string` | Current Table of Contents position in `href#identifier` format |
-| `currentPage` | `int` | Current dynamic page-number of the rendered resource |
+| `currentPage` | `int` | Current dynamic page-number of the rendered resource (starts from 1) |
 | `totalPages` | `int` | Total number of dynamic pages of the rendered resource |
 | `physicalPage` | `string` | Identifier for the most-recently passed physical page reference |

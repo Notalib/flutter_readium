@@ -6,9 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:logging/logging.dart';
 
 import '../state/index.dart';
 import '../utils/index.dart';
+
+final _log = Logger('BookshelfPage');
 
 class BookshelfPage extends StatefulWidget {
   const BookshelfPage({super.key});
@@ -51,7 +54,7 @@ class BookshelfPageState extends State<BookshelfPage> {
             loadedPublicationURLs.add(localPubPath);
           }
         } on Exception catch (e) {
-          debugPrint('Error opening publication: $e');
+          _log.severe('Error opening publication: $e');
         }
       }
     } else {
@@ -59,13 +62,13 @@ class BookshelfPageState extends State<BookshelfPage> {
       final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
       for (String localPubPath in localPublications) {
-        debugPrint('Loading publication from local path: $localPubPath');
+        _log.info('Loading publication from local path: $localPubPath');
         final publication = await loadPublicationFromUrl(localPubPath);
         if (publication != null) {
           loadedPublications.add(publication);
           loadedPublicationURLs.add(localPubPath);
         } else {
-          debugPrint('Failed to load publication from path: $localPubPath');
+          _log.warning('Failed to load publication from path: $localPubPath');
         }
       }
     }
@@ -96,10 +99,10 @@ class BookshelfPageState extends State<BookshelfPage> {
   Future<Publication?> loadPublicationFromUrl(String pubUrl) async {
     try {
       Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl);
-      debugPrint('loadPublication success: ${pub.metadata.title}');
+      _log.info('loadPublication success: ${pub.metadata.title}');
       return pub;
     } on PlatformException catch (e) {
-      debugPrint('Failed to open publication: ${e.message}');
+      _log.warning('Failed to open publication: ${e.message}');
       return null;
     }
   }

@@ -35,12 +35,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   void initState() {
     super.initState();
-    R2Log.d('Widget initiated');
+    ReadiumLog.d('Widget initiated');
   }
 
   @override
   void dispose() {
-    R2Log.d('Widget disposed');
+    ReadiumLog.d('Widget disposed');
     super.dispose();
 
     // Close the publication when the widget is disposed
@@ -81,7 +81,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    R2Log.d('setEPUBPreferences not implemented in web version');
+    ReadiumLog.d('setEPUBPreferences not implemented in web version');
   }
 
   @override
@@ -91,6 +91,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    R2Log.d('applyDecorations not implemented in web version');
+    ReadiumLog.d('applyDecorations not implemented in web version');
   }
 }

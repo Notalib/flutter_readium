@@ -1,5 +1,4 @@
 import 'package:dartx/dartx.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -11,8 +10,6 @@ class OpdsPublication implements JSONable {
   final OpdsMetadata metadata;
   final List<Link> links;
   final List<Link> images;
-
-  static final FimberLog _logger = FimberLog('OpdsPublication');
 
   OpdsPublication copyWith({OpdsMetadata? metadata, List<Link>? links, List<Link>? images}) =>
       OpdsPublication(metadata ?? this.metadata, links ?? this.links, images: images ?? this.images);
@@ -35,7 +32,7 @@ class OpdsPublication implements JSONable {
 
     final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
-      _logger.w('OpdsPublication metadata is null, cannot parse publication');
+      ReadiumLog.w('OpdsPublication metadata is null, cannot parse publication');
       return null;
     }
 

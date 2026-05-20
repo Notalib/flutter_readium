@@ -3,10 +3,13 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:collection/collection.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
+
+final _log = Logger('PlayerControlsBloc');
 
 @immutable
 abstract class PlayerControlsEvent {}
@@ -151,7 +154,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           .distinct()
           .debounceTime(const Duration(milliseconds: 50))
           .listen((playerState) {
-            debugPrint('onTimebasedPlayerStateChanged: ${playerState.name}');
+            _log.fine('onTimebasedPlayerStateChanged: ${playerState.name}');
 
             switch (playerState) {
               case TimebasedState.playing:
@@ -176,7 +179,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     subscriptions.add(
       instance.onTextLocatorChanged.listen((locator) {
-        debugPrint('onTextLocatorChanged: $locator');
+        _log.fine('onTextLocatorChanged: $locator');
       }),
     );
 
@@ -187,7 +190,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
       ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
         if (tocHref != state.currentTocHref) {
-          debugPrint('Current TOC href: $tocHref');
+          _log.fine('Current TOC href: $tocHref');
           add(UpdateCurrentTocHref(tocHref));
         }
       }),
@@ -195,7 +198,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     subscriptions.add(
       instance.onReaderStatusChanged.listen((status) {
-        debugPrint('onReaderStatusChanged: ${status.name}');
+        _log.fine('onReaderStatusChanged: ${status.name}');
       }),
     );
 
@@ -244,7 +247,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<SkipToNext>((final event, final emit) {
-      R2Log.i("SkipToNext, currentLocator: $currentLocator");
+      ReadiumLog.i("SkipToNext, currentLocator: $currentLocator");
       if (currentLocator == null) {
         return instance.next();
       }
@@ -261,7 +264,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToNextChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        R2Log.e("No currentTocHref in state, cannot skip to next TOC chapter");
+        ReadiumLog.e("No currentTocHref in state, cannot skip to next TOC chapter");
         return null;
       }
       return instance.skipToNextTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
@@ -269,7 +272,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToPreviousChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        R2Log.e("No currentTocHref in state, cannot skip to previous TOC chapter");
+        ReadiumLog.e("No currentTocHref in state, cannot skip to previous TOC chapter");
         return null;
       }
       return instance.skipToPreviousTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
@@ -290,10 +293,10 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       voices.sortBy((v) => v.identifier);
 
       for (final i in voices.groupListsBy((v) => v.language).entries) {
-        debugPrint('Language: ${i.key}');
-        debugPrint('  Available voices:');
+        _log.info('Language: ${i.key}');
+        _log.info('  Available voices:');
         for (final v in i.value) {
-          debugPrint(
+          _log.info(
             '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
           );
         }

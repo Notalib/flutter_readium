@@ -1,10 +1,12 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:path/path.dart' as path;
 import 'package:flutter/services.dart';
+import 'package:logging/logging.dart';
+import 'package:path/path.dart' as path;
 
 import 'readium_storage.dart';
+
+final _log = Logger('PublicationUtils');
 
 class PublicationUtils {
   static Future<Iterable<String>> getAssetPubFiles() async {
@@ -30,23 +32,23 @@ class PublicationUtils {
     // Loop through the filtered assets
     for (final assetPath in pubAssets) {
       if (!allowedExts.any((ext) => assetPath.endsWith(ext))) {
-        debugPrint('Skip asset path: $assetPath');
+        _log.fine('Skip asset path: $assetPath');
         continue;
       }
-      debugPrint('Asset in pubs: $assetPath');
+      _log.fine('Asset in pubs: $assetPath');
 
       final basename = path.basename(assetPath);
       final file = File(path.join(pubsDir.path, basename));
       final exists = await file.exists();
-      debugPrint('${file.path} already exists? $exists');
+      _log.fine('${file.path} already exists? $exists');
 
       if (!exists) {
         final data = await rootBundle.load(assetPath);
         final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
         await file.writeAsBytes(bytes);
-        debugPrint('saved ${file.path} size=${await file.length()}');
+        _log.info('saved ${file.path} size=${await file.length()}');
       } else {
-        debugPrint('cached ${file.path} size=${await file.length()}');
+        _log.fine('cached ${file.path} size=${await file.length()}');
       }
       pubs.add(file.path);
     }
@@ -56,13 +58,13 @@ class PublicationUtils {
   static Future<String> copyFileToReadiumPubStorage(File file) async {
     final exists = await file.exists();
     if (!exists) {
-      debugPrint('Could not copy file from ${file.path}, does not exist');
+      _log.warning('Could not copy file from ${file.path}, does not exist');
     }
 
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
     String newPath = path.join(publicationsDirPath, file.uri.path);
     await file.copy(newPath);
-    debugPrint('copied file ${file.path} size=${await file.length()} to=$newPath');
+    _log.info('copied file ${file.path} size=${await file.length()} to=$newPath');
     return newPath;
   }
 

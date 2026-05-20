@@ -2,7 +2,6 @@
 
 package dk.nota.flutter_readium
 
-import android.util.Log
 import dk.nota.flutter_readium.models.TextSearchResult
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -29,7 +28,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
         result: MethodChannel.Result,
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d(TAG, "::onMethodCall method:${call.method} args:${call.arguments}")
+            PluginLog.d(TAG, "::onMethodCall method:${call.method} args:${call.arguments}")
 
             try {
                 val res =
@@ -50,8 +49,8 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
             } catch (_: NotImplementedError) {
                 result.notImplemented()
             } catch (e: Exception) {
-                Log.e(TAG, "Exception: $e")
-                Log.e(TAG, "${e.stackTrace}")
+                PluginLog.e(TAG, "Exception: $e")
+                PluginLog.e(TAG, "${e.stackTrace}")
 
                 // TODO: Handle unknown errors better.
                 result.error(
@@ -71,6 +70,14 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
         arguments: Any?,
     ): Try<Any?, PublicationError> {
         when (method) {
+            "setLogLevel" -> {
+                val levelIndex = arguments as? Int ?: return Try.success(null)
+                val level = PluginLogLevel.entries.getOrNull(levelIndex) ?: return Try.success(null)
+                PluginLog.w(TAG, "::setLogLevel = ${level}")
+                PluginLog.level = level
+                return Try.success(null)
+            }
+
             "setCustomHeaders" -> {
                 @Suppress("UNCHECKED_CAST")
                 val args = arguments as? Map<String, Map<String, String>> ?: emptyMap()
@@ -400,7 +407,7 @@ fun MethodChannel.Result.publicationError(
     method: String,
     error: PublicationError,
 ) {
-    Log.e(
+    PluginLog.e(
         TAG,
         "$method: PublicationError<${error.errorCode}>: ${error.message}, cause=${error.cause}",
     )
