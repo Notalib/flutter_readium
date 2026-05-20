@@ -68,18 +68,6 @@ class PdfReaderFragment :
    * surrounding [dk.nota.flutter_readium.navigators.PdfNavigator] can await
    * fragment-startup before calling.
    */
-  fun go(
-    locator: Locator,
-    animated: Boolean,
-  ): Boolean {
-    val nav = pdfNavigator
-    if (nav == null) {
-      Log.d(TAG, "::go - $instance - navigator not ready")
-      return false
-    }
-    return nav.go(locator, animated)
-  }
-
   fun goBackward(animated: Boolean): Boolean {
     val nav = pdfNavigator
     if (nav == null) {
