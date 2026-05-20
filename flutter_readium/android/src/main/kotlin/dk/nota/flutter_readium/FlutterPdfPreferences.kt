@@ -6,20 +6,20 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 
 private const val TAG = "FlutterPdfPreferences"
 
+// PdfiumPreferences in kotlin-toolkit 3.1.2 has no `scroll` field — the Pdfium
+// engine is continuous-scroll only, so the Dart-side `scroll` preference is
+// accepted but has no effect on Android. iOS PDFKit supports it.
 @OptIn(ExperimentalReadiumApi::class)
 data class FlutterPdfPreferences(
-    val scroll: Boolean? = null,
     val readingProgression: ReadingProgression? = null,
 ) {
     fun toPdfiumPreferences(): PdfiumPreferences =
         PdfiumPreferences(
-            scroll = scroll,
             readingProgression = readingProgression,
         )
 
     companion object {
         fun fromMap(map: Map<String, Any>): FlutterPdfPreferences {
-            val scroll = map["scroll"] as? Boolean
             val rpStr = map["readingProgression"] as? String
             val readingProgression = rpStr?.let {
                 when (it) {
@@ -28,7 +28,7 @@ data class FlutterPdfPreferences(
                     else -> null
                 }
             }
-            return FlutterPdfPreferences(scroll = scroll, readingProgression = readingProgression)
+            return FlutterPdfPreferences(readingProgression = readingProgression)
         }
     }
 }

@@ -473,7 +473,18 @@ object ReadiumReader : TimebasedNavigator.TimebasedListener, EpubNavigator.Visua
                     container = transformingContainerFactory?.let { it(container) } ?: container
                 })
                 .getOrElse { err: OpenError ->
-                    Log.e(TAG, "Error opening publication: $err")
+                    fun unwrapCause(e: org.readium.r2.shared.util.Error?): String =
+                        when (e) {
+                            null -> "null"
+                            is ThrowableError<*> -> "${e.message} | throwable: ${e.throwable}"
+                            else -> "${e.message} | cause: ${unwrapCause(e.cause)}"
+                        }
+                    val detail = when (err) {
+                        is OpenError.Reading -> "Reading error: ${unwrapCause(err.cause)}"
+                        is OpenError.FormatNotSupported -> "FormatNotSupported: ${unwrapCause(err.cause)}"
+                        else -> err.toString()
+                    }
+                    Log.e(TAG, "Error opening publication: $detail")
                     asset.close()
                     return failure(err)
                 }
