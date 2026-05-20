@@ -195,6 +195,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
     child: InkWell(
+      key: ValueKey('book_card_${sanitizeForKey(publication.metadata.title)}'),
       onTap: () {
         // Use an in-memory saved locator as initial locator when opening the publication,
         // so that we can restore the last reading position.

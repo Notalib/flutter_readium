@@ -6,14 +6,8 @@ A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB /
 
 This is a **federated Flutter plugin** with two pub packages and a multi-package root:
 
-- `flutter_readium_platform_interface/` — shared Dart API, models (hand-written `toJson`/`fromJson`), method-channel contract. Both the app-facing package and any future platform implementations depend on this. Entry point: `lib/flutter_readium_platform_interface.dart`; channel impl in `lib/method_channel_flutter_readium.dart`.
-- `flutter_readium/` — the app-facing package. Bundles the native wrappers and the web implementation:
-  - `lib/` — Dart entry points (`flutter_readium.dart`, `reader_widget*.dart`). `reader_widget_switch.dart` dispatches to the native platform view or the web webview.
-  - `ios/flutter_readium/Sources/flutter_readium/` — Swift wrapper around **swift-toolkit**. Plugin entry: `FlutterReadiumPlugin.swift`; channel handler: `ReadiumReaderChannel.swift`; platform view: `ReadiumReaderView{,Factory}.swift`.
-  - `android/src/main/kotlin/dk/nota/` — Kotlin wrapper around **kotlin-toolkit**. Android package id: `dk.nota.flutter_readium`.
-  - `macos/` — macOS plugin (shares Swift sources with iOS where possible).
-  - `web/` — Web implementation in TypeScript that compiles to a JS bundle loaded inside a webview. Webpack config at `web/_scripts/webpack.config.js`.
-  - `assets/_helper_scripts/` — separate TypeScript helpers injected into the webview at runtime (built by `flutter_readium/bin/build_helper_scripts.sh`).
+- `flutter_readium_platform_interface/` — shared Dart API, models, method-channel contract.
+- `flutter_readium/` — app-facing package with native wrappers (iOS/Swift, Android/Kotlin, macOS) and a web implementation (TypeScript → JS bundle in a webview).
   - `example/` — **the smoke-test target.** All UI / behavior changes should be verified by running the example app before declaring a task done.
 - `bin/` (repo root) — multi-package developer scripts (see below).
 
@@ -25,29 +19,27 @@ The native sides are thin wrappers around upstream Readium code — when debuggi
 - kotlin-toolkit: https://github.com/readium/kotlin-toolkit/ — pinned to **3.1.2** via `ext.readium_version` in `flutter_readium/android/build.gradle`.
 - ts-toolkit (Web): consumed via npm — `@readium/shared`, `@readium/navigator`, `@readium/navigator-html-injectables` (see `flutter_readium/package.json`).
 
+When you need to inspect upstream implementation details (e.g. how a navigator handles a locator, what fields a model uses), read the source on GitHub — do NOT decompile local JARs, .framework bundles, or other build artifacts. Use `gh api` or `WebFetch` against the repos above.
+
 Voice data for TTS comes from https://github.com/readium/speech (refreshed by `bin/update_readium_voice_data`).
 
 When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Also update every version reference in the docs and README to match the new pinned version, to avoid drift.
 
 ## Developer workflow
 
-Repo-root scripts (`bin/*`) — run from the repo root:
+Key scripts (run from repo root):
 
-- `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
-- `bin/forAll <cmd>` — run a command in both pub packages. Example: `bin/forAll dart pub upgrade`.
-- `bin/build_js` — build the web bundle (currently `build_dev`; production build is commented out).
-- `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
-- `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
+- `bin/install` — full bootstrap (pub get, pod install, build JS). Run after clone or dependency changes.
+- `bin/forAll <cmd>` — run a command in both pub packages.
+- `bin/update_web_example` — rebuild web TS bundle and copy into example. **Run after any TS change.**
+- `bin/update_readium_voice_data` — refresh TTS voice data from upstream (requires `jq`).
+- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview.
 
-Plugin-local script:
-
-- `flutter_readium/bin/build_helper_scripts.sh` — builds the `_helper_scripts` TS bundle that is injected into the webview.
-
-Running the example app: `cd flutter_readium/example && flutter run`. For web specifically, ensure `bin/update_web_example` has been run after any TS change.
+Running the example app: `cd flutter_readium/example && flutter run`.
 
 ## Conventions
 
-- **Commits**: use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `refactor:`, scopes like `feat(example): …` are common — see `git log`). PR titles should follow the same format.
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) with scopes (see `git log`). PR titles follow the same format.
 - **Branching**: GitHub flow — short-lived feature branches off `main`. `main` is the only relevant branch; any older branches in the repo are historical and should be ignored.
 - **Smoke test**: the example app at `flutter_readium/example/` is the canonical end-to-end smoke test. If a change can't be exercised in the example, say so explicitly rather than claiming it's verified.
 - **Models & method-channel contract**: keep the Dart side in `flutter_readium_platform_interface` in sync with both native implementations. If you add a method-channel call, all three native sides (Swift, Kotlin, web) need a matching handler — or an explicit `UnimplementedError` if intentionally unsupported.
@@ -55,25 +47,28 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 - **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased, until a release.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
 - **PDF locator shape**: PDFs are represented as a single-resource publication. The canonical position lives in `Locator.locations.position` as a **1-based page number** — this matches the upstream `PDFPositionsService` (swift-toolkit) and `Locator.locations.position` from `PdfNavigatorFragment.currentLocator` (kotlin-toolkit). The PDF resource href is always the single reading-order entry, and the locator's `fragments` carry `"page=N"` on iOS (where the upstream parser produces it). Do not invent a parallel `pageIndex` convention; consumers should read `locations.position` for page navigation and round-trip via `goToLocator`.
-- **Android log messages**: every `Log.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
-- **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
+
+### Android
+
+- **Log messages**: every `Log.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs.
+- **Navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard — delegate instead. Example:
   ```kotlin
   val navigator = epubNavigator ?: run {
-      Log.d(TAG, "::myFunction. Navigator not ready.")
+      PluginLog.w(TAG, "::myFunction. Navigator not ready.")
       return
   }
   return withContext(coroutineContext) { navigator.someCall() }
   ```
 
-## Build / toolchain facts
-
-- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.3.0`.
-- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
-- iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
-- Web: webpack 5, TypeScript 5.7+.
-
 ## Gotchas
 
 - The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
-- The plugin targets EPUB / WebPub (with or without pre-recorded audio) and PDF on iOS + Android. PDF support uses PDFKit on iOS (already in `ReadiumNavigator`) and PDFium via `readium-adapter-pdfium` on Android — the PSPDFKit adapter remains commented out in `android/build.gradle` for the commercial-license path. LCP support is still gated behind a `#if LCP` flag on iOS and a commented `readium-lcp` dependency on Android — don't enable it without a deliberate plan.
+- The plugin targets EPUB / WebPub (with or without pre-recorded audio) and PDF on iOS + Android. PDF support uses PDFKit on iOS and PDFium via `readium-adapter-pdfium` on Android — the PSPDFKit adapter remains commented out in `android/build.gradle` for the commercial-license path. LCP support is still gated behind a `#if LCP` flag on iOS and a commented `readium-lcp` dependency on Android — don't enable it without a deliberate plan.
+
+## Testability (marionette)
+
+- **Launching the app:** Run `flutter run` with `run_in_background: true` (the command never terminates while the app is running). Poll the background task output for `A Dart VM Service ... is available at: <uri>`, extract the URI, then `marionette register <name> <uri>/ws`. Do not use a foreground Bash call — it will always hit the timeout. Poll pattern: `for i in $(seq 1 30); do grep -m1 "Dart VM Service" <output_file> 2>/dev/null && break; sleep 1; done`
+- When adding interactive UI elements to the example app that should be exercisable via marionette, add a `ValueKey<String>` to the widget (especially `TextField`s inside `Autocomplete`). This makes `marionette tap --key` and `marionette enter-text --key` reliable.
+- Prefer `tap --key` or `tap --text` over coordinate-based taps (`tap --x --y`). Coordinate taps are fragile — elements can overlap or shift between devices, leading to flaky tests that hit the wrong target.
+- PDF content does not render visibly in marionette screenshots — marionette captures the Flutter compositing layer, which cannot reach native platform views (PDFKit/PDFium). When you need to visually verify native view content, use `xcrun simctl io booted screenshot /tmp/screen.png` instead (captures the full simulator framebuffer). For routine PDF navigation verification, check `marionette get-logs` for `onPageChanged` locator position.

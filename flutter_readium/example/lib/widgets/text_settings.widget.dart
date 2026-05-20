@@ -33,6 +33,7 @@ class TextSettingsWidget extends StatelessWidget {
                 ListItemWidget(
                   label: 'Font size',
                   child: Slider(
+                    key: const ValueKey('font_size_slider'),
                     value: state.fontSize.toDouble(),
                     min: 70.0,
                     max: 200.0,
@@ -48,6 +49,7 @@ class TextSettingsWidget extends StatelessWidget {
                   label: 'Vertical Scroll',
                   isVerticalAlignment: true,
                   child: Switch(
+                    key: const ValueKey('vertical_scroll_switch'),
                     value: state.verticalScroll,
                     onChanged: (final value) {
                       textSettingsBloc.add(ToggleVerticalScroll());
@@ -59,6 +61,7 @@ class TextSettingsWidget extends StatelessWidget {
                   label: 'Black and White Comic Mode',
                   isVerticalAlignment: true,
                   child: Switch(
+                    key: const ValueKey('bw_comic_mode_switch'),
                     value: state.blackAndWhiteComicMode,
                     onChanged: (final value) {
                       textSettingsBloc.add(ToggleBlackAndWhiteComicMode());
@@ -70,6 +73,7 @@ class TextSettingsWidget extends StatelessWidget {
                   label: 'Disable Synchronization',
                   isVerticalAlignment: true,
                   child: Switch(
+                    key: const ValueKey('disable_sync_switch'),
                     value: state.disableSynchronization,
                     onChanged: (final value) {
                       textSettingsBloc.add(ToggleDisableSynchronization());
@@ -88,6 +92,7 @@ class TextSettingsWidget extends StatelessWidget {
                 ),
                 const Divider(),
                 TextButton(
+                  key: const ValueKey('text_settings_close_button'),
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
