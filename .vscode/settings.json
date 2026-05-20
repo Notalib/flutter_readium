@@ -78,6 +78,7 @@
     "podspec",
     "prefs",
     "Prefs",
+    "preorder",
     "readium",
     "reflowable",
     "rels",
@@ -87,5 +88,6 @@
     "subcollections",
     "Transformability"
   ],
-  "java.configuration.updateBuildConfiguration": "interactive"
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "dart.mcpServer": true
 }

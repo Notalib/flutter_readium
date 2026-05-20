@@ -69,8 +69,8 @@ data class FlutterMediaOverlay(
      */
     fun findItemInRange(
         fileHref: Url,
-        duration: Duration,
-    ): FlutterMediaOverlayItem? = findItemInRange(fileHref, duration.inWholeSeconds.toDouble())
+        time: Duration,
+    ): FlutterMediaOverlayItem? = findItemInRange(fileHref, time.inWholeSeconds.toDouble())
 
     /**
      * Find the media overlay item for the given file and time.

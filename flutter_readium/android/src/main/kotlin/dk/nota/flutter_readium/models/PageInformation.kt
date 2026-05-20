@@ -1,9 +1,9 @@
 package dk.nota.flutter_readium.models
 
 import dk.nota.flutter_readium.cleanHref
-import dk.nota.flutter_readium.ifNotEmptyLet
 import dk.nota.flutter_readium.jsonDecode
 import dk.nota.flutter_readium.letIfBothNotNull
+import dk.nota.flutter_readium.letIfNotEmpty
 import dk.nota.flutter_readium.takeIfNotEmpty
 import org.json.JSONObject
 import org.readium.r2.shared.InternalReadiumApi
@@ -41,11 +41,11 @@ class PageInformation(
         get() {
             val res = mutableMapOf<String, Any>()
 
-            physicalPage.ifNotEmptyLet {
+            physicalPage.letIfNotEmpty {
                 res["physicalPage"] = it
             }
 
-            cssSelector.ifNotEmptyLet {
+            cssSelector.letIfNotEmpty {
                 res["cssSelector"] = it
             }
 

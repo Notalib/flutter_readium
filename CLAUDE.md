@@ -54,11 +54,20 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 - **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
 - **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased, until a release.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
+- **Android log messages**: every `Log.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
+- **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
+  ```kotlin
+  val navigator = epubNavigator ?: run {
+      Log.d(TAG, "::myFunction. Navigator not ready.")
+      return
+  }
+  return withContext(coroutineContext) { navigator.someCall() }
+  ```
 
 ## Build / toolchain facts
 
 - Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.3.0`.
-- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.2.20, AGP 8.13.0, Java 18 source/target.
+- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
 - iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
 - Web: webpack 5, TypeScript 5.7+.
 
