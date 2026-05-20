@@ -23,6 +23,10 @@ void main() {
     fixturePaths = {for (final pub in pubs) p.basename(pub): pub};
   });
 
+  // NOTE: Every testWidgets that mounts a ReadiumReaderWidget must end with
+  // `await tester.pumpWidget(const SizedBox());` to unmount the platform view
+  // before closePublication() runs in tearDown. Without this, the native
+  // renderer may still be rendering while its resources are torn down.
   tearDown(() async {
     await reader.closePublication();
   });
@@ -104,7 +108,6 @@ void main() {
       reason: 'goForward() should emit a textLocator distinct from the initial one.',
     );
 
-    // Unmount the platform view before closePublication() runs in tearDown.
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -149,11 +152,7 @@ void main() {
 
       expect(pub.metadata.title, isNotEmpty);
       expect(pub.readingOrder, isNotEmpty);
-      expect(
-        pub.conformsToReadiumPDF,
-        isTrue,
-        reason: 'PDF fixture should conform to the Readium PDF profile',
-      );
+      expect(pub.conformsToReadiumPDF, isTrue, reason: 'PDF fixture should conform to the Readium PDF profile');
     });
 
     testWidgets('mounting PDF reader widget emits initial textLocator with page position', (tester) async {
@@ -179,16 +178,8 @@ void main() {
         reason: 'PDF ReadiumReaderWidget never emitted an initial textLocator',
       );
 
-      expect(
-        locators.last.locations?.position,
-        isNotNull,
-        reason: 'PDF locator should carry a 1-based page position',
-      );
-      expect(
-        locators.last.locations?.position,
-        equals(1),
-        reason: 'Initial PDF locator should be on page 1',
-      );
+      expect(locators.last.locations?.position, isNotNull, reason: 'PDF locator should carry a 1-based page position');
+      expect(locators.last.locations?.position, equals(1), reason: 'Initial PDF locator should be on page 1');
 
       await tester.pumpWidget(const SizedBox());
     });
@@ -592,18 +583,20 @@ void main() {
         reason: 'Did not resume playback',
       );
 
-      await reader.audioSeekBy(const Duration(seconds: 10));
+      final seekDuration = const Duration(seconds: 10);
+      final expectedMinOffset = beforeSeek + seekDuration;
+      await reader.audioSeekBy(seekDuration);
 
       await _waitUntil(
-        () => states.last.currentOffset != null && states.last.currentOffset! > beforeSeek,
+        () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
         timeout: const Duration(seconds: 5),
         reason: 'currentOffset did not advance after audioSeekBy(10s)',
       );
 
       expect(
         states.last.currentOffset! - beforeSeek,
-        greaterThan(const Duration(seconds: 5)),
-        reason: 'audioSeekBy(10s) should advance offset by at least ~5s',
+        greaterThanOrEqualTo(seekDuration),
+        reason: 'audioSeekBy() should have advanced offset by at least seekDuration',
       );
     });
   });
