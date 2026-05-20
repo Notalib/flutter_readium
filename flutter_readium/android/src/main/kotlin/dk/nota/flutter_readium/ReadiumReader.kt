@@ -17,6 +17,7 @@ import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
+import dk.nota.flutter_readium.navigators.FlutterVisualNavigator
 import dk.nota.flutter_readium.navigators.PdfNavigator
 import dk.nota.flutter_readium.navigators.SyncAudiobookNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
@@ -166,9 +167,19 @@ object ReadiumReader :
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
 
-    private var epubNavigator: EpubNavigator? = null
+    private var visualNavigator: FlutterVisualNavigator? = null
 
-    private var pdfNavigator: PdfNavigator? = null
+    /** True when the current visual navigator is a PDF navigator. */
+    val isPdf: Boolean
+        get() = visualNavigator is PdfNavigator
+
+    /** Typed accessor for EPUB-specific operations. */
+    private val epubNavigator: EpubNavigator?
+        get() = visualNavigator as? EpubNavigator
+
+    /** Typed accessor for PDF-specific operations. */
+    private val pdfNavigator: PdfNavigator?
+        get() = visualNavigator as? PdfNavigator
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
@@ -295,7 +306,7 @@ object ReadiumReader :
             if (bundle.getBoolean(epubEnabledKey)) {
                 PluginLog.d(TAG, "::storeState - restore epub navigator")
                 bundle.getBundle(epubNavigatorStateKey)?.let { state ->
-                    epubNavigator =
+                    visualNavigator =
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
                             initNavigator()
                             PluginLog.d(TAG, "::storeState - epubNavigator restored")
@@ -309,7 +320,7 @@ object ReadiumReader :
             // widget will re-enable PDF on next attach using the locator that
             // Dart re-supplies via creation params.
             if (bundle.getBoolean(pdfEnabledKey)) {
-                Log.d(TAG, ":storeState - PDF was active; skipping restore (unsupported by PdfNavigatorFragment)")
+                PluginLog.d(TAG, ":storeState - PDF was active; skipping restore (unsupported by PdfNavigatorFragment)")
             }
 
             if (bundle.getBoolean(ttsEnabledKey)) {
@@ -792,7 +803,7 @@ object ReadiumReader :
 
             EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
-                epubNavigator = this
+                visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
                 setDecorationStyle(decorationStyle)
                 return@withMainContext
@@ -810,8 +821,8 @@ object ReadiumReader :
         }
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.w(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
                 return
             }
 
@@ -841,17 +852,17 @@ object ReadiumReader :
             throw Exception("Publication is not a PDF, cannot enable pdf navigator")
         }
 
-        withScope(mainScope) {
+        withMainContext {
             pdfNavigator?.let {
                 attachPdfNavigator(fragmentManager, viewGroup)
-                return@withScope
+                return@withMainContext
             }
 
             PdfNavigator(pub, initialLocator, this@ReadiumReader).apply {
                 initNavigator()
-                pdfNavigator = this
+                visualNavigator = this
                 attachPdfNavigator(fragmentManager, viewGroup)
-                return@withScope
+                return@withMainContext
             }
         }
     }
@@ -861,67 +872,31 @@ object ReadiumReader :
         viewGroup: ViewGroup?,
     ) {
         if (fragmentManager == null || viewGroup == null) {
-            Log.d(TAG, "::attachPdfNavigator: Missing fragmentManager or viewGroup")
+            PluginLog.d(TAG, "::attachPdfNavigator: Missing fragmentManager or viewGroup")
             return
         }
 
         val navigator =
             pdfNavigator ?: run {
-                Log.d(TAG, "::attachPdfNavigator: Tried to attach a non-existing pdf navigator?")
+                PluginLog.d(TAG, "::attachPdfNavigator: Tried to attach a non-existing pdf navigator?")
                 return
             }
 
-        withScope(mainScope) {
+        withMainContext {
             navigator.attachNavigator(fragmentManager, viewGroup)
         }
     }
 
     fun pdfClose() {
         currentReaderWidget = null
-        pdfNavigator?.dispose()
-        pdfNavigator = null
-    }
-
-    suspend fun pdfGoBackward(animated: Boolean) {
-        val navigator =
-            pdfNavigator ?: run {
-                Log.d(TAG, ":pdfGoBackward called without a pdfNavigator")
-                return
-            }
-        navigator.goBackward(animated)
-    }
-
-    suspend fun pdfGoForward(animated: Boolean) {
-        val navigator =
-            pdfNavigator ?: run {
-                Log.d(TAG, ":pdfGoForward called without a pdfNavigator")
-                return
-            }
-        navigator.goForward(animated)
-    }
-
-    suspend fun pdfGoToLocator(
-        locator: Locator,
-        animated: Boolean,
-    ) {
-        val publication =
-            currentPublication ?: run {
-                Log.e(TAG, "::pdfGoToLocator called without an open publication")
-                return
-            }
-        val toLocator = publication.normalizeLocator(locator)
-        val navigator =
-            pdfNavigator ?: run {
-                Log.d(TAG, ":pdfGoToLocator called without a pdfNavigator")
-                return
-            }
-        navigator.go(toLocator, animated)
+        visualNavigator?.dispose()
+        visualNavigator = null
     }
 
     suspend fun pdfUpdatePreferences(preferences: FlutterPdfPreferences) {
         val navigator =
             pdfNavigator ?: run {
-                Log.e(TAG, "::pdfUpdatePreferences called without a pdfNavigator")
+                PluginLog.e(TAG, "::pdfUpdatePreferences called without a pdfNavigator")
                 return
             }
         navigator.updatePreferences(preferences)
@@ -954,8 +929,79 @@ object ReadiumReader :
 
     fun epubClose() {
         currentReaderWidget = null
-        epubNavigator?.dispose()
-        epubNavigator = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
+    /** Close the active visual navigator, regardless of type (EPUB or PDF). */
+    fun visualClose() {
+        currentReaderWidget = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
+    /**
+     * Enable the appropriate visual navigator (EPUB or PDF) based on the
+     * current publication type. This replaces the separate `epubEnable` /
+     * `pdfEnable` call sites in the widget so callers don't need to branch.
+     */
+    @OptIn(InternalReadiumApi::class)
+    suspend fun visualEnable(
+        initialLocator: Locator?,
+        initialPreferences: FlutterEpubPreferences,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget,
+    ) {
+        val pub =
+            currentPublication ?: throw Exception("Publication not opened cannot enable visual navigator")
+        val isPdf =
+            pub.conformsTo(Publication.Profile.PDF) ||
+                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+        if (isPdf) {
+            pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+        } else {
+            epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+        }
+    }
+
+    /** Navigate backward in the active visual navigator. */
+    suspend fun visualGoBackward(animated: Boolean) {
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoBackward. Navigator not ready.")
+                return
+            }
+        navigator.goBackward(animated)
+    }
+
+    /** Navigate forward in the active visual navigator. */
+    suspend fun visualGoForward(animated: Boolean) {
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoForward. Navigator not ready.")
+                return
+            }
+        navigator.goForward(animated)
+    }
+
+    /** Go to the given locator in the active visual navigator. */
+    suspend fun visualGoToLocator(
+        locator: Locator,
+        animated: Boolean,
+    ) {
+        val publication =
+            currentPublication ?: run {
+                PluginLog.e(TAG, "::visualGoToLocator called without an open publication")
+                return
+            }
+        val toLocator = publication.normalizeLocator(locator)
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoToLocator. Navigator not ready.")
+                return
+            }
+        navigator.goToLocator(toLocator, animated)
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
@@ -1295,8 +1341,8 @@ object ReadiumReader :
      */
     suspend fun epubGoBackward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoBackward called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoBackward called without a visualNavigator")
                 return
             }
 
@@ -1308,8 +1354,8 @@ object ReadiumReader :
      */
     suspend fun epubGoForward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoForward called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoForward called without a visualNavigator")
                 return
             }
 
@@ -1325,15 +1371,15 @@ object ReadiumReader :
     ) {
         val publication =
             currentPublication ?: run {
-                PluginLog.e(TAG, "::epubGoToLocator called wihtout an open publication")
+                PluginLog.e(TAG, "::epubGoToLocator called without an open publication")
                 return
             }
 
         val toLocator = publication.normalizeLocator(locator)
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoToLocator called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoToLocator called without a visualNavigator")
                 return
             }
 
@@ -1342,8 +1388,8 @@ object ReadiumReader :
 
     suspend fun epubGoToProgression(progression: Double) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoToProgression called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoToProgression called without a visualNavigator")
                 return
             }
 
