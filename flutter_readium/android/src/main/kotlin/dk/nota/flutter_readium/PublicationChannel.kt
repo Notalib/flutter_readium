@@ -29,7 +29,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
         result: MethodChannel.Result,
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            Log.d(TAG, ":onMethodCall method:${call.method} args:${call.arguments}")
+            Log.d(TAG, "::onMethodCall method:${call.method} args:${call.arguments}")
 
             try {
                 val res =

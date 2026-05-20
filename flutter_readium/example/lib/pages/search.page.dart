@@ -2,6 +2,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show FlutterReadium, TextSearchResult;
 import 'package:flutter_readium_example/state/index.dart';
+import 'package:logging/logging.dart';
+
+final _log = Logger('SearchPage');
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -81,7 +84,7 @@ class _SearchPageState extends State<SearchPage> {
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(subtitle, maxLines: 10, overflow: TextOverflow.ellipsis),
       onTap: () {
-        debugPrint('Tapped result ${result.chapterTitle}');
+        _log.info('Tapped result ${result.chapterTitle}');
         Navigator.pop(context, result);
       },
     );

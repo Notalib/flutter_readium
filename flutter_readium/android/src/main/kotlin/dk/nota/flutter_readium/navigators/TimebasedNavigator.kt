@@ -100,7 +100,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
 
         Log.d(
             TAG,
-            ": onPlaybackStateChanged: state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}",
+            "::onPlaybackStateChanged - state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}",
         )
 
         isPlaying = timebasedState == TimebasedState.Playing

@@ -2,6 +2,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show Link, PublicationLists;
 import 'package:flutter_readium_example/state/index.dart';
+import 'package:logging/logging.dart';
+
+final _log = Logger('PageListPage');
 
 class PageListPage extends StatelessWidget {
   const PageListPage({super.key});
@@ -40,7 +43,7 @@ class PageListPage extends StatelessWidget {
       contentPadding: EdgeInsets.only(left: 12.0 * level),
       trailing: Icon(Icons.arrow_forward_ios),
       onTap: () {
-        debugPrint('Tapped page: $title: href=${link.href}');
+        _log.info('Tapped page: $title: href=${link.href}');
         Navigator.pop(context, link);
       },
     );

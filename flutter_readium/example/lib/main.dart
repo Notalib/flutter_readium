@@ -1,19 +1,27 @@
 import 'package:flutter/foundation.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:marionette_flutter/marionette_flutter.dart';
+import 'package:marionette_logging/marionette_logging.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'pages/index.dart';
 import 'state/index.dart';
 
 Future<void> main() async {
-  // FlutterReadium.init(
-  //   androidNotificationChannelId: 'r2.navigator.flutter.audio',
-  //   androidNotificationChannelName: 'Audio playback',
-  //   downloadDebug: true,
-  // );
-  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Marionette only in debug mode
+  if (kDebugMode) {
+    MarionetteBinding.ensureInitialized(MarionetteConfiguration(logCollector: LoggingLogCollector()));
+  } else {
+    WidgetsFlutterBinding.ensureInitialized();
+  }
+
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((record) {
+    debugPrint('[${record.level.name}] ${record.loggerName}: ${record.message}');
+  });
 
   HydratedBloc.storage = await HydratedStorage.build(
     storageDirectory: kIsWeb
