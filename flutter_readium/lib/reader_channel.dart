@@ -24,7 +24,7 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Go e.g. navigate to a specific locator in the publication.
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) {
-    R2Log.d('$name: $locator, $animated');
+    ReadiumLog.d('$name: $locator, $animated');
 
     return _invokeMethod(_ReaderChannelMethodInvoke.go, [
       json.encode(locator.toTextLocator()),
@@ -35,13 +35,13 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Go to the previous page.
   Future<void> goBackward({final bool animated = true}) {
-    R2Log.d('$name: $animated');
+    ReadiumLog.d('$name: $animated');
     return _invokeMethod(_ReaderChannelMethodInvoke.goBackward, animated);
   }
 
   /// Go to the next page.
   Future<void> goForward({final bool animated = true}) {
-    R2Log.d('$name: $animated');
+    ReadiumLog.d('$name: $animated');
     return _invokeMethod(_ReaderChannelMethodInvoke.goForward, animated);
   }
 
@@ -74,10 +74,10 @@ class ReadiumReaderChannel extends MethodChannel {
           final args = call.arguments as String;
           final locatorJson = json.decode(args) as Map<String, dynamic>;
           final locator = Locator.fromJson(locatorJson);
-          R2Log.d('onPageChanged $locator');
+          ReadiumLog.d('onPageChanged $locator');
 
           if (locator == null) {
-            R2Log.w('onPageChanged received empty locator');
+            ReadiumLog.w('onPageChanged received empty locator');
             return null;
           }
 
@@ -86,21 +86,21 @@ class ReadiumReaderChannel extends MethodChannel {
           return null;
         case 'onExternalLinkActivated':
           final link = call.arguments as String;
-          R2Log.d('onExternalLinkActivated $link');
+          ReadiumLog.d('onExternalLinkActivated $link');
           onExternalLinkActivated?.call(link);
 
           return null;
         default:
           throw UnimplementedError('Unhandled call ${call.method}');
       }
-    } on Object catch (e) {
-      R2Log.e(e, data: call.method);
+    } on Object catch (e, st) {
+      ReadiumLog.e(e, data: call.method, stackTrace: st);
     }
   }
 
   /// Invokes a method on the native platform with optional arguments.
   Future<T?> _invokeMethod<T>(final _ReaderChannelMethodInvoke method, [final dynamic arguments]) {
-    R2Log.d(() => arguments == null ? '$method' : '$method: $arguments');
+    ReadiumLog.d(() => arguments == null ? '$method' : '$method: $arguments');
 
     return invokeMethod<T>(method.name, arguments);
   }

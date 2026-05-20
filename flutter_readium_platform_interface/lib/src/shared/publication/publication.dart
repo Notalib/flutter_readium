@@ -9,7 +9,6 @@
 
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -107,7 +106,7 @@ class Publication with EquatableMixin implements JSONable {
     final context = jsonObject.optStringsFromArrayOrSingle('@context', remove: true);
     final metadata = Metadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
     if (metadata == null) {
-      Fimber.i('[metadata] is required $jsonObject');
+      ReadiumLog.i('[metadata] is required $jsonObject');
       return null;
     }
 

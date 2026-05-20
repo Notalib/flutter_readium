@@ -247,7 +247,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     });
 
     on<SkipToNext>((final event, final emit) {
-      R2Log.i("SkipToNext, currentLocator: $currentLocator");
+      ReadiumLog.i("SkipToNext, currentLocator: $currentLocator");
       if (currentLocator == null) {
         return instance.next();
       }
@@ -264,7 +264,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToNextChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        R2Log.e("No currentTocHref in state, cannot skip to next TOC chapter");
+        ReadiumLog.e("No currentTocHref in state, cannot skip to next TOC chapter");
         return null;
       }
       return instance.skipToNextTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
@@ -272,7 +272,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToPreviousChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        R2Log.e("No currentTocHref in state, cannot skip to previous TOC chapter");
+        ReadiumLog.e("No currentTocHref in state, cannot skip to previous TOC chapter");
         return null;
       }
       return instance.skipToPreviousTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
