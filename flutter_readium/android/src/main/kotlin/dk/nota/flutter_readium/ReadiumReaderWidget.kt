@@ -265,10 +265,12 @@ class ReadiumReaderWidget(
         try {
             var emittingLocator = locator
 
-            // EPUB page-info JS eval and TOC-href enrichment are not applicable
-            // to PDF — PDF locators arrive from the navigator already carrying
-            // `locations.position` (1-based page) plus standard fragments.
-            if (!isPdf) {
+            if (isPdf) {
+                // Enrich PDF locator with the current TOC chapter title/href by
+                // matching "#page=N" fragments from the publication's table of contents.
+                emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
+            } else {
+                // EPUB: JS page-info eval + TOC href enrichment.
                 try {
                     evaluateJavascript("window.flutterReadium.getPageInformation()")
                         ?.let {
@@ -313,14 +315,6 @@ class ReadiumReaderWidget(
             Log.d(TAG, "::onMethodCall ${call.method}")
             when (call.method) {
                 "setPreferences" -> {
-                    if (isPdf) {
-                        // PDF preferences land in Phase 5 of the PDF support roadmap.
-                        // Accept the call so the Dart side doesn't see a not-implemented
-                        // error mid-session.
-                        Log.d(TAG, "::setPreferences - deferred for PDF")
-                        result.success(null)
-                        return@launch
-                    }
                     try {
                         @Suppress("UNCHECKED_CAST")
                         val prefsMap =
@@ -332,8 +326,11 @@ class ReadiumReaderWidget(
                                 )
                                 return@launch
                             }
-
-                        setPreferencesFromMap(prefsMap)
+                        if (isPdf) {
+                            ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
+                        } else {
+                            setPreferencesFromMap(prefsMap)
+                        }
                         result.success(null)
                     } catch (ex: Exception) {
                         result.error("FlutterReadium", "Failed to set preferences", ex.message)

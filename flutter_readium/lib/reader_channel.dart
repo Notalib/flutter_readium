@@ -50,6 +50,11 @@ class ReadiumReaderChannel extends MethodChannel {
     await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
   }
 
+  /// Set PDF preferences.
+  Future<void> setPDFPreferences(PDFPreferences preferences) async {
+    await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
+  }
+
   /// Apply decorations to the reader.
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
