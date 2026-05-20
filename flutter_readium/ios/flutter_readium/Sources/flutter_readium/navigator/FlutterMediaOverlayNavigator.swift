@@ -5,6 +5,7 @@
 //  Created by Daniel Dam Freiling on 29/10/2025.
 //
 
+import Foundation
 import ReadiumShared
 import ReadiumNavigator
 

@@ -50,7 +50,8 @@ class ReadiumReaderWidget(
     MethodChannel.MethodCallHandler,
     EpubReaderFragment.Listener,
     PdfReaderFragment.Listener,
-    EpubNavigator.VisualListener {
+    EpubNavigator.VisualListener,
+    CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private val channel: ReadiumReaderChannel
 
     /**
@@ -72,9 +73,6 @@ class ReadiumReaderWidget(
     private val fragmentManager
         get() = activity.supportFragmentManager
 
-    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     override fun getView(): View {
         // Log.d(TAG, "::getView")
         return layout
@@ -93,7 +91,7 @@ class ReadiumReaderWidget(
 
         channel.setMethodCallHandler(null)
 
-        mainScope.coroutineContext.cancelChildren()
+        coroutineContext.cancelChildren()
         layout.removeAllViews()
     }
 
@@ -167,7 +165,7 @@ class ReadiumReaderWidget(
             }
         }
 
-        mainScope.launch {
+        launch {
             try {
                 if (isPdf) {
                     ReadiumReader.pdfEnable(
@@ -221,7 +219,7 @@ class ReadiumReaderWidget(
 
         lastPageLoadedKey = currentKey
 
-        mainScope.launch {
+        launch {
             if (!hasSentReady) {
                 hasSentReady = true
 
@@ -234,7 +232,7 @@ class ReadiumReaderWidget(
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
         Log.d(TAG, "::onExternalLinkActivated $url")
-        mainScope.launch { emitOnExternalLinkActivated(url) }
+        emitOnExternalLinkActivated(url)
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
@@ -262,8 +260,7 @@ class ReadiumReaderWidget(
         totalPages: Int,
         locator: Locator,
     ) {
-        try {
-            var emittingLocator = locator
+        var emittingLocator = locator
 
             if (isPdf) {
                 // Enrich PDF locator with the current TOC chapter title/href by
@@ -285,7 +282,7 @@ class ReadiumReaderWidget(
                         Log.d(TAG, "::emitOnPageChanged - no page information")
                     }
                 } catch (e: Error) {
-                    Log.d(TAG, ":pageInformation error: $e")
+                    Log.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
                 }
 
                 emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
@@ -311,7 +308,7 @@ class ReadiumReaderWidget(
         // TODO: To be safe we're doing everything on the Main thread right now.
         // Could probably optimize by using .IO and then change to Main
         // when affecting readerView or returning a result.
-        mainScope.launch {
+        launch {
             Log.d(TAG, "::onMethodCall ${call.method}")
             when (call.method) {
                 "setPreferences" -> {

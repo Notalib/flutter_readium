@@ -17,11 +17,10 @@ import kotlinx.coroutines.cancelChildren
 abstract class EventChannelWrapper<T>(
     messenger: BinaryMessenger,
     name: String,
-) : EventChannel.StreamHandler {
+) : EventChannel.StreamHandler,
+    CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private val eventChannel: EventChannel = EventChannel(messenger, name)
     protected var eventSink: EventChannel.EventSink? = null
-
-    protected val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     init {
         eventChannel.setStreamHandler(this)
@@ -41,7 +40,7 @@ abstract class EventChannelWrapper<T>(
     open fun dispose() {
         eventChannel.setStreamHandler(null)
         eventSink = null
-        mainScope.coroutineContext.cancelChildren()
+        coroutineContext.cancelChildren()
     }
 
     /**
