@@ -11,7 +11,7 @@ class TextLocatorEventChannel(
     messenger: BinaryMessenger,
 ) : EventChannelWrapper<Locator>(messenger, "dk.nota.flutter_readium/text-locator") {
     override fun sendEvent(data: Locator) {
-        mainScope.launch {
+        launch {
             eventSink?.success(data.toJSON().toString())
         }
     }

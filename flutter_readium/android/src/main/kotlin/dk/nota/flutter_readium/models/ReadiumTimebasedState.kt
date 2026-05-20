@@ -30,6 +30,30 @@ data class ReadiumTimebasedState(
      */
     val currentDuration: Double? = null,
 ) : JSONable {
+    fun copyWith(
+        state: TimebasedNavigator.TimebasedState = this.state,
+        currentLocator: Locator? = this.currentLocator,
+        currentOffset: Double? = this.currentOffset,
+        currentBuffered: Long? = this.currentBuffered,
+        currentDuration: Double? = this.currentDuration,
+    ): ReadiumTimebasedState {
+        if (state == this.state && currentLocator == this.currentLocator && currentOffset == this.currentOffset &&
+            currentBuffered == this.currentBuffered &&
+            currentDuration == this.currentDuration
+        ) {
+            // No changes, return this to avoid StateFlow triggering updates.
+            return this
+        }
+
+        return ReadiumTimebasedState(
+            state,
+            currentLocator,
+            currentOffset,
+            currentBuffered,
+            currentDuration,
+        )
+    }
+
     /**
      * Convert to JSON object
      */
@@ -41,4 +65,8 @@ data class ReadiumTimebasedState(
             putOpt("currentBuffered", currentBuffered)
             putOpt("currentDuration", currentDuration)
         }
+
+    companion object {
+        fun none(): ReadiumTimebasedState = ReadiumTimebasedState()
+    }
 }

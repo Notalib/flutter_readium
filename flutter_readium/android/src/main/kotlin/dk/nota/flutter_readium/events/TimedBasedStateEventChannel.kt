@@ -12,7 +12,7 @@ class TimedBasedStateEventChannel(
     messenger: BinaryMessenger,
 ) : EventChannelWrapper<ReadiumTimebasedState>(messenger, "dk.nota.flutter_readium/timebased-state") {
     override fun sendEvent(data: ReadiumTimebasedState) {
-        mainScope.launch {
+        launch {
             eventSink?.success(jsonEncode(data.toJSON()))
         }
     }

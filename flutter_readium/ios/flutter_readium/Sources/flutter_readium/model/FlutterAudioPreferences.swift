@@ -1,3 +1,5 @@
+import Foundation
+
 public struct FlutterAudioPreferences {
   public var volume: Double
 
