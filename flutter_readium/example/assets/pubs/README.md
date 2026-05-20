@@ -15,3 +15,4 @@ Some ones prefixed with a number are self-produced by Nota.
 | 38533_overlay.webpub      | webpub/ebook      | Ebook /w MediaOverlays      |
 | 38533.audiobook           | webpub/audiobook  | Readium Audiobook           |
 | flatland_remote.audiobook | webpub/audiobook  | Readium Audiobook (remote)  |
+| pdf_test.pdf              | application/pdf   | Minimal single-page PDF for smoke-testing PDF support |

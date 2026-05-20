@@ -181,6 +181,8 @@ class BookshelfPageState extends State<BookshelfPage> {
       return 'Ebook';
     } else if (pub.conformsToReadiumAudiobook) {
       return 'Audiobook';
+    } else if (pub.conformsToReadiumPDF) {
+      return 'PDF';
     } else {
       return 'Unknown format';
     }

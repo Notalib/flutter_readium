@@ -10,12 +10,6 @@ class PDFPreferences with EquatableMixin implements JSONable {
     this.readingProgression,
   });
 
-  /// Whether to use a continuous scroll layout instead of paginated.
-  final bool? scroll;
-
-  /// Direction of the reading progression.
-  final PDFReadingProgression? readingProgression;
-
   factory PDFPreferences.fromJson(Map<String, dynamic> json) {
     final scroll = json['scroll'] as bool?;
     final rpStr = json['readingProgression'] as String?;
@@ -24,6 +18,12 @@ class PDFPreferences with EquatableMixin implements JSONable {
       readingProgression: rpStr != null ? PDFReadingProgression.fromJson(rpStr) : null,
     );
   }
+
+  /// Whether to use a continuous scroll layout instead of paginated.
+  final bool? scroll;
+
+  /// Direction of the reading progression.
+  final PDFReadingProgression? readingProgression;
 
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{}
