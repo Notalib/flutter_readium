@@ -1,9 +1,9 @@
 package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
-import android.util.Log
 import dk.nota.flutter_readium.ControlPanelInfoType
 import dk.nota.flutter_readium.FlutterAudioPreferences
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.PluginMediaServiceFacade
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.ReadiumReader
@@ -73,7 +73,7 @@ open class AudiobookNavigator(
 
     override suspend fun initNavigator() {
         if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
-            Log.e(
+            PluginLog.e(
                 TAG,
                 "::initNavigator - doesn't conform to audiobook profile - ${publication.metadata.conformsTo}",
             )
@@ -81,12 +81,12 @@ open class AudiobookNavigator(
         }
 
         if (publication.readingOrder.isEmpty()) {
-            Log.e(TAG, "::initNavigator - missing reading order")
+            PluginLog.e(TAG, "::initNavigator - missing reading order")
             throw Exception("Publication is missing its reading order, cannot be opened as an audiobook")
         }
 
         if (publication.readingOrder.any { it.duration == 0.0 }) {
-            Log.e(TAG, "::initNavigator - has at least one readium order item with duration = 0")
+            PluginLog.e(TAG, "::initNavigator - has at least one readium order item with duration = 0")
             throw Exception("Publication has at least one readium order item with duration = 0")
         }
 
@@ -107,7 +107,7 @@ open class AudiobookNavigator(
 
         if (navigatorFactory == null) {
             // TODO: Better Error handling, if the book isn't an audiobook the factory is null.
-            Log.e(TAG, "::initNavigator - Couldn't create AudioNavigatorFactory")
+            PluginLog.e(TAG, "::initNavigator - Couldn't create AudioNavigatorFactory")
             throw Exception("Couldn't create AudioNavigatorFactory")
         }
 
@@ -118,7 +118,7 @@ open class AudiobookNavigator(
                         this@AudiobookNavigator.initialLocator,
                         preferences.toExoPlayerPreferences(),
                     ).getOrElse { error ->
-                        Log.e(TAG, "::initNavigator - $error")
+                        PluginLog.e(TAG, "::initNavigator - $error")
                         throw Exception(PublicationError.invoke(error).message)
                     }
 
@@ -139,7 +139,7 @@ open class AudiobookNavigator(
                                 }
 
                                 is AudioNavigator.State.Failure<*> -> {
-                                    Log.e(TAG, "::initNavigator - failure: ${state.error}")
+                                    PluginLog.e(TAG, "::initNavigator - failure: ${state.error}")
                                     // onPlaybackError(state.error)
                                 }
                             }
@@ -153,7 +153,7 @@ open class AudiobookNavigator(
     override suspend fun play(fromLocator: Locator?) {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::play called without an active navigator")
+                PluginLog.w(TAG, "::play called without an active navigator")
                 return
             }
 
@@ -165,7 +165,7 @@ open class AudiobookNavigator(
             try {
                 navigatorWithOpenMediaSession()
             } catch (e: Exception) {
-                Log.e(TAG, "::play - error opening MediaSession: ${e.message}")
+                PluginLog.e(TAG, "::play - error opening MediaSession: ${e.message}")
                 return@withMainContext
             }
 
@@ -176,7 +176,7 @@ open class AudiobookNavigator(
     override suspend fun pause() {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::pause called without an active navigator")
+                PluginLog.w(TAG, "::pause called without an active navigator")
                 return
             }
 
@@ -188,7 +188,7 @@ open class AudiobookNavigator(
     override suspend fun resume() {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::resume - called without an active navigator")
+                PluginLog.e(TAG, "::resume - called without an active navigator")
                 return
             }
 
@@ -201,7 +201,7 @@ open class AudiobookNavigator(
     override suspend fun goBackward() {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::goBackward - called without an active navigator")
+                PluginLog.e(TAG, "::goBackward - called without an active navigator")
                 return
             }
 
@@ -213,7 +213,7 @@ open class AudiobookNavigator(
     override suspend fun goForward() {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::goForward - called without an active navigator")
+                PluginLog.e(TAG, "::goForward - called without an active navigator")
                 return
             }
 
@@ -226,7 +226,7 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::goToLocator called without an active navigator")
+                PluginLog.w(TAG, "::goToLocator called without an active navigator")
                 return
             }
 
@@ -237,14 +237,14 @@ open class AudiobookNavigator(
                     .takeIf { it > -1 }
 
             if (itemIndex == null) {
-                Log.e(TAG, "::goToLocator - ${locator.href} not found in navigator's readingOrder")
+                PluginLog.e(TAG, "::goToLocator - ${locator.href} not found in navigator's readingOrder")
                 return@withMainContext
             }
 
             val item = navigator.readingOrder.items[itemIndex]
             val timeOffset = locator.locations.timeWithDuration(item.duration)
             if (timeOffset == null) {
-                Log.e(TAG, "::goToLocator - couldn't find timeOffset from starting file over.")
+                PluginLog.w(TAG, "::goToLocator - couldn't find timeOffset from starting file over.")
             }
             navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
             return@withMainContext
@@ -254,7 +254,7 @@ open class AudiobookNavigator(
     override suspend fun seekTo(offset: Double) {
         val navigator =
             audioNavigator ?: run {
-                Log.d(TAG, "::seekTo - called without navigator")
+                PluginLog.d(TAG, "::seekTo - called without navigator")
                 return
             }
 
@@ -267,12 +267,12 @@ open class AudiobookNavigator(
     override suspend fun seekToProgression(progression: Double): Boolean {
         val navigator =
             audioNavigator ?: run {
-                Log.d(TAG, "::seekToProgression - called without navigator")
+                PluginLog.d(TAG, "::seekToProgression - called without navigator")
                 return false
             }
 
         if (progression !in 0.0..1.0) {
-            Log.d(TAG, "::seekToProgression - progression $progression is not between 0.0 and 1.0")
+            PluginLog.d(TAG, "::seekToProgression - progression $progression is not between 0.0 and 1.0")
             return false
         }
 
@@ -285,7 +285,7 @@ open class AudiobookNavigator(
                     .normalizeLocator(navigator.currentLocator.value)
                     .copyWithTimeFragment(timeOffset)
 
-            Log.d(
+            PluginLog.d(
                 TAG,
                 "::seekToProgression - navigate to ${locator.href} @ ${locator.locations.time}",
             )
@@ -299,7 +299,7 @@ open class AudiobookNavigator(
     private suspend fun navigatorWithOpenMediaSession(): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::ensureNavigatorWithOpenMediaSession - no audio navigator")
+                PluginLog.w(TAG, "::ensureNavigatorWithOpenMediaSession - no audio navigator")
                 return null
             }
 
@@ -307,11 +307,11 @@ open class AudiobookNavigator(
             try {
                 val mediaSession = mediaServiceFacade!!
                 if (mediaSession.session.value == null) {
-                    Log.d(TAG, "::navigatorWithOpenMediaSession - open session")
+                    PluginLog.d(TAG, "::navigatorWithOpenMediaSession - open session")
                     mediaSession.openSession(navigator)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "::navigatorWithOpenMediaSession - failed to open MediaSession: $e")
+                PluginLog.e(TAG, "::navigatorWithOpenMediaSession - failed to open MediaSession: $e")
             }
 
             navigator
@@ -326,7 +326,7 @@ open class AudiobookNavigator(
 
         val navigator =
             audioNavigator ?: run {
-                Log.d(TAG, "::updatePreferences - called without navigator")
+                PluginLog.d(TAG, "::updatePreferences - called without navigator")
                 return
             }
 
@@ -338,7 +338,7 @@ open class AudiobookNavigator(
     override fun setupNavigatorListeners() {
         val navigator =
             audioNavigator ?: run {
-                Log.e(TAG, "::setupNavigatorListeners - navigator is null")
+                PluginLog.e(TAG, "::setupNavigatorListeners - navigator is null")
                 return
             }
 
@@ -373,7 +373,7 @@ open class AudiobookNavigator(
 
         navigator.settings
             .onEach { s ->
-                Log.d(TAG, "::setupNavigatorListeners - AudioNavigator settings changed: $s")
+                PluginLog.d(TAG, "::setupNavigatorListeners - AudioNavigator settings changed: $s")
             }.launchIn(this)
             .let { jobs.add(it) }
     }
@@ -412,7 +412,7 @@ open class AudiobookNavigator(
                 val audioState = pb.state as AudioNavigator.State.Failure<*>
                 val error = audioState.error
 
-                Log.e(
+                PluginLog.e(
                     TAG,
                     "::onPlaybackStateChanged - audio error: Message=${error.message} cause=${error.cause}",
                 )

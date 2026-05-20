@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:marionette_flutter/marionette_flutter.dart';
 import 'package:marionette_logging/marionette_logging.dart';
@@ -28,6 +29,9 @@ Future<void> main() async {
         ? HydratedStorageDirectory.web
         : HydratedStorageDirectory((await getTemporaryDirectory()).path),
   );
+
+  // Modify log level for the entire plugin here. The default is LogLevel.info.
+  FlutterReadium().setLogLevel(LogLevel.debug);
 
   runApp(
     MultiBlocProvider(

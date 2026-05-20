@@ -20,7 +20,6 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.media3.common.ForwardingSimpleBasePlayer
@@ -167,7 +166,7 @@ class PluginMediaService :
             sessionMutable.asStateFlow()
 
         fun closeSession() {
-            Log.d(TAG, "closeSession")
+            PluginLog.d(TAG, "closeSession")
             session.value?.let { session ->
                 session.mediaSession.release()
                 session.coroutineScope.cancel()
@@ -178,7 +177,7 @@ class PluginMediaService :
 
         @OptIn(FlowPreview::class)
         fun <N> openSession(navigator: N) where N : AnyMediaNavigator, N : Media3Adapter {
-            Log.d(TAG, "openSession")
+            PluginLog.d(TAG, "openSession")
 
             val activityIntent = createSessionActivityIntent()
             val player = navigator.asMedia3Player()
@@ -210,7 +209,7 @@ class PluginMediaService :
             navigator.currentLocator
                 .sample(5000)
                 .onEach { locator ->
-                    Log.d(TAG, "Progression update: $locator")
+                    PluginLog.d(TAG, "Progression update: $locator")
                     // TODO: Submit on the plugin audio-locator stream?
                     // app.bookRepository.saveProgression(locator, bookId)
                 }.launchIn(session.coroutineScope)
@@ -246,16 +245,16 @@ class PluginMediaService :
     }
 
     override fun onBind(intent: Intent?): IBinder? {
-        Log.d(TAG, "onBind called with $intent")
+        PluginLog.d(TAG, "onBind called with $intent")
 
         return if (intent?.action == SERVICE_INTERFACE) {
             super.onBind(intent)
             // Readium-aware client.
-            Log.d(TAG, "Returning custom binder.")
+            PluginLog.d(TAG, "Returning custom binder.")
             binder
         } else {
             // External controller.
-            Log.d(TAG, "Returning MediaSessionService binder.")
+            PluginLog.d(TAG, "Returning MediaSessionService binder.")
             super.onBind(intent)
         }
     }
@@ -297,14 +296,14 @@ class PluginMediaService :
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        Log.d(TAG, "Task removed. Stopping session and service.")
+        PluginLog.d(TAG, "Task removed. Stopping session and service.")
         // Close the session to allow the service to be stopped.
         binder.closeSession()
         binder.stop()
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "Destroying MediaService.")
+        PluginLog.d(TAG, "Destroying MediaService.")
         binder.closeSession()
         // Ensure one more time that all notifications are gone and,
         // hopefully, pending intents cancelled.
@@ -335,12 +334,12 @@ class PluginMediaService :
                         name: ComponentName?,
                         service: IBinder,
                     ) {
-                        Log.d(TAG, "MediaService bound.")
+                        PluginLog.d(TAG, "MediaService bound.")
                         mediaServiceBinder.complete(service as Binder)
                     }
 
                     override fun onServiceDisconnected(name: ComponentName) {
-                        Log.d(TAG, "MediaService disconnected.")
+                        PluginLog.d(TAG, "MediaService disconnected.")
                     }
 
                     override fun onNullBinding(name: ComponentName) {
@@ -350,7 +349,7 @@ class PluginMediaService :
                             return
                         }
                         val errorMessage = "Failed to bind to MediaService."
-                        Log.e(TAG, errorMessage)
+                        PluginLog.e(TAG, errorMessage)
                         val exception = IllegalStateException(errorMessage)
                         mediaServiceBinder.completeExceptionally(exception)
                     }

@@ -1,13 +1,13 @@
 package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
-import android.util.Log
 import dk.nota.flutter_readium.FlutterAudioPreferences
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.findReadingOrderLink
 import dk.nota.flutter_readium.getReadingOrderItemDuration
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.timeWithDuration
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,7 +54,7 @@ class SyncAudiobookNavigator(
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
         if (navigator == null) {
-            Log.e(TAG, "::setupNavigatorListeners - navigator is null")
+            PluginLog.e(TAG, "::setupNavigatorListeners - navigator is null")
             return
         }
 
@@ -73,7 +73,7 @@ class SyncAudiobookNavigator(
                         )
                     }?.takeIf { it.syncTextLocator != null }
                     ?.let { mediaOverlay ->
-                        Log.d(
+                        PluginLog.d(
                             TAG,
                             "::setupNavigatorListeners - syncTextLocator $timeOffset, locator:${mediaOverlay.syncTextLocator}",
                         )
@@ -105,7 +105,7 @@ class SyncAudiobookNavigator(
                     )
                 }
             } ?: run {
-                Log.d(
+                PluginLog.d(
                     TAG,
                     "::onCurrentLocatorChanges - no media-overlay item found for locator=$locator, timeOffset=$timeOffset",
                 )
@@ -127,7 +127,7 @@ class SyncAudiobookNavigator(
             }
 
         if (audioLocator == null) {
-            Log.d(TAG, "::onCurrentLocatorChanges - couldn't resolve $locator to audio-locator")
+            PluginLog.d(TAG, "::onCurrentLocatorChanges - couldn't resolve $locator to audio-locator")
 
             return
         }
@@ -152,7 +152,7 @@ class SyncAudiobookNavigator(
         if (audioLocator != null) {
             super.play(audioLocator)
         } else {
-            Log.d(TAG, "::play: no audio locator found for $fromLocator")
+            PluginLog.d(TAG, "::play: no audio locator found for $fromLocator")
         }
     }
 
@@ -161,7 +161,7 @@ class SyncAudiobookNavigator(
         if (audioLocator != null) {
             super.goToLocator(audioLocator)
         } else {
-            Log.d(TAG, "::goToLocator - no audio locator found for $locator")
+            PluginLog.d(TAG, "::goToLocator - no audio locator found for $locator")
         }
     }
 
@@ -187,7 +187,7 @@ class SyncAudiobookNavigator(
     suspend fun decorationsUpdated() {
         val navigator =
             audioNavigator ?: run {
-                Log.d(TAG, "::decorationsUpdated - navigator is null")
+                PluginLog.d(TAG, "::decorationsUpdated - navigator is null")
                 return
             }
 
@@ -197,7 +197,7 @@ class SyncAudiobookNavigator(
                 .firstNotNullOfOrNull { mo ->
                     mo?.findItemFromLocator(locator)
                 }?.syncTextLocator ?: run {
-                Log.d(TAG, "::decorationsUpdated - didn't find a current text locator")
+                PluginLog.d(TAG, "::decorationsUpdated - didn't find a current text locator")
                 return
             }
 
@@ -219,7 +219,7 @@ class SyncAudiobookNavigator(
 
         val syncAudioLocator =
             mediaOverlay?.skipToAudioLocator ?: run {
-                Log.e(
+                PluginLog.w(
                     TAG,
                     "::mapTextLocatorToMediaOverlayLocator couldn't resolve $locator to a media overlay with an audio locator",
                 )
@@ -234,7 +234,7 @@ class SyncAudiobookNavigator(
             locator.locations.time
 
         if (timeOffsetFromProgression == null && timeOffsetFromFragment == null) {
-            Log.d(
+            PluginLog.d(
                 TAG,
                 "::mapTextLocatorToMediaOverlayLocator couldn't find time offset from $locator, return $syncAudioLocator",
             )
@@ -242,7 +242,7 @@ class SyncAudiobookNavigator(
         }
 
         if (timeOffsetFromProgression != null && timeOffsetFromFragment != null && timeOffsetFromProgression != timeOffsetFromFragment) {
-            Log.d(
+            PluginLog.d(
                 TAG,
                 "::mapTextLocatorToMediaOverlayLocator - time offset from both progression $timeOffsetFromProgression and time fragment $timeOffsetFromFragment but they differ",
             )
@@ -252,7 +252,7 @@ class SyncAudiobookNavigator(
 
         val updateSyncAudioLocator = syncAudioLocator.copyWithTimeFragment(timeOffset)
 
-        Log.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $updateSyncAudioLocator")
+        PluginLog.d(TAG, "::mapTextLocatorToMediaOverlayLocator - $locator to $updateSyncAudioLocator")
         return updateSyncAudioLocator
     }
 
