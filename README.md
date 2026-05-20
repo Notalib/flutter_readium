@@ -10,6 +10,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 
 ## Features
 - EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
+- PDF reading on iOS (PDFKit) and Android (PDFium), with scroll / reading-progression preferences
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
 - Synchronized Media Overlays in WebPubs (text-and-audio read-along)
@@ -23,25 +24,28 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 
 ## Supported formats
 
-| Format    | Visual | TTS | Audio | Media Overlays |
-| --------- | :----: | :-: | :---: | :------------: |
-| EPUB 2    |   ✓    |  ✓  |   —   |       -        |
-| EPUB 3    |   ✓    |  ✓  |   ✓   |       -        |
-| WebPub    |   ✓    |  ✓  |   ✓   |       ✓ (EPUB profile) |
-| Audiobook |   —    |  —  |   ✓   |       -        |
+| Format    | Visual       | TTS | Audio | Media Overlays         |
+| --------- | :----------: | :-: | :---: | :--------------------: |
+| EPUB 2    |      ✓       |  ✓  |   —   |           -            |
+| EPUB 3    |      ✓       |  ✓  |   ✓   |           -            |
+| WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
+| Audiobook |      —       |  —  |   ✓   |           -            |
+| PDF       | ✓ (iOS, Android) | — |  —   |           -            |
 
-PDF, CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include LCP and PDF adapters; they may be enabled in a future release.
+CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
 ## Platform support
 
 | Feature                  | Android | iOS | macOS     | Web        |
 | ------------------------ | :-----: | :-: | :-------: | :--------: |
 | EPUB visual reading      |    ✓    |  ✓  |  Planned  |     ✓      |
+| PDF reading              |    ✓    |  ✓  |     —     |     —      |
 | Audiobook playback       |    ✓    |  ✓  |  Planned  |     ✓      |
 | Media Overlays           |    ✓    |  ✓  |  Planned  |     —      |
 | Text-to-Speech           |    ✓    |  ✓  |  Planned  | Limited¹   |
 | Highlights / decorations |    ✓    |  ✓  |  Planned  |     ✓      |
 | Reader preferences       |    ✓    |  ✓  |  Planned  |     ✓      |
+| PDF preferences          |    ✓    |  ✓  |     —     |     —      |
 | Progress saving          |    ✓    |  ✓  |  Planned  |     ✓      |
 | Content search           |    ✓    |  ✓  |  Planned  |     —      |
 | Background audio         |    ✓    |  ✓  |  Planned  |     —      |
