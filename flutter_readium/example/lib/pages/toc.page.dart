@@ -1,9 +1,12 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:math' show min, max;
+
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show Link, PublicationLists;
 import 'package:flutter_readium_example/state/index.dart';
+import 'package:logging/logging.dart';
 
-import 'dart:math' show min, max;
+final _log = Logger('TocPage');
 
 class TableOfContentsPage extends StatelessWidget {
   const TableOfContentsPage({super.key});
@@ -75,7 +78,7 @@ class TableOfContentsPage extends StatelessWidget {
         contentPadding: EdgeInsets.only(left: 12.0 * level),
         trailing: Icon(Icons.arrow_forward_ios),
         onTap: () {
-          debugPrint('Tapped $title');
+          _log.info('Tapped $title');
           Navigator.pop(context, link);
         },
       );
