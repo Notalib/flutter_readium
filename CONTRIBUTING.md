@@ -50,15 +50,17 @@ This is a **federated Flutter plugin** with two pub packages:
 
 ## Running the example app
 
-Make sure you've run `./bin/install` first.
-
 ```bash
+# First run install script from project root
+./bin/install
+
+# Then go to the example app folder and run
 cd flutter_readium/example
 flutter run                   # for native platforms, pick a device when prompted
 flutter run -d chrome         # for web platform
 ```
 
-For web, make sure you have run `bin/update_web_example` after any TypeScript change.
+For web, make sure you run `bin/update_web_example` after any TypeScript change.
 
 ---
 
