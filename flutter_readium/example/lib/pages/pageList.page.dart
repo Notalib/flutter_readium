@@ -20,14 +20,13 @@ class PageListPage extends StatelessWidget {
           if (!snapshot.hasData || snapshot.data?.publication == null) {
             return Text('No publication');
           } else {
-            // Note: If no ToC, fallback to readingOrder.
             final pub = snapshot.data!.publication!;
-            final links = pub.pageList;
+            final links = pub.pageListOrGenerated;
             return ListView.builder(
               itemCount: links.length,
               itemBuilder: (context, idx) {
-                final tocLink = links[idx];
-                return _buildLinkTile(context, tocLink);
+                final itemLink = links[idx];
+                return _buildLinkTile(context, itemLink);
               },
             );
           }

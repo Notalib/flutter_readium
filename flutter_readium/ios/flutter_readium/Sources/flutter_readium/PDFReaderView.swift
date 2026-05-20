@@ -155,10 +155,24 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
 
   public func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
     Log.reader.debug("goToProgression: \(progression)")
-    guard let locator = getCurrentLocation() else {
+    guard let totalPages = publication.metadata.numberOfPages, totalPages > 0 else {
+      Log.reader.warn("goToProgression: numberOfPages unknown, cannot navigate.")
       return false
     }
-    let newLocator = locator.copyWithProgressionLocations(progression: progression)
+    let coerced = min(max(progression, 0.0), 1.0)
+    let targetPage = Int((coerced * Double(totalPages - 1)).rounded()) + 1
+    let clampedPage = min(max(targetPage, 1), totalPages)
+    Log.reader.debug("goToProgression: progression=\(coerced) -> page \(clampedPage)/\(totalPages)")
+
+    guard let currentLocator = getCurrentLocation() else {
+      return false
+    }
+    let newLocator = currentLocator.copy(locations: { locs in
+      locs.fragments = []
+      locs.otherLocations = [:]
+      locs.progression = coerced
+      locs.position = clampedPage
+    })
     return await pdfViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
 
@@ -173,7 +187,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     // swift-toolkit 3.7.0. Surface the call but no-op.
     Log.reader.debug("applyDecorations: not supported for PDF (group=\(groupIdentifier), count=\(decorations.count))")
   }
-  
+
   public func onCustomEditingAction() -> Void {
     Log.reader.debug("onCustomEditingAction: not supported for PDF")
   }

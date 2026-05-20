@@ -26,6 +26,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.AbsoluteUrl
+import org.readium.r2.shared.util.mediatype.MediaType
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "PdfNavigator"
@@ -153,7 +154,27 @@ class PdfNavigator :
   }
 
   override suspend fun scrollToProgression(progression: Double) {
-    Log.d(TAG, "::scrollToProgression - not supported by PdfNavigator, ignoring")
+    val totalPages = publication.metadata.numberOfPages ?: run {
+      Log.w(TAG, "::scrollToProgression. numberOfPages unknown, cannot navigate.")
+      return
+    }
+    val coerced = progression.coerceIn(0.0, 1.0)
+    val targetPage = (Math.round(coerced * (totalPages - 1)) + 1).toInt().coerceIn(1, totalPages)
+    Log.d(TAG, "::scrollToProgression. progression=$coerced -> page $targetPage/$totalPages")
+
+    val href = currentLocator?.value?.href
+      ?: publication.readingOrder.firstOrNull()?.url()
+      ?: run {
+        Log.w(TAG, "::scrollToProgression. No href available.")
+        return
+      }
+
+    val locator = Locator(
+      href = href,
+      mediaType = MediaType.PDF,
+      locations = Locator.Locations(position = targetPage, progression = coerced),
+    )
+    go(locator, animated = false)
   }
 
   suspend fun updatePreferences(preferences: FlutterPdfPreferences) {
