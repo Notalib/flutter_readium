@@ -144,8 +144,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   @override
   void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
     // TODO: implement restoreState
-    R2Log.d("restoreState called in PlayerPage");
-    R2Log.d("RestorationBucket: $oldBucket");
-    R2Log.d("Initial restore: $initialRestore");
+    ReadiumLog.d("restoreState called in PlayerPage");
+    ReadiumLog.d("RestorationBucket: $oldBucket");
+    ReadiumLog.d("Initial restore: $initialRestore");
   }
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Color
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -74,12 +73,12 @@ class ReadiumReaderWidget(
         get() = activity.supportFragmentManager
 
     override fun getView(): View {
-        // Log.d(TAG, "::getView")
+        // PluginLog.d(TAG, "::getView")
         return layout
     }
 
     override fun dispose() {
-        Log.d(TAG, "::dispose")
+        PluginLog.d(TAG, "::dispose")
         if (isPdf) {
             ReadiumReader.pdfClose()
         } else {
@@ -97,18 +96,18 @@ class ReadiumReaderWidget(
 
     override fun onFlutterViewAttached(flutterView: View) {
         // Seems to never be called, so can't use this. Flutter bug?
-        Log.d(TAG, "::onFlutterViewAttached")
+        PluginLog.d(TAG, "::onFlutterViewAttached")
         super.onFlutterViewAttached(flutterView)
     }
 
     override fun onFlutterViewDetached() {
         // Seems to never be called, so can't use this. Flutter bug?
-        Log.d(TAG, "::onFlutterViewDetached")
+        PluginLog.d(TAG, "::onFlutterViewDetached")
         super.onFlutterViewDetached()
     }
 
     init {
-        Log.d(TAG, "::init")
+        PluginLog.d(TAG, "::init")
 
         @Suppress("UNCHECKED_CAST")
         val initPrefsMap =
@@ -133,7 +132,7 @@ class ReadiumReaderWidget(
                 initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
             }
 
-        Log.d(TAG, "publication = $publication (isPdf=$isPdf)")
+        PluginLog.d(TAG, "publication = $publication (isPdf=$isPdf)")
 
         layout = LinearLayout(context, attrs)
         layout.id = generateViewId()
@@ -159,7 +158,7 @@ class ReadiumReaderWidget(
         // Remove existing fragment if any (this is to avoid crashing on restore).
         // Cast as base Fragment so we strip either reader type cleanly.
         fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG)?.let { fragment ->
-            Log.d(TAG, "::init - remove existing fragment")
+            PluginLog.d(TAG, "::init - remove existing fragment")
             fragmentManager.commitNow {
                 remove(fragment)
             }
@@ -186,7 +185,7 @@ class ReadiumReaderWidget(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "::init - enable failed (isPdf=$isPdf)", e)
+                PluginLog.e(TAG, "::init - enable failed (isPdf=$isPdf)", e)
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
                 ReadiumReader.emitError(ReadiumError(e))
             }
@@ -194,7 +193,7 @@ class ReadiumReaderWidget(
     }
 
     override fun onPageLoaded() {
-        Log.d(TAG, "::onPageLoaded")
+        PluginLog.d(TAG, "::onPageLoaded")
     }
 
     // To avoid duplicate onPageChanged events.
@@ -206,7 +205,7 @@ class ReadiumReaderWidget(
         locator: Locator,
     ) {
         val currentKey = "${locator.href}@${locator.progression}"
-        Log.d(
+        PluginLog.d(
             TAG,
             "::onPageChanged $pageIndex/$totalPages ${locator.href} ${locator.progression} ${locator.locations}",
         )
@@ -231,16 +230,16 @@ class ReadiumReaderWidget(
     }
 
     override fun onExternalLinkActivated(url: AbsoluteUrl) {
-        Log.d(TAG, "::onExternalLinkActivated $url")
+        PluginLog.i(TAG, "::onExternalLinkActivated $url")
         emitOnExternalLinkActivated(url)
     }
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
-        Log.d(TAG, "::onVisualCurrentLocationChanged $locator")
+        PluginLog.d(TAG, "::onVisualCurrentLocationChanged $locator")
     }
 
     override fun onVisualReaderIsReady() {
-        Log.d(TAG, "::onVisualReaderIsReady")
+        PluginLog.i(TAG, "::onVisualReaderIsReady")
         if (!hasSentReady) {
             ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
 
@@ -250,7 +249,7 @@ class ReadiumReaderWidget(
 
     @Throws(IllegalArgumentException::class)
     private suspend fun setPreferencesFromMap(prefMap: Map<String, Any>) {
-        Log.d(TAG, "::setPreferencesFromMap")
+        PluginLog.d(TAG, "::setPreferencesFromMap")
         val newPreferences = FlutterEpubPreferences.fromMap(prefMap)
         updatePreferences(newPreferences)
     }
@@ -279,10 +278,10 @@ class ReadiumReaderWidget(
                             emittingLocator =
                                 emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
                         } ?: {
-                        Log.d(TAG, "::emitOnPageChanged - no page information")
+                        PluginLog.d(TAG, "::emitOnPageChanged - no page information")
                     }
                 } catch (e: Error) {
-                    Log.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+                    PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
                 }
 
                 emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
@@ -291,9 +290,9 @@ class ReadiumReaderWidget(
 
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)
-            Log.d(TAG, "emitOnPageChanged: emitted $emittingLocator")
+            PluginLog.d(TAG, "::emitOnPageChanged: emitted $emittingLocator")
         } catch (e: Exception) {
-            Log.e(TAG, "emitOnPageChanged: failed! $e")
+            PluginLog.e(TAG, "::emitOnPageChanged: failed! $e")
         }
     }
 
@@ -309,7 +308,7 @@ class ReadiumReaderWidget(
         // Could probably optimize by using .IO and then change to Main
         // when affecting readerView or returning a result.
         launch {
-            Log.d(TAG, "::onMethodCall ${call.method}")
+            PluginLog.d(TAG, "::onMethodCall ${call.method}")
             when (call.method) {
                 "setPreferences" -> {
                     try {
@@ -340,7 +339,7 @@ class ReadiumReaderWidget(
                     val animated = args[1] as Boolean
                     if (locatorJson.optString("type") == "") {
                         locatorJson.put("type", " ")
-                        Log.e(
+                        PluginLog.w(
                             TAG,
                             "Got locator with empty type! This shouldn't happen. $locatorJson",
                         )
@@ -392,7 +391,7 @@ class ReadiumReaderWidget(
                 }
 
                 else -> {
-                    Log.e(TAG, "Unhandled call ${call.method}")
+                    PluginLog.w(TAG, "Unhandled call ${call.method}")
                     result.notImplemented()
                 }
             }
@@ -425,7 +424,7 @@ class ReadiumReaderWidget(
         val ret = ReadiumReader.epubEvaluateJavascript(script)
         if (ret == null || ret == "null" || ret == "undefined") {
             // Hopefully can't happen.
-            Log.e(TAG, "::evaluateJavascript($script) returned null $ret")
+            PluginLog.w(TAG, "::evaluateJavascript($script) returned null $ret")
 
             return null
         }

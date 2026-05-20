@@ -1,10 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../utils/jsonable.dart';
+import '../../../utils/readium_log.dart';
 
 /// Accessibility Object
 ///
@@ -179,7 +179,7 @@ class AccessibilityAccessModeSufficient with EquatableMixin {
     if (json is String) {
       final mode = AccessibilityAccessModeSimple.fromString(json);
       if (mode == null) {
-        Fimber.e('Invalid accessModeSufficient value: $json');
+        ReadiumLog.e('Invalid accessModeSufficient value: $json');
         return AccessibilityAccessModeSufficient([]);
       }
 
@@ -189,7 +189,7 @@ class AccessibilityAccessModeSufficient with EquatableMixin {
           .map((e) {
             final mode = AccessibilityAccessModeSimple.fromString(e);
             if (mode == null) {
-              Fimber.e('Invalid accessModeSufficient value: $e');
+              ReadiumLog.e('Invalid accessModeSufficient value: $e');
               return null;
             }
             return mode;
@@ -199,7 +199,7 @@ class AccessibilityAccessModeSufficient with EquatableMixin {
 
       return AccessibilityAccessModeSufficient(modes);
     } else {
-      Fimber.e('Invalid accessModeSufficient type: $json');
+      ReadiumLog.e('Invalid accessModeSufficient type: $json');
       return AccessibilityAccessModeSufficient([]);
     }
   }
