@@ -42,10 +42,6 @@ dependency_overrides:
   flutter_readium_platform_interface:
     path: ../../flutter_readium_platform_interface
 
-dependency_overrides:
-  flutter_readium_platform_interface:
-    path: ../../flutter_readium_platform_interface
-
 flutter:
   uses-material-design: true
   config:
