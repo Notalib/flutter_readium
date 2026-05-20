@@ -179,7 +179,7 @@ packages:
     source: path
     version: "0.0.1"
   flutter_readium_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       path: "../../flutter_readium_platform_interface"
       relative: true

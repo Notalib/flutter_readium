@@ -39,8 +39,7 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
-  dependencies:
-  flutter_readium_platform_interface: ^0.0.1   # or whatever the published version is
+  flutter_readium_platform_interface: ^0.0.1
   wakelock_plus: ^1.4.0
   web: ^1.1.1
   collection: ^1.19.1

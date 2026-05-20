@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import dk.nota.flutter_readium.FlutterPdfPreferences
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
 import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.pdf.PdfNavigatorFactory
@@ -139,6 +140,18 @@ class PdfNavigator :
     withScope(mainScope) {
       Log.d(TAG, "::goForward")
       navigator.goForward(animated)
+    }
+  }
+
+  suspend fun updatePreferences(preferences: FlutterPdfPreferences) {
+    val fragment = pdfNavigator
+    if (fragment == null) {
+      Log.e(TAG, "::updatePreferences - pdfNavigator is null!")
+      return
+    }
+    withScope(mainScope) {
+      afterFragmentStarted()
+      fragment.updatePreferences(preferences.toPdfiumPreferences())
     }
   }
 

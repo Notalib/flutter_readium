@@ -183,14 +183,33 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    // PDF locators carry `locations.position` (1-based page number) and
-    // `fragments: ["page=N"]` from the upstream `PDFPositionsService` — forward
-    // them as-is. TOC-link enrichment is EPUB-specific (cssSelector based) and
-    // is reintroduced for PDFs in a later phase.
     Task.detached(priority: .high) { [locator] in
+      var resultLocator = locator
+
+      // PDF TOC enrichment: find the last TOC entry whose "#page=N" fragment
+      // is ≤ the current position, then attach its href and title to the locator.
+      if let position = locator.locations.position {
+        let tocEntry = self.publication.getFlattenedToC()
+          .compactMap { link -> (Int, Link)? in
+            let parts = link.href.components(separatedBy: "#")
+            guard parts.count == 2,
+                  let fragment = parts.last,
+                  fragment.hasPrefix("page="),
+                  let tocPage = Int(fragment.dropFirst(5)) else { return nil }
+            return (tocPage, link)
+          }
+          .filter { $0.0 <= position }
+          .max(by: { $0.0 < $1.0 })?.1
+        if let entry = tocEntry {
+          resultLocator.title = entry.title
+          resultLocator.locations.otherLocations["tocHref"] = entry.href
+        }
+      }
+
+      let finalLocator = resultLocator
       await MainActor.run() {
-        self.channel.onPageChanged(locator: locator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(locator.jsonString)
+        self.channel.onPageChanged(locator: finalLocator)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
       }
     }
   }
@@ -243,9 +262,9 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
         }
       }
     case "setPreferences":
-      // PDF preferences are deferred to a later phase. Acknowledge the call so
-      // the Dart side doesn't see a `MethodNotImplemented` error mid-session.
-      Log.reader.debug("setPreferences: deferred for PDF")
+      let args = call.arguments as! [String: Any]
+      let preferences = FlutterPDFPreferences(fromMap: args)
+      pdfViewController.submitPreferences(preferences.readium)
       result(nil)
     case "applyDecorations":
       // PDF has no DecorableNavigator conformance — apply through the protocol

@@ -14,6 +14,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.readium.adapter.pdfium.navigator.PdfiumNavigatorFragment
+import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.pdf.PdfNavigatorFragment
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
@@ -84,6 +85,16 @@ class PdfReaderFragment :
       return false
     }
     return nav.goForward(animated)
+  }
+
+  @OptIn(org.readium.r2.shared.ExperimentalReadiumApi::class)
+  fun updatePreferences(preferences: PdfiumPreferences) {
+    val nav = pdfNavigator
+    if (nav == null) {
+      Log.d(TAG, "::updatePreferences - $instance - navigator not ready")
+      return
+    }
+    nav.submitPreferences(preferences)
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {

@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `PDFPreferences` — model for PDF reader display preferences (`scroll: bool?`,
+  `readingProgression: PDFReadingProgression?`) with `toJson` / `fromJson` and `copyWith`.
+- `PDFReadingProgression` — enum (`ltr` / `rtl`) used by `PDFPreferences`.
+- `setPDFPreferences(PDFPreferences)` — new method on the platform interface and
+  `MethodChannelFlutterReadium`; routes through the existing `setPreferences` method-channel
+  call, dispatched by format on the native side.
+
 ## [0.0.1] - 2025-05-12
 
 ### Added
