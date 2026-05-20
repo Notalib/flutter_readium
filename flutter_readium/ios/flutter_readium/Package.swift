@@ -8,14 +8,14 @@ let package = Package(
     // TODO: Update your plugin name.
     name: "flutter_readium",
     platforms: [
-        .iOS("13.4"),
+        .iOS("15.0"),
         .macOS("10.15")
     ],
     products: [
         .library(name: "flutter-readium", targets: ["flutter_readium"])
     ],
     dependencies: [
-      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.5.0")),
+      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.7.0")),
       .package(url: "https://github.com/mxcl/PromiseKit", .upToNextMinor(from: "6.8.0"))
     ],
     targets: [

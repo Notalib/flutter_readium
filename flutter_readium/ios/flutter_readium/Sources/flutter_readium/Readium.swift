@@ -9,6 +9,7 @@ import ReadiumAdapterGCDWebServer
 import ReadiumNavigator
 import ReadiumShared
 import ReadiumStreamer
+import UIKit
 
 #if LCP
 import R2LCPClient

@@ -1,4 +1,5 @@
 import Combine
+import Foundation
 import MediaPlayer
 import ReadiumShared
 import ReadiumNavigator
