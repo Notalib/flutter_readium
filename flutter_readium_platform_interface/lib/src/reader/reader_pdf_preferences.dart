@@ -5,17 +5,18 @@ import '../index.dart';
 
 @immutable
 class PDFPreferences with EquatableMixin implements JSONable {
-  const PDFPreferences({
-    this.layout,
-    this.readingProgression,
-  });
+  const PDFPreferences({this.layout, this.readingProgression, this.pageSpacing, this.fit});
 
   factory PDFPreferences.fromJson(Map<String, dynamic> json) {
     final layoutStr = json['layout'] as String?;
     final rpStr = json['readingProgression'] as String?;
+    final pageSpacingNum = json['pageSpacing'] as num?;
+    final fitStr = json['fit'] as String?;
     return PDFPreferences(
       layout: layoutStr != null ? PDFLayout.fromJson(layoutStr) : null,
       readingProgression: rpStr != null ? PDFReadingProgression.fromJson(rpStr) : null,
+      pageSpacing: pageSpacingNum?.toDouble(),
+      fit: fitStr != null ? PDFFit.fromJson(fitStr) : null,
     );
   }
 
@@ -27,22 +28,41 @@ class PDFPreferences with EquatableMixin implements JSONable {
   /// Direction of the reading progression.
   final PDFReadingProgression? readingProgression;
 
+  /// Spacing between pages.
+  ///
+  /// - Supported on iOS and Android.
+  /// - Ignored on web (PDF rendering is not supported on web).
+  /// - Value must be >= 0.
+  final double? pageSpacing;
+
+  /// How pages should be fitted in the viewport.
+  ///
+  /// - iOS supports all values: [PDFFit.auto], [PDFFit.page], [PDFFit.width].
+  /// - Android Pdfium supports [PDFFit.page] and [PDFFit.width].
+  /// - Ignored on web (PDF rendering is not supported on web).
+  final PDFFit? fit;
+
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{}
     ..putOpt('layout', layout?.toJson())
-    ..putOpt('readingProgression', readingProgression?.toJson());
+    ..putOpt('readingProgression', readingProgression?.toJson())
+    ..putOpt('pageSpacing', pageSpacing)
+    ..putOpt('fit', fit?.toJson());
 
   PDFPreferences copyWith({
     PDFLayout? layout,
     PDFReadingProgression? readingProgression,
-  }) =>
-      PDFPreferences(
-        layout: layout ?? this.layout,
-        readingProgression: readingProgression ?? this.readingProgression,
-      );
+    double? pageSpacing,
+    PDFFit? fit,
+  }) => PDFPreferences(
+    layout: layout ?? this.layout,
+    readingProgression: readingProgression ?? this.readingProgression,
+    pageSpacing: pageSpacing ?? this.pageSpacing,
+    fit: fit ?? this.fit,
+  );
 
   @override
-  List<Object?> get props => [layout, readingProgression];
+  List<Object?> get props => [layout, readingProgression, pageSpacing, fit];
 }
 
 /// Page layout / scroll mode for PDF publications.
@@ -112,6 +132,48 @@ enum PDFReadingProgression {
         return 'ltr';
       case PDFReadingProgression.rtl:
         return 'rtl';
+    }
+  }
+}
+
+/// Method for fitting PDF pages within the viewport.
+///
+/// Platform mapping:
+/// - [auto]
+///   - iOS: `fit = auto`.
+///   - Android: ignored (`PdfiumPreferences` supports only page/width fit).
+/// - [page]
+///   - iOS: `fit = page`.
+///   - Android: `fit = contain` (closest equivalent).
+/// - [width]
+///   - iOS: `fit = width`.
+///   - Android: `fit = width`.
+enum PDFFit {
+  auto,
+  page,
+  width;
+
+  static PDFFit? fromJson(String? value) {
+    switch (value) {
+      case 'auto':
+        return PDFFit.auto;
+      case 'page':
+        return PDFFit.page;
+      case 'width':
+        return PDFFit.width;
+      default:
+        return null;
+    }
+  }
+
+  String toJson() {
+    switch (this) {
+      case PDFFit.auto:
+        return 'auto';
+      case PDFFit.page:
+        return 'page';
+      case PDFFit.width:
+        return 'width';
     }
   }
 }

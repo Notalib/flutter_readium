@@ -1,3 +1,4 @@
+import Foundation
 import ReadiumNavigator
 import ReadiumShared
 
@@ -30,6 +31,13 @@ struct FlutterPDFPreferences {
     if let rpString = map["readingProgression"] as? String,
        let rp = ReadiumNavigator.ReadingProgression(rawValue: rpString) {
       prefs.readingProgression = rp
+    }
+    if let fitString = map["fit"] as? String,
+       let fit = ReadiumNavigator.Fit(rawValue: fitString) {
+      prefs.fit = fit
+    }
+    if let pageSpacing = map["pageSpacing"] as? NSNumber {
+      prefs.pageSpacing = pageSpacing.doubleValue
     }
     readium = prefs
   }
