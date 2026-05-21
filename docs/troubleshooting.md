@@ -25,14 +25,13 @@ If that doesn't help, delete `Podfile.lock` and retry.
 
 ## iOS: EPUB content not loading (blank screen)
 
-Readium uses a local web server on `127.0.0.1`. Add to `Info.plist`:
+With current swift-toolkit versions, readers use a custom URL-scheme handler (not a localhost web server), so `NSAppTransportSecurity` exceptions are not required for the plugin itself.
 
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoads</key>
-  <true/>
-</dict>
+If you still see a blank screen, verify your Readium pod lines match `flutter_readium/example/ios/Podfile`, then run:
+
+```bash
+cd ios
+pod install --repo-update
 ```
 
 ## iOS: `MissingPluginException` on stream subscription
@@ -66,7 +65,7 @@ try {
 
 Common causes:
 - File not found or URL typo (`notFound`)
-- Unsupported format — only EPUB, WebPub, and audiobook are supported (`formatNotSupported`)
+- Unsupported format — only EPUB, WebPub, audiobook, and PDF are supported (`formatNotSupported`)
 - DRM-protected content without a licence (`forbidden`)
 
 ## Getting debug logs

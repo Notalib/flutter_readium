@@ -60,6 +60,25 @@ await reader.setEPUBPreferences(EPUBPreferences(
 ));
 ```
 
+## PDFPreferences
+
+Controls the visual appearance of the PDF reader. All fields are optional; omitted fields leave the current value unchanged.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. |
+| `readingProgression` | `PDFReadingProgression?` | `ltr` or `rtl`. |
+| `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Ignored on web. Must be `>= 0`. |
+| `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. Ignored on web. |
+
+```dart
+await reader.setPDFPreferences(const PDFPreferences(
+  layout: PDFLayout.paginated,
+  pageSpacing: 12,
+  fit: PDFFit.page,
+));
+```
+
 ## TTSPreferences
 
 | Field | Type | Description |

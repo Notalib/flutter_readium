@@ -102,7 +102,7 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
-        // Accepted for API parity with iOS but currently no-op: kotlin-toolkit 3.1.2's
+        // Accepted for API parity with iOS but currently no-op: kotlin-toolkit's
         // EpubNavigatorFragment.Configuration does not expose preload-count fields
         // (preload is governed by an internal R2ViewPager.offscreenPageLimit). Revisit
         // when upstream adds a public knob.

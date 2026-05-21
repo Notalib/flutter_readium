@@ -221,8 +221,8 @@ class PdfReaderFragment :
 
     // PDF has no PaginationListener equivalent — emit page-changed events by
     // observing the navigator's currentLocator. Locator.locations.position is
-    // 1-based across both swift and kotlin Readium toolkits (kotlin-toolkit
-    // 3.1.2 confirmed), so it maps 1:1 to a page number.
+    // 1-based across both swift and kotlin Readium toolkits, so it maps 1:1
+    // to a page number.
     lifecycleScope.launch {
       // PdfiumNavigatorFragment emits an initial locator with `position == null`
       // before layout settles. Skip those rather than fabricate a page number;

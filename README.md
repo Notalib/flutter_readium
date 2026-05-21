@@ -5,12 +5,14 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
 - **swift-toolkit 3.9.0** on iOS (and macOS, planned)
-- **kotlin-toolkit 3.1.2** on Android
+- **kotlin-toolkit 3.2.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
+
+The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`, `flutter_readium/android/build.gradle` (`ext.readium_version`), and `flutter_readium/package.json`. Run `bin/readium_versions` to print them at any time.
 
 ## Features
 - EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
-- PDF reading on iOS (PDFKit) and Android (PDFium), with scroll / reading-progression preferences
+- PDF reading on iOS (PDFKit) and Android (PDFium), with layout, reading-progression, page-spacing, and fit preferences
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
 - Synchronized Media Overlays in WebPubs (text-and-audio read-along)
@@ -104,37 +106,24 @@ flutterReadium.mediaOverlayFetchConcurrency=16
 
 ### iOS
 
-Add the Readium pods to your `ios/Podfile`:
+Add the Readium pods to your `ios/Podfile`.
+
+To avoid documentation drift, copy the exact Readium pod lines from:
+
+- `flutter_readium/example/ios/Podfile` (source-of-truth for app integration)
+- and keep them aligned with `flutter_readium/ios/flutter_readium.podspec` (plugin-side pin)
+
+Example shape:
 
 ```ruby
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
   pod 'PromiseKit', '~> 8.1'
-
-  pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec'
-  pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec'
-  pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec'
-  pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec'
-  pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec'
-  pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'
-  pod 'ReadiumZIPFoundation', podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
-
+  # Readium pod lines: copy from flutter_readium/example/ios/Podfile
   # ...
 end
 ```
-
-To allow the local content server to serve publication resources, add to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoads</key>
-  <true />
-</dict>
-```
-
-NOTE: This may be unnecessary once we upgrade to swift-toolkit v3.9.0
 
 ### macOS
 
