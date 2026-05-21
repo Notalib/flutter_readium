@@ -559,6 +559,7 @@ class EpubReaderFragment :
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
+                        // Only register the callback if custom selectionActions are added.
                         selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
                             createSelectionActionModeCallback()
                         else

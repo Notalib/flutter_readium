@@ -43,9 +43,14 @@ class ReaderWidget extends StatelessWidget {
               initialLocator: state.initialLocator,
               shouldShowControls: shouldShowControls,
               verticalScroll: verticalScroll,
+              allowedDefaultActions: const {
+                DefaultSelectionAction.copy,
+                DefaultSelectionAction.share,
+                DefaultSelectionAction.translate,
+              },
               selectionActions: const [
                 SelectionAction(id: 'highlight', title: 'Highlight'),
-                SelectionAction(id: 'note', title: 'Note'),
+                SelectionAction(id: 'note', title: 'Add Note'),
               ],
               onTextSelected: (event) {
                 debugPrint('[Selection] text="${event.selectedText}"');
@@ -83,10 +88,7 @@ class ReaderWidget extends StatelessWidget {
     final decoration = ReaderDecoration(
       id: 'highlight_${DateTime.now().millisecondsSinceEpoch}',
       locator: event.locator,
-      style: const ReaderDecorationStyle(
-        style: DecorationStyle.highlight,
-        tint: Color(0x80FFFF00),
-      ),
+      style: const ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Color(0x80FFFF00)),
     );
     context.read<PublicationBloc>().add(AddHighlight(decoration));
     debugPrint('[Highlight] Applied highlight decoration');
