@@ -92,6 +92,9 @@ enum DefaultSelectionAction {
   share,
 
   /// Look up selected text in dictionary (iOS) or web search (Android).
+  ///
+  /// On iOS 16+, enabling this also shows a "Search Web" button — both items
+  /// are bundled in the same system menu group and cannot be separated.
   lookup,
 
   /// Translate selected text (iOS 15+, not available on Android).
