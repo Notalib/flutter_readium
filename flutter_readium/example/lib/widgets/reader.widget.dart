@@ -5,14 +5,13 @@ import 'package:flutter_readium/flutter_readium.dart';
 import '../state/index.dart';
 
 class ReaderWidget extends StatelessWidget {
-  ReaderWidget({this.shouldShowControls, super.key});
+  const ReaderWidget({this.shouldShowControls, super.key});
 
   final ValueNotifier<bool>? shouldShowControls;
 
-  final ValueNotifier<bool> loadingNotifier = ValueNotifier<bool>(false);
-
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
+    buildWhen: (prev, next) => prev.hasNonHighlightChanges(next),
     builder: (final context, final state) {
       if (state.isLoading) {
         return const Center(child: CircularProgressIndicator());
@@ -54,7 +53,7 @@ class ReaderWidget extends StatelessWidget {
               onSelectionAction: (event) {
                 debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
                 if (event.actionId == 'highlight') {
-                  _applyHighlight(event);
+                  _applyHighlight(context, event);
                 } else if (event.actionId == 'note') {
                   _showNoteDialog(context, event);
                 }
@@ -80,7 +79,7 @@ class ReaderWidget extends StatelessWidget {
     },
   );
 
-  void _applyHighlight(SelectionActionEvent event) {
+  void _applyHighlight(BuildContext context, SelectionActionEvent event) {
     final decoration = ReaderDecoration(
       id: 'highlight_${DateTime.now().millisecondsSinceEpoch}',
       locator: event.locator,
@@ -89,7 +88,7 @@ class ReaderWidget extends StatelessWidget {
         tint: Color(0x80FFFF00),
       ),
     );
-    FlutterReadium().applyDecorations('user_highlights', [decoration]);
+    context.read<PublicationBloc>().add(AddHighlight(decoration));
     debugPrint('[Highlight] Applied highlight decoration');
   }
 
@@ -104,7 +103,7 @@ class ReaderWidget extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _applyHighlight(event);
+              _applyHighlight(context, event);
             },
             child: const Text('Save & Highlight'),
           ),

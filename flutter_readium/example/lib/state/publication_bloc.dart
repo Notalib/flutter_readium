@@ -17,6 +17,12 @@ abstract class PublicationEvent {}
 class ClosePublication extends PublicationEvent {}
 
 @immutable
+class AddHighlight extends PublicationEvent {
+  AddHighlight(this.decoration);
+  final ReaderDecoration decoration;
+}
+
+@immutable
 class OpenPublication extends PublicationEvent {
   OpenPublication({required this.publicationUrl, this.initialLocator, this.autoPlay});
   final String publicationUrl;
@@ -25,22 +31,29 @@ class OpenPublication extends PublicationEvent {
 }
 
 class PublicationState {
-  PublicationState({this.publication, this.initialLocator, this.error, this.isLoading = false});
+  PublicationState({this.publication, this.initialLocator, this.error, this.isLoading = false, Map<String, ReaderDecoration>? highlights})
+    : highlights = highlights ?? {};
   final Publication? publication;
   final Locator? initialLocator;
   final dynamic error;
   final bool isLoading;
+
+  /// Accumulated decorations for the current publication, keyed by decoration ID.
+  /// Not persisted to storage — resets on app restart.
+  final Map<String, ReaderDecoration> highlights;
 
   PublicationState copyWith({
     final Publication? publication,
     final Locator? initialLocator,
     final dynamic error,
     final bool? isLoading,
+    final Map<String, ReaderDecoration>? highlights,
   }) => PublicationState(
     publication: publication ?? this.publication,
     initialLocator: initialLocator ?? this.initialLocator,
     error: error ?? this.error,
     isLoading: isLoading ?? this.isLoading,
+    highlights: highlights ?? this.highlights,
   );
 
   PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
@@ -48,6 +61,13 @@ class PublicationState {
 
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
+
+  /// Returns true if any field other than [highlights] differs from [other].
+  bool hasNonHighlightChanges(PublicationState other) =>
+      isLoading != other.isLoading ||
+      error != other.error ||
+      publication != other.publication ||
+      initialLocator != other.initialLocator;
 
   PublicationState loading(Locator? initialLocator) => copyWith(isLoading: true, initialLocator: initialLocator);
 
@@ -137,6 +157,13 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         }
         emit(state.openPublicationFail(error));
       }
+    });
+
+    on<AddHighlight>((final event, final emit) {
+      final updated = Map<String, ReaderDecoration>.from(state.highlights)
+        ..[event.decoration.id] = event.decoration;
+      emit(state.copyWith(highlights: updated));
+      instance.applyDecorations('user_highlights', updated.values.toList());
     });
 
     on<ClosePublication>((final event, final emit) async {
