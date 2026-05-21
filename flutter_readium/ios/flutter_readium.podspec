@@ -21,7 +21,6 @@ A new Flutter plugin project.
   s.dependency 'ReadiumStreamer', '~> 3.9.0'
   s.dependency 'ReadiumNavigator', '~> 3.9.0'
   s.dependency 'ReadiumOPDS', '~> 3.9.0'
-  s.dependency 'ReadiumAdapterGCDWebServer', '~> 3.9.0'
   # s.dependency 'ReadiumLCP', '~> 3.5.0'
 
   s.platform = :ios, '15.0'

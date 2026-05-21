@@ -1,5 +1,4 @@
 import ReadiumNavigator
-import ReadiumAdapterGCDWebServer
 import ReadiumShared
 import Flutter
 import UIKit
@@ -80,7 +79,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     config.preloadNextPositionCount = 4
     config.debugState = false
 
-    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
@@ -94,8 +92,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     readiumViewController = try! EPUBNavigatorViewController(
       publication: publication,
       initialLocation: locator,
-      config: config,
-      httpServer: sharedReadium.httpServer!
+      config: config
     )
 
     _view = UIView()
