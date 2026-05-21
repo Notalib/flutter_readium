@@ -1181,6 +1181,14 @@ object ReadiumReader :
             currentPublication ?: return failure(
                 Error("no publication"),
             )
+        val isPdf =
+            pub.conformsTo(Publication.Profile.PDF) ||
+                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+        if (isPdf) {
+            return failure(
+                Error("PDF search is not supported on Android: kotlin-toolkit does not ship a SearchService for PDF publications."),
+            )
+        }
         val resultIterator =
             pub.search(query, SearchService.Options()) ?: return failure(
                 Error("SearchService unavailable"),
