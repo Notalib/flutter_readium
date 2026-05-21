@@ -25,6 +25,8 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.verticalScroll = false,
+    this.preloadPreviousPositionCount = 2,
+    this.preloadNextPositionCount = 6,
     super.key,
   });
 
@@ -56,6 +58,18 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Whether the reader should use continuous vertical scroll (`true`) or paginated mode (`false`).
   final bool verticalScroll;
+
+  /// Number of resource positions to preload before the current one. Default `2`.
+  /// Higher values smooth out backward navigation at the cost of memory; consider
+  /// increasing for local publications and lowering for remote ones.
+  ///
+  /// iOS only. The kotlin-toolkit (3.1.2) does not expose this on its public navigator
+  /// configuration, so the value is ignored on Android.
+  final int preloadPreviousPositionCount;
+
+  /// Number of resource positions to preload after the current one. Default `6`.
+  /// See [preloadPreviousPositionCount] for tradeoffs and platform support.
+  final int preloadNextPositionCount;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -229,6 +243,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
+      'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
+      'preloadNextPositionCount': widget.preloadNextPositionCount,
     };
 
     ReadiumLog.d('creationParams=$creationParams');

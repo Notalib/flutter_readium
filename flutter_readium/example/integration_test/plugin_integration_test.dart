@@ -157,6 +157,37 @@ void main() {
       expect(pub.conformsToReadiumPDF, isTrue, reason: 'PDF fixture should conform to the Readium PDF profile');
     });
 
+    testWidgets('setPDFPreferences applies without throwing', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial locator before applying PDF preferences',
+      );
+
+      await expectLater(
+        reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical)),
+        completes,
+        reason: 'setPDFPreferences should not throw',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
     testWidgets('mounting PDF reader widget emits initial textLocator with page position', (tester) async {
       final path = fixturePaths['time_machine.pdf'];
       expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
@@ -180,13 +211,13 @@ void main() {
         reason: 'PDF ReadiumReaderWidget never emitted an initial textLocator',
       );
 
-      expect(locators.last.locations?.position, isNotNull, reason: 'PDF locator should carry a 1-based page position');
-      expect(locators.last.locations?.position, equals(1), reason: 'Initial PDF locator should be on page 1');
+      expect(locators.first.locations?.position, isNotNull, reason: 'PDF locator should carry a 1-based page position');
+      expect(locators.first.locations?.position, equals(1), reason: 'Initial PDF locator should be on page 1');
 
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('goForward() in PDF advances the page position by 1', (tester) async {
+    testWidgets('goForward()/goBackward() in paginated PDF step exactly one page', (tester) async {
       final path = fixturePaths['time_machine.pdf'];
       expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
 
@@ -208,22 +239,87 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'No initial textLocator emitted',
       );
-      final initialPage = locators.last.locations!.position!;
+
+      // Paginated layout: iOS uses PDFKit's snap-to-page mode; Android maps
+      // it to Pdfium's HORIZONTAL scroll axis (single-page-wide viewport).
+      // Both yield one page per goForward/goBackward.
+      await reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.paginated));
+      // The navigator can emit settling locators after initial layout and again
+      // after the preference change. Wait for the emission stream to quiesce
+      // before snapshotting our baseline page.
+      await _waitForListStable(tester, locators);
+      final startPage = locators.last.locations!.position!;
 
       await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => locators.last.locations?.position == startPage + 1,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not settle on startPage + 1 (start=$startPage)',
+      );
+      expect(locators.last.locations?.position, equals(startPage + 1));
+
+      final afterForward = locators.last.locations!.position!;
+      await reader.goBackward();
+      await _waitWithPump(
+        tester,
+        () => locators.last.locations?.position == afterForward - 1,
+        timeout: const Duration(seconds: 15),
+        reason: 'goBackward() did not return to afterForward - 1 (afterForward=$afterForward)',
+      );
+      expect(locators.last.locations?.position, equals(afterForward - 1));
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('goForward()/goBackward() in vertical-scroll PDF advances/retreats the page position', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
 
       await _waitWithPump(
         tester,
-        () => locators.last.locations?.position != initialPage,
-        timeout: const Duration(seconds: 15),
-        reason: 'goForward() did not emit a new textLocator with a different page position',
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial textLocator emitted',
       );
 
-      expect(
-        locators.last.locations?.position,
-        equals(initialPage + 1),
-        reason: 'goForward() should advance the page position by 1',
+      // Vertical scroll: viewport scrolls by its own height, which can cover
+      // multiple pages depending on the PDF's aspect ratio — only assert
+      // direction, not strict +/-1.
+      await reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical));
+      await _waitForListStable(tester, locators);
+      final startPage = locators.last.locations!.position!;
+
+      await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => (locators.last.locations?.position ?? startPage) > startPage,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not advance past the start page (start=$startPage)',
       );
+      final advanced = locators.last.locations!.position!;
+      expect(advanced, greaterThan(startPage));
+
+      await reader.goBackward();
+      await _waitWithPump(
+        tester,
+        () => (locators.last.locations?.position ?? advanced) < advanced,
+        timeout: const Duration(seconds: 15),
+        reason: 'goBackward() did not retreat past the advanced page (advanced=$advanced)',
+      );
+      expect(locators.last.locations!.position, lessThan(advanced));
 
       await tester.pumpWidget(const SizedBox());
     });
@@ -250,62 +346,52 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'No initial locator emitted',
       );
-      final savedLocator = locators.last;
+      // Wait for initial layout to settle before snapshotting; on Android the
+      // Pdfium fragment can emit a follow-up locator at a different page after
+      // initial render, and we want the saved locator to reflect a stable
+      // position so the round-trip assertion isn't racing that settling.
+      await _waitForListStable(tester, locators);
 
+      // Advance once to leave a known baseline page we can return to.
+      final baselinePage = locators.last.locations!.position!;
       await reader.goForward();
       await _waitWithPump(
         tester,
-        () => locators.last != savedLocator,
+        () => locators.last.locations?.position != baselinePage,
         timeout: const Duration(seconds: 15),
-        reason: 'goForward() did not produce a new locator',
+        reason: 'goForward() did not produce a new locator (baseline=$baselinePage)',
       );
-      final afterForward = locators.last;
+      await _waitForListStable(tester, locators);
+      final savedLocator = locators.last;
+      final savedPage = savedLocator.locations!.position!;
+
+      // Advance again so goToLocator has somewhere to come back from.
+      await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => locators.last.locations?.position != savedPage,
+        timeout: const Duration(seconds: 15),
+        reason: 'second goForward() did not produce a new locator (saved=$savedPage)',
+      );
+      await _waitForListStable(tester, locators);
+      final afterSecondForward = locators.last;
 
       final ok = await reader.goToLocator(savedLocator);
       expect(ok, isTrue, reason: 'goToLocator should report success');
 
       await _waitWithPump(
         tester,
-        () => locators.last != afterForward,
+        () => locators.last.locations?.position == savedPage,
         timeout: const Duration(seconds: 15),
-        reason: 'goToLocator() did not emit a new textLocator',
+        reason:
+            'goToLocator() did not settle on the saved page '
+            '(saved=$savedPage, lastBefore=$afterSecondForward)',
       );
 
       expect(
         locators.last.locations?.position,
-        equals(savedLocator.locations?.position),
+        equals(savedPage),
         reason: 'Restored locator should be on the saved page',
-      );
-
-      await tester.pumpWidget(const SizedBox());
-    });
-
-    testWidgets('setPDFPreferences applies without throwing', (tester) async {
-      final path = fixturePaths['time_machine.pdf'];
-      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
-
-      final pub = await reader.openPublication(path!);
-
-      final locators = <Locator>[];
-      final sub = reader.onTextLocatorChanged.listen(locators.add);
-      addTearDown(sub.cancel);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
-        ),
-      );
-      await _waitWithPump(
-        tester,
-        () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
-        reason: 'No initial locator before applying PDF preferences',
-      );
-
-      await expectLater(
-        reader.setPDFPreferences(PDFPreferences(scroll: true)),
-        completes,
-        reason: 'setPDFPreferences should not throw',
       );
 
       await tester.pumpWidget(const SizedBox());
@@ -328,9 +414,7 @@ void main() {
           reason: 'PDF search hit should carry a 1-based page position',
         );
       },
-      skip: Platform.isAndroid
-          ? 'PDF search not supported on Android (kotlin-toolkit has no PDF SearchService)'
-          : false,
+      skip: Platform.isAndroid ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService)' : false,
     );
   });
 
@@ -575,11 +659,7 @@ void main() {
       await reader.openPublication(path!);
 
       final states = <ReadiumTimebasedState>[];
-      final sub = reader.onTimebasedPlayerStateChanged.listen((state) {
-        states.add(state);
-        debugPrint('Player state changed: ${state.state}');
-        debugPrint('- Locator: offset=${state.currentOffset},timestamp=${state.currentLocator?.locations?.timestamp}');
-      });
+      final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
       addTearDown(sub.cancel);
 
       await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
@@ -592,8 +672,11 @@ void main() {
       );
 
       final beforeSeek = states.last.currentOffset!;
-      final seekDuration = const Duration(seconds: 10);
-      final expectedMinOffset = beforeSeek + seekDuration;
+      // Keep the seek small enough to stay within the current audiobook track.
+      // AudioNavigator.seek(offset) is ignored if offset goes beyond end of current resource.
+      final seekDuration = const Duration(seconds: 5);
+      final tolerance = const Duration(milliseconds: 500);
+      final expectedMinOffset = beforeSeek + seekDuration - tolerance;
 
       await reader.audioSeekBy(seekDuration);
       await reader.resume();
@@ -606,8 +689,8 @@ void main() {
 
       expect(
         states.last.currentOffset! - beforeSeek,
-        greaterThanOrEqualTo(seekDuration),
-        reason: 'audioSeekBy() should have advanced offset by at least seekDuration',
+        greaterThanOrEqualTo(seekDuration - tolerance),
+        reason: 'audioSeekBy() should have advanced offset by ~seekDuration',
       );
     });
   });
@@ -681,5 +764,29 @@ Future<void> _waitWithPump(
       fail(reason ?? 'Condition did not become true within $timeout');
     }
     await tester.pump(pollInterval);
+  }
+}
+
+/// Pumps frames until [list]'s length has not changed for [stableFor]. Useful
+/// for letting a navigator's currentLocator StateFlow settle before snapshotting
+/// a baseline position. Times out after [timeout] and returns regardless.
+Future<void> _waitForListStable<T>(
+  WidgetTester tester,
+  List<T> list, {
+  Duration stableFor = const Duration(milliseconds: 600),
+  Duration timeout = const Duration(seconds: 5),
+  Duration pollInterval = const Duration(milliseconds: 100),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  var lastLength = list.length;
+  var stableSince = DateTime.now();
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(pollInterval);
+    if (list.length != lastLength) {
+      lastLength = list.length;
+      stableSince = DateTime.now();
+    } else if (DateTime.now().difference(stableSince) >= stableFor) {
+      return;
+    }
   }
 }

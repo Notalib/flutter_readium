@@ -52,6 +52,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
     let locatorStr = creationParams["initialLocator"] as? String
     let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
+    let preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as? Int ?? 2
+    let preloadNextPositionCount = creationParams["preloadNextPositionCount"] as? Int ?? 6
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -73,10 +75,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
     ]
-    // TODO: Make this config configurable from Flutter
-    // Might want it to be higher for a local publication than remote. Default is 2 previous and 6 next resources.
-    config.preloadPreviousPositionCount = 2
-    config.preloadNextPositionCount = 4
+    // Configurable from Flutter via ReadiumReaderWidget. Upstream defaults are
+    // 2 previous and 6 next; bumping the "next" count is reasonable for local
+    // publications, lowering both helps memory pressure for remote ones.
+    config.preloadPreviousPositionCount = preloadPreviousPositionCount
+    config.preloadNextPositionCount = preloadNextPositionCount
     config.debugState = false
 
     // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
