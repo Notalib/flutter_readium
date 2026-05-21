@@ -596,8 +596,16 @@ class EpubReaderFragment :
     /**
      * Creates an ActionMode.Callback that:
      * 1. Fires onTextSelected when the action mode is created (text selected)
-     * 2. Adds configured selection actions as menu items
+     * 2. Adds plugin-configured custom actions as menu items
      * 3. Fires onSelectionAction when a custom action is tapped
+     *
+     * Note: providing a custom selectionActionModeCallback to Readium fully replaces
+     * the WebView's default callback, so system items (Copy, Share, Select All) are
+     * not shown. This is an Android platform limitation — do NOT try to re-add system
+     * items manually. Reimplementing platform behaviour (copy-to-clipboard, share sheet,
+     * select-all) is brittle: titles need localisation, DRM-gated copy semantics differ,
+     * and selectAll cannot drive WebView selection from outside. Accept the limitation
+     * and document it instead.
      */
     private fun createSelectionActionModeCallback(): ActionMode.Callback {
         // Menu item IDs start at this offset to avoid collisions with system items.
@@ -606,7 +614,7 @@ class EpubReaderFragment :
         return object : ActionMode.Callback {
             override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
                 PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
-                // Fire onTextSelected callback
+                // Fire onTextSelected callback.
                 launch {
                     val nav = navigator as? SelectableNavigator ?: return@launch
                     val selection = nav.currentSelection() ?: return@launch
@@ -623,32 +631,7 @@ class EpubReaderFragment :
                 if (menu == null) return false
                 var changed = false
 
-                // Remove system items not in allowedDefaultActions (if configured).
-                val allowedDefaults = ReadiumReader.allowedDefaultActions
-                if (allowedDefaults != null) {
-                    val systemItemIds = mapOf(
-                        "copy" to android.R.id.copy,
-                        "share" to android.R.id.shareText,
-                        "selectAll" to android.R.id.selectAll,
-                    )
-                    for ((name, id) in systemItemIds) {
-                        if (!allowedDefaults.contains(name) && menu.findItem(id) != null) {
-                            menu.removeItem(id)
-                            changed = true
-                        }
-                    }
-                    // Also remove cut and paste which aren't in our enum
-                    if (menu.findItem(android.R.id.cut) != null) {
-                        menu.removeItem(android.R.id.cut)
-                        changed = true
-                    }
-                    if (menu.findItem(android.R.id.paste) != null) {
-                        menu.removeItem(android.R.id.paste)
-                        changed = true
-                    }
-                }
-
-                // Add configured custom actions to the menu
+                // Add configured custom actions to the menu.
                 val actions = ReadiumReader.selectionActions
                 actions.forEachIndexed { index, action ->
                     if (menu.findItem(menuItemIdOffset + index) == null) {

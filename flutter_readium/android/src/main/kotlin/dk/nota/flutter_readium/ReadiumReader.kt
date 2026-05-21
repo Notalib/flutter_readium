@@ -417,9 +417,6 @@ object ReadiumReader :
     /** Selection actions configured from Dart. Used by EpubReaderFragment to build ActionMode menu. */
     var selectionActions: List<SelectionActionConfig> = emptyList()
 
-    /** Allowed default selection actions. Null means show all. Empty means hide all system actions. */
-    var allowedDefaultActions: Set<String>? = null
-
     private val context: Context
         get() = application.applicationContext
 
