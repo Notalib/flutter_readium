@@ -63,7 +63,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Higher values smooth out backward navigation at the cost of memory; consider
   /// increasing for local publications and lowering for remote ones.
   ///
-  /// iOS only. The kotlin-toolkit (3.1.2) does not expose this on its public navigator
+  /// iOS only. kotlin-toolkit does not expose this on its public navigator
   /// configuration, so the value is ignored on Android.
   final int preloadPreviousPositionCount;
 

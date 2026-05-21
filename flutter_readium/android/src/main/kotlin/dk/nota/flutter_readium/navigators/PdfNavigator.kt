@@ -39,7 +39,7 @@ private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
  *
  * No preferences/decorations support yet — preferences land in Phase 5 of the
  * PDF support roadmap. Decorations are not exposed by the upstream PDF
- * navigator in kotlin-toolkit 3.1.2.
+ * navigator in kotlin-toolkit.
  */
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)

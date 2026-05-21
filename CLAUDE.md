@@ -15,15 +15,15 @@ This is a **federated Flutter plugin** with two pub packages and a multi-package
 
 The native sides are thin wrappers around upstream Readium code — when debugging native behavior, the source of truth is upstream:
 
-- swift-toolkit: https://github.com/readium/swift-toolkit/ — pinned to **3.9.0** in `flutter_readium/ios/flutter_readium.podspec` and the example `Podfile`.
-- kotlin-toolkit: https://github.com/readium/kotlin-toolkit/ — pinned to **3.1.2** via `ext.readium_version` in `flutter_readium/android/build.gradle`.
+- swift-toolkit: https://github.com/readium/swift-toolkit/ — pinned in `flutter_readium/ios/flutter_readium.podspec` and the example `Podfile`.
+- kotlin-toolkit: https://github.com/readium/kotlin-toolkit/ — pinned via `ext.readium_version` in `flutter_readium/android/build.gradle`.
 - ts-toolkit (Web): consumed via npm — `@readium/shared`, `@readium/navigator`, `@readium/navigator-html-injectables` (see `flutter_readium/package.json`).
 
 When you need to inspect upstream implementation details (e.g. how a navigator handles a locator, what fields a model uses), read the source on GitHub — do NOT decompile local JARs, .framework bundles, or other build artifacts. Use `gh api` or `WebFetch` against the repos above.
 
 Voice data for TTS comes from https://github.com/readium/speech (refreshed by `bin/update_readium_voice_data`).
 
-When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Also update every version reference in the docs and README to match the new pinned version, to avoid drift.
+When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Keep the build/package files above as the source-of-truth, and avoid duplicating exact version numbers broadly in docs.
 
 ## Developer workflow
 
@@ -31,6 +31,7 @@ Key scripts (run from repo root):
 
 - `bin/install` — full bootstrap (pub get, pod install, build JS). Run after clone or dependency changes.
 - `bin/forAll <cmd>` — run a command in both pub packages.
+- `bin/readium_versions` — print the currently pinned Readium toolkit versions from source-of-truth files.
 - `bin/update_web_example` — rebuild web TS bundle and copy into example. **Run after any TS change.**
 - `bin/update_readium_voice_data` — refresh TTS voice data from upstream (requires `jq`).
 - `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview.

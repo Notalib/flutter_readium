@@ -262,7 +262,7 @@ object ReadiumReader :
             putString(currentPublicationUrlKey, currentPublicationUrl)
             putBoolean(epubEnabledKey, epubNavigator != null)
             putBundle(epubNavigatorStateKey, epubNavigator?.storeState())
-            // PdfNavigatorFragment in kotlin-toolkit 3.1.2 does not support
+            // PdfNavigatorFragment in kotlin-toolkit does not support
             // process-death restoration (`RestorationNotSupportedException` from
             // its onResume). We record the boolean for symmetry but skip the
             // serialised state bundle — the widget reopens fresh on restore.
