@@ -26,7 +26,6 @@ let package = Package(
               .product(name: "ReadiumStreamer", package: "swift-toolkit"),
               .product(name: "ReadiumNavigator", package: "swift-toolkit"),
               .product(name: "ReadiumOPDS", package: "swift-toolkit"),
-              .product(name: "ReadiumAdapterGCDWebServer", package: "swift-toolkit"),
               .product(name: "PromiseKit", package: "PromiseKit"),
             ],
             resources: [

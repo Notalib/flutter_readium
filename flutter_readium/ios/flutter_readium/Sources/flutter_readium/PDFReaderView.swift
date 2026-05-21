@@ -1,5 +1,4 @@
 import ReadiumNavigator
-import ReadiumAdapterGCDWebServer
 import ReadiumShared
 import Flutter
 import UIKit
@@ -59,8 +58,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     pdfViewController = try! PDFNavigatorViewController(
       publication: publication,
       initialLocation: locator,
-      config: config,
-      httpServer: sharedReadium.httpServer!
+      config: config
     )
 
     _view = UIView()
