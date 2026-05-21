@@ -2,19 +2,17 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(dart analyze *)",
-      "Bash(dart format *)",
-      "Bash(flutter analyze *)",
-      "Bash(flutter test *)",
-      "Bash(flutter pub get)",
-      "Bash(flutter pub outdated)",
-      "Bash(bin/forAll *)",
-      "Bash(bin/code_gen)",
+      "Bash(dart *)",
+      "Bash(flutter *)",
+      "Bash(marionette *)",
+      "Bash(pod *)",
+      "Bash(xcodebuild *)",
+      "Bash(xcrun *)",
       "Bash(bin/build_js)",
+      "Bash(bin/forAll *)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:readium.org)",
-      "Bash(marionette *)"
+      "WebFetch(domain:readium.org)"
     ]
   }
 }
