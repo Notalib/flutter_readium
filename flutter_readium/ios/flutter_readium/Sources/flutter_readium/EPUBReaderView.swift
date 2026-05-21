@@ -7,10 +7,10 @@ import WebKit
 private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
-public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
+public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private let _view: UIView
+  private let containerView: EPUBContainerView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
   private var isJumpingToLocator = false
@@ -23,7 +23,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func view() -> UIView {
     Log.reader.debug("getView")
-    return _view
+    return containerView
   }
 
   deinit {
@@ -89,6 +89,18 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
     //config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
 
+    // Configure selection actions from Flutter creation params.
+    let selectionActionsParam = creationParams["selectionActions"] as? [[String: Any]] ?? []
+    let containerView = EPUBContainerView()
+    if !selectionActionsParam.isEmpty {
+      let actions = selectionActionsParam.compactMap { dict -> (id: String, title: String)? in
+        guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
+        return (id: id, title: title)
+      }
+      containerView.configureActions(actions)
+      config.editingActions = EditingAction.defaultActions + containerView.editingActions()
+    }
+
     if let readiumPreferences = self.preferences?.readium {
       config.preferences = readiumPreferences
     }
@@ -99,14 +111,15 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       config: config
     )
 
-    _view = UIView()
+    self.containerView = containerView
     super.init()
 
+    containerView.readerView = self
     channel.setMethodCallHandler(onMethodCall)
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view
-    let view = _view
+    let view = containerView
     view.addSubview(readiumViewController.view)
 
     child.translatesAutoresizingMaskIntoConstraints = false
@@ -132,6 +145,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     DirectionalNavigationAdapter(
       pointerPolicy: .init(types: [.mouse, .touch])
     ).bind(to: readiumViewController)
+
+    // Observe decoration interactions for all groups that get applied later.
+    // We register a global handler on the well-known "user-highlight" group.
+    readiumViewController.observeDecorationInteractions(inGroup: "user-highlight") { [weak self] event in
+      self?.onDecorationActivated(event: event)
+    }
 
     Log.reader.debug("init success")
   }
@@ -233,6 +252,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     Log.reader.debug("applyDecorations: \(decorations) identifier: \(groupIdentifier)")
+    ensureDecorationObservation(forGroup: groupIdentifier)
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
   }
 
@@ -257,8 +277,57 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  // MARK: - SelectableNavigatorDelegate
+
+  public func navigator(_ navigator: SelectableNavigator, shouldShowMenuForSelection selection: Selection) -> Bool {
+    Log.reader.debug("shouldShowMenuForSelection: \(selection.locator)")
+    let locator = selection.locator
+    let selectedText = locator.text.highlight
+    channel.onTextSelected(locator: locator, selectedText: selectedText)
+    // Return true to also show the native context menu with editing actions.
+    return true
+  }
+
+  public func navigator(_ navigator: SelectableNavigator, canPerformAction action: EditingAction, for selection: Selection) -> Bool {
+    return true
+  }
+
+  /// Called by `EPUBContainerView` when a configured action slot fires via the responder chain.
+  func handleSelectionAction(actionId: String) {
+    Log.reader.debug("handleSelectionAction: \(actionId)")
+    guard let selection = readiumViewController.currentSelection else {
+      Log.reader.warn("handleSelectionAction: no current selection")
+      return
+    }
+    let locator = selection.locator
+    let selectedText = locator.text.highlight
+    channel.onSelectionAction(actionId: actionId, locator: locator, selectedText: selectedText)
+  }
+
   func getCurrentSelection() -> Locator? {
     return self.readiumViewController.currentSelection?.locator
+  }
+
+  /// Called when a decoration is tapped/activated by the user.
+  private func onDecorationActivated(event: OnDecorationActivatedEvent) {
+    Log.reader.debug("onDecorationActivated: \(event.decoration.id) in group \(event.group)")
+    channel.onDecorationInteraction(
+      decorationId: event.decoration.id,
+      group: event.group,
+      type: "tap",
+      locator: event.decoration.locator
+    )
+  }
+
+  /// Registers decoration interaction observation for a group.
+  /// Called when `applyDecorations` is used with a new group identifier.
+  private var observedDecorationGroups: Set<String> = ["user-highlight"]
+  private func ensureDecorationObservation(forGroup group: String) {
+    guard !observedDecorationGroups.contains(group) else { return }
+    observedDecorationGroups.insert(group)
+    readiumViewController.observeDecorationInteractions(inGroup: group) { [weak self] event in
+      self?.onDecorationActivated(event: event)
+    }
   }
 
   private func evaluateJavascript(_ code: String) async -> Result<Any, Error> {
@@ -466,6 +535,15 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
 
       applyDecorations(decorations, forGroup: identifier)
+      break
+    case "configureSelectionActions":
+      let args = call.arguments as! [[String: Any]]
+      let actions = args.compactMap { dict -> (id: String, title: String)? in
+        guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
+        return (id: id, title: title)
+      }
+      containerView.configureActions(actions)
+      result(nil)
       break
     case "dispose":
       Log.reader.info("Disposing readiumViewController")

@@ -1,6 +1,9 @@
 package dk.nota.flutter_readium.fragments
 
 import android.os.Bundle
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
+import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -136,6 +140,15 @@ class EpubReaderFragment :
         return run {
             navigator.applyDecorations(decorations, group)
         }
+    }
+
+    fun addDecorationListener(group: String, listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+        val navigator =
+            epubNavigator ?: run {
+                PluginLog.w(TAG, "::addDecorationListener. Navigator not ready.")
+                return
+            }
+        navigator.addDecorationListener(group, listener)
     }
 
     /**
@@ -546,6 +559,7 @@ class EpubReaderFragment :
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
+                        selectionActionModeCallback = createSelectionActionModeCallback(),
                     ),
                 initialLocator = model.locator,
                 listener = this,
@@ -577,6 +591,76 @@ class EpubReaderFragment :
         PluginLog.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
         started.value = true
+    }
+
+    /**
+     * Creates an ActionMode.Callback that:
+     * 1. Fires onTextSelected when the action mode is created (text selected)
+     * 2. Adds configured selection actions as menu items
+     * 3. Fires onSelectionAction when a custom action is tapped
+     */
+    private fun createSelectionActionModeCallback(): ActionMode.Callback {
+        // Menu item IDs start at this offset to avoid collisions with system items.
+        val menuItemIdOffset = 100
+
+        return object : ActionMode.Callback {
+            override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+                PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
+                // Fire onTextSelected callback
+                launch {
+                    val nav = navigator as? SelectableNavigator ?: return@launch
+                    val selection = nav.currentSelection() ?: return@launch
+                    val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
+                    channel.onTextSelected(
+                        selection.locator,
+                        selection.locator.text.highlight,
+                    )
+                }
+                return true
+            }
+
+            override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+                if (menu == null) return false
+                val actions = ReadiumReader.selectionActions
+                if (actions.isEmpty()) return false
+
+                // Add configured actions to the menu
+                actions.forEachIndexed { index, action ->
+                    if (menu.findItem(menuItemIdOffset + index) == null) {
+                        menu.add(Menu.NONE, menuItemIdOffset + index, Menu.NONE, action.title)
+                    }
+                }
+                return true
+            }
+
+            override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
+                if (item == null) return false
+                val index = item.itemId - menuItemIdOffset
+                val actions = ReadiumReader.selectionActions
+                if (index < 0 || index >= actions.size) return false
+
+                val action = actions[index]
+                PluginLog.d(TAG, "::onActionItemClicked - action: ${action.id}")
+
+                launch {
+                    val nav = navigator as? SelectableNavigator ?: return@launch
+                    val selection = nav.currentSelection() ?: return@launch
+                    val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
+                    channel.onSelectionAction(
+                        action.id,
+                        selection.locator,
+                        selection.locator.text.highlight,
+                    )
+                }
+
+                mode?.finish()
+                return true
+            }
+
+            override fun onDestroyActionMode(mode: ActionMode?) {
+                // No-op
+            }
+        }
     }
 
     companion object {

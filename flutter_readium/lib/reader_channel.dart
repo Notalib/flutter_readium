@@ -4,7 +4,15 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
-enum _ReaderChannelMethodInvoke { applyDecorations, go, goBackward, goForward, dispose, setPreferences }
+enum _ReaderChannelMethodInvoke {
+  applyDecorations,
+  configureSelectionActions,
+  go,
+  goBackward,
+  goForward,
+  dispose,
+  setPreferences,
+}
 
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
@@ -12,7 +20,14 @@ class ReadiumReaderChannel extends MethodChannel {
   /// Creates a channel bound to [name]. [onPageChanged] is called when the
   /// native navigator reports a page change. [onExternalLinkActivated] is
   /// called when an external (non-publication) link is tapped.
-  ReadiumReaderChannel(super.name, {required this.onPageChanged, this.onExternalLinkActivated}) {
+  ReadiumReaderChannel(
+    super.name, {
+    required this.onPageChanged,
+    this.onExternalLinkActivated,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+  }) {
     setMethodCallHandler(onMethodCall);
   }
 
@@ -21,6 +36,15 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Called when the reader activates a link that points outside the publication.
   void Function(String)? onExternalLinkActivated;
+
+  /// Called when the user selects text in the reader.
+  void Function(TextSelectionEvent)? onTextSelected;
+
+  /// Called when the user taps a configured editing action on selected text.
+  void Function(SelectionActionEvent)? onSelectionAction;
+
+  /// Called when the user interacts with an existing decoration.
+  void Function(DecorationInteractionEvent)? onDecorationInteraction;
 
   /// Go e.g. navigate to a specific locator in the publication.
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) {
@@ -60,6 +84,14 @@ class ReadiumReaderChannel extends MethodChannel {
     return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => d.toJson())]);
   }
 
+  /// Configure the native selection context menu actions.
+  Future<void> configureSelectionActions(List<SelectionAction> actions) async {
+    return await _invokeMethod(
+      _ReaderChannelMethodInvoke.configureSelectionActions,
+      actions.map((a) => a.toJson()).toList(),
+    );
+  }
+
   /// Tears down the method channel handler and signals the native side to clean up.
   Future<void> dispose() async {
     try {
@@ -93,6 +125,30 @@ class ReadiumReaderChannel extends MethodChannel {
           final link = call.arguments as String;
           ReadiumLog.d('onExternalLinkActivated $link');
           onExternalLinkActivated?.call(link);
+
+          return null;
+        case 'onTextSelected':
+          final args = call.arguments as String;
+          final eventJson = json.decode(args) as Map<String, dynamic>;
+          final event = TextSelectionEvent.fromJson(eventJson);
+          ReadiumLog.d('onTextSelected ${event.selectedText}');
+          onTextSelected?.call(event);
+
+          return null;
+        case 'onSelectionAction':
+          final args = call.arguments as String;
+          final eventJson = json.decode(args) as Map<String, dynamic>;
+          final event = SelectionActionEvent.fromJson(eventJson);
+          ReadiumLog.d('onSelectionAction ${event.actionId}');
+          onSelectionAction?.call(event);
+
+          return null;
+        case 'onDecorationInteraction':
+          final args = call.arguments as String;
+          final eventJson = json.decode(args) as Map<String, dynamic>;
+          final event = DecorationInteractionEvent.fromJson(eventJson);
+          ReadiumLog.d('onDecorationInteraction ${event.decorationId}');
+          onDecorationInteraction?.call(event);
 
           return null;
         default:
