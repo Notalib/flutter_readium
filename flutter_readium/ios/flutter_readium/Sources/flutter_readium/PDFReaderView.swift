@@ -25,7 +25,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     pdfViewController.view.removeFromSuperview()
     pdfViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
   init(
@@ -82,7 +82,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
       ]
     )
 
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// This adapter will automatically turn pages when the user taps the
     /// screen edges or presses arrow keys.
@@ -316,7 +316,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
       Log.reader.info("Disposing pdfViewController")
       pdfViewController.view.removeFromSuperview()
       pdfViewController.delegate = nil
-      FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
     default:

@@ -14,6 +14,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public var currentPublication: Publication?
   public var currentReaderView: (any ReadiumReaderView)?
 
+  /// Incremented each time a new publication is successfully opened.
+  /// Used to guard against stale `closePublication` calls from a previous
+  /// Dart session (hot restart) clobbering a freshly opened publication.
+  private var publicationGeneration: Int = 0
+
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
@@ -65,8 +70,24 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     return currentPublication
   }
 
-  internal func setCurrentReadiumReaderView(_ readerView: (any ReadiumReaderView)?) {
+  /// Registers `readerView` as the active reader view.
+  /// The previous view (if any) is released *after* the assignment to avoid
+  /// triggering its deinit mid-write (Swift exclusivity enforcement).
+  /// To unregister, use `clearCurrentReaderView(ifIs:)` instead.
+  internal func registerAsCurrentReaderView(_ readerView: any ReadiumReaderView) {
+    let old = currentReaderView
     currentReaderView = readerView
+    _ = old // released here, safely outside the write
+  }
+
+  /// Clears `currentReaderView` only if it is still `viewToClear`.
+  /// Called from deinit/dispose of platform views so that a late-arriving
+  /// deinit of a superseded view does not clobber the newly registered one.
+  internal func clearCurrentReaderView(ifIs viewToClear: any ReadiumReaderView) {
+    guard currentReaderView === viewToClear else { return }
+    let old = currentReaderView
+    currentReaderView = nil
+    _ = old
   }
 
   public func log(_ warning: Warning) {
@@ -83,7 +104,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       result(nil)
     case "dispose":
       Task { @MainActor in
-        await closePublication()
+        await closePublication(ifGeneration: nil)
         timebasedPlayerStateStreamHandler?.dispose()
         timebasedPlayerStateStreamHandler = nil
         textLocatorStreamHandler?.dispose()
@@ -95,8 +116,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         result(nil)
       }
     case "closePublication":
+      let generationAtDispatch = publicationGeneration
       Task { @MainActor in
-        await self.closePublication()
+        await self.closePublication(ifGeneration: generationAtDispatch)
         result(nil)
       }
     case "openPublication":
@@ -111,14 +133,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
               await MainActor.run {
                 result(jsonManifest)
               }
+              return
             }
           }
           if (self.currentPublication != nil) {
-            await self.closePublication()
+            await self.closePublication(ifGeneration: nil)
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           self.currentPublication = pub
           self.currentPublicationUrlStr = pubUrlStr
+          await MainActor.run { self.publicationGeneration += 1 }
 
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
@@ -610,11 +634,17 @@ extension FlutterReadiumPlugin {
 
   /// Cleans up all publication-scoped state. Must be awaited — Dart relies on
   /// `closePublication` finishing before the next `openPublication` starts.
-  /// Previously this was fire-and-forget via `Task { @MainActor in ... }`,
-  /// which let the next test's `openPublication` race ahead and have its
-  /// `currentPublication` nilled out mid-init.
+  ///
+  /// Pass `ifGeneration: nil` to force-close unconditionally (e.g. from
+  /// `openPublication` internals or `dispose`).  Pass the generation captured
+  /// at method-channel dispatch time to guard against stale close calls from a
+  /// previous Dart session (hot restart) clobbering a freshly opened publication.
   @MainActor
-  private func closePublication() async {
+  private func closePublication(ifGeneration expectedGeneration: Int?) async {
+    if let expected = expectedGeneration, expected != self.publicationGeneration {
+      Log.readium.info("closePublication: skipped — generation mismatch (expected \(expected), current \(self.publicationGeneration))")
+      return
+    }
     Log.readium.info("closePublication: disposing timebased navigator and current publication")
     self.timebasedNavigator?.dispose()
     self.timebasedNavigator = nil
