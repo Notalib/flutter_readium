@@ -1,9 +1,7 @@
 import UIKit
+import ObjectiveC
 import ReadiumNavigator
 import ReadiumShared
-
-/// Maximum number of configurable editing action slots.
-private let maxActionSlots = 5
 
 /// A container view that participates in the UIKit responder chain, allowing
 /// Readium's `EditingAction` selectors to be dispatched to it.
@@ -12,33 +10,52 @@ private let maxActionSlots = 5
 /// receive actions via the responder chain. This custom `UIView` subclass sits
 /// between the navigator's view and Flutter's view hierarchy, catching editing
 /// action selectors and forwarding them to the `EPUBReaderView`.
+///
+/// Action methods are registered dynamically at runtime using `class_addMethod`,
+/// so there is no compile-time limit on the number of custom actions.
 class EPUBContainerView: UIView {
   weak var readerView: EPUBReaderView?
 
-  /// The action IDs configured from Dart, mapped by slot index.
+  /// The action IDs configured from Dart.
   private(set) var actionIds: [String] = []
 
+  /// Mapping from registered selector name → action ID for dispatch.
+  private var selectorToActionId: [String: String] = [:]
+
+  /// The set of selectors registered for custom actions.
+  private var registeredSelectors: Set<Selector> = []
+
   /// Configures the action slots with the given action definitions.
-  /// Configures the action slots with the given action definitions.
+  /// Registers one ObjC method per action on this class at runtime.
   func configureActions(_ actions: [(id: String, title: String)]) {
-    actionIds = actions.prefix(maxActionSlots).map { $0.id }
-    actionTitles = actions.prefix(maxActionSlots).map { $0.title }
+    actionIds = actions.map { $0.id }
+    actionTitles = actions.map { $0.title }
+    selectorToActionId.removeAll()
+    registeredSelectors.removeAll()
+
+    for action in actions {
+      let selectorName = "_frAction_\(action.id):"
+      let selector = NSSelectorFromString(selectorName)
+      selectorToActionId[selectorName] = action.id
+      registeredSelectors.insert(selector)
+
+      // Register the method on the class if not already present.
+      if !class_respondsToSelector(type(of: self), selector) {
+        let imp = imp_implementationWithBlock(({ [weak self] (_: Any, _: Any?) in
+          self?.handleAction(selectorName: selectorName)
+        } as @convention(block) (Any, Any?) -> Void))
+        class_addMethod(type(of: self), selector, imp, "v@:@")
+      }
+    }
   }
 
   /// Returns the `EditingAction` instances for the configured actions.
   func editingActions() -> [EditingAction] {
-    let selectors: [Selector] = [
-      #selector(selectionAction0(_:)),
-      #selector(selectionAction1(_:)),
-      #selector(selectionAction2(_:)),
-      #selector(selectionAction3(_:)),
-      #selector(selectionAction4(_:)),
-    ]
-
-    return actionIds.enumerated().compactMap { index, _ in
-      guard index < selectors.count,
-            let title = actionTitle(at: index) else { return nil }
-      return EditingAction(title: title, action: selectors[index])
+    return actionIds.enumerated().compactMap { index, id in
+      guard let title = actionTitle(at: index) else { return nil }
+      let selectorName = "_frAction_\(id):"
+      let selector = NSSelectorFromString(selectorName)
+      return EditingAction(title: title, action: selector)
     }
   }
 
@@ -52,30 +69,16 @@ class EPUBContainerView: UIView {
   // MARK: - Responder chain
 
   override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-    let actionSelectors: [Selector] = [
-      #selector(selectionAction0(_:)),
-      #selector(selectionAction1(_:)),
-      #selector(selectionAction2(_:)),
-      #selector(selectionAction3(_:)),
-      #selector(selectionAction4(_:)),
-    ]
-    if actionSelectors.contains(action) {
-      let index = actionSelectors.firstIndex(of: action)!
-      return index < actionIds.count
+    if registeredSelectors.contains(action) {
+      return true
     }
     return super.canPerformAction(action, withSender: sender)
   }
 
-  // MARK: - Action slot methods
+  // MARK: - Action dispatch
 
-  @objc func selectionAction0(_ sender: Any?) { handleAction(index: 0) }
-  @objc func selectionAction1(_ sender: Any?) { handleAction(index: 1) }
-  @objc func selectionAction2(_ sender: Any?) { handleAction(index: 2) }
-  @objc func selectionAction3(_ sender: Any?) { handleAction(index: 3) }
-  @objc func selectionAction4(_ sender: Any?) { handleAction(index: 4) }
-
-  private func handleAction(index: Int) {
-    guard index < actionIds.count else { return }
-    readerView?.handleSelectionAction(actionId: actionIds[index])
+  private func handleAction(selectorName: String) {
+    guard let actionId = selectorToActionId[selectorName] else { return }
+    readerView?.handleSelectionAction(actionId: actionId)
   }
 }

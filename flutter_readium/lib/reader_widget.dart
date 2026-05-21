@@ -61,7 +61,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Callback invoked when the user interacts with an existing decoration (e.g. taps a highlight).
   final ValueChanged<DecorationInteractionEvent>? onDecorationInteraction;
 
-  /// Native context menu actions shown when text is selected. Maximum 5 on iOS.
+  /// Native context menu actions shown when text is selected.
   final List<SelectionAction> selectionActions;
 
   /// Controls which system-provided actions appear in the text selection menu.
