@@ -9,7 +9,6 @@ PODS:
   - Flutter (1.0.0)
   - flutter_readium (0.0.1):
     - Flutter
-    - PromiseKit (~> 8.1)
     - ReadiumNavigator (~> 3.9.0)
     - ReadiumOPDS (~> 3.9.0)
     - ReadiumShared (~> 3.9.0)
@@ -21,15 +20,6 @@ PODS:
     - Flutter
   - pointer_interceptor_ios (0.0.1):
     - Flutter
-  - PromiseKit (8.2.0):
-    - PromiseKit/CorePromise (= 8.2.0)
-    - PromiseKit/Foundation (= 8.2.0)
-    - PromiseKit/UIKit (= 8.2.0)
-  - PromiseKit/CorePromise (8.2.0)
-  - PromiseKit/Foundation (8.2.0):
-    - PromiseKit/CorePromise
-  - PromiseKit/UIKit (8.2.0):
-    - PromiseKit/CorePromise
   - ReadiumFuzi (4.0.0)
   - ReadiumInternal (3.9.0)
   - ReadiumNavigator (3.9.0):
@@ -63,7 +53,6 @@ DEPENDENCIES:
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
-  - PromiseKit (~> 8.1)
   - ReadiumInternal (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec`)
   - ReadiumNavigator (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec`)
   - ReadiumOPDS (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec`)
@@ -77,7 +66,6 @@ SPEC REPOS:
     - CryptoSwift
     - DifferenceKit
     - Minizip
-    - PromiseKit
     - ReadiumFuzi
     - SwiftSoup
 
@@ -111,12 +99,11 @@ SPEC CHECKSUMS:
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_readium: 1c7e6969af73c4a58e50a8b9e36a9d49791e7822
+  flutter_readium: 8de113dbcb83268e6d978750cc9cb3cb24034732
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
-  PromiseKit: 74e6ab5894856b4762fef547055c809bca91d440
   ReadiumFuzi: 888d023b862f524e314f85925c94768a501f05c0
   ReadiumInternal: 44ae41c0487eb56cd5bbeded3d8a6c86351fa0a0
   ReadiumNavigator: 3bac1f518748845913a9fbcf292cb8204aa460e5
@@ -127,6 +114,6 @@ SPEC CHECKSUMS:
   SwiftSoup: 959c9ac70d7053fbf476341bfac90ab228523f2a
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
-PODFILE CHECKSUM: b8633407b79b8b7b732ab705fb14f3518b75c3bf
+PODFILE CHECKSUM: 894bc4dbb676e55d1a69180023df51e183cd49ec
 
 COCOAPODS: 1.16.2

@@ -16,7 +16,6 @@ A new Flutter plugin project.
   s.source_files     = 'flutter_readium/Sources/flutter_readium/**/*.swift'
   s.resource_bundles = {'flutter_readium_privacy' => ['flutter_readium/Sources/flutter_readium/PrivacyInfo.xcprivacy']}
   s.dependency 'Flutter'
-  s.dependency 'PromiseKit', '~> 8.1'
   s.dependency 'ReadiumShared', '~> 3.9.0'
   s.dependency 'ReadiumStreamer', '~> 3.9.0'
   s.dependency 'ReadiumNavigator', '~> 3.9.0'

@@ -30,7 +30,6 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
-  pod 'PromiseKit', '~> 8.1'
 
   pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec'
   pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec'
