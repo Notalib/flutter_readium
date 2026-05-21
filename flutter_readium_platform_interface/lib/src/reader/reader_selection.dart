@@ -76,3 +76,36 @@ class SelectionAction implements JSONable {
   @override
   Map<String, dynamic> toJson() => {'id': id, 'title': title};
 }
+
+/// System-provided text selection actions that can be shown or hidden.
+///
+/// Pass a set of these to [ReadiumReaderWidget.allowedDefaultActions] to control
+/// which system actions appear alongside your custom [SelectionAction]s.
+///
+/// If `null` is passed (the default), all system defaults are shown.
+/// If an empty set is passed, only your custom actions appear.
+enum DefaultSelectionAction {
+  /// Copy selected text to clipboard.
+  copy,
+
+  /// Share selected text via system share sheet.
+  share,
+
+  /// Look up selected text in dictionary (iOS) or web search (Android).
+  lookup,
+
+  /// Translate selected text (iOS 15+, not available on Android).
+  translate,
+
+  /// Select all content in the current view (Android only).
+  selectAll;
+
+  String get serialized => name;
+
+  static DefaultSelectionAction? fromString(String value) {
+    for (final action in values) {
+      if (action.name == value) return action;
+    }
+    return null;
+  }
+}

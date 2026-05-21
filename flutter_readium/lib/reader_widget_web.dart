@@ -18,6 +18,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.selectionActions,
+    this.allowedDefaultActions,
     super.key,
   });
 
@@ -34,6 +35,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
   final List<SelectionAction>? selectionActions;
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();

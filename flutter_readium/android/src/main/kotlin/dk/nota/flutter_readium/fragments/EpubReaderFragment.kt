@@ -621,16 +621,42 @@ class EpubReaderFragment :
 
             override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
                 if (menu == null) return false
-                val actions = ReadiumReader.selectionActions
-                if (actions.isEmpty()) return false
+                var changed = false
 
-                // Add configured actions to the menu
+                // Remove system items not in allowedDefaultActions (if configured).
+                val allowedDefaults = ReadiumReader.allowedDefaultActions
+                if (allowedDefaults != null) {
+                    val systemItemIds = mapOf(
+                        "copy" to android.R.id.copy,
+                        "share" to android.R.id.shareText,
+                        "selectAll" to android.R.id.selectAll,
+                    )
+                    for ((name, id) in systemItemIds) {
+                        if (!allowedDefaults.contains(name) && menu.findItem(id) != null) {
+                            menu.removeItem(id)
+                            changed = true
+                        }
+                    }
+                    // Also remove cut and paste which aren't in our enum
+                    if (menu.findItem(android.R.id.cut) != null) {
+                        menu.removeItem(android.R.id.cut)
+                        changed = true
+                    }
+                    if (menu.findItem(android.R.id.paste) != null) {
+                        menu.removeItem(android.R.id.paste)
+                        changed = true
+                    }
+                }
+
+                // Add configured custom actions to the menu
+                val actions = ReadiumReader.selectionActions
                 actions.forEachIndexed { index, action ->
                     if (menu.findItem(menuItemIdOffset + index) == null) {
                         menu.add(Menu.NONE, menuItemIdOffset + index, Menu.NONE, action.title)
+                        changed = true
                     }
                 }
-                return true
+                return changed
             }
 
             override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {

@@ -16,6 +16,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Decoration interaction** — `ReadiumReaderWidget.onDecorationInteraction` fires a
   `DecorationInteractionEvent` when the user taps an existing decoration/highlight.
   Supported on iOS and Android.
+- **Allowed default actions** — `ReadiumReaderWidget.allowedDefaultActions` controls which
+  system-provided selection menu items (Copy, Share, Look Up, Translate, Select All) are
+  shown. Pass `null` for all defaults, or a specific `Set<DefaultSelectionAction>` to filter.
+  iOS supports `copy`, `share`, `lookup`, `translate`; Android supports `copy`, `share`,
+  `selectAll`. Unsupported values for a platform are silently ignored.
 
 - **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
   `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via

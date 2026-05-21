@@ -25,6 +25,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.selectionActions = const [],
+    this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
@@ -62,6 +63,16 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Native context menu actions shown when text is selected. Maximum 5 on iOS.
   final List<SelectionAction> selectionActions;
+
+  /// Controls which system-provided actions appear in the text selection menu.
+  ///
+  /// If `null` (the default), all platform defaults are shown (Copy, Share, etc.).
+  /// If an empty set, only custom [selectionActions] are shown.
+  /// Otherwise, only the specified system actions are included.
+  ///
+  /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
+  /// is Android-only. Unsupported values for a platform are silently ignored.
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   /// Accessibility label for the backward navigation semantic region.
   final String goBackwardSemanticLabel;
@@ -263,6 +274,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
+      if (widget.allowedDefaultActions != null)
+        'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
     };
 
     ReadiumLog.d('creationParams=$creationParams');
