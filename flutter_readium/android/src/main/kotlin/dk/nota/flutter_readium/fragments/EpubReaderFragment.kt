@@ -559,7 +559,10 @@ class EpubReaderFragment :
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
-                        selectionActionModeCallback = createSelectionActionModeCallback(),
+                        selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
+                            createSelectionActionModeCallback()
+                        else
+                            null,
                     ),
                 initialLocator = model.locator,
                 listener = this,
@@ -594,18 +597,13 @@ class EpubReaderFragment :
     }
 
     /**
-     * Creates an ActionMode.Callback that:
-     * 1. Fires onTextSelected when the action mode is created (text selected)
-     * 2. Adds plugin-configured custom actions as menu items
-     * 3. Fires onSelectionAction when a custom action is tapped
+     * Creates an ActionMode.Callback that fires onTextSelected and onSelectionAction.
+     * Only registered when selectionActions is non-empty — when null is passed instead,
+     * Readium uses the WebView's default callback which shows system Copy/Share/SelectAll.
      *
-     * Note: providing a custom selectionActionModeCallback to Readium fully replaces
-     * the WebView's default callback, so system items (Copy, Share, Select All) are
-     * not shown. This is an Android platform limitation — do NOT try to re-add system
-     * items manually. Reimplementing platform behaviour (copy-to-clipboard, share sheet,
-     * select-all) is brittle: titles need localisation, DRM-gated copy semantics differ,
-     * and selectAll cannot drive WebView selection from outside. Accept the limitation
-     * and document it instead.
+     * Note: providing a custom selectionActionModeCallback to Readium fully replaces the
+     * WebView's default ActionMode.Callback, so system items are not shown. Do NOT try to
+     * re-add them manually — see CLAUDE.md "Prefer honest limitations over brittle workarounds".
      */
     private fun createSelectionActionModeCallback(): ActionMode.Callback {
         // Menu item IDs start at this offset to avoid collisions with system items.
