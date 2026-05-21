@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
+  `TextSelectionEvent` (locator + selected text) when the user selects text in the reader.
+  Supported on iOS, Android, and Web.
+- **Selection actions** — `ReadiumReaderWidget.selectionActions` configures native context menu
+  items (up to 5 on iOS) shown on text selection. Tapping an action fires
+  `ReadiumReaderWidget.onSelectionAction` with a `SelectionActionEvent`.
+- **Decoration interaction** — `ReadiumReaderWidget.onDecorationInteraction` fires a
+  `DecorationInteractionEvent` when the user taps an existing decoration/highlight.
+  Supported on iOS and Android.
+
 - **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
   `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via
   `PdfiumNavigatorFragment` from kotlin-toolkit). PDF is not supported on Web.
