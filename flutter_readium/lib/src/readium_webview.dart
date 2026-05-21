@@ -10,10 +10,20 @@ import 'flutter_readium_web.dart';
 import 'js_publication_channel.dart';
 
 class ReadiumWebView extends StatefulWidget {
-  const ReadiumWebView({super.key, required this.publication, this.currentLocator});
+  const ReadiumWebView({
+    super.key,
+    required this.publication,
+    this.currentLocator,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+  });
 
   final Publication publication;
   final Locator? currentLocator;
+  final void Function(TextSelectionEvent)? onTextSelected;
+  final void Function(SelectionActionEvent)? onSelectionAction;
+  final void Function(DecorationInteractionEvent)? onDecorationInteraction;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -51,9 +61,33 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     }
   }
 
+  @js_interop.JSExport()
+  void onTextSelectedHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = TextSelectionEvent.fromJson(json);
+    widget.onTextSelected?.call(event);
+  }
+
+  @js_interop.JSExport()
+  void onSelectionActionHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = SelectionActionEvent.fromJson(json);
+    widget.onSelectionAction?.call(event);
+  }
+
+  @js_interop.JSExport()
+  void onDecorationInteractionHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = DecorationInteractionEvent.fromJson(json);
+    widget.onDecorationInteraction?.call(event);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
+    onTextSelectedCallback = onTextSelectedHandler.toJS;
+    onSelectionActionCallback = onSelectionActionHandler.toJS;
+    onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {

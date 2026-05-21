@@ -14,6 +14,10 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.verticalScroll = false,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+    this.selectionActions,
     super.key,
   });
 
@@ -26,6 +30,10 @@ class ReadiumReaderWidget extends StatefulWidget {
   final String goForwardSemanticLabel;
   final String toggleShowControlsSemanticLabel;
   final bool verticalScroll;
+  final void Function(TextSelectionEvent)? onTextSelected;
+  final void Function(SelectionActionEvent)? onSelectionAction;
+  final void Function(DecorationInteractionEvent)? onDecorationInteraction;
+  final List<SelectionAction>? selectionActions;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
@@ -50,7 +58,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     return SizedBox.expand(
-      child: ReadiumWebView(publication: widget.publication, currentLocator: widget.initialLocator),
+      child: ReadiumWebView(
+        publication: widget.publication,
+        currentLocator: widget.initialLocator,
+        onTextSelected: widget.onTextSelected,
+        onSelectionAction: widget.onSelectionAction,
+        onDecorationInteraction: widget.onDecorationInteraction,
+      ),
     );
   }
 

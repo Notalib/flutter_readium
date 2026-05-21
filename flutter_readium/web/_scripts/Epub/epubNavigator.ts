@@ -16,7 +16,6 @@ import {
   defaults,
   initializeEpubPreferencesFromString,
 } from "./epubPreferences";
-import { highlightSelection } from "../helpers";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
 
@@ -133,7 +132,17 @@ export async function initializeEpubNavigatorAndPeripherals(
       return false;
     },
     textSelected: function (_selection: BasicTextSelection): void {
-      highlightSelection(nav, publication, _selection);
+      // Notify Dart about the text selection
+      const currentLocator = nav.currentLocator;
+      const locatorJson = {
+        href: currentLocator.href,
+        type: currentLocator.type,
+        locations: currentLocator.locations,
+        text: { highlight: _selection.text },
+      };
+      (window as any).onTextSelectedCallback?.(
+        JSON.stringify({ locator: locatorJson, selectedText: _selection.text })
+      );
     },
   };
 
