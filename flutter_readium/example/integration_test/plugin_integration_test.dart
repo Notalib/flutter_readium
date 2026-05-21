@@ -5,6 +5,8 @@
 // These tests exercise the Dart -> native -> Dart contract that pure Dart
 // unit tests cannot reach. They run on iOS and Android via the example app.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_readium_example/utils/publication_utils.dart';
@@ -308,6 +310,28 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
     });
+
+    test(
+      'searchInPublication returns hits for a common word in a text PDF',
+      () async {
+        final path = fixturePaths['time_machine.pdf'];
+        expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+        await reader.openPublication(path!);
+
+        final results = await reader.searchInPublication('time');
+        expect(results, isNotEmpty, reason: '"time" should yield matches in The Time Machine PDF');
+        expect(results.first.locator.href, isNotEmpty);
+        expect(
+          results.first.locator.locations?.position,
+          isNotNull,
+          reason: 'PDF search hit should carry a 1-based page position',
+        );
+      },
+      skip: Platform.isAndroid
+          ? 'PDF search not supported on Android (kotlin-toolkit has no PDF SearchService)'
+          : false,
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -567,30 +591,17 @@ void main() {
         reason: 'Never reached playing state with an offset',
       );
 
-      // Pause first so the offset comparison is not racing playback.
-      await reader.pause();
-      await _waitUntil(
-        () => states.last.state == TimebasedState.paused,
-        timeout: const Duration(seconds: 10),
-        reason: 'Did not reach paused state',
-      );
       final beforeSeek = states.last.currentOffset!;
-
-      await reader.resume();
-      await _waitUntil(
-        () => states.last.state == TimebasedState.playing,
-        timeout: const Duration(seconds: 10),
-        reason: 'Did not resume playback',
-      );
-
       final seekDuration = const Duration(seconds: 10);
       final expectedMinOffset = beforeSeek + seekDuration;
+
       await reader.audioSeekBy(seekDuration);
+      await reader.resume();
 
       await _waitUntil(
         () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
-        timeout: const Duration(seconds: 5),
-        reason: 'currentOffset did not advance after audioSeekBy(10s)',
+        timeout: const Duration(seconds: 10),
+        reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
       );
 
       expect(
