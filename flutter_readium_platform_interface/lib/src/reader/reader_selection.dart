@@ -84,6 +84,11 @@ class SelectionAction implements JSONable {
 ///
 /// If `null` is passed (the default), all system defaults are shown.
 /// If an empty set is passed, only your custom actions appear.
+///
+/// **Android limitation:** providing custom [SelectionAction]s replaces the
+/// WebView's default `ActionMode.Callback` entirely, so system items (Copy,
+/// Share, Select All) are not shown regardless of this setting.
+/// `allowedDefaultActions` has no effect on Android.
 enum DefaultSelectionAction {
   /// Copy selected text to clipboard.
   copy,
@@ -91,16 +96,18 @@ enum DefaultSelectionAction {
   /// Share selected text via system share sheet.
   share,
 
-  /// Look up selected text in dictionary (iOS) or web search (Android).
+  /// Look up selected text in dictionary.
   ///
   /// On iOS 16+, enabling this also shows a "Search Web" button — both items
   /// are bundled in the same system menu group and cannot be separated.
+  ///
+  /// Not available on Android.
   lookup,
 
-  /// Translate selected text (iOS 15+, not available on Android).
+  /// Translate selected text. iOS 15+ only, not available on Android.
   translate,
 
-  /// Select all content in the current view (Android only).
+  /// Select all content in the current view. Android only, no effect on iOS.
   selectAll;
 
   String get serialized => name;

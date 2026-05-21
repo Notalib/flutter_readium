@@ -116,11 +116,6 @@ class ReadiumReaderWidget(
         val initialPreferences =
             initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
 
-        // Parse allowedDefaultActions from creation params (null = show all, empty = hide all system actions).
-        @Suppress("UNCHECKED_CAST")
-        val allowedDefaultActionsParam = creationParams["allowedDefaultActions"] as? List<String>
-        ReadiumReader.allowedDefaultActions = allowedDefaultActionsParam?.toSet()
-
         PluginLog.d(TAG, "publication = $publication")
 
         layout = LinearLayout(context, attrs)
