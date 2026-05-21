@@ -4,7 +4,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
-- **swift-toolkit 3.9.0** on iOS (and macOS, planned)
+- **swift-toolkit 3.9.0** on iOS
 - **kotlin-toolkit 3.2.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
@@ -38,23 +38,23 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 ## Platform support
 
-| Feature                  | Android | iOS | macOS     | Web        |
-| ------------------------ | :-----: | :-: | :-------: | :--------: |
-| EPUB visual reading      |    ✓    |  ✓  |  Planned  |     ✓      |
-| PDF reading              |    ✓    |  ✓  |     —     |     —      |
-| Audiobook playback       |    ✓    |  ✓  |  Planned  |     ✓      |
-| Media Overlays           |    ✓    |  ✓  |  Planned  |     —      |
-| Text-to-Speech           |    ✓    |  ✓  |  Planned  | Limited¹   |
-| Highlights / decorations |    ✓    |  ✓  |  Planned  |     ✓      |
-| Reader preferences       |    ✓    |  ✓  |  Planned  |     ✓      |
-| PDF preferences          |    ✓    |  ✓  |     —     |     —      |
-| Progress saving          |    ✓    |  ✓  |  Planned  |     ✓      |
-| Content search           |    ✓    |  ✓  |  Planned  |     —      |
-| Background audio         |    ✓    |  ✓  |  Planned  |     —      |
+| Feature                  | Android | iOS | Web        |
+| ------------------------ | :-----: | :-: | :--------: |
+| EPUB visual reading      |    ✓    |  ✓  |     ✓      |
+| PDF reading              |    ✓    |  ✓  |     —      |
+| Audiobook playback       |    ✓    |  ✓  |     ✓      |
+| Media Overlays           |    ✓    |  ✓  |     —      |
+| Text-to-Speech           |    ✓    |  ✓  | Limited¹   |
+| Highlights / decorations |    ✓    |  ✓  |     ✓      |
+| Reader preferences       |    ✓    |  ✓  |     ✓      |
+| PDF preferences          |    ✓    |  ✓  |     —      |
+| Progress saving          |    ✓    |  ✓  |     ✓      |
+| Content search           |    ✓    |  ✓  |     —      |
+| Background audio         |    ✓    |  ✓  |     —      |
 
 ¹ Web TTS uses the browser's Web Speech API — voice availability and quality vary by browser.
 
-See the [macOS setup section](#macos) below for the current platform status.
+> **macOS note:** A no-op stub is registered so that Flutter apps targeting macOS still compile and launch. No reader functionality is available and macOS support is not planned (the upstream `swift-toolkit` is iOS-only).
 
 ## Minimum requirements
 
@@ -64,7 +64,6 @@ See the [macOS setup section](#macos) below for the current platform status.
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
-| macOS       | 10.15+ (planned)       |
 
 ## Getting started
 
@@ -124,10 +123,6 @@ target 'Runner' do
   # ...
 end
 ```
-
-### macOS
-
-macOS is planned but not yet implemented. The plugin registers on macOS but reader functionality is unavailable.
 
 ### Web
 

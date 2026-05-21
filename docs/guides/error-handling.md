@@ -77,7 +77,7 @@ Fimber.plantTree(DebugTree());
 On the native side, logs go to the platform's standard log stream. Filter for the tag `flutter_readium`:
 
 - **Android**: `adb logcat | grep flutter_readium` (or the Logcat filter in Android Studio).
-- **iOS / macOS**: the Xcode console, or `xcrun simctl spawn booted log stream --predicate 'subsystem CONTAINS "flutter_readium"'`.
+- **iOS**: the Xcode console, or `xcrun simctl spawn booted log stream --predicate 'subsystem CONTAINS "flutter_readium"'`.
 
 The native log level follows the Dart `setLogLevel` setting.
 
