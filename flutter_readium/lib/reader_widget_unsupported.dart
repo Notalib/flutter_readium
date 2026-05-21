@@ -12,6 +12,7 @@ class ReadiumReaderWidget extends StatelessWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.selectionActions = const [],
+    this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
@@ -28,6 +29,7 @@ class ReadiumReaderWidget extends StatelessWidget {
   final ValueChanged<SelectionActionEvent>? onSelectionAction;
   final ValueChanged<DecorationInteractionEvent>? onDecorationInteraction;
   final List<SelectionAction> selectionActions;
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
   final String goBackwardSemanticLabel;
   final String goForwardSemanticLabel;
   final String toggleShowControlsSemanticLabel;

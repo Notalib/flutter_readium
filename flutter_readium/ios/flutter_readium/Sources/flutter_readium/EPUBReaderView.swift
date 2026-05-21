@@ -91,15 +91,38 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
     // Configure selection actions from Flutter creation params.
     let selectionActionsParam = creationParams["selectionActions"] as? [[String: Any]] ?? []
+    let allowedDefaultActionsParam = creationParams["allowedDefaultActions"] as? [String]
     let containerView = EPUBContainerView()
+
+    // Build the editing actions list.
+    var editingActions: [EditingAction]
+    if let allowedDefaults = allowedDefaultActionsParam {
+      // Only include explicitly allowed default actions.
+      editingActions = []
+      for name in allowedDefaults {
+        switch name {
+        case "copy": editingActions.append(.copy)
+        case "share": editingActions.append(.share)
+        case "lookup": editingActions.append(.lookup)
+        case "translate": editingActions.append(.translate)
+        default: break
+        }
+      }
+    } else {
+      // null means show all defaults.
+      editingActions = EditingAction.defaultActions
+    }
+
     if !selectionActionsParam.isEmpty {
       let actions = selectionActionsParam.compactMap { dict -> (id: String, title: String)? in
         guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
         return (id: id, title: title)
       }
       containerView.configureActions(actions)
-      config.editingActions = EditingAction.defaultActions + containerView.editingActions()
+      editingActions += containerView.editingActions()
     }
+
+    config.editingActions = editingActions
 
     if let readiumPreferences = self.preferences?.readium {
       config.preferences = readiumPreferences
