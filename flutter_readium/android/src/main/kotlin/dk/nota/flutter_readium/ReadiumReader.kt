@@ -414,6 +414,9 @@ object ReadiumReader :
             readerViewRef = value?.let { WeakReference(it) }
         }
 
+    /** Selection actions configured from Dart. Used by EpubReaderFragment to build ActionMode menu. */
+    var selectionActions: List<SelectionActionConfig> = emptyList()
+
     private val context: Context
         get() = application.applicationContext
 
