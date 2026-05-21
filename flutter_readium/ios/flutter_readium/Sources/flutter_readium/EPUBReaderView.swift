@@ -31,7 +31,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
   init(
@@ -120,7 +120,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       ]
     )
 
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -471,7 +471,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
-      FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break
