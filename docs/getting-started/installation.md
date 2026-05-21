@@ -96,14 +96,9 @@ Add to `Info.plist` to keep audio playing when the app is backgrounded:
 </array>
 ```
 
-## 4. macOS setup
+## 4. macOS
 
-Same pod lines as iOS, added to `macos/Podfile`. Also enable outbound networking in `macos/Runner/DebugProfile.entitlements` and `Release.entitlements`:
-
-```xml
-<key>com.apple.security.network.client</key>
-<true/>
-```
+macOS is **not supported and not planned**. The plugin registers on macOS as a stub (all calls return `MethodNotImplemented`). No setup is required or useful.
 
 ## 5. Web setup
 
