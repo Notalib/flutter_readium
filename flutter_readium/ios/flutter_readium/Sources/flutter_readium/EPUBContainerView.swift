@@ -39,13 +39,15 @@ class EPUBContainerView: UIView {
       selectorToActionId[selectorName] = action.id
       registeredSelectors.insert(selector)
 
-      // Register the method on the class if not already present.
-      if !class_respondsToSelector(type(of: self), selector) {
-        let imp = imp_implementationWithBlock(({ [weak self] (_: Any, _: Any?) in
-          self?.handleAction(selectorName: selectorName)
-        } as @convention(block) (Any, Any?) -> Void))
-        class_addMethod(type(of: self), selector, imp, "v@:@")
-      }
+      // Use class_replaceMethod so the IMP is always fresh for this instance.
+      // The first block argument is the ObjC message receiver — the actual
+      // EPUBContainerView that received the action — not a captured reference.
+      // This is critical: if we captured [weak self] instead, the IMP would
+      // silently no-op when a second publication is opened (new instance, old IMP).
+      let imp = imp_implementationWithBlock(({ (receiver: AnyObject, _: Any?) in
+        (receiver as? EPUBContainerView)?.handleAction(selectorName: selectorName)
+      } as @convention(block) (AnyObject, Any?) -> Void))
+      class_replaceMethod(type(of: self), selector, imp, "v@:@")
     }
   }
 
