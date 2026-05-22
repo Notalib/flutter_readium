@@ -36,20 +36,23 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   public override func initNavigator() async -> Void {
     Log.navigator.info("Initializing MediaOverlayNavigator")
     
-    let narrationLinks = publication.narrationLinks
-    let mediaOverlays = await publication.getMediaOverlays()
+    let mediaOverlays = await publication.getSyncNarrationMediaOverlays()
+    
+    guard let mediaOverlays = mediaOverlays else {
+      Log.navigator.error("Failed to get mediaOverlays for sync-narration book." +
+                          "isGuided? \(self.publication.containsGuidedNavigationMediaOverlays)")
+      return
+    }
     
     let audioReadingOrder = mediaOverlays.enumerated().map { (idx, narr) in
-      narrationLinks.getOrNil(idx).map {
-        let item = narr.items.first!
+      let item = narr.items.first!
 
-        return Link(
-          href: item.audioFile,
-          mediaType: item.audioMediaType,
-          title: $0.title,
-          duration: narr.items.reduce(0, { $0 + ($1.audioDuration ?? 0) })
-        )
-      }
+      return Link(
+        href: item.audioFile,
+        mediaType: item.audioMediaType,
+        title: item.tocTitle,
+        duration: narr.items.reduce(0, { $0 + ($1.audioDuration ?? 0) })
+      )
     }.filter({ $0 != nil }) as! [Link]
     
     // Copy the manifest and set its readingOrder to audioReadingOrder.

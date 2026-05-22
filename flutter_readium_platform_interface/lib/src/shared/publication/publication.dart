@@ -28,21 +28,38 @@ class Publication with EquatableMixin implements JSONable {
     this.subCollections = const {},
   });
 
+  /// JSON-LD context URIs declaring the vocabulary used by this manifest.
   final List<String> context;
+
+  /// Bibliographic and descriptive metadata (title, author, language, etc.).
   final Metadata metadata;
+
+  /// Publication-level links (e.g. `self`, `alternate`, cover, guided navigation document).
   final List<Link> links;
+
+  /// Ordered list of content documents that make up the reading experience.
   final List<Link> readingOrder;
+
+  /// Resources referenced by the publication but not part of the reading order
+  /// (images, audio files, stylesheets, etc.).
   final List<Link> resources;
+
+  /// Hierarchical table of contents. Use [tocFlattened] for a flat list.
   final List<Link> tableOfContents;
+
+  /// Named sub-collections beyond the standard manifest fields (e.g. page-list, landmarks).
   final Map<String, List<PublicationCollection>> subCollections;
 
+  /// Alias for [tableOfContents].
   List<Link> get toc => tableOfContents;
 
   /// Returns a flattened version of the table of contents, where all children links are recursively.
   List<Link> get tocFlattened => tableOfContents.flatten();
 
+  /// The publication's unique identifier, or `'unidentified'` if none is set.
   String get identifier => metadata.identifier ?? 'unidentified';
 
+  /// Returns a copy of this publication with the given fields replaced.
   Publication copyWith({
     List<String>? context,
     Metadata? metadata,
@@ -145,6 +162,10 @@ class Publication with EquatableMixin implements JSONable {
     );
   }
 
+  /// Creates a [Locator] pointing at the given [link].
+  ///
+  /// Resolves the resource type from the manifest when possible, falling back
+  /// to [typeOverride]. Returns `null` if no type can be determined.
   Locator? locatorFromLink(final Link link, {final MediaType? typeOverride}) {
     final (href, fragments) = link.href.splitPathAndFragment();
     final resourceLink = linkWithHref(href);
@@ -193,20 +214,40 @@ class Publication with EquatableMixin implements JSONable {
     return split == -1 ? null : find(href.substring(0, split));
   }
 
+  /// The cover [Link], found by `rel=cover` or by href/type heuristics. `null` if not present.
   Link? get coverLink => resources.firstWhereOrNull(
     (final r) =>
         (r.rels.contains('cover')) ||
         (r.href.contains('cover') && r.type == MediaType.jpeg.type || r.type == MediaType.png.type),
   );
 
+  /// The parsed URI of the cover resource, or `null` if no cover link is present.
   Uri? get coverUri => coverLink != null ? Uri.tryParse(coverLink!.href) : null;
 
+  /// Whether the publication declares conformance to the Readium Audiobook profile.
   bool get conformsToReadiumAudiobook =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/audiobook') == true;
 
+  /// Whether the publication declares conformance to the Readium EPUB profile.
   bool get conformsToReadiumEbook =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
 
+  /// Whether any reading-order item carries a syncnarr (`application/vnd.syncnarr+json`) alternate,
+  /// indicating per-item media overlays.
   bool get containsMediaOverlays =>
+      conformsToReadiumEbook &&
       readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
+
+  /// Whether the publication has a guided navigation document (`application/guided-navigation+json`),
+  /// either as a publication-level link or as per-item alternates in the reading order.
+  bool get containsGuidedNavigation =>
+      conformsToReadiumEbook &&
+      (links.any((link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type)) ||
+          readingOrder.any(
+            (link) => link.alternates.any((alt) => MediaType.syncMediaNarrationManifest.matchesFromName(alt.type)),
+          ));
+
+  /// Whether this publication should be treated as an audiobook — true for the Readium Audiobook
+  /// profile and for any EPUB/WebPub that carries audio-text sync data (media overlays or guided navigation).
+  bool get isAudioBook => conformsToReadiumAudiobook || containsMediaOverlays || containsGuidedNavigation;
 }

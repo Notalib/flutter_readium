@@ -4,6 +4,10 @@ package dk.nota.flutter_readium
 
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
+import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
+import dk.nota.flutter_readium.models.GuidedNavigationDocument
+import dk.nota.flutter_readium.models.guidedNavigationMediaType
+import dk.nota.flutter_readium.models.toMediaOverlays
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -163,17 +167,68 @@ fun Publication.hasMediaOverlays() =
     }
 
 /**
+ * Check if the publication has any guided navigation data for audio-text synchronization.
+ */
+fun Publication.hasGuidedNavigationMediaOverlays() =
+    links.any { it.mediaType == guidedNavigationMediaType } ||
+        readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
+
+/**
+ * Check if the publication has any audio-text synchronization data,
+ * either as syncnarr media overlays or as guided navigation.
+ */
+fun Publication.hasSyncNarration() = hasMediaOverlays() || hasGuidedNavigationMediaOverlays()
+
+private val mediaOverlayFetchConcurrency =
+    BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
+        Log.w(
+            TAG,
+            "::getGuidedNavigationMediaOverlays - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
+                "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
+        )
+        1
+    }
+
+/**
+ * Enriches a list of [FlutterMediaOverlay] with title and [FlutterMediaOverlayItem.tocHref] from
+ * the publication's table of contents. Uses a sliding-window approach: items that don't match a
+ * ToC entry directly inherit the last matched entry when they share the same text file.
+ * Null overlay slots are passed through unchanged.
+ */
+private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+    val toc = tableOfContents.flattenChildren().map { it.href.toString() to it }
+    var lastTocMatch: Pair<String, Link>? = null
+
+    fun FlutterMediaOverlayItem.enrich(): FlutterMediaOverlayItem {
+        val match = toc.find { it.first == text }
+        return when {
+            match != null -> {
+                lastTocMatch = match
+                copy(title = match.second.title ?: "", tocHref = match.second.href.resolve())
+            }
+
+            lastTocMatch != null && lastTocMatch!!.first.substringBefore("#") == textFile -> {
+                copy(
+                    title = lastTocMatch!!.second.title ?: "",
+                    tocHref = lastTocMatch!!.second.href.resolve()
+                )
+            }
+
+            else -> {
+                this
+            }
+        }
+    }
+
+    return overlays.map { overlay -> overlay?.let { ov -> FlutterMediaOverlay(ov.items.map { it.enrich() }) } }
+}
+
+/**
  * Get the media overlays for the publication, if any.
  * Note: If an item in the reading order does not have a media overlay, it will be represented by null
  */
 suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
-
-    // Flatten TOC for title lookup
-    val toc = tableOfContents.flattenChildren().map { Pair(it.href.toString(), it) }
-
-    // Remember last matched TOC item for titles
-    var lastTocMatch: Pair<String, Link>? = null
 
     val overlayLinks =
         this.readingOrder.mapNotNull { r ->
@@ -186,16 +241,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     // dozens of sockets to the origin at once.
     val parsed: List<FlutterMediaOverlay?> =
         coroutineScope {
-            val fetchConcurrency =
-                BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
-                    PluginLog.w(
-                        TAG,
-                        "::getMediaOverlays() - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
-                            "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
-                    )
-                    1
-                }
-            val gate = Semaphore(permits = fetchConcurrency)
+            val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
             overlayLinks
                 .mapIndexed { index, link ->
                     async(Dispatchers.IO) {
@@ -230,37 +276,95 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    // TOC-matching pass stays sequential — it walks shared mutable state
-    // (`lastTocMatch`) in reading order. It's pure CPU and not the bottleneck.
-    return parsed.map { mo ->
-        if (mo == null) return@map null
+    return enrichOverlaysWithToc(parsed)
+}
 
-        val items =
-            mo.items.map { item ->
-                // Find best matching title from TOC
-                val match =
-                    toc.find { tocItem ->
-                        tocItem.first == item.text
-                    }
+/**
+ * Get the guided navigation media overlays for the publication, if any.
+ *
+ * Tries a single guided navigation document from [Publication.links] first (preferred, fewer
+ * requests), then falls back to per-item alternates in [Publication.readingOrder].
+ *
+ * Returns null if the publication contains no guided navigation.
+ */
+suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOverlay>? {
+    if (!hasGuidedNavigationMediaOverlays()) return null
 
-                if (match?.second != null) {
-                    lastTocMatch = match
-                    item.copy(
-                        title = match.second.title ?: "",
-                        tocHref = match.second.href.resolve(),
-                    )
-                } else if (lastTocMatch?.second != null && lastTocMatch.first.substringBefore("#") == item.textFile) {
-                    item.copy(
-                        title = lastTocMatch.second.title ?: "",
-                        tocHref = lastTocMatch.second.href.resolve(),
-                    )
-                } else {
-                    item
-                }
+    // Strategy 1: single guided navigation document in publication links (preferred).
+    val singleDocLink = links.find { it.mediaType == guidedNavigationMediaType }
+    if (singleDocLink != null) {
+        val jsonString =
+            get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
+                Log.i(
+                    TAG,
+                    "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}"
+                )
+                return null
+            }
+        val document =
+            GuidedNavigationDocument.fromJSON(jsonString) ?: run {
+                Log.i(
+                    TAG,
+                    "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}"
+                )
+                return null
             }
 
-        return@map FlutterMediaOverlay(items)
+        val rawOverlays =
+            document.toMediaOverlays().mapNotNull { overlay ->
+                val textFile = overlay.items.firstOrNull()?.textFile ?: return@mapNotNull null
+                val roEntry =
+                    readingOrder.withIndex().firstOrNull { (_, link) ->
+                        Url.invoke(textFile)?.let { link.href.resolve().isEquivalent(it) } == true
+                    }
+                val position = (roEntry?.index ?: -1) + 1
+                val duration = roEntry?.value?.duration ?: 0.0
+                FlutterMediaOverlay(
+                    overlay.items.map { item ->
+                        item.copy(position = position, readingOrderItemDuration = duration)
+                    },
+                )
+            }
+        return enrichOverlaysWithToc(rawOverlays).filterNotNull()
     }
+
+    // Strategy 2: per-item alternates in reading order.
+    val hasGuidedNav =
+        readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
+    if (!hasGuidedNav) return null
+
+    val parsed: List<List<FlutterMediaOverlay>?> =
+        coroutineScope {
+            val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
+            readingOrder
+                .mapIndexed { index, roLink ->
+                    async(Dispatchers.IO) {
+                        val guidedLink =
+                            roLink.alternates.find { it.mediaType == guidedNavigationMediaType }
+                                ?: return@async null
+                        gate.withPermit {
+                            val jsonString =
+                                get(guidedLink)?.read()?.getOrNull()?.let { String(it) }
+                                    ?: run {
+                                        Log.i(
+                                            TAG,
+                                            "::getGuidedNavigationMediaOverlays - unable to load ${guidedLink.href}",
+                                        )
+                                        return@withPermit null
+                                    }
+                            val document =
+                                GuidedNavigationDocument.fromJSON(jsonString)
+                                    ?: return@withPermit null
+                            document.toMediaOverlays(
+                                position = index + 1,
+                                readiumOrderItemDuration = roLink.duration ?: 0.0,
+                            )
+                        }
+                    }
+                }.awaitAll()
+        }
+
+    return enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() }).filterNotNull()
 }
 
 /**
@@ -268,14 +372,21 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
  * This is used for the Sync Audiobook navigator.
  * Returns the new Publication and the list of media overlays, if any.
  * If there are no media overlays, returns the original publication and null.
+ * Guided navigation is preferred over syncnarr media overlays when both are present.
  */
 @OptIn(InternalReadiumApi::class)
 suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMediaOverlay?>?> {
-    if (!hasMediaOverlays()) {
+    if (!hasSyncNarration()) {
         return Pair(this, null)
     }
 
-    val mediaOverlays = getMediaOverlays() ?: return Pair(this, null)
+    val mediaOverlays: List<FlutterMediaOverlay?>? =
+        if (hasGuidedNavigationMediaOverlays()) {
+            getGuidedNavigationMediaOverlays()
+        } else {
+            getMediaOverlays()
+        }
+    if (mediaOverlays == null) return Pair(this, null)
 
     val manifest =
         Manifest(
@@ -355,23 +466,27 @@ fun Locator.Locations.timeWithDuration(duration: Duration?): Duration? =
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Int?): Duration? = timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Int?): Duration? =
+    timeWithDuration(duration?.seconds)
 
 /**
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Double?): Duration? = timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Double?): Duration? =
+    timeWithDuration(duration?.seconds)
 
 /**
  * Find a link in the reading order from its href.
  */
-fun Publication.findReadingOrderLink(href: Url): Link? = readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
+fun Publication.findReadingOrderLink(href: Url): Link? =
+    readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
 
 /**
  * Get the duration for an item in the reading order.
  */
-fun Publication.getReadingOrderItemDuration(href: Url): Duration? = findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
+fun Publication.getReadingOrderItemDuration(href: Url): Duration? =
+    findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
 
 /**
  * Helper for getting all cssSelectors for a HTML document.
