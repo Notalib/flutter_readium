@@ -54,7 +54,7 @@ See the [macOS setup section](#macos) below for the current platform status.
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.3.0+                 |
+| Flutter     | 3.32.0+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
