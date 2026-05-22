@@ -1,9 +1,9 @@
 import 'dart:convert' show JsonCodec;
 
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 
 import '../../../utils/jsonable.dart';
+import '../../../utils/readium_log.dart';
 import '../index.dart';
 
 /// Represents a single text search result within a publication.
@@ -31,23 +31,23 @@ class TextSearchResult with EquatableMixin implements JSONable {
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return TextSearchResult.fromJson(json);
     } on Exception catch (ex, st) {
-      _logger.e('fromJsonString: Failed to decode TextSearchResult: $jsonString', ex: ex, stacktrace: st);
+      ReadiumLog.e('fromJsonString: Failed to decode TextSearchResult: $jsonString', stackTrace: st);
     }
     return null;
   }
 
   static TextSearchResult? fromJsonDynamic(dynamic json) {
-    if (json is String) {
+    if (json == null) {
+      return null;
+    } else if (json is String) {
       return fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
       return TextSearchResult.fromJson(json);
     }
 
-    _logger.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e('TextSearchResult.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
-
-  static final FimberLog _logger = FimberLog('TextSearchResult');
 
   final Locator locator;
   final String? chapterTitle;

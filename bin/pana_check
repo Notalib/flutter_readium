@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# Runs `pana` against both publishable packages and prints the score.
+# Mirrors what the CI quality workflow does, so devs can check the score
+# locally before pushing.
+#
+# Usage:
+#   bin/pana_check                 # run pana on both packages
+#   bin/pana_check flutter_readium # run pana on one package only
+#
+# Options:
+#   --no-warning   passed through to pana (matches CI)
+
+set -e
+
+PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+PACKAGES=(
+  "flutter_readium_platform_interface"
+  "flutter_readium"
+)
+
+PANA_ARGS=()
+TARGETS=()
+for arg in "$@"; do
+  case "$arg" in
+    --*) PANA_ARGS+=("$arg") ;;
+    *)   TARGETS+=("$arg") ;;
+  esac
+done
+
+if [ ${#TARGETS[@]} -gt 0 ]; then
+  PACKAGES=("${TARGETS[@]}")
+fi
+
+if ! dart pub global list 2>/dev/null | grep -q '^pana '; then
+  echo -e "\033[33;1mpana not installed — activating globally...\033[0m"
+  dart pub global activate pana
+fi
+
+for pkg in "${PACKAGES[@]}"; do
+  if [ ! -d "$PROJECT_ROOT/$pkg" ]; then
+    echo -e "\033[31;1mUnknown package: $pkg\033[0m"
+    exit 1
+  fi
+
+  echo -e "\033[35;1m=== pana $pkg ===\033[0m"
+  (cd "$PROJECT_ROOT/$pkg" && dart pub global run pana "${PANA_ARGS[@]}" .)
+done

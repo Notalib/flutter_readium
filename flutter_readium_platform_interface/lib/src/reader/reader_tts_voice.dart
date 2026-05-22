@@ -1,12 +1,10 @@
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../enums.dart';
 import '../utils/jsonable.dart';
+import '../utils/readium_log.dart';
 import 'index.dart';
-
-FimberLog _logger = FimberLog('ReaderTTSVoice');
 
 @immutable
 class ReaderTTSVoice with EquatableMixin implements JSONable {
@@ -54,11 +52,11 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
       try {
         quality = TTSVoiceQuality.optFromString(qualityStr);
         if (quality == null) {
-          _logger.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
+          ReadiumLog.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
         }
         // ignore: avoid_catches_without_on_clauses
       } catch (e) {
-        _logger.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.', ex: e);
+        ReadiumLog.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
         quality = null;
       }
     }

@@ -1,0 +1,21 @@
+# TypeScript source — only the compiled JS output (assets/helpers/) is needed
+web/
+
+# TypeScript helper scripts source and toolchain (including node_modules)
+assets/_helper_scripts/
+
+# Large binary publication files used only by the example smoke-test
+example/assets/pubs/
+
+# Development and CI configuration
+.github/
+.vscode/
+.dart_tool/
+build/
+docs/
+
+# Root-level development files
+CONTRIBUTING.md
+PLAN.md
+package.json
+package-lock.json

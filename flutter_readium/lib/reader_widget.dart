@@ -28,18 +28,33 @@ class ReadiumReaderWidget extends StatefulWidget {
     super.key,
   });
 
+  /// The publication to display, obtained from [FlutterReadium.openPublication].
   final Publication publication;
 
   /// Optional widget to show while the reader is loading, e.g. a spinner.
   /// It will be shown until the reader sends its first onPageChanged event.
   /// It should typically be a full-screen widget, since it will be stacked on top of the reader widget.
   final Widget? loadingWidget;
+
+  /// Optional locator to restore a previously saved reading position. `null` starts from the beginning.
   final Locator? initialLocator;
+
+  /// Notifier that tells client whether it should show controls, based on user-interaction with the native viewer.
   final ValueNotifier<bool>? shouldShowControls;
+
+  /// Callback invoked when the reader activates an external (non-publication) link.
   final Function(String)? onExternalLinkActivated;
+
+  /// Accessibility label for the backward navigation semantic region.
   final String goBackwardSemanticLabel;
+
+  /// Accessibility label for the forward navigation semantic region.
   final String goForwardSemanticLabel;
+
+  /// Accessibility label for the controls toggle semantic region.
   final String toggleShowControlsSemanticLabel;
+
+  /// Whether the reader should use continuous vertical scroll (`true`) or paginated mode (`false`).
   final bool verticalScroll;
 
   @override
@@ -72,7 +87,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   void initState() {
     super.initState();
-    R2Log.d('ReadiumReaderWidget init');
+    ReadiumLog.d('ReadiumReaderWidget init');
 
     _readerWidget = _buildNativeReader();
     _enableWakelock();
@@ -81,7 +96,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   void dispose() {
-    R2Log.d('ReadiumReaderWidget dispose');
+    ReadiumLog.d('ReadiumReaderWidget dispose');
     _cleanup();
     _channel?.dispose();
     _channel = null;
@@ -175,11 +190,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
-    R2Log.d(() => 'Go to $locator');
+    ReadiumLog.d(() => 'Go to $locator');
 
     await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
 
-    R2Log.d('Go to locator completed');
+    ReadiumLog.d('Go to locator completed');
   }
 
   @override
@@ -194,6 +209,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
+  Future<void> setPDFPreferences(PDFPreferences preferences) async {
+    _channel?.setPDFPreferences(preferences);
+  }
+
+  @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
     await _channel?.applyDecorations(id, decorations);
   }
@@ -201,7 +221,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Widget _buildNativeReader() {
     final publication = widget.publication;
 
-    R2Log.d(publication.identifier);
+    ReadiumLog.d(publication.identifier);
 
     final defaultPreferences = _defaultPreferences?.toJson();
 
@@ -211,7 +231,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
     };
 
-    R2Log.d('creationParams=$creationParams');
+    ReadiumLog.d('creationParams=$creationParams');
 
     if (Platform.isAndroid) {
       return PlatformViewLink(
@@ -249,7 +269,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   Future<void> _enableWakelock() async {
-    R2Log.d('Ensure wakelock /w timer');
+    ReadiumLog.d('Ensure wakelock /w timer');
 
     WakelockPlus.enable();
 
@@ -259,19 +279,19 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   void _disableWakelock() {
-    R2Log.d('Disable wakelock');
+    ReadiumLog.d('Disable wakelock');
 
     WakelockPlus.disable();
     _wakelockTimer?.cancel();
   }
 
   void _setCurrentWidgetInterface() {
-    R2Log.d('Set current reader in plugin');
+    ReadiumLog.d('Set current reader in plugin');
     _readium.currentReaderWidget = this;
   }
 
   void _cleanup() {
-    R2Log.d('cleanup ${_channel?.name}!');
+    ReadiumLog.d('cleanup ${_channel?.name}!');
     _readium.currentReaderWidget = null;
   }
 
@@ -281,7 +301,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
       onPageChanged: (final locator) {
-        R2Log.d(() => 'onPageChanged: ${locator.toJson()}');
+        ReadiumLog.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
 
         if (isReady == false) {
@@ -293,7 +313,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       },
     );
 
-    R2Log.d('New widget is: ${_channel?.name}');
+    ReadiumLog.d('New widget is: ${_channel?.name}');
   }
 
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
@@ -315,8 +335,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       // trigger scrolling to the nearest page.
       if (_lastOrientation != null && _currentLocator != null) {
         Future.delayed(const Duration(milliseconds: 500)).then((final value) {
-          R2Log.d('Orientation changed. Re-navigating to current locator to re-align page.');
-          R2Log.d('locator = $_currentLocator');
+          ReadiumLog.d('Orientation changed. Re-navigating to current locator to re-align page.');
+          ReadiumLog.d('locator = $_currentLocator');
           _channel?.go(
             _currentLocator!,
             animated: false,

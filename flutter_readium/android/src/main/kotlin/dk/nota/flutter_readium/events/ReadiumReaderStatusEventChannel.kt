@@ -1,6 +1,6 @@
 package dk.nota.flutter_readium.events
 
-import android.util.Log
+import dk.nota.flutter_readium.PluginLog
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -12,7 +12,7 @@ class ReadiumReaderStatusEventChannel(
 ) : EventChannelWrapper<ReadiumReaderStatus>(messenger, "dk.nota.flutter_readium/reader-status") {
     override fun sendEvent(data: ReadiumReaderStatus) {
         launch {
-            Log.d("ReadiumReaderStatus", "::sendEvent $data")
+            PluginLog.d("ReadiumReaderStatus", "::sendEvent $data")
             eventSink?.success(Json.encodeToString(data))
         }
     }

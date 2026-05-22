@@ -1,0 +1,9 @@
+# Development and CI configuration
+.github/
+.vscode/
+.dart_tool/
+build/
+docs/
+
+# Root-level development files
+CONTRIBUTING.md
