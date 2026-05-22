@@ -8,7 +8,7 @@ Thank you for considering a contribution! This guide covers everything you need 
 
 | Tool | Minimum version | Notes |
 |------|----------------|-------|
-| Flutter SDK | 3.3.0 | Stable channel recommended |
+| Flutter SDK | 3.32.0 | Stable channel recommended |
 | Dart SDK | 3.8.0 | Bundled with Flutter |
 | Xcode | 15+ | macOS / iOS targets |
 | CocoaPods | 1.15+ | `gem install cocoapods` |

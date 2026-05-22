@@ -17,4 +17,4 @@ insert_final_newline = true
 
 [*.dart]
 indent_brace_style = K&R
-max_line_length = 100
+max_line_length = 120
