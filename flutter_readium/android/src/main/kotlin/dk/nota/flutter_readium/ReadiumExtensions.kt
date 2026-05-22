@@ -181,7 +181,7 @@ fun Publication.hasSyncNarration() = hasMediaOverlays() || hasGuidedNavigationMe
 
 private val mediaOverlayFetchConcurrency =
     BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
-        Log.w(
+        PluginLog.w(
             TAG,
             "::getGuidedNavigationMediaOverlays - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
                 "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",

@@ -14,6 +14,7 @@ import '../extensions/strings.dart';
 import 'readium_log.dart';
 
 /// Represents an HREF, optionally relative to another one.
+/// TODO: Currently it does NOT resolve ""../" notations.
 ///
 /// This is used to normalize the string representation.
 @immutable
