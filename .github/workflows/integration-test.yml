@@ -16,7 +16,7 @@ jobs:
   ios:
     name: iOS (Simulator)
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v5
@@ -24,7 +24,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
 
       - name: Cache CocoaPods
         uses: actions/cache@v5
@@ -70,7 +71,7 @@ jobs:
   android:
     name: Android (Emulator)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -106,7 +107,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v5
