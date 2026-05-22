@@ -6,7 +6,6 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -47,7 +46,7 @@ class Link with EquatableMixin implements JSONable {
     final jsonObject = Map<String, dynamic>.of(json);
     final href = jsonObject.optNullableString('href', remove: true);
     if (href == null) {
-      Fimber.i('[href] is required: $json');
+      ReadiumLog.i('[href] is required: $json');
       return null;
     }
 

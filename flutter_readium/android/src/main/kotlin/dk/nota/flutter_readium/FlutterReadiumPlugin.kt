@@ -1,7 +1,6 @@
 package dk.nota.flutter_readium
 
 import android.content.Context
-import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -35,7 +34,7 @@ class FlutterReadiumPlugin :
     private lateinit var binaryMessenger: BinaryMessenger
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPluginBinding) {
-        Log.d(TAG, "onAttachedToEngine")
+        PluginLog.i(TAG, "onAttachedToEngine")
         binaryMessenger = flutterPluginBinding.binaryMessenger
 
         // Register reader view factory
@@ -51,7 +50,7 @@ class FlutterReadiumPlugin :
                 "flutter_assets/packages/flutter_readium/assets/helpers",
             )
         for (file in files) {
-            Log.i("ListAssetFiles", "Asset: $file")
+            PluginLog.d("ListAssetFiles", "Asset: $file")
         }
 
         // Setup publication channel
@@ -64,12 +63,12 @@ class FlutterReadiumPlugin :
         call: MethodCall,
         result: Result,
     ) {
-        Log.d(TAG, "onMethodCall")
+        PluginLog.d(TAG, "onMethodCall")
         result.notImplemented()
     }
 
     override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
-        Log.d(TAG, "onDetachedFromEngine")
+        PluginLog.i(TAG, "onDetachedFromEngine")
         ReadiumReader.detach()
         publicationChannel.setMethodCallHandler(null)
     }
@@ -81,7 +80,7 @@ class FlutterReadiumPlugin :
         c: Context,
         rootPath: String,
     ): List<String> {
-        Log.i("ListAssetFiles", "Listing assets in $rootPath")
+        PluginLog.d("ListAssetFiles", "Listing assets in $rootPath")
         val files: MutableList<String> = ArrayList()
         try {
             val paths = c.assets.list(rootPath)
@@ -103,21 +102,21 @@ class FlutterReadiumPlugin :
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        Log.d(TAG, "onAttachedToActivity")
+        PluginLog.i(TAG, "onAttachedToActivity")
 
         ReadiumReader.attach(binding.activity, binaryMessenger)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        Log.d(TAG, "onDetachedFromActivityForConfigChanges")
+        PluginLog.d(TAG, "onDetachedFromActivityForConfigChanges")
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        Log.d(TAG, "onReattachedToActivityForConfigChanges")
+        PluginLog.d(TAG, "onReattachedToActivityForConfigChanges")
     }
 
     override fun onDetachedFromActivity() {
-        Log.d(TAG, "onDetachedFromActivity")
+        PluginLog.i(TAG, "onDetachedFromActivity")
         ReadiumReader.detach()
     }
 }

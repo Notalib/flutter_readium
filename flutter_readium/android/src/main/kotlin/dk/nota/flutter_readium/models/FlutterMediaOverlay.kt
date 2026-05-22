@@ -1,8 +1,8 @@
 package dk.nota.flutter_readium.models
 
 import android.os.Parcelable
-import android.util.Log
 import dk.nota.flutter_readium.getTextId
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.progression
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
@@ -140,7 +140,7 @@ data class FlutterMediaOverlay(
 
         if (locator.locations.fragments.isEmpty() && locator.mediaType.isHtml) {
             // If there is no fragment, and it is a HTML locator, we return the first item for the href
-            Log.d(
+            PluginLog.d(
                 TAG,
                 "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}",
             )
@@ -149,7 +149,7 @@ data class FlutterMediaOverlay(
             }
         }
 
-        Log.d(
+        PluginLog.d(
             TAG,
             "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator",
         )

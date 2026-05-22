@@ -102,7 +102,8 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Normalize text styles to increase accessibility
   final bool? textNormalization;
 
-  /// Reader theme.
+  /// Reader theme. Quickly sets multiple preferences at once and overrides publisher styles.
+  /// When set, it will override the [backgroundColor] and [textColor] preferences.
   final EpubThemeType? theme;
 
   /// Scale applied to all element font sizes.
@@ -258,6 +259,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     double? wordSpacing,
     bool? blackAndWhiteComicMode,
     bool? disableSynchronization,
+    int? firstElementTopMargin,
   }) => EPUBPreferences(
     backgroundColor: backgroundColor ?? this.backgroundColor,
     columnCount: columnCount ?? this.columnCount,
@@ -286,6 +288,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     wordSpacing: wordSpacing ?? this.wordSpacing,
     blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
     disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+    firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
   );
 
   @override
@@ -317,6 +320,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     wordSpacing,
     blackAndWhiteComicMode,
     disableSynchronization,
+    firstElementTopMargin,
   ];
 }
 

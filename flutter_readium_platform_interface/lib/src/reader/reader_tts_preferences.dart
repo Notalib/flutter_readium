@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../utils/jsonable.dart';
+import '../utils/readium_log.dart';
 import 'reader_audio_preferences.dart';
 
 @immutable
@@ -26,7 +26,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     if (controlPanelInfoTypeStr != null) {
       controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
       if (controlPanelInfoType == null) {
-        Fimber.w(
+        ReadiumLog.w(
           'Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to ControlPanelInfoType.standard.',
         );
       }

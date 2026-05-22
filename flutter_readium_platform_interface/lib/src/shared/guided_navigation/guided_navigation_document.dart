@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
+import '../../utils/index.dart';
 import '../publication/link.dart';
 import 'guided_navigation_object.dart';
 
@@ -12,10 +11,7 @@ import 'guided_navigation_object.dart';
 /// See https://readium.org/guided-navigation/schema/document.schema.json
 @immutable
 class GuidedNavigationDocument with EquatableMixin implements JSONable {
-  const GuidedNavigationDocument({
-    required this.guided,
-    this.links = const [],
-  });
+  const GuidedNavigationDocument({required this.guided, this.links = const []});
 
   /// Optional cross-references to related resources, using the Readium Web
   /// Publication Manifest link schema.
@@ -37,12 +33,10 @@ class GuidedNavigationDocument with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
     final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
-    final guided = GuidedNavigationObject.fromJsonArray(
-      jsonObject.optJsonArray('guided', remove: true),
-    );
+    final guided = GuidedNavigationObject.fromJsonArray(jsonObject.optJsonArray('guided', remove: true));
 
     if (guided.isEmpty) {
-      Fimber.d('GuidedNavigationDocument: [guided] is required and must not be empty');
+      ReadiumLog.d('GuidedNavigationDocument: [guided] is required and must not be empty');
       return null;
     }
 

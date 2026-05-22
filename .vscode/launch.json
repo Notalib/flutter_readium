@@ -7,6 +7,7 @@
     {
       "name": "example",
       "cwd": "flutter_readium/example",
+      "program": "lib/main.dart",
       "request": "launch",
       "type": "dart",
       "flutterMode": "debug",
@@ -15,6 +16,7 @@
     {
       "name": "example (profile mode)",
       "cwd": "flutter_readium/example",
+      "program": "lib/main.dart",
       "request": "launch",
       "type": "dart",
       "flutterMode": "profile",
@@ -23,9 +25,18 @@
     {
       "name": "example (release mode)",
       "cwd": "flutter_readium/example",
+      "program": "lib/main.dart",
       "request": "launch",
       "type": "dart",
       "flutterMode": "release",
+      "preLaunchTask": "build_helper_scripts"
+    },
+    {
+      "name": "integration tests (example)",
+      "cwd": "flutter_readium/example",
+      "program": "integration_test",
+      "request": "launch",
+      "type": "dart",
       "preLaunchTask": "build_helper_scripts"
     },
     {

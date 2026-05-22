@@ -17,7 +17,6 @@ class ReaderWidget extends StatelessWidget {
       if (state.isLoading) {
         return const Center(child: CircularProgressIndicator());
       } else if (state.error != null) {
-        R2Log.e('Error loading publication: ${state.error}');
         return ColoredBox(
           color: Colors.yellow.shade400,
           child: Padding(

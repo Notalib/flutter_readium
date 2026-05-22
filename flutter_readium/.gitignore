@@ -34,3 +34,6 @@ build/
 
 **/node_modules/*
 **/ios/.symlinks
+
+# FVM Version Cache
+.fvm/

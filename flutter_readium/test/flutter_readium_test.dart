@@ -4,6 +4,10 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+// ---------------------------------------------------------------------------
+// Mock platform
+// ---------------------------------------------------------------------------
+
 class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements FlutterReadiumPlatform {
   @override
   ReadiumReaderWidgetInterface? currentReaderWidget;
@@ -11,226 +15,261 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   EPUBPreferences? defaultPreferences;
 
-  @override
-  Future<void> setCustomHeaders(Map<String, String> headers) {
-    // TODO: implement setCustomHeaders
-    throw UnimplementedError();
-  }
+  final _textLocatorController = StreamController<Locator>.broadcast();
+  final _statusController = StreamController<ReadiumReaderStatus>.broadcast();
+  final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
+  final _errorController = StreamController<ReadiumError>.broadcast();
 
   @override
-  Future<void> setLogLevel(LogLevel level) {
-    throw UnimplementedError();
-  }
+  Stream<Locator> get onTextLocatorChanged => _textLocatorController.stream;
+
+  @override
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _statusController.stream;
+
+  @override
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedController.stream;
+
+  @override
+  Stream<ReadiumError> get onErrorEvent => _errorController.stream;
 
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }
 
-  @override
-  Future<Publication> loadPublication(String pubUrl) => Future.value(
-    Publication(
-      links: [],
-      metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'test'})),
-      readingOrder: [],
-    ),
+  static Publication _pub(String title) => Publication(
+    links: [],
+    metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': title})),
+    readingOrder: [],
   );
 
   @override
-  Future<Publication> openPublication(String pubUrl) => Future.value(
-    Publication(
-      links: [],
-      metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'test'})),
-      readingOrder: [],
-    ),
-  );
-  @override
-  Stream<Locator> get onTextLocatorChanged => Stream.fromIterable([
-    // TODO: Test locators
-  ]);
+  Future<Publication> loadPublication(String pubUrl) async => _pub('Loaded');
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) {
-    // TODO: implement applyDecorations
-    throw UnimplementedError();
-  }
+  Future<Publication> openPublication(String pubUrl) async => _pub('Opened');
 
   @override
-  Future<void> closePublication() {
-    // TODO: implement closePublication
-    throw UnimplementedError();
-  }
+  Future<void> closePublication() async {}
 
   @override
-  Future<void> goBackward() {
-    // TODO: implement goBackward
-    throw UnimplementedError();
-  }
+  Future<void> goBackward() async {}
 
   @override
-  Future<void> goForward() {
-    // TODO: implement goForward
-    throw UnimplementedError();
-  }
+  Future<void> goForward() async {}
 
   @override
-  // TODO: implement onReaderStatusChanged
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged => throw UnimplementedError();
+  Future<bool> goToLocator(Locator locator) async => true;
 
   @override
-  Future<void> setEPUBPreferences(EPUBPreferences preferences) {
-    // TODO: implement setEPUBPreferences
-    throw UnimplementedError();
-  }
+  Future<bool> goToProgression(double progression) async => true;
 
   @override
-  Future<void> ttsEnable(TTSPreferences? preferences) {
-    // TODO: implement ttsEnable
-    throw UnimplementedError();
-  }
+  Future<void> setEPUBPreferences(EPUBPreferences preferences) async {}
 
   @override
-  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() {
-    // TODO: implement ttsGetAvailableVoices
-    throw UnimplementedError();
-  }
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {}
 
   @override
-  Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) {
-    // TODO: implement setDecorationStyle
-    throw UnimplementedError();
-  }
+  Future<void> play(Locator? fromLocator) async {}
 
   @override
-  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) {
-    // TODO: implement ttsSetVoice
-    throw UnimplementedError();
-  }
+  Future<void> pause() async {}
 
   @override
-  Future<void> play(Locator? fromLocator) {
-    // TODO: implement play
-    throw UnimplementedError();
-  }
+  Future<void> resume() async {}
 
   @override
-  Future<void> pause() {
-    // TODO: implement ttsPause
-    throw UnimplementedError();
-  }
+  Future<void> stop() async {}
 
   @override
-  Future<void> resume() {
-    // TODO: implement ttsResume
-    throw UnimplementedError();
-  }
+  Future<void> next() async {}
 
   @override
-  Future<void> next() {
-    // TODO: implement ttsNext
-    throw UnimplementedError();
-  }
+  Future<void> previous() async {}
 
   @override
-  Future<void> previous() {
-    // TODO: implement ttsPrevious
-    throw UnimplementedError();
-  }
+  Future<void> ttsEnable(TTSPreferences? preferences) async {}
 
   @override
-  Future<void> stop() {
-    // TODO: implement stop
-    throw UnimplementedError();
-  }
+  Future<void> ttsSetPreferences(TTSPreferences preferences) async {}
 
   @override
-  // TODO: implement onTimebasedPlayerStateChanged
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => throw UnimplementedError();
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async => [];
 
   @override
-  // TODO: implement onErrorEvent
-  Stream<ReadiumError> get onErrorEvent => throw UnimplementedError();
+  Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {}
 
   @override
-  Future<void> ttsSetPreferences(TTSPreferences preferences) {
-    // TODO: implement ttsSetPreferences
-    throw UnimplementedError();
-  }
+  Future<void> setDecorationStyle(
+    ReaderDecorationStyle? utteranceDecoration,
+    ReaderDecorationStyle? rangeDecoration,
+  ) async {}
 
   @override
-  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) {
-    // TODO: implement audioEnable
-    throw UnimplementedError();
-  }
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) async {}
 
   @override
-  Future<void> audioSetPreferences(AudioPreferences prefs) {
-    // TODO: implement audioSetPreferences
-    throw UnimplementedError();
-  }
+  Future<void> audioSetPreferences(AudioPreferences prefs) async {}
 
   @override
-  Future<bool> goToLocator(Locator locator) {
-    // TODO: implement goToLocator
-    throw UnimplementedError();
-  }
+  Future<void> audioSeekBy(Duration offset) async {}
 
   @override
-  Future<bool> goToProgression(double progression) {
-    // TODO: implement goToProgression
-    throw UnimplementedError();
-  }
+  Future<void> setCustomHeaders(Map<String, String> headers) async {}
 
   @override
-  Future<void> audioSeekBy(Duration offset) {
-    // TODO: implement audioSeekBy
-    throw UnimplementedError();
-  }
+  Future<void> setLogLevel(LogLevel level) async {}
 
   @override
-  Future<List<TextSearchResult>> searchInPublication(String searchKey) {
-    // TODO: implement searchInPublication
-    throw UnimplementedError();
-  }
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async => [];
 
-  @override
-  Future<bool> goToProgression(double progression) {
-    // TODO: implement goToProgression
-    throw UnimplementedError();
-  }
+  void emitLocator(Locator l) => _textLocatorController.add(l);
+  void emitStatus(ReadiumReaderStatus s) => _statusController.add(s);
+  void emitError(ReadiumError e) => _errorController.add(e);
 }
 
-void main() {
-  // ignore: unused_local_variable
-  late FlutterReadium flutterReadium;
-  late MockFlutterReadiumPlatform fakePlatform;
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
-  setUpAll(() {
-    fakePlatform = MockFlutterReadiumPlatform();
-    FlutterReadiumPlatform.instance = fakePlatform;
-    flutterReadium = FlutterReadium();
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late FlutterReadium reader;
+  late MockFlutterReadiumPlatform platform;
+
+  setUp(() {
+    platform = MockFlutterReadiumPlatform();
+    FlutterReadiumPlatform.instance = platform;
+    reader = FlutterReadium();
   });
 
-  // test('batteryLevel', () async {
-  //   expect(await flutterReadium.batteryLevel, 42);
-  // });
+  group('FlutterReadium singleton', () {
+    test('returns the same instance on repeated calls', () {
+      expect(FlutterReadium(), same(FlutterReadium()));
+    });
+  });
 
-  // test('isInBatterySaveMode', () async {
-  //   expect(await flutterReadium.isInBatterySaveMode, true);
-  // });
+  group('setDefaultPreferences', () {
+    test('stores preferences on the platform', () {
+      final prefs = EPUBPreferences(fontSize: 150);
+      reader.setDefaultPreferences(prefs);
+      expect(platform.defaultPreferences, prefs);
+    });
+  });
 
-  // test('current state of the battery', () async {
-  //   expect(await flutterReadium.batteryState, BatteryState.charging);
-  // });
+  group('openPublication', () {
+    test('returns a publication with the mock title', () async {
+      final pub = await reader.openPublication('https://example.com/book.epub');
+      expect(pub.metadata.title, 'Opened');
+    });
+  });
 
-  // test('receiving events of the battery state', () async {
-  //   final queue = StreamQueue<BatteryState>(battery.onBatteryStateChanged);
+  group('loadPublication', () {
+    test('returns a publication without side effects', () async {
+      final pub = await reader.loadPublication('https://example.com/book.epub');
+      expect(pub.metadata.title, 'Loaded');
+    });
+  });
 
-  //   expect(await queue.next, BatteryState.unknown);
-  //   expect(await queue.next, BatteryState.charging);
-  //   expect(await queue.next, BatteryState.full);
-  //   expect(await queue.next, BatteryState.discharging);
+  group('goToLocator', () {
+    test('returns true on success', () async {
+      final locator = Locator(href: '/ch1.xhtml', type: 'application/xhtml+xml');
+      expect(await reader.goToLocator(locator), isTrue);
+    });
+  });
 
-  //   expect(await queue.hasNext, false);
-  // });
+  group('goToProgression', () {
+    test('returns true on success', () async {
+      expect(await reader.goToProgression(0.5), isTrue);
+    });
+  });
+
+  group('ttsGetAvailableVoices', () {
+    test('returns a list (empty from mock)', () async {
+      final voices = await reader.ttsGetAvailableVoices();
+      expect(voices, isEmpty);
+    });
+  });
+
+  group('searchInPublication', () {
+    test('returns a list (empty from mock)', () async {
+      final results = await reader.searchInPublication('whale');
+      expect(results, isEmpty);
+    });
+  });
+
+  group('onTextLocatorChanged stream', () {
+    test('emits locators from the platform', () async {
+      final locator = Locator(
+        href: '/ch1.xhtml',
+        type: 'application/xhtml+xml',
+        locations: Locations(progression: 0.5, totalProgression: 0.1),
+      );
+
+      final future = reader.onTextLocatorChanged.first;
+      platform.emitLocator(locator);
+      expect(await future, locator);
+    });
+  });
+
+  group('onReaderStatusChanged stream', () {
+    test('emits reader status from the platform', () async {
+      final future = reader.onReaderStatusChanged.first;
+      platform.emitStatus(ReadiumReaderStatus.ready);
+      expect(await future, ReadiumReaderStatus.ready);
+    });
+  });
+
+  group('onErrorEvent stream', () {
+    test('emits errors from the platform', () async {
+      final error = ReadiumError('something went wrong', code: 'ERR_42');
+      final future = reader.onErrorEvent.first;
+      platform.emitError(error);
+      expect(await future, error);
+    });
+  });
+
+  group('skipToNextTOC', () {
+    test('throws when current href not in TOC', () async {
+      final pub = Publication(
+        links: [],
+        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        readingOrder: [],
+        tableOfContents: [Link(href: '/ch1.xhtml'), Link(href: '/ch2.xhtml')],
+      );
+      await expectLater(
+        () => reader.skipToNextTOC(publication: pub, currentTocHref: '/unknown.xhtml'),
+        throwsA(isA<ReadiumException>()),
+      );
+    });
+
+    test('throws when already at last chapter', () async {
+      final pub = Publication(
+        links: [],
+        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        readingOrder: [],
+        tableOfContents: [Link(href: '/ch1.xhtml'), Link(href: '/ch2.xhtml')],
+      );
+      await expectLater(
+        () => reader.skipToNextTOC(publication: pub, currentTocHref: '/ch2.xhtml'),
+        throwsA(isA<ReadiumException>()),
+      );
+    });
+  });
+
+  group('toPhysicalPageIndex', () {
+    test('throws when page not found', () async {
+      final pub = Publication(
+        links: [],
+        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        readingOrder: [],
+      );
+      await expectLater(
+        () => reader.toPhysicalPageIndex('999', pub),
+        throwsA(isA<ReadiumException>()),
+      );
+    });
+  });
 }

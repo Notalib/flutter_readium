@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
-import '../../utils/jsonable.dart';
+import '../../utils/index.dart';
 import 'guided_navigation_text.dart';
 
 /// Alternative description for a guided navigation object, using one or more
@@ -14,13 +13,7 @@ import 'guided_navigation_text.dart';
 /// See https://readium.org/guided-navigation/schema/description.schema.json
 @immutable
 class GuidedNavigationDescription with EquatableMixin implements JSONable {
-  const GuidedNavigationDescription({
-    this.audioref,
-    this.imgref,
-    this.textref,
-    this.videoref,
-    this.text,
-  });
+  const GuidedNavigationDescription({this.audioref, this.imgref, this.textref, this.videoref, this.text});
 
   final String? audioref;
   final String? imgref;
@@ -49,9 +42,8 @@ class GuidedNavigationDescription with EquatableMixin implements JSONable {
     final videoref = jsonObject.optNullableString('videoref', remove: true);
     final text = GuidedNavigationText.fromJson(jsonObject.opt('text', remove: true));
 
-    if (audioref == null && imgref == null && textref == null &&
-        videoref == null && text == null) {
-      Fimber.d('GuidedNavigationDescription: at least one media reference is required');
+    if (audioref == null && imgref == null && textref == null && videoref == null && text == null) {
+      ReadiumLog.d('GuidedNavigationDescription: at least one media reference is required');
       return null;
     }
 

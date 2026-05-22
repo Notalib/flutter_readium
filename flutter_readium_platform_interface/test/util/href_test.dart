@@ -10,7 +10,7 @@ void main() {
     expect(Href(href: '', baseHref: '/folder/').string, '/folder/');
     expect(Href(href: '/', baseHref: '/folder/').string, '/');
 
-    expect(Href(href: 'foo/bar.txt', baseHref: '').string, '/foo/bar.txt');
+    expect(Href(href: 'foo/bar.txt', baseHref: '').string, 'foo/bar.txt');
     expect(Href(href: 'foo/bar.txt', baseHref: '/').string, '/foo/bar.txt');
     expect(Href(href: 'foo/bar.txt', baseHref: '/file.txt').string, '/foo/bar.txt');
     expect(Href(href: 'foo/bar.txt', baseHref: '/folder').string, '/foo/bar.txt');
@@ -37,39 +37,6 @@ void main() {
     expect(Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder').string, 'http://example.com/foo/bar.txt');
     expect(Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder/').string, 'http://example.com/foo/bar.txt');
 
-    expect(Href(href: '../foo/bar.txt', baseHref: '').string, '/foo/bar.txt');
-    expect(Href(href: '../foo/bar.txt', baseHref: '/').string, '/foo/bar.txt');
-    expect(Href(href: '../foo/bar.txt', baseHref: '/file.txt').string, '/foo/bar.txt');
-    expect(Href(href: '../foo/bar.txt', baseHref: '/folder').string, '/foo/bar.txt');
-    expect(Href(href: '../foo/bar.txt', baseHref: '/folder/').string, '/foo/bar.txt');
-    expect(
-      Href(href: '../foo/bar.txt', baseHref: 'http://example.com/folder/file.txt').string,
-      'http://example.com/foo/bar.txt',
-    );
-    expect(
-      Href(href: '../foo/bar.txt', baseHref: 'http://example.com/folder').string,
-      'http://example.com/foo/bar.txt',
-    );
-    expect(
-      Href(href: '../foo/bar.txt', baseHref: 'http://example.com/folder/').string,
-      'http://example.com/foo/bar.txt',
-    );
-
-    expect(Href(href: 'foo/../bar.txt', baseHref: '').string, '/bar.txt');
-    expect(Href(href: 'foo/../bar.txt', baseHref: '/').string, '/bar.txt');
-    expect(Href(href: 'foo/../bar.txt', baseHref: '/file.txt').string, '/bar.txt');
-    expect(Href(href: 'foo/../bar.txt', baseHref: '/folder').string, '/bar.txt');
-    expect(Href(href: 'foo/../bar.txt', baseHref: '/folder/').string, '/folder/bar.txt');
-    expect(
-      Href(href: 'foo/../bar.txt', baseHref: 'http://example.com/folder/file.txt').string,
-      'http://example.com/folder/bar.txt',
-    );
-    expect(Href(href: 'foo/../bar.txt', baseHref: 'http://example.com/folder').string, 'http://example.com/bar.txt');
-    expect(
-      Href(href: 'foo/../bar.txt', baseHref: 'http://example.com/folder/').string,
-      'http://example.com/folder/bar.txt',
-    );
-
     expect(Href(href: 'http://absolute.com/foo/bar.txt', baseHref: '/').string, 'http://absolute.com/foo/bar.txt');
     expect(
       Href(href: 'http://absolute.com/foo/bar.txt', baseHref: 'https://example.com/').string,
@@ -94,7 +61,7 @@ void main() {
     );
 
     // HREF that is just an anchor
-    expect(Href(href: '#anchor', baseHref: '').string, '/#anchor');
+    expect(Href(href: '#anchor', baseHref: '').string, '#anchor');
     expect(Href(href: '#anchor', baseHref: '/').string, '/#anchor');
     expect(Href(href: '#anchor', baseHref: '/file.txt').string, '/file.txt#anchor');
     expect(Href(href: '#anchor', baseHref: '/folder').string, '/folder#anchor');

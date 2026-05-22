@@ -9,10 +9,6 @@ analyzer:
     - "**/test/mock_packages/**"
     - "**/test/rules/**"
   errors:
-    # This rule is added because of freezed
-    # https://pub.dev/packages/freezed#disabling-invalid_annotation_target-warning-and-warning-in-generates-files
-    invalid_annotation_target: ignore
-
     # Disabling to ignore lint error when calling [FlutterReadium.updateState]
     unused_result: ignore
 

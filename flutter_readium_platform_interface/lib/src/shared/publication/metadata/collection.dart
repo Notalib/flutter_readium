@@ -1,4 +1,3 @@
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 import 'base_collection.dart';
@@ -17,7 +16,7 @@ class Collection extends BaseCollection {
     } else if (json is Map<String, dynamic>) {
       return Collection.fromJsonMap(json);
     } else {
-      Fimber.e('Invalid JSON for Collection: $json');
+      ReadiumLog.e('Invalid JSON for Collection: $json');
       throw ArgumentError('Invalid JSON for Collection: $json');
     }
   }

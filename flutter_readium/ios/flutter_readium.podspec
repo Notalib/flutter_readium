@@ -11,7 +11,7 @@ A new Flutter plugin project.
                        DESC
   s.homepage         = 'http://github.com/notalib/flutter_readium'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'tech-contact@nota.dk' }
+  s.author           = { 'Nota' => 'tech-contact@nota.dk' }
   s.source           = { :http => 'https://github.com/readium/podspecs' }
   s.source_files     = 'flutter_readium/Sources/flutter_readium/**/*.swift'
   s.resource_bundles = {'flutter_readium_privacy' => ['flutter_readium/Sources/flutter_readium/PrivacyInfo.xcprivacy']}
