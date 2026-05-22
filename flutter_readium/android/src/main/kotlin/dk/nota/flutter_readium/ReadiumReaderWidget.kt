@@ -49,7 +49,7 @@ class ReadiumReaderWidget(
     PdfReaderFragment.Listener,
     EpubNavigator.VisualListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
-    private val channel: ReadiumReaderChannel
+    internal val channel: ReadiumReaderChannel
 
     /**
      * Make sure we only sent ready status once.
@@ -349,10 +349,22 @@ class ReadiumReaderWidget(
 
                     @Suppress("UNCHECKED_CAST")
                     val decorationListStr =
-                        args[1] as List<Map<String, String>>
-                    val decorations = decorationListStr.mapNotNull { decorationFromMap(it) }
+                        args[1] as List<String>
+                    val decorations = decorationListStr.mapNotNull { decorationFromJson(it) }
 
                     ReadiumReader.applyDecorations(decorations, groupId)
+                    result.success(null)
+                }
+
+                "configureSelectionActions" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val actions = call.arguments as? List<Map<String, String>> ?: emptyList()
+                    ReadiumReader.selectionActions = actions.map { map ->
+                        SelectionActionConfig(
+                            id = map["id"] ?: "",
+                            title = map["title"] ?: "",
+                        )
+                    }
                     result.success(null)
                 }
 

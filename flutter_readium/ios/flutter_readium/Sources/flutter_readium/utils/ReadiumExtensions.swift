@@ -94,7 +94,7 @@ extension Publication {
       return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     }
   }
-  
+
   func getSyncNarrationMediaOverlays() async -> [FlutterMediaOverlay]? {
     if (containsGuidedNavigationMediaOverlays) {
       return await getGuidedNavigationMediaOverlays()
@@ -309,27 +309,27 @@ extension Array where Element == Link {
 
 extension Decoration {
   init(fromJson jsonString: String) throws {
-    let jsonMap: Dictionary<String, String>?
-    do {
-      jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
-    } catch {
-      Log.readium.error("Invalid Decoration object: \(error)")
+    guard let data = jsonString.data(using: .utf8),
+          let jsonMap = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      Log.readium.error("Invalid Decoration JSON string")
       throw JSONError.parsing(Self.self)
     }
     try self.init(fromMap: jsonMap)
   }
 
-  init(fromMap jsonMap: Dictionary<String, String>?) throws {
+  init(fromMap jsonMap: [String: Any]?) throws {
     guard let jsonObject = jsonMap,
-          let idString = jsonObject["id"],
-          let locator = try Locator(legacyJSONString: jsonObject["locator"]!),
-          let styleStr = jsonObject["style"],
-          let tintHexStr = jsonObject["tint"],
+          let idString = jsonObject["id"] as? String,
+          let locatorStr = jsonObject["locator"] as? String,
+          let locator = try? Locator(legacyJSONString: locatorStr),
+          let styleStr = jsonObject["style"] as? String,
+          let tintHexStr = jsonObject["tint"] as? String,
           let tintColor = Color(hex: tintHexStr),
           let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
       Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
+
     self.init(
       id: idString as Id,
       locator: locator,

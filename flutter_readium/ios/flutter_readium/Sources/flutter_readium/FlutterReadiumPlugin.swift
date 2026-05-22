@@ -730,6 +730,7 @@ extension FlutterReadiumPlugin {
   }
 
   /// Get all cssSelectors for an EPUB file.
+  @MainActor
   func epubGetAllDocumentCssSelectors(hrefPath: String) async throws -> [String] {
     if currentPublicationCssSelectorMap == nil {
       currentPublicationCssSelectorMap = [:]
