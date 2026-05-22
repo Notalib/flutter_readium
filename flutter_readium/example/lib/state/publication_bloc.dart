@@ -31,8 +31,13 @@ class OpenPublication extends PublicationEvent {
 }
 
 class PublicationState {
-  PublicationState({this.publication, this.initialLocator, this.error, this.isLoading = false, Map<String, ReaderDecoration>? highlights})
-    : highlights = highlights ?? {};
+  PublicationState({
+    this.publication,
+    this.initialLocator,
+    this.error,
+    this.isLoading = false,
+    Map<String, ReaderDecoration>? highlights,
+  }) : highlights = highlights ?? {};
   final Publication? publication;
   final Locator? initialLocator;
   final dynamic error;
@@ -160,8 +165,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     });
 
     on<AddHighlight>((final event, final emit) {
-      final updated = Map<String, ReaderDecoration>.from(state.highlights)
-        ..[event.decoration.id] = event.decoration;
+      final updated = Map<String, ReaderDecoration>.from(state.highlights)..[event.decoration.id] = event.decoration;
       emit(state.copyWith(highlights: updated));
       instance.applyDecorations('user_highlights', updated.values.toList());
     });

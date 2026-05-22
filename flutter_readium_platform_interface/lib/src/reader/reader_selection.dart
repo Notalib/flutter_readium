@@ -6,10 +6,7 @@ class TextSelectionEvent implements JSONable {
 
   factory TextSelectionEvent.fromJson(final Map<String, dynamic> map) {
     final locatorJson = map['locator'] as Map<String, dynamic>?;
-    return TextSelectionEvent(
-      locator: Locator.fromJson(locatorJson)!,
-      selectedText: map['selectedText'] as String?,
-    );
+    return TextSelectionEvent(locator: Locator.fromJson(locatorJson)!, selectedText: map['selectedText'] as String?);
   }
 
   /// Location of the selection in the publication.
@@ -20,9 +17,9 @@ class TextSelectionEvent implements JSONable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'locator': locator.toJson(),
-        if (selectedText != null) 'selectedText': selectedText,
-      };
+    'locator': locator.toJson(),
+    if (selectedText != null) 'selectedText': selectedText,
+  };
 }
 
 /// Fired when the user taps a configured editing action on selected text.
@@ -49,10 +46,10 @@ class SelectionActionEvent implements JSONable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'actionId': actionId,
-        'locator': locator.toJson(),
-        if (selectedText != null) 'selectedText': selectedText,
-      };
+    'actionId': actionId,
+    'locator': locator.toJson(),
+    if (selectedText != null) 'selectedText': selectedText,
+  };
 }
 
 /// Defines a native context menu item shown when text is selected.
@@ -62,10 +59,8 @@ class SelectionActionEvent implements JSONable {
 class SelectionAction implements JSONable {
   const SelectionAction({required this.id, required this.title});
 
-  factory SelectionAction.fromJson(final Map<String, dynamic> map) => SelectionAction(
-        id: map['id'] as String,
-        title: map['title'] as String,
-      );
+  factory SelectionAction.fromJson(final Map<String, dynamic> map) =>
+      SelectionAction(id: map['id'] as String, title: map['title'] as String);
 
   /// Unique identifier for this action, returned in [SelectionActionEvent.actionId].
   final String id;

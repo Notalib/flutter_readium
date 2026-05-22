@@ -92,9 +92,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (final context) => PointerInterceptor(
-            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
-          ),
+          builder: (final context) =>
+              PointerInterceptor(child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget()),
         );
       },
       tooltip: 'Open reader settings',

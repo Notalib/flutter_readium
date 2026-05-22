@@ -18,12 +18,7 @@ enum DecorationInteractionType {
 
 /// Fired when the user interacts with an existing decoration (e.g. taps a highlight).
 class DecorationInteractionEvent implements JSONable {
-  const DecorationInteractionEvent({
-    required this.decorationId,
-    required this.group,
-    required this.type,
-    this.locator,
-  });
+  const DecorationInteractionEvent({required this.decorationId, required this.group, required this.type, this.locator});
 
   factory DecorationInteractionEvent.fromJson(final Map<String, dynamic> map) {
     final locatorJson = map['locator'] as Map<String, dynamic>?;
@@ -49,9 +44,9 @@ class DecorationInteractionEvent implements JSONable {
 
   @override
   Map<String, dynamic> toJson() => {
-        'decorationId': decorationId,
-        'group': group,
-        'type': type.name,
-        if (locator != null) 'locator': locator!.toJson(),
-      };
+    'decorationId': decorationId,
+    'group': group,
+    'type': type.name,
+    if (locator != null) 'locator': locator!.toJson(),
+  };
 }
