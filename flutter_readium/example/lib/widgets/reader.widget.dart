@@ -37,14 +37,10 @@ class ReaderWidget extends StatelessWidget {
         return Semantics(
           container: true,
           explicitChildNodes: true,
-          child: BlocSelector<TextSettingsBloc, TextSettingsState, bool>(
-            selector: (textState) => textState.verticalScroll,
-            builder: (context, verticalScroll) => ReadiumReaderWidget(
-              publication: state.publication!,
-              initialLocator: state.initialLocator,
-              shouldShowControls: shouldShowControls,
-              verticalScroll: verticalScroll,
-            ),
+          child: ReadiumReaderWidget(
+            publication: state.publication!,
+            initialLocator: state.initialLocator,
+            shouldShowControls: shouldShowControls,
           ),
         );
       }

@@ -24,7 +24,6 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
-    this.verticalScroll = false,
     super.key,
   });
 
@@ -54,9 +53,6 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Accessibility label for the controls toggle semantic region.
   final String toggleShowControlsSemanticLabel;
 
-  /// Whether the reader should use continuous vertical scroll (`true`) or paginated mode (`false`).
-  final bool verticalScroll;
-
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
@@ -80,6 +76,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     return _readium.defaultPreferences;
   }
 
+  bool _scrollMode = false;
+
   /// Last time that the controls were hidden due to a touch, used to guess whether a tap was caused
   /// by such a touch.
   DateTime? _lastTouchHideControls;
@@ -92,6 +90,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _readerWidget = _buildNativeReader();
     _enableWakelock();
     _setCurrentWidgetInterface();
+    _scrollMode = _defaultPreferences?.scroll ?? false;
   }
 
   @override
@@ -112,14 +111,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
     var userSwipe = false;
-    final verticalScroll = widget.verticalScroll;
 
     final readingProgression = widget.publication.metadata.readingProgression;
     // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
-    final leftUpLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+    final leftUpLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goForwardSemanticLabel
         : widget.goBackwardSemanticLabel;
-    final rightDownLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+    final rightDownLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goBackwardSemanticLabel
         : widget.goForwardSemanticLabel;
 
@@ -128,20 +126,20 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         Positioned(
           left: 0,
           top: 0,
-          width: verticalScroll ? null : 70,
-          height: verticalScroll ? 100 : null,
-          right: verticalScroll ? 0 : null,
-          bottom: verticalScroll ? null : 0,
+          width: _scrollMode ? null : 70,
+          height: _scrollMode ? 100 : null,
+          right: _scrollMode ? 0 : null,
+          bottom: _scrollMode ? null : 0,
           child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
         ),
         // TODO: This presumes there is only one semantic label, for when the different toggles
         Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
         Positioned(
-          top: verticalScroll ? null : 0,
+          top: _scrollMode ? null : 0,
           right: 0,
-          width: verticalScroll ? null : 70,
-          height: verticalScroll ? 100 : null,
-          left: verticalScroll ? 0 : null,
+          width: _scrollMode ? null : 70,
+          height: _scrollMode ? 100 : null,
+          left: _scrollMode ? 0 : null,
           bottom: 0,
           child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
         ),
@@ -206,6 +204,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     _channel?.setEPUBPreferences(preferences);
+
+    _scrollMode = preferences.scroll ?? false;
   }
 
   @override

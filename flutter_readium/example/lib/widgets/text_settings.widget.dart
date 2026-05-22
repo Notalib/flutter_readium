@@ -48,9 +48,9 @@ class TextSettingsWidget extends StatelessWidget {
                   label: 'Vertical Scroll',
                   isVerticalAlignment: true,
                   child: Switch(
-                    value: state.verticalScroll,
+                    value: state.scroll,
                     onChanged: (final value) {
-                      textSettingsBloc.add(ToggleVerticalScroll());
+                      textSettingsBloc.add(ToggleScrollMode());
                     },
                   ),
                 ),
