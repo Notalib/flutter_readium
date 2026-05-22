@@ -32,8 +32,8 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 
 ## Supported formats
 
-| Format    | Visual | TTS | Audio | Media Overlays |
-| --------- | :----: | :-: | :---: | :------------: |
+| Format    | Visual       | TTS | Audio | Media Overlays         |
+| --------- | :----------: | :-: | :---: | :--------------------: |
 | EPUB 2    |      ✓       |  ✓  |   —   |           -            |
 | EPUB 3    |      ✓       |  ✓  |   ✓   |           -            |
 | WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
@@ -66,7 +66,7 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.3.0+                 |
+| Flutter     | 3.32.0+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |

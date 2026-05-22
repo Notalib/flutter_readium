@@ -68,11 +68,7 @@ await reader.setLogLevel(LogLevel.debug);   // verbose
 await reader.setLogLevel(LogLevel.warning); // quieter
 ```
 
-Dart-side logs are emitted through `R2Log`, which wraps [fimber](https://pub.dev/packages/fimber). Plant a tree to receive them:
-
-```dart
-Fimber.plantTree(DebugTree());
-```
+Dart-side logs are emitted through `ReadiumLog`, which delegates to `logging` package
 
 On the native side, logs go to the platform's standard log stream. Filter for the tag `flutter_readium`:
 

@@ -409,7 +409,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           locator = try? Locator(json: JSONValue(locatorJson), warnings: self)
         }
 
-        if (publication.containsMediaOverlays) {
+        if (publication.containsSyncNarration) {
           do {
             // MediaOverlayNavigator will modify the Publication readingOrder, so we first load a modifiable copy.
             let modifiablePublicationCopy = try await self.loadPublication(fromUrlStr: pubUrlStr).get()

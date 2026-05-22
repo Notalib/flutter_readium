@@ -22,7 +22,7 @@ Some ones prefixed with a number are self-produced by Nota.
 ## Regenerating the PDFs
 
 `time_machine.pdf` and `alice.pdf` are rendered from Project Gutenberg HTML via
-headless Chrome:
+headless Chrome (on MacOS in this example):
 
 ```sh
 chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"

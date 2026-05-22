@@ -242,7 +242,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    R2Log.d('setPDFPreferences is not supported on web platform');
+    ReadiumLog.d('setPDFPreferences is not supported on web platform');
   }
 
   @override

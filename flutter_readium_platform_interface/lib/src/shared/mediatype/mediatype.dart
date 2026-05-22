@@ -264,6 +264,12 @@ class MediaType {
     fileExtension: 'json',
   );
 
+  static const MediaType syncMediaNarrationManifest = MediaType(
+    type: 'application',
+    subtype: 'guided-navigation+json',
+    fileExtension: 'json',
+  );
+
   static final List<MediaType> _values = [
     aac,
     acsm,
