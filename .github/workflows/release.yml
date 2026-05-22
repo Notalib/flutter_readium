@@ -4,22 +4,43 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
   validate-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           flutter-version: '3.41.9'
 
-      - name: Extract version from tag
+      - name: Determine release version
         id: tag
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then
+            # Tag-triggered: extract version from tag
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            # Manual dispatch: read version from pubspec
+            VERSION=$(grep '^version:' flutter_readium/pubspec.yaml | awk '{print $2}')
+            TAG="v$VERSION"
+            # Verify the tag exists
+            if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "ERROR: Tag $TAG does not exist. Push the tag before running the release workflow manually."
+              exit 1
+            fi
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Verify tag matches flutter_readium pubspec version
         run: |
@@ -84,6 +105,6 @@ jobs:
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           draft: true
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: ${{ steps.tag.outputs.tag_name }}
           body: ${{ steps.changelog.outputs.body }}
