@@ -58,6 +58,8 @@ await FlutterReadium().applyDecorations('highlights', []);
 | `ttsSetVoice(id, language)` | Set a specific voice; `language` scopes it to a content language |
 | `setDecorationStyle(utterance, range)` | Set decoration styles for TTS highlighting |
 
+### TODO: Slightly inconsistent that audioEnable takes a fromLocator and ttsEnable doesn't.
+
 ## Audio
 
 | Method | Description |

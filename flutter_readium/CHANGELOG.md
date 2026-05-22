@@ -3,6 +3,19 @@
 All notable changes to `flutter_readium` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## Unreleased
+
+### Added
+
+- **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
+  `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via
+  `PdfiumNavigatorFragment` from kotlin-toolkit). PDF is not supported on Web.
+- **PDF preferences** — `FlutterReadium.setPDFPreferences(PDFPreferences)` applies runtime
+  display settings (`scroll`, `readingProgression`) to the active PDF navigator.
+- **PDF TOC enrichment** — `onTextLocatorChanged` events for PDF publications now include
+  `title` (chapter name) and `locations.otherLocations["tocHref"]` derived from `#page=N`
+  TOC fragments, matching the existing EPUB enrichment behaviour.
+
 ## [0.0.1] - 2025-05-12
 
 ### Added
