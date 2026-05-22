@@ -1,7 +1,6 @@
 package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
-import android.util.Log
 import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
@@ -9,6 +8,7 @@ import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.EpubReaderViewModel
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -167,11 +167,11 @@ class EpubNavigator :
     ): Boolean {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.d(TAG, "::go - epubNavigator is null!")
+            PluginLog.w(TAG, "::go - epubNavigator is null!")
             return false
         }
 
-        Log.d(TAG, "::go $locator animated:$animated")
+        PluginLog.d(TAG, "::go $locator animated:$animated")
 
         return withMainContext {
             afterFragmentStarted()
@@ -180,11 +180,11 @@ class EpubNavigator :
             }
 
             if (!navigator.go(locator, animated)) {
-                Log.w(TAG, "::go -  FAILED!")
+                PluginLog.w(TAG, "::go -  FAILED!")
                 return@withMainContext false
             }
 
-            Log.d(TAG, "::go - returned true")
+            PluginLog.d(TAG, "::go - returned true")
 
             return@withMainContext true
         }
@@ -193,7 +193,7 @@ class EpubNavigator :
     suspend fun scrollToProgression(progression: Double) {
         val navigator =
             epubNavigator ?: run {
-                Log.e(TAG, "::scrollToProgression - epubNavigator is null")
+                PluginLog.w(TAG, "::scrollToProgression - epubNavigator is null")
 
                 return
             }
@@ -205,11 +205,11 @@ class EpubNavigator :
      * Update EPUB navigator preferences.
      */
     suspend fun updatePreferences(flutterEpubPreferences: FlutterEpubPreferences) {
-        Log.d(TAG, "::updatePreferences")
+        PluginLog.d(TAG, "::updatePreferences")
 
         val navigator =
             epubNavigator ?: run {
-                Log.d(TAG, "::updatePreferences - tried to update without a navigator")
+                PluginLog.d(TAG, "::updatePreferences - tried to update without a navigator")
                 preferences = flutterEpubPreferences
                 return
             }
@@ -219,14 +219,14 @@ class EpubNavigator :
 
             preferences = flutterEpubPreferences
         } catch (ex: Exception) {
-            Log.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
+            PluginLog.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
         }
     }
 
     override fun setupNavigatorListeners() {
         val navigator =
             epubNavigator ?: run {
-                Log.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
+                PluginLog.e(TAG, "::setupNavigatorListeners - epubNavigator is null this should never happen")
                 return
             }
 
@@ -241,7 +241,7 @@ class EpubNavigator :
                 }.launchIn(this)
                 .let { jobs.add(it) }
         } else {
-            Log.d(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
+            PluginLog.w(TAG, "::setupNavigatorListeners - currentLocator is null - navigator not ready?")
         }
     }
 
@@ -274,7 +274,7 @@ class EpubNavigator :
         }
 
     override fun onPageLoaded() {
-        Log.d(TAG, "::onPageLoaded")
+        PluginLog.d(TAG, "::onPageLoaded")
 
         visualListener.onPageLoaded()
 
@@ -355,7 +355,7 @@ class EpubNavigator :
     suspend fun evaluateJavascript(script: String): String? {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.e(TAG, "::evaluateJavascript - epubNavigator is null!")
+            PluginLog.w(TAG, "::evaluateJavascript - epubNavigator is null!")
             return null
         }
 
@@ -371,12 +371,12 @@ class EpubNavigator :
     suspend fun goBackward(animated: Boolean = true) {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.e(TAG, "::goBackward - epubNavigator is null!")
+            PluginLog.w(TAG, "::goBackward - epubNavigator is null!")
             return
         }
 
         withMainContext {
-            Log.d(TAG, "::goBackward")
+            PluginLog.d(TAG, "::goBackward")
             navigator.goBackward(animated)
         }
     }
@@ -387,12 +387,12 @@ class EpubNavigator :
     suspend fun goForward(animated: Boolean = true) {
         val navigator = epubNavigator
         if (navigator == null) {
-            Log.e(TAG, "::goForward - epubNavigator is null!")
+            PluginLog.w(TAG, "::goForward - epubNavigator is null!")
             return
         }
 
         withMainContext {
-            Log.d(TAG, "::goForward")
+            PluginLog.d(TAG, "::goForward")
             navigator.goForward(animated)
         }
     }
@@ -406,7 +406,7 @@ class EpubNavigator :
     suspend fun firstVisibleElementLocator(): Locator? {
         val navigator =
             epubNavigator ?: run {
-                Log.e(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
+                PluginLog.w(TAG, "::firstVisibleElementLocator - epubNavigator is null!")
                 return null
             }
 
@@ -421,12 +421,12 @@ class EpubNavigator :
     ) {
         val navigator =
             epubNavigator ?: run {
-                Log.e(TAG, "::applyDecorations: navigator is null")
+                PluginLog.w(TAG, "::applyDecorations: navigator is null")
                 return
             }
 
         withMainContext {
-            Log.d(TAG, "::applyDecorations: $decorations for group:$group")
+            PluginLog.d(TAG, "::applyDecorations: $decorations for group:$group")
 
             navigator.applyDecorations(decorations, group)
 
@@ -475,7 +475,7 @@ class EpubNavigator :
                 }
             }
 
-            Log.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
+            PluginLog.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 
             return EpubNavigator(publication, locator, listener, preferences, currentDecorations)
         }

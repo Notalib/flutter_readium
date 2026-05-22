@@ -17,7 +17,7 @@ class ReadiumTimebasedState implements JSONable {
   factory ReadiumTimebasedState.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
 
-    final state = TimebasedState.fromString(jsonObject.optString('state', remove: true)) ?? TimebasedState.none;
+    final state = TimebasedState.fromString(jsonObject.optString('state', remove: true));
 
     final currentOffset = jsonObject.optNullableInt('currentOffset', remove: true);
     final currentBuffered = jsonObject.optNullableInt('currentBuffered', remove: true);

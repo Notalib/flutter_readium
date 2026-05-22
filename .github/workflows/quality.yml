@@ -1,0 +1,47 @@
+name: Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - flutter_readium_platform_interface
+          - flutter_readium
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+
+      - name: Install dependencies (${{ matrix.package }})
+        run: flutter pub get
+        working-directory: ${{ matrix.package }}
+
+      - name: Check formatting (${{ matrix.package }})
+        run: dart format --output=none --set-exit-if-changed .
+        working-directory: ${{ matrix.package }}
+
+      - name: Analyze (${{ matrix.package }})
+        run: flutter analyze --fatal-infos --fatal-warnings
+        working-directory: ${{ matrix.package }}
+
+      - name: Activate pana
+        run: dart pub global activate pana
+
+      - name: Run pana (${{ matrix.package }})
+        run: dart pub global run pana --no-warning .
+        working-directory: ${{ matrix.package }}

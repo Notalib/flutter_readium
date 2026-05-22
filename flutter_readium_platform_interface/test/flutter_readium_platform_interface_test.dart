@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/method_channel_flutter_readium.dart';
 import 'package:flutter_readium_platform_interface/src/index.dart';
@@ -44,7 +46,9 @@ void main() {
             case 'listen':
               await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
                 methodChannelReadium.textLocatorChannel.name,
-                methodChannelReadium.textLocatorChannel.codec.encodeSuccessEnvelope(testTextLocator),
+                methodChannelReadium.textLocatorChannel.codec.encodeSuccessEnvelope(
+                  jsonEncode(testTextLocator.toJson()),
+                ),
                 (_) {},
               );
               break;
@@ -57,51 +61,9 @@ void main() {
       );
     });
 
-    test('onBatteryChanged', () async {
+    test('onTextLocatorChanged emits the locator sent from the platform', () async {
       final result = await methodChannelReadium.onTextLocatorChanged.first;
       expect(result, testTextLocator);
     });
-
-    //   test('getBatteryLevel', () async {
-    //     final result = await methodChannelBattery.batteryLevel;
-    //     expect(result, 100);
-    //     expect(
-    //       log,
-    //       <Matcher>[
-    //         isMethodCall(
-    //           'getBatteryLevel',
-    //           arguments: null,
-    //         ),
-    //       ],
-    //     );
-    //   });
-
-    //   test('isInBatterySaveMode', () async {
-    //     final result = await methodChannelBattery.isInBatterySaveMode;
-    //     expect(result, true);
-    //     expect(
-    //       log,
-    //       <Matcher>[
-    //         isMethodCall(
-    //           'isInBatterySaveMode',
-    //           arguments: null,
-    //         ),
-    //       ],
-    //     );
-    //   });
-
-    //   test('getBatteryState', () async {
-    //     final result = await methodChannelBattery.batteryState;
-    //     expect(result, BatteryState.charging);
-    //     expect(
-    //       log,
-    //       <Matcher>[
-    //         isMethodCall(
-    //           'getBatteryState',
-    //           arguments: null,
-    //         ),
-    //       ],
-    //     );
-    //   });
   });
 }

@@ -34,6 +34,8 @@ When upgrading any toolkit version, check that all three platforms move together
 Repo-root scripts (`bin/*`) — run from the repo root:
 
 - `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
+- `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
+- `bin/analyze` — run `dart analyze --fatal-infos --fatal-warnings` across all three packages.
 - `bin/forAll <cmd>` — run a command in both pub packages. Example: `bin/forAll dart pub upgrade`.
 - `bin/build_js` — build the web bundle (currently `build_dev`; production build is commented out).
 - `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
@@ -52,7 +54,9 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 - **Smoke test**: the example app at `flutter_readium/example/` is the canonical end-to-end smoke test. If a change can't be exercised in the example, say so explicitly rather than claiming it's verified.
 - **Models & method-channel contract**: keep the Dart side in `flutter_readium_platform_interface` in sync with both native implementations. If you add a method-channel call, all three native sides (Swift, Kotlin, web) need a matching handler — or an explicit `UnimplementedError` if intentionally unsupported.
 - **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
+- **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased, until a release.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
+- **Pre-PR validation**: before considering a task done or creating a PR, run `bin/format` and `bin/analyze` from the repo root. Fix any issues they report. These scripts check all packages (platform interface, plugin, and example app).
 - **Kotlin formatting**: after writing or editing any Kotlin file, run `ktlint --format` on it. The `standard:package-name` violation (underscores in `dk.nota.flutter_readium`) is pre-existing and cannot be auto-corrected — ignore it. All other violations must be resolved before committing.
 - **Android log messages**: every `Log.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
 - **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
@@ -66,7 +70,7 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 
 ## Build / toolchain facts
 
-- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.3.0`.
+- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.32.0`.
 - Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
 - iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
 - Web: webpack 5, TypeScript 5.7+.
@@ -74,6 +78,5 @@ Running the example app: `cd flutter_readium/example && flutter run`. For web sp
 ## Gotchas
 
 - The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
-- Android consumers must extend `FlutterFragmentActivity` (not `FlutterActivity`), otherwise the reader view crashes at runtime.
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
 - The plugin currently targets EPUB / WebPub (with or without pre-recorded audio); LCP and PDF adapter code is present-but-commented in `android/build.gradle` — don't enable it without a deliberate plan.

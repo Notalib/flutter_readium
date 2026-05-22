@@ -24,6 +24,8 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   static final Object _token = Object();
   static FlutterReadiumPlatform _instance = MethodChannelFlutterReadium();
+
+  /// The current platform implementation. Defaults to [MethodChannelFlutterReadium].
   static FlutterReadiumPlatform get instance => _instance;
 
   /// Platform-specific plugins should set this with their own platform-specific
@@ -33,14 +35,20 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  /// The currently mounted [ReadiumReaderWidgetInterface], if any.
   ReadiumReaderWidgetInterface? currentReaderWidget;
+
+  /// Default EPUB preferences applied to all publications unless overridden per-session.
   EPUBPreferences? defaultPreferences;
 
+  /// Sets custom HTTP headers forwarded to the native HTTP layer for all network requests.
   Future<void> setCustomHeaders(Map<String, String> headers) =>
       throw UnimplementedError('setCustomHeaders(headers) has not been implemented.');
 
+  /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
   Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
+  /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
   }
@@ -138,21 +146,22 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> audioSeekBy(Duration offset) => throw UnimplementedError('seekInAudio() has not been implemented');
   // AUDIOBOOK API - END
 
+  /// Searches for [searchKey] in the currently opened publication and returns matching results.
   Future<List<TextSearchResult>> searchInPublication(final String searchKey) {
     throw UnimplementedError('searchInPublication() has not been implemented');
   }
 
-  // State stream for reader status changes
+  /// Stream emitting the current reader lifecycle status (loading, ready, closed, error).
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     throw UnimplementedError('onReaderStatus stream has not been implemented.');
   }
 
-  // State stream for text/visual position. Usually will be the top of the current page (firstVisibleLocator in Readium).
+  /// Stream emitting the current visual reader position (first visible locator on the page).
   Stream<Locator> get onTextLocatorChanged {
     throw UnimplementedError('onTextLocatorChanged stream has not been implemented.');
   }
 
-  // State stream for audio position. Will be as near as possible to the currently spoken or played audio.
+  /// Stream emitting the current timebased playback state during TTS or audio playback.
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     throw UnimplementedError('onTimebasedPlayerStateChanged stream has not been implemented.');
   }
