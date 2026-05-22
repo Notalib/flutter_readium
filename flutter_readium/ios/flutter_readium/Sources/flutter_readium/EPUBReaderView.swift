@@ -31,7 +31,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
   init(
@@ -82,7 +82,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     config.preloadNextPositionCount = preloadNextPositionCount
     config.debugState = false
 
-    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
+    // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
@@ -156,7 +156,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       ]
     )
 
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -230,12 +230,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
-    lastViewport = viewport
-    // Re-emit so consumers see updated visible-portion data without waiting
-    // for the next locationDidChange (e.g. mid-resource scroll in scroll mode).
-    if let locator = readiumViewController.currentLocation {
-      emitOnPageChanged(locator: locator)
-    }
+    // We do note currently see any value in emitting this NavigatorViewport to the client.
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -406,15 +401,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         resultLocator.title = tocLink.title
         resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
       }
-      if let viewport = viewport {
-        // TODO: Decide if we want to use & emit this.
-        resultLocator.locations.otherLocations["visibleProgressionStart"] = .double(viewport.progression.lowerBound)
-        resultLocator.locations.otherLocations["visibleProgressionEnd"] = .double(viewport.progression.upperBound)
-        if let positions = viewport.positions {
-          resultLocator.locations.otherLocations["visiblePositionStart"] = .integer(positions.lowerBound)
-          resultLocator.locations.otherLocations["visiblePositionEnd"] = .integer(positions.upperBound)
-        }
-      }
 
       /// Immutable ref, so that we can use it on the main thread
       let finalLocator = resultLocator
@@ -572,7 +558,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
-      FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break

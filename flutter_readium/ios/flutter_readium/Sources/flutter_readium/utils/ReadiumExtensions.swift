@@ -319,11 +319,10 @@ extension Decoration {
 
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let jsonObject = jsonMap,
-          let idString = jsonObject["id"] as? String,
-          let locatorAny = jsonObject["locator"],
-          let styleAny = jsonObject["style"] as? [String: Any],
-          let styleStr = styleAny["style"] as? String,
-          let tintHexStr = styleAny["tint"] as? String,
+          let idString = jsonObject["id"],
+          let locator = try Locator(legacyJSONString: jsonObject["locator"]!),
+          let styleStr = jsonObject["style"],
+          let tintHexStr = jsonObject["tint"],
           let tintColor = Color(hex: tintHexStr),
           let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
       Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
