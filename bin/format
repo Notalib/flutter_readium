@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Format all dart code to fit with our editorconfig
+dart format --set-exit-if-changed .
