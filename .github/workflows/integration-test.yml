@@ -58,7 +58,7 @@ jobs:
         run: |
           xcrun simctl list devices available
           UDID=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices | to_entries[] | .value[] | select(.name | startswith("iPhone"))] | first | .udid')
+            | jq -r '[.devices | to_entries[] | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS")) | {runtime: .key, devices: [.value[] | select(.name | startswith("iPhone"))]} | select(.devices | length > 0)] | sort_by(.runtime) | last | .devices[0].udid')
           echo "Booting simulator $UDID"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
