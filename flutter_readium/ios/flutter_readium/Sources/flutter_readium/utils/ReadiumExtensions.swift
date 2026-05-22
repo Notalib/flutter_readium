@@ -94,11 +94,19 @@ extension Publication {
       return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     }
   }
-
-  func getMediaOverlays() async -> [FlutterMediaOverlay] {
-    if (!containsMediaOverlays) {
-      return []
+  
+  func getSyncNarrationMediaOverlays() async -> [FlutterMediaOverlay]? {
+    if (containsGuidedNavigationMediaOverlays) {
+      return await getGuidedNavigationMediaOverlays()
     }
+    else if (containsSyncNarration) {
+      return await getMediaOverlays()
+    }
+    return nil
+  }
+
+  func getMediaOverlays() async -> [FlutterMediaOverlay]? {
+    guard containsMediaOverlays else { return nil }
 
     let narrationLinks = self.narrationLinks
 
