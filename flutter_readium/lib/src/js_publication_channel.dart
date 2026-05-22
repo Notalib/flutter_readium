@@ -152,7 +152,7 @@ class JsPublicationChannel {
       if (isReady) {
         _readiumReader.setEPUBPreferences(newPreferencesString.toJS);
       } else {
-        R2Log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
+        ReadiumLog.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();

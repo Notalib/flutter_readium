@@ -3,7 +3,6 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../flutter_readium_platform_interface.dart';
@@ -32,14 +31,14 @@ class Price extends AdditionalProperties with EquatableMixin implements JSONable
   /// If the price can't be parsed, a warning will be logged with [warnings].
   static Price? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
-      Fimber.d('Price.fromJSON: null json');
+      ReadiumLog.d('Price.fromJSON: null json');
       return null;
     }
     final jsonObject = Map<String, dynamic>.from(json);
     final currency = jsonObject.optNullableString('currency', remove: true);
     final value = jsonObject.optPositiveDouble('value', remove: true);
     if (currency == null || value == null) {
-      Fimber.d('Price.fromJSON: invalid currency or value');
+      ReadiumLog.d('Price.fromJSON: invalid currency or value');
       return null;
     }
 

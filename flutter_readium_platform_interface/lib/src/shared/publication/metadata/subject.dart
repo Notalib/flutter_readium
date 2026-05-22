@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
@@ -18,7 +17,7 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
     } else if (json is Map<String, dynamic>) {
       return Subject.fromJsonMap(json);
     } else {
-      Fimber.e('Invalid JSON for Subject: $json');
+      ReadiumLog.e('Invalid JSON for Subject: $json');
 
       throw ArgumentError('Invalid JSON for Subject: $json');
     }
