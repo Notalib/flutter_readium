@@ -74,7 +74,7 @@ Key scripts (run from repo root):
 
 - The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
-- The plugin targets EPUB / WebPub (with or without pre-recorded audio) and PDF on iOS + Android. PDF support uses PDFKit on iOS and PDFium via `readium-adapter-pdfium` on Android — the PSPDFKit adapter remains commented out in `android/build.gradle` for the commercial-license path. LCP support is still gated behind a `#if LCP` flag on iOS and a commented `readium-lcp` dependency on Android — don't enable it without a deliberate plan.
+- The plugin targets EPUB / WebPub (with or without pre-recorded audio) and PDF on iOS + Android. PDF support uses PDFKit on iOS and PDFium via `readium-adapter-pdfium` on Android. LCP support is still gated behind a `#if LCP` flag on iOS and a commented `readium-lcp` dependency on Android — don't enable it without a deliberate plan.
 
 ## Testability (marionette)
 
