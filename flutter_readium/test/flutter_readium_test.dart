@@ -192,6 +192,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
     // TODO: implement searchInPublication
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> goToProgression(double progression) {
+    // TODO: implement goToProgression
+    throw UnimplementedError();
+  }
 }
 
 void main() {
