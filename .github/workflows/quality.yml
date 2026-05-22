@@ -33,7 +33,7 @@ jobs:
         working-directory: ${{ matrix.package }}
 
       - name: Check formatting (${{ matrix.package }})
-        run: dart format --output=none --set-exit-if-changed .
+        run: dart format --page-width 120 --trailing-commas preserve --output=none --set-exit-if-changed .
         working-directory: ${{ matrix.package }}
 
       - name: Analyze (${{ matrix.package }})
