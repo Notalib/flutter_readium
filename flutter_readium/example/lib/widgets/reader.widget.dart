@@ -36,43 +36,39 @@ class ReaderWidget extends StatelessWidget {
         return Semantics(
           container: true,
           explicitChildNodes: true,
-          child: BlocSelector<TextSettingsBloc, TextSettingsState, bool>(
-            selector: (textState) => textState.verticalScroll,
-            builder: (context, verticalScroll) => ReadiumReaderWidget(
-              publication: state.publication!,
-              initialLocator: state.initialLocator,
-              shouldShowControls: shouldShowControls,
-              verticalScroll: verticalScroll,
-              allowedDefaultActions: const {
-                DefaultSelectionAction.copy,
-                DefaultSelectionAction.share,
-                DefaultSelectionAction.translate,
-              },
-              selectionActions: const [
-                SelectionAction(id: 'highlight', title: 'Highlight'),
-                SelectionAction(id: 'note', title: 'Add Note'),
-              ],
-              onTextSelected: (event) {
-                debugPrint('[Selection] text="${event.selectedText}"');
-              },
-              onSelectionAction: (event) {
-                debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
-                if (event.actionId == 'highlight') {
-                  _applyHighlight(context, event);
-                } else if (event.actionId == 'note') {
-                  _showNoteDialog(context, event);
-                }
-              },
-              onDecorationInteraction: (event) {
-                debugPrint('[DecorationInteraction] id=${event.decorationId} group=${event.group}');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Tapped highlight: ${event.decorationId}'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
+          child: ReadiumReaderWidget(
+            publication: state.publication!,
+            initialLocator: state.initialLocator,
+            shouldShowControls: shouldShowControls,
+            allowedDefaultActions: const {
+              DefaultSelectionAction.copy,
+              DefaultSelectionAction.share,
+              DefaultSelectionAction.translate,
+            },
+            selectionActions: const [
+              SelectionAction(id: 'highlight', title: 'Highlight'),
+              SelectionAction(id: 'note', title: 'Add Note'),
+            ],
+            onTextSelected: (event) {
+              debugPrint('[Selection] text="${event.selectedText}"');
+            },
+            onSelectionAction: (event) {
+              debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
+              if (event.actionId == 'highlight') {
+                _applyHighlight(context, event);
+              } else if (event.actionId == 'note') {
+                _showNoteDialog(context, event);
+              }
+            },
+            onDecorationInteraction: (event) {
+              debugPrint('[DecorationInteraction] id=${event.decorationId} group=${event.group}');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Tapped highlight: ${event.decorationId}'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         );
       }

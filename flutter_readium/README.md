@@ -23,7 +23,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 - Pre-recorded audio playback with track navigation and variable speed
 - Synchronized Media Overlays (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
-- Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
+- Reader preferences (typography, scroll, columns, ...) via the Readium Preferences API
 - Highlights and annotations via the Decorator API
 - Position persistence and restoration via Locators
 - Content search within open publications

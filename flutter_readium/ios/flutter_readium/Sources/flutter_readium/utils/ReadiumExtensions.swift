@@ -479,10 +479,6 @@ extension EPUBPreferences {
         }
       case "textNormalization":
         textNormalization = value as? Bool
-      case "theme":
-        if let themeValueStr = value as? String {
-          theme = Theme(rawValue: themeValueStr)
-        }
       case "typeScale":
           typeScale = value as? Double
       case "verticalText":
