@@ -24,7 +24,7 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/wakelock_plus/macos
 
 SPEC CHECKSUMS:
-  flutter_readium: d4f556cf61e7850f202a4f32c60acc2051a08f96
+  flutter_readium: 6483fd9a581f2b080ed894e964f7514382e7e5e1
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   package_info_plus: f0052d280d17aa382b932f399edf32507174e870
   wakelock_plus: 917609be14d812ddd9e9528876538b2263aaa03b
