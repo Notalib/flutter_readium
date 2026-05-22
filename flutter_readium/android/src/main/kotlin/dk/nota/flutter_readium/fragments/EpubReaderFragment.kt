@@ -622,7 +622,7 @@ class EpubReaderFragment :
             override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
                 PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
                 // Fire onTextSelected callback.
-                launch {
+                lifecycleScope.launch {
                     val nav = navigator as? SelectableNavigator ?: return@launch
                     val selection = nav.currentSelection() ?: return@launch
                     val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
@@ -658,7 +658,7 @@ class EpubReaderFragment :
                 val action = actions[index]
                 PluginLog.d(TAG, "::onActionItemClicked - action: ${action.id}")
 
-                launch {
+                lifecycleScope.launch {
                     val nav = navigator as? SelectableNavigator ?: return@launch
                     val selection = nav.currentSelection() ?: return@launch
                     val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
