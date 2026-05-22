@@ -1,5 +1,14 @@
 #!/bin/bash
+set -e
 
-# Analyze the codebase using `dart analyze` and `flutter analyze`, excluding generated files.
-echo "Analyzing Dart code..."
-dart analyze --fatal-infos --fatal-warnings
+# Analyze all packages in the repo.
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "Analyzing flutter_readium_platform_interface..."
+dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium_platform_interface"
+
+echo "Analyzing flutter_readium..."
+dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium"
+
+echo "Analyzing example app..."
+dart analyze --fatal-infos --fatal-warnings "$REPO_ROOT/flutter_readium/example"
