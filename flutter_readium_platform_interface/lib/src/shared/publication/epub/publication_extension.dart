@@ -22,6 +22,7 @@ extension PublicationLists on Publication {
     final basePath = readingOrder.firstOrNull?.href.split('#').first ?? '';
     return List.generate(totalPages, (i) {
       final page = i + 1;
+      // TODO: Localization of "Page x" title.
       return Link(href: '$basePath#page=$page', title: 'Page $page');
     });
   }
