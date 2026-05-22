@@ -32,11 +32,11 @@ jobs:
         working-directory: ${{ matrix.package }}
 
       - name: Check formatting (${{ matrix.package }})
-        run: $GITHUB_WORKSPACE/bin/format
+        run: dart format --output=none --set-exit-if-changed .
         working-directory: ${{ matrix.package }}
 
       - name: Analyze (${{ matrix.package }})
-        run: $GITHUB_WORKSPACE/bin/analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
         working-directory: ${{ matrix.package }}
 
       - name: Activate pana
