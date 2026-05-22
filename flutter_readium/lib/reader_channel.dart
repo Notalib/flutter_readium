@@ -81,7 +81,10 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Apply decorations to the reader.
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [id, decorations.map((d) => json.encode(d.toJson())).toList()]);
+    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [
+      id,
+      decorations.map((d) => json.encode(d.toJson())).toList(),
+    ]);
   }
 
   /// Configure the native selection context menu actions.

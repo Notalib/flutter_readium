@@ -414,7 +414,9 @@ void main() {
           reason: 'PDF search hit should carry a 1-based page position',
         );
       },
-      skip: Platform.isAndroid ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService)' : false,
+      skip: Platform.isAndroid
+          ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService)'
+          : false,
     );
   });
 
