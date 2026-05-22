@@ -167,9 +167,9 @@ class TextSettingsWidget extends StatelessWidget {
               isVerticalAlignment: true,
               child: Switch(
                 key: const ValueKey('vertical_scroll_switch'),
-                value: state.verticalScroll,
+                value: state.scroll,
                 onChanged: (value) {
-                  textSettingsBloc.add(ToggleVerticalScroll());
+                  textSettingsBloc.add(ToggleScrollMode());
                 },
               ),
             ),
@@ -286,22 +286,6 @@ class TextSettingsWidget extends StatelessWidget {
 
             // --- Theme Section ---
             _SectionHeader(title: 'Theme'),
-            ListItemWidget(
-              label: 'Quick Theme',
-              child: SegmentedButton<EpubThemeType?>(
-                key: const ValueKey('epub_theme_type_selector'),
-                emptySelectionAllowed: true,
-                segments: const [
-                  ButtonSegment(value: EpubThemeType.light, label: Text('Light')),
-                  ButtonSegment(value: EpubThemeType.dark, label: Text('Dark')),
-                  ButtonSegment(value: EpubThemeType.sepia, label: Text('Sepia')),
-                ],
-                selected: {state.epubThemeType}.whereType<EpubThemeType?>().toSet(),
-                onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeEpubThemeType(values.isEmpty ? null : values.first));
-                },
-              ),
-            ),
             ListItemWidget(
               label: 'Color Theme',
               child: ThemeSelectorWidget(themes: themes, isHighlight: false),

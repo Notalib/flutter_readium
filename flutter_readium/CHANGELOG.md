@@ -39,7 +39,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `loadPublication`, `goToLocator`, `goToProgression`, `goForward`, `goBackward`.
 - **EPUB reader widget** — `ReadiumReaderWidget` renders EPUB and WebPub content via a native
   platform view (iOS/macOS/Android) or a WebView (web).
-- **EPUB preferences** — `EPUBPreferences` with font family, font size, theme, scroll mode,
+- **EPUB preferences** — `EPUBPreferences` with font family, font size, scroll mode,
   line height, word spacing, letter spacing, paragraph spacing, text alignment, column count,
   publisher styles, vertical writing, custom CSS properties and first-element margin.
 - **TTS (text-to-speech)** — `ttsEnable`, `ttsSetPreferences`, `ttsSetVoice`,

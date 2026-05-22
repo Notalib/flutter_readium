@@ -20,7 +20,7 @@ class ChangeFontSize extends TextSettingsEvent {
 }
 
 @immutable
-class ToggleVerticalScroll extends TextSettingsEvent {}
+class ToggleScrollMode extends TextSettingsEvent {}
 
 @immutable
 class ChangeTheme extends TextSettingsEvent {
@@ -110,12 +110,6 @@ class ToggleLigatures extends TextSettingsEvent {}
 class ToggleTextNormalization extends TextSettingsEvent {}
 
 @immutable
-class ChangeEpubThemeType extends TextSettingsEvent {
-  ChangeEpubThemeType(this.value);
-  final EpubThemeType? value;
-}
-
-@immutable
 class ChangeImageFilter extends TextSettingsEvent {
   ChangeImageFilter(this.value);
   final EpubImageFilter? value;
@@ -124,7 +118,7 @@ class ChangeImageFilter extends TextSettingsEvent {
 @immutable
 class TextSettingsState {
   const TextSettingsState({
-    required this.verticalScroll,
+    required this.scroll,
     required this.fontSize,
     required this.theme,
     required this.highlight,
@@ -146,11 +140,10 @@ class TextSettingsState {
     this.hyphens,
     this.ligatures,
     this.textNormalization,
-    this.epubThemeType,
     this.imageFilter,
   });
 
-  final bool verticalScroll;
+  final bool scroll;
   final int fontSize;
   final TextSettingsTheme theme;
   final TextSettingsTheme highlight;
@@ -172,15 +165,13 @@ class TextSettingsState {
   final bool? hyphens;
   final bool? ligatures;
   final bool? textNormalization;
-  final EpubThemeType? epubThemeType;
   final EpubImageFilter? imageFilter;
 
   @override
-  String toString() =>
-      'TextSettingsState(theme: $theme, fontSize: $fontSize, verticalScroll: $verticalScroll, highlight: $highlight)';
+  String toString() => 'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
 
   TextSettingsState copyWith({
-    final bool? verticalScroll,
+    final bool? scroll,
     final int? fontSize,
     final TextSettingsTheme? theme,
     final TextSettingsTheme? highlight,
@@ -202,11 +193,10 @@ class TextSettingsState {
     final bool? hyphens,
     final bool? ligatures,
     final bool? textNormalization,
-    final Object? epubThemeType = _sentinel,
     final Object? imageFilter = _sentinel,
   }) {
     return TextSettingsState(
-      verticalScroll: verticalScroll ?? this.verticalScroll,
+      scroll: scroll ?? this.scroll,
       fontSize: fontSize ?? this.fontSize,
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
@@ -228,7 +218,6 @@ class TextSettingsState {
       hyphens: hyphens ?? this.hyphens,
       ligatures: ligatures ?? this.ligatures,
       textNormalization: textNormalization ?? this.textNormalization,
-      epubThemeType: epubThemeType == _sentinel ? this.epubThemeType : epubThemeType as EpubThemeType?,
       imageFilter: imageFilter == _sentinel ? this.imageFilter : imageFilter as EpubImageFilter?,
     );
   }
@@ -238,15 +227,13 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   final FlutterReadium instance = FlutterReadium();
 
   void submitPreferenceUpdate() async {
-    // When a quick theme is active it controls colors — don't override with explicit values.
-    final useQuickTheme = state.epubThemeType != null;
     final epubPreferences = EPUBPreferences(
       fontFamily: state.fontFamily,
       fontSize: state.fontSize,
       fontWeight: state.fontWeight,
-      scroll: state.verticalScroll,
-      backgroundColor: useQuickTheme ? null : state.theme.backgroundColor,
-      textColor: useQuickTheme ? null : state.theme.textColor,
+      scroll: state.scroll,
+      backgroundColor: state.theme.backgroundColor,
+      textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
       paragraphSpacing: state.paragraphSpacing,
       publisherStyles: state.publisherStyles,
@@ -263,21 +250,19 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       hyphens: state.hyphens,
       ligatures: state.ligatures,
       textNormalization: state.textNormalization,
-      theme: state.epubThemeType,
       imageFilter: state.imageFilter,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
 
   void setDefaultPreferences() {
-    final useQuickTheme = state.epubThemeType != null;
     final defaultPreferences = EPUBPreferences(
       fontFamily: state.fontFamily,
       fontSize: state.fontSize,
       fontWeight: state.fontWeight,
-      scroll: state.verticalScroll,
-      backgroundColor: useQuickTheme ? null : state.theme.backgroundColor,
-      textColor: useQuickTheme ? null : state.theme.textColor,
+      scroll: state.scroll,
+      backgroundColor: state.theme.backgroundColor,
+      textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
       paragraphSpacing: state.paragraphSpacing,
       publisherStyles: state.publisherStyles,
@@ -294,7 +279,6 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       hyphens: state.hyphens,
       ligatures: state.ligatures,
       textNormalization: state.textNormalization,
-      theme: state.epubThemeType,
       imageFilter: state.imageFilter,
     );
     instance.setDefaultPreferences(defaultPreferences);
@@ -303,7 +287,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   TextSettingsBloc()
     : super(
         TextSettingsState(
-          verticalScroll: false,
+          scroll: false,
           fontSize: 120,
           theme: themes[1],
           highlight: highlights[0],
@@ -318,8 +302,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       submitPreferenceUpdate();
     });
 
-    on<ToggleVerticalScroll>((final event, final emit) {
-      emit(state.copyWith(verticalScroll: !state.verticalScroll));
+    on<ToggleScrollMode>((final event, final emit) {
+      emit(state.copyWith(scroll: !state.scroll));
       submitPreferenceUpdate();
     });
 
@@ -334,7 +318,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<ChangeTheme>((final event, final emit) {
-      emit(state.copyWith(theme: event.theme, epubThemeType: null, publisherStyles: false));
+      emit(state.copyWith(theme: event.theme, publisherStyles: false));
       submitPreferenceUpdate();
     });
 
@@ -413,11 +397,6 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
 
     on<ToggleTextNormalization>((event, emit) {
       emit(state.copyWith(textNormalization: !(state.textNormalization ?? false)));
-      submitPreferenceUpdate();
-    });
-
-    on<ChangeEpubThemeType>((event, emit) {
-      emit(state.copyWith(epubThemeType: event.value));
       submitPreferenceUpdate();
     });
 
