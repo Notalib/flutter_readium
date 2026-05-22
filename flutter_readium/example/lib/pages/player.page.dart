@@ -111,9 +111,12 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     IconButton(
       icon: const Icon(Icons.toc),
       onPressed: () async {
-        final result = await Navigator.pushNamed<dynamic>(context, '/toc');
-        if (!context.mounted) return;
         final publication = context.read<PublicationBloc>().state.publication;
+        final isPdfWithoutToc =
+            publication != null && publication.conformsToReadiumPDF && publication.tableOfContents.isEmpty;
+        final route = isPdfWithoutToc ? '/pagelist' : '/toc';
+        final result = await Navigator.pushNamed<dynamic>(context, route);
+        if (!context.mounted) return;
         if (publication != null && result != null && result is Link) {
           final tocLink = result;
           final locator = publication.locatorFromLink(tocLink);

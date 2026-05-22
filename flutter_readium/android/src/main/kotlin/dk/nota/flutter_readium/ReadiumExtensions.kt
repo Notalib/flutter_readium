@@ -295,7 +295,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     if (singleDocLink != null) {
         val jsonString =
             get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
-                Log.i(
+                PluginLog.w(
                     TAG,
                     "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}"
                 )
@@ -303,7 +303,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
             }
         val document =
             GuidedNavigationDocument.fromJSON(jsonString) ?: run {
-                Log.i(
+                PluginLog.w(
                     TAG,
                     "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}"
                 )
@@ -346,7 +346,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                             val jsonString =
                                 get(guidedLink)?.read()?.getOrNull()?.let { String(it) }
                                     ?: run {
-                                        Log.i(
+                                        PluginLog.w(
                                             TAG,
                                             "::getGuidedNavigationMediaOverlays - unable to load ${guidedLink.href}",
                                         )

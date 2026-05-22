@@ -33,9 +33,11 @@ class _SearchPageState extends State<SearchPage> {
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: SearchBar(
+                    key: const ValueKey('search_bar'),
                     hintText: "Type here...",
                     trailing: [
                       IconButton(
+                        key: const ValueKey('search_submit_button'),
                         onPressed: () {
                           doSearchInPublication(searchQuery);
                         },

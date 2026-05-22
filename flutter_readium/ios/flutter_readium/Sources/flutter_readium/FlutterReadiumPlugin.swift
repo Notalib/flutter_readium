@@ -12,7 +12,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public var currentPublicationUrlStr: String?
   public var currentPublication: Publication?
-  public var currentReaderView: ReadiumReaderView?
+  public var currentReaderView: (any ReadiumReaderView)?
 
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
@@ -65,7 +65,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     return currentPublication
   }
 
-  internal func setCurrentReadiumReaderView(_ readerView: ReadiumReaderView?) {
+  internal func setCurrentReadiumReaderView(_ readerView: (any ReadiumReaderView)?) {
     currentReaderView = readerView
   }
 

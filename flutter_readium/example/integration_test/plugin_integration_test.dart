@@ -23,6 +23,10 @@ void main() {
     fixturePaths = {for (final pub in pubs) p.basename(pub): pub};
   });
 
+  // NOTE: Every testWidgets that mounts a ReadiumReaderWidget must end with
+  // `await tester.pumpWidget(const SizedBox());` to unmount the platform view
+  // before closePublication() runs in tearDown. Without this, the native
+  // renderer may still be rendering while its resources are torn down.
   tearDown(() async {
     await reader.closePublication();
   });
@@ -104,7 +108,6 @@ void main() {
       reason: 'goForward() should emit a textLocator distinct from the initial one.',
     );
 
-    // Unmount the platform view before closePublication() runs in tearDown.
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -134,6 +137,177 @@ void main() {
     );
 
     await _exerciseAudioPlayback(reader, enable: () => reader.audioEnable(prefs: AudioPreferences(speed: 1.0)));
+  });
+
+  // ---------------------------------------------------------------------------
+  // PDF
+  // ---------------------------------------------------------------------------
+
+  group('PDF navigation and state', () {
+    test('opens PDF successfully', () async {
+      final path = fixturePaths['pdf_test.pdf'];
+      expect(path, isNotNull, reason: 'Fixture pdf_test.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      expect(pub.metadata.title, isNotEmpty);
+      expect(pub.readingOrder, isNotEmpty);
+      expect(pub.conformsToReadiumPDF, isTrue, reason: 'PDF fixture should conform to the Readium PDF profile');
+    });
+
+    testWidgets('mounting PDF reader widget emits initial textLocator with page position', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'PDF ReadiumReaderWidget never emitted an initial textLocator',
+      );
+
+      expect(locators.last.locations?.position, isNotNull, reason: 'PDF locator should carry a 1-based page position');
+      expect(locators.last.locations?.position, equals(1), reason: 'Initial PDF locator should be on page 1');
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('goForward() in PDF advances the page position by 1', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial textLocator emitted',
+      );
+      final initialPage = locators.last.locations!.position!;
+
+      await reader.goForward();
+
+      await _waitWithPump(
+        tester,
+        () => locators.last.locations?.position != initialPage,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not emit a new textLocator with a different page position',
+      );
+
+      expect(
+        locators.last.locations?.position,
+        equals(initialPage + 1),
+        reason: 'goForward() should advance the page position by 1',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('goToLocator round-trips back to a saved PDF page', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial locator emitted',
+      );
+      final savedLocator = locators.last;
+
+      await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => locators.last != savedLocator,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not produce a new locator',
+      );
+      final afterForward = locators.last;
+
+      final ok = await reader.goToLocator(savedLocator);
+      expect(ok, isTrue, reason: 'goToLocator should report success');
+
+      await _waitWithPump(
+        tester,
+        () => locators.last != afterForward,
+        timeout: const Duration(seconds: 15),
+        reason: 'goToLocator() did not emit a new textLocator',
+      );
+
+      expect(
+        locators.last.locations?.position,
+        equals(savedLocator.locations?.position),
+        reason: 'Restored locator should be on the saved page',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('setPDFPreferences applies without throwing', (tester) async {
+      final path = fixturePaths['time_machine.pdf'];
+      expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial locator before applying PDF preferences',
+      );
+
+      await expectLater(
+        reader.setPDFPreferences(PDFPreferences(scroll: true)),
+        completes,
+        reason: 'setPDFPreferences should not throw',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -409,18 +583,20 @@ void main() {
         reason: 'Did not resume playback',
       );
 
-      await reader.audioSeekBy(const Duration(seconds: 10));
+      final seekDuration = const Duration(seconds: 10);
+      final expectedMinOffset = beforeSeek + seekDuration;
+      await reader.audioSeekBy(seekDuration);
 
       await _waitUntil(
-        () => states.last.currentOffset != null && states.last.currentOffset! > beforeSeek,
+        () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
         timeout: const Duration(seconds: 5),
         reason: 'currentOffset did not advance after audioSeekBy(10s)',
       );
 
       expect(
         states.last.currentOffset! - beforeSeek,
-        greaterThan(const Duration(seconds: 5)),
-        reason: 'audioSeekBy(10s) should advance offset by at least ~5s',
+        greaterThanOrEqualTo(seekDuration),
+        reason: 'audioSeekBy() should have advanced offset by at least seekDuration',
       );
     });
   });
