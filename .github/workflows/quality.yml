@@ -12,8 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
+  format-and-analyze:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       matrix:
         package:
@@ -26,7 +27,8 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
 
       - name: Install dependencies (${{ matrix.package }})
         run: flutter pub get
@@ -38,6 +40,28 @@ jobs:
 
       - name: Analyze (${{ matrix.package }})
         run: flutter analyze --fatal-infos --fatal-warnings
+        working-directory: ${{ matrix.package }}
+
+  pana:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        package:
+          - flutter_readium_platform_interface
+          - flutter_readium
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: .flutter-version
+          cache: true
+
+      - name: Install dependencies (${{ matrix.package }})
+        run: flutter pub get
         working-directory: ${{ matrix.package }}
 
       - name: Activate pana
