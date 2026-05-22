@@ -15,7 +15,7 @@ struct GuidedNavigationDocument: Equatable {
 
   func toJson() -> [String: Any] {
     var res: [String: Any] = [:]
-    if !links.isEmpty { res["links"] = links.map { $0.json } }
+    if !links.isEmpty { res["links"] = links.map { $0.jsonValue } }
     res["guided"] = guided.map { $0.toJson() }
     return res
   }
@@ -32,7 +32,7 @@ struct GuidedNavigationDocument: Equatable {
     guard let json = json else { return nil }
 
     let linksJson = json["links"] as? [[String: Any]] ?? []
-    let links = linksJson.compactMap { try? Link(json: $0) }
+    let links = linksJson.compactMap { try? Link(json: JSONValue($0)) }
 
     let guidedJson = json["guided"] as? [[String: Any]] ?? []
     let guided = guidedJson.compactMap { GuidedNavigationObject.fromJson($0) }

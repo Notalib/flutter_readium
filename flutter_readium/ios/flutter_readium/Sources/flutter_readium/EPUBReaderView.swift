@@ -1,5 +1,4 @@
 import ReadiumNavigator
-import ReadiumAdapterGCDWebServer
 import ReadiumShared
 import Flutter
 import UIKit
@@ -27,11 +26,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   deinit {
-    Log.reader.info("dispose")
+    Log.reader.info("deinit EPUBReaderView")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
   init(
@@ -51,7 +50,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
+    let preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as? Int ?? 2
+    let preloadNextPositionCount = creationParams["preloadNextPositionCount"] as? Int ?? 6
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -73,13 +74,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
     ]
-    // TODO: Make this config configurable from Flutter
-    // Might want it to be higher for a local publication than remote. Default is 2 previous and 6 next resources.
-    config.preloadPreviousPositionCount = 2
-    config.preloadNextPositionCount = 4
+    // Configurable from Flutter via ReadiumReaderWidget. Upstream defaults are
+    // 2 previous and 6 next; bumping the "next" count is reasonable for local
+    // publications, lowering both helps memory pressure for remote ones.
+    config.preloadPreviousPositionCount = preloadPreviousPositionCount
+    config.preloadNextPositionCount = preloadNextPositionCount
     config.debugState = false
 
-    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
+    // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
@@ -93,8 +95,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     readiumViewController = try! EPUBNavigatorViewController(
       publication: publication,
       initialLocation: locator,
-      config: config,
-      httpServer: sharedReadium.httpServer!
+      config: config
     )
 
     _view = UIView()
@@ -118,7 +119,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       ]
     )
 
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -179,10 +180,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
-  
+
   public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {
     Log.reader.debug("didJumpTo: \(locator)")
     isJumpingToLocator = false
+  }
+
+  public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
+    // NOTE: We do note currently see any value in emitting this ViewPort to the client.
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -299,14 +304,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
       if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
         resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = tocLink.href
+        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
       }
 
       /// Immutable ref, so that we can use it on the main thread
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())
       }
     }
   }
@@ -333,7 +338,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
-    
+
     isJumpingToLocator = true
 
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
@@ -376,7 +381,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     switch call.method {
     case "go":
       let args = call.arguments as! [Any?]
-      let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
+      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
       let animated = args[1] as! Bool
 
       Task.detached(priority: .high) {
@@ -449,6 +454,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
+      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break

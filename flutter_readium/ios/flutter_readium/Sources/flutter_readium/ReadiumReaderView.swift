@@ -37,7 +37,7 @@ let readiumBugLogger = ReadiumBugLogger()
 /// EPUB-specific methods (`syncToLocator`, `applyDecorations`) are intentionally
 /// part of the protocol. The PDF implementation accepts them and no-ops with a
 /// warning — PDF has no media-overlay sync and no `DecorableNavigator`
-/// conformance in swift-toolkit 3.7.0.
+/// conformance in swift-toolkit 3.9.0.
 public protocol ReadiumReaderView: AnyObject {
   func getCurrentLocation() -> Locator?
   func getFirstVisibleLocator() async -> Locator?

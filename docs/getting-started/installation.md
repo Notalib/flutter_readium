@@ -62,7 +62,12 @@ For TTS and audiobook background playback, add to `AndroidManifest.xml`:
 
 ### Podfile
 
-Add the Readium pods to your `ios/Podfile` inside the `target 'Runner'` block:
+Add the Readium pods to your `ios/Podfile` inside the `target 'Runner'` block.
+
+To avoid version-drift, copy the exact Readium pod lines from:
+
+- `flutter_readium/example/ios/Podfile` (app integration source-of-truth)
+- and keep them aligned with `flutter_readium/ios/flutter_readium.podspec` (plugin pin)
 
 ```ruby
 target 'Runner' do
@@ -70,13 +75,7 @@ target 'Runner' do
   use_modular_headers!
 
   pod 'PromiseKit', '~> 8.1'
-  pod 'ReadiumShared',              podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumShared.podspec'
-  pod 'ReadiumInternal',            podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumInternal.podspec'
-  pod 'ReadiumStreamer',             podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumStreamer.podspec'
-  pod 'ReadiumNavigator',           podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumNavigator.podspec'
-  pod 'ReadiumOPDS',                podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumOPDS.podspec'
-  pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'
-  pod 'ReadiumZIPFoundation',       podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
+  # Readium pod lines: copy from flutter_readium/example/ios/Podfile
 end
 ```
 
@@ -84,15 +83,7 @@ Then run `pod install` (or `pod install --repo-update` on the first run).
 
 ### App Transport Security
 
-Readium serves EPUB content from a local web server on `127.0.0.1`. Add to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoads</key>
-  <true/>
-</dict>
-```
+Current swift-toolkit-based readers use a custom URL-scheme handler (no localhost web server), so `NSAppTransportSecurity` exceptions are not required for the plugin itself.
 
 ### Background audio (optional)
 
@@ -105,14 +96,9 @@ Add to `Info.plist` to keep audio playing when the app is backgrounded:
 </array>
 ```
 
-## 4. macOS setup
+## 4. macOS
 
-Same pod lines as iOS, added to `macos/Podfile`. Also enable outbound networking in `macos/Runner/DebugProfile.entitlements` and `Release.entitlements`:
-
-```xml
-<key>com.apple.security.network.client</key>
-<true/>
-```
+macOS is **not supported and not planned**. The plugin registers on macOS as a stub (all calls return `MethodNotImplemented`). No setup is required or useful.
 
 ## 5. Web setup
 

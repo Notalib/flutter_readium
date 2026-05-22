@@ -139,6 +139,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
+    _warnIfPublisherStylesOverrides(preferences);
     defaultPreferences = preferences;
     await currentReaderWidget?.setEPUBPreferences(preferences);
   }
@@ -224,6 +225,34 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       return results;
     } on Exception catch (e) {
       throw Exception('Failed to parse search results: $e');
+    }
+  }
+}
+
+void _warnIfPublisherStylesOverrides(EPUBPreferences preferences) {
+  // publisherStyles defaults to true when null — in either case the book's
+  // own CSS takes precedence and the following preferences are silently ignored
+  // by the Readium navigator.
+  if (preferences.publisherStyles != false) {
+    final ignored = <String>[
+      if (preferences.fontFamily != null) 'fontFamily',
+      if (preferences.fontWeight != null) 'fontWeight',
+      if (preferences.letterSpacing != null) 'letterSpacing',
+      if (preferences.wordSpacing != null) 'wordSpacing',
+      if (preferences.lineHeight != null) 'lineHeight',
+      if (preferences.textAlign != null) 'textAlign',
+      if (preferences.hyphens != null) 'hyphens',
+      if (preferences.ligatures != null) 'ligatures',
+      if (preferences.paragraphIndent != null) 'paragraphIndent',
+      if (preferences.paragraphSpacing != null) 'paragraphSpacing',
+      if (preferences.textColor != null) 'textColor',
+      if (preferences.backgroundColor != null) 'backgroundColor',
+    ];
+    if (ignored.isNotEmpty) {
+      ReadiumLog.w(
+        'EPUBPreferences: publisherStyles is ${preferences.publisherStyles == null ? 'null (defaults to true)' : 'true'} '
+        '— the following preferences will have no effect: ${ignored.join(', ')}',
+      );
     }
   }
 }
