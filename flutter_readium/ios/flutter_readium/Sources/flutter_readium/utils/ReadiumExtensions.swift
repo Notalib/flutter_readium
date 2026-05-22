@@ -63,42 +63,108 @@ extension Publication {
     }
   }
 
-  func getMediaOverlays() async -> [FlutterMediaOverlay] {
-    if (!containsMediaOverlays) {
-      return []
-    }
+  var containsGuidedNavigationMediaOverlays: Bool {
+    let mt = MediaType("application/guided-navigation+json")!
+    return !links.filterByMediaType(mt).isEmpty ||
+      readingOrder.contains(where: { !$0.alternates.filterByMediaType(mt).isEmpty })
+  }
 
-    let narrationLinks = self.narrationLinks
+  /// Whether the publication has any audio-text synchronization data,
+  /// either as syncnarr media overlays or as guided navigation.
+  var containsSyncNarration: Bool {
+    containsMediaOverlays || containsGuidedNavigationMediaOverlays
+  }
 
-    let toc: [Link] = getFlattenedToC()
+  /// Enriches a list of overlays with title and tocHref from the publication's table of contents.
+  /// Uses a sliding-window approach: items that don't match a ToC entry directly inherit the last
+  /// matched entry when they share the same text file.
+  private func enrichOverlaysWithToc(_ overlays: [FlutterMediaOverlay]) -> [FlutterMediaOverlay] {
+    let toc = getFlattenedToC()
     var lastTocMatch: Link? = nil
-
-    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
-    let mediaOverlays = narrationJson.enumerated().compactMap({ idx, json in
-      /// Fetch the expected total duration of this MediaOverlay from the reading-order.
-      let roDuration = readingOrder.getOrNil(idx)?.duration
-      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
-    }).map({ (overlay: FlutterMediaOverlay) in
-      /// For each item in the top-level MediaOverlay enrich it with href and title from the ToC where matchable.
-      let items = overlay.items.map { item in
-        // Find best matching title from ToC (via text URL)
-        if let match = toc.first(where: { tocItem in tocItem.href == item.text }) {
+    return overlays.map { overlay in
+      let items = overlay.items.map { item -> FlutterMediaOverlayItem in
+        if let match = toc.first(where: { $0.href == item.text }) {
           lastTocMatch = match
           return item.copyWith(tocTitle: match.title, tocHref: match.href)
-        } else if (lastTocMatch != nil && lastTocMatch?.href.substringBeforeLast("#") == item.textFile) {
-          return item.copyWith(tocTitle: lastTocMatch?.title, tocHref: lastTocMatch?.href)
+        } else if let last = lastTocMatch, last.href.substringBeforeLast("#") == item.textFile {
+          return item.copyWith(tocTitle: last.title, tocHref: last.href)
         }
         return item
       }
-      /// Re-create the top-level MediaOverlay item with its enriched items and reading-order duration
-      /// If no duration in the reading-order, it calculates a total duration for all its items.
       return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
+    }
+  }
+  
+  func getSyncNarrationMediaOverlays() async -> [FlutterMediaOverlay]? {
+    if (containsGuidedNavigationMediaOverlays) {
+      return await getGuidedNavigationMediaOverlays()
+    }
+    else if (containsSyncNarration) {
+      return await getMediaOverlays()
+    }
+    return nil
+  }
+
+  func getMediaOverlays() async -> [FlutterMediaOverlay]? {
+    guard containsMediaOverlays else { return nil }
+
+    let narrationLinks = self.narrationLinks
+
+    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
+    let rawOverlays = narrationJson.enumerated().compactMap({ idx, json in
+      let roDuration = readingOrder.getOrNil(idx)?.duration
+      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
     })
 
     // Assert that we did not lose any MediaOverlays during JSON deserialization.
-    assert(mediaOverlays.count == narrationLinks.count)
+    assert(rawOverlays.count == narrationLinks.count)
 
-    return mediaOverlays
+    return enrichOverlaysWithToc(rawOverlays)
+  }
+
+  func getGuidedNavigationMediaOverlays() async -> [FlutterMediaOverlay]? {
+    guard containsGuidedNavigationMediaOverlays else { return nil }
+
+    let guidedNavMediaType = MediaType("application/guided-navigation+json")!
+
+    // Strategy 1: single guided navigation document in publication links (preferred).
+    if let singleDocLink = links.filterByMediaType(guidedNavMediaType).first {
+      guard
+        let json = try? await get(singleDocLink)?.readAsJSONObject().get(),
+        let document = GuidedNavigationDocument.fromJson(json)
+      else { return nil }
+
+      let rawOverlays = document.toMediaOverlays()
+      let positionedOverlays = rawOverlays.compactMap { overlay -> FlutterMediaOverlay? in
+        guard let textFile = overlay.textFile else { return nil }
+        let roEntry = readingOrder.enumerated().first {
+          $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
+        }
+        let position = (roEntry?.offset ?? -1) + 1
+        let duration = roEntry?.element.duration
+        let items = overlay.items.map { item -> FlutterMediaOverlayItem in
+          FlutterMediaOverlayItem(
+            audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
+        }
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+      }
+      return enrichOverlaysWithToc(positionedOverlays)
+    }
+
+    // Strategy 2: per-item alternates in reading order.
+    var hasAny = false
+    var allOverlays: [FlutterMediaOverlay] = []
+    for (idx, roLink) in readingOrder.enumerated() {
+      guard let gnLink = roLink.alternates.filterByMediaType(guidedNavMediaType).first else { continue }
+      hasAny = true
+      guard
+        let json = try? await get(gnLink)?.readAsJSONObject().get(),
+        let document = GuidedNavigationDocument.fromJson(json)
+      else { continue }
+      allOverlays += document.toMediaOverlays(atPosition: idx + 1, readingOrderDuration: roLink.duration)
+    }
+    guard hasAny else { return nil }
+    return enrichOverlaysWithToc(allOverlays)
   }
 
   func searchInContentForQuery(_ query: String) async -> Result<[LocatorCollection], Error> {

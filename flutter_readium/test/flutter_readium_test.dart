@@ -235,7 +235,10 @@ void main() {
         links: [],
         metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
         readingOrder: [],
-        tableOfContents: [Link(href: '/ch1.xhtml'), Link(href: '/ch2.xhtml')],
+        tableOfContents: [
+          Link(href: '/ch1.xhtml'),
+          Link(href: '/ch2.xhtml'),
+        ],
       );
       await expectLater(
         () => reader.skipToNextTOC(publication: pub, currentTocHref: '/unknown.xhtml'),
@@ -248,7 +251,10 @@ void main() {
         links: [],
         metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
         readingOrder: [],
-        tableOfContents: [Link(href: '/ch1.xhtml'), Link(href: '/ch2.xhtml')],
+        tableOfContents: [
+          Link(href: '/ch1.xhtml'),
+          Link(href: '/ch2.xhtml'),
+        ],
       );
       await expectLater(
         () => reader.skipToNextTOC(publication: pub, currentTocHref: '/ch2.xhtml'),
@@ -264,10 +270,7 @@ void main() {
         metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
         readingOrder: [],
       );
-      await expectLater(
-        () => reader.toPhysicalPageIndex('999', pub),
-        throwsA(isA<ReadiumException>()),
-      );
+      await expectLater(() => reader.toPhysicalPageIndex('999', pub), throwsA(isA<ReadiumException>()));
     });
   });
 }
