@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+ANDROID_BUILD_GRADLE="$ROOT_DIR/flutter_readium/android/build.gradle"
+IOS_PODSPEC="$ROOT_DIR/flutter_readium/ios/flutter_readium.podspec"
+WEB_PACKAGE_JSON="$ROOT_DIR/flutter_readium/package.json"
+
+android_version="$(
+  sed -n "s/.*ext.readium_version = '\\([^']*\\)'.*/\\1/p" "$ANDROID_BUILD_GRADLE" | head -n1
+)"
+ios_swift_toolkit_version="$(
+  sed -n "s/.*s.dependency 'ReadiumShared', '~> \\([^']*\\)'.*/\\1/p" "$IOS_PODSPEC" | head -n1
+)"
+web_readium_shared="$(
+  sed -n 's/.*"@readium\/shared": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
+)"
+web_readium_navigator="$(
+  sed -n 's/.*"@readium\/navigator": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
+)"
+web_readium_injectables="$(
+  sed -n 's/.*"@readium\/navigator-html-injectables": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
+)"
+
+echo "Readium toolkit version pins"
+echo "----------------------------"
+echo "Android kotlin-toolkit: $android_version"
+echo "iOS swift-toolkit:      $ios_swift_toolkit_version"
+echo "Web @readium/shared:    $web_readium_shared"
+echo "Web @readium/navigator: $web_readium_navigator"
+echo "Web @readium/navigator-html-injectables: $web_readium_injectables"

@@ -13,21 +13,42 @@ concurrency:
 jobs:
   build-ios:
     runs-on: macos-latest
+    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v5
+        id: pods-cache
+        with:
+          path: |
+            flutter_readium/example/ios/Pods
+            ~/.cocoapods
+          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      - name: Cache Xcode derived data
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-deriveddata-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          restore-keys: |
+            xcode-deriveddata-${{ runner.os }}-
 
       - name: Install dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
 
       - name: Install CocoaPods dependencies
-        run: pod install --repo-update
+        run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
         working-directory: flutter_readium/example/ios
 
       - name: Build iOS (no codesign)

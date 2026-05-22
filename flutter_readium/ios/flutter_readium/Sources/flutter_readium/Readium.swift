@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import ReadiumAdapterGCDWebServer
 import ReadiumNavigator
 import ReadiumShared
 import ReadiumStreamer
@@ -26,7 +25,6 @@ final class Readium : DefaultHTTPClientDelegate {
   }
 
   lazy var httpClient: HTTPClient? = nil
-  lazy var httpServer: HTTPServer? = nil
   lazy var formatSniffer: FormatSniffer = DefaultFormatSniffer()
   lazy var assetRetriever: AssetRetriever? = nil
   lazy var publicationOpener: PublicationOpener? = nil
@@ -41,7 +39,6 @@ final class Readium : DefaultHTTPClientDelegate {
       resourceTimeout: nil, // default = 7 days
       delegate: self)
     self.assetRetriever = AssetRetriever(httpClient: self.httpClient!)
-    self.httpServer = GCDHTTPServer(assetRetriever: self.assetRetriever!)
     self.publicationOpener = PublicationOpener(
       parser: DefaultPublicationParser(
         httpClient: httpClient!,
@@ -151,8 +148,12 @@ extension ReadiumShared.ReadError: UserErrorConvertible {
         return error.userError().message
       case .decoding:
         return "error_decoding".localized
+      case .outOfMemory:
+        return "error_oom".localized
       case .unsupportedOperation:
         return "error_read".localized
+      case .cancelled:
+        return "error_cancelled".localized
       }
     }
   }
@@ -204,6 +205,8 @@ extension ReadiumShared.FileSystemError: UserErrorConvertible {
       case .forbidden:
         return "error_forbidden".localized
       case .io:
+        return "error_io".localized
+      case .outOfSpace:
         return "error_io".localized
       }
     }

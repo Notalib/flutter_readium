@@ -176,11 +176,27 @@ class PluginMediaService :
         }
 
         @OptIn(FlowPreview::class)
-        fun <N> openSession(navigator: N) where N : AnyMediaNavigator, N : Media3Adapter {
+        fun <N> openSession(
+            navigator: N,
+            onIsPlayingChanged: ((Boolean) -> Unit)? = null,
+        ) where N : AnyMediaNavigator, N : Media3Adapter {
             PluginLog.d(TAG, "openSession")
 
             val activityIntent = createSessionActivityIntent()
             val player = navigator.asMedia3Player()
+
+            // Media3's AudioFocusManager pauses the underlying audio sink for audio-focus
+            // losses (e.g. incoming calls) without changing playWhenReady or playbackState,
+            // so upstream Readium's playback StateFlow does not emit. Listen on the raw
+            // Player and bridge isPlaying changes back to our navigator wrapper.
+            onIsPlayingChanged?.let { cb ->
+                player.addListener(object : Player.Listener {
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        cb(isPlaying)
+                    }
+                })
+            }
+
             // Create our SimpleBasePlayer override to override some media-button mapping.
             val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences)
 

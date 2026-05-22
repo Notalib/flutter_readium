@@ -1,5 +1,4 @@
 import ReadiumNavigator
-import ReadiumAdapterGCDWebServer
 import ReadiumShared
 import Flutter
 import UIKit
@@ -8,30 +7,31 @@ import WebKit
 private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
-public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate {
+public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
-  private let _view: UIView
+  private let containerView: EPUBContainerView
   private let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
   private var isJumpingToLocator = false
   private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
+  private var lastViewport: NavigatorViewport?
 
   var publicationIdentifier: String?
 
   public func view() -> UIView {
     Log.reader.debug("getView")
-    return _view
+    return containerView
   }
 
   deinit {
-    Log.reader.info("dispose")
+    Log.reader.info("deinit EPUBReaderView")
     readiumViewController.view.removeFromSuperview()
     readiumViewController.delegate = nil
     channel.setMethodCallHandler(nil)
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(nil)
+    FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
   init(
@@ -51,7 +51,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator.init(jsonString: locatorStr!)
+    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
+    let preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as? Int ?? 2
+    let preloadNextPositionCount = creationParams["preloadNextPositionCount"] as? Int ?? 6
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -73,18 +75,54 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       .compact: (top: 0, bottom: 0),
       .regular: (top: 0, bottom: 0),
     ]
-    // TODO: Make this config configurable from Flutter
-    // Might want it to be higher for a local publication than remote. Default is 2 previous and 6 next resources.
-    config.preloadPreviousPositionCount = 2
-    config.preloadNextPositionCount = 4
+    // Configurable from Flutter via ReadiumReaderWidget. Upstream defaults are
+    // 2 previous and 6 next; bumping the "next" count is reasonable for local
+    // publications, lowering both helps memory pressure for remote ones.
+    config.preloadPreviousPositionCount = preloadPreviousPositionCount
+    config.preloadNextPositionCount = preloadNextPositionCount
     config.debugState = false
 
-    // TODO: Use experimentalPositioning for now. It places highlights on z-index -1 behind text, instead of on top.
+    // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
     config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
     //config.editingActions = [.lookup, .translate, EditingAction(title: "Custom Highlight Action", action: #selector(onCustomEditingAction))]
+
+    // Configure selection actions from Flutter creation params.
+    let selectionActionsParam = creationParams["selectionActions"] as? [[String: Any]] ?? []
+    let allowedDefaultActionsParam = creationParams["allowedDefaultActions"] as? [String]
+    let containerView = EPUBContainerView()
+
+    // Build the editing actions list.
+    var editingActions: [EditingAction]
+    if let allowedDefaults = allowedDefaultActionsParam {
+      // Only include explicitly allowed default actions.
+      editingActions = []
+      for name in allowedDefaults {
+        switch name {
+        case "copy": editingActions.append(.copy)
+        case "share": editingActions.append(.share)
+        case "lookup": editingActions.append(.lookup)
+        case "translate": editingActions.append(.translate)
+        default: break
+        }
+      }
+    } else {
+      // null means show all defaults.
+      editingActions = EditingAction.defaultActions
+    }
+
+    if !selectionActionsParam.isEmpty {
+      let actions = selectionActionsParam.compactMap { dict -> (id: String, title: String)? in
+        guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
+        return (id: id, title: title)
+      }
+      containerView.configureActions(actions)
+      editingActions += containerView.editingActions()
+    }
+
+    config.editingActions = editingActions
 
     if let readiumPreferences = self.preferences?.readium {
       config.preferences = readiumPreferences
@@ -93,18 +131,18 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     readiumViewController = try! EPUBNavigatorViewController(
       publication: publication,
       initialLocation: locator,
-      config: config,
-      httpServer: sharedReadium.httpServer!
+      config: config
     )
 
-    _view = UIView()
+    self.containerView = containerView
     super.init()
 
+    containerView.readerView = self
     channel.setMethodCallHandler(onMethodCall)
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view
-    let view = _view
+    let view = containerView
     view.addSubview(readiumViewController.view)
 
     child.translatesAutoresizingMaskIntoConstraints = false
@@ -118,7 +156,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       ]
     )
 
-    FlutterReadiumPlugin.instance?.setCurrentReadiumReaderView(self)
+    FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// Ensure userScripts are initialized for later injection.
     if userScripts.isEmpty {
@@ -130,6 +168,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     DirectionalNavigationAdapter(
       pointerPolicy: .init(types: [.mouse, .touch])
     ).bind(to: readiumViewController)
+
+    // Observe decoration interactions for all groups that get applied later.
+    // We register a global handler on the well-known "user-highlight" group.
+    readiumViewController.observeDecorationInteractions(inGroup: "user-highlight") { [weak self] event in
+      self?.onDecorationActivated(event: event)
+    }
 
     Log.reader.debug("init success")
   }
@@ -179,10 +223,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
-  
+
   public func navigator(_ navigator: any Navigator, didJumpTo locator: Locator) {
     Log.reader.debug("didJumpTo: \(locator)")
     isJumpingToLocator = false
+  }
+
+  public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
+    // We do note currently see any value in emitting this NavigatorViewport to the client.
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -222,6 +270,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
     Log.reader.debug("applyDecorations: \(decorations) identifier: \(groupIdentifier)")
+    ensureDecorationObservation(forGroup: groupIdentifier)
     self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
   }
 
@@ -246,8 +295,57 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  // MARK: - SelectableNavigatorDelegate
+
+  public func navigator(_ navigator: SelectableNavigator, shouldShowMenuForSelection selection: Selection) -> Bool {
+    Log.reader.debug("shouldShowMenuForSelection: \(selection.locator)")
+    let locator = selection.locator
+    let selectedText = locator.text.highlight
+    channel.onTextSelected(locator: locator, selectedText: selectedText)
+    // Return true to also show the native context menu with editing actions.
+    return true
+  }
+
+  public func navigator(_ navigator: SelectableNavigator, canPerformAction action: EditingAction, for selection: Selection) -> Bool {
+    return true
+  }
+
+  /// Called by `EPUBContainerView` when a configured action slot fires via the responder chain.
+  func handleSelectionAction(actionId: String) {
+    Log.reader.debug("handleSelectionAction: \(actionId)")
+    guard let selection = readiumViewController.currentSelection else {
+      Log.reader.warn("handleSelectionAction: no current selection")
+      return
+    }
+    let locator = selection.locator
+    let selectedText = locator.text.highlight
+    channel.onSelectionAction(actionId: actionId, locator: locator, selectedText: selectedText)
+  }
+
   func getCurrentSelection() -> Locator? {
     return self.readiumViewController.currentSelection?.locator
+  }
+
+  /// Called when a decoration is tapped/activated by the user.
+  private func onDecorationActivated(event: OnDecorationActivatedEvent) {
+    Log.reader.debug("onDecorationActivated: \(event.decoration.id) in group \(event.group)")
+    channel.onDecorationInteraction(
+      decorationId: event.decoration.id,
+      group: event.group,
+      type: "tap",
+      locator: event.decoration.locator
+    )
+  }
+
+  /// Registers decoration interaction observation for a group.
+  /// Called when `applyDecorations` is used with a new group identifier.
+  private var observedDecorationGroups: Set<String> = ["user-highlight"]
+  private func ensureDecorationObservation(forGroup group: String) {
+    guard !observedDecorationGroups.contains(group) else { return }
+    observedDecorationGroups.insert(group)
+    readiumViewController.observeDecorationInteractions(inGroup: group) { [weak self] event in
+      self?.onDecorationActivated(event: event)
+    }
   }
 
   private func evaluateJavascript(_ code: String) async -> Result<Any, Error> {
@@ -291,7 +389,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    Task.detached(priority: .high) { [locator] in
+    let viewport = lastViewport
+
+    Task.detached(priority: .high) { [locator, viewport] in
       /// Enrich Locator with PageInformation and ToC.
       var resultLocator = locator
       if let pageInfo = await self.getPageInformation() {
@@ -299,14 +399,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
       if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
         resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = tocLink.href
+        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
       }
 
       /// Immutable ref, so that we can use it on the main thread
       let finalLocator = resultLocator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(finalLocator.jsonString)
+        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())
       }
     }
   }
@@ -333,7 +433,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
-    
+
     isJumpingToLocator = true
 
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
@@ -376,7 +476,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     switch call.method {
     case "go":
       let args = call.arguments as! [Any?]
-      let locator = try! Locator(jsonString: args[0] as! String, warnings: readiumBugLogger)!
+      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
       let animated = args[1] as! Bool
 
       Task.detached(priority: .high) {
@@ -445,10 +545,20 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
       applyDecorations(decorations, forGroup: identifier)
       break
+    case "configureSelectionActions":
+      let args = call.arguments as! [[String: Any]]
+      let actions = args.compactMap { dict -> (id: String, title: String)? in
+        guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
+        return (id: id, title: title)
+      }
+      containerView.configureActions(actions)
+      result(nil)
+      break
     case "dispose":
       Log.reader.info("Disposing readiumViewController")
       readiumViewController.view.removeFromSuperview()
       readiumViewController.delegate = nil
+      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
       emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
       result(nil)
       break

@@ -1,4 +1,5 @@
 import Foundation
+import ReadiumShared
 
 final class PageInformation {
 
@@ -20,30 +21,30 @@ final class PageInformation {
     self.totalPages = totalPages
   }
 
-  var otherLocations: [String: Any] {
-    var res: [String: Any] = [:]
+  var otherLocations: [String: JSONValue] {
+    var res: [String: JSONValue] = [:]
 
     if let tocId,
        !tocId.isEmpty {
-      res["tocId"] = tocId
+      res["tocId"] = .string(tocId)
     }
 
     if let physicalPage,
        !physicalPage.isEmpty {
-      res["physicalPage"] = physicalPage
+      res["physicalPage"] = .string(physicalPage)
     }
 
     if let cssSelector,
        !cssSelector.isEmpty {
-      res["cssSelector"] = cssSelector
+      res["cssSelector"] = .string(cssSelector)
     }
 
     if let currentPage, currentPage > 0 {
-      res["currentPage"] = currentPage
+      res["currentPage"] = .integer(currentPage)
     }
 
     if let totalPages, totalPages > 0 {
-      res["totalPages"] = totalPages
+      res["totalPages"] = .integer(totalPages)
     }
 
     return res

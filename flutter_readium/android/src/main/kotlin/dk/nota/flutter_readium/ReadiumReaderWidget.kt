@@ -49,7 +49,7 @@ class ReadiumReaderWidget(
     PdfReaderFragment.Listener,
     EpubNavigator.VisualListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
-    private val channel: ReadiumReaderChannel
+    internal val channel: ReadiumReaderChannel
 
     /**
      * Make sure we only sent ready status once.
@@ -102,6 +102,14 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
+        // Accepted for API parity with iOS but currently no-op: kotlin-toolkit's
+        // EpubNavigatorFragment.Configuration does not expose preload-count fields
+        // (preload is governed by an internal R2ViewPager.offscreenPageLimit). Revisit
+        // when upstream adds a public knob.
+        @Suppress("UNUSED_VARIABLE")
+        val preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as Int?
+        @Suppress("UNUSED_VARIABLE")
+        val preloadNextPositionCount = creationParams["preloadNextPositionCount"] as Int?
         val initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
 
@@ -341,10 +349,22 @@ class ReadiumReaderWidget(
 
                     @Suppress("UNCHECKED_CAST")
                     val decorationListStr =
-                        args[1] as List<Map<String, String>>
-                    val decorations = decorationListStr.mapNotNull { decorationFromMap(it) }
+                        args[1] as List<String>
+                    val decorations = decorationListStr.mapNotNull { decorationFromJson(it) }
 
                     ReadiumReader.applyDecorations(decorations, groupId)
+                    result.success(null)
+                }
+
+                "configureSelectionActions" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val actions = call.arguments as? List<Map<String, String>> ?: emptyList()
+                    ReadiumReader.selectionActions = actions.map { map ->
+                        SelectionActionConfig(
+                            id = map["id"] ?: "",
+                            title = map["title"] ?: "",
+                        )
+                    }
                     result.success(null)
                 }
 

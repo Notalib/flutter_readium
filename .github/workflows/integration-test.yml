@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Cancel in-progress runs when a new commit is pushed to the same PR.
 concurrency:
@@ -15,22 +16,42 @@ jobs:
   ios:
     name: iOS (Simulator)
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v5
+        id: pods-cache
+        with:
+          path: |
+            flutter_readium/example/ios/Pods
+            ~/.cocoapods
+          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      - name: Cache Xcode derived data
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: xcode-deriveddata-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          restore-keys: |
+            xcode-deriveddata-${{ runner.os }}-
 
       - name: Install Dart dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
 
       - name: Install CocoaPods dependencies
-        run: pod install --repo-update
+        run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
         working-directory: flutter_readium/example/ios
 
       - name: Boot iOS simulator
@@ -50,7 +71,7 @@ jobs:
   android:
     name: Android (Emulator)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -58,7 +79,18 @@ jobs:
         api-level: [24, 36]
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
+      - uses: actions/checkout@v6
 
       - name: Enable KVM
         run: |
@@ -75,7 +107,18 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
-          flutter-version: '3.41.9'
+          flutter-version-file: .flutter-version
+          cache: true
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle', 'flutter_readium/example/android/app/build.gradle') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Install Dart dependencies
         run: flutter pub get

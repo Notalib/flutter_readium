@@ -19,31 +19,20 @@ class ListItemWidget extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          horizontalPadding,
-          verticalPadding,
-          horizontalPadding,
-          verticalPadding,
-        ),
-        child: isVerticalAlignment
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: fontSize ?? 20),
-                  ),
-                  child,
-                ],
-              )
-            : Column(
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: fontSize ?? 20),
-                  ),
-                  child,
-                ],
-              ),
-      );
+    padding: EdgeInsets.fromLTRB(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding),
+    child: isVerticalAlignment
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: TextStyle(fontSize: fontSize ?? 20)),
+              child,
+            ],
+          )
+        : Column(
+            children: [
+              Text(label, style: TextStyle(fontSize: fontSize ?? 20)),
+              child,
+            ],
+          ),
+  );
 }
