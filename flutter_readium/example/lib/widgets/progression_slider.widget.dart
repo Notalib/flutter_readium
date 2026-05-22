@@ -41,6 +41,7 @@ class _ProgressionSliderState extends State<ProgressionSlider> {
     builder: (final context, final snapshot) {
       final progression = _resolveProgression(snapshot.data) ?? 0.0;
       return Slider(
+        key: const ValueKey('progression_slider'),
         value: isDraggingSliderValue ?? progression.clamp(0.0, 1.0),
         allowedInteraction: SliderInteraction.tapAndSlide,
         onChanged: (final double value) {

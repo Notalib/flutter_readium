@@ -17,6 +17,8 @@ import dk.nota.flutter_readium.events.TimedBasedStateEventChannel
 import dk.nota.flutter_readium.models.ReadiumTimebasedState
 import dk.nota.flutter_readium.navigators.AudiobookNavigator
 import dk.nota.flutter_readium.navigators.EpubNavigator
+import dk.nota.flutter_readium.navigators.FlutterVisualNavigator
+import dk.nota.flutter_readium.navigators.PdfNavigator
 import dk.nota.flutter_readium.navigators.SyncAudiobookNavigator
 import dk.nota.flutter_readium.navigators.TTSNavigator
 import dk.nota.flutter_readium.navigators.TimebasedNavigator
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.navigator.media.tts.android.AndroidTtsEngine
 import org.readium.navigator.media.tts.android.AndroidTtsPreferences
 import org.readium.navigator.media.tts.android.AndroidTtsSettings
@@ -60,6 +63,7 @@ import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.shared.util.http.HttpRequest
 import org.readium.r2.shared.util.http.HttpTry
+import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingContainer
 import org.readium.r2.streamer.PublicationOpener
@@ -78,6 +82,7 @@ private const val audioEnabledKey = "audioEnabled"
 private const val syncAudioEnabledKey = "syncAudioEnabled"
 
 private const val epubEnabledKey = "epubEnabled"
+private const val pdfEnabledKey = "pdfEnabled"
 private const val ttsNavigatorStateKey = "ttsState"
 private const val audioNavigatorStateKey = "audioState"
 private const val syncAudioNavigatorStateKey = "syncAudioState"
@@ -162,7 +167,19 @@ object ReadiumReader :
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
 
-    private var epubNavigator: EpubNavigator? = null
+    private var visualNavigator: FlutterVisualNavigator? = null
+
+    /** True when the current visual navigator is a PDF navigator. */
+    val isPdf: Boolean
+        get() = visualNavigator is PdfNavigator
+
+    /** Typed accessor for EPUB-specific operations. */
+    private val epubNavigator: EpubNavigator?
+        get() = visualNavigator as? EpubNavigator
+
+    /** Typed accessor for PDF-specific operations. */
+    private val pdfNavigator: PdfNavigator?
+        get() = visualNavigator as? PdfNavigator
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
@@ -183,8 +200,7 @@ object ReadiumReader :
                                 context,
                                 assetRetriever = assetRetriever,
                                 httpClient = httpClient,
-                                // Only required if you want to support PDF files using the PDFium adapter.
-                                pdfFactory = null, // PdfiumDocumentFactory(context)
+                                pdfFactory = PdfiumDocumentFactory(context),
                             ),
                     )
             }
@@ -246,6 +262,11 @@ object ReadiumReader :
             putString(currentPublicationUrlKey, currentPublicationUrl)
             putBoolean(epubEnabledKey, epubNavigator != null)
             putBundle(epubNavigatorStateKey, epubNavigator?.storeState())
+            // PdfNavigatorFragment in kotlin-toolkit 3.1.2 does not support
+            // process-death restoration (`RestorationNotSupportedException` from
+            // its onResume). We record the boolean for symmetry but skip the
+            // serialised state bundle — the widget reopens fresh on restore.
+            putBoolean(pdfEnabledKey, pdfNavigator != null)
             putBoolean(ttsEnabledKey, ttsNavigator != null)
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
             putBoolean(audioEnabledKey, audiobookNavigator != null)
@@ -285,13 +306,21 @@ object ReadiumReader :
             if (bundle.getBoolean(epubEnabledKey)) {
                 PluginLog.d(TAG, "::storeState - restore epub navigator")
                 bundle.getBundle(epubNavigatorStateKey)?.let { state ->
-                    epubNavigator =
+                    visualNavigator =
                         EpubNavigator.restoreState(pub, this@ReadiumReader, state).apply {
                             initNavigator()
                             PluginLog.d(TAG, "::storeState - epubNavigator restored")
                             setDecorationStyle(decorationStyle)
                         }
                 }
+            }
+
+            // We deliberately do not restore the PDF navigator across process
+            // death — upstream PdfNavigatorFragment doesn't support it. The
+            // widget will re-enable PDF on next attach using the locator that
+            // Dart re-supplies via creation params.
+            if (bundle.getBoolean(pdfEnabledKey)) {
+                PluginLog.d(TAG, ":storeState - PDF was active; skipping restore (unsupported by PdfNavigatorFragment)")
             }
 
             if (bundle.getBoolean(ttsEnabledKey)) {
@@ -425,7 +454,18 @@ object ReadiumReader :
                     container = transformingContainerFactory?.let { it(container) } ?: container
                 })
                 .getOrElse { err: OpenError ->
-                    PluginLog.e(TAG, "Error opening publication: $err")
+                    fun unwrapCause(e: org.readium.r2.shared.util.Error?): String =
+                        when (e) {
+                            null -> "null"
+                            is ThrowableError<*> -> "${e.message} | throwable: ${e.throwable}"
+                            else -> "${e.message} | cause: ${unwrapCause(e.cause)}"
+                        }
+                    val detail = when (err) {
+                        is OpenError.Reading -> "Reading error: ${unwrapCause(err.cause)}"
+                        is OpenError.FormatNotSupported -> "FormatNotSupported: ${unwrapCause(err.cause)}"
+                        else -> err.toString()
+                    }
+                    PluginLog.e(TAG, "Error opening publication: $detail")
                     asset.close()
                     return failure(err)
                 }
@@ -763,7 +803,7 @@ object ReadiumReader :
 
             EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
-                epubNavigator = this
+                visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
                 setDecorationStyle(decorationStyle)
                 return@withMainContext
@@ -781,8 +821,8 @@ object ReadiumReader :
         }
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.w(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::attachEpubNavigator: Tried to attach a non-existing epub navigator?")
                 return
             }
 
@@ -794,10 +834,174 @@ object ReadiumReader :
         }
     }
 
+    @OptIn(InternalReadiumApi::class)
+    suspend fun pdfEnable(
+        initialLocator: Locator?,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget,
+    ) {
+        val pub = currentPublication ?: throw Exception("Publication not opened cannot enable pdf")
+
+        currentReaderWidget = readerWidget
+
+        val isPdf =
+            pub.conformsTo(Publication.Profile.PDF) ||
+                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+        if (!isPdf) {
+            throw Exception("Publication is not a PDF, cannot enable pdf navigator")
+        }
+
+        withMainContext {
+            pdfNavigator?.let {
+                attachPdfNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+
+            PdfNavigator(pub, initialLocator, this@ReadiumReader).apply {
+                initNavigator()
+                visualNavigator = this
+                attachPdfNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+        }
+    }
+
+    suspend fun attachPdfNavigator(
+        fragmentManager: FragmentManager?,
+        viewGroup: ViewGroup?,
+    ) {
+        if (fragmentManager == null || viewGroup == null) {
+            PluginLog.d(TAG, "::attachPdfNavigator: Missing fragmentManager or viewGroup")
+            return
+        }
+
+        val navigator =
+            pdfNavigator ?: run {
+                PluginLog.d(TAG, "::attachPdfNavigator: Tried to attach a non-existing pdf navigator?")
+                return
+            }
+
+        withMainContext {
+            navigator.attachNavigator(fragmentManager, viewGroup)
+        }
+    }
+
+    fun pdfClose() {
+        currentReaderWidget = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
+    suspend fun pdfUpdatePreferences(preferences: FlutterPdfPreferences) {
+        val navigator =
+            pdfNavigator ?: run {
+                PluginLog.e(TAG, "::pdfUpdatePreferences called without a pdfNavigator")
+                return
+            }
+        navigator.updatePreferences(preferences)
+    }
+
+    fun pdfEnrichLocatorWithTocHref(locator: Locator): Locator {
+        val publication = currentPublication ?: return locator
+        val page = locator.locations.position ?: return locator
+
+        // Find the last TOC entry whose "#page=N" fragment is ≤ the current page.
+        val tocEntry =
+            publication.tableOfContents
+                .flattenChildren()
+                .asSequence()
+                .mapNotNull { link ->
+                    val href = link.href.toString()
+                    val fragment = href.substringAfterLast("#", "")
+                    if (!fragment.startsWith("page=")) return@mapNotNull null
+                    val tocPage = fragment.removePrefix("page=").toIntOrNull() ?: return@mapNotNull null
+                    Pair(tocPage, link)
+                }
+                .filter { it.first <= page }
+                .maxByOrNull { it.first }
+                ?.second ?: return locator
+
+        return locator
+            .copy(title = tocEntry.title)
+            .copyWithTocHref(tocEntry)
+    }
+
     fun epubClose() {
         currentReaderWidget = null
-        epubNavigator?.dispose()
-        epubNavigator = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
+    /** Close the active visual navigator, regardless of type (EPUB or PDF). */
+    fun visualClose() {
+        currentReaderWidget = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
+    /**
+     * Enable the appropriate visual navigator (EPUB or PDF) based on the
+     * current publication type. This replaces the separate `epubEnable` /
+     * `pdfEnable` call sites in the widget so callers don't need to branch.
+     */
+    @OptIn(InternalReadiumApi::class)
+    suspend fun visualEnable(
+        initialLocator: Locator?,
+        initialPreferences: FlutterEpubPreferences,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget,
+    ) {
+        val pub =
+            currentPublication ?: throw Exception("Publication not opened cannot enable visual navigator")
+        val isPdf =
+            pub.conformsTo(Publication.Profile.PDF) ||
+                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+        if (isPdf) {
+            pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+        } else {
+            epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+        }
+    }
+
+    /** Navigate backward in the active visual navigator. */
+    suspend fun visualGoBackward(animated: Boolean) {
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoBackward. Navigator not ready.")
+                return
+            }
+        navigator.goBackward(animated)
+    }
+
+    /** Navigate forward in the active visual navigator. */
+    suspend fun visualGoForward(animated: Boolean) {
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoForward. Navigator not ready.")
+                return
+            }
+        navigator.goForward(animated)
+    }
+
+    /** Go to the given locator in the active visual navigator. */
+    suspend fun visualGoToLocator(
+        locator: Locator,
+        animated: Boolean,
+    ) {
+        val publication =
+            currentPublication ?: run {
+                PluginLog.e(TAG, "::visualGoToLocator called without an open publication")
+                return
+            }
+        val toLocator = publication.normalizeLocator(locator)
+        val navigator =
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::visualGoToLocator. Navigator not ready.")
+                return
+            }
+        navigator.goToLocator(toLocator, animated)
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
@@ -1137,8 +1341,8 @@ object ReadiumReader :
      */
     suspend fun epubGoBackward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoBackward called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoBackward called without a visualNavigator")
                 return
             }
 
@@ -1150,8 +1354,8 @@ object ReadiumReader :
      */
     suspend fun epubGoForward(animated: Boolean) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoForward called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoForward called without a visualNavigator")
                 return
             }
 
@@ -1167,15 +1371,15 @@ object ReadiumReader :
     ) {
         val publication =
             currentPublication ?: run {
-                PluginLog.e(TAG, "::epubGoToLocator called wihtout an open publication")
+                PluginLog.e(TAG, "::epubGoToLocator called without an open publication")
                 return
             }
 
         val toLocator = publication.normalizeLocator(locator)
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoToLocator called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoToLocator called without a visualNavigator")
                 return
             }
 
@@ -1184,8 +1388,8 @@ object ReadiumReader :
 
     suspend fun epubGoToProgression(progression: Double) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::epubGoToProgression called without a epubNavigator")
+            visualNavigator ?: run {
+                PluginLog.d(TAG, "::epubGoToProgression called without a visualNavigator")
                 return
             }
 

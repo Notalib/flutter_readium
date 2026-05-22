@@ -13,6 +13,7 @@ import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.events.ReadiumError
 import dk.nota.flutter_readium.events.ReadiumReaderStatus
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
+import dk.nota.flutter_readium.fragments.PdfReaderFragment
 import dk.nota.flutter_readium.models.PageInformation
 import dk.nota.flutter_readium.navigators.EpubNavigator
 import io.flutter.plugin.common.BinaryMessenger
@@ -45,6 +46,7 @@ class ReadiumReaderWidget(
 ) : PlatformView,
     MethodChannel.MethodCallHandler,
     EpubReaderFragment.Listener,
+    PdfReaderFragment.Listener,
     EpubNavigator.VisualListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private val channel: ReadiumReaderChannel
@@ -68,7 +70,7 @@ class ReadiumReaderWidget(
 
     override fun dispose() {
         PluginLog.d(TAG, "::dispose")
-        ReadiumReader.epubClose()
+        ReadiumReader.visualClose()
 
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Closed)
         hasSentReady = false
@@ -100,8 +102,9 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
-        var initialLocator =
+        val initialLocator =
             if (locatorString == null) null else Locator.fromJSON(jsonDecode(locatorString) as JSONObject)
+
         val initialPreferences =
             initPrefsMap?.let { FlutterEpubPreferences.fromMap(it) } ?: FlutterEpubPreferences()
 
@@ -129,9 +132,9 @@ class ReadiumReaderWidget(
         }
 
         // Remove existing fragment if any (this is to avoid crashing on restore).
-        (fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG) as? EpubReaderFragment)?.let { fragment ->
+        // Cast as base Fragment so we strip either reader type cleanly.
+        fragmentManager.findFragmentByTag(NAVIGATOR_FRAGMENT_TAG)?.let { fragment ->
             PluginLog.d(TAG, "::init - remove existing fragment")
-
             fragmentManager.commitNow {
                 remove(fragment)
             }
@@ -139,7 +142,7 @@ class ReadiumReaderWidget(
 
         launch {
             try {
-                ReadiumReader.epubEnable(
+                ReadiumReader.visualEnable(
                     initialLocator,
                     initialPreferences,
                     fragmentManager,
@@ -149,7 +152,7 @@ class ReadiumReaderWidget(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                PluginLog.e(TAG, "::init - epubEnable failed", e)
+                PluginLog.e(TAG, "::init - visualEnable failed: ${e.message}", e)
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
                 ReadiumReader.emitError(ReadiumError(e))
             }
@@ -224,34 +227,39 @@ class ReadiumReaderWidget(
         locator: Locator,
     ) {
         var emittingLocator = locator
-
         try {
-            evaluateJavascript("window.flutterReadium.getPageInformation()")
-                ?.let {
-                    PageInformation.fromJson(
-                        it,
-                        locator.href,
-                    )
-                }?.let { pageInfo ->
-                    emittingLocator =
-                        emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                } ?: {
-                PluginLog.d(TAG, "::emitOnPageChanged - no page information")
+            if (ReadiumReader.isPdf) {
+                // Enrich PDF locator with the current TOC chapter title/href by
+                // matching "#page=N" fragments from the publication's table of contents.
+                emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
+            } else {
+                // EPUB: JS page-info eval + TOC href enrichment.
+                try {
+                    evaluateJavascript("window.flutterReadium.getPageInformation()")
+                        ?.let {
+                            PageInformation.fromJson(
+                                it,
+                                locator.href,
+                            )
+                        }?.let { pageInfo ->
+                            emittingLocator =
+                                emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                        } ?: {
+                        PluginLog.d(TAG, "::emitOnPageChanged - no page information")
+                    }
+                } catch (e: Error) {
+                    PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+                }
+
+                emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
+                emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
             }
-        } catch (e: Error) {
-            PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
-        }
-
-        try {
-            emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
-
-            emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
 
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)
-            PluginLog.d(TAG, "emitOnPageChanged: emitted $emittingLocator")
+            PluginLog.d(TAG, "::emitOnPageChanged: emitted $emittingLocator")
         } catch (e: Exception) {
-            PluginLog.e(TAG, "emitOnPageChanged: failed! $e")
+            PluginLog.e(TAG, "::emitOnPageChanged: failed! $e")
         }
     }
 
@@ -281,8 +289,11 @@ class ReadiumReaderWidget(
                                 )
                                 return@launch
                             }
-
-                        setPreferencesFromMap(prefsMap)
+                        if (ReadiumReader.isPdf) {
+                            ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
+                        } else {
+                            setPreferencesFromMap(prefsMap)
+                        }
                         result.success(null)
                     } catch (ex: Exception) {
                         result.error("FlutterReadium", "Failed to set preferences", ex.message)
@@ -301,7 +312,7 @@ class ReadiumReaderWidget(
                         )
                     }
                     val locator = Locator.fromJSON(locatorJson)!!
-                    ReadiumReader.epubGoToLocator(locator, animated)
+                    ReadiumReader.visualGoToLocator(locator, animated)
                     result.success(null)
                 }
 
@@ -318,6 +329,13 @@ class ReadiumReaderWidget(
                 }
 
                 "applyDecorations" -> {
+                    if (ReadiumReader.isPdf) {
+                        // Pdfium-backed PdfNavigatorFragment does not expose a
+                        // DecorableNavigator surface in kotlin-toolkit 3.1.2.
+                        PluginLog.d(TAG, "::applyDecorations - not supported for PDF")
+                        result.success(null)
+                        return@launch
+                    }
                     val args = call.arguments as List<*>
                     val groupId = args[0] as String
 
@@ -344,16 +362,16 @@ class ReadiumReaderWidget(
     }
 
     /**
-     * Navigate backward in the EPUB navigator.
+     * Navigate backward in the active visual navigator.
      */
     private suspend fun goBackward(animated: Boolean) {
         PluginLog.d(TAG, "::goBackward")
-        ReadiumReader.epubGoBackward(animated)
+        ReadiumReader.visualGoBackward(animated)
     }
 
     private suspend fun goForward(animated: Boolean) {
         PluginLog.d(TAG, "::goForward")
-        ReadiumReader.epubGoForward(animated)
+        ReadiumReader.visualGoForward(animated)
     }
 
     private suspend fun evaluateJavascript(script: String): String? {

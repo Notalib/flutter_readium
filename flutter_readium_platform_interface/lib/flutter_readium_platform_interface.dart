@@ -77,6 +77,10 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
       throw UnimplementedError('setEPUBPreferences() has not been implemented');
 
+  /// Sets the PDF rendering preferences for the current ReaderWidgetView.
+  Future<void> setPDFPreferences(PDFPreferences preferences) =>
+      throw UnimplementedError('setPDFPreferences() has not been implemented');
+
   /// Apply reader decorations (highlights, bookmarks, etc.) to the current ReaderWidgetView.
   /// The `id` parameter is used to identify the decoration set.
   /// The `decorations` parameter is a list of [ReaderDecoration] objects to apply.

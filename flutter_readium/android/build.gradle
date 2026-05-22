@@ -24,6 +24,7 @@ rootProject.allprojects {
   repositories {
     google()
     mavenCentral()
+    maven { url 'https://jitpack.io' } // Needed for readium-adapter-pdfium
   }
 }
 
@@ -96,8 +97,7 @@ dependencies {
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-tts:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-navigator-media-audio:$readium_version"
   implementation "org.readium.kotlin-toolkit:readium-adapter-exoplayer-audio:$readium_version"
-  // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-document:$readium_version"
-  // implementation "org.readium.kotlin-toolkit:readium-adapter-pspdfkit-navigator:$readium_version"
+  implementation "org.readium.kotlin-toolkit:readium-adapter-pdfium:$readium_version"
   //implementation "org.readium.kotlin-toolkit:readium-lcp:$readium_version"
 
   // Used for media-session controls
