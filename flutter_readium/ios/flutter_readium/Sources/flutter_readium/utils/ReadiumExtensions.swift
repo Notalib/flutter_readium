@@ -94,7 +94,7 @@ extension Publication {
       return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
     }
   }
-  
+
   func getSyncNarrationMediaOverlays() async -> [FlutterMediaOverlay]? {
     if (containsGuidedNavigationMediaOverlays) {
       return await getGuidedNavigationMediaOverlays()
@@ -319,28 +319,14 @@ extension Decoration {
 
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let jsonObject = jsonMap,
-          let idString = jsonObject["id"],
-          let locator = try Locator(legacyJSONString: jsonObject["locator"]!),
-          let styleStr = jsonObject["style"],
-          let tintHexStr = jsonObject["tint"],
+          let idString = jsonObject["id"] as? String,
+          let locatorStr = jsonObject["locator"] as? String,
+          let locator = try? Locator(legacyJSONString: locatorStr),
+          let styleStr = jsonObject["style"] as? String,
+          let tintHexStr = jsonObject["tint"] as? String,
           let tintColor = Color(hex: tintHexStr),
           let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
       Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
-      throw JSONError.parsing(Self.self)
-    }
-
-    // Locator may arrive as a nested map (from Flutter method channel) or pre-encoded JSON string.
-    let locator: Locator
-    if let locatorMap = locatorAny as? [String: Any],
-       let locatorData = try? JSONSerialization.data(withJSONObject: locatorMap),
-       let locatorStr = String(data: locatorData, encoding: .utf8),
-       let parsed = try? Locator(legacyJSONString: locatorStr) {
-      locator = parsed
-    } else if let locatorStr = locatorAny as? String,
-              let parsed = try? Locator(legacyJSONString: locatorStr) {
-      locator = parsed
-    } else {
-      Log.readium.error("Decoration parse error: could not parse `locator`")
       throw JSONError.parsing(Self.self)
     }
 
