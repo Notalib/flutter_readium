@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
+
+final _log = Logger('PublicationBloc');
 
 final Map<String, Locator> savedLocators = {};
 
@@ -110,12 +113,12 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             .whereNotNull()
             .throttleTime(const Duration(milliseconds: 5000), leading: false, trailing: true)
             .listen((locator) {
-              debugPrint('onTimebasedPlayerState.currentLocator: $locator');
+              _log.fine('onTimebasedPlayerState.currentLocator: $locator');
               savedLocators[pubUrlHashCode] = locator;
               timebasedLocatorReceived = true;
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
-          debugPrint('onTextLocatorChanged: $locator');
+          _log.fine('onTextLocatorChanged: $locator');
           if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
             // If the publication has media overlays, we prefer the locator from the timebased player state.
@@ -124,13 +127,13 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
           savedLocators[pubUrlHashCode] = locator;
         });
         errorEventSub = instance.onErrorEvent.listen((error) {
-          debugPrint('onFlutterReadiumErrorEvent: $error');
+          _log.warning('onFlutterReadiumErrorEvent: $error');
         });
       } on Exception catch (error) {
         if (error is ReadiumException) {
-          debugPrint('ReadiumException on opening publication: ${error.type} - ${error.message}');
+          _log.severe('ReadiumException on opening publication: ${error.type} - ${error.message}');
         } else {
-          debugPrint('Unknown exception on opening publication: ${error.toString()}');
+          _log.severe('Unknown exception on opening publication: ${error.toString()}');
         }
         emit(state.openPublicationFail(error));
       }
@@ -143,7 +146,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         textLocatorSub?.cancel();
         errorEventSub?.cancel();
       } on Exception catch (error) {
-        debugPrint('Exception while closing publication: ${error.toString()}');
+        _log.warning('Exception while closing publication: ${error.toString()}');
       }
       emit(PublicationState());
     });

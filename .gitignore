@@ -11,6 +11,8 @@
 .buildlog/
 .history
 .svn/
+.fvm/
+.claude/
 
 # IntelliJ related
 *.iml
