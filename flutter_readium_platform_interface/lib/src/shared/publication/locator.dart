@@ -82,13 +82,15 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   final LocatorText? text;
 
   static Locator? fromJsonDynamic(dynamic json) {
-    if (json is String) {
+    if (json == null) {
+      return null;
+    } else if (json is String) {
       return fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
       return fromJson(json);
     }
 
-    ReadiumLog.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e('Locator.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
 

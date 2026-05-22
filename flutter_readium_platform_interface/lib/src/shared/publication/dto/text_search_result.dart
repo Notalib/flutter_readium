@@ -37,13 +37,15 @@ class TextSearchResult with EquatableMixin implements JSONable {
   }
 
   static TextSearchResult? fromJsonDynamic(dynamic json) {
-    if (json is String) {
+    if (json == null) {
+      return null;
+    } else if (json is String) {
       return fromJsonString(json);
     } else if (json is Map<String, dynamic>) {
       return TextSearchResult.fromJson(json);
     }
 
-    ReadiumLog.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e('TextSearchResult.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
 
