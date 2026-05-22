@@ -17,7 +17,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
   private let publication: Publication
-  private var lastViewport: NavigatorViewport?
 
   var publicationIdentifier: String?
 
@@ -188,12 +187,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
-    lastViewport = viewport
-    // Re-emit so consumers see updated visible-portion data without waiting
-    // for the next locationDidChange (e.g. mid-resource scroll in scroll mode).
-    if let locator = readiumViewController.currentLocation {
-      emitOnPageChanged(locator: locator)
-    }
+    // NOTE: We do note currently see any value in emitting this ViewPort to the client.
   }
 
   // implements NavigatorDelegate::navigator:locationDidChange
@@ -302,9 +296,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    let viewport = lastViewport
-
-    Task.detached(priority: .high) { [locator, viewport] in
+    Task.detached(priority: .high) { [locator] in
       /// Enrich Locator with PageInformation and ToC.
       var resultLocator = locator
       if let pageInfo = await self.getPageInformation() {
@@ -313,15 +305,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
         resultLocator.title = tocLink.title
         resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
-      }
-      if let viewport = viewport {
-        // TODO: Decide if we want to use & emit this.
-        resultLocator.locations.otherLocations["visibleProgressionStart"] = .double(viewport.progression.lowerBound)
-        resultLocator.locations.otherLocations["visibleProgressionEnd"] = .double(viewport.progression.upperBound)
-        if let positions = viewport.positions {
-          resultLocator.locations.otherLocations["visiblePositionStart"] = .integer(positions.lowerBound)
-          resultLocator.locations.otherLocations["visiblePositionEnd"] = .integer(positions.upperBound)
-        }
       }
 
       /// Immutable ref, so that we can use it on the main thread
