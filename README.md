@@ -1,50 +1,91 @@
-# Plugin: flutter_readium
+# flutter_readium
 
-A Flutter wrapper for the Readium toolkits for ebooks, audiobooks and comics (kotlin-toolkit & swift-toolkit).
+A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping the [Readium](https://readium.org) toolkits behind a unified Dart API.
 
-This branch is under active development and meant to replace the `nota-lyt4` branch,
-which implements both TTS and Text+Audio sync on top of the native toolkits via other Flutter plugins.
+flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
-This plugin is supposed to support both EPUB and WebPubs, with or without pre-recorded audio.
+- **swift-toolkit 3.7.0** on iOS (and macOS, planned)
+- **kotlin-toolkit 3.1.2** on Android
+- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
-## Plans
+## Features
+- EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
+- PDF reading on iOS (PDFKit) and Android (PDFium), with scroll / reading-progression preferences
+- WebPub reading (including audiobook WebPub)
+- Pre-recorded audio playback with track navigation and variable speed
+- Synchronized Media Overlays in WebPubs (text-and-audio read-along)
+- Platform-native text-to-speech with voice selection, speed, and pitch
+- Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
+- Highlights and annotations via the Decorator API
+- Position persistence and restoration via Locators
+- Content search within open publications
+- Real-time event streams for position, playback state, reader status, and errors
+- Custom HTTP headers for publication and resource fetching
 
-We will work on the main branch on a modernized and simple API using newest toolkits and utilize much more of the toolkit functionality.
+## Supported formats
 
-See repo Issues for up-to-date progress.
+| Format    | Visual       | TTS | Audio | Media Overlays         |
+| --------- | :----------: | :-: | :---: | :--------------------: |
+| EPUB 2    |      ✓       |  ✓  |   —   |           -            |
+| EPUB 3    |      ✓       |  ✓  |   ✓   |           -            |
+| WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
+| Audiobook |      —       |  —  |   ✓   |           -            |
+| PDF       |      ✓       |  —  |   —   |           -            |
 
-General TODO:
+CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
-- [x] Use Preferences API on both platforms.
-- [x] Use Decorator API for highlighting.
-- [x] Test TTS and Audio navigators for maturity, possibly replacing our own audio handlers.
-- [x] Simplified support for MediaOverlays. Assumptions: Continuous audio playlist /w 1 overlay file per mp3.
-- [ ] Support for custom Decoration styles
-- [ ] Full support for Sync Narration and Guided Navigation
+## Platform support
 
-## Adding flutter_readium to your project
+| Feature                  | Android | iOS | macOS     | Web        |
+| ------------------------ | :-----: | :-: | :-------: | :--------: |
+| EPUB visual reading      |    ✓    |  ✓  |  Planned  |     ✓      |
+| PDF reading              |    ✓    |  ✓  |     —     |     —      |
+| Audiobook playback       |    ✓    |  ✓  |  Planned  |     ✓      |
+| Media Overlays           |    ✓    |  ✓  |  Planned  |     —      |
+| Text-to-Speech           |    ✓    |  ✓  |  Planned  | Limited¹   |
+| Highlights / decorations |    ✓    |  ✓  |  Planned  |     ✓      |
+| Reader preferences       |    ✓    |  ✓  |  Planned  |     ✓      |
+| PDF preferences          |    ✓    |  ✓  |     —     |     —      |
+| Progress saving          |    ✓    |  ✓  |  Planned  |     ✓      |
+| Content search           |    ✓    |  ✓  |  Planned  |     —      |
+| Background audio         |    ✓    |  ✓  |  Planned  |     —      |
 
-To use, add to `pubspec.yaml`:
+¹ Web TTS uses the browser's Web Speech API — voice availability and quality vary by browser.
+
+See the [macOS setup section](#macos) below for the current platform status.
+
+## Minimum requirements
+
+| Requirement | Version                |
+| ----------- | ---------------------- |
+| Flutter     | 3.32.0+                |
+| Dart SDK    | 3.8.0+                 |
+| Android     | `minSdkVersion` 24     |
+| iOS         | 15.0+                  |
+| macOS       | 10.15+ (planned)       |
+
+## Getting started
+
+Add the dependency to your app's `pubspec.yaml`:
 
 ```yaml
 dependencies:
   flutter_readium: ^x.y.z
 ```
 
-Also, update your Android and iOS projects as follows:
+Then complete the per-platform setup below. See [docs/getting-started/installation.md](docs/getting-started/installation.md) for the full installation guide and [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) for a 5-minute walkthrough.
 
 ### Android
 
-- A minSdkVersion ≥ 24 in `android/app/build.gradle` is required.
-- If your main activity extends `FlutterActivity`, change it to extend `FlutterFragmentActivity`
-  instead. This fixes the `MainActivity cannot be cast to androidx.fragment.app.FragmentActivity`
-  error.
-- If using the `AudioService` for TTS, add to the `<manifest>` element of
-  your `android/app/src/main/AndroidManifest.xml` file:
+- Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
+- If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 
-```html
-<uses-permission android:name="android.permission.WAKE_LOCK" />
-```
+  ```xml
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+  ```
 
 #### Build-time configuration
 
@@ -63,9 +104,9 @@ flutterReadium.mediaOverlayFetchConcurrency=16
 
 ### iOS
 
-- Manually add the `pod` lines to your `ios/Podfile`:
+Add the Readium pods to your `ios/Podfile`:
 
-```rb
+```ruby
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
@@ -79,13 +120,13 @@ target 'Runner' do
   pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.7.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'
   pod 'ReadiumZIPFoundation', podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
 
-  ...
+  # ...
 end
 ```
 
-- To allow the local streamer on 127.0.0.1 to work, manually add to your `ios/Runner/Info.plist`:
+To allow the local content server to serve publication resources, add to `ios/Runner/Info.plist`:
 
-```html
+```xml
 <key>NSAppTransportSecurity</key>
 <dict>
   <key>NSAllowsArbitraryLoads</key>
@@ -93,36 +134,51 @@ end
 </dict>
 ```
 
+NOTE: This may be unnecessary once we upgrade to swift-toolkit v3.9.0
+
+### macOS
+
+macOS is planned but not yet implemented. The plugin registers on macOS but reader functionality is unavailable.
+
 ### Web
 
-To use this plugin for web, follow these steps to ensure everything works correctly:
+1. Copy the plugin's JavaScript bundle into your web app:
 
-#### 1. Copy the JavaScript File
+   ```bash
+   dart run flutter_readium:copy_js_file <destination_directory>
+   ```
 
-To use the JavaScript file from the plugin in your Flutter web app, run the following command in your terminal from the root directory of your app:
+   The destination should live inside your `web/` directory.
+
+2. Reference the script from `web/index.html`:
+
+   ```html
+   <script src="flutter.js" defer></script>
+   <script src="readiumReader.js" defer></script>
+   ```
+
+## Documentation
+
+Full documentation is in [docs/](docs/):
+
+- **Getting Started** — [Installation](docs/getting-started/installation.md) · [Quick Start](docs/getting-started/quick-start.md) · [Core Concepts](docs/getting-started/concepts.md)
+- **Guides** — [EPUB Reading](docs/guides/epub-reading.md) · [Audiobook Playback](docs/guides/audiobook-playback.md) · [Text-to-Speech](docs/guides/text-to-speech.md) · [Preferences](docs/guides/preferences.md) · [Highlights & Annotations](docs/guides/highlights-annotations.md) · [Search](docs/guides/search.md) · [Custom HTTP Headers](docs/guides/http-headers.md) · [Saving Progress](docs/guides/saving-progress.md) · [Error Handling](docs/guides/error-handling.md)
+- **API Reference** — [FlutterReadium class](docs/api-reference/flutter-readium.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Publication](docs/api-reference/publication.md)
+- **Architecture** — [Overview](docs/architecture.md)
+- **Troubleshooting** — [Troubleshooting](docs/troubleshooting.md)
+
+## Example app
+
+A complete example app is available in [flutter_readium/example/](flutter_readium/example/), demonstrating EPUB and audiobook reading, TTS, preferences, and highlighting:
 
 ```bash
-dart run flutter_readium:copy_js_file <destination_directory>
+cd flutter_readium/example && flutter run
 ```
 
-It is recommended to place the destination directory within the `web` directory or a subdirectory of it. Avoid saving it outside the `web` directory.
+## Contributing
 
-#### 2. Add Scripts to `index.html`
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, build scripts, and contribution guidelines.
 
-After copying the JavaScript file to your app, add Flutter's initialization JS code and the plugin JS to the `head` section of your `index.html` file:
+## License
 
-```html
-<!-- Flutter initialization JS code -->
-<script src="flutter.js" defer></script>
-
-<!-- Plugin JS code -->
-<script src="readiumReader.js" defer></script>
-```
-
-If the plugin's JS file is not saved in the same directory as `index.html`, update the source path accordingly.
-
-#### Additional information
-
-##### Preferences
-
-For which value ranges preferences accept please look at this [page](https://github.com/readium/ts-toolkit/blob/develop/navigator/src/preferences/Types.ts), and for other information on what they do and how they work please refer to [Readium CSS official documentation](https://github.com/readium/css?tab=readme-ov-file#docs).
+BSD 3-Clause — see [LICENSE](LICENSE).

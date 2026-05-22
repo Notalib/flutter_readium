@@ -2,7 +2,6 @@
 
 package dk.nota.flutter_readium
 
-import android.util.Log
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
@@ -61,7 +60,7 @@ fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
                 ?: throw Exception("Failed to deserialize decoration")
         return Decoration(id, locator, style)
     } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
+        PluginLog.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
         return null
     }
 }
@@ -80,7 +79,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
             }
         return style
     } catch (ex: Exception) {
-        Log.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
+        PluginLog.e("ReadiumExtensions", "Error mapping JSONObject to Decoration.Style: $ex")
         return null
     }
 }
@@ -105,7 +104,7 @@ fun Resource.injectScriptsAndStyles(
         val content = bytes.toString(Charsets.UTF_8).trim()
         val headEndIndex = content.indexOf("</head>", 0, true)
         if (headEndIndex == -1) {
-            Log.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
+            PluginLog.w(TAG, "No </head> element found, cannot inject scripts in: $filename")
             return@TransformingResource Try.success(bytes)
         }
 
@@ -114,7 +113,7 @@ fun Resource.injectScriptsAndStyles(
         if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
             injectStyle?.let {
                 if (!content.contains(it)) {
-                    Log.d(
+                    PluginLog.d(
                         TAG,
                         "Scripts already loaded for $filename, but custom css needs to be updated.",
                     )
@@ -129,11 +128,11 @@ fun Resource.injectScriptsAndStyles(
                 }
             }
 
-            Log.d(TAG, "Skip injecting - already done for: $filename")
+            PluginLog.d(TAG, "Skip injecting - already done for: $filename")
             return@TransformingResource Try.success(bytes)
         }
 
-        Log.d(TAG, "Injecting files into: $filename")
+        PluginLog.d(TAG, "Injecting files into: $filename")
 
         val injectLines =
             listOf(
@@ -182,7 +181,7 @@ fun Publication.hasSyncNarration() = hasMediaOverlays() || hasGuidedNavigationMe
 
 private val mediaOverlayFetchConcurrency =
     BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY.takeIf { it > 0 } ?: run {
-        Log.w(
+        PluginLog.w(
             TAG,
             "::getGuidedNavigationMediaOverlays - invalid MEDIA_OVERLAY_FETCH_CONCURRENCY=" +
                 "${BuildConfig.MEDIA_OVERLAY_FETCH_CONCURRENCY}; falling back to 1",
@@ -249,13 +248,13 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                         gate.withPermit {
                             val resource = get(link)
                             if (resource == null) {
-                                Log.i(TAG, "::getMediaOverlays() - no resource for ${link.href}")
+                                PluginLog.w(TAG, "::getMediaOverlays() - no resource for ${link.href}")
                                 return@withPermit null
                             }
 
                             val jsonString = resource.read().getOrNull()?.let { String(it) }
                             if (jsonString == null) {
-                                Log.i(
+                                PluginLog.w(
                                     TAG,
                                     "::getMediaOverlays() - unable to load resource ${link.href}",
                                 )
@@ -296,7 +295,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     if (singleDocLink != null) {
         val jsonString =
             get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
-                Log.i(
+                PluginLog.w(
                     TAG,
                     "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}"
                 )
@@ -304,7 +303,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
             }
         val document =
             GuidedNavigationDocument.fromJSON(jsonString) ?: run {
-                Log.i(
+                PluginLog.w(
                     TAG,
                     "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}"
                 )
@@ -347,7 +346,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                             val jsonString =
                                 get(guidedLink)?.read()?.getOrNull()?.let { String(it) }
                                     ?: run {
-                                        Log.i(
+                                        PluginLog.w(
                                             TAG,
                                             "::getGuidedNavigationMediaOverlays - unable to load ${guidedLink.href}",
                                         )
@@ -494,7 +493,7 @@ fun Publication.getReadingOrderItemDuration(href: Url): Duration? =
  */
 suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
     if (!conformsTo(Publication.Profile.EPUB)) {
-        Log.d(TAG, "::findAllCssSelectors - this only works for an EPUB Profile")
+        PluginLog.w(TAG, "::findAllCssSelectors - this only works for an EPUB Profile")
         return null
     }
 
@@ -507,7 +506,7 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
                 mediaType = MediaType.XHTML,
             ),
         ) ?: run {
-            Log.d(TAG, "::findAllCssSelectors - no content service found")
+            PluginLog.w(TAG, "::findAllCssSelectors - no content service found")
             return null
         }
 

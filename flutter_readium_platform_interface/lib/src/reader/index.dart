@@ -2,6 +2,7 @@ export 'reader_audio_preferences.dart';
 export 'reader_decoration.dart';
 export 'reader_epub_preferences.dart';
 export 'reader_highlights.dart';
+export 'reader_pdf_preferences.dart';
 export 'reader_tts_preferences.dart';
 export 'reader_tts_voice.dart';
 export 'reader_tts_voice_utils.dart';

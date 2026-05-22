@@ -3,10 +3,10 @@
 // found in the LICENSE.Iridium file.
 
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
+import '../../utils/readium_log.dart';
 import '../publication.dart';
 
 /// Core Collection Model
@@ -54,12 +54,12 @@ class PublicationCollection with EquatableMixin implements JSONable {
     else if (json is List) {
       links = Link.fromJsonArray(json);
     } else {
-      Fimber.i('core collection not valid');
+      ReadiumLog.i('core collection not valid');
       return null;
     }
 
     if (links.isEmpty) {
-      Fimber.i("core collection's [links] must not be empty");
+      ReadiumLog.i("core collection's [links] must not be empty");
       return null;
     }
 

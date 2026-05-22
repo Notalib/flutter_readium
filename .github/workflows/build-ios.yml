@@ -1,0 +1,35 @@
+name: Build iOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: '3.41.9'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: flutter_readium/example
+
+      - name: Install CocoaPods dependencies
+        run: pod install --repo-update
+        working-directory: flutter_readium/example/ios
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign
+        working-directory: flutter_readium/example

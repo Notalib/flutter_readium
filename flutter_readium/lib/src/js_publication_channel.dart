@@ -11,12 +11,12 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString? initialPositionJson,
     JSString preferencesJson,
   );
-  external JSPromise getPublication(JSString link);
+  external JSPromise<JSString> getPublication(JSString link);
   external JSPromise goTo(JSString location);
   external void goBackward();
   external void goForward();
   external void closePublication();
-  external JSPromise getResource(JSString linkString, JSBoolean? asBytes);
+  external JSPromise<JSString> getResource(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
   external JSBoolean get isNavigatorReady;
 }
@@ -56,7 +56,7 @@ class JsPublicationChannel {
   Future<String> getPublication(String link) async {
     try {
       final publicationPromise = _readiumReader.getPublication(link.toJS);
-      final publicationString = await publicationPromise.toDart as String;
+      final publicationString = (await publicationPromise.toDart).toDart;
 
       return publicationString;
     } on Object catch (jsError, stackTrace) {
@@ -130,7 +130,7 @@ class JsPublicationChannel {
   Future<String> getResource(String link, {bool? asBytes}) async {
     try {
       final resourceJS = _readiumReader.getResource(link.toJS, asBytes?.toJS);
-      var resourceString = await resourceJS.toDart as String;
+      var resourceString = (await resourceJS.toDart).toDart;
       return resourceString;
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();
@@ -152,7 +152,7 @@ class JsPublicationChannel {
       if (isReady) {
         _readiumReader.setEPUBPreferences(newPreferencesString.toJS);
       } else {
-        R2Log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
+        ReadiumLog.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
       String errorString = jsError.toString();

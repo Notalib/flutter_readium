@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.Iridium file.
 
-import 'dart:io';
+import 'dart:ui';
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/jsonable.dart';
+import '../../utils/readium_log.dart';
 
 @immutable
 class Translation {
@@ -39,7 +39,7 @@ class LocalizedString with EquatableMixin implements JSONable {
     for (final key in json.keys) {
       final string = json.optNullableString(key);
       if (string == null) {
-        Fimber.i('invalid localized string object $json');
+        ReadiumLog.i('invalid localized string object $json');
       } else {
         translations[key] = string;
       }
@@ -89,7 +89,7 @@ class LocalizedString with EquatableMixin implements JSONable {
     if (json is Map<String, dynamic>) {
       return LocalizedString.fromJson(json);
     }
-    Fimber.i('invalid localized string object');
+    ReadiumLog.i('invalid localized string object');
     return null;
   }
 
@@ -110,7 +110,7 @@ class LocalizedString with EquatableMixin implements JSONable {
   ///    4. the first translation found
   Translation? getOrFallback(String? language) =>
       translations[language] ??
-      translations[Platform.localeName] ??
+      translations[PlatformDispatcher.instance.locale.toString()] ??
       translations[null] ??
       translations[undefinedLanguage] ??
       translations['en'] ??
@@ -144,7 +144,9 @@ class LocalizedString with EquatableMixin implements JSONable {
 
   @override
   String toString() {
-    Fimber.w('LocalizedString toString() is for debug purposes only, use .string or getOrFallback(language) instead');
+    ReadiumLog.w(
+      'LocalizedString toString() is for debug purposes only, use .string or getOrFallback(language) instead',
+    );
 
     return 'LocalizedString($translations)';
   }

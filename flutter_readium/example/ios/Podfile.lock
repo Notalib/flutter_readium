@@ -123,7 +123,7 @@ SPEC CHECKSUMS:
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_readium: 6d28b65673332bff2f3e1521c29aca5576cabcf1
+  flutter_readium: 6b566e448cdf72728adec16f274fa50093e7bb89
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499

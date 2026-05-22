@@ -1,6 +1,6 @@
 package dk.nota.flutter_readium.events
 
-import android.util.Log
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.PublicationError
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.launch
@@ -15,7 +15,7 @@ class ReadiumErrorEventChannel(
 ) : EventChannelWrapper<ReadiumError>(messenger, "dk.nota.flutter_readium/error") {
     override fun sendEvent(data: ReadiumError) {
         launch {
-            Log.d("ReadiumError", "::sendEvent $data")
+            PluginLog.d("ReadiumError", "::sendEvent $data")
             eventSink?.success(Json.encodeToString(data))
         }
     }

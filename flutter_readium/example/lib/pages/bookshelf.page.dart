@@ -170,11 +170,11 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   //     // Validate the file
   //     // PublicationUtils.validateFile(file);
-  //     R2Log.d('Picked file: ${file.path}');
+  //     ReadiumLog.d('Picked file: ${file.path}');
 
   //     return await PublicationUtils.copyFileToReadiumPubStorage(file);
   //   } else {
-  //     R2Log.d('User canceled the picker');
+  //     ReadiumLog.d('User canceled the picker');
   //     return null;
   //   }
   // }
@@ -184,6 +184,8 @@ class BookshelfPageState extends State<BookshelfPage> {
       return 'Ebook';
     } else if (pub.conformsToReadiumAudiobook) {
       return 'Audiobook';
+    } else if (pub.conformsToReadiumPDF) {
+      return 'PDF';
     } else {
       return 'Unknown format';
     }
@@ -193,6 +195,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
     child: InkWell(
+      key: ValueKey('book_card_${sanitizeForKey(publication.metadata.title)}'),
       onTap: () {
         // Use an in-memory saved locator as initial locator when opening the publication,
         // so that we can restore the last reading position.
@@ -262,7 +265,7 @@ class BookshelfPageState extends State<BookshelfPage> {
   //               });
   //             }
   //           } on Object catch (e) {
-  //             R2Log.e('error picking file: $e');
+  //             ReadiumLog.e('error picking file: $e');
   //             _toast('Error picking file $e');
   //           }
   //         },

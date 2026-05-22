@@ -27,6 +27,7 @@ class ThemeSelectorWidget extends StatelessWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ToggleButtons(
+              key: ValueKey(isHighlight ? 'highlight_toggle' : 'theme_toggle'),
               isSelected: themes
                   .map(
                     (final itemTheme) => itemTheme == (isHighlight ? state.highlight : state.theme),

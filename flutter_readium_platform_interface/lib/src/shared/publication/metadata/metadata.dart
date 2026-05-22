@@ -4,7 +4,6 @@
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../../../flutter_readium_platform_interface.dart';
@@ -230,7 +229,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
     var localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.opt('title', remove: true));
     if (localizedTitle == null) {
-      Fimber.i('[title] is missing $json');
+      ReadiumLog.i('[title] is missing $json');
       localizedTitle = LocalizedString.empty(); // Fallback to an empty title
     }
     final identifier = jsonObject.optNullableString('identifier', remove: true);

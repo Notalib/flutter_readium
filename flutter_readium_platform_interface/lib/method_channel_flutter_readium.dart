@@ -68,13 +68,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
-      R2Log.i('Received reader status event: $event');
+      ReadiumLog.i('Received reader status event: $event');
       try {
-        return ReadiumReaderStatus.fromString(json.decode(event) as String) ??
-            ReadiumReaderStatus.fromString(event) ??
+        return ReadiumReaderStatus.optFromString(json.decode(event) as String) ??
+            ReadiumReaderStatus.optFromString(event) ??
             ReadiumReaderStatus.error;
-      } catch (e) {
-        R2Log.w('Error parsing reader status event: $e');
+      } on Exception catch (e) {
+        ReadiumLog.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
     });
@@ -108,6 +108,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Future<void> setLogLevel(LogLevel level) async {
     await methodChannel.invokeMethod<void>('setLogLevel', level.index);
+    // Set the log level for the Dart logger as well, to keep it in sync with the native side.
+    ReadiumLog.setLevel(level);
   }
 
   @override
@@ -139,6 +141,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     defaultPreferences = preferences;
     await currentReaderWidget?.setEPUBPreferences(preferences);
+  }
+
+  @override
+  Future<void> setPDFPreferences(PDFPreferences preferences) async {
+    await currentReaderWidget?.setPDFPreferences(preferences);
   }
 
   @override
@@ -215,7 +222,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     try {
       final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
       return results;
-    } catch (e) {
+    } on Exception catch (e) {
       throw Exception('Failed to parse search results: $e');
     }
   }

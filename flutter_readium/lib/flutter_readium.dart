@@ -48,7 +48,7 @@ class FlutterReadium {
   /// Returns a [Publication] object representing the opened publication.
   Future<Publication> openPublication(String pubUrl) {
     return _platform.openPublication(pubUrl).onError((err, _) {
-      R2Log.e('OpenPublication error: ${err.toString()}');
+      ReadiumLog.e('OpenPublication error: ${err.toString()}');
       throw ReadiumException.fromError(err);
     });
   }
@@ -106,6 +106,9 @@ class FlutterReadium {
   ///
   /// These preferences will override any default preferences set by [setDefaultPreferences] for this publication.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
+
+  /// Sets the PDF preferences for the currently opened PDF publication.
+  Future<void> setPDFPreferences(PDFPreferences preferences) => _platform.setPDFPreferences(preferences);
 
   /// Applies a list of decorations to the visual reader.
   ///
@@ -195,11 +198,11 @@ class FlutterReadium {
   ///
   /// Throws a [ReadiumException] if the link cannot be resolved to a locator.
   Future<bool> goByLink(final Link link, final Publication pub) async {
-    R2Log.d(() => 'Navigating to link: $link');
+    ReadiumLog.d(() => 'Navigating to link: $link');
 
     final locator = pub.locatorFromLink(link);
 
-    R2Log.d(locator);
+    ReadiumLog.d(locator);
 
     if (locator == null) {
       throw const ReadiumException('Link could not be resolved to locator');

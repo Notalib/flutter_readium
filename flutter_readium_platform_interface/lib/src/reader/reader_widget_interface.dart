@@ -13,6 +13,9 @@ abstract class ReadiumReaderWidgetInterface {
   /// Set EPUB preferences
   Future<void> setEPUBPreferences(EPUBPreferences preferences);
 
+  /// Set PDF preferences
+  Future<void> setPDFPreferences(PDFPreferences preferences);
+
   /// Apply decorations
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations);
 }
