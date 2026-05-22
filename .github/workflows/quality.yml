@@ -20,7 +20,7 @@ jobs:
           - flutter_readium
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
@@ -32,11 +32,11 @@ jobs:
         working-directory: ${{ matrix.package }}
 
       - name: Check formatting (${{ matrix.package }})
-        run: dart format --output=none --set-exit-if-changed .
+        run: $GITHUB_WORKSPACE/bin/format
         working-directory: ${{ matrix.package }}
 
       - name: Analyze (${{ matrix.package }})
-        run: flutter analyze --fatal-infos --fatal-warnings
+        run: $GITHUB_WORKSPACE/bin/analyze
         working-directory: ${{ matrix.package }}
 
       - name: Activate pana
