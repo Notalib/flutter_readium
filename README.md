@@ -30,7 +30,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 | EPUB 3    |      ✓       |  ✓  |   ✓   |           -            |
 | WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
 | Audiobook |      —       |  —  |   ✓   |           -            |
-| PDF       | ✓ (iOS, Android) | — |  —   |           -            |
+| PDF       |      ✓       |  —  |   —   |           -            |
 
 CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 

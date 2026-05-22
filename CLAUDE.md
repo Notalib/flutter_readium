@@ -8,7 +8,7 @@ This is a **federated Flutter plugin** with two pub packages and a multi-package
 
 - `flutter_readium_platform_interface/` — shared Dart API, models, method-channel contract.
 - `flutter_readium/` — app-facing package with native wrappers (iOS/Swift, Android/Kotlin, macOS) and a web implementation (TypeScript → JS bundle in a webview).
-  - `example/` — **the smoke-test target.** All UI / behavior changes should be verified by running the example app before declaring a task done.
+  - `example/` — **the smoke-test target.** All UI / behavior changes should be verified by running the example app and using marionette to confirm implementation before declaring a task done.
 - `bin/` (repo root) — multi-package developer scripts (see below).
 
 ## Upstream Readium toolkits
@@ -28,7 +28,6 @@ When upgrading any toolkit version, check that all three platforms move together
 ## Developer workflow
 
 Key scripts (run from repo root):
-Repo-root scripts (`bin/*`) — run from the repo root:
 
 - `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
 - `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
@@ -38,8 +37,6 @@ Repo-root scripts (`bin/*`) — run from the repo root:
 - `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
 - `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
 - `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview.
-
-Running the example app: `cd flutter_readium/example && flutter run`.
 
 ## Conventions
 
