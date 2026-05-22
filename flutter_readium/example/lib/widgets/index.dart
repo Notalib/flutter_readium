@@ -1,4 +1,5 @@
 export 'list_item.widget.dart';
+export 'pdf_settings.widget.dart';
 export 'player_controls.widget.dart';
 export 'progression_slider.widget.dart';
 export 'reader.widget.dart';

@@ -23,18 +23,6 @@ pod update && pod install --repo-update
 
 If that doesn't help, delete `Podfile.lock` and retry.
 
-## iOS: EPUB content not loading (blank screen)
-
-Readium uses a local web server on `127.0.0.1`. Add to `Info.plist`:
-
-```xml
-<key>NSAppTransportSecurity</key>
-<dict>
-  <key>NSAllowsArbitraryLoads</key>
-  <true/>
-</dict>
-```
-
 ## iOS: `MissingPluginException` on stream subscription
 
 Event channels register lazily inside the native view initialiser. Subscribe to streams inside `onReady` or after the reader widget has mounted, not in `initState` before the view exists.
@@ -66,9 +54,9 @@ try {
 
 Common causes:
 - File not found or URL typo (`notFound`)
-- Unsupported format — only EPUB, WebPub, and audiobook are supported (`formatNotSupported`)
+- Unsupported format — only EPUB, WebPub, audiobook, and PDF are supported (`formatNotSupported`)
 - DRM-protected content without a licence (`forbidden`)
 
 ## Getting debug logs
 
-See the [Logging section of the Error Handling guide](guides/error-handling.md#logging) for the full setup — `setLogLevel`, the Dart-side fimber tree, and native log filtering on Android / iOS / macOS.
+See the [Logging section of the Error Handling guide](guides/error-handling.md#logging) for the full setup — `setLogLevel`, the Dart-side fimber tree, and native log filtering on Android / iOS.

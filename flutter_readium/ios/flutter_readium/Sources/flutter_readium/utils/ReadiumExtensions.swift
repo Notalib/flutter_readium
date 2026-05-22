@@ -255,7 +255,10 @@ extension Link {
   init(fromJsonString jsonString: String) throws {
     do {
       let jsonObj = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!)
-      try self.init(json: jsonObj)
+      guard let link = try Link(json: JSONValue(jsonObj), warnings: nil) else {
+        throw JSONError.parsing(Self.self)
+      }
+      self = link
     } catch {
       Log.readium.error("Invalid Link object: \(error)")
       throw JSONError.parsing(Self.self)
@@ -319,7 +322,7 @@ extension Decoration {
   init(fromMap jsonMap: Dictionary<String, String>?) throws {
     guard let jsonObject = jsonMap,
           let idString = jsonObject["id"],
-          let locator = try Locator.init(jsonString: jsonObject["locator"]!),
+          let locator = try Locator(legacyJSONString: jsonObject["locator"]!),
           let styleStr = jsonObject["style"],
           let tintHexStr = jsonObject["tint"],
           let tintColor = Color(hex: tintHexStr),
@@ -383,17 +386,18 @@ extension TTSVoice.Quality {
 }
 
 extension TTSVoice {
-  public var json: JSONDictionary.Wrapped {
-    makeJSON([
+  public var json: [String: Any] {
+    [
       "identifier": identifier,
       "name": name,
       "gender": String.init(describing: gender),
       "quality": quality?.toFlutterString ?? "normal",
       "language": language.description,
-    ])
+    ]
   }
   public var jsonString: String? {
-    serializeJSONString(json)
+    guard let data = try? JSONSerialization.data(withJSONObject: json) else { return nil }
+    return String(data: data, encoding: .utf8)
   }
 }
 

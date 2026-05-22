@@ -132,6 +132,20 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
     }
 
     /**
+     * Bridge for raw Media3 `Player.isPlaying` changes. Media3's AudioFocusManager pauses
+     * the underlying audio sink for transient focus losses (e.g. incoming calls) without
+     * flipping `playWhenReady` or `playbackState`, so upstream Readium's playback StateFlow
+     * does not emit. Use this to surface those transitions as Paused/Playing states.
+     */
+    fun onIsPlayingFromPlayer(playing: Boolean) {
+        if (isPlaying == playing) return
+        isPlaying = playing
+        val state = if (playing) TimebasedState.Playing else TimebasedState.Paused
+        PluginLog.d(TAG, "::onIsPlayingFromPlayer - bridging Player.isPlaying=$playing as $state")
+        timebaseListener.onTimebasedPlaybackStateChanged(state)
+    }
+
+    /**
      * Triggers when playback ends. This is needed to remove last decoration.
      */
     open fun onEnded() {

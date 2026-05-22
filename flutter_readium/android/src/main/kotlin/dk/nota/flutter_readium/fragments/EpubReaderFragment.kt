@@ -20,6 +20,7 @@ import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -547,6 +548,11 @@ class EpubReaderFragment :
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
+                        // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
+                        decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
+                            alpha = 1.0,
+                            experimentalPositioning = true,
+                        ),
                     ),
                 initialLocator = model.locator,
                 listener = this,

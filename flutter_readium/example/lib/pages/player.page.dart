@@ -86,13 +86,18 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     IconButton(
       icon: const Icon(Icons.format_paint),
       onPressed: () {
+        final publication = context.read<PublicationBloc>().state.publication;
+        final isPDF = publication?.conformsToReadiumPDF ?? false;
+
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (final context) => PointerInterceptor(child: const TextSettingsWidget()),
+          builder: (final context) => PointerInterceptor(
+            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+          ),
         );
       },
-      tooltip: 'Open text style settings',
+      tooltip: 'Open reader settings',
     ),
     IconButton(
       icon: const Icon(Icons.search),

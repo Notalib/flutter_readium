@@ -14,6 +14,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public var currentPublication: Publication?
   public var currentReaderView: (any ReadiumReaderView)?
 
+  /// Incremented each time a new publication is successfully opened.
+  /// Used to guard against stale `closePublication` calls from a previous
+  /// Dart session (hot restart) clobbering a freshly opened publication.
+  private var publicationGeneration: Int = 0
+
   /// TTS Decoration style
   internal var ttsUtteranceDecorationStyle: Decoration.Style? = .highlight(tint: .yellow)
   internal var ttsRangeDecorationStyle: Decoration.Style? = .underline(tint: .black)
@@ -65,8 +70,24 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     return currentPublication
   }
 
-  internal func setCurrentReadiumReaderView(_ readerView: (any ReadiumReaderView)?) {
+  /// Registers `readerView` as the active reader view.
+  /// The previous view (if any) is released *after* the assignment to avoid
+  /// triggering its deinit mid-write (Swift exclusivity enforcement).
+  /// To unregister, use `clearCurrentReaderView(ifIs:)` instead.
+  internal func registerAsCurrentReaderView(_ readerView: any ReadiumReaderView) {
+    let old = currentReaderView
     currentReaderView = readerView
+    _ = old // released here, safely outside the write
+  }
+
+  /// Clears `currentReaderView` only if it is still `viewToClear`.
+  /// Called from deinit/dispose of platform views so that a late-arriving
+  /// deinit of a superseded view does not clobber the newly registered one.
+  internal func clearCurrentReaderView(ifIs viewToClear: any ReadiumReaderView) {
+    guard currentReaderView === viewToClear else { return }
+    let old = currentReaderView
+    currentReaderView = nil
+    _ = old
   }
 
   public func log(_ warning: Warning) {
@@ -82,19 +103,24 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       result(nil)
     case "dispose":
-      closePublication()
-      timebasedPlayerStateStreamHandler?.dispose()
-      timebasedPlayerStateStreamHandler = nil
-      textLocatorStreamHandler?.dispose()
-      textLocatorStreamHandler = nil
-      readerStatusStreamHandler?.dispose()
-      readerStatusStreamHandler = nil
-      errorStreamHandler?.dispose()
-      errorStreamHandler = nil
-      result(nil)
+      Task { @MainActor in
+        await closePublication(ifGeneration: nil)
+        timebasedPlayerStateStreamHandler?.dispose()
+        timebasedPlayerStateStreamHandler = nil
+        textLocatorStreamHandler?.dispose()
+        textLocatorStreamHandler = nil
+        readerStatusStreamHandler?.dispose()
+        readerStatusStreamHandler = nil
+        errorStreamHandler?.dispose()
+        errorStreamHandler = nil
+        result(nil)
+      }
     case "closePublication":
-      self.closePublication()
-      result(nil)
+      let generationAtDispatch = publicationGeneration
+      Task { @MainActor in
+        await self.closePublication(ifGeneration: generationAtDispatch)
+        result(nil)
+      }
     case "openPublication":
       let args = call.arguments as! [Any?]
       let pubUrlStr = args[0] as! String
@@ -107,14 +133,16 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
               await MainActor.run {
                 result(jsonManifest)
               }
+              return
             }
           }
           if (self.currentPublication != nil) {
-            self.closePublication()
+            await self.closePublication(ifGeneration: nil)
           }
           let pub: Publication = try await self.loadPublication(fromUrlStr: pubUrlStr).get()
           self.currentPublication = pub
           self.currentPublicationUrlStr = pubUrlStr
+          await MainActor.run { self.publicationGeneration += 1 }
 
           let jsonManifest = pub.jsonManifest
           await MainActor.run {
@@ -257,7 +285,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       let args = call.arguments as! [Any?]
       var locator: Locator? = nil
       if let locatorJson = args.first as? Dictionary<String, Any> {
-        locator = try? Locator(json: locatorJson, warnings: self)
+        locator = try? Locator(json: JSONValue(locatorJson), warnings: self)
       }
 
       Task.detached(priority: .high) {
@@ -339,7 +367,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       Task.detached(priority: .high) {
         guard let args = call.arguments as? [Any?],
               let locatorJson = args.first as? Dictionary<String, Any>,
-              let locator = try? Locator(json: locatorJson, warnings: self)
+              let locator = try? Locator(json: JSONValue(locatorJson), warnings: self)
         else {
           await MainActor.run {
             result(FlutterError.init(
@@ -378,7 +406,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])
         var locator: Locator? = nil
         if let locatorJson = args[1] as? Dictionary<String, Any> {
-          locator = try? Locator(json: locatorJson, warnings: self)
+          locator = try? Locator(json: JSONValue(locatorJson), warnings: self)
         }
 
         if (publication.containsSyncNarration) {
@@ -494,7 +522,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           tocLink = try? await self.currentTocLinkFromLocator(locator)
         }
         if let tocLink = tocLink {
-          locator.locations.otherLocations["tocHref"] = tocLink.href
+          locator.locations.otherLocations["tocHref"] = .string(tocLink.href)
           locator.title = tocLink.title
           Log.navigator.debug("ReadiumTimebasedState: enriched with tocHref: \(String(describing: tocLink.href))")
           state.currentLocator = locator
@@ -604,16 +632,26 @@ extension FlutterReadiumPlugin {
     }
   }
 
-  private func closePublication() {
-    // Clean-up any resources associated with the publication.
-    Task { @MainActor in
-      self.timebasedNavigator?.dispose()
-      self.timebasedNavigator = nil
-      currentPublication?.close()
-      currentPublication = nil
-      currentPublicationUrlStr = nil
-      currentPublicationCssSelectorMap = [:]
+  /// Cleans up all publication-scoped state. Must be awaited — Dart relies on
+  /// `closePublication` finishing before the next `openPublication` starts.
+  ///
+  /// Pass `ifGeneration: nil` to force-close unconditionally (e.g. from
+  /// `openPublication` internals or `dispose`).  Pass the generation captured
+  /// at method-channel dispatch time to guard against stale close calls from a
+  /// previous Dart session (hot restart) clobbering a freshly opened publication.
+  @MainActor
+  private func closePublication(ifGeneration expectedGeneration: Int?) async {
+    if let expected = expectedGeneration, expected != self.publicationGeneration {
+      Log.readium.info("closePublication: skipped — generation mismatch (expected \(expected), current \(self.publicationGeneration))")
+      return
     }
+    Log.readium.info("closePublication: disposing timebased navigator and current publication")
+    self.timebasedNavigator?.dispose()
+    self.timebasedNavigator = nil
+    currentPublication?.close()
+    currentPublication = nil
+    currentPublicationUrlStr = nil
+    currentPublicationCssSelectorMap = [:]
   }
 }
 
