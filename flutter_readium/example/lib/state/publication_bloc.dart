@@ -139,7 +139,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
           _log.fine('onTextLocatorChanged: $locator');
-          if (publication.containsMediaOverlays && timebasedLocatorReceived) {
+          if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
             // If the publication has media overlays, we prefer the locator from the timebased player state.
             return;

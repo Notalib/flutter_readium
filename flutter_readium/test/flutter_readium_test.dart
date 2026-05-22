@@ -137,6 +137,8 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 // ---------------------------------------------------------------------------
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late FlutterReadium reader;
   late MockFlutterReadiumPlatform platform;
 

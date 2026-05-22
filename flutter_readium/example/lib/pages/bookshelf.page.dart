@@ -170,11 +170,11 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   //     // Validate the file
   //     // PublicationUtils.validateFile(file);
-  //     R2Log.d('Picked file: ${file.path}');
+  //     ReadiumLog.d('Picked file: ${file.path}');
 
   //     return await PublicationUtils.copyFileToReadiumPubStorage(file);
   //   } else {
-  //     R2Log.d('User canceled the picker');
+  //     ReadiumLog.d('User canceled the picker');
   //     return null;
   //   }
   // }
@@ -265,7 +265,7 @@ class BookshelfPageState extends State<BookshelfPage> {
   //               });
   //             }
   //           } on Object catch (e) {
-  //             R2Log.e('error picking file: $e');
+  //             ReadiumLog.e('error picking file: $e');
   //             _toast('Error picking file $e');
   //           }
   //         },
