@@ -101,7 +101,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Normalize text styles to increase accessibility
   final bool? textNormalization;
 
-
   /// Scale applied to all element font sizes.
   final double? typeScale;
 
@@ -367,7 +366,6 @@ enum EpubImageFilter {
     }
   }
 }
-
 
 enum EpubReadingProgression {
   ltr,
