@@ -5,14 +5,13 @@ import 'package:flutter_readium/flutter_readium.dart';
 import '../state/index.dart';
 
 class ReaderWidget extends StatelessWidget {
-  ReaderWidget({this.shouldShowControls, super.key});
+  const ReaderWidget({this.shouldShowControls, super.key});
 
   final ValueNotifier<bool>? shouldShowControls;
 
-  final ValueNotifier<bool> loadingNotifier = ValueNotifier<bool>(false);
-
   @override
   Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
+    buildWhen: (prev, next) => prev.hasNonHighlightChanges(next),
     builder: (final context, final state) {
       if (state.isLoading) {
         return const Center(child: CircularProgressIndicator());
@@ -44,6 +43,35 @@ class ReaderWidget extends StatelessWidget {
               initialLocator: state.initialLocator,
               shouldShowControls: shouldShowControls,
               verticalScroll: verticalScroll,
+              allowedDefaultActions: const {
+                DefaultSelectionAction.copy,
+                DefaultSelectionAction.share,
+                DefaultSelectionAction.translate,
+              },
+              selectionActions: const [
+                SelectionAction(id: 'highlight', title: 'Highlight'),
+                SelectionAction(id: 'note', title: 'Add Note'),
+              ],
+              onTextSelected: (event) {
+                debugPrint('[Selection] text="${event.selectedText}"');
+              },
+              onSelectionAction: (event) {
+                debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
+                if (event.actionId == 'highlight') {
+                  _applyHighlight(context, event);
+                } else if (event.actionId == 'note') {
+                  _showNoteDialog(context, event);
+                }
+              },
+              onDecorationInteraction: (event) {
+                debugPrint('[DecorationInteraction] id=${event.decorationId} group=${event.group}');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Tapped highlight: ${event.decorationId}'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -55,4 +83,34 @@ class ReaderWidget extends StatelessWidget {
       );
     },
   );
+
+  void _applyHighlight(BuildContext context, SelectionActionEvent event) {
+    final decoration = ReaderDecoration(
+      id: 'highlight_${DateTime.now().millisecondsSinceEpoch}',
+      locator: event.locator,
+      style: const ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Color(0x80FFFF00)),
+    );
+    context.read<PublicationBloc>().add(AddHighlight(decoration));
+    debugPrint('[Highlight] Applied highlight decoration');
+  }
+
+  void _showNoteDialog(BuildContext context, SelectionActionEvent event) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Note'),
+        content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _applyHighlight(context, event);
+            },
+            child: const Text('Save & Highlight'),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -27,6 +27,15 @@ external set updateTextLocator(JSFunction f);
 @JS()
 external set updateReaderStatus(JSFunction f);
 
+@JS()
+external set onTextSelectedCallback(JSFunction f);
+
+@JS()
+external set onSelectionActionCallback(JSFunction f);
+
+@JS()
+external set onDecorationInteractionCallback(JSFunction f);
+
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
 
