@@ -21,9 +21,16 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+    this.selectionActions = const [],
+    this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
+    this.preloadPreviousPositionCount = 2,
+    this.preloadNextPositionCount = 6,
     super.key,
   });
 
@@ -44,6 +51,28 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Callback invoked when the reader activates an external (non-publication) link.
   final Function(String)? onExternalLinkActivated;
 
+  /// Callback invoked when the user selects text in the reader.
+  final ValueChanged<TextSelectionEvent>? onTextSelected;
+
+  /// Callback invoked when the user taps a configured editing action on selected text.
+  final ValueChanged<SelectionActionEvent>? onSelectionAction;
+
+  /// Callback invoked when the user interacts with an existing decoration (e.g. taps a highlight).
+  final ValueChanged<DecorationInteractionEvent>? onDecorationInteraction;
+
+  /// Native context menu actions shown when text is selected.
+  final List<SelectionAction> selectionActions;
+
+  /// Controls which system-provided actions appear in the text selection menu.
+  ///
+  /// If `null` (the default), all platform defaults are shown (Copy, Share, etc.).
+  /// If an empty set, only custom [selectionActions] are shown.
+  /// Otherwise, only the specified system actions are included.
+  ///
+  /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
+  /// is Android-only. Unsupported values for a platform are silently ignored.
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
+
   /// Accessibility label for the backward navigation semantic region.
   final String goBackwardSemanticLabel;
 
@@ -52,6 +81,18 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Accessibility label for the controls toggle semantic region.
   final String toggleShowControlsSemanticLabel;
+
+  /// Number of resource positions to preload before the current one. Default `2`.
+  /// Higher values smooth out backward navigation at the cost of memory; consider
+  /// increasing for local publications and lowering for remote ones.
+  ///
+  /// iOS only. kotlin-toolkit does not expose this on its public navigator
+  /// configuration, so the value is ignored on Android.
+  final int preloadPreviousPositionCount;
+
+  /// Number of resource positions to preload after the current one. Default `6`.
+  /// See [preloadPreviousPositionCount] for tradeoffs and platform support.
+  final int preloadNextPositionCount;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -229,6 +270,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
+      'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
+      'preloadNextPositionCount': widget.preloadNextPositionCount,
+      if (widget.selectionActions.isNotEmpty)
+        'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
+      if (widget.allowedDefaultActions != null)
+        'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
     };
 
     ReadiumLog.d('creationParams=$creationParams');
@@ -311,7 +358,14 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           _isReadyCompleter.complete(locator);
         }
       },
+      onTextSelected: widget.onTextSelected,
+      onSelectionAction: widget.onSelectionAction,
+      onDecorationInteraction: widget.onDecorationInteraction,
     );
+
+    if (widget.selectionActions.isNotEmpty) {
+      _channel!.configureSelectionActions(widget.selectionActions);
+    }
 
     ReadiumLog.d('New widget is: ${_channel?.name}');
   }

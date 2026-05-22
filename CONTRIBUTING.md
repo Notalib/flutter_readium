@@ -108,23 +108,23 @@ Do **not** hand-edit the compiled JS in `example/web/`.
 
 ## Code style
 
-- **Dart** — format with `dart format .` and lint with `flutter analyze`. The CI gate uses `--fatal-infos --fatal-warnings`.
+- **Dart** — Lint with `./bin/analyze` and format with `./bin/format`. The CI workflow will fail if those scripts doen't pass.
 - **Kotlin** — `ktlint` formatting applied via the Android Gradle task. Run `./gradlew ktlintFormat` in `flutter_readium/android/`.
-- **Swift** — follows the swift-toolkit conventions; no additional formatter is enforced.
+- **Swift** — follows the swift-toolkit conventions; no additional formatter is enforced right now.
 - **TypeScript** — ESLint (`npm run lint` in the relevant directory).
-- **Commits** — use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `chore:`, `refactor:`. Scopes are encouraged, e.g. `fix(android):`, `feat(iOS):`, `feat(example):`.
+- **Commits** — use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `chore:`, `refactor:`. Scopes are encouraged, e.g. `fix(android):`, `feat(iOS):`, `chore(example):`.
 
 ---
 
 ## Pull request process
 
 1. Branch off `main` with a short, descriptive name (e.g. `fix/android-progression`).
-2. Keep PRs focused on a single logical change.
+2. Keep PRs focused on a single logical change, commits should follow Conventional Commits.
 3. Ensure `flutter analyze` and both test suites pass locally before opening a PR.
 4. Test changes in the example app on at least one platform.
-5. Update `CHANGELOG.md` in the affected package(s) under the current unreleased version.
+5. Update `CHANGELOG.md` in the affected package(s) under the Unreleased section.
 6. Update relevant documentation in the [docs](./docs/) folder if necessary.
-7. Use a Conventional Commits PR title — GitHub Actions and the release workflow depend on it.
+7. Use a Conventional Commits-like PR title.
 
 ---
 
@@ -136,7 +136,17 @@ Please use the [GitHub issue tracker](https://github.com/notalib/flutter_readium
 - Target platform and OS/device
 - Observed vs. expected behavior
 - Minimal reproduction steps or a code snippet
-- Logcat / Xcode console / stacktrace output if relevant
+- Logcat / Xcode console / stacktrace output if able to collect it.
+
+### Native Logs
+
+```bash
+# Fetch native iOS logs from simulator
+xcrun simctl spawn booted log stream --level=info --predicate 'subsystem == "dk.nota.flutter_readium"'
+
+# Fetch native Android logs from emulator
+adb logcat -s FlutterReadiumPlugin ReadiumReaderView ReadiumReader EpubNavigator EpubReaderFragment
+```
 
 ---
 

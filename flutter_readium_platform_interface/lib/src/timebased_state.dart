@@ -1,4 +1,4 @@
-﻿import 'package:meta/meta.dart';
+import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';

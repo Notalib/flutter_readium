@@ -1,0 +1,64 @@
+#!/bin/bash
+set -e
+
+# Prepare a release: bump pubspec versions, move Unreleased changelog entries
+# into a dated version section, and leave a fresh Unreleased header.
+#
+# Usage: bin/prepare-release <version>
+# Example: bin/prepare-release 0.1.0
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ -z "$1" ]; then
+  echo "Usage: bin/prepare-release <version>"
+  echo "Example: bin/prepare-release 0.1.0"
+  exit 1
+fi
+
+VERSION="$1"
+DATE=$(date +%Y-%m-%d)
+
+# --- Validate version format ---
+if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: Version must be in semver format (e.g. 1.2.3), got: $VERSION"
+  exit 1
+fi
+
+# --- Check that the version section doesn't already exist ---
+for changelog in "$REPO_ROOT/flutter_readium/CHANGELOG.md" \
+                 "$REPO_ROOT/flutter_readium_platform_interface/CHANGELOG.md"; do
+  if grep -q "^## \[$VERSION\]" "$changelog"; then
+    echo "ERROR: $changelog already contains a section for [$VERSION]"
+    exit 1
+  fi
+done
+
+# --- Update pubspec versions ---
+for pubspec in "$REPO_ROOT/flutter_readium/pubspec.yaml" \
+               "$REPO_ROOT/flutter_readium_platform_interface/pubspec.yaml"; do
+  sed -i '' "s/^version: .*/version: $VERSION/" "$pubspec"
+  echo "Updated $pubspec → version: $VERSION"
+done
+
+# --- Update changelogs: replace "## Unreleased" with versioned section ---
+for changelog in "$REPO_ROOT/flutter_readium/CHANGELOG.md" \
+                 "$REPO_ROOT/flutter_readium_platform_interface/CHANGELOG.md"; do
+  # Replace the first "## Unreleased" line with a new Unreleased + version header
+  sed -i '' "s/^## Unreleased$/## Unreleased\n\n## [$VERSION] - $DATE/" "$changelog"
+  echo "Updated $changelog → added [$VERSION] - $DATE"
+done
+
+# --- Update platform_interface dependency in flutter_readium ---
+PLUGIN_PUBSPEC="$REPO_ROOT/flutter_readium/pubspec.yaml"
+if grep -q "flutter_readium_platform_interface:" "$PLUGIN_PUBSPEC"; then
+  sed -i '' "s/\(flutter_readium_platform_interface:.*\)\"$/flutter_readium_platform_interface: ^$VERSION\"/" "$PLUGIN_PUBSPEC" 2>/dev/null || true
+fi
+
+echo ""
+echo "✅ Release $VERSION prepared."
+echo ""
+echo "Next steps:"
+echo "  1. Review the changes: git diff"
+echo "  2. Commit: git commit -am 'chore: prepare release v$VERSION'"
+echo "  3. Tag: git tag v$VERSION"
+echo "  4. Push: git push && git push --tags"

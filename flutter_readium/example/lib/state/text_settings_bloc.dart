@@ -1,8 +1,15 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
 import '../extensions/text_settings_theme.dart';
+
+// Sentinel for copyWith parameters that are nullable but where null is a meaningful value.
+// Using `field ?? this.field` would make it impossible to explicitly clear a field back to null,
+// so instead the parameter type is widened to Object? with this sentinel as default.
+// Inside copyWith: `field == _sentinel ? this.field : field as T?`
+const _sentinel = Object();
 
 abstract class TextSettingsEvent {}
 
@@ -37,6 +44,84 @@ class ToggleBlackAndWhiteComicMode extends TextSettingsEvent {}
 class ToggleDisableSynchronization extends TextSettingsEvent {}
 
 @immutable
+class ChangeFontFamily extends TextSettingsEvent {
+  ChangeFontFamily(this.value);
+  final String value;
+}
+
+@immutable
+class ChangeFontWeight extends TextSettingsEvent {
+  ChangeFontWeight(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeLetterSpacing extends TextSettingsEvent {
+  ChangeLetterSpacing(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeWordSpacing extends TextSettingsEvent {
+  ChangeWordSpacing(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeLineHeight extends TextSettingsEvent {
+  ChangeLineHeight(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeTextAlign extends TextSettingsEvent {
+  ChangeTextAlign(this.value);
+  final TextAlign? value;
+}
+
+@immutable
+class ChangeColumnCount extends TextSettingsEvent {
+  ChangeColumnCount(this.value);
+  final EpubColumnCount value;
+}
+
+@immutable
+class ChangeReadingProgression extends TextSettingsEvent {
+  ChangeReadingProgression(this.value);
+  final EpubReadingProgression value;
+}
+
+@immutable
+class ChangeParagraphIndent extends TextSettingsEvent {
+  ChangeParagraphIndent(this.value);
+  final double value;
+}
+
+@immutable
+class TogglePublisherStyles extends TextSettingsEvent {}
+
+@immutable
+class ToggleHyphens extends TextSettingsEvent {}
+
+@immutable
+class ToggleLigatures extends TextSettingsEvent {}
+
+@immutable
+class ToggleTextNormalization extends TextSettingsEvent {}
+
+@immutable
+class ChangeEpubThemeType extends TextSettingsEvent {
+  ChangeEpubThemeType(this.value);
+  final EpubThemeType? value;
+}
+
+@immutable
+class ChangeImageFilter extends TextSettingsEvent {
+  ChangeImageFilter(this.value);
+  final EpubImageFilter? value;
+}
+
+@immutable
 class TextSettingsState {
   const TextSettingsState({
     required this.scroll,
@@ -48,6 +133,21 @@ class TextSettingsState {
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
     this.firstElementTopMargin = 40,
+    this.fontFamily = 'Original',
+    this.fontWeight = 1.0,
+    this.letterSpacing,
+    this.wordSpacing,
+    this.lineHeight,
+    this.textAlign,
+    this.columnCount,
+    this.readingProgression,
+    this.paragraphIndent,
+    this.publisherStyles = false,
+    this.hyphens,
+    this.ligatures,
+    this.textNormalization,
+    this.epubThemeType,
+    this.imageFilter,
   });
 
   final bool scroll;
@@ -59,6 +159,21 @@ class TextSettingsState {
   final bool blackAndWhiteComicMode;
   final bool disableSynchronization;
   final int? firstElementTopMargin;
+  final String fontFamily;
+  final double fontWeight;
+  final double? letterSpacing;
+  final double? wordSpacing;
+  final double? lineHeight;
+  final TextAlign? textAlign;
+  final EpubColumnCount? columnCount;
+  final EpubReadingProgression? readingProgression;
+  final double? paragraphIndent;
+  final bool publisherStyles;
+  final bool? hyphens;
+  final bool? ligatures;
+  final bool? textNormalization;
+  final EpubThemeType? epubThemeType;
+  final EpubImageFilter? imageFilter;
 
   @override
   String toString() =>
@@ -74,9 +189,24 @@ class TextSettingsState {
     final bool? blackAndWhiteComicMode,
     final bool? disableSynchronization,
     final int? firstElementTopMargin,
+    final String? fontFamily,
+    final double? fontWeight,
+    final double? letterSpacing,
+    final double? wordSpacing,
+    final double? lineHeight,
+    final Object? textAlign = _sentinel,
+    final EpubColumnCount? columnCount,
+    final EpubReadingProgression? readingProgression,
+    final double? paragraphIndent,
+    final bool? publisherStyles,
+    final bool? hyphens,
+    final bool? ligatures,
+    final bool? textNormalization,
+    final Object? epubThemeType = _sentinel,
+    final Object? imageFilter = _sentinel,
   }) {
-    final newState = TextSettingsState(
-      scroll: verticalScroll ?? this.scroll,
+    return TextSettingsState(
+      verticalScroll: verticalScroll ?? this.verticalScroll,
       fontSize: fontSize ?? this.fontSize,
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
@@ -85,9 +215,22 @@ class TextSettingsState {
       blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
       disableSynchronization: disableSynchronization ?? this.disableSynchronization,
       firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
+      fontFamily: fontFamily ?? this.fontFamily,
+      fontWeight: fontWeight ?? this.fontWeight,
+      letterSpacing: letterSpacing ?? this.letterSpacing,
+      wordSpacing: wordSpacing ?? this.wordSpacing,
+      lineHeight: lineHeight ?? this.lineHeight,
+      textAlign: textAlign == _sentinel ? this.textAlign : textAlign as TextAlign?,
+      columnCount: columnCount ?? this.columnCount,
+      readingProgression: readingProgression ?? this.readingProgression,
+      paragraphIndent: paragraphIndent ?? this.paragraphIndent,
+      publisherStyles: publisherStyles ?? this.publisherStyles,
+      hyphens: hyphens ?? this.hyphens,
+      ligatures: ligatures ?? this.ligatures,
+      textNormalization: textNormalization ?? this.textNormalization,
+      epubThemeType: epubThemeType == _sentinel ? this.epubThemeType : epubThemeType as EpubThemeType?,
+      imageFilter: imageFilter == _sentinel ? this.imageFilter : imageFilter as EpubImageFilter?,
     );
-
-    return newState;
   }
 }
 
@@ -95,38 +238,64 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   final FlutterReadium instance = FlutterReadium();
 
   void submitPreferenceUpdate() async {
+    // When a quick theme is active it controls colors — don't override with explicit values.
+    final useQuickTheme = state.epubThemeType != null;
     final epubPreferences = EPUBPreferences(
-      fontFamily: 'Original',
+      fontFamily: state.fontFamily,
       fontSize: state.fontSize,
-      fontWeight: 1.0,
-      scroll: state.scroll,
-      backgroundColor: state.theme.backgroundColor,
-      textColor: state.theme.textColor,
+      fontWeight: state.fontWeight,
+      scroll: state.verticalScroll,
+      backgroundColor: useQuickTheme ? null : state.theme.backgroundColor,
+      textColor: useQuickTheme ? null : state.theme.textColor,
       pageMargins: state.pageMargins,
       paragraphSpacing: state.paragraphSpacing,
-      // Always disable publisher styles, in order for the user preferences to be applied correctly.
-      publisherStyles: false,
+      publisherStyles: state.publisherStyles,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
+      letterSpacing: state.letterSpacing,
+      wordSpacing: state.wordSpacing,
+      lineHeight: state.lineHeight,
+      textAlign: state.textAlign,
+      columnCount: state.columnCount,
+      readingProgression: state.readingProgression,
+      paragraphIndent: state.paragraphIndent,
+      hyphens: state.hyphens,
+      ligatures: state.ligatures,
+      textNormalization: state.textNormalization,
+      theme: state.epubThemeType,
+      imageFilter: state.imageFilter,
     );
     instance.setEPUBPreferences(epubPreferences);
   }
 
   void setDefaultPreferences() {
+    final useQuickTheme = state.epubThemeType != null;
     final defaultPreferences = EPUBPreferences(
-      fontFamily: 'Original',
+      fontFamily: state.fontFamily,
       fontSize: state.fontSize,
-      fontWeight: 1.0,
-      scroll: state.scroll,
-      backgroundColor: state.theme.backgroundColor,
-      textColor: state.theme.textColor,
+      fontWeight: state.fontWeight,
+      scroll: state.verticalScroll,
+      backgroundColor: useQuickTheme ? null : state.theme.backgroundColor,
+      textColor: useQuickTheme ? null : state.theme.textColor,
       pageMargins: state.pageMargins,
       paragraphSpacing: state.paragraphSpacing,
-      publisherStyles: false,
+      publisherStyles: state.publisherStyles,
       blackAndWhiteComicMode: state.blackAndWhiteComicMode,
       disableSynchronization: state.disableSynchronization,
       firstElementTopMargin: state.firstElementTopMargin,
+      letterSpacing: state.letterSpacing,
+      wordSpacing: state.wordSpacing,
+      lineHeight: state.lineHeight,
+      textAlign: state.textAlign,
+      columnCount: state.columnCount,
+      readingProgression: state.readingProgression,
+      paragraphIndent: state.paragraphIndent,
+      hyphens: state.hyphens,
+      ligatures: state.ligatures,
+      textNormalization: state.textNormalization,
+      theme: state.epubThemeType,
+      imageFilter: state.imageFilter,
     );
     instance.setDefaultPreferences(defaultPreferences);
   }
@@ -165,7 +334,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<ChangeTheme>((final event, final emit) {
-      emit(state.copyWith(theme: event.theme));
+      emit(state.copyWith(theme: event.theme, epubThemeType: null, publisherStyles: false));
       submitPreferenceUpdate();
     });
 
@@ -179,6 +348,81 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<OpenPubSuccess>((final event, final emit) {
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeFontFamily>((event, emit) {
+      emit(state.copyWith(fontFamily: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeFontWeight>((event, emit) {
+      emit(state.copyWith(fontWeight: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeLetterSpacing>((event, emit) {
+      emit(state.copyWith(letterSpacing: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeWordSpacing>((event, emit) {
+      emit(state.copyWith(wordSpacing: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeLineHeight>((event, emit) {
+      emit(state.copyWith(lineHeight: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeTextAlign>((event, emit) {
+      emit(state.copyWith(textAlign: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeColumnCount>((event, emit) {
+      emit(state.copyWith(columnCount: event.value));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeReadingProgression>((event, emit) {
+      emit(state.copyWith(readingProgression: event.value));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeParagraphIndent>((event, emit) {
+      emit(state.copyWith(paragraphIndent: event.value, publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<TogglePublisherStyles>((event, emit) {
+      emit(state.copyWith(publisherStyles: !state.publisherStyles));
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleHyphens>((event, emit) {
+      emit(state.copyWith(hyphens: !(state.hyphens ?? false), publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleLigatures>((event, emit) {
+      emit(state.copyWith(ligatures: !(state.ligatures ?? false), publisherStyles: false));
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleTextNormalization>((event, emit) {
+      emit(state.copyWith(textNormalization: !(state.textNormalization ?? false)));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeEpubThemeType>((event, emit) {
+      emit(state.copyWith(epubThemeType: event.value));
+      submitPreferenceUpdate();
+    });
+
+    on<ChangeImageFilter>((event, emit) {
+      emit(state.copyWith(imageFilter: event.value));
       submitPreferenceUpdate();
     });
   }

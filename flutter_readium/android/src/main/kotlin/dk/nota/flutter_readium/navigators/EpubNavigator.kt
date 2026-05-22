@@ -433,10 +433,32 @@ class EpubNavigator :
 
             if (decorations.isNotEmpty()) {
                 currentDecorations[group] = decorations
+                ensureDecorationListener(navigator, group)
             } else {
                 currentDecorations.remove(group)
             }
         }
+    }
+
+    private val registeredDecorationGroups = mutableSetOf<String>()
+
+    private fun ensureDecorationListener(navigator: EpubReaderFragment, group: String) {
+        if (registeredDecorationGroups.contains(group)) return
+        registeredDecorationGroups.add(group)
+
+        navigator.addDecorationListener(group, object : org.readium.r2.navigator.DecorableNavigator.Listener {
+            override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
+                PluginLog.d(TAG, "::onDecorationActivated: ${event.decoration.id} in group ${event.group}")
+                val channel = dk.nota.flutter_readium.ReadiumReader.currentReaderWidget?.channel ?: return false
+                channel.onDecorationInteraction(
+                    decorationId = event.decoration.id,
+                    group = event.group,
+                    type = "tap",
+                    locator = event.decoration.locator,
+                )
+                return true
+            }
+        })
     }
 
     /**

@@ -262,7 +262,7 @@ object ReadiumReader :
             putString(currentPublicationUrlKey, currentPublicationUrl)
             putBoolean(epubEnabledKey, epubNavigator != null)
             putBundle(epubNavigatorStateKey, epubNavigator?.storeState())
-            // PdfNavigatorFragment in kotlin-toolkit 3.1.2 does not support
+            // PdfNavigatorFragment in kotlin-toolkit does not support
             // process-death restoration (`RestorationNotSupportedException` from
             // its onResume). We record the boolean for symmetry but skip the
             // serialised state bundle — the widget reopens fresh on restore.
@@ -413,6 +413,9 @@ object ReadiumReader :
         set(value) {
             readerViewRef = value?.let { WeakReference(it) }
         }
+
+    /** Selection actions configured from Dart. Used by EpubReaderFragment to build ActionMode menu. */
+    var selectionActions: List<SelectionActionConfig> = emptyList()
 
     private val context: Context
         get() = application.applicationContext
@@ -1181,6 +1184,14 @@ object ReadiumReader :
             currentPublication ?: return failure(
                 Error("no publication"),
             )
+        val isPdf =
+            pub.conformsTo(Publication.Profile.PDF) ||
+                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+        if (isPdf) {
+            return failure(
+                Error("PDF search is not supported on Android: kotlin-toolkit does not ship a SearchService for PDF publications."),
+            )
+        }
         val resultIterator =
             pub.search(query, SearchService.Options()) ?: return failure(
                 Error("SearchService unavailable"),

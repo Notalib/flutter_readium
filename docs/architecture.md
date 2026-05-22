@@ -20,8 +20,8 @@ FlutterReadiumPlatform (abstract interface)
     │
     ├── MethodChannelFlutterReadium  (default implementation)
     │       │
-    │       ├── iOS/macOS  — Swift / swift-toolkit 3.7.0+
-    │       ├── Android    — Kotlin / kotlin-toolkit 3.1.2+
+    │       ├── iOS        — Swift / swift-toolkit (pinned in `flutter_readium/ios/flutter_readium.podspec`)
+    │       ├── Android    — Kotlin / kotlin-toolkit (pinned in `flutter_readium/android/build.gradle`)
     │       └── Web        — TypeScript / @readium/navigator
     │
     └── ReadiumReaderWidget  (platform view)
@@ -60,8 +60,11 @@ After any TypeScript change run `bin/update_web_example` to rebuild and deploy t
 
 | Platform | Toolkit | Version |
 |----------|---------|---------|
-| iOS, macOS | swift-toolkit | 3.7.0 |
-| Android | kotlin-toolkit | 3.1.2 |
-| Web | @readium/navigator (npm) | see `flutter_readium/package.json` |
+| iOS | swift-toolkit | 3.9.0 |
+| Android | kotlin-toolkit | 3.2.0 |
+| Web | `@readium/*` npm packages | see `flutter_readium/package.json` |
+
+macOS is not supported — the plugin registers on macOS as a stub but all calls return `MethodNotImplemented`. swift-toolkit is iOS-only.
 
 When upgrading any toolkit version, verify that all three platforms move together where API surface overlaps.
+From repo root, run `bin/readium_versions` to print the current pinned values from the source-of-truth files.

@@ -14,7 +14,7 @@ struct TextSearchResult {
   
   func toJson() -> [String: Any?] {
     let map: [String: Any?] = [
-      "locator": locator.jsonString,
+      "locator": try? locator.jsonString(),
       "chapterTitle": chapterTitle,
       "pageNumbers": pageNumbers?.joined(separator: ","),
     ]
