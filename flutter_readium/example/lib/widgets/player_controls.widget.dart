@@ -12,7 +12,7 @@ class PlayerControls extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
-      final isAudioBook = publication.conformsToReadiumAudiobook || publication.containsMediaOverlays == true;
+      final isAudioBook = publication.isAudioBook;
 
       return Column(
         mainAxisSize: MainAxisSize.min,

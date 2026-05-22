@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "marionette": {
+      "type": "stdio",
+      "command": "dart",
+      "args": ["run", "marionette_mcp"],
+      "cwd": "${workspaceFolder}/flutter_readium/example"
+    }
+  }
+}
