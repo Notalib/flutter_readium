@@ -60,7 +60,7 @@ class Href {
       final uri = url.replace(host: AsciiCodec().decode(url.host.toUtf8()));
       return String.fromCharCodes(AsciiCodec().encode(uri.toString())).removePrefix('file://');
     } on Exception catch (e) {
-      ReadiumLog.e('ERROR in percentEncodedString');
+      ReadiumLog.e('Error parsing percentEncodedString: ${e.toString()}', data: {'string': string});
       return this.string;
     }
   }
