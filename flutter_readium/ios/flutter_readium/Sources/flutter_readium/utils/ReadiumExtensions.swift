@@ -19,28 +19,28 @@ extension Locator {
     let cssFragment = locations.fragments.first(where: { $0.hasPrefix("#") }) ?? locations.cssSelector
     return cssFragment?.removingPrefix("#")
   }
-  
+
   /// Prepares the Locator data to be sent over the Flutter bridge to clients.
   /// Some fields are better off rounded before being passed over the bridge.
   func toClientFriendlyLocator() -> Locator {
     let offset = timeOffset
     var totalProgress = locations.totalProgression
-    
+
     if totalProgress != nil {
       totalProgress = Double(String(format: "%.4f", totalProgress!))
     }
-    
+
     return copy(locations: { locs in
       locs.fragments = offset != nil ? [String(format: "t=%.2f", offset!)] : []
       locs.totalProgression = totalProgress
     })
   }
-  
+
   /// Gets a Locator copy overriding fragments with a Readium compatible time fragment.
   func copyWithOffset(_ offset: Double) -> Locator {
     return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
   }
-  
+
   func copyWithProgressionLocations(progression: Double) -> Locator {
     return copy(locations: { locs in
       locs.fragments = []
@@ -409,10 +409,6 @@ extension EPUBPreferences {
         }
       case "textNormalization":
         textNormalization = value as? Bool
-      case "theme":
-        if let themeValueStr = value as? String {
-          theme = Theme(rawValue: themeValueStr)
-        }
       case "typeScale":
           typeScale = value as? Double
       case "verticalText":

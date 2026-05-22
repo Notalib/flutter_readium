@@ -13,7 +13,7 @@ class ChangeFontSize extends TextSettingsEvent {
 }
 
 @immutable
-class ToggleVerticalScroll extends TextSettingsEvent {}
+class ToggleScrollMode extends TextSettingsEvent {}
 
 @immutable
 class ChangeTheme extends TextSettingsEvent {
@@ -39,7 +39,7 @@ class ToggleDisableSynchronization extends TextSettingsEvent {}
 @immutable
 class TextSettingsState {
   const TextSettingsState({
-    required this.verticalScroll,
+    required this.scroll,
     required this.fontSize,
     required this.theme,
     required this.highlight,
@@ -50,7 +50,7 @@ class TextSettingsState {
     this.firstElementTopMargin = 40,
   });
 
-  final bool verticalScroll;
+  final bool scroll;
   final int fontSize;
   final TextSettingsTheme theme;
   final TextSettingsTheme highlight;
@@ -62,7 +62,7 @@ class TextSettingsState {
 
   @override
   String toString() =>
-      'TextSettingsState(theme: $theme, fontSize: $fontSize, verticalScroll: $verticalScroll, highlight: $highlight)';
+      'TextSettingsState(theme: $theme, fontSize: $fontSize, verticalScroll: $scroll, highlight: $highlight)';
 
   TextSettingsState copyWith({
     final bool? verticalScroll,
@@ -76,7 +76,7 @@ class TextSettingsState {
     final int? firstElementTopMargin,
   }) {
     final newState = TextSettingsState(
-      verticalScroll: verticalScroll ?? this.verticalScroll,
+      scroll: verticalScroll ?? this.scroll,
       fontSize: fontSize ?? this.fontSize,
       theme: theme ?? this.theme,
       highlight: highlight ?? this.highlight,
@@ -99,7 +99,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       fontFamily: 'Original',
       fontSize: state.fontSize,
       fontWeight: 1.0,
-      scroll: state.verticalScroll,
+      scroll: state.scroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
@@ -118,7 +118,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       fontFamily: 'Original',
       fontSize: state.fontSize,
       fontWeight: 1.0,
-      scroll: state.verticalScroll,
+      scroll: state.scroll,
       backgroundColor: state.theme.backgroundColor,
       textColor: state.theme.textColor,
       pageMargins: state.pageMargins,
@@ -134,7 +134,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   TextSettingsBloc()
     : super(
         TextSettingsState(
-          verticalScroll: false,
+          scroll: false,
           fontSize: 120,
           theme: themes[1],
           highlight: highlights[0],
@@ -149,8 +149,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       submitPreferenceUpdate();
     });
 
-    on<ToggleVerticalScroll>((final event, final emit) {
-      emit(state.copyWith(verticalScroll: !state.verticalScroll));
+    on<ToggleScrollMode>((final event, final emit) {
+      emit(state.copyWith(verticalScroll: !state.scroll));
       submitPreferenceUpdate();
     });
 

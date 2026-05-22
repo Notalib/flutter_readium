@@ -30,7 +30,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     this.textAlign,
     this.textColor,
     this.textNormalization,
-    this.theme,
     this.typeScale,
     this.verticalText,
     this.wordSpacing,
@@ -102,9 +101,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Normalize text styles to increase accessibility
   final bool? textNormalization;
 
-  /// Reader theme. Quickly sets multiple preferences at once and overrides publisher styles.
-  /// When set, it will override the [backgroundColor] and [textColor] preferences.
-  final EpubThemeType? theme;
 
   /// Scale applied to all element font sizes.
   final double? typeScale;
@@ -159,8 +155,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     final textColorStr = jsonObject.optNullableString('textColor', remove: true);
     final textColor = textColorStr != null ? ReadiumColorExtension.fromCSS(textColorStr) : null;
     final textNormalization = jsonObject.optNullableBoolean('textNormalization', remove: true);
-    final themeStr = jsonObject.optNullableString('theme', remove: true);
-    final theme = EpubThemeType.fromJson(themeStr);
     final typeScale = jsonObject.optNullableDouble('typeScale', remove: true);
     final verticalText = jsonObject.optNullableBoolean('verticalText', remove: true);
     final wordSpacing = jsonObject.optNullableDouble('wordSpacing', remove: true);
@@ -190,7 +184,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       textAlign: textAlign,
       textColor: textColor,
       textNormalization: textNormalization,
-      theme: theme,
       typeScale: typeScale,
       verticalText: verticalText,
       wordSpacing: wordSpacing,
@@ -223,7 +216,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('textAlign', textAlign?.name)
     ..putOpt('textColor', textColor?.toCSS())
     ..putOpt('textNormalization', textNormalization)
-    ..putOpt('theme', theme?.toJson())
     ..putOpt('typeScale', typeScale)
     ..putOpt('verticalText', verticalText)
     ..putOpt('wordSpacing', wordSpacing)
@@ -253,7 +245,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     TextAlign? textAlign,
     Color? textColor,
     bool? textNormalization,
-    EpubThemeType? theme,
     double? typeScale,
     bool? verticalText,
     double? wordSpacing,
@@ -282,7 +273,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     textAlign: textAlign ?? this.textAlign,
     textColor: textColor ?? this.textColor,
     textNormalization: textNormalization ?? this.textNormalization,
-    theme: theme ?? this.theme,
     typeScale: typeScale ?? this.typeScale,
     verticalText: verticalText ?? this.verticalText,
     wordSpacing: wordSpacing ?? this.wordSpacing,
@@ -314,7 +304,6 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     textAlign,
     textColor,
     textNormalization,
-    theme,
     typeScale,
     verticalText,
     wordSpacing,
@@ -379,35 +368,6 @@ enum EpubImageFilter {
   }
 }
 
-enum EpubThemeType {
-  light,
-  dark,
-  sepia;
-
-  static EpubThemeType? fromJson(String? value) {
-    switch (value) {
-      case 'light':
-        return EpubThemeType.light;
-      case 'dark':
-        return EpubThemeType.dark;
-      case 'sepia':
-        return EpubThemeType.sepia;
-      default:
-        return null;
-    }
-  }
-
-  String toJson() {
-    switch (this) {
-      case EpubThemeType.light:
-        return 'light';
-      case EpubThemeType.dark:
-        return 'dark';
-      case EpubThemeType.sepia:
-        return 'sepia';
-    }
-  }
-}
 
 enum EpubReadingProgression {
   ltr,

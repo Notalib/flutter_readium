@@ -22,7 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `text`, `locations` (progression, position, CSS selector, fragments), and `timestamp`.
   - `Link` — hyperlink to a resource within or outside the publication.
   - `LocalizedString` — internationalised string map keyed by BCP 47 language tags.
-  - `EPUBPreferences` — reader display preferences (font, theme, scroll mode, CSS overrides).
+  - `EPUBPreferences` — reader display preferences (font, scroll mode, CSS overrides).
   - `AudioPreferences` — audio playback preferences (speed, pitch).
   - `TTSPreferences` — TTS preferences (voice, speed, pitch, language).
   - `ReaderDecoration` — decoration applied to a range within the visual reader.

@@ -36,7 +36,7 @@ The key model types exported by this package:
 |------|-------------|
 | `Publication` | Top-level publication container |
 | `Locator` | Position identifier within a resource |
-| `EPUBPreferences` | EPUB display preferences (font, theme, …) |
+| `EPUBPreferences` | EPUB display preferences (font, scroll, …) |
 | `TTSPreferences` | TTS playback preferences |
 | `AudioPreferences` | Audio playback preferences |
 | `ReaderDecoration` | Highlight / decoration applied to a range |
