@@ -18,6 +18,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 ## Features
 
 - EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
+- PDF reading on iOS (PDFKit) and Android (PDFium), with scroll / reading-progression preferences
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
 - Synchronized Media Overlays (text-and-audio read-along)
@@ -31,14 +32,15 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 
 ## Supported formats
 
-| Format    | Visual | TTS | Audio | Media Overlays |
-| --------- | :----: | :-: | :---: | :------------: |
-| EPUB 2    |   ✓    |  ✓  |   —   |        -       |
-| EPUB 3    |   ✓    |  ✓  |   ✓   |        -       |
-| WebPub    |   ✓    |  ✓  |   ✓   |        ✓       |
-| Audiobook |   —    |  —  |   ✓   |        -       |
+| Format    | Visual       | TTS | Audio | Media Overlays         |
+| --------- | :----------: | :-: | :---: | :--------------------: |
+| EPUB 2    |      ✓       |  ✓  |   —   |           -            |
+| EPUB 3    |      ✓       |  ✓  |   ✓   |           -            |
+| WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
+| Audiobook |      —       |  —  |   ✓   |           -            |
+| PDF       |      ✓       |  —  |   —   |           -            |
 
-PDF, CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include LCP and PDF adapters; they may be enabled in a future release.
+CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
 ## Platform support
 
