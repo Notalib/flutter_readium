@@ -1,6 +1,6 @@
 package dk.nota.flutter_readium.navigators
 
-import android.util.Log
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.PublicationError
 import dk.nota.flutter_readium.findReadingOrderLink
 import org.readium.navigator.media.common.MediaNavigator
@@ -98,7 +98,7 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
             }
         }
 
-        Log.d(
+        PluginLog.d(
             TAG,
             "::onPlaybackStateChanged - state=${pb.state} playWhenReady={${pb.playWhenReady}}, playbackState=$timebasedState, index=${pb.index}",
         )

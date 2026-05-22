@@ -68,13 +68,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
-      R2Log.i('Received reader status event: $event');
+      ReadiumLog.i('Received reader status event: $event');
       try {
         return ReadiumReaderStatus.optFromString(json.decode(event) as String) ??
             ReadiumReaderStatus.optFromString(event) ??
             ReadiumReaderStatus.error;
       } on Exception catch (e) {
-        R2Log.w('Error parsing reader status event: $e');
+        ReadiumLog.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
     });
@@ -108,6 +108,8 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Future<void> setLogLevel(LogLevel level) async {
     await methodChannel.invokeMethod<void>('setLogLevel', level.index);
+    // Set the log level for the Dart logger as well, to keep it in sync with the native side.
+    ReadiumLog.setLevel(level);
   }
 
   @override

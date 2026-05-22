@@ -24,6 +24,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   static final Object _token = Object();
   static FlutterReadiumPlatform _instance = MethodChannelFlutterReadium();
+
   /// The current platform implementation. Defaults to [MethodChannelFlutterReadium].
   static FlutterReadiumPlatform get instance => _instance;
 
@@ -44,7 +45,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setCustomHeaders(Map<String, String> headers) =>
       throw UnimplementedError('setCustomHeaders(headers) has not been implemented.');
 
-  /// Sets the log verbosity of the plugin's internal logging system.
+  /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
   Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
   /// Stores [preferences] as the default EPUB preferences applied to future publications.

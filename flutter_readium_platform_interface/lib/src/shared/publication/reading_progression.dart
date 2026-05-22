@@ -1,4 +1,4 @@
-import 'package:fimber/fimber.dart';
+import '../../utils/readium_log.dart';
 
 import 'presentation/presentation.dart';
 import 'publication.dart';
@@ -31,7 +31,7 @@ enum ReadingProgression {
       case 'auto':
         return ReadingProgression.auto;
       default:
-        Fimber.w('Unknown reading progression: $value, defaulting to auto');
+        ReadiumLog.w('Unknown reading progression: $value, defaulting to auto');
         return ReadingProgression.auto;
     }
   }

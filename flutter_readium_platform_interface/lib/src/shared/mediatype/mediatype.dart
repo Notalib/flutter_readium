@@ -4,9 +4,9 @@
 
 import 'package:dartx/dartx.dart';
 import 'package:dfunc/dfunc.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
+import '../../utils/readium_log.dart';
 
 import 'charset.dart' show Charset;
 
@@ -350,7 +350,7 @@ class MediaType {
     try {
       return MediaType._create(string, name: name, fileExtension: fileExtension);
     } on Error catch (e, stacktrace) {
-      Fimber.e('MediaType._create ERROR', ex: e, stacktrace: stacktrace);
+      ReadiumLog.e('MediaType._create ERROR', stackTrace: stacktrace);
       return null;
     }
   }

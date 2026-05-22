@@ -6,13 +6,13 @@ import 'dart:convert';
 
 import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:fimber/fimber.dart';
 import 'package:meta/meta.dart';
 
 import '../../extensions/readium_string_extensions.dart';
 import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
 import '../../utils/jsonable.dart';
+import '../../utils/readium_log.dart';
 import '../../utils/take.dart';
 import '../epub.dart';
 import '../mediatype/mediatype.dart';
@@ -81,8 +81,6 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
   /// Textual context of the locator.
   final LocatorText? text;
 
-  static final FimberLog _logger = FimberLog('Locator');
-
   static Locator? fromJsonDynamic(dynamic json) {
     if (json is String) {
       return fromJsonString(json);
@@ -90,17 +88,16 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       return fromJson(json);
     }
 
-    _logger.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e('fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
     return null;
   }
 
   static Locator? fromJsonString(String jsonString) {
     try {
-      //Fimber.d("jsonString $jsonString");
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return Locator.fromJson(json);
     } on Exception catch (ex, st) {
-      _logger.e('fromJsonString: Failed to parse Locator from json: $jsonString', ex: ex, stacktrace: st);
+      ReadiumLog.e('fromJsonString: Failed to parse Locator from json: $jsonString', stackTrace: st);
     }
     return null;
   }
@@ -115,7 +112,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     final href = jsonObject.optNullableString('href', remove: true);
     final type = jsonObject.optNullableString('type', remove: true);
     if (href == null || type == null) {
-      _logger.i('[href] and [type] are required $jsonObject');
+      ReadiumLog.i('[href] and [type] are required $jsonObject');
       return null;
     }
 

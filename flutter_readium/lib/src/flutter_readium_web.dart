@@ -185,7 +185,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     // TODO: unknown if other languages also fails the validation, needs better handling
     translationsMap.forEach((final key, final value) {
       if (key.length > 3) {
-        R2Log.d('PUBLICATION WEB: Translations map key "$key" is longer than three letters.');
+        ReadiumLog.d('PUBLICATION WEB: Translations map key "$key" is longer than three letters.');
       }
     });
   }
@@ -196,7 +196,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     //
     // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
     // additionally the openPublication method does currently not return a publication object
-    R2Log.d(
+    ReadiumLog.d(
       'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.',
     );
     final publication = await loadPublication(pubUrl);
@@ -242,7 +242,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    R2Log.d('applyDecorations is not implemented on web platform');
+    ReadiumLog.d('applyDecorations is not implemented on web platform');
   }
 
   // COMMON PLAYBACK API - BEGIN
@@ -284,18 +284,18 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   // TTS API - BEGIN
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async {
-    R2Log.d('ttsEnable is not implemented on web platform');
+    ReadiumLog.d('ttsEnable is not implemented on web platform');
   }
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    R2Log.d('ttsGetAvailableVoices is not implemented on web platform');
+    ReadiumLog.d('ttsGetAvailableVoices is not implemented on web platform');
     return [];
   }
 
   @override
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {
-    R2Log.d('ttsSetVoice is not implemented on web platform');
+    ReadiumLog.d('ttsSetVoice is not implemented on web platform');
   }
 
   @override
@@ -303,12 +303,12 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    R2Log.d('setDecorationStyle is not implemented on web platform');
+    ReadiumLog.d('setDecorationStyle is not implemented on web platform');
   }
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) async {
-    R2Log.d('ttsSetPreferences is not implemented on web platform');
+    ReadiumLog.d('ttsSetPreferences is not implemented on web platform');
   }
   // TTS API - END
 

@@ -20,6 +20,8 @@ print(pub.coverUri);                   // Uri? for the cover image
 
 Key properties: `metadata`, `readingOrder`, `tableOfContents` (aliased as `toc`), `resources`, `pageList`.
 
+See guide for [EPUB Reading](../guides/epub-reading.md) for more details.
+
 ## Locator
 
 A `Locator` pinpoints an exact position inside a resource. It is the currency for bookmarks, highlights, and navigation.
@@ -82,6 +84,8 @@ reader.onErrorEvent.listen((error) { /* non-fatal errors */ });
 
 Always cancel subscriptions in `dispose()` to avoid leaks.
 
+See guides for [Saving Progress](../guides/saving-progress.md) or [Error Handling](../guides/error-handling.md) for more details.
+
 ## Decorations
 
 Decorations overlay highlights and underlines on the visual reader. They are grouped by an arbitrary string `id`; re-applying with the same id replaces the group.
@@ -102,6 +106,8 @@ await reader.applyDecorations('highlights', [
 await reader.applyDecorations('highlights', []);
 ```
 
+See guide for [Highlights & Annotations](../guides/highlights-annotations.md) for more details.
+
 ## Preferences
 
 `EPUBPreferences` controls the visual appearance of the reader. Pass it to `setEPUBPreferences` at any time:
@@ -117,4 +123,4 @@ await reader.setEPUBPreferences(
 );
 ```
 
-See the [Preferences guide](../guides/preferences.md) for the full option list.
+See guide for [Preferences](../guides/preferences.md) for more details.
