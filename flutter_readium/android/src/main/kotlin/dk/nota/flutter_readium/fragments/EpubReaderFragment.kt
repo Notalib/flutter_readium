@@ -12,9 +12,8 @@ import dk.nota.flutter_readium.isFixed
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.models.ViewPortSize
 import dk.nota.flutter_readium.progression
-import kotlinx.coroutines.CoroutineScope
+import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -37,8 +36,7 @@ private var instanceNo = 0
 class EpubReaderFragment :
     VisualReaderFragment(),
     EpubNavigatorFragment.Listener,
-    EpubNavigatorFragment.PaginationListener,
-    CoroutineScope by MainScope() {
+    EpubNavigatorFragment.PaginationListener {
     interface Listener {
         /**
          * Called when a page has finished loading.
@@ -118,7 +116,7 @@ class EpubReaderFragment :
                 return null
             }
 
-        return run {
+        return withMainContext {
             navigator.firstVisibleElementLocator()
         }
     }
@@ -133,7 +131,7 @@ class EpubReaderFragment :
                 return
             }
 
-        return run {
+        return withMainContext {
             navigator.applyDecorations(decorations, group)
         }
     }
@@ -149,8 +147,8 @@ class EpubReaderFragment :
                 return null
             }
 
-        return run {
-            return@run navigator.evaluateJavascript(script)
+        return withMainContext {
+            return@withMainContext navigator.evaluateJavascript(script)
         }
     }
 
@@ -172,7 +170,7 @@ class EpubReaderFragment :
                 return
             }
 
-        return run {
+        return withMainContext {
             Log.d(TAG, "::updatePreferences: $preferences")
 
             applyCustomCssVariables()
@@ -214,7 +212,7 @@ class EpubReaderFragment :
             return
         }
 
-        return run {
+        return withMainContext {
             if (navigator.goBackward(animated)) {
                 Log.d(TAG, "::goBackward: Went back.")
             } else {
@@ -293,7 +291,10 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goBackwardVertical - failed to make locator from link")
                     return
                 }
-            return run { navigator.go(prevLocator, animated) }
+
+            return withMainContext {
+                navigator.go(prevLocator, animated)
+            }
         }
 
         scrollToProgression(prevProgression)
@@ -316,7 +317,7 @@ class EpubReaderFragment :
             return
         }
 
-        return run {
+        return withMainContext {
             if (navigator.goForward(animated)) {
                 Log.d(TAG, "::goForward: Went forward.")
             } else {
@@ -387,7 +388,7 @@ class EpubReaderFragment :
                     Log.d(TAG, "::goForwardVertical - reached end.")
                     return
                 }
-            return run { navigator.go(nextLink, animated) }
+            return withMainContext { navigator.go(nextLink, animated) }
         }
 
         scrollToProgression(nextProgression)
