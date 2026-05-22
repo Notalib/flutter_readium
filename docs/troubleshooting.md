@@ -23,17 +23,6 @@ pod update && pod install --repo-update
 
 If that doesn't help, delete `Podfile.lock` and retry.
 
-## iOS: EPUB content not loading (blank screen)
-
-With current swift-toolkit versions, readers use a custom URL-scheme handler (not a localhost web server), so `NSAppTransportSecurity` exceptions are not required for the plugin itself.
-
-If you still see a blank screen, verify your Readium pod lines match `flutter_readium/example/ios/Podfile`, then run:
-
-```bash
-cd ios
-pod install --repo-update
-```
-
 ## iOS: `MissingPluginException` on stream subscription
 
 Event channels register lazily inside the native view initialiser. Subscribe to streams inside `onReady` or after the reader widget has mounted, not in `initState` before the view exists.

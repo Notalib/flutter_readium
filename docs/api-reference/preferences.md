@@ -68,8 +68,8 @@ Controls the visual appearance of the PDF reader. All fields are optional; omitt
 |-------|------|-------------|
 | `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. |
 | `readingProgression` | `PDFReadingProgression?` | `ltr` or `rtl`. |
-| `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Ignored on web. Must be `>= 0`. |
-| `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. Ignored on web. |
+| `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Must be `>= 0`. |
+| `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. |
 
 ```dart
 await reader.setPDFPreferences(const PDFPreferences(

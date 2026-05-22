@@ -24,6 +24,7 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -552,14 +553,20 @@ class EpubReaderFragment :
             navigatorFactory.createFragmentFactory(
                 configuration =
                     EpubNavigatorFragment.Configuration(
+                        // Padding should be added on Flutter side
                         shouldApplyInsetsPadding = false,
-                        // DFG: This will be relative to your app's src/main/assets/ folder.
+                        // Extra served asssets will be relative to your app's src/main/assets/ folder.
                         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
                         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                         servedAssets =
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
+                        // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
+                        decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
+                            alpha = 1.0,
+                            experimentalPositioning = true,
+                        ),
                         // Only register the callback if custom selectionActions are added.
                         selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
                             createSelectionActionModeCallback()

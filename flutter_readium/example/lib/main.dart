@@ -49,6 +49,7 @@ Future<void> main() async {
         //   lazy: false,
         // ),
         BlocProvider(create: (final _) => PlayerControlsBloc()),
+        BlocProvider(create: (final _) => PDFSettingsBloc()),
       ],
       child: MyApp(),
     ),
