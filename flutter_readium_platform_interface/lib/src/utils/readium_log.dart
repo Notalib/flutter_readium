@@ -19,6 +19,8 @@ import '../exceptions/log_level.dart';
 /// Call [ReadiumLog.setLevel] (or `FlutterReadium().setLogLevel(...)`) to change
 /// the level at runtime — this also propagates to the native (iOS/Android)
 /// side.
+///
+/// TODO: Add a TAG or otherwise log where call originated from.
 abstract class ReadiumLog {
   const ReadiumLog._();
 

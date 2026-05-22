@@ -4,7 +4,7 @@
 
 | Requirement | Version |
 |-------------|---------|
-| Flutter SDK | ≥ 3.3.0 |
+| Flutter SDK | ≥ 3.32.0 |
 | Dart SDK | ≥ 3.8.0 |
 | Android minSdk | 24 |
 | iOS | 15.0+ |

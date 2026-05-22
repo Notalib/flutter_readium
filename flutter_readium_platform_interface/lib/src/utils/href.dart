@@ -14,6 +14,7 @@ import '../extensions/strings.dart';
 import 'readium_log.dart';
 
 /// Represents an HREF, optionally relative to another one.
+/// TODO: Currently it does NOT resolve ""../" notations.
 ///
 /// This is used to normalize the string representation.
 @immutable
@@ -60,7 +61,7 @@ class Href {
       final uri = url.replace(host: AsciiCodec().decode(url.host.toUtf8()));
       return String.fromCharCodes(AsciiCodec().encode(uri.toString())).removePrefix('file://');
     } on Exception catch (e) {
-      ReadiumLog.e('ERROR in percentEncodedString');
+      ReadiumLog.e('Error parsing percentEncodedString: ${e.toString()}', data: {'string': string});
       return this.string;
     }
   }
