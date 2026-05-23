@@ -200,8 +200,7 @@ class JsPublicationChannel {
     _readiumReader.seekBy(seconds.toJS);
   }
 
-  static bool goToProgression(double progression) =>
-      _readiumReader.goToProgression(progression.toJS).toDart;
+  static bool goToProgression(double progression) => _readiumReader.goToProgression(progression.toJS).toDart;
 
   static void setAudioPreferences(String preferencesJson) {
     _readiumReader.setAudioPreferences(preferencesJson.toJS);
