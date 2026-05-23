@@ -98,7 +98,11 @@ Add to `Info.plist` to keep audio playing when the app is backgrounded:
 
 ## 4. macOS
 
-macOS is **not supported and not planned**. The plugin registers on macOS as a stub (all calls return `MethodNotImplemented`). No setup is required or useful.
+**Native macOS desktop is not supported.** Running `flutter run -d macos` will compile, but every reader call returns `MethodNotImplemented` — the upstream swift-toolkit is iOS-only and upstream has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). No setup is required or useful for the desktop target.
+
+**To reach Mac users, ship the iOS build via "Designed for iPad."** Apple Silicon Macs (M1 and later) execute iOS .ipa binaries natively, and swift-toolkit is maintained with that mode in mind. Upload your iOS app to App Store Connect and keep the **Mac App Store → "Make this app available on Mac"** option enabled — Mac users can then install and run your reader app from the Mac App Store with no additional work.
+
+This path supports Apple Silicon only (Intel Macs are excluded by Apple, not by this plugin).
 
 ## 5. Web setup
 

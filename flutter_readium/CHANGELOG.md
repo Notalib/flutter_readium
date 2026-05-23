@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed
+
+- **macOS documentation** — clarified the macOS support story. Native macOS
+  desktop (`flutter run -d macos`) remains unsupported and registers a no-op
+  stub, but the iOS build runs on Apple Silicon Macs via "Designed for iPad"
+  with no plugin changes required. Updated README, installation guide,
+  architecture doc, podspec/Package.swift comments, and the macOS stub plugin
+  to reflect this.
+
 ### Added
 
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
