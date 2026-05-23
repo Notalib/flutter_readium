@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Web: `EPUBPreferences.disableSynchronization` honored** — when set, the web
+  TTS engine no longer scrolls the visual navigator on each utterance, matching the
+  native (iOS / Android) behaviour. Plumbed through `ReadiumReader.setEPUBPreferences`
+  and the new `WebTTSEngine` constructor.
 - **Web: TTS (text-to-speech)** — `ttsEnable`, `ttsGetAvailableVoices`, `ttsSetVoice`,
   `ttsSetPreferences` are now implemented on web using the browser's `SpeechSynthesis` API
   and `@readium/shared`'s `PublicationContentIterator` + `HTMLResourceContentIterator` for
@@ -37,8 +41,54 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   required listener fields from ts-toolkit 2.3.0 are now present on both EPUB and
   WebPub navigator configurations.
 
+### Fixed
+
+- **Web: `setEPUBPreferences` no longer wipes existing preferences** — the converter
+  now emits only fields the Dart caller explicitly set, leaving the navigator's
+  prior preferences untouched on merge. (Previously, building a `new EpubPreferences(...)`
+  initialised every field to `null` via the toolkit's `ensure*` guards, and the
+  navigator's `merging()` does not skip `null` — only `undefined`. The submit was
+  also extracted from `nav.submitPreferences` into a free variable, which stripped
+  the `this` binding — that's now a method call.)
+- **Web: `goToProgression` and `searchInPublication` no longer throw** — both now have
+  dummy implementations on web that log a debug message and return a safe default.
+- **Web: `goBackward` / `goForward` no longer error with `is not a function`** — the
+  JS-side `ReadiumReader` was missing the progression-aware navigation methods that
+  Dart's `JsPublicationChannel` calls.
+- **Web: TOC link navigation now works** — `ReadiumReader.goTo` searches `readingOrder`
+  before `resources`. Chapter links from the example's TOC page point into reading
+  order, so the previous resources-only lookup always failed.
+- **Web: `onTextLocatorChanged.locations.tocHref` is populated** — the EPUB navigator
+  enriches each emitted locator with the current chapter's TOC href, matching the
+  iOS / Android contract. Unblocks chapter-skip features on the consumer side.
+- **Web: `onTextLocatorChanged` no longer floods consumers during scroll** — text-locator
+  events are now trailing-edge debounced at 250 ms inside the EPUB navigator listener.
+  In scroll mode the ts-toolkit emits ~60 events/sec; this matches the per-page cadence
+  of the iOS/Android plugins.
+- **Example: EPUB Settings popover now dismisses when tapping outside (web)** — the
+  default `showModalBottomSheet` barrier sits behind the iframe on Flutter web, so
+  taps fell through. The route now provides its own `PointerInterceptor`-backed barrier.
+- **Web: opening a Media Overlay (Sync Narration) WebPub no longer throws** — Sync
+  Narration detection treated `link.alternates` as a plain array, but `@readium/shared`
+  exposes it as a `Links` instance (`.items` array + helper methods). Opening a
+  publication with media overlays now uses `Links.findWithMediaType` / `Links.items`
+  instead of `.find()`, eliminating `TypeError: alternates.find is not a function`.
+  The same Links-vs-array bug was silently dropping nested TOC children in
+  `flattenToc`; nested TOC entries are now flattened correctly.
+
 ### Changed
 
+- **Web: EPUB preferences mapping cleanup** — `epubPreferences.ts` now mirrors the Dart
+  `EPUBPreferences` shape (one preference per Dart field), with documented conversions:
+  `columnCount` enum (auto/one/two) → `number | null`, `imageFilter` enum (darken/invert)
+  → `darkenFilter` / `invertFilter`, and `fontSize` divided by 100 to match the iOS
+  plugin (Dart `120` → web `1.2`). Live updates and initialization now go through the
+  same conversion. Dart fields the web navigator can't honor (`publisherStyles`,
+  `readingProgression`, `spread`, `typeScale`, `verticalText`, `language`,
+  `blackAndWhiteComicMode`, `firstElementTopMargin`) are dropped with inline rationale.
+- **Example: EPUB settings popover hides web-unsupported controls** — Reading Direction,
+  Publisher Styles, and B&W Comic Mode toggles are now wrapped in `kIsWeb` so they
+  only render on native platforms where they actually have an effect.
 - **Web: ts-toolkit version bump** — `@readium/navigator` `^2.2.4` → `^2.5.5`,
   `@readium/navigator-html-injectables` `^2.2.1` → `^2.4.2`,
   `@readium/shared` `^2.1.1` → `^2.2.0`. Picks up FXL `positionChanged` reliability
