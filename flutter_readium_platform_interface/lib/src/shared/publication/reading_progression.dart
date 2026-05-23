@@ -20,6 +20,9 @@ enum ReadingProgression {
 
   factory ReadingProgression.fromString(String? value) {
     switch (value?.toLowerCase()) {
+      case null:
+      case 'auto':
+        return ReadingProgression.auto;
       case 'ltr':
         return ReadingProgression.ltr;
       case 'rtl':
@@ -28,8 +31,6 @@ enum ReadingProgression {
         return ReadingProgression.ttb;
       case 'btt':
         return ReadingProgression.btt;
-      case 'auto':
-        return ReadingProgression.auto;
       default:
         ReadiumLog.w('Unknown reading progression: $value, defaulting to auto');
         return ReadingProgression.auto;
