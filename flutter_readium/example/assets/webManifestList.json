@@ -1,11 +1,12 @@
 [
-  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:50272/manifest.json",
-  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:50791/manifest.json?format=WebPubAudioOnly",
-  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:INSL20260002/manifest.json?format=WebPubAudio",
+  "/test-audiobook/manifest.json",
   "https://readium.org/css/docs/manifest.json",
   "https://readium.org/webpub-manifest/examples/MobyDick/manifest.json",
   "https://publication-server.readium.org/webpub/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9sZXNfZGlhYm9saXF1ZXMuZXB1Yg/manifest.json",
   "https://publication-server.readium.org/webpub/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9CZWxsYU9yaWdpbmFsMy5lcHVi/manifest.json",
   "https://publication-server.readium.org/webpub/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9uYXRoYW5pZWwtaGF3dGhvcm5lX3RoZS1ob3VzZS1vZi10aGUtc2V2ZW4tZ2FibGVzX2FkdmFuY2VkLmVwdWI/manifest.json",
-  "https://publication-server.readium.org/webpub/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9tb2xseS1ob3BwZXItdjEuMS53ZWJwdWI/manifest.json"
+  "https://publication-server.readium.org/webpub/Z3M6Ly9yZWFkaXVtLXBsYXlncm91bmQtZmlsZXMvZGVtby9tb2xseS1ob3BwZXItdjEuMS53ZWJwdWI/manifest.json",
+  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:50272/stream/WebPubText/manifest.json",
+  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:50791/stream/WebPubAudioOnly/manifest.json",
+  "https://merkur.nota.dk/opds2/publication/free/merkur:libraryid:INSL20260002/stream/WebPubAudio/manifest.json"
 ]

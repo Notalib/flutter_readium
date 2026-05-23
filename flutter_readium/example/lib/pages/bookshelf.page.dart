@@ -47,7 +47,9 @@ class BookshelfPageState extends State<BookshelfPage> {
       for (final href in manifestHrefs) {
         try {
           Publication? pub;
-          final localPubPath = href.toString();
+          final rawHref = href.toString();
+          // WEB: Resolve root-relative paths against the current origin, so local files can be loaded.
+          final localPubPath = rawHref.startsWith('/') ? Uri.base.resolve(rawHref).toString() : rawHref;
           pub = await loadPublicationFromUrl(localPubPath);
           if (pub != null) {
             loadedPublications.add(pub);
