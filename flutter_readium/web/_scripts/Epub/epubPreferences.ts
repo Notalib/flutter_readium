@@ -137,7 +137,9 @@ export function epubPreferencesFromJson(
 export function initializeEpubPreferencesFromString(
   preferencesString: string
 ): IEpubPreferences {
-  return epubPreferencesFromJson(JSON.parse(preferencesString));
+  const prefs = epubPreferencesFromJson(JSON.parse(preferencesString));
+  console.log('EpubPreferences parsed from string', prefs);
+  return prefs
 }
 
 /**
@@ -163,6 +165,7 @@ export function setEpubPreferencesFromString(
   // and `this` remains bound to `nav` — extracting it as a free function would
   // break `this._preferences.merging(...)` inside the navigator.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  console.log('Submitting preferences to navigator', preferences);
   nav.submitPreferences(preferences as any);
 }
 

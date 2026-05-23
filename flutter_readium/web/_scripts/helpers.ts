@@ -96,29 +96,6 @@ export function normalizeTypes(obj: any): any {
   return obj;
 }
 
-export function setPreferencesFromString(
-  newPreferencesString: string,
-  nav: EpubNavigator | WebPubNavigator
-) {
-  let newPreferences = JSON.parse(newPreferencesString);
-
-  convertVerticalScroll(newPreferences);
-
-  if (newPreferences.textAlign != null) {
-    newPreferences.textAlign = textAlignFromJson(newPreferences.textAlign);
-  }
-  if (newPreferences.pageMargins != null) {
-    newPreferences.pageGutter = newPreferences.pageMargins;
-    delete newPreferences.pageMargins;
-  }
-
-  newPreferences = normalizeTypes(newPreferences);
-
-  // if (nav instanceof EpubNavigator) {
-  nav.submitPreferences(newPreferences);
-  // }
-}
-
 // NOTE: decoration support here is experimental and will be replaced once
 // https://github.com/readium/ts-toolkit/pull/209 (Decorator API) merges.
 export function highlightSelection(
