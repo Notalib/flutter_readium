@@ -67,7 +67,7 @@ export async function initializeEpubNavigatorAndPeripherals(
       textLocatorTimer = undefined;
       // Use Locator.serialize() so otherLocations entries (e.g. `tocHref`)
       // are inlined into `locations`. Plain JSON.stringify drops Map entries.
-      (window as any).updateTextLocator?.(JSON.stringify(locator.serialize()));
+      window.updateTextLocator?.(JSON.stringify(locator.serialize()));
     }, TEXT_LOCATOR_DEBOUNCE_MS);
   };
 
@@ -171,7 +171,7 @@ export async function initializeEpubNavigatorAndPeripherals(
         locations: currentLocator.locations,
         text: { highlight: _selection.text },
       };
-      (window as any).onTextSelectedCallback?.(
+      window.onTextSelectedCallback?.(
         JSON.stringify({ locator: locatorJson, selectedText: _selection.text })
       );
     },

@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, AudioPreferences, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Locator, Profile, Publication, Resource } from "@readium/shared";
+import { Locator, Resource } from "@readium/shared";
 import { Link } from "@readium/shared";
 
 // Helpers and extensions
@@ -112,7 +112,7 @@ class _ReadiumReader {
     initialPositionJson: string | undefined,
     preferencesJson: string | undefined
   ) {
-    (window as any).updateReaderStatus?.(ReadiumReaderStatus.loading);
+    window.updateReaderStatus?.(ReadiumReaderStatus.loading);
 
     let initialPosition: Locator | undefined;
 
@@ -144,7 +144,7 @@ class _ReadiumReader {
           preferencesJsonString,
           (nav) => {
             this._audioNav = nav;
-            (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
+            window.updateReaderStatus?.(ReadiumReaderStatus.ready);
           }
         );
       } else {
@@ -153,7 +153,7 @@ class _ReadiumReader {
           document.body.querySelector("#container");
         if (!container) {
           console.error("Container element not found");
-          (window as any).updateReaderStatus?.("error");
+          window.updateReaderStatus?.(ReadiumReaderStatus.error);
           throw new Error("Container element not found");
         }
         if (this._publication.conformsToEpub) {
@@ -166,7 +166,7 @@ class _ReadiumReader {
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
-              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
+              window.updateReaderStatus?.(ReadiumReaderStatus.ready);
             },
             (positions) => { this._positions = positions; }
           );
@@ -178,7 +178,7 @@ class _ReadiumReader {
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
-              (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
+              window.updateReaderStatus?.(ReadiumReaderStatus.ready);
             }
           );
         }
@@ -207,27 +207,42 @@ class _ReadiumReader {
   }
 
   public closePublication(error?: any) {
-    this._publication = undefined;
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
-    this._nav?.destroy();
-    this._audioNav?.destroy();
-    this._audioNav = undefined;
     this._hasSyncNarration = false;
     this._positions = [];
-    const container = document.getElementById("container");
-    if (container) {
-      container.innerHTML = "";
-    }
-    if (error) {
-      (window as any).updateReaderStatus?.(ReadiumReaderStatus.error);
-    } else {
-      (window as any).updateReaderStatus?.(ReadiumReaderStatus.closed);
-    }
 
-    delete (window as any).updateTextLocator;
-    delete (window as any).updateReaderStatus;
-    delete (window as any).updateTimebasedPlayerState;
+    const cleanup = () => {
+      this._nav = undefined;
+      this._audioNav = undefined;
+      this._publication = undefined;
+      const container = document.getElementById("container");
+      if (container) {
+        container.innerHTML = "";
+      }
+      if (error) {
+        window.updateReaderStatus?.(ReadiumReaderStatus.error);
+      } else {
+        window.updateReaderStatus?.(ReadiumReaderStatus.closed);
+      }
+      delete window.updateTextLocator;
+      delete window.updateReaderStatus;
+      delete window.updateTimebasedPlayerState;
+    };
+
+    const navDestroy = this._nav?.destroy();
+    const audioDestroy = this._audioNav?.destroy();
+
+    if (navDestroy || audioDestroy) {
+      Promise.all([navDestroy, audioDestroy].filter(Boolean))
+        .then(cleanup)
+        .catch((err) => {
+          console.error("Error destroying navigator:", err);
+          cleanup();
+        });
+    } else {
+      cleanup();
+    }
   }
 
   public play(locatorJson?: string): void {
@@ -424,31 +439,27 @@ class _ReadiumReader {
     }));
   }
 
-  public async getResource(linkString: String, asBytes: boolean = false) {
-    // Step one - linkString to json object
+  public async getLinkContent(linkString: String, asBytes: boolean = false) {
     let linkJson = JSON.parse(linkString.toString());
-    // Step two - json to Link object
     let link: Link | undefined = Link.deserialize(linkJson);
     if (!link) {
       console.error("Invalid link string");
     }
-    // Step three - fetch the resource link
     let resourceLink: Resource | undefined = this._publication?.get(link!);
 
     if (!resourceLink) {
       console.error("Resource not found", link);
     }
 
-    // Step four - get resource as string
-    let resourceString: string | undefined;
+    let linkContent: string | undefined;
     if (asBytes) {
       let resourceBytes = await resourceLink?.read();
-      resourceString = JSON.stringify(Array.from(resourceBytes!));
+      linkContent = JSON.stringify(Array.from(resourceBytes!));
     } else {
-      resourceString = await resourceLink?.readAsString();
+      linkContent = await resourceLink?.readAsString();
     }
 
-    return resourceString;
+    return linkContent;
   }
 }
 
