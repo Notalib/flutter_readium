@@ -72,7 +72,8 @@ class Link with EquatableMixin implements JSONable {
   /// [normalizeHref] closure.
   /// If a link can't be parsed, a warning will be logged with [warnings].
   static List<Link> fromJsonArray(List<dynamic>? json) =>
-      (json ?? []).parseObjects((it) => Link.fromJson(it as Map<String, dynamic>?));
+      // Non-map entries (e.g. JSON-LD @context strings) are silently skipped.
+      (json ?? []).parseObjects((it) => it is Map<String, dynamic> ? Link.fromJson(it) : null);
 
   /// (Nullable) Unique identifier for this link in the [Publication].
   final String? id;
