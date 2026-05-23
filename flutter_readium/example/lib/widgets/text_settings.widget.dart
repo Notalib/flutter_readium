@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -163,13 +164,18 @@ class TextSettingsWidget extends StatelessWidget {
             // --- Layout Section ---
             _SectionHeader(title: 'Layout'),
             ListItemWidget(
-              label: 'Vertical Scroll',
-              isVerticalAlignment: true,
-              child: Switch(
-                key: const ValueKey('vertical_scroll_switch'),
-                value: state.scroll,
-                onChanged: (value) {
-                  textSettingsBloc.add(ToggleScrollMode());
+              label: 'Page Layout',
+              child: SegmentedButton<bool>(
+                key: const ValueKey('scroll_mode_selector'),
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Paginated')),
+                  ButtonSegment(value: true, label: Text('Scroll')),
+                ],
+                selected: {state.scroll},
+                onSelectionChanged: (values) {
+                  if (values.first != state.scroll) {
+                    textSettingsBloc.add(ToggleScrollMode());
+                  }
                 },
               ),
             ),
@@ -188,45 +194,54 @@ class TextSettingsWidget extends StatelessWidget {
                 },
               ),
             ),
-            ListItemWidget(
-              label: 'Reading Direction',
-              child: SegmentedButton<EpubReadingProgression>(
-                key: const ValueKey('reading_progression_selector'),
-                segments: const [
-                  ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
-                  ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
-                ],
-                selected: {state.readingProgression ?? EpubReadingProgression.ltr},
-                onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeReadingProgression(values.first));
-                },
+            // Reading direction: native-only. The web Readium navigator derives this
+            // from the publication manifest at navigator creation time and does not
+            // accept it as a runtime preference.
+            if (!kIsWeb)
+              ListItemWidget(
+                label: 'Reading Direction',
+                child: SegmentedButton<EpubReadingProgression>(
+                  key: const ValueKey('reading_progression_selector'),
+                  segments: const [
+                    ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
+                    ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
+                  ],
+                  selected: {state.readingProgression ?? EpubReadingProgression.ltr},
+                  onSelectionChanged: (values) {
+                    textSettingsBloc.add(ChangeReadingProgression(values.first));
+                  },
+                ),
               ),
-            ),
             const Divider(),
 
             // --- Styling Override Section ---
             _SectionHeader(title: 'Styling'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'When Publisher Styles is ON, the book\u2019s original CSS is preserved and most custom '
-                'typography settings (font, spacing, alignment) will have no effect. '
-                'Turn it OFF to allow your custom settings to override the publisher\u2019s styles.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            // Publisher Styles: native-only. The web navigator does not expose a
+            // publisher-CSS toggle, IEpubPreferences overrides always apply, so the
+            // toggle would have no effect on web.
+            if (!kIsWeb) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'When Publisher Styles is ON, the book\u2019s original CSS is preserved and most custom '
+                  'typography settings (font, spacing, alignment) will have no effect. '
+                  'Turn it OFF to allow your custom settings to override the publisher\u2019s styles.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            ListItemWidget(
-              label: 'Publisher Styles',
-              isVerticalAlignment: true,
-              child: Switch(
-                key: const ValueKey('publisher_styles_switch'),
-                value: state.publisherStyles,
-                onChanged: (value) {
-                  textSettingsBloc.add(TogglePublisherStyles());
-                },
+              const SizedBox(height: 4),
+              ListItemWidget(
+                label: 'Publisher Styles',
+                isVerticalAlignment: true,
+                child: Switch(
+                  key: const ValueKey('publisher_styles_switch'),
+                  value: state.publisherStyles,
+                  onChanged: (value) {
+                    textSettingsBloc.add(TogglePublisherStyles());
+                  },
+                ),
               ),
-            ),
+            ],
             ListItemWidget(
               label: 'Hyphens',
               isVerticalAlignment: true,
@@ -260,17 +275,21 @@ class TextSettingsWidget extends StatelessWidget {
                 },
               ),
             ),
-            ListItemWidget(
-              label: 'B&W Comic Mode',
-              isVerticalAlignment: true,
-              child: Switch(
-                key: const ValueKey('bw_comic_mode_switch'),
-                value: state.blackAndWhiteComicMode,
-                onChanged: (value) {
-                  textSettingsBloc.add(ToggleBlackAndWhiteComicMode());
-                },
+            // B&W Comic Mode: native uses a custom CSS variable injected into the
+            // EPUB iframe (--FLUTTER_READIUM-black-white-comic-mode).
+            // TODO: The web reader doesn't have the CSS-injection infrastructure for this yet.
+            if (!kIsWeb)
+              ListItemWidget(
+                label: 'B&W Comic Mode',
+                isVerticalAlignment: true,
+                child: Switch(
+                  key: const ValueKey('bw_comic_mode_switch'),
+                  value: state.blackAndWhiteComicMode,
+                  onChanged: (value) {
+                    textSettingsBloc.add(ToggleBlackAndWhiteComicMode());
+                  },
+                ),
               ),
-            ),
             ListItemWidget(
               label: 'Disable Synchronization',
               isVerticalAlignment: true,

@@ -136,7 +136,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         timebasedStateSub = instance.onTimebasedPlayerStateChanged
             .map((state) => state.currentLocator)
             .whereNotNull()
-            .throttleTime(const Duration(milliseconds: 5000), leading: false, trailing: true)
+            .throttleTime(const Duration(milliseconds: 1000), leading: false, trailing: true)
             .listen((locator) {
               _log.fine('onTimebasedPlayerState.currentLocator: $locator');
               savedLocators[pubUrlHashCode] = locator;
