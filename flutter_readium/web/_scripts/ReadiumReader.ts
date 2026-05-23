@@ -1,6 +1,6 @@
 import "./style.css";
 
-import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
+import { AudioNavigator, AudioPreferences, EpubNavigator, WebPubNavigator } from "@readium/navigator";
 import { Locator, Profile, Publication, Resource } from "@readium/shared";
 import { Link } from "@readium/shared";
 
@@ -10,6 +10,11 @@ import { ReadiumReaderStatus } from "./enums";
 import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
+import { initializeAudioNavigator } from "./Audio/audioNavigator";
+import { detectSyncNarration } from "./Audio/syncNarration";
+import { initializeMediaOverlayNavigator } from "./Audio/mediaOverlayNavigator";
+import { WebTTSEngine } from "./TTS/ttsNavigator";
+import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
 
 class _ReadiumReader {
   public constructor() {
@@ -18,6 +23,10 @@ class _ReadiumReader {
 
   private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
+  private _audioNav: AudioNavigator | undefined;
+  private _ttsEngine: WebTTSEngine | undefined;
+  /** True when the current EPUB publication has embedded Sync Narration JSON. */
+  private _hasSyncNarration = false;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
@@ -96,6 +105,9 @@ class _ReadiumReader {
     let preferencesJsonString =
       !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
 
+    // Reset per-publication state so stale values don't bleed across openPublication calls.
+    this._hasSyncNarration = false;
+
     try {
       // TODO: match native
       this._publication = _ReadiumReader._publications.get(pubId);
@@ -107,11 +119,20 @@ class _ReadiumReader {
       let conformsToArray = this._publication.manifest.metadata.conformsTo;
 
       if (this._publication.conformsToAudiobook) {
-        // Initialize WebAudioEngine for audiobooks
-        // TODO: wip
+        await initializeAudioNavigator(
+          this._publication,
+          initialPosition,
+          preferencesJsonString,
+          (nav) => {
+            this._audioNav = nav;
+            (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
+          }
+        );
       } else {
         // Initialize EpubNavigator for ebooks
         if (this._publication.conformsToEpub) {
+          // Detect sync narration before opening the navigator (async fetch-free check).
+          this._hasSyncNarration = detectSyncNarration(this._publication);
           await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,
@@ -150,10 +171,15 @@ class _ReadiumReader {
 
   public closePublication(error?: any) {
     this._publication = undefined;
-    this._nav?.destroy(); // Clean up the navigator instance
+    this._ttsEngine?.destroy();
+    this._ttsEngine = undefined;
+    this._nav?.destroy();
+    this._audioNav?.destroy();
+    this._audioNav = undefined;
+    this._hasSyncNarration = false;
     const container = document.getElementById("container");
     if (container) {
-      container.innerHTML = ""; // Clear the container
+      container.innerHTML = "";
     }
     if (error) {
       (window as any).updateReaderStatus?.(ReadiumReaderStatus.error);
@@ -163,6 +189,156 @@ class _ReadiumReader {
 
     delete (window as any).updateTextLocator;
     delete (window as any).updateReaderStatus;
+    delete (window as any).updateTimebasedPlayerState;
+  }
+
+  public play(locatorJson?: string): void {
+    if (this._ttsEngine) {
+      const locator = locatorJson
+        ? Locator.deserialize(JSON.parse(locatorJson)) ?? undefined
+        : undefined;
+      this._ttsEngine.play(locator);
+      return;
+    }
+    if (!this._audioNav) return;
+    if (locatorJson) {
+      const locator = Locator.deserialize(JSON.parse(locatorJson));
+      if (locator) {
+        this._audioNav.go(locator, false, () => {});
+        return;
+      }
+    }
+    this._audioNav.play();
+  }
+
+  public pause(): void {
+    if (this._ttsEngine) { this._ttsEngine.pause(); return; }
+    this._audioNav?.pause();
+  }
+
+  public resume(): void {
+    if (this._ttsEngine) { this._ttsEngine.resume(); return; }
+    this._audioNav?.play();
+  }
+
+  public stop(): void {
+    if (this._ttsEngine) { this._ttsEngine.stop(); return; }
+    this._audioNav?.stop();
+  }
+
+  public next(): void {
+    if (this._ttsEngine) { this._ttsEngine.next(); return; }
+    this._audioNav?.goForward(false, () => {});
+  }
+
+  public previous(): void {
+    if (this._ttsEngine) { this._ttsEngine.previous(); return; }
+    this._audioNav?.goBackward(false, () => {});
+  }
+
+  /** Relative seek by seconds. Applies to AudioNavigator (audiobook / Media Overlay). */
+  public seekBy(seconds: number): void {
+    this._audioNav?.jump(seconds);
+  }
+
+  // ---------------------------------------------------------------------------
+  // TTS API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Initialises (or re-initialises) the TTS engine and starts playback.
+   * Requires an EPUB or WebPub visual navigator to already be active.
+   */
+  public async ttsEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
+    if (!this._nav || !this._publication) {
+      console.warn("ttsEnable: no visual navigator active");
+      return;
+    }
+    // Destroy any previous TTS session.
+    this._ttsEngine?.destroy();
+    const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
+    this._ttsEngine = new WebTTSEngine(this._nav, this._publication, prefs);
+    const fromLocator = fromLocatorJson
+      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
+      : undefined;
+    await this._ttsEngine.play(fromLocator);
+  }
+
+  /** Returns a JSON string containing available browser TTS voices. */
+  public async ttsGetAvailableVoices(): Promise<string> {
+    return WebTTSEngine.getAvailableVoices();
+  }
+
+  /**
+   * Sets the active TTS voice.
+   * @param identifier  Voice URI (from ttsGetAvailableVoices).
+   * @param lang        Optional BCP-47 language code for per-language mapping.
+   */
+  public ttsSetVoice(identifier: string, lang?: string): void {
+    this._ttsEngine?.setVoice(identifier, lang);
+  }
+
+  /** Applies updated TTS preferences (rate, pitch, voice). */
+  public ttsSetPreferences(prefsJson: string): void {
+    if (!this._ttsEngine) return;
+    const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
+    this._ttsEngine.applyPreferences(prefs);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Audio / Media Overlay API
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Enables audio playback.
+   *  - Pure audiobook: AudioNavigator already initialized in openPublication — just play.
+   *  - Media Overlay EPUB: lazy-initialize MediaOverlayNavigator, then play.
+   */
+  public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
+    if (this._audioNav) {
+      // Pure audiobook already initialized — seek to locator (if provided) and play.
+      if (fromLocatorJson) {
+        const locator = Locator.deserialize(JSON.parse(fromLocatorJson));
+        if (locator) {
+          this._audioNav.go(locator, false, () => {});
+          return;
+        }
+      }
+      this._audioNav.play();
+      return;
+    }
+
+    if (this._hasSyncNarration && this._publication) {
+      const fromLocator = fromLocatorJson
+        ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
+        : undefined;
+      await initializeMediaOverlayNavigator(
+        this._publication,
+        fromLocator,
+        prefsJson,
+        (nav) => { this._audioNav = nav; }
+      );
+      // Re-read after await; cast to break TypeScript's control-flow narrowing
+      // which assumes _audioNav is still undefined (it was set by the callback).
+      (this._audioNav as AudioNavigator | undefined)?.play();
+      return;
+    }
+
+    console.log("audioEnable: no audiobook or Media Overlay content detected");
+  }
+
+  public setAudioPreferences(preferencesJson: string): void {
+    if (!this._audioNav) return;
+    const prefs = JSON.parse(preferencesJson);
+    this._audioNav.submitPreferences(new AudioPreferences({
+      volume: prefs.volume ?? null,
+      playbackRate: prefs.speed ?? null,
+      skipBackwardInterval: prefs.seekInterval ?? null,
+      skipForwardInterval: prefs.seekInterval ?? null,
+      pollInterval: prefs.updateIntervalSecs != null
+        ? prefs.updateIntervalSecs * 1000
+        : null,
+    }));
   }
 
   public async getResource(linkString: String, asBytes: boolean = false) {

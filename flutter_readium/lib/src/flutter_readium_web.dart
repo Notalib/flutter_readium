@@ -246,22 +246,36 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   // COMMON PLAYBACK API - BEGIN
   @override
-  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play is not implemented on web platform');
+  Future<void> play(Locator? fromLocator) async {
+    JsPublicationChannel.playAudio(
+      locatorJson: fromLocator != null ? json.encode(fromLocator) : null,
+    );
+  }
 
   @override
-  Future<void> stop() => throw UnimplementedError('stop is not implemented on web platform');
+  Future<void> stop() async {
+    JsPublicationChannel.stopAudio();
+  }
 
   @override
-  Future<void> pause() => throw UnimplementedError('pause is not implemented on web platform');
+  Future<void> pause() async {
+    JsPublicationChannel.pauseAudio();
+  }
 
   @override
-  Future<void> resume() => throw UnimplementedError('resume is not implemented on web platform');
+  Future<void> resume() async {
+    JsPublicationChannel.resumeAudio();
+  }
 
   @override
-  Future<void> next() => throw UnimplementedError('next is not implemented on web platform');
+  Future<void> next() async {
+    JsPublicationChannel.nextAudio();
+  }
 
   @override
-  Future<void> previous() => throw UnimplementedError('previous is not implemented on web platform');
+  Future<void> previous() async {
+    JsPublicationChannel.previousAudio();
+  }
 
   @override
   Future<bool> goToLocator(final Locator locator) async {
@@ -283,18 +297,20 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   // TTS API - BEGIN
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async {
-    ReadiumLog.d('ttsEnable is not implemented on web platform');
+    final prefsJson = json.encode(preferences?.toJson() ?? <String, dynamic>{});
+    await JsPublicationChannel.ttsEnable(prefsJson);
   }
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    ReadiumLog.d('ttsGetAvailableVoices is not implemented on web platform');
-    return [];
+    final voicesJson = await JsPublicationChannel.ttsGetAvailableVoices();
+    final decoded = jsonDecode(voicesJson) as List<dynamic>;
+    return decoded.whereType<Map<String, dynamic>>().map(ReaderTTSVoice.fromJson).toList();
   }
 
   @override
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {
-    ReadiumLog.d('ttsSetVoice is not implemented on web platform');
+    JsPublicationChannel.ttsSetVoice(voiceIdentifier, lang: forLanguage);
   }
 
   @override
@@ -307,18 +323,27 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) async {
-    ReadiumLog.d('ttsSetPreferences is not implemented on web platform');
+    JsPublicationChannel.ttsSetPreferences(json.encode(preferences.toJson()));
   }
   // TTS API - END
 
   // AUDIOBOOK API - BEGIN
   @override
-  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
-      throw UnimplementedError('audioEnable is not implemented on web platform');
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) async {
+    final prefsJson = json.encode(prefs?.toJson() ?? <String, dynamic>{});
+    final locatorJson = fromLocator != null ? json.encode(fromLocator) : null;
+    await JsPublicationChannel.audioEnable(prefsJson, fromLocatorJson: locatorJson);
+  }
 
   @override
-  Future<void> audioSetPreferences(AudioPreferences prefs) =>
-      throw UnimplementedError('audioSetPreferences is not implemented on web platform');
+  Future<void> audioSetPreferences(AudioPreferences prefs) async {
+    JsPublicationChannel.setAudioPreferences(json.encode(prefs.toJson()));
+  }
+
+  @override
+  Future<void> audioSeekBy(Duration offset) async {
+    JsPublicationChannel.seekBy(offset.inMilliseconds / 1000.0);
+  }
   // AUDIOBOOK API - END
 
   @override
