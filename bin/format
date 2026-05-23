@@ -5,10 +5,10 @@ set -e
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "Formatting flutter_readium_platform_interface..."
-dart format --page-width 120 --trailing-commas preserve --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
+dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
 
 echo "Formatting flutter_readium..."
-dart format --page-width 120 --trailing-commas preserve --set-exit-if-changed "$REPO_ROOT/flutter_readium"
+dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium"
 
 echo "Formatting example app..."
-dart format --page-width 120 --trailing-commas preserve --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"
+dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"
