@@ -168,15 +168,13 @@ export function findItemByAudioTime(
 // ---------------------------------------------------------------------------
 
 function _narrationAlternate(link: Link): Link | null {
-  const alternates = (link as any).alternates as Link[] | undefined;
+  // `alternates` is a `Links` instance (not a plain array): use `.items` for
+  // iteration and `findWithMediaType` for the typed lookup.
+  const alternates = link.alternates;
   if (!alternates) return null;
-  return (
-    alternates.find(
-      (alt) =>
-        alt.type === NARRATION_MEDIA_TYPE ||
-        alt.href.endsWith(".json") // fallback heuristic
-    ) ?? null
-  );
+  const byType = alternates.findWithMediaType(NARRATION_MEDIA_TYPE);
+  if (byType) return byType;
+  return alternates.items.find((alt) => alt.href.endsWith(".json")) ?? null;
 }
 
 /** Recursively parse { narration: [{audio, text}, ...] } entries. */
