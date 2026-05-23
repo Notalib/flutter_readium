@@ -50,9 +50,9 @@ class JsPublicationChannel {
           .openPublication(publicationURL.toJS, pubId.toJS, initialPositionJson?.toJS, initialPreferences.toJS)
           .toDart;
     } on Object catch (jsError, stackTrace) {
-      String errorString = jsError.toString();
-      int? statusCode = _extractStatusCode(errorString);
-      String nativeCode = _convertToNativeCode(statusCode);
+      final errorString = jsError.toString();
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
       throw PlatformException(
         code: nativeCode,
         message: errorString,
@@ -69,9 +69,9 @@ class JsPublicationChannel {
 
       return publicationString;
     } on Object catch (jsError, stackTrace) {
-      String errorString = jsError.toString();
-      int? statusCode = _extractStatusCode(errorString);
-      String nativeCode = _convertToNativeCode(statusCode);
+      final errorString = jsError.toString();
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
 
       throw PlatformException(
         code: nativeCode,
@@ -111,9 +111,9 @@ class JsPublicationChannel {
     try {
       await _readiumReader.goTo(locationHref.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
-      String errorString = jsError.toString();
-      int? statusCode = _extractStatusCode(errorString);
-      String nativeCode = _convertToNativeCode(statusCode);
+      final errorString = jsError.toString();
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
 
       throw PlatformException(
         code: nativeCode,
@@ -139,12 +139,12 @@ class JsPublicationChannel {
   Future<String> getResource(String link, {bool? asBytes}) async {
     try {
       final resourceJS = _readiumReader.getResource(link.toJS, asBytes?.toJS);
-      var resourceString = (await resourceJS.toDart).toDart;
+      final resourceString = (await resourceJS.toDart).toDart;
       return resourceString;
     } on Object catch (jsError, stackTrace) {
-      String errorString = jsError.toString();
-      int? statusCode = _extractStatusCode(errorString);
-      String nativeCode = _convertToNativeCode(statusCode);
+      final errorString = jsError.toString();
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
 
       throw PlatformException(
         code: nativeCode,
@@ -164,9 +164,9 @@ class JsPublicationChannel {
         ReadiumLog.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
-      String errorString = jsError.toString();
-      int? statusCode = _extractStatusCode(errorString);
-      String nativeCode = _convertToNativeCode(statusCode);
+      final errorString = jsError.toString();
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
 
       throw PlatformException(
         code: nativeCode,

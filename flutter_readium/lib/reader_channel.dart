@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_readium/flutter_readium.dart';
+import 'flutter_readium.dart';
 
 enum _ReaderChannelMethodInvoke {
   applyDecorations,
@@ -80,20 +80,17 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   /// Apply decorations to the reader.
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    return await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [
-      id,
-      decorations.map((d) => json.encode(d.toJson())).toList(),
-    ]);
-  }
+  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async =>
+      await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [
+        id,
+        decorations.map((d) => json.encode(d.toJson())).toList(),
+      ]);
 
   /// Configure the native selection context menu actions.
-  Future<void> configureSelectionActions(List<SelectionAction> actions) async {
-    return await _invokeMethod(
-      _ReaderChannelMethodInvoke.configureSelectionActions,
-      actions.map((a) => a.toJson()).toList(),
-    );
-  }
+  Future<void> configureSelectionActions(List<SelectionAction> actions) async => await _invokeMethod(
+    _ReaderChannelMethodInvoke.configureSelectionActions,
+    actions.map((a) => a.toJson()).toList(),
+  );
 
   /// Tears down the method channel handler and signals the native side to clean up.
   Future<void> dispose() async {

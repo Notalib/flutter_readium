@@ -6,9 +6,9 @@ import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium/flutter_readium.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'flutter_readium.dart';
 import 'reader_channel.dart';
 
 const _viewType = 'dk.nota.flutter_readium/ReadiumReaderWidget';
@@ -113,9 +113,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
 
-  EPUBPreferences? get _defaultPreferences {
-    return _readium.defaultPreferences;
-  }
+  EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
   bool _scrollMode = false;
 
@@ -424,26 +422,22 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
-  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) {
-    return Semantics(
-      // TODO: this is not necessarily how it should be handled needs to be evaluated more
-      sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
-      button: true,
-      container: true,
-      label: label,
-      onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
-      child: Container(color: Colors.transparent),
-    );
-  }
+  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) => Semantics(
+    // TODO: this is not necessarily how it should be handled needs to be evaluated more
+    sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
+    button: true,
+    container: true,
+    label: label,
+    onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
+    child: Container(color: Colors.transparent),
+  );
 
-  Widget _buildSemanticsToggleFullScreen({required final String label}) {
-    return Semantics(
-      sortKey: const OrdinalSortKey(1.0),
-      button: true,
-      container: true,
-      label: label,
-      onTap: _toggleControls,
-      child: Container(color: Colors.transparent),
-    );
-  }
+  Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
+    sortKey: const OrdinalSortKey(1.0),
+    button: true,
+    container: true,
+    label: label,
+    onTap: _toggleControls,
+    child: Container(color: Colors.transparent),
+  );
 }

@@ -19,19 +19,13 @@ class FlutterReadium {
 
   static FlutterReadium? _singleton;
 
-  static FlutterReadiumPlatform get _platform {
-    return FlutterReadiumPlatform.instance;
-  }
+  static FlutterReadiumPlatform get _platform => FlutterReadiumPlatform.instance;
 
   /// Sets custom HTTP headers to be used for all network requests made by the reader.
-  Future<void> setCustomHeaders(Map<String, String> headers) {
-    return _platform.setCustomHeaders(headers);
-  }
+  Future<void> setCustomHeaders(Map<String, String> headers) => _platform.setCustomHeaders(headers);
 
   /// Sets the log level for the plugin's internal logging.
-  Future<void> setLogLevel(LogLevel level) {
-    return _platform.setLogLevel(level);
-  }
+  Future<void> setLogLevel(LogLevel level) => _platform.setLogLevel(level);
 
   /// Sets the default EPUB preferences that will be applied to all opened publications, unless overridden by publication-specific preferences.
   void setDefaultPreferences(EPUBPreferences preferences) {
@@ -39,56 +33,40 @@ class FlutterReadium {
   }
 
   /// Loads a publication from the given URL and returns a [Publication] object representing its metadata and structure. This does not open the publication for reading.
-  Future<Publication> loadPublication(String pubUrl) {
-    return _platform.loadPublication(pubUrl);
-  }
+  Future<Publication> loadPublication(String pubUrl) => _platform.loadPublication(pubUrl);
 
   /// Opens a publication for reading from the given URL. This is required before any reading-related operations can be performed on the publication.
   ///
   /// Returns a [Publication] object representing the opened publication.
-  Future<Publication> openPublication(String pubUrl) {
-    return _platform.openPublication(pubUrl).onError((err, _) {
-      ReadiumLog.e('OpenPublication error: ${err.toString()}');
-      throw ReadiumException.fromError(err);
-    });
-  }
+  Future<Publication> openPublication(String pubUrl) => _platform.openPublication(pubUrl).onError((err, _) {
+    ReadiumLog.e('OpenPublication error: ${err.toString()}');
+    throw ReadiumException.fromError(err);
+  });
 
   /// Closes the currently opened publication, if any. This will release any resources associated with the publication and reset the reader state.
-  Future<void> closePublication() {
-    return _platform.closePublication();
-  }
+  Future<void> closePublication() => _platform.closePublication();
 
   /// Stream emitting the current status of the visual reader.
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;
 
   /// Stream emitting the current text locator for the visual reader, such as when the user navigates to the next page or section of the publication.
-  Stream<Locator> get onTextLocatorChanged {
-    return _platform.onTextLocatorChanged;
-  }
+  Stream<Locator> get onTextLocatorChanged => _platform.onTextLocatorChanged;
 
   /// Stream emitting the current time-based playback state (including audio Locator) during playback.
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    return _platform.onTimebasedPlayerStateChanged;
-  }
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _platform.onTimebasedPlayerStateChanged;
 
   /// Stream emitting any errors that occur within the reader, such as failed navigation or playback errors.
-  Stream<ReadiumError> get onErrorEvent {
-    return _platform.onErrorEvent;
-  }
+  Stream<ReadiumError> get onErrorEvent => _platform.onErrorEvent;
 
   /// Navigates backward in the publication, such as to the previous page or section.
   ///
   /// The exact behavior may depend on the publication's format and if audio or TTS is enabled.
-  Future<void> goBackward() {
-    return _platform.goBackward();
-  }
+  Future<void> goBackward() => _platform.goBackward();
 
   /// Navigates forward in the publication, such as to the next page or section.
   ///
   /// The exact behavior may depend on the publication's format and if audio or TTS is enabled.
-  Future<void> goForward() {
-    return _platform.goForward();
-  }
+  Future<void> goForward() => _platform.goForward();
 
   /// Skips to the next chapter in the publication's (flattened) table of contents.
   ///
@@ -224,7 +202,7 @@ class FlutterReadium {
     final toc = publication.tocFlattened;
     if (toc.isEmpty) return;
 
-    var curIndex = toc.indexWhere((l) => l.href == currentTocHref);
+    final curIndex = toc.indexWhere((l) => l.href == currentTocHref);
 
     // Throws exceptions so that they can either be handled to send a message to user or ignored
     if (curIndex == -1) {
