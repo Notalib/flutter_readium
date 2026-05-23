@@ -23,10 +23,11 @@ export function buildStatePayload(
 }
 
 // Maps Dart AudioPreferences JSON keys to IAudioPreferences.
-// Dart "speed" → TS "playbackRate"; Dart "seekInterval" (s) → TS skip intervals (s);
-// Dart "updateIntervalSecs" (s) → TS "pollInterval" (ms).
+// Dart "speed" -> TS "playbackRate"; Dart "seekInterval" (s) -> TS skip intervals (s);
+// Dart "updateIntervalSecs" (s) -> TS "pollInterval" (ms).
 function preferencesFromString(preferencesString: string): IAudioPreferences {
   const prefs = normalizeTypes(JSON.parse(preferencesString));
+  console.log('Parsing AudioPreferences from string', prefs);
   return {
     volume: prefs.volume ?? null,
     playbackRate: prefs.speed ?? null,
@@ -36,8 +37,9 @@ function preferencesFromString(preferencesString: string): IAudioPreferences {
       prefs.updateIntervalSecs != null
         ? prefs.updateIntervalSecs * 1000
         : null,
-    autoPlay: null,
-    enableMediaSession: null,
+    autoPlay: false,
+    enableMediaSession: true,
+    preservePitch: true
   };
 }
 
