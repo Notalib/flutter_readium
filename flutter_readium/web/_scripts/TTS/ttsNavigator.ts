@@ -61,6 +61,13 @@ export class WebTTSEngine {
   private readonly _nav: AnyNavigator;
   private readonly _publication: ReadiumPublication;
   private _prefs: WebTTSPreferences;
+  /**
+   * When true (default), each utterance scrolls the visual navigator to the
+   * spoken paragraph. Mirrors `EPUBPreferences.disableSynchronization` on native
+   * — see kotlin-toolkit's gate at ReadiumReader.kt:1420 for the equivalent
+   * behaviour on Android.
+   */
+  private _syncEnabled: boolean;
 
   private _iterator: PublicationContentIterator | null = null;
   private _currentElement: TextElement | null = null;
@@ -69,17 +76,28 @@ export class WebTTSEngine {
 
   /** voice selected via setVoice() — overrides prefs.voice */
   private _selectedVoice: SpeechSynthesisVoice | null = null;
-  /** per-language voice map: lang → voiceURI */
+  /** per-language voice map: lang -> voiceURI */
   private _langVoiceMap: Map<string, string> = new Map();
 
   constructor(
     nav: AnyNavigator,
     publication: ReadiumPublication,
-    prefs: WebTTSPreferences
+    prefs: WebTTSPreferences,
+    syncEnabled: boolean = true
   ) {
     this._nav = nav;
     this._publication = publication;
     this._prefs = prefs;
+    this._syncEnabled = syncEnabled;
+  }
+
+  /**
+   * Toggles visual-navigator synchronization on the fly. Called when the Flutter
+   * side updates `EPUBPreferences.disableSynchronization` during an active TTS
+   * session — see ReadiumReader.setEPUBPreferences.
+   */
+  setSyncEnabled(enabled: boolean): void {
+    this._syncEnabled = enabled;
   }
 
   // ---------------------------------------------------------------------------
@@ -224,7 +242,7 @@ export class WebTTSEngine {
     utterance.rate = this._prefs.rate;
     utterance.pitch = this._prefs.pitch;
 
-    // Voice selection: per-language map → selected voice → prefs voice.
+    // Voice selection: per-language map -> selected voice -> prefs voice.
     const lang = this._resolveVoiceLang(element);
     const voice = lang
       ? (speechSynthesis.getVoices().find((v) => v.voiceURI === this._langVoiceMap.get(lang)) ?? this._selectedVoice ?? this._prefs.voice)
@@ -239,12 +257,15 @@ export class WebTTSEngine {
       if (this._destroyed) return;
       emitState("playing", element.locator);
       emitLocator(element.locator);
-      // Scroll the visual navigator to the current paragraph.
-      try {
-        // Cross-resource transitions use animated=true; same-resource use false.
-        this._nav.go(element.locator, false, () => {});
-      } catch (_) {
-        // Silently ignore navigation errors during TTS.
+      // Scroll the visual navigator to the current paragraph, unless the user
+      // has opted out via EPUBPreferences.disableSynchronization.
+      if (this._syncEnabled) {
+        try {
+          // Cross-resource transitions use animated=true; same-resource use false.
+          this._nav.go(element.locator, false, () => {});
+        } catch (_) {
+          // Silently ignore navigation errors during TTS.
+        }
       }
     };
 
