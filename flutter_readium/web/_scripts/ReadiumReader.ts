@@ -5,10 +5,11 @@ import { Locator, Profile, Publication, Resource } from "@readium/shared";
 import { Link } from "@readium/shared";
 
 // Helpers and extensions
-import { fetchManifest, setPreferencesFromString } from "./helpers";
+import { fetchManifest } from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
 import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
+import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 import { initializeAudioNavigator } from "./Audio/audioNavigator";
 import { detectSyncNarration } from "./Audio/syncNarration";
@@ -27,6 +28,12 @@ class _ReadiumReader {
   private _ttsEngine: WebTTSEngine | undefined;
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
   private _hasSyncNarration = false;
+  /**
+   * Latest value of `EPUBPreferences.disableSynchronization` from the Dart side.
+   * Held here because it is plugin-side state, not part of the navigator's
+   * preference surface. Passed to the TTS engine on enable and on every change.
+   */
+  private _disableSynchronization = false;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
@@ -45,7 +52,7 @@ class _ReadiumReader {
       let pubId = this._publication.metadata.identifier ?? "unidentified";
       _ReadiumReader._publications.set(pubId, this._publication);
 
-      return JSON.stringify(this._publication);
+      return JSON.stringify(manifest.serialize());
     } catch (error) {
       throw new Error("Error getting publication: " + error);
     }
@@ -59,23 +66,40 @@ class _ReadiumReader {
     this._nav?.goLeft(true, () => {});
   }
 
+  /**
+   * Progression-aware navigation. `goForward` / `goBackward` are RTL-aware on
+   * the upstream navigator (unlike `goRight` / `goLeft`, which are purely
+   * visual). The Dart-side `goForward`/`goBackward` API maps to these.
+   */
+  public goForward() {
+    this._nav?.goForward(true, () => {});
+  }
+
+  public goBackward() {
+    this._nav?.goBackward(true, () => {});
+  }
+
   public async goTo(href: string): Promise<void> {
-    let link = this._nav?.publication.resources?.findWithHref(href);
+    // TOC entries point into the reading order, not the resources collection.
+    // Check both — readingOrder first, since that's the common case for
+    // chapter navigation via the Dart-side `goToLocator`.
+    const pub = this._nav?.publication;
+    const link =
+      pub?.readingOrder?.findWithHref(href) ??
+      pub?.resources?.findWithHref(href);
     if (!link) {
-      let publicationLinks = this._nav?.publication.resources;
-      let linksString = publicationLinks?.items
-        .map((link) => link.href)
+      const triedLinks = [
+        ...(pub?.readingOrder?.items ?? []),
+        ...(pub?.resources?.items ?? []),
+      ]
+        .map((l) => l.href)
         .join(", ");
-      console.error(
-        "Link not found " + href + ". Available links: " + linksString
-      );
-      let error = new Error("Link not found " + href);
-      throw error;
+      console.error("Link not found " + href + ". Tried all resource links", triedLinks);
+      throw new Error("Link not found " + href);
     }
     this._nav?.goLink(link, true, (ok) => {
       if (!ok) {
-        let error = new Error("Failed to navigate to link " + href);
-        throw error;
+        throw new Error("Failed to navigate to link " + href);
       }
     });
   }
@@ -87,14 +111,6 @@ class _ReadiumReader {
     preferencesJson: string | undefined
   ) {
     (window as any).updateReaderStatus?.(ReadiumReaderStatus.loading);
-    const container: HTMLElement | null =
-      document.body.querySelector("#container");
-
-    if (!container) {
-      console.error("Container element not found");
-      (window as any).updateReaderStatus?.("error");
-      throw new Error("Container element not found");
-    }
 
     let initialPosition: Locator | undefined;
 
@@ -116,9 +132,9 @@ class _ReadiumReader {
         this._publication = new ReadiumPublication({ manifest, fetcher });
         _ReadiumReader._publications.set(pubId, this._publication);
       }
-      let conformsToArray = this._publication.manifest.metadata.conformsTo;
 
       if (this._publication.conformsToAudiobook) {
+        // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await initializeAudioNavigator(
           this._publication,
           initialPosition,
@@ -129,7 +145,14 @@ class _ReadiumReader {
           }
         );
       } else {
-        // Initialize EpubNavigator for ebooks
+        // EPUB and WebPub navigators render into a DOM container.
+        const container: HTMLElement | null =
+          document.body.querySelector("#container");
+        if (!container) {
+          console.error("Container element not found");
+          (window as any).updateReaderStatus?.("error");
+          throw new Error("Container element not found");
+        }
         if (this._publication.conformsToEpub) {
           // Detect sync narration before opening the navigator (async fetch-free check).
           this._hasSyncNarration = detectSyncNarration(this._publication);
@@ -166,7 +189,17 @@ class _ReadiumReader {
     if (!this._nav) {
       throw new Error("Navigator is not initialized");
     }
-    setPreferencesFromString(newPreferencesString, this._nav);
+    // Track the plugin-side `disableSynchronization` flag separately from the
+    // navigator's preferences (the web navigator doesn't expose this toggle).
+    try {
+      const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
+      this._disableSynchronization = parsed.disableSynchronization === true;
+      // TODO: Also notify MediaOverlayNavigator or generalize the callback?
+      this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
+    } catch (_) {
+      // Ignore parse errors — setEpubPreferencesFromString will surface them.
+    }
+    setEpubPreferencesFromString(newPreferencesString, this._nav);
   }
 
   public closePublication(error?: any) {
@@ -257,7 +290,12 @@ class _ReadiumReader {
     // Destroy any previous TTS session.
     this._ttsEngine?.destroy();
     const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
-    this._ttsEngine = new WebTTSEngine(this._nav, this._publication, prefs);
+    this._ttsEngine = new WebTTSEngine(
+      this._nav,
+      this._publication,
+      prefs,
+      !this._disableSynchronization
+    );
     const fromLocator = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : undefined;
@@ -320,6 +358,7 @@ class _ReadiumReader {
       );
       // Re-read after await; cast to break TypeScript's control-flow narrowing
       // which assumes _audioNav is still undefined (it was set by the callback).
+      // TODO: This seems awkward, could the Future just return navigator?
       (this._audioNav as AudioNavigator | undefined)?.play();
       return;
     }
