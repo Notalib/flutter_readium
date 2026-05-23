@@ -1,0 +1,13 @@
+diff --git a/node_modules/@readium/shared/src/publication/services/content/iterators/PublicationContentIterator.ts b/node_modules/@readium/shared/src/publication/services/content/iterators/PublicationContentIterator.ts
+index e7194c7..951748b 100644
+--- a/node_modules/@readium/shared/src/publication/services/content/iterators/PublicationContentIterator.ts
++++ b/node_modules/@readium/shared/src/publication/services/content/iterators/PublicationContentIterator.ts
+@@ -136,7 +136,7 @@ export class PublicationContentIterator extends Iterator {
+ 
+         for (const factory of this.resourceContentIteratorFactories) {
+             const res = factory(resource, locator);
+-            if(res) new IndexedIterator(index, res);
++            if(res) return new IndexedIterator(index, res);
+         }
+ 
+         return null;
