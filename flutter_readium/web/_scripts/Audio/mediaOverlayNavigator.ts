@@ -145,9 +145,10 @@ function _buildAudiobookPublication(
   publication: ReadiumPublication,
   audioReadingOrder: Link[]
 ): ReadiumPublication {
-  // Serialise manifest, swap out readingOrder, update conformsTo.
-  const manifestJson = JSON.parse(JSON.stringify(publication.manifest));
-  manifestJson.readingOrder = audioReadingOrder.map((l) => JSON.parse(JSON.stringify(l)));
+  // Serialise manifest via the proper RWPM serialize() API, swap readingOrder,
+  // and set the audiobook profile so AudioNavigator accepts it.
+  const manifestJson = publication.manifest.serialize();
+  manifestJson.readingOrder = audioReadingOrder.map((l) => l.serialize());
   if (!manifestJson.metadata) manifestJson.metadata = {};
   manifestJson.metadata.conformsTo = [Profile.AUDIOBOOK];
 
