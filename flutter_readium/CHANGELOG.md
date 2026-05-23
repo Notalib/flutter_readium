@@ -11,9 +11,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Audiobook manifest" error when starting Media Overlay playback. The synthetic
   manifest was built using `JSON.stringify` on class instances (producing invalid
   RWPM JSON); now uses the proper `Manifest.serialize()` / `Link.serialize()` API.
-- **Web: Audio does not advance to next track** — AudioNavigator's `autoPlay`
-  default was `false`, causing playback to pause at the end of each track instead
-  of continuing to the next resource. Now defaults to `true`.
+- **Web: Audio does not advance to next track** — two issues fixed: (1)
+  AudioNavigator's `autoPlay` preference was hardcoded to `false`, overriding the
+  default and preventing auto-advance; now passes `null` so the `true` default
+  takes effect. (2) The `trackEnded` listener unconditionally emitted "ended" state
+  to Dart on every track boundary, causing the example app's player bloc to close
+  the session. Now only emits "ended" on the final track.
+- **Web: Audio requires pressing play twice** — `audioEnable` and `play` with a
+  `fromLocator` called `go()` to seek without starting playback first. Since the
+  navigator wasn't playing, `go()`'s `wasPlaying` check was `false` and it never
+  resumed after the seek. Now calls `play()` before `go()` so the play-intent is
+  captured and playback resumes automatically after seeking.
 
 ### Added
 

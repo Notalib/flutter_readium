@@ -40,7 +40,7 @@ function preferencesFromString(preferencesString: string): IAudioPreferences {
       prefs.updateIntervalSecs != null
         ? prefs.updateIntervalSecs * 1000
         : null,
-    autoPlay: false,
+    autoPlay: true,
   };
 }
 
@@ -125,42 +125,62 @@ export async function initializeAudioNavigator(
   // this because the listeners are only called after `nav` is assigned below.
   let nav: AudioNavigator;
 
-  const listeners: AudioNavigatorListeners = {
-    trackLoaded: (_media) => {},
-    positionChanged: (locator) => {
-      _emitState(
-        nav.isPlaying ? "playing" : "paused",
-        nav, locator, locatorMapper, /* alsoText */ true
-      );
-    },
-    timelineItemChanged: (_item) => {},
-    play: (locator) => {
-      _emitState("playing", nav, locator, locatorMapper, false);
-    },
-    pause: (locator) => {
-      _emitState("paused", nav, locator, locatorMapper, false);
-    },
-    trackEnded: (locator) => {
-      _emitState("ended", nav, locator, locatorMapper, false);
-    },
-    stalled: (isStalled) => {
-      _emitState(
-        isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
-        nav, undefined, locatorMapper, false
-      );
-    },
-    error: (_error, locator) => {
-      _emitState("failure", nav, locator, locatorMapper, false);
-    },
-    metadataLoaded: (_metadata) => {},
-    seeking: (_isSeeking) => {},
-    seekable: (_seekable) => {},
-    contentProtection: (_type, _data) => {},
-    peripheral: (_data) => {},
-    contextMenu: (_data) => {},
-    remotePlaybackStateChanged: (_state) => {},
-  };
+  // Promise that resolves once the first track is loaded and the navigator is
+  // ready for playback. Callers awaiting initializeAudioNavigator will block
+  // until this point, preventing race conditions where Dart calls play() before
+  // the navigator is set.
+  const ready = new Promise<void>((resolve) => {
+    let resolved = false;
 
-  nav = new AudioNavigator(publication, listeners, initialPosition, configuration);
-  setNav(nav);
+    const listeners: AudioNavigatorListeners = {
+      trackLoaded: (_media) => {
+        if (!resolved) {
+          resolved = true;
+          setNav(nav);
+          resolve();
+        }
+      },
+      positionChanged: (locator) => {
+        _emitState(
+          nav.isPlaying ? "playing" : "paused",
+          nav, locator, locatorMapper, /* alsoText */ true
+        );
+      },
+      timelineItemChanged: (_item) => {},
+      play: (locator) => {
+        _emitState("playing", nav, locator, locatorMapper, false);
+      },
+      pause: (locator) => {
+        _emitState("paused", nav, locator, locatorMapper, false);
+      },
+      trackEnded: (locator) => {
+        // Only emit "ended" when the publication is truly finished (last track).
+        // Intermediate track-ends are followed by auto-advance; emitting "ended"
+        // would cause Dart-side to close the player prematurely.
+        if (!nav.canGoForward) {
+          _emitState("ended", nav, locator, locatorMapper, false);
+        }
+      },
+      stalled: (isStalled) => {
+        _emitState(
+          isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
+          nav, undefined, locatorMapper, false
+        );
+      },
+      error: (_error, locator) => {
+        _emitState("failure", nav, locator, locatorMapper, false);
+      },
+      metadataLoaded: (_metadata) => {},
+      seeking: (_isSeeking) => {},
+      seekable: (_seekable) => {},
+      contentProtection: (_type, _data) => {},
+      peripheral: (_data) => {},
+      contextMenu: (_data) => {},
+      remotePlaybackStateChanged: (_state) => {},
+    };
+
+    nav = new AudioNavigator(publication, listeners, initialPosition, configuration);
+  });
+
+  await ready;
 }
