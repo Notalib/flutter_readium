@@ -22,6 +22,9 @@ export function buildStatePayload(
   });
 }
 
+// See Readium's guide on ts-toolkit AudioNavigator configuration:
+// https://github.com/readium/ts-toolkit/blob/develop/navigator/docs/audio/ConfiguringAudioNavigator.md
+
 // Maps Dart AudioPreferences JSON keys to IAudioPreferences.
 // Dart "speed" -> TS "playbackRate"; Dart "seekInterval" (s) -> TS skip intervals (s);
 // Dart "updateIntervalSecs" (s) -> TS "pollInterval" (ms).
@@ -38,8 +41,6 @@ function preferencesFromString(preferencesString: string): IAudioPreferences {
         ? prefs.updateIntervalSecs * 1000
         : null,
     autoPlay: false,
-    enableMediaSession: true,
-    preservePitch: true
   };
 }
 
@@ -115,8 +116,8 @@ export async function initializeAudioNavigator(
       skipBackwardInterval: 10,
       skipForwardInterval: 30,
       pollInterval: 1000,
-      autoPlay: false,
-      enableMediaSession: true,
+      autoPlay: true, // Auto-advance to next track by default.
+      enableMediaSession: true, // Whether to integrate with the browser's Media Session API
     },
   };
 
