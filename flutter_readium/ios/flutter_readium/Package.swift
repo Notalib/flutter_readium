@@ -8,7 +8,9 @@ let package = Package(
     name: "flutter_readium",
     platforms: [
         .iOS("15.0"),
-        // macOS: not supported and not planned (swift-toolkit is iOS-only)
+        // Native macOS desktop is not supported — upstream swift-toolkit is
+        // iOS-only and marked not_planned (readium/swift-toolkit#783). The iOS
+        // build runs on Apple Silicon Macs via "Designed for iPad".
     ],
     products: [
         .library(name: "flutter-readium", targets: ["flutter_readium"])
