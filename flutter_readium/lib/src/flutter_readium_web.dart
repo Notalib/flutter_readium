@@ -160,14 +160,15 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       if (metadataMap.containsKey('sortAs')) {
         final sortAs = metadataMap['sortAs'];
         if (sortAs is Map && sortAs['translations'] is Map) {
+          // Legacy format from JSON.stringify: {"translations": {"lang": "val"}} -> extract first value.
           final translations = sortAs['translations'] as Map;
           if (translations.isNotEmpty) {
-            // Use the first value in the translations map
             metadataMap['sortAs'] = translations.values.first;
           } else {
             metadataMap['sortAs'] = null;
           }
-        } else if (sortAs is! String) {
+        } else if (sortAs != null && sortAs is! String && sortAs is! Map) {
+          // Null out only if it's neither a plain String nor a LocalizedString map ({lang: val}).
           metadataMap['sortAs'] = null;
         }
       }
