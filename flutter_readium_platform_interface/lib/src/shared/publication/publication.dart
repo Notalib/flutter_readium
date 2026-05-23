@@ -235,11 +235,18 @@ class Publication with EquatableMixin implements JSONable {
   bool get conformsToReadiumPDF =>
       metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/pdf') == true;
 
-  /// Whether any reading-order item carries a syncnarr (`application/vnd.syncnarr+json`) alternate,
-  /// indicating per-item media overlays.
+  /// Whether any reading-order item carries a media overlay alternate —
+  /// either the older `application/vnd.syncnarr+json` or the newer
+  /// Readium Sync Narration `application/vnd.readium.narration+json` format.
   bool get containsMediaOverlays =>
       conformsToReadiumEbook &&
-      readingOrder.any((link) => link.alternates.any((alt) => MediaType.syncMediaNarration.matchesFromName(alt.type)));
+      readingOrder.any(
+        (link) => link.alternates.any(
+          (alt) =>
+              MediaType.syncMediaNarration.matchesFromName(alt.type) ||
+              MediaType.readiumNarration.matchesFromName(alt.type),
+        ),
+      );
 
   /// Whether the publication has a guided navigation document (`application/guided-navigation+json`),
   /// either as a publication-level link or as per-item alternates in the reading order.

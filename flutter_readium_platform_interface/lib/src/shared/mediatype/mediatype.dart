@@ -264,6 +264,14 @@ class MediaType {
     fileExtension: 'json',
   );
 
+  /// Readium Sync Narration JSON — the newer per-item media overlay format
+  /// used by the Readium web/ts-toolkit (`application/vnd.readium.narration+json`).
+  static const MediaType readiumNarration = MediaType(
+    type: 'application',
+    subtype: 'vnd.readium.narration+json',
+    fileExtension: 'json',
+  );
+
   static const MediaType syncMediaNarrationManifest = MediaType(
     type: 'application',
     subtype: 'guided-navigation+json',

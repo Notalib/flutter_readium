@@ -40,6 +40,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 
   @override
+  Future<void> setLogLevel(LogLevel level) async => ReadiumLog.setLevel(level);
+
+  @override
   Future<void> setCustomHeaders(Map<String, String> headers) =>
       throw UnimplementedError('setCustomHeaders is not implemented on web platform');
 
