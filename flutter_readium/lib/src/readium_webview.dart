@@ -80,9 +80,17 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     widget.onDecorationInteraction?.call(event);
   }
 
+  @js_interop.JSExport()
+  void onTimebasedPlayerStateHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final state = ReadiumTimebasedState.fromJson(json);
+    FlutterReadiumWebPlugin.addTimeBasedStateUpdate(state);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
+    updateTimebasedPlayerState = onTimebasedPlayerStateHandler.toJS;
     onTextSelectedCallback = onTextSelectedHandler.toJS;
     onSelectionActionCallback = onSelectionActionHandler.toJS;
     onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
