@@ -26,6 +26,8 @@ class _ReadiumReader {
   private _nav: EpubNavigator | WebPubNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
   private _ttsEngine: WebTTSEngine | undefined;
+  /** Position list for EPUB publications (used by goToProgression). */
+  private _positions: Locator[] = [];
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
   private _hasSyncNarration = false;
   /**
@@ -123,6 +125,7 @@ class _ReadiumReader {
 
     // Reset per-publication state so stale values don't bleed across openPublication calls.
     this._hasSyncNarration = false;
+    this._positions = [];
 
     try {
       // TODO: match native
@@ -164,7 +167,8 @@ class _ReadiumReader {
             (nav) => {
               this._nav = nav;
               (window as any).updateReaderStatus?.(ReadiumReaderStatus.ready);
-            }
+            },
+            (positions) => { this._positions = positions; }
           );
         } else {
           await initializeWebPubNavigatorAndPeripherals(
@@ -210,6 +214,7 @@ class _ReadiumReader {
     this._audioNav?.destroy();
     this._audioNav = undefined;
     this._hasSyncNarration = false;
+    this._positions = [];
     const container = document.getElementById("container");
     if (container) {
       container.innerHTML = "";
@@ -272,6 +277,45 @@ class _ReadiumReader {
   /** Relative seek by seconds. Applies to AudioNavigator (audiobook / Media Overlay). */
   public seekBy(seconds: number): void {
     this._audioNav?.jump(seconds);
+  }
+
+  /**
+   * Navigate to an absolute progression (0.0–1.0) within the current publication.
+   * - AudioNavigator (audiobook / Media Overlay): seeks to progression × duration.
+   * - EpubNavigator: finds the closest position locator and navigates to it.
+   */
+  public goToProgression(progression: number): boolean {
+    if (progression < 0 || progression > 1) {
+      console.warn(`goToProgression: progression ${progression} out of range [0, 1]`);
+      return false;
+    }
+
+    if (this._audioNav) {
+      const duration = this._audioNav.duration;
+      if (duration <= 0) {
+        console.warn("goToProgression: audio duration not available");
+        return false;
+      }
+      this._audioNav.seek(progression * duration);
+      return true;
+    }
+
+    if (this._nav && this._positions.length > 0) {
+      const index = Math.min(
+        Math.floor(progression * this._positions.length),
+        this._positions.length - 1
+      );
+      const locator = this._positions[index];
+      this._nav.go(locator, true, (ok) => {
+        if (!ok) {
+          console.warn("goToProgression: navigation failed for position", index);
+        }
+      });
+      return true;
+    }
+
+    console.warn("goToProgression: no active navigator or positions available");
+    return false;
   }
 
   // ---------------------------------------------------------------------------

@@ -26,7 +26,8 @@ export async function initializeEpubNavigatorAndPeripherals(
   publication: ReadiumPublication,
   initialPosition: Locator | undefined = undefined,
   preferencesJsonString: string,
-  setNav: (nav: EpubNavigator | WebPubNavigator) => void
+  setNav: (nav: EpubNavigator | WebPubNavigator) => void,
+  setPositions?: (positions: Locator[]) => void
 ) {
   console.log("Initializing EpubNavigator");
   let positions = await publication.positionsFromManifest();
@@ -193,6 +194,7 @@ export async function initializeEpubNavigatorAndPeripherals(
   }
 
   setNav(nav);
+  setPositions?.(positions);
 
   p.observe(window);
 }

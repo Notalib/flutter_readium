@@ -34,6 +34,8 @@ export async function initializeWebPubNavigatorAndPeripherals(
     preferencesJsonString
   );
 
+  console.log('Initialized WebPub preferences', preferences);
+
   const configuration: WebPubNavigatorConfiguration = {
     preferences,
     defaults,

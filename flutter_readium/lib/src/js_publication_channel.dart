@@ -26,6 +26,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void next();
   external void previous();
   external void seekBy(JSNumber seconds);
+  external JSBoolean goToProgression(JSNumber progression);
   external void setAudioPreferences(JSString preferencesJson);
   external JSPromise<JSString> ttsGetAvailableVoices();
   external JSPromise<JSAny?> ttsEnable(JSString prefsJson, JSString? fromLocatorJson);
@@ -198,6 +199,9 @@ class JsPublicationChannel {
   static void seekBy(double seconds) {
     _readiumReader.seekBy(seconds.toJS);
   }
+
+  static bool goToProgression(double progression) =>
+      _readiumReader.goToProgression(progression.toJS).toDart;
 
   static void setAudioPreferences(String preferencesJson) {
     _readiumReader.setAudioPreferences(preferencesJson.toJS);
