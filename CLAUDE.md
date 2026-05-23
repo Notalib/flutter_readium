@@ -1,6 +1,6 @@
 # flutter_readium
 
-A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. The Flutter macOS desktop target registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit; for Mac users, ship the iOS build via "Designed for iPad" on Apple Silicon.
+A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. The Flutter macOS desktop target registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit.
 
 ## Repo layout
 
