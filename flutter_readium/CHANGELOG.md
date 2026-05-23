@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Web: Media Overlay audio playback crash** — fixed "Failed to create new
+  Audiobook manifest" error when starting Media Overlay playback. The synthetic
+  manifest was built using `JSON.stringify` on class instances (producing invalid
+  RWPM JSON); now uses the proper `Manifest.serialize()` / `Link.serialize()` API.
+- **Web: Audio does not advance to next track** — AudioNavigator's `autoPlay`
+  default was `false`, causing playback to pause at the end of each track instead
+  of continuing to the next resource. Now defaults to `true`.
+
 ### Added
 
 - **Web: `goToProgression` implemented** — navigates to an absolute progression
