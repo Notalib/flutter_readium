@@ -341,10 +341,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<bool> goToProgression(double progression) async {
-    ReadiumLog.w('goToProgression is not implemented on web platform');
-    return false;
-  }
+  Future<bool> goToProgression(double progression) async =>
+      JsPublicationChannel.goToProgression(progression);
   // COMMON PLAYBACK API - END
 
   // TTS API - BEGIN

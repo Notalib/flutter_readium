@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Web: `goToProgression` implemented** — navigates to an absolute progression
+  (0.0–1.0) on the web platform. Supports EPUB (position-list lookup), audiobook
+  (seek to `progression × duration`), and Media Overlay content types.
 - **Web: `EPUBPreferences.disableSynchronization` honored** — when set, the web
   TTS engine no longer scrolls the visual navigator on each utterance, matching the
   native (iOS / Android) behaviour. Plumbed through `ReadiumReader.setEPUBPreferences`
