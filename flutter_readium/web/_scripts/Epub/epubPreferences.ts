@@ -56,6 +56,8 @@ export function initializeEpubPreferencesFromString(
     scroll: prefs.scroll ?? null,
     scrollPaddingTop: prefs.scrollPaddingTop ?? null,
     scrollPaddingBottom: prefs.scrollPaddingBottom ?? null,
+    scrollPaddingLeft: prefs.scrollPaddingLeft ?? null,
+    scrollPaddingRight: prefs.scrollPaddingRight ?? null,
     selectionBackgroundColor: prefs.selectionBackgroundColor ?? null,
     selectionTextColor: prefs.selectionTextColor ?? null,
     textAlign: prefs.textAlign ?? null,

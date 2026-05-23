@@ -119,6 +119,8 @@ export function setPreferencesFromString(
   // }
 }
 
+// NOTE: decoration support here is experimental and will be replaced once
+// https://github.com/readium/ts-toolkit/pull/209 (Decorator API) merges.
 export function highlightSelection(
   nav: EpubNavigator | WebPubNavigator,
   publication: ReadiumPublication,

@@ -1,7 +1,9 @@
 import {
   BasicTextSelection,
+  ContextMenuEvent,
   FrameClickEvent,
 } from "@readium/navigator-html-injectables";
+import { KeyboardPeripheralEventData } from "@readium/navigator";
 import {
   EpubNavigator,
   EpubNavigatorListeners,
@@ -131,6 +133,9 @@ export async function initializeEpubNavigatorAndPeripherals(
       }
       return false;
     },
+    contentProtection: function (_type: string, _data: any): void {},
+    peripheral: function (_data: KeyboardPeripheralEventData): void {},
+    contextMenu: function (_data: ContextMenuEvent): void {},
     textSelected: function (_selection: BasicTextSelection): void {
       // Notify Dart about the text selection
       const currentLocator = nav.currentLocator;
