@@ -13,6 +13,7 @@ class PlayerControls extends StatelessWidget {
   Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
       final isAudioBook = publication.isAudioBook;
+      final audioActive = state.audioEnabled;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -71,6 +72,20 @@ class PlayerControls extends StatelessWidget {
                 onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter(publication: publication)),
                 tooltip: 'Skip to next chapter',
               ),
+              if (audioActive) ...[
+                IconButton(
+                  key: const ValueKey('seek_back_10s'),
+                  icon: const Icon(Icons.replay_10),
+                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(-10)),
+                  tooltip: 'Seek back 10 s',
+                ),
+                IconButton(
+                  key: const ValueKey('seek_forward_10s'),
+                  icon: const Icon(Icons.forward_10),
+                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(10)),
+                  tooltip: 'Seek forward 10 s',
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.settings_voice),
                 onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),

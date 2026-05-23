@@ -79,6 +79,13 @@ class GoToProgression extends PlayerControlsEvent {
 }
 
 @immutable
+class SeekRelative extends PlayerControlsEvent {
+  SeekRelative(this.seconds);
+
+  final double seconds;
+}
+
+@immutable
 class GetAvailableVoices extends PlayerControlsEvent {}
 
 @immutable
@@ -285,6 +292,12 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<GoToLocator>((event, emit) async => await instance.goToLocator(event.locator));
 
     on<GoToProgression>((event, emit) async => await instance.goToProgression(event.progression));
+
+    on<SeekRelative>(
+      (event, emit) async => await instance.audioSeekBy(
+        Duration(milliseconds: (event.seconds * 1000).round()),
+      ),
+    );
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
