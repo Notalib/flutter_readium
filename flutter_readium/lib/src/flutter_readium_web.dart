@@ -35,6 +35,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
   }
 
+  static _AudiobookCallbacks? _audiobookCallbacks;
+
   static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
   static final StreamController<ReadiumTimebasedState> _timebasedStateController =
       StreamController<ReadiumTimebasedState>.broadcast();
@@ -214,21 +216,40 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    // NOTE: For web, loadPublication and openPublication does the same thing,
-    //
-    // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
-    // additionally the openPublication method does currently not return a publication object
-    ReadiumLog.d(
-      'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.',
-    );
     final publication = await loadPublication(pubUrl);
+
+    if (publication.conformsToReadiumAudiobook) {
+      // Pure audiobooks: ReadiumWebView (and its #container div) is not in the
+      // widget tree, so call openPublication on the JS side directly.
+      // AudioNavigator drives <audio> elements and needs no DOM container.
+      // Sync-narration EPUBs (containsMediaOverlays) DO need the container —
+      // those publications use the EPUB navigator and are handled by ReadiumWebView.
+      //
+      // Register the JS->Dart callbacks that ReadiumWebViewState would normally
+      // set up, since there is no ReadiumWebView in the tree for audiobooks.
+      // Hold a static reference so Dart's GC doesn't collect the instance while
+      // the JS AudioNavigator still holds the function references.
+      _audiobookCallbacks = _AudiobookCallbacks();
+      updateTimebasedPlayerState = _audiobookCallbacks!.onTimebasedPlayerState.toJS;
+      updateReaderStatus = _audiobookCallbacks!.onReaderStatus.toJS;
+      try {
+        await JsPublicationChannel().openPublication(
+          pubUrl,
+          pubId: publication.identifier,
+          initialPreferences: json.encode(defaultPreferences?.toJson() ?? <String, dynamic>{}),
+        );
+      } on Exception catch (e) {
+        throw ReadiumError('Exception opening audiobook on web: $e');
+      }
+    }
+
     return publication;
   }
 
   @override
   Future<void> closePublication() async {
     JsPublicationChannel().closePublication();
-    return;
+    _audiobookCallbacks = null;
   }
 
   static Future<String> getString(final Link link) async {
