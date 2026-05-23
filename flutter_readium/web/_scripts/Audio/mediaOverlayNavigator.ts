@@ -7,7 +7,7 @@
  *  1. Parse the EPUB's Sync Narration JSON alternates into a flat item list.
  *  2. Build a synthetic audio reading-order (one Link per unique audio file).
  *  3. Hand the synthetic publication to AudioNavigator (same path as audiobooks).
- *  4. Intercept positionChanged to map audio time → text locator and emit dual
+ *  4. Intercept positionChanged to map audio time -> text locator and emit dual
  *     state/locator events matching iOS/Android behaviour.
  */
 
@@ -53,7 +53,7 @@ export async function initializeMediaOverlayNavigator(
   // Build a synthetic Publication with the audiobook profile and audio reading order.
   const syntheticPub = _buildAudiobookPublication(publication, audioReadingOrder);
 
-  // Map initial text locator → audio locator.
+  // Map initial text locator -> audio locator.
   const audioInitialLocator = initialLocator
     ? _textLocatorToAudioLocator(items, initialLocator)
     : undefined;
@@ -152,6 +152,10 @@ function _buildAudiobookPublication(
   manifestJson.metadata.conformsTo = [Profile.AUDIOBOOK];
 
   const manifest = Manifest.deserialize(manifestJson)!;
+  if (manifest == undefined) {
+    throw new Error("Failed to create new Audiobook manifest");
+  }
+
   // Preserve the self-link so the fetcher base URL remains correct.
   const selfLink = publication.manifest.linksWithRel("self")[0];
   if (selfLink?.href) manifest.setSelfLink(selfLink.href);
@@ -189,4 +193,3 @@ function _textLocatorToAudioLocator(
     }),
   });
 }
-
