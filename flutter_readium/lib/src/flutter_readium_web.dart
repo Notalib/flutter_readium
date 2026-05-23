@@ -1,11 +1,34 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:js_interop' as js_interop;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'js_publication_channel.dart';
+
+/// Provides JS-callable callbacks for pure audiobooks, where [ReadiumWebView]
+/// (and its [registerJSExports] call) is never in the widget tree.
+@js_interop.JSExport()
+class _AudiobookCallbacks {
+  @js_interop.JSExport()
+  void onTimebasedPlayerState(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final state = ReadiumTimebasedState.fromJson(json);
+    FlutterReadiumWebPlugin.addTimeBasedStateUpdate(state);
+  }
+
+  @js_interop.JSExport()
+  void onReaderStatus(final String statusString) {
+    final status = ReadiumReaderStatus.optFromString(statusString);
+    if (status != null) {
+      FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
+    } else {
+      ReadiumLog.w('Unknown ReadiumReaderStatus: $statusString');
+    }
+  }
+}
 
 class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   static void registerWith(Registrar registrar) {
@@ -43,8 +66,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Future<void> setLogLevel(LogLevel level) async => ReadiumLog.setLevel(level);
 
   @override
-  Future<void> setCustomHeaders(Map<String, String> headers) =>
-      throw UnimplementedError('setCustomHeaders is not implemented on web platform');
+  Future<void> setCustomHeaders(Map<String, String> headers) async {
+    ReadiumLog.w('setCustomHeaders is not supported on web (browser controls HTTP headers)');
+  }
 
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {
@@ -213,14 +237,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return resourceString;
   }
 
-  static Future<Uint8List> getBytes(final Link link) async {
-    // TODO: Is this still needed for audio books with the new implementation
-    final linkString = json.encode(link);
-    final resourceBytesString = await JsPublicationChannel().getResource(linkString, asBytes: true);
-    final byteList = jsonDecode(resourceBytesString).cast<int>();
-    return Uint8List.fromList(byteList);
-  }
-
   @override
   Future<void> goBackward({final bool animated = true}) async {
     JsPublicationChannel.goBackward();
@@ -239,12 +255,18 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    ReadiumLog.d('setPDFPreferences is not supported on web platform');
+    ReadiumLog.w('setPDFPreferences is not supported on web platform');
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    ReadiumLog.d('applyDecorations is not implemented on web platform');
+    ReadiumLog.w('applyDecorations is not implemented on web platform');
+  }
+
+  @override
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
+    ReadiumLog.w('searchInPublication is not implemented on web platform');
+    return const [];
   }
 
   // COMMON PLAYBACK API - BEGIN
@@ -295,6 +317,12 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       );
     }
   }
+
+  @override
+  Future<bool> goToProgression(double progression) async {
+    ReadiumLog.w('goToProgression is not implemented on web platform');
+    return false;
+  }
   // COMMON PLAYBACK API - END
 
   // TTS API - BEGIN
@@ -321,7 +349,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    ReadiumLog.d('setDecorationStyle is not implemented on web platform');
+    ReadiumLog.w('setDecorationStyle is not implemented on web platform');
   }
 
   @override
@@ -349,8 +377,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
   // AUDIOBOOK API - END
 
+  // TODO: Is this used anymore with the new JS implementation? If not, remove.
   @override
-  Stream<ReadiumError> get onErrorEvent {
-    throw UnimplementedError('get onErrorEvent is not implemented on web platform');
-  }
+  Stream<ReadiumError> get onErrorEvent => const Stream.empty();
 }
