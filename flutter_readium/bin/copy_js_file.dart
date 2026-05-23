@@ -36,7 +36,7 @@ void main(List<String> args) async {
     // Copy the file
     sourceFile.copySync(destinationPath);
     print('File copied to $destinationPath');
-  } catch (e) {
+  } on Exception catch (e) {
     print('Error copying file: $e');
   }
 }

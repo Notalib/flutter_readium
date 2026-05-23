@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_readium/flutter_readium.dart';
+import 'flutter_readium.dart';
 
 class ReadiumReaderWidget extends StatelessWidget {
   const ReadiumReaderWidget({

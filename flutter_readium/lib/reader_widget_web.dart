@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium/flutter_readium.dart';
+import 'flutter_readium.dart';
 import 'src/index.dart';
 
 class ReadiumReaderWidget extends StatefulWidget {
@@ -58,17 +58,15 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Widget build(final BuildContext context) {
-    return SizedBox.expand(
-      child: ReadiumWebView(
-        publication: widget.publication,
-        currentLocator: widget.initialLocator,
-        onTextSelected: widget.onTextSelected,
-        onSelectionAction: widget.onSelectionAction,
-        onDecorationInteraction: widget.onDecorationInteraction,
-      ),
-    );
-  }
+  Widget build(final BuildContext context) => SizedBox.expand(
+    child: ReadiumWebView(
+      publication: widget.publication,
+      currentLocator: widget.initialLocator,
+      onTextSelected: widget.onTextSelected,
+      onSelectionAction: widget.onSelectionAction,
+      onDecorationInteraction: widget.onDecorationInteraction,
+    ),
+  );
 
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
