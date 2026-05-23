@@ -17,6 +17,28 @@ import { initializeMediaOverlayNavigator } from "./Audio/mediaOverlayNavigator";
 import { WebTTSEngine } from "./TTS/ttsNavigator";
 import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
 
+/** Finds a link by href, falling back to pathname comparison for relative vs. absolute mismatches. */
+function findLinkByHref(
+  items: Link[] | undefined,
+  href: string
+): Link | undefined {
+  if (!items || items.length === 0) return undefined;
+  const exact = items.find((l) => l.href === href);
+  if (exact) return exact;
+  try {
+    const hrefPath = new URL(href, "http://localhost").pathname;
+    return items.find((l) => {
+      try {
+        return new URL(l.href, "http://localhost").pathname === hrefPath;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 class _ReadiumReader {
   public constructor() {
     console.log("R2Navigator initialized");
@@ -82,21 +104,34 @@ class _ReadiumReader {
   }
 
   public async goTo(href: string): Promise<void> {
-    // TOC entries point into the reading order, not the resources collection.
-    // Check both — readingOrder first, since that's the common case for
-    // chapter navigation via the Dart-side `goToLocator`.
-    const pub = this._nav?.publication;
-    const link =
-      pub?.readingOrder?.findWithHref(href) ??
-      pub?.resources?.findWithHref(href);
-    if (!link) {
-      const triedLinks = [
+    // Audiobook: build a Locator from the publication's reading order and navigate via AudioNavigator.
+    if (this._audioNav) {
+      const pub = this._publication;
+      const allLinks = [
         ...(pub?.readingOrder?.items ?? []),
         ...(pub?.resources?.items ?? []),
-      ]
-        .map((l) => l.href)
-        .join(", ");
-      console.error("Link not found " + href + ". Tried all resource links", triedLinks);
+      ];
+      const link = findLinkByHref(allLinks, href);
+      if (!link) {
+        console.error("Audio link not found " + href + ". Tried", allLinks.map((l) => l.href).join(", "));
+        throw new Error("Audio link not found " + href);
+      }
+      const locator = new Locator({ href: link.href, type: link.type ?? "audio/mpeg" });
+      await this._audioNav.go(locator, false, (ok) => {
+        if (!ok) console.error("Audiobook navigation failed for href: " + href);
+      });
+      return;
+    }
+
+    // EPUB / WebPub: TOC entries point into the reading order or resources.
+    const pub = this._nav?.publication;
+    const allLinks = [
+      ...(pub?.readingOrder?.items ?? []),
+      ...(pub?.resources?.items ?? []),
+    ];
+    const link = findLinkByHref(allLinks, href);
+    if (!link) {
+      console.error("Link not found " + href + ". Tried all resource links", allLinks.map((l) => l.href).join(", "));
       throw new Error("Link not found " + href);
     }
     this._nav?.goLink(link, true, (ok) => {
@@ -211,37 +246,36 @@ class _ReadiumReader {
     this._ttsEngine = undefined;
     this._hasSyncNarration = false;
     this._positions = [];
+    this._publication = undefined;
 
-    const cleanup = () => {
+    // Emit status synchronously so Dart receives it before any async navigator cleanup.
+    // Do NOT delete the window callbacks here — the Dart side re-registers them before each
+    // openPublication call, and deleting them asynchronously races with the new registration.
+    if (error) {
+      window.updateReaderStatus?.(ReadiumReaderStatus.error);
+    } else {
+      window.updateReaderStatus?.(ReadiumReaderStatus.closed);
+    }
+
+    this._audioNav?.destroy();
+    this._audioNav = undefined;
+
+    const clearContainer = () => {
       this._nav = undefined;
-      this._audioNav = undefined;
-      this._publication = undefined;
       const container = document.getElementById("container");
       if (container) {
         container.innerHTML = "";
       }
-      if (error) {
-        window.updateReaderStatus?.(ReadiumReaderStatus.error);
-      } else {
-        window.updateReaderStatus?.(ReadiumReaderStatus.closed);
-      }
-      delete window.updateTextLocator;
-      delete window.updateReaderStatus;
-      delete window.updateTimebasedPlayerState;
     };
 
     const navDestroy = this._nav?.destroy();
-    const audioDestroy = this._audioNav?.destroy();
-
-    if (navDestroy || audioDestroy) {
-      Promise.all([navDestroy, audioDestroy].filter(Boolean))
-        .then(cleanup)
-        .catch((err) => {
-          console.error("Error destroying navigator:", err);
-          cleanup();
-        });
+    if (navDestroy) {
+      navDestroy.then(clearContainer).catch((err) => {
+        console.error("Error destroying EPUB navigator:", err);
+        clearContainer();
+      });
     } else {
-      cleanup();
+      clearContainer();
     }
   }
 
@@ -257,6 +291,9 @@ class _ReadiumReader {
     if (locatorJson) {
       const locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
+        // Ensure playback is active so go() sees wasPlaying=true and resumes
+        // after seeking.
+        this._audioNav.play();
         this._audioNav.go(locator, false, () => {});
         return;
       }
@@ -397,6 +434,9 @@ class _ReadiumReader {
       if (fromLocatorJson) {
         const locator = Locator.deserialize(JSON.parse(fromLocatorJson));
         if (locator) {
+          // Set play intent before go() so wasPlaying is true and playback
+          // resumes automatically after the seek completes.
+          this._audioNav.play();
           this._audioNav.go(locator, false, () => {});
           return;
         }
