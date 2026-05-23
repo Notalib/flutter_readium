@@ -50,11 +50,11 @@ function buildTTSStatePayload(
 }
 
 function emitState(state: string, locator: Locator | null) {
-  (window as any).updateTimebasedPlayerState?.(buildTTSStatePayload(state, locator));
+  window.updateTimebasedPlayerState?.(buildTTSStatePayload(state, locator));
 }
 
 function emitLocator(locator: Locator) {
-  (window as any).updateTextLocator?.(JSON.stringify(locator));
+  window.updateTextLocator?.(JSON.stringify(locator));
 }
 
 export class WebTTSEngine {

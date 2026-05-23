@@ -110,67 +110,28 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static Map<String, dynamic> _transformPublicationJson(final Map<String, dynamic> publicationJson) {
-    // Transform 'links', 'readingOrder', 'resources', and 'tableOfContents' keys
-    _transformKeyItems(publicationJson, 'links');
-    _transformKeyItems(publicationJson, 'readingOrder');
-    _transformKeyItems(publicationJson, 'resources');
+    // The upstream ts-toolkit's Manifest.serialize() already produces correct
+    // RWPM JSON (flat arrays for links/readingOrder/resources/toc, proper
+    // metadata keys, LocalizedString as {lang: value} maps). The only known
+    // issue is that raw manifest data passing through `otherMetadata` may carry
+    // the literal key "undefined" instead of the BCP-47 "und" for the undefined
+    // language. Fix that recursively.
+    _replaceUndefinedKey(publicationJson);
 
-    // rename key 'tableOfContents' to 'toc'
-    if (publicationJson.containsKey('tableOfContents')) {
-      publicationJson['toc'] = publicationJson.remove('tableOfContents');
-    }
-
-    // Transform 'children' key in 'toc'
-    if (publicationJson.containsKey('toc') && publicationJson['toc'] is Map<String, dynamic>) {
-      _transformKeyItems(publicationJson, 'toc');
-      publicationJson['toc'] = _transformChildren(publicationJson['toc']);
-    }
-
-    // Transform 'translations' key in 'metadata'
+    // Handle sortAs edge case: upstream serializes as a LocalizedString map
+    // but Dart Publication.fromJson expects a plain String.
     if (publicationJson.containsKey('metadata') && publicationJson['metadata'] is Map) {
       final metadataMap = publicationJson['metadata'] as Map<String, dynamic>;
 
-      if (metadataMap.containsKey('authors') && metadataMap['authors'] is Map) {
-        // rename key 'authors' to 'author'
-        metadataMap['author'] = metadataMap.remove('authors');
-        // remove 'items' wrapper if exists
-        _transformKeyItems(metadataMap, 'author');
-
-        for (final author in metadataMap['author']) {
-          if (author is Map && author.containsKey('name') && author['name'] is Map) {
-            final nameMap = author['name'] as Map<String, dynamic>;
-            if (nameMap.containsKey('translations') && nameMap['translations'] is Map) {
-              final translationsMap = nameMap['translations'] as Map<String, dynamic>;
-              _validateTranslations(translationsMap);
-              author['name'] = translationsMap;
-            }
-          }
-        }
-      }
-
-      if (metadataMap.containsKey('title') && metadataMap['title'] is Map) {
-        final titleMap = metadataMap['title'] as Map<String, dynamic>;
-        if (titleMap.containsKey('translations') && titleMap['translations'] is Map) {
-          final translationsMap = titleMap['translations'] as Map<String, dynamic>;
-
-          _validateTranslations(translationsMap);
-
-          metadataMap['title'] = translationsMap;
-        }
-      }
-
       if (metadataMap.containsKey('sortAs')) {
         final sortAs = metadataMap['sortAs'];
-        if (sortAs is Map && sortAs['translations'] is Map) {
-          // Legacy format from JSON.stringify: {"translations": {"lang": "val"}} -> extract first value.
-          final translations = sortAs['translations'] as Map;
-          if (translations.isNotEmpty) {
-            metadataMap['sortAs'] = translations.values.first;
+        if (sortAs is Map) {
+          if (sortAs.isNotEmpty) {
+            metadataMap['sortAs'] = sortAs.values.first;
           } else {
             metadataMap['sortAs'] = null;
           }
-        } else if (sortAs != null && sortAs is! String && sortAs is! Map) {
-          // Null out only if it's neither a plain String nor a LocalizedString map ({lang: val}).
+        } else if (sortAs != null && sortAs is! String) {
           metadataMap['sortAs'] = null;
         }
       }
@@ -179,39 +140,27 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return publicationJson;
   }
 
-  static void _transformKeyItems(final Map<String, dynamic> json, final String key) {
-    if (json.containsKey(key) && json[key] is Map) {
-      final map = json[key] as Map<String, dynamic>;
-      if (map.containsKey('items') && map['items'] is List) {
-        json[key] = map['items'];
+  /// Recursively replaces the literal key `"undefined"` with `"und"` (the
+  /// BCP-47 tag for undetermined language) throughout a JSON structure.
+  static void _replaceUndefinedKey(Map<dynamic, dynamic> map) {
+    final keysToReplace = <dynamic>[];
+    map.forEach((key, value) {
+      if (key == 'undefined') {
+        keysToReplace.add(key);
       }
-    }
-  }
-
-  static List<dynamic> _transformChildren(final List<dynamic> items) => items.map((final item) {
-    if (item is Map<String, dynamic> && item.containsKey('children')) {
-      final children = item['children'];
-      if (children is Map<String, dynamic> && children.containsKey('items')) {
-        item['children'] = children['items'];
-      }
-      if (item['children'] is List) {
-        item['children'] = _transformChildren(item['children']);
-      }
-    }
-    return item;
-  }).toList();
-
-  static void _validateTranslations(Map<String, dynamic> translationsMap) {
-    if (translationsMap.containsKey('undefined')) {
-      translationsMap['und'] = translationsMap.remove('undefined');
-    }
-
-    // TODO: unknown if other languages also fails the validation, needs better handling
-    translationsMap.forEach((final key, final value) {
-      if (key.length > 3) {
-        ReadiumLog.d('PUBLICATION WEB: Translations map key "$key" is longer than three letters.');
+      if (value is Map) {
+        _replaceUndefinedKey(value);
+      } else if (value is List) {
+        for (final item in value) {
+          if (item is Map) {
+            _replaceUndefinedKey(item);
+          }
+        }
       }
     });
+    for (final key in keysToReplace) {
+      map['und'] = map.remove(key);
+    }
   }
 
   @override
@@ -253,9 +202,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static Future<String> getString(final Link link) async {
-    // Get HTML string for full chapters, for example
     final linkString = json.encode(link);
-    final resourceString = await JsPublicationChannel().getResource(linkString);
+    final resourceString = await JsPublicationChannel().getLinkContent(linkString);
     return resourceString;
   }
 

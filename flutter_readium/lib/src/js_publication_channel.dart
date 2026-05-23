@@ -16,7 +16,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void goBackward();
   external void goForward();
   external void closePublication();
-  external JSPromise<JSString> getResource(JSString linkString, JSBoolean? asBytes);
+  external JSPromise<JSString> getLinkContent(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
   external JSBoolean get isNavigatorReady;
   external void play(JSString? locatorJson);
@@ -150,12 +150,16 @@ class JsPublicationChannel {
   }
 
   void closePublication() {
-    _readiumReader.closePublication();
+    try {
+      _readiumReader.closePublication();
+    } on Object catch (error) {
+      ReadiumLog.e('Error closing publication: $error');
+    }
   }
 
-  Future<String> getResource(String link, {bool? asBytes}) async {
+  Future<String> getLinkContent(String link, {bool? asBytes}) async {
     try {
-      final resourceJS = _readiumReader.getResource(link.toJS, asBytes?.toJS);
+      final resourceJS = _readiumReader.getLinkContent(link.toJS, asBytes?.toJS);
       final resourceString = (await resourceJS.toDart).toDart;
       return resourceString;
     } on Object catch (jsError, stackTrace) {

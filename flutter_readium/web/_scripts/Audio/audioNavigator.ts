@@ -81,18 +81,18 @@ function _emitState(
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
     const { stateLocator, textLocator } = mapper(nav, locator);
-    (window as any).updateTimebasedPlayerState?.(
+    window.updateTimebasedPlayerState?.(
       buildStatePayload(state, nav, stateLocator)
     );
     if (textLocator) {
-      (window as any).updateTextLocator?.(JSON.stringify(textLocator));
+      window.updateTextLocator?.(JSON.stringify(textLocator));
     }
   } else {
-    (window as any).updateTimebasedPlayerState?.(
+    window.updateTimebasedPlayerState?.(
       buildStatePayload(state, nav, locator)
     );
     if (alsoText) {
-      (window as any).updateTextLocator?.(JSON.stringify(locator));
+      window.updateTextLocator?.(JSON.stringify(locator));
     }
   }
 }
