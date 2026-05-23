@@ -10,6 +10,9 @@ module.exports = (argv) => {
       // TODO: differentiate dev and prod output filenames when ready
       filename: "readiumReader.js", // Name of the output file
       path: path.resolve(__dirname, "../../lib/helpers"), // Output directory inside '../../lib/helpers'
+      // Inline all dynamic imports (e.g. ReadiumCSS variants in @readium/navigator)
+      // into the single bundle rather than emitting separate chunk files.
+      asyncChunks: false,
     },
     module: {
       rules: [
@@ -34,6 +37,13 @@ module.exports = (argv) => {
     },
     optimization: {
       minimize: !isDev,
+      // Disable automatic code-splitting so the entire bundle lands in a single
+      // readiumReader.js file.  Without this, Webpack 5's default splitChunks
+      // behaviour shards the pre-split @readium/* packages into 30+ chunk files
+      // (locale and ReadiumCSS variants) that must be committed alongside the
+      // main bundle and served from the same directory.
+      splitChunks: false,
+      runtimeChunk: false,
       minimizer: [
         new TerserPlugin({
           terserOptions: {

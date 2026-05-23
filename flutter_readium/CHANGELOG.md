@@ -7,6 +7,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Web: TTS (text-to-speech)** — `ttsEnable`, `ttsGetAvailableVoices`, `ttsSetVoice`,
+  `ttsSetPreferences` are now implemented on web using the browser's `SpeechSynthesis` API
+  and `@readium/shared`'s `PublicationContentIterator` + `HTMLResourceContentIterator` for
+  paragraph-level text extraction. Playback state streams through
+  `onTimebasedPlayerStateChanged` and position bookmarks through `onTextLocatorChanged`.
+  Voice gender/quality is enriched automatically via the bundled `voices.json` from
+  https://readium.org/speech/. `play`, `pause`, `resume`, `stop`, `next`, `previous` are
+  dispatched to the TTS engine when it is active, falling back to AudioNavigator otherwise.
+  Visual word/sentence highlighting is deferred until ts-toolkit PR #209 (Decorator API)
+  merges.
+- **Web: Media Overlay (Sync Narration)** — EPUBs with embedded Sync Narration JSON
+  alternates (`application/vnd.readium.narration+json`) can now play their synchronized
+  narration. Calling `audioEnable()` on such a publication parses the narration, builds a
+  synthetic audio reading order, and drives `AudioNavigator`. Audio time is mapped back to
+  text locators, so `onTextLocatorChanged` emits text-href locators as narration advances
+  (matching iOS/Android `reachedLocator` behaviour). `audioSeekBy` is also wired up via
+  `AudioNavigator.jump()`.
+- **Web: `audioSeekBy`** — `audioSeekBy(Duration offset)` is now implemented on web for
+  audiobook and Media Overlay playback via `AudioNavigator.jump(seconds)`.
+- **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
+  `play`, `pause`, `resume`, `stop`, `next`, `previous`, `audioSetPreferences` are all
+  wired up via the upstream `AudioNavigator` (ts-toolkit 2.4.0+). Playback state
+  (offset, duration, locator) streams through `onTimebasedPlayerStateChanged`, matching
+  the iOS/Android contract.
+- **Web: `scrollPaddingLeft` / `scrollPaddingRight` EPUB preferences** — new fields
+  added in ts-toolkit 2.5.x are now passed through to the navigator.
+- **Web: content-protection, peripheral, and context-menu listener stubs** — new
+  required listener fields from ts-toolkit 2.3.0 are now present on both EPUB and
+  WebPub navigator configurations.
+
+### Changed
+
+- **Web: ts-toolkit version bump** — `@readium/navigator` `^2.2.4` → `^2.5.5`,
+  `@readium/navigator-html-injectables` `^2.2.1` → `^2.4.2`,
+  `@readium/shared` `^2.1.1` → `^2.2.0`. Picks up FXL `positionChanged` reliability
+  fix (navigator #218), vertical/RTL writing-mode support, Readium CSS v2.0.0, and
+  content-protection infrastructure.
+
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
   `TextSelectionEvent` (locator + selected text) when the user selects text in the reader.
   Supported on iOS, Android, and Web.
