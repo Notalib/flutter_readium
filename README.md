@@ -54,9 +54,7 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 ¹ Web TTS uses the browser's Web Speech API — voice availability and quality vary by browser.
 
-> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported — a no-op stub is registered so the Flutter macOS target still compiles, but every reader call returns `MethodNotImplemented`. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783).
->
-> The iOS build runs unmodified on Apple Silicon Macs via "Designed for iPad" — distribute your iOS app to the Mac App Store with that option enabled in App Store Connect and Mac users get the full reader experience.
+> **macOS note:** Native macOS desktop (`flutter run -d macos`) is not supported — a no-op stub is registered so the Flutter macOS target still compiles, but every reader call returns `MethodNotImplemented`. The upstream `swift-toolkit` is iOS-only and has marked native macOS [`not_planned`](https://github.com/readium/swift-toolkit/issues/783). The iOS build runs fine on Apple Silicon Macs via "Designed for iPad".
 
 ## Minimum requirements
 
