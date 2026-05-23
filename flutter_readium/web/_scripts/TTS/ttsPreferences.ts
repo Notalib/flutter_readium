@@ -2,10 +2,10 @@
  * Maps Dart TTSPreferences JSON to Web Speech API utterance properties.
  *
  * Dart fields:
- *   speed            → utterance.rate    (0.1–10,  default 1.0)
- *   pitch            → utterance.pitch   (0–2,     default 1.0)
- *   voiceIdentifier  → SpeechSynthesisVoice matched by voiceURI
- *   languageOverride → utterance.lang    (fallback when no voice matched)
+ *   speed            -> utterance.rate    (0.1–10,  default 1.0)
+ *   pitch            -> utterance.pitch   (0–2,     default 1.0)
+ *   voiceIdentifier  -> SpeechSynthesisVoice matched by voiceURI
+ *   languageOverride -> utterance.lang    (fallback when no voice matched)
  */
 export interface WebTTSPreferences {
   rate: number;

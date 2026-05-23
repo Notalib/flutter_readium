@@ -51,6 +51,26 @@ export async function initializeEpubNavigatorAndPeripherals(
 
   let preferences = initializeEpubPreferencesFromString(preferencesJsonString);
 
+  // Trailing-edge debounce for positionChanged -> updateTextLocator. In scroll
+  // mode the ts-toolkit emits `progress` events on every rAF tick (~60Hz), which
+  // floods the Dart-side `onTextLocatorChanged` stream with redundant updates.
+  // Native (iOS / Android) navigators emit one event per page change, so we
+  // match that cadence here by waiting for scroll/pagination activity to settle
+  // before forwarding the final locator. 200 ms keeps bookmarks responsive
+  // without spamming consumers.
+  const TEXT_LOCATOR_DEBOUNCE_MS = 200;
+  let textLocatorTimer: ReturnType<typeof setTimeout> | undefined;
+  const emitTextLocatorDebounced = (locator: Locator) => {
+    if (textLocatorTimer !== undefined) clearTimeout(textLocatorTimer);
+    textLocatorTimer = setTimeout(() => {
+      textLocatorTimer = undefined;
+      // Use Locator.serialize() so otherLocations entries (e.g. `tocHref`)
+      // are inlined into `locations`. Plain JSON.stringify drops Map entries.
+      (window as any).updateTextLocator?.(JSON.stringify(locator.serialize()));
+    }, TEXT_LOCATOR_DEBOUNCE_MS);
+  };
+
+
   const configuration: EpubNavigatorConfiguration = {
     preferences,
     defaults,
@@ -105,8 +125,7 @@ export async function initializeEpubNavigatorAndPeripherals(
     },
     positionChanged: (_locator: Locator): void => {
       window.focus();
-
-      (window as any).updateTextLocator?.(JSON.stringify(_locator));
+      emitTextLocatorDebounced(enrichWithTocHref(_locator, flatToc));
     },
     tap: function (_e: FrameClickEvent): boolean {
       return false;

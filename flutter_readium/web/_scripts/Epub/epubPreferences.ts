@@ -205,6 +205,7 @@ function mapImageFilter(value: unknown): {
   }
 }
 
+// TODO: are these the defaults we want in the plugin? Seems random.
 export const defaults: IEpubDefaults = {
   backgroundColor: null,
   blendFilter: true,
