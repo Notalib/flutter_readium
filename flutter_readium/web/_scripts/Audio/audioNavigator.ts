@@ -139,6 +139,7 @@ export async function initializeAudioNavigator(
       trackLoaded: (_media) => {
         if (!resolved) {
           resolved = true;
+          log.info("AudioNavigator ready (first track loaded)");
           setNav(nav);
           resolve();
         }
@@ -161,16 +162,21 @@ export async function initializeAudioNavigator(
         // Intermediate track-ends are followed by auto-advance; emitting "ended"
         // would cause Dart-side to close the player prematurely.
         if (!nav.canGoForward) {
+          log.info("Publication ended (last track)");
           _emitState("ended", nav, locator, locatorMapper, false);
+        } else {
+          log.debug("Track ended, auto-advancing to next track");
         }
       },
       stalled: (isStalled) => {
+        log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
         _emitState(
           isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
           nav, undefined, locatorMapper, false
         );
       },
       error: (_error, locator) => {
+        log.error("AudioNavigator error:", _error, "locator:", locator?.href);
         _emitState("failure", nav, locator, locatorMapper, false);
       },
       metadataLoaded: (_metadata) => {},

@@ -163,6 +163,11 @@ export class WebTTSEngine {
   setVoice(voiceURI: string, lang?: string): void {
     const voices = speechSynthesis.getVoices();
     const matched = voices.find((v) => v.voiceURI === voiceURI) ?? null;
+    if (!matched && !lang) {
+      log.warn("Voice not found:", voiceURI);
+    } else {
+      log.debug("Voice set:", voiceURI, lang ? `(lang: ${lang})` : "");
+    }
     if (lang) {
       this._langVoiceMap.set(lang, voiceURI);
     } else {
@@ -195,6 +200,7 @@ export class WebTTSEngine {
 
     const hasNext = await this._iterator.hasNext();
     if (!hasNext) {
+      log.info("TTS reached end of publication");
       emitState("ended", this._currentElement?.locator ?? null);
       return;
     }
@@ -269,9 +275,9 @@ export class WebTTSEngine {
         try {
           // Cross-resource transitions use animated=true; same-resource use false.
           this._nav.go(element.locator, false, () => {});
-        } catch (_) {
-          // Silently ignore navigation errors during TTS.
-        }
+        } catch (navError) {
+            log.warn("TTS navigator sync failed:", navError);
+          }
       }
     };
 
@@ -340,15 +346,9 @@ export class WebTTSEngine {
     return last?.locator ?? element.locator;
   }
 
-  /**
-   * Best-effort language extraction for per-language voice selection.
-   * The ts-toolkit exposes language as an attribute on the element.
-   */
   private _resolveVoiceLang(element: TextElement): string | undefined {
-    // Attributes are key-value pairs; language is conventionally stored as
-    // an attribute with the key "language".
-    const attrs = (element as any).attributes as Array<{ key: string; value: any }> | undefined;
-    const langAttr = attrs?.find((a) => a.key === "language");
-    return langAttr?.value ?? undefined;
+    // `language` getter comes from AttributesHolder (TextElement's grandparent in @readium/shared).
+    // Cast is needed because the package's exported types don't surface the inherited getter.
+    return (element as any).language ?? undefined;
   }
 }
