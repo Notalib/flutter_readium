@@ -21,7 +21,7 @@ Future<void> main() async {
 
   Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((record) {
-    debugPrint(ReadiumLog.format(record));
+    debugPrint(ReadiumLog.format(record, colored: !kIsWeb));
   });
 
   HydratedBloc.storage = await HydratedStorage.build(

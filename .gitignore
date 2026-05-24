@@ -89,3 +89,4 @@ assets/_scripts/dist
 **/.build/
 flutter_readium/example/devtools_options.yaml
 tmp
+.chromedriver/

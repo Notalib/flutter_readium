@@ -3,16 +3,15 @@
 // and verify the Dart side receives a well-formed [Publication].
 //
 // These tests exercise the Dart -> native -> Dart contract that pure Dart
-// unit tests cannot reach. They run on iOS and Android via the example app.
+// unit tests cannot reach. They run on iOS, Android, and Web via the example app.
 
-import 'dart:io';
-
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
-import 'package:flutter_readium_example/utils/publication_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:path/path.dart' as p;
+
+import 'test_fixtures.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +20,7 @@ void main() {
   final reader = FlutterReadium();
 
   setUpAll(() async {
-    final pubs = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
-    fixturePaths = {for (final pub in pubs) p.basename(pub): pub};
+    fixturePaths = await loadFixturePaths();
   });
 
   // NOTE: Every testWidgets that mounts a ReadiumReaderWidget must end with
@@ -145,7 +143,7 @@ void main() {
   // PDF
   // ---------------------------------------------------------------------------
 
-  group('PDF navigation and state', () {
+  group('PDF navigation and state', skip: kIsWeb ? 'PDF not supported on web' : null, () {
     test('opens PDF successfully', () async {
       final path = fixturePaths['pdf_test.pdf'];
       expect(path, isNotNull, reason: 'Fixture pdf_test.pdf missing from asset bundle');
@@ -414,7 +412,7 @@ void main() {
           reason: 'PDF search hit should carry a 1-based page position',
         );
       },
-      skip: Platform.isAndroid
+      skip: kIsWeb || _isAndroid()
           ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService)'
           : false,
     );
@@ -424,9 +422,13 @@ void main() {
   // Error path
   // ---------------------------------------------------------------------------
 
-  test('openPublication throws ReadiumException for an invalid path', () async {
-    await expectLater(reader.openPublication('/does-not-exist/no-such.epub'), throwsA(isA<ReadiumException>()));
-  });
+  test(
+    'openPublication throws ReadiumException for an invalid path',
+    skip: kIsWeb ? 'Error path differs on web (HTTP fetch vs file I/O)' : null,
+    () async {
+      await expectLater(reader.openPublication('/does-not-exist/no-such.epub'), throwsA(isA<ReadiumException>()));
+    },
+  );
 
   // ---------------------------------------------------------------------------
   // EPUB navigation & state
@@ -792,3 +794,7 @@ Future<void> _waitForListStable<T>(
     }
   }
 }
+
+/// Returns true on Android. Uses [defaultTargetPlatform] which is safe on all
+/// platforms (unlike `dart:io` Platform which is unavailable on web).
+bool _isAndroid() => defaultTargetPlatform == TargetPlatform.android;
