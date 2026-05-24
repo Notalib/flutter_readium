@@ -17,6 +17,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Web: TTS read-aloud not starting** — extended the `@readium/shared` 2.2.0
+  patch to also fix the compiled `dist/` bundles (`index.js` and `index.umd.cjs`).
+  The previous patch only modified the `src/` TypeScript file, which webpack
+  never consumes (the package's `module`/`main` entries point to `dist/`), so
+  the `PublicationContentIterator.loadIteratorAt` bug (missing `return`)
+  remained in the shipped bundle and `hasNext()` always returned false.
 - **Web: Media Overlay audio playback crash** — fixed "Failed to create new
   Audiobook manifest" error when starting Media Overlay playback. The synthetic
   manifest was built using `JSON.stringify` on class instances (producing invalid
