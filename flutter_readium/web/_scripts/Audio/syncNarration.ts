@@ -17,6 +17,9 @@
 
 import { Link, Locator, LocatorLocations, Resource } from "@readium/shared";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { createLogger } from "../logger";
+
+const log = createLogger("SyncNarration");
 
 /** MIME type used by Readium to identify Sync Narration JSON alternates. */
 const NARRATION_MEDIA_TYPE = "application/vnd.readium.narration+json";
@@ -79,7 +82,7 @@ export async function parseSyncNarration(
       const items = _parseNarrationJson(json, i);
       result.push(...items);
     } catch (err) {
-      console.warn("SyncNarration: failed to fetch/parse alternate for", link.href, err);
+      log.warn("Failed to fetch/parse alternate for", link.href, err);
     }
   }
 

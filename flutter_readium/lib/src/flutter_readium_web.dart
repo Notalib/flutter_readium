@@ -12,6 +12,8 @@ import 'js_publication_channel.dart';
 /// (and its [registerJSExports] call) is never in the widget tree.
 @js_interop.JSExport()
 class _AudiobookCallbacks {
+  static final _log = ReadiumLog.tag('WebPlugin');
+
   @js_interop.JSExport()
   void onTimebasedPlayerState(final String jsonString) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -25,12 +27,14 @@ class _AudiobookCallbacks {
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {
-      ReadiumLog.w('Unknown ReadiumReaderStatus: $statusString');
+      _log.w('Unknown ReadiumReaderStatus: $statusString');
     }
   }
 }
 
 class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
+  static final _log = ReadiumLog.tag('WebPlugin');
+
   static void registerWith(Registrar registrar) {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
   }
@@ -65,11 +69,15 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 
   @override
-  Future<void> setLogLevel(LogLevel level) async => ReadiumLog.setLevel(level);
+  Future<void> setLogLevel(LogLevel level) async {
+    ReadiumLog.setLevel(level);
+    // Forward to the JS bundle so web-side logging respects the same level.
+    JsPublicationChannel.setLogLevel(level);
+  }
 
   @override
   Future<void> setCustomHeaders(Map<String, String> headers) async {
-    ReadiumLog.w('setCustomHeaders is not supported on web (browser controls HTTP headers)');
+    _log.w('setCustomHeaders is not supported on web (browser controls HTTP headers)');
   }
 
   @override
@@ -225,17 +233,17 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    ReadiumLog.w('setPDFPreferences is not supported on web platform');
+    _log.w('setPDFPreferences is not supported on web platform');
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    ReadiumLog.w('applyDecorations is not implemented on web platform');
+    _log.w('applyDecorations is not implemented on web platform');
   }
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
-    ReadiumLog.w('searchInPublication is not implemented on web platform');
+    _log.w('searchInPublication is not implemented on web platform');
     return const [];
   }
 
@@ -317,7 +325,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    ReadiumLog.w('setDecorationStyle is not implemented on web platform');
+    _log.w('setDecorationStyle is not implemented on web platform');
   }
 
   @override

@@ -18,6 +18,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void closePublication();
   external JSPromise<JSString> getLinkContent(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
+  external void setLogLevel(JSNumber level);
   external JSBoolean get isNavigatorReady;
   external void play(JSString? locatorJson);
   external void pause();
@@ -55,6 +56,10 @@ external set onDecorationInteractionCallback(JSFunction f);
 
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
+
+  static void setLogLevel(LogLevel level) {
+    _readiumReader.setLogLevel(level.index.toJS);
+  }
 
   Future<void> openPublication(
     String publicationURL, {
