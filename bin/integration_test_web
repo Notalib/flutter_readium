@@ -1,0 +1,77 @@
+#!/bin/bash
+# Installs ChromeDriver (matching the local Chrome version), starts it, runs
+# web integration tests, then cleans up.
+#
+# Usage:
+#   bin/integration_test_web
+#
+# Requirements: npx, flutter, Google Chrome installed
+
+set -e
+
+PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+EXAMPLE_DIR="$PROJECT_ROOT/flutter_readium/example"
+CHROMEDRIVER_DIR="$PROJECT_ROOT/.chromedriver"
+
+cleanup() {
+  if [ -n "$CHROMEDRIVER_PID" ]; then
+    echo "Stopping ChromeDriver (PID $CHROMEDRIVER_PID)..."
+    kill "$CHROMEDRIVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# Detect installed Chrome major version
+if [ "$(uname)" == "Darwin" ]; then
+  CHROME_VERSION=$("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --version 2>/dev/null | grep -oE '[0-9]+' | head -1)
+else
+  CHROME_VERSION=$(google-chrome --version 2>/dev/null | grep -oE '[0-9]+' | head -1)
+fi
+
+if [ -z "$CHROME_VERSION" ]; then
+  echo "ERROR: Could not detect Chrome version. Is Google Chrome installed?"
+  exit 1
+fi
+echo "==> Detected Chrome major version: $CHROME_VERSION"
+
+# Install matching ChromeDriver
+echo "==> Installing ChromeDriver for Chrome $CHROME_VERSION..."
+mkdir -p "$CHROMEDRIVER_DIR"
+INSTALL_OUTPUT=$(npx --yes @puppeteer/browsers install "chromedriver@$CHROME_VERSION" --path "$CHROMEDRIVER_DIR" 2>&1)
+echo "$INSTALL_OUTPUT"
+
+# Extract the binary path from install output (format: "chromedriver@<version> <path>")
+CHROMEDRIVER_BIN=$(echo "$INSTALL_OUTPUT" | grep -oE '/.*chromedriver$' | head -1)
+if [ -z "$CHROMEDRIVER_BIN" ]; then
+  # Fallback: find it in the cache dir
+  CHROMEDRIVER_BIN=$(find "$CHROMEDRIVER_DIR" -name chromedriver -type f | head -1)
+fi
+
+if [ -z "$CHROMEDRIVER_BIN" ] || [ ! -x "$CHROMEDRIVER_BIN" ]; then
+  echo "ERROR: Could not find chromedriver binary after install."
+  echo "Install output was: $INSTALL_OUTPUT"
+  exit 1
+fi
+
+echo "==> Using ChromeDriver at: $CHROMEDRIVER_BIN"
+
+# Start ChromeDriver in the background
+"$CHROMEDRIVER_BIN" --port=4444 &
+CHROMEDRIVER_PID=$!
+sleep 2
+
+if ! kill -0 "$CHROMEDRIVER_PID" 2>/dev/null; then
+  echo "ERROR: ChromeDriver failed to start."
+  exit 1
+fi
+echo "==> ChromeDriver running on port 4444 (PID $CHROMEDRIVER_PID)"
+
+# Run the web integration tests
+echo "==> Running web integration tests..."
+cd "$EXAMPLE_DIR"
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/plugin_integration_test.dart \
+  -d chrome \
+  --no-headless \
+  --test-arguments "test --reporter=expanded"

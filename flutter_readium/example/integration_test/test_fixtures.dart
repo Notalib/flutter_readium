@@ -1,0 +1,28 @@
+// Platform-aware fixture loader for integration tests.
+//
+// On native (iOS/Android): copies bundled assets to local storage and returns
+// file paths.
+// On web: returns URLs to publicly-hosted webpub manifests that the ts-toolkit
+// can fetch directly.
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'test_fixtures_native.dart' if (dart.library.js_interop) 'test_fixtures_web.dart' as platform;
+
+/// Returns a map of fixture name → path/URL suitable for the current platform.
+Future<Map<String, String>> loadFixturePaths() => platform.loadFixturePaths();
+
+/// Fixture keys used across tests. Keeping them here avoids typos.
+abstract final class FixtureKeys {
+  static const mobyDickEpub = 'moby_dick.epub';
+  static const overlayWebpub = '38533_overlay_preview.webpub';
+  static const audiobook = '38533.audiobook';
+  static const pdfTest = 'pdf_test.pdf';
+  static const timeMachinePdf = 'time_machine.pdf';
+
+  /// All fixture keys that should be available on web.
+  static const web = {mobyDickEpub, overlayWebpub, audiobook};
+
+  /// True when [key] is not expected to be available on web.
+  static bool isUnavailableOnWeb(String key) => kIsWeb && !web.contains(key);
+}
