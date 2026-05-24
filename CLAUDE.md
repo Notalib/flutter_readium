@@ -21,6 +21,8 @@ The native sides are thin wrappers around upstream Readium code — when debuggi
 
 When you need to inspect upstream implementation details (e.g. how a navigator handles a locator, what fields a model uses), read the source on GitHub — do NOT decompile local JARs, .framework bundles, or other build artifacts. Use `gh api` or `WebFetch` against the repos above.
 
+If unsure about plugin architecture, be sure to read the README.md files, /docs/architecture.md and /docs/api-reference files.
+
 Voice data for TTS comes from https://github.com/readium/speech (refreshed by `bin/update_readium_voice_data`).
 
 When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Keep the build/package files above as the source-of-truth, and avoid duplicating exact version numbers broadly in docs.
