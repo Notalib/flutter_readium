@@ -39,6 +39,7 @@ export async function initializeEpubNavigatorAndPeripherals(
     // Use readingOrder if positionListLink is undefined
     // TODO: this is a workaround, consider using initializeWebPubNavigatorAndPeripherals as fallback instead
     // webpub does not required a position list
+    log.warn("No positions from manifest, falling back to readingOrder");
     positions = publication.manifest.readingOrder.items.map(
       (link: Link, index: number) => {
         return new Locator({
@@ -80,6 +81,7 @@ export async function initializeEpubNavigatorAndPeripherals(
   // example-app features like next/previous-chapter (which read
   // `locator.locations.tocHref`) never get a starting reference.
   const flatToc = flattenToc(publication.manifest.toc?.items ?? []);
+  log.debug(`TOC flattened: ${flatToc.length} entries, positions: ${positions.length}`);
 
   const configuration: EpubNavigatorConfiguration = {
     preferences,
@@ -191,7 +193,9 @@ export async function initializeEpubNavigatorAndPeripherals(
 
   try {
     await nav.load();
+    log.info("EpubNavigator loaded");
   } catch (error) {
+    log.error("Failed to load EpubNavigator:", error);
     // TODO: check if necessary to rethrow
     throw error;
   }
