@@ -39,6 +39,31 @@ const BOUNDARY_THROTTLE_MS = 100;
 
 type AnyNavigator = EpubNavigator | WebPubNavigator;
 
+/**
+ * Collapses any run of whitespace to a single space and trims.
+ * The upstream HTMLResourceContentIterator preserves source-XHTML whitespace
+ * (indentation, line breaks) verbatim in LocatorText, which clutters logs and
+ * persisted bookmarks without adding information.
+ */
+function normalizeWhitespace(s: string | undefined | null): string | undefined {
+  if (!s) return undefined;
+  const trimmed = s.replace(/\s+/g, " ").trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** Returns a JSON-cloned locator with LocatorText fields whitespace-normalized. */
+function normalizeLocatorJson(locator: Locator): any {
+  const clone = JSON.parse(JSON.stringify(locator));
+  if (clone?.text) {
+    clone.text = {
+      before: normalizeWhitespace(clone.text.before),
+      highlight: normalizeWhitespace(clone.text.highlight),
+      after: normalizeWhitespace(clone.text.after),
+    };
+  }
+  return clone;
+}
+
 /** JSON payload shape matching ReadiumTimebasedState. */
 function buildTTSStatePayload(
   state: string,
@@ -48,7 +73,7 @@ function buildTTSStatePayload(
     state,
     currentOffset: null,
     currentDuration: null,
-    currentLocator: locator ? JSON.parse(JSON.stringify(locator)) : null,
+    currentLocator: locator ? normalizeLocatorJson(locator) : null,
   });
 }
 
@@ -57,7 +82,7 @@ function emitState(state: string, locator: Locator | null) {
 }
 
 function emitLocator(locator: Locator) {
-  window.updateTextLocator?.(JSON.stringify(locator));
+  window.updateTextLocator?.(JSON.stringify(normalizeLocatorJson(locator)));
 }
 
 export class WebTTSEngine {
@@ -109,8 +134,22 @@ export class WebTTSEngine {
 
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
-    log.info("play", fromLocator ? "(from locator)" : "");
-    speechSynthesis.cancel();
+    log.info("play", fromLocator ? "(from locator)" : "", {
+      speaking: speechSynthesis.speaking,
+      pending: speechSynthesis.pending,
+      paused: speechSynthesis.paused,
+      voices: speechSynthesis.getVoices().length,
+    });
+    // Prime the engine synchronously inside the user-gesture frame.
+    // Chromium silently swallows the first async speak() if the gesture has
+    // already expired by the time we call it (after awaiting hasNext()).
+    // A zero-length utterance consumes the gesture and wakes the engine.
+    speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+    // Only cancel if there's something queued — cancel() on an idle engine
+    // can leave Chromium in a stalled state.
+    if (speechSynthesis.speaking || speechSynthesis.pending) {
+      speechSynthesis.cancel();
+    }
     this._iterator = new PublicationContentIterator(
       this._publication,
       fromLocator,
@@ -198,7 +237,9 @@ export class WebTTSEngine {
   private async _speakNext(): Promise<void> {
     if (!this._iterator || this._destroyed) return;
 
+    log.debug("_speakNext: awaiting hasNext");
     const hasNext = await this._iterator.hasNext();
+    log.debug("_speakNext: hasNext =", hasNext);
     if (!hasNext) {
       log.info("TTS reached end of publication");
       emitState("ended", this._currentElement?.locator ?? null);
@@ -206,6 +247,10 @@ export class WebTTSEngine {
     }
 
     const element: ContentElement = this._iterator.next();
+    log.debug("_speakNext: next element", {
+      kind: element.constructor.name,
+      isText: element instanceof TextElement,
+    });
     if (!(element instanceof TextElement)) {
       // Skip non-text elements (images, audio, etc.) and advance.
       await this._speakNext();
@@ -242,8 +287,12 @@ export class WebTTSEngine {
     if (this._destroyed) return;
 
     const text = element.text;
+    log.debug("_speakElement", {
+      textLen: text?.length ?? 0,
+      textPreview: text?.slice(0, 60),
+    });
     if (!text || text.trim().length === 0) {
-      // Empty element — skip immediately.
+      log.debug("_speakElement: empty text, skipping");
       this._speakNext();
       return;
     }
@@ -264,8 +313,16 @@ export class WebTTSEngine {
     } else if (this._prefs.lang) {
       utterance.lang = this._prefs.lang;
     }
+    log.debug("_speakElement: utterance config", {
+      voice: voice?.name ?? "(default)",
+      lang: utterance.lang || "(none)",
+      rate: utterance.rate,
+      pitch: utterance.pitch,
+      elementLang: lang ?? "(none)",
+    });
 
     utterance.onstart = () => {
+      log.debug("utterance.onstart");
       if (this._destroyed) return;
       emitState("playing", element.locator);
       emitLocator(element.locator);
@@ -282,15 +339,16 @@ export class WebTTSEngine {
     };
 
     utterance.onend = () => {
+      log.debug("utterance.onend");
       if (this._destroyed) return;
       this._speakNext();
     };
 
     utterance.onerror = (ev) => {
+      log.warn("utterance.onerror", ev.error);
       if (this._destroyed) return;
       // "interrupted" and "canceled" are expected when stop()/pause()/next() is called.
       if (ev.error === "interrupted" || ev.error === "canceled") return;
-      log.warn("TTS utterance error:", ev.error);
       emitState("failure", element.locator);
     };
 
@@ -316,7 +374,13 @@ export class WebTTSEngine {
       }
     };
 
+    log.debug("_speakElement: calling speechSynthesis.speak");
     speechSynthesis.speak(utterance);
+    log.debug("_speakElement: after speak()", {
+      speaking: speechSynthesis.speaking,
+      pending: speechSynthesis.pending,
+      paused: speechSynthesis.paused,
+    });
   }
 
   /**
