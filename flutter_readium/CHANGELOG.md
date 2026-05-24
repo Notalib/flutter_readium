@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Web: structured console logging** — all web TS modules now log through a
+  tagged logger (`[Readium/<Module>] LEVEL: message`) with runtime level control.
+  The `setLogLevel` interface method now propagates to the JS bundle so web
+  logging verbosity is controlled from Dart alongside the native platforms.
+- **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')`
+  factory creates child loggers named `flutter_readium.<Name>`, surfacing the
+  source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
+
 ### Fixed
 
 - **Web: Media Overlay audio playback crash** — fixed "Failed to create new

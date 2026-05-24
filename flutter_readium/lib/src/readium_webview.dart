@@ -38,6 +38,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   }
 
   final _readium = FlutterReadiumPlatform.instance;
+  static final _log = ReadiumLog.tag('WebView');
 
   EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
@@ -50,12 +51,12 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
   @js_interop.JSExport()
   void onReaderStatusChanged(final String statusString) {
-    ReadiumLog.d('Reader status changed: $statusString');
+    _log.d('Reader status changed: $statusString');
     final status = ReadiumReaderStatus.optFromString(statusString);
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {
-      ReadiumLog.w('Unknown ReadiumReaderStatus: $statusString');
+      _log.w('Unknown ReadiumReaderStatus: $statusString');
     }
   }
 

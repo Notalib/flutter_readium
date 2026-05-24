@@ -42,15 +42,17 @@ class ReadiumReaderWidget extends StatefulWidget {
 }
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+  static final _log = ReadiumLog.tag('ReaderWidget');
+
   @override
   void initState() {
     super.initState();
-    ReadiumLog.d('Widget initiated');
+    _log.d('Widget initiated');
   }
 
   @override
   void dispose() {
-    ReadiumLog.d('Widget disposed');
+    _log.d('Widget disposed');
     super.dispose();
   }
 
@@ -92,16 +94,16 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    ReadiumLog.d('setEPUBPreferences not implemented in web version');
+    _log.d('setEPUBPreferences not implemented in web version');
   }
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    ReadiumLog.d('setPDFPreferences not supported on web');
+    _log.d('setPDFPreferences not supported on web');
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    ReadiumLog.d('applyDecorations not implemented in web version');
+    _log.d('applyDecorations not implemented in web version');
   }
 }

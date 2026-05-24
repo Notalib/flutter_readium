@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 
 import 'flutter_readium_platform_interface.dart';
 
+final _log = ReadiumLog.tag('MethodChannel');
+
 /// An implementation of [FlutterReadiumPlatform] that uses method channels.
 class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// The method channel used to interact with the native platform.
@@ -68,13 +70,13 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
-      ReadiumLog.i('Received reader status event: $event');
+      _log.i('Received reader status event: $event');
       try {
         return ReadiumReaderStatus.optFromString(json.decode(event) as String) ??
             ReadiumReaderStatus.optFromString(event) ??
             ReadiumReaderStatus.error;
       } on Exception catch (e) {
-        ReadiumLog.w('Error parsing reader status event: $e');
+        _log.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
     });
@@ -249,7 +251,7 @@ void _warnIfPublisherStylesOverrides(EPUBPreferences preferences) {
       if (preferences.backgroundColor != null) 'backgroundColor',
     ];
     if (ignored.isNotEmpty) {
-      ReadiumLog.w(
+      _log.w(
         'EPUBPreferences: publisherStyles is ${preferences.publisherStyles == null ? 'null (defaults to true)' : 'true'} '
         '— the following preferences will have no effect: ${ignored.join(', ')}',
       );
