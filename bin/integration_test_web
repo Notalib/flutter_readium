@@ -67,6 +67,7 @@ fi
 echo "==> ChromeDriver running on port 4444 (PID $CHROMEDRIVER_PID)"
 
 # Run the web integration tests
+# Note: --test-arguments --report=expanded is needed to see the full test output in the console
 echo "==> Running web integration tests..."
 cd "$EXAMPLE_DIR"
 flutter drive \
