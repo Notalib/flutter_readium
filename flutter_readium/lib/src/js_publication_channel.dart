@@ -56,6 +56,7 @@ external set onDecorationInteractionCallback(JSFunction f);
 
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
+  static final _log = ReadiumLog.tag('JsChannel');
 
   static void setLogLevel(LogLevel level) {
     _readiumReader.setLogLevel(level.index.toJS);
@@ -158,7 +159,7 @@ class JsPublicationChannel {
     try {
       _readiumReader.closePublication();
     } on Object catch (error) {
-      ReadiumLog.e('Error closing publication: $error');
+      _log.e('Error closing publication: $error');
     }
   }
 
@@ -239,7 +240,7 @@ class JsPublicationChannel {
       if (isReady) {
         _readiumReader.setEPUBPreferences(newPreferencesString.toJS);
       } else {
-        ReadiumLog.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
+        _log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
       final errorString = jsError.toString();

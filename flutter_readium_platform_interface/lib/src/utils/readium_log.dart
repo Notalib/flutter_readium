@@ -62,12 +62,18 @@ abstract class ReadiumLog {
   /// Formats a [LogRecord] using the plugin's log convention:
   /// `LEVEL [flutter_readium/Tag] message`
   ///
-  /// The level name is left-padded to 5 characters so log lines align
-  /// vertically, making it easy to scan a stream for `WARN`/`ERROR` entries.
+  /// The level name is padded to 5 characters so log lines align vertically,
+  /// making it easy to scan a stream for `WARN`/`ERROR` entries.
+  ///
+  /// Pass `colored: true` to wrap `WARN` lines in ANSI yellow and `ERROR`
+  /// lines in ANSI red. This works in the Dart VM terminal but should be
+  /// disabled on Flutter Web (`kIsWeb`) where the terminal is not available.
   ///
   /// Use this in your `Logger.root.onRecord` listener:
   /// ```dart
-  /// Logger.root.onRecord.listen((r) => debugPrint(ReadiumLog.format(r)));
+  /// Logger.root.onRecord.listen(
+  ///   (r) => debugPrint(ReadiumLog.format(r, colored: !kIsWeb)),
+  /// );
   /// ```
   ///
   /// Examples:
@@ -77,15 +83,16 @@ abstract class ReadiumLog {
   /// DEBUG [flutter_readium/TTS] play (with locator)
   /// ERROR [flutter_readium/Reader] Failed to open publication: HTTP 404
   /// ```
-  static String format(final LogRecord record) {
+  static String format(final LogRecord record, {final bool colored = false}) {
     // flutter_readium.WebPlugin → flutter_readium/WebPlugin
     final name = record.loggerName.replaceFirst('.', '/');
     final level = record.level.name.padRight(5);
     final msg = record.message;
-    if (record.error != null) {
-      return '$level [$name] $msg (${record.error})';
-    }
-    return '$level [$name] $msg';
+    final line = record.error != null ? '$level [$name] $msg (${record.error})' : '$level [$name] $msg';
+    if (!colored) return line;
+    if (record.level >= _levelError) return '\x1B[31m$line\x1B[0m'; // red
+    if (record.level >= _levelWarn) return '\x1B[33m$line\x1B[0m'; // yellow
+    return line;
   }
 
   /// Map a [LogLevel] to a `package:logging` [Level] and apply it.

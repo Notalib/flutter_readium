@@ -99,6 +99,7 @@ class ReadiumReaderWidget extends StatefulWidget {
 }
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+  static final _log = ReadiumLog.tag('ReaderWidget');
   static const _wakelockTimerDuration = Duration(minutes: 30);
 
   Timer? _wakelockTimer;
@@ -124,7 +125,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   void initState() {
     super.initState();
-    ReadiumLog.d('ReadiumReaderWidget init');
+    _log.d('ReadiumReaderWidget init');
 
     _readerWidget = _buildNativeReader();
     _enableWakelock();
@@ -134,7 +135,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   void dispose() {
-    ReadiumLog.d('ReadiumReaderWidget dispose');
+    _log.d('ReadiumReaderWidget dispose');
     _cleanup();
     _channel?.dispose();
     _channel = null;
@@ -227,11 +228,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
-    ReadiumLog.d(() => 'Go to $locator');
+    _log.d(() => 'Go to $locator');
 
     await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
 
-    ReadiumLog.d('Go to locator completed');
+    _log.d('Go to locator completed');
   }
 
   @override
@@ -260,7 +261,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Widget _buildNativeReader() {
     final publication = widget.publication;
 
-    ReadiumLog.d(publication.identifier);
+    _log.d(publication.identifier);
 
     final defaultPreferences = _defaultPreferences?.toJson();
 
@@ -276,7 +277,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
     };
 
-    ReadiumLog.d('creationParams=$creationParams');
+    _log.d('creationParams=$creationParams');
 
     if (Platform.isAndroid) {
       return PlatformViewLink(
@@ -314,7 +315,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   Future<void> _enableWakelock() async {
-    ReadiumLog.d('Ensure wakelock /w timer');
+    _log.d('Ensure wakelock /w timer');
 
     WakelockPlus.enable();
 
@@ -324,19 +325,19 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   void _disableWakelock() {
-    ReadiumLog.d('Disable wakelock');
+    _log.d('Disable wakelock');
 
     WakelockPlus.disable();
     _wakelockTimer?.cancel();
   }
 
   void _setCurrentWidgetInterface() {
-    ReadiumLog.d('Set current reader in plugin');
+    _log.d('Set current reader in plugin');
     _readium.currentReaderWidget = this;
   }
 
   void _cleanup() {
-    ReadiumLog.d('cleanup ${_channel?.name}!');
+    _log.d('cleanup ${_channel?.name}!');
     _readium.currentReaderWidget = null;
   }
 
@@ -346,7 +347,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
       onPageChanged: (final locator) {
-        ReadiumLog.d(() => 'onPageChanged: ${locator.toJson()}');
+        _log.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
 
         if (isReady == false) {
@@ -365,7 +366,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       _channel!.configureSelectionActions(widget.selectionActions);
     }
 
-    ReadiumLog.d('New widget is: ${_channel?.name}');
+    _log.d('New widget is: ${_channel?.name}');
   }
 
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
@@ -387,8 +388,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       // trigger scrolling to the nearest page.
       if (_lastOrientation != null && _currentLocator != null) {
         Future.delayed(const Duration(milliseconds: 500)).then((final value) {
-          ReadiumLog.d('Orientation changed. Re-navigating to current locator to re-align page.');
-          ReadiumLog.d('locator = $_currentLocator');
+          _log
+            ..d('Orientation changed. Re-navigating to current locator to re-align page.')
+            ..d('locator = $_currentLocator');
           _channel?.go(
             _currentLocator!,
             animated: false,
