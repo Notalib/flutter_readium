@@ -9,6 +9,9 @@ import {
   normalizeTypes,
   textAlignFromJson,
 } from "../helpers";
+import { createLogger } from "../logger";
+
+const log = createLogger("EpubPrefs");
 
 /**
  * Converts the Dart-side EPUBPreferences JSON into Readium's IEpubPreferences.
@@ -138,7 +141,7 @@ export function initializeEpubPreferencesFromString(
   preferencesString: string
 ): IEpubPreferences {
   const prefs = epubPreferencesFromJson(JSON.parse(preferencesString));
-  console.log('EpubPreferences parsed from string', prefs);
+  log.debug("Parsed initial preferences", prefs);
   return prefs
 }
 
@@ -165,7 +168,7 @@ export function setEpubPreferencesFromString(
   // and `this` remains bound to `nav` — extracting it as a free function would
   // break `this._preferences.merging(...)` inside the navigator.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  console.log('Submitting preferences to navigator', preferences);
+  log.debug("Submitting preferences to navigator", preferences);
   nav.submitPreferences(preferences as any);
 }
 

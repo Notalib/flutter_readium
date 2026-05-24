@@ -6,7 +6,10 @@ import {
 } from "@readium/navigator";
 import { Locator } from "@readium/shared";
 import { normalizeTypes } from "../helpers";
+import { createLogger } from "../logger";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+
+const log = createLogger("AudioNav");
 
 export function buildStatePayload(
   state: string,
@@ -30,7 +33,7 @@ export function buildStatePayload(
 // Dart "updateIntervalSecs" (s) -> TS "pollInterval" (ms).
 function preferencesFromString(preferencesString: string): IAudioPreferences {
   const prefs = normalizeTypes(JSON.parse(preferencesString));
-  console.log('Parsing AudioPreferences from string', prefs);
+  log.debug("Parsed AudioPreferences", prefs);
   return {
     volume: prefs.volume ?? null,
     playbackRate: prefs.speed ?? null,
@@ -105,7 +108,7 @@ export async function initializeAudioNavigator(
   setNav: (nav: AudioNavigator) => void,
   locatorMapper?: AudioLocatorMapper
 ): Promise<void> {
-  console.log("Initializing AudioNavigator");
+  log.info("Initializing AudioNavigator");
 
   const configuration: AudioNavigatorConfiguration = {
     preferences: preferencesFromString(preferencesJsonString),

@@ -14,6 +14,7 @@
 import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { createLogger } from "../logger";
 import { AudioLocatorMapper, initializeAudioNavigator } from "./audioNavigator";
 import {
   SyncNarrationItem,
@@ -23,6 +24,8 @@ import {
   parseSyncNarration,
   textLocatorForItem,
 } from "./syncNarration";
+
+const log = createLogger("MediaOverlay");
 
 /**
  * Initialises a Media Overlay session for the given EPUB publication.
@@ -38,11 +41,11 @@ export async function initializeMediaOverlayNavigator(
   prefsJson: string,
   setNav: (nav: AudioNavigator) => void
 ): Promise<void> {
-  console.log("Initializing MediaOverlayNavigator");
+  log.info("Initializing MediaOverlayNavigator");
 
   const items = await parseSyncNarration(publication);
   if (items.length === 0) {
-    console.warn("MediaOverlay: no sync narration items found; aborting.");
+    log.warn("No sync narration items found; aborting.");
     return;
   }
 

@@ -6,6 +6,7 @@ import { Link } from "@readium/shared";
 
 // Helpers and extensions
 import { fetchManifest } from "./helpers";
+import { createLogger, LogLevel, setLogLevel } from "./logger";
 import { ReadiumReaderStatus } from "./enums";
 import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
@@ -16,6 +17,8 @@ import { detectSyncNarration } from "./Audio/syncNarration";
 import { initializeMediaOverlayNavigator } from "./Audio/mediaOverlayNavigator";
 import { WebTTSEngine } from "./TTS/ttsNavigator";
 import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
+
+const log = createLogger("Reader");
 
 /** Finds a link by href, falling back to pathname comparison for relative vs. absolute mismatches. */
 function findLinkByHref(
@@ -41,7 +44,17 @@ function findLinkByHref(
 
 class _ReadiumReader {
   public constructor() {
-    console.log("R2Navigator initialized");
+    log.info("ReadiumReader instance created");
+  }
+
+  /**
+   * Sets the log verbosity for the web bundle.
+   * Maps to the Dart LogLevel enum indices: 0=none, 1=error, 2=warn, 3=info, 4=debug.
+   */
+  public setLogLevel(level: number): void {
+    const mapped: LogLevel = level >= 0 && level <= 4 ? level : LogLevel.info;
+    setLogLevel(mapped);
+    log.info("Log level set to", LogLevel[mapped]);
   }
 
   private _publication: ReadiumPublication | undefined;
@@ -69,6 +82,7 @@ class _ReadiumReader {
   >();
 
   public async getPublication(publicationURL: string) {
+    log.info("getPublication", publicationURL);
     try {
       const { manifest, fetcher } = await fetchManifest(publicationURL);
       this._publication = new ReadiumPublication({ manifest, fetcher });
@@ -76,17 +90,21 @@ class _ReadiumReader {
       let pubId = this._publication.metadata.identifier ?? "unidentified";
       _ReadiumReader._publications.set(pubId, this._publication);
 
+      log.info("Publication fetched:", pubId);
       return JSON.stringify(manifest.serialize());
     } catch (error) {
+      log.error("Failed to get publication:", error);
       throw new Error("Error getting publication: " + error);
     }
   }
 
   public goRight() {
+    log.debug("goRight");
     this._nav?.goRight(true, () => {});
   }
 
   public goLeft() {
+    log.debug("goLeft");
     this._nav?.goLeft(true, () => {});
   }
 
@@ -96,14 +114,17 @@ class _ReadiumReader {
    * visual). The Dart-side `goForward`/`goBackward` API maps to these.
    */
   public goForward() {
+    log.debug("goForward");
     this._nav?.goForward(true, () => {});
   }
 
   public goBackward() {
+    log.debug("goBackward");
     this._nav?.goBackward(true, () => {});
   }
 
   public async goTo(href: string): Promise<void> {
+    log.debug("goTo", href);
     // Audiobook: build a Locator from the publication's reading order and navigate via AudioNavigator.
     if (this._audioNav) {
       const pub = this._publication;
@@ -113,12 +134,12 @@ class _ReadiumReader {
       ];
       const link = findLinkByHref(allLinks, href);
       if (!link) {
-        console.error("Audio link not found " + href + ". Tried", allLinks.map((l) => l.href).join(", "));
+        log.error("Audio link not found:", href);
         throw new Error("Audio link not found " + href);
       }
       const locator = new Locator({ href: link.href, type: link.type ?? "audio/mpeg" });
       await this._audioNav.go(locator, false, (ok) => {
-        if (!ok) console.error("Audiobook navigation failed for href: " + href);
+        if (!ok) log.error("Audiobook navigation failed for href:", href);
       });
       return;
     }
@@ -131,11 +152,12 @@ class _ReadiumReader {
     ];
     const link = findLinkByHref(allLinks, href);
     if (!link) {
-      console.error("Link not found " + href + ". Tried all resource links", allLinks.map((l) => l.href).join(", "));
+      log.error("Link not found:", href);
       throw new Error("Link not found " + href);
     }
     this._nav?.goLink(link, true, (ok) => {
       if (!ok) {
+        log.error("Failed to navigate to link:", href);
         throw new Error("Failed to navigate to link " + href);
       }
     });
@@ -147,6 +169,7 @@ class _ReadiumReader {
     initialPositionJson: string | undefined,
     preferencesJson: string | undefined
   ) {
+    log.info("openPublication", { pubId, hasInitialPosition: !!initialPositionJson });
     window.updateReaderStatus?.(ReadiumReaderStatus.loading);
 
     let initialPosition: Locator | undefined;
@@ -172,6 +195,7 @@ class _ReadiumReader {
       }
 
       if (this._publication.conformsToAudiobook) {
+        log.info("Publication conforms to Audiobook profile");
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await initializeAudioNavigator(
           this._publication,
@@ -187,13 +211,15 @@ class _ReadiumReader {
         const container: HTMLElement | null =
           document.body.querySelector("#container");
         if (!container) {
-          console.error("Container element not found");
+          log.error("Container element #container not found in DOM");
           window.updateReaderStatus?.(ReadiumReaderStatus.error);
           throw new Error("Container element not found");
         }
         if (this._publication.conformsToEpub) {
+          log.info("Publication conforms to EPUB profile");
           // Detect sync narration before opening the navigator (async fetch-free check).
           this._hasSyncNarration = detectSyncNarration(this._publication);
+          if (this._hasSyncNarration) log.info("Sync Narration detected");
           await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,
@@ -206,6 +232,7 @@ class _ReadiumReader {
             (positions) => { this._positions = positions; }
           );
         } else {
+          log.info("Publication conforms to WebPub profile");
           await initializeWebPubNavigatorAndPeripherals(
             container,
             this._publication,
@@ -219,6 +246,7 @@ class _ReadiumReader {
         }
       }
     } catch (error) {
+      log.error("Failed to open publication:", error);
       this.closePublication(error);
       throw new Error("Error opening publication: " + error);
     }
@@ -226,8 +254,10 @@ class _ReadiumReader {
 
   public setEPUBPreferences(newPreferencesString: string) {
     if (!this._nav) {
+      log.error("setEPUBPreferences: navigator is not initialized");
       throw new Error("Navigator is not initialized");
     }
+    log.debug("setEPUBPreferences");
     // Track the plugin-side `disableSynchronization` flag separately from the
     // navigator's preferences (the web navigator doesn't expose this toggle).
     try {
@@ -242,6 +272,7 @@ class _ReadiumReader {
   }
 
   public closePublication(error?: any) {
+    log.info("closePublication", error ? `(error: ${error})` : "");
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
     this._hasSyncNarration = false;
@@ -271,7 +302,7 @@ class _ReadiumReader {
     const navDestroy = this._nav?.destroy();
     if (navDestroy) {
       navDestroy.then(clearContainer).catch((err) => {
-        console.error("Error destroying EPUB navigator:", err);
+        log.error("Error destroying navigator:", err);
         clearContainer();
       });
     } else {
@@ -280,6 +311,7 @@ class _ReadiumReader {
   }
 
   public play(locatorJson?: string): void {
+    log.debug("play", locatorJson ? "(with locator)" : "");
     if (this._ttsEngine) {
       const locator = locatorJson
         ? Locator.deserialize(JSON.parse(locatorJson)) ?? undefined
@@ -302,32 +334,38 @@ class _ReadiumReader {
   }
 
   public pause(): void {
+    log.debug("pause");
     if (this._ttsEngine) { this._ttsEngine.pause(); return; }
     this._audioNav?.pause();
   }
 
   public resume(): void {
+    log.debug("resume");
     if (this._ttsEngine) { this._ttsEngine.resume(); return; }
     this._audioNav?.play();
   }
 
   public stop(): void {
+    log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
     this._audioNav?.stop();
   }
 
   public next(): void {
+    log.debug("next");
     if (this._ttsEngine) { this._ttsEngine.next(); return; }
     this._audioNav?.goForward(false, () => {});
   }
 
   public previous(): void {
+    log.debug("previous");
     if (this._ttsEngine) { this._ttsEngine.previous(); return; }
     this._audioNav?.goBackward(false, () => {});
   }
 
   /** Relative seek by seconds. Applies to AudioNavigator (audiobook / Media Overlay). */
   public seekBy(seconds: number): void {
+    log.debug("seekBy", seconds);
     this._audioNav?.jump(seconds);
   }
 
@@ -337,15 +375,16 @@ class _ReadiumReader {
    * - EpubNavigator: finds the closest position locator and navigates to it.
    */
   public goToProgression(progression: number): boolean {
+    log.debug("goToProgression", progression);
     if (progression < 0 || progression > 1) {
-      console.warn(`goToProgression: progression ${progression} out of range [0, 1]`);
+      log.warn("goToProgression: progression out of range [0, 1]:", progression);
       return false;
     }
 
     if (this._audioNav) {
       const duration = this._audioNav.duration;
       if (duration <= 0) {
-        console.warn("goToProgression: audio duration not available");
+        log.warn("goToProgression: audio duration not available");
         return false;
       }
       this._audioNav.seek(progression * duration);
@@ -360,13 +399,13 @@ class _ReadiumReader {
       const locator = this._positions[index];
       this._nav.go(locator, true, (ok) => {
         if (!ok) {
-          console.warn("goToProgression: navigation failed for position", index);
+          log.warn("goToProgression: navigation failed for position", index);
         }
       });
       return true;
     }
 
-    console.warn("goToProgression: no active navigator or positions available");
+    log.warn("goToProgression: no active navigator or positions available");
     return false;
   }
 
@@ -379,8 +418,9 @@ class _ReadiumReader {
    * Requires an EPUB or WebPub visual navigator to already be active.
    */
   public async ttsEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
+    log.info("ttsEnable");
     if (!this._nav || !this._publication) {
-      console.warn("ttsEnable: no visual navigator active");
+      log.warn("ttsEnable: no visual navigator active");
       return;
     }
     // Destroy any previous TTS session.
@@ -429,6 +469,7 @@ class _ReadiumReader {
    *  - Media Overlay EPUB: lazy-initialize MediaOverlayNavigator, then play.
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
+    log.info("audioEnable");
     if (this._audioNav) {
       // Pure audiobook already initialized — seek to locator (if provided) and play.
       if (fromLocatorJson) {
@@ -462,10 +503,11 @@ class _ReadiumReader {
       return;
     }
 
-    console.log("audioEnable: no audiobook or Media Overlay content detected");
+    log.warn("audioEnable: no audiobook or Media Overlay content detected");
   }
 
   public setAudioPreferences(preferencesJson: string): void {
+    log.debug("setAudioPreferences");
     if (!this._audioNav) return;
     const prefs = JSON.parse(preferencesJson);
     this._audioNav.submitPreferences(new AudioPreferences({
@@ -483,12 +525,12 @@ class _ReadiumReader {
     let linkJson = JSON.parse(linkString.toString());
     let link: Link | undefined = Link.deserialize(linkJson);
     if (!link) {
-      console.error("Invalid link string");
+      log.error("getLinkContent: invalid link string");
     }
     let resourceLink: Resource | undefined = this._publication?.get(link!);
 
     if (!resourceLink) {
-      console.error("Resource not found", link);
+      log.error("getLinkContent: resource not found", link);
     }
 
     let linkContent: string | undefined;

@@ -17,6 +17,9 @@ import {
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { createLogger } from "../logger";
+
+const log = createLogger("WebPubNav");
 
 // TODO:
 // There is a webpub from readiums publication-server called molly hopper that is an accessible epub and it doesn't quite work
@@ -29,12 +32,12 @@ export async function initializeWebPubNavigatorAndPeripherals(
   preferencesJsonString: string,
   setNav: (nav: WebPubNavigator) => void
 ) {
-  console.log("Initializing WebPubNavigator");
+  log.info("Initializing WebPubNavigator");
   let preferences = initializeWebPubPreferencesFromString(
     preferencesJsonString
   );
 
-  console.log('Initialized WebPub preferences', preferences);
+  log.debug("WebPub preferences", preferences);
 
   const configuration: WebPubNavigatorConfiguration = {
     preferences,
@@ -93,12 +96,12 @@ export async function initializeWebPubNavigatorAndPeripherals(
       window.updateTextLocator?.(JSON.stringify(_locator));
     },
     tap: function (_e: FrameClickEvent): boolean {
-      console.log("tap event received in WebPubNavigator");
+      log.debug("tap event");
 
       return false;
     },
     click: function (_e: FrameClickEvent): boolean {
-      console.log("click event received in WebPubNavigator");
+      log.debug("click event");
       return false;
     },
     zoom: function (_scale: number): void {},
@@ -113,7 +116,7 @@ export async function initializeWebPubNavigatorAndPeripherals(
       ) {
         if (confirm(`Open "${href}" ?`)) window.open(href, "_blank");
       } else {
-        console.warn("Unhandled locator", locator);
+        log.warn("Unhandled locator href:", href);
       }
       return false;
     },

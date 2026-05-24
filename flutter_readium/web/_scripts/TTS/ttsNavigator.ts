@@ -25,11 +25,14 @@ import {
   TextElement,
 } from "@readium/shared";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { createLogger } from "../logger";
 import {
   WebTTSPreferences,
   serializeVoices,
   ttsPreferencesFromJson,
 } from "./ttsPreferences";
+
+const log = createLogger("TTS");
 
 /** Minimum ms between onboundary state emissions (throttle). */
 const BOUNDARY_THROTTLE_MS = 100;
@@ -106,6 +109,7 @@ export class WebTTSEngine {
 
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
+    log.info("play", fromLocator ? "(from locator)" : "");
     speechSynthesis.cancel();
     this._iterator = new PublicationContentIterator(
       this._publication,
@@ -132,6 +136,7 @@ export class WebTTSEngine {
 
   stop(): void {
     if (this._destroyed) return;
+    log.info("stop");
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
@@ -166,6 +171,7 @@ export class WebTTSEngine {
   }
 
   destroy(): void {
+    log.info("destroy");
     this._destroyed = true;
     speechSynthesis.cancel();
     this._iterator = null;
@@ -278,7 +284,7 @@ export class WebTTSEngine {
       if (this._destroyed) return;
       // "interrupted" and "canceled" are expected when stop()/pause()/next() is called.
       if (ev.error === "interrupted" || ev.error === "canceled") return;
-      console.warn("TTS error:", ev.error);
+      log.warn("TTS utterance error:", ev.error);
       emitState("failure", element.locator);
     };
 

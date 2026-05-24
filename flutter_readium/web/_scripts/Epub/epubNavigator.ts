@@ -19,7 +19,10 @@ import {
   initializeEpubPreferencesFromString,
 } from "./epubPreferences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { createLogger } from "../logger";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
+
+const log = createLogger("EpubNav");
 
 export async function initializeEpubNavigatorAndPeripherals(
   container: HTMLElement,
@@ -29,7 +32,7 @@ export async function initializeEpubNavigatorAndPeripherals(
   setNav: (nav: EpubNavigator | WebPubNavigator) => void,
   setPositions?: (positions: Locator[]) => void
 ) {
-  console.log("Initializing EpubNavigator");
+  log.info("Initializing EpubNavigator");
   let positions = await publication.positionsFromManifest();
 
   if (positions.length === 0) {
@@ -155,7 +158,7 @@ export async function initializeEpubNavigatorAndPeripherals(
       ) {
         if (confirm(`Open "${href}" ?`)) window.open(href, "_blank");
       } else {
-        console.warn("Unhandled locator", locator);
+        log.warn("Unhandled locator href:", href);
       }
       return false;
     },
