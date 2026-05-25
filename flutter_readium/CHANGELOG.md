@@ -9,6 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 =======
 ### Added (platform interface)
 
+- **Web: `onErrorEvent` stream implemented** — subscribing to
+  `FlutterReadium().onErrorEvent` on web no longer returns an empty stream.
+  A broadcast `StreamController<ReadiumError>` now backs the stream;
+  `openPublication` failures in the JS bundle are forwarded to Dart via an
+  `onErrorCallback` window setter. Pure audiobook paths register the same
+  callback via `_AudiobookCallbacks`.
+
 - **`ReaderDecorationStyle.isActive`** — new `bool` field (default `false`) that
   renders the decoration in a visually distinct "active" state (e.g. brighter
   highlight) to mark the currently focused annotation. Maps to the upstream

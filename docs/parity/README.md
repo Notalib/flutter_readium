@@ -12,7 +12,6 @@ This directory contains decision-grade gap analysis and implementation plans for
 
 - **[cross-platform-search-options.md](cross-platform-search-options.md)** — `searchInPublication` accepts only a plain query string; both upstream toolkits expose `SearchOptions` (caseSensitive, wholeWord, diacriticSensitive, regularExpression, language) that are not forwarded. *(Upstream feature / M)*
 
-- **[web-error-event.md](web-error-event.md)** — `onErrorEvent` throws `UnimplementedError` on web, making the stream unsubscribable. iOS emits errors; Android has the stream registered. *(Cross-platform parity / S)*
 
 
 

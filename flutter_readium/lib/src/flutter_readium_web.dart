@@ -30,6 +30,13 @@ class _AudiobookCallbacks {
       _log.w('Unknown ReadiumReaderStatus: $statusString');
     }
   }
+
+  @js_interop.JSExport()
+  void onErrorHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final error = ReadiumError.fromJson(json);
+    FlutterReadiumWebPlugin.addErrorEvent(error);
+  }
 }
 
 class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
@@ -46,6 +53,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       StreamController<ReadiumTimebasedState>.broadcast();
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
+  static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();
 
   static void addTextLocatorUpdate(Locator locator) {
     _locatorTextController.add(locator);
@@ -57,6 +65,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   static void addReaderStatusUpdate(ReadiumReaderStatus status) {
     _readerStatusController.add(status);
+  }
+
+  static void addErrorEvent(ReadiumError error) {
+    _errorEventController.add(error);
   }
 
   @override
@@ -189,6 +201,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       _audiobookCallbacks = _AudiobookCallbacks();
       updateTimebasedPlayerState = _audiobookCallbacks!.onTimebasedPlayerState.toJS;
       updateReaderStatus = _audiobookCallbacks!.onReaderStatus.toJS;
+      onErrorCallback = _audiobookCallbacks!.onErrorHandler.toJS;
       try {
         await JsPublicationChannel().openPublication(
           pubUrl,
@@ -351,5 +364,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   // TODO: Is this used anymore with the new JS implementation? If not, remove.
   @override
-  Stream<ReadiumError> get onErrorEvent => const Stream.empty();
+  @override
+  Stream<ReadiumError> get onErrorEvent => _errorEventController.stream;
 }

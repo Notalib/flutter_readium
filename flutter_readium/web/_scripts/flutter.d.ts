@@ -25,6 +25,12 @@ declare global {
      * @param selectionJson JSON-stringified TextSelectionEvent
      */
     onTextSelectedCallback?: (selectionJson: string) => void;
+
+    /**
+     * Forward a non-fatal reader error to the Flutter app.
+     * @param errorJson JSON-stringified { message: string, code?: string }
+     */
+    onErrorCallback?: (errorJson: string) => void;
   }
 }
 

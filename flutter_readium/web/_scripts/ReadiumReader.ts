@@ -340,6 +340,8 @@ class _ReadiumReader {
       }
     } catch (error) {
       log.error("Failed to open publication:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      window.onErrorCallback?.(JSON.stringify({ message: "Failed to open publication: " + errorMessage }));
       this.closePublication(error);
       throw new Error("Error opening publication: " + error);
     }
