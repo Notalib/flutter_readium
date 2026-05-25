@@ -189,7 +189,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     let info = audioNavigator.playbackInfo
     let currentIndex = info.resourceIndex
 
-    var durations = audioDurations(
+    let durations = audioDurations(
       currentIndex: currentIndex,
       currentDuration: info.duration
     )
@@ -218,7 +218,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     let info = audioNavigator.playbackInfo
     let currentIndex = info.resourceIndex
     
-    var durations = audioDurations(
+    let durations = audioDurations(
       currentIndex: currentIndex,
       currentDuration: info.duration
     )
