@@ -9,6 +9,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 =======
 ### Added (platform interface)
 
+- **`ReaderDecorationStyle.isActive`** — new `bool` field (default `false`) that
+  renders the decoration in a visually distinct "active" state (e.g. brighter
+  highlight) to mark the currently focused annotation. Maps to the upstream
+  `Decoration.Style.HighlightConfig.isActive` on iOS and
+  `Decoration.Style.Highlight/Underline.isActive` on Android. Also fixed two
+  pre-existing iOS parsing bugs: `Decoration.init(fromMap:)` now correctly reads
+  the locator as a nested JSON object (not a string), and `setDecorationStyle`
+  now accepts the `[String: Any]` map that the method channel actually delivers.
+
+### Added (platform interface) — PDF preferences
+
 - **`PDFPreferences`: three new iOS-only fields** — `offsetFirstPage: bool?`,
   `spread: PDFSpread?` (new enum: `auto` / `never` / `always`), and
   `visibleScrollbar: bool?`. These map to the matching properties in the iOS

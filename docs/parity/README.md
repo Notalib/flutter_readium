@@ -15,7 +15,6 @@ This directory contains decision-grade gap analysis and implementation plans for
 - **[web-error-event.md](web-error-event.md)** — `onErrorEvent` throws `UnimplementedError` on web, making the stream unsubscribable. iOS emits errors; Android has the stream registered. *(Cross-platform parity / S)*
 
 
-- **[decoration-active-flag.md](decoration-active-flag.md)** — Both upstream toolkits' `Decoration.Style` support an `isActive: Bool` flag that renders a decoration differently when it is the "current" one (e.g. active search result). The Dart `ReaderDecorationStyle` has no such field. *(Upstream feature / S)*
 
 ---
 

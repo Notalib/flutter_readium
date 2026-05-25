@@ -319,35 +319,45 @@ extension Decoration {
 
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let jsonObject = jsonMap,
-          let idString = jsonObject["id"] as? String,
-          let locatorStr = jsonObject["locator"] as? String,
-          let locator = try? Locator(legacyJSONString: locatorStr),
-          let styleStr = jsonObject["style"] as? String,
-          let tintHexStr = jsonObject["tint"] as? String,
-          let tintColor = Color(hex: tintHexStr),
-          let style = try? Decoration.Style.init(withStyle: styleStr, tintColor: tintColor) else {
-      Log.readium.error("Decoration parse error: `id`, `locator`, `style` and `tint` required")
+          let idString = jsonObject["id"] as? String else {
+      Log.readium.error("Decoration parse error: `id` required")
       throw JSONError.parsing(Self.self)
     }
 
-    self.init(
-      id: idString as Id,
-      locator: locator,
-      style: style,
-    )
+    // Locator arrives as a nested JSON object from the Dart method channel.
+    // Re-serialise to a string so Locator(legacyJSONString:) can parse it.
+    guard let locatorMap = jsonObject["locator"] as? [String: Any],
+          let locatorData = try? JSONSerialization.data(withJSONObject: locatorMap),
+          let locatorStr = String(data: locatorData, encoding: .utf8),
+          let locator = try? Locator(legacyJSONString: locatorStr) else {
+      Log.readium.error("Decoration parse error: `locator` must be a valid Locator JSON object")
+      throw JSONError.parsing(Self.self)
+    }
+
+    // Style is a nested object with "style", "tint", and optional "isActive".
+    guard let styleMap = jsonObject["style"] as? [String: Any] else {
+      Log.readium.error("Decoration parse error: `style` object required")
+      throw JSONError.parsing(Self.self)
+    }
+    guard let style = try? Decoration.Style.init(fromMap: styleMap) else {
+      Log.readium.error("Decoration parse error: failed to parse style")
+      throw JSONError.parsing(Self.self)
+    }
+
+    self.init(id: idString as Id, locator: locator, style: style)
   }
 }
 
 extension Decoration.Style {
-  init(withStyle style: String, tintColor: Color) throws {
+  init(withStyle style: String, tintColor: Color, isActive: Bool = false) throws {
     let styleId = Decoration.Style.Id(rawValue: style)
-    self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor))
+    self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor, isActive: isActive))
   }
 
   init(fromJson jsonString: String) throws {
-    let jsonMap: Dictionary<String, String>?
+    let jsonMap: [String: Any]?
     do {
-      jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? Dictionary<String, String>
+      jsonMap = try JSONSerialization.jsonObject(with: jsonString.data(using: .utf8)!) as? [String: Any]
     } catch {
       Log.readium.error("Invalid Decoration.Style json map: \(error)")
       throw JSONError.parsing(Self.self)
@@ -355,16 +365,19 @@ extension Decoration.Style {
     try self.init(fromMap: jsonMap)
   }
 
-  init(fromMap jsonMap: Dictionary<String, String>?) throws {
+  // Accepts the flat style map produced by ReaderDecorationStyle.toJson() on the Dart side:
+  // { "style": "highlight", "tint": "#RRGGBB", "isActive": true/false }
+  init(fromMap jsonMap: [String: Any]?) throws {
     guard let map = jsonMap,
-          let styleStr = map["style"],
-          let tintHexStr = map["tint"],
+          let styleStr = map["style"] as? String,
+          let tintHexStr = map["tint"] as? String,
           let tintColor = Color(hex: tintHexStr)
     else {
       Log.readium.error("Decoration parse error: `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
-    try self.init(withStyle: styleStr, tintColor: tintColor)
+    let isActive = map["isActive"] as? Bool ?? false
+    try self.init(withStyle: styleStr, tintColor: tintColor, isActive: isActive)
   }
 }
 
