@@ -38,7 +38,6 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `theme` | `EpubThemeType?` | One of `light`, `dark`, `sepia`. Overrides `backgroundColor` and `textColor` when set. |
 | `backgroundColor` | `Color?` | Page background color. |
 | `textColor` | `Color?` | Text color. |
 
