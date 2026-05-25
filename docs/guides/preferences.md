@@ -18,20 +18,18 @@ await reader.setEPUBPreferences(EPUBPreferences(
 ));
 ```
 
-### Theme presets
+### Theme colors
 
-The `theme` property (of type `EpubThemeType`) is a shortcut that applies a predetermined `backgroundColor` and `textColor` pair. When set, it overrides any explicit `backgroundColor` / `textColor` preferences.
-
-```dart
-// Built-in presets: light, sepia, dark
-EPUBPreferences(theme: EpubThemeType.light)
-EPUBPreferences(theme: EpubThemeType.sepia)
-EPUBPreferences(theme: EpubThemeType.dark)
-```
-
-For custom themes, leave `theme` unset and provide your own colors:
+Use `backgroundColor` and `textColor` to apply themed color schemes:
 
 ```dart
+// Sepia
+EPUBPreferences(
+  backgroundColor: const Color(0xFFF4ECD8),
+  textColor: const Color(0xFF5C4B2A),
+)
+
+// Dark
 EPUBPreferences(
   backgroundColor: const Color(0xFF002B36),
   textColor: const Color(0xFF839496),
