@@ -39,6 +39,16 @@ struct FlutterPDFPreferences {
     if let pageSpacing = map["pageSpacing"] as? NSNumber {
       prefs.pageSpacing = pageSpacing.doubleValue
     }
+    if let offsetFirstPage = map["offsetFirstPage"] as? Bool {
+      prefs.offsetFirstPage = offsetFirstPage
+    }
+    if let spreadString = map["spread"] as? String,
+       let spread = ReadiumNavigator.Spread(rawValue: spreadString) {
+      prefs.spread = spread
+    }
+    if let visibleScrollbar = map["visibleScrollbar"] as? Bool {
+      prefs.visibleScrollbar = visibleScrollbar
+    }
     readium = prefs
   }
 }

@@ -5,6 +5,55 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+<<<<<<< HEAD
+=======
+### Added (platform interface)
+
+- **`PDFPreferences`: three new iOS-only fields** — `offsetFirstPage: bool?`,
+  `spread: PDFSpread?` (new enum: `auto` / `never` / `always`), and
+  `visibleScrollbar: bool?`. These map to the matching properties in the iOS
+  `PDFNavigatorViewController.Preferences` struct. Android
+  `PdfiumPreferences` does not expose these fields; they are silently ignored
+  on Android and web.
+
+### Changed
+
+- **Docs: removed `EpubThemeType` / `theme` preference** — the `theme` field
+  referenced in `docs/api-reference/preferences.md` and
+  `docs/guides/preferences.md` was never implemented; the docs now show how to
+  achieve light / dark / sepia by setting `backgroundColor` and `textColor`
+  directly.
+
+### Added
+
+- **Web: Guided Navigation support** — the web platform now detects EPUBs
+  carrying `application/guided-navigation+json` (either as a publication-level
+  link or as a reading-order alternate) and plays them through the existing
+  Media Overlay pipeline, mirroring the iOS / Android implementations. When
+  both Guided Navigation and Sync Narration are present, Guided Navigation
+  takes precedence — matching native behaviour.
+- **Web: ToC enrichment for media-overlay items** — Sync Narration and
+  Guided Navigation items are now enriched with `tocTitle` / `tocHref`
+  derived from the publication's table of contents, matching the
+  `enrichOverlaysWithToc` behaviour already shipped on iOS / Android. This
+  surfaces chapter titles on emitted state locators during audio playback.
+- **Web: reading-order item duration propagated to media-overlay items** —
+  the parent reading-order link's declared `duration` (when present) is now
+  carried on each item and used as the authoritative fallback for the
+  synthetic audio Link's duration, replacing the cue-sum-only computation
+  that underestimated total length when cues left gaps.
+- **Web: parser unit tests** — added a Jest test suite for the Guided
+  Navigation parser (JSON-layer parsing + sliding-window ToC enrichment).
+  Run with `npm test` from the `flutter_readium` package.
+- **Web: structured console logging** — all web TS modules now log through a
+  tagged logger (`[Readium/<Module>] LEVEL: message`) with runtime level control.
+  The `setLogLevel` interface method now propagates to the JS bundle so web
+  logging verbosity is controlled from Dart alongside the native platforms.
+- **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')`
+  factory creates child loggers named `flutter_readium.<Name>`, surfacing the
+  source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
+
+>>>>>>> 7ba9a6be (feat(pdf): add offsetFirstPage, spread, visibleScrollbar preferences (iOS))
 ### Fixed
 
 - **iOS / Android: `spotlight` decoration no longer darkens the whole page on multi-line
