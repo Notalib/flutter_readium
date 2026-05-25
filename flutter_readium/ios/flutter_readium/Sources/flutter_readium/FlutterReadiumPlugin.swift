@@ -251,11 +251,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "setDecorationStyle":
       let args = call.arguments as! [Any?]
 
-      if let uttDecorationMap = args[0] as? Dictionary<String, String> {
+      if let uttDecorationMap = args[0] as? [String: Any] {
         ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
       }
 
-      if let rangeDecorationMap = args[1] as? Dictionary<String, String> {
+      if let rangeDecorationMap = args[1] as? [String: Any] {
         ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
       }
       Task { @MainActor in
