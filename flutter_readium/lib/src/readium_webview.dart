@@ -88,6 +88,13 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     FlutterReadiumWebPlugin.addTimeBasedStateUpdate(state);
   }
 
+  @js_interop.JSExport()
+  void onErrorHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final error = ReadiumError.fromJson(json);
+    FlutterReadiumWebPlugin.addErrorEvent(error);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
@@ -95,6 +102,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     onTextSelectedCallback = onTextSelectedHandler.toJS;
     onSelectionActionCallback = onSelectionActionHandler.toJS;
     onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
+    onErrorCallback = onErrorHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {

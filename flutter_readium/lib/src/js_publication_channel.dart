@@ -58,6 +58,9 @@ external set onSelectionActionCallback(JSFunction f);
 @JS()
 external set onDecorationInteractionCallback(JSFunction f);
 
+@JS()
+external set onErrorCallback(JSFunction f);
+
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
   static final _log = ReadiumLog.tag('JsChannel');
