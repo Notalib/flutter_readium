@@ -122,13 +122,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seekForward() async -> Bool {
-    await _audioNavigator?.seek(by: self._preferences.seekInterval)
-    return true
+    await seekRelative(byOffsetSeconds: self._preferences.seekInterval)
   }
 
   public func seekBackward() async -> Bool {
-    await _audioNavigator?.seek(by: -1 * self._preferences.seekInterval)
-    return true
+    await seekRelative(byOffsetSeconds: -1 * self._preferences.seekInterval)
   }
 
   public func seek(toLocator: Locator) async -> Bool {
@@ -172,8 +170,135 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
-    await _audioNavigator?.seek(by: byOffsetSeconds)
-    return true
+    if !_preferences.continuousSeeking {
+      await _audioNavigator?.seek(by: byOffsetSeconds)
+      return true
+    }
+    
+    if byOffsetSeconds < 0 {
+      return await rewindBy(seconds: abs(byOffsetSeconds))
+    } else {
+      return await fastForwardBy(seconds: byOffsetSeconds)
+    }
+  }
+
+  private func rewindBy(seconds rewindSeconds: TimeInterval) async -> Bool {
+    guard let audioNavigator = _audioNavigator else {
+      return false
+    }
+
+    let info = audioNavigator.playbackInfo
+    let currentIndex = info.resourceIndex
+
+    let durations = audioDurations(
+      currentIndex: currentIndex,
+      currentDuration: info.duration
+    )
+
+    guard let target = AudioSeekPolicy.resolveRewindTarget(
+      currentIndex: currentIndex,
+      currentOffsetSeconds: info.time,
+      rewindSeconds: rewindSeconds,
+      durations: durations
+    ) else {
+      return false
+    }
+    
+    return await seek(
+      to: target,
+      currentIndex: currentIndex,
+      currentLocator: audioNavigator.currentLocation
+    )
+  }
+  
+  private func fastForwardBy(seconds fastForwardSeconds: TimeInterval) async -> Bool {
+    guard let audioNavigator = _audioNavigator else {
+      return false
+    }
+    
+    let info = audioNavigator.playbackInfo
+    let currentIndex = info.resourceIndex
+    
+    let durations = audioDurations(
+      currentIndex: currentIndex,
+      currentDuration: info.duration
+    )
+    
+    guard let target = AudioSeekPolicy.resolveFastForwardTarget(
+      currentIndex: currentIndex,
+      currentOffsetSeconds: info.time,
+      fastForwardSeconds: fastForwardSeconds,
+      durations: durations
+    ) else {
+      return false
+    }
+    
+    return await seek(
+      to: target,
+      currentIndex: currentIndex,
+      currentLocator: audioNavigator.currentLocation
+    )
+  }
+  
+  private func audioDurations(
+    currentIndex: Int,
+    currentDuration: TimeInterval?
+  ) -> [TimeInterval?] {
+    var durations: [TimeInterval?] = publication.readingOrder.map { link in
+      link.duration
+    }
+    
+    if durations.indices.contains(currentIndex), durations[currentIndex] == nil {
+      durations[currentIndex] = currentDuration
+    }
+    
+    return durations
+  }
+  
+  private func seek(
+    to target: AudioSeekPolicy.Target,
+    currentIndex: Int,
+    currentLocator: Locator?
+  ) async -> Bool {
+    if target.readingOrderIndex == currentIndex {
+      return await seek(toOffset: target.offsetSeconds)
+    }
+    
+    guard let currentLocator else {
+      return false
+    }
+    
+    guard let targetLocator = makeAudioLocator(
+      from: currentLocator,
+      target: target
+    ) else {
+      return false
+    }
+    
+    return await seek(toLocator: targetLocator)
+  }
+
+  private func makeAudioLocator(
+    from currentLocator: Locator,
+    target: AudioSeekPolicy.Target
+  ) -> Locator? {
+    guard publication.readingOrder.indices.contains(target.readingOrderIndex) else {
+      return nil
+    }
+
+    let link = publication.readingOrder[target.readingOrderIndex]
+
+    var locator = currentLocator.copy(href: link.url())
+
+    locator.locations.position = target.readingOrderIndex + 1
+    locator.locations.progression = nil
+    locator.locations.totalProgression = nil
+    locator.locations.otherLocations.removeValue(forKey: "tocHref")
+    locator.locations.otherLocations.removeValue(forKey: "tocId")
+
+    locator = locator.copyWithOffset(target.offsetSeconds)
+
+    return locator
   }
 
   // MARK: AudioNavigatorDelegate
