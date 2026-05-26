@@ -29,6 +29,7 @@ jobs:
           channel: stable
           flutter-version-file: .flutter-version
           cache: true
+          pub-cache: true
 
       - name: Install dependencies (${{ matrix.package }})
         run: flutter pub get
@@ -59,6 +60,7 @@ jobs:
           channel: stable
           flutter-version-file: .flutter-version
           cache: true
+          pub-cache: true
 
       - name: Install dependencies (${{ matrix.package }})
         run: flutter pub get
