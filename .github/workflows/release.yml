@@ -23,6 +23,7 @@ jobs:
           channel: stable
           flutter-version-file: .flutter-version
           cache: true
+          pub-cache: true
 
       - name: Determine release version
         id: tag

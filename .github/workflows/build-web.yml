@@ -23,6 +23,7 @@ jobs:
           channel: stable
           flutter-version-file: .flutter-version
           cache: true
+          pub-cache: true
 
       - name: Install dependencies
         run: flutter pub get
