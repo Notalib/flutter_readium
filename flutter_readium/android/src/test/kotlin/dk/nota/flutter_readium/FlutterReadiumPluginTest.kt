@@ -1,4 +1,4 @@
-package dk.nota.flutter_readium
+package dk.nota.flutterreadium
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

@@ -21,7 +21,7 @@ flutter:
   plugin:
     platforms:
       android:
-        package: dk.nota.flutter_readium
+        package: dk.nota.flutterreadium
         pluginClass: FlutterReadiumPlugin
       ios:
         pluginClass: FlutterReadiumPlugin
