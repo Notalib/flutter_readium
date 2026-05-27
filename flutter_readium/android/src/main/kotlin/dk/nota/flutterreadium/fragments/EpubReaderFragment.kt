@@ -1,6 +1,9 @@
 package dk.nota.flutterreadium.fragments
 
 import android.os.Bundle
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
@@ -19,7 +22,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
+import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -134,6 +139,15 @@ class EpubReaderFragment :
         return withMainContext {
             navigator.applyDecorations(decorations, group)
         }
+    }
+
+    fun addDecorationListener(group: String, listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+        val navigator =
+            epubNavigator ?: run {
+                PluginLog.w(TAG, "::addDecorationListener. Navigator not ready.")
+                return
+            }
+        navigator.addDecorationListener(group, listener)
     }
 
     /**
@@ -539,14 +553,25 @@ class EpubReaderFragment :
             navigatorFactory.createFragmentFactory(
                 configuration =
                     EpubNavigatorFragment.Configuration(
+                        // Padding should be added on Flutter side
                         shouldApplyInsetsPadding = false,
-                        // DFG: This will be relative to your app's src/main/assets/ folder.
+                        // Extra served asssets will be relative to your app's src/main/assets/ folder.
                         // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
                         // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                         servedAssets =
                             listOf(
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
+                        // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
+                        decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
+                            alpha = 1.0,
+                            experimentalPositioning = true,
+                        ),
+                        // Only register the callback if custom selectionActions are added.
+                        selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
+                            createSelectionActionModeCallback()
+                        else
+                            null,
                     ),
                 initialLocator = model.locator,
                 listener = this,
@@ -578,6 +603,80 @@ class EpubReaderFragment :
         PluginLog.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
 
         started.value = true
+    }
+
+    /**
+     * Creates an ActionMode.Callback that fires onTextSelected and onSelectionAction.
+     * Only registered when selectionActions is non-empty — when null is passed instead,
+     * Readium uses the WebView's default callback which shows system Copy/Share/SelectAll.
+     *
+     * Note: providing a custom selectionActionModeCallback to Readium fully replaces the
+     * WebView's default ActionMode.Callback, so system items are not shown. Do NOT try to
+     * re-add them manually — see CLAUDE.md "Prefer honest limitations over brittle workarounds".
+     */
+    private fun createSelectionActionModeCallback(): ActionMode.Callback {
+        // Menu item IDs start at this offset to avoid collisions with system items.
+        val menuItemIdOffset = 100
+
+        return object : ActionMode.Callback {
+            override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+                PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
+                // Fire onTextSelected callback.
+                lifecycleScope.launch {
+                    val nav = navigator as? SelectableNavigator ?: return@launch
+                    val selection = nav.currentSelection() ?: return@launch
+                    val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
+                    channel.onTextSelected(
+                        selection.locator,
+                        selection.locator.text.highlight,
+                    )
+                }
+                return true
+            }
+
+            override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+                if (menu == null) return false
+                var changed = false
+
+                // Add configured custom actions to the menu.
+                val actions = ReadiumReader.selectionActions
+                actions.forEachIndexed { index, action ->
+                    if (menu.findItem(menuItemIdOffset + index) == null) {
+                        menu.add(Menu.NONE, menuItemIdOffset + index, Menu.NONE, action.title)
+                        changed = true
+                    }
+                }
+                return changed
+            }
+
+            override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
+                if (item == null) return false
+                val index = item.itemId - menuItemIdOffset
+                val actions = ReadiumReader.selectionActions
+                if (index < 0 || index >= actions.size) return false
+
+                val action = actions[index]
+                PluginLog.d(TAG, "::onActionItemClicked - action: ${action.id}")
+
+                lifecycleScope.launch {
+                    val nav = navigator as? SelectableNavigator ?: return@launch
+                    val selection = nav.currentSelection() ?: return@launch
+                    val channel = ReadiumReader.currentReaderWidget?.channel ?: return@launch
+                    channel.onSelectionAction(
+                        action.id,
+                        selection.locator,
+                        selection.locator.text.highlight,
+                    )
+                }
+
+                mode?.finish()
+                return true
+            }
+
+            override fun onDestroyActionMode(mode: ActionMode?) {
+                // No-op
+            }
+        }
     }
 
     companion object {

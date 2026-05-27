@@ -1,0 +1,40 @@
+# Shared analyzer / linter / formatter configuration for the published
+# packages in this repo (flutter_readium, flutter_readium_platform_interface).
+#
+# Each package's analysis_options.yaml `include:`s this file. The example
+# app intentionally uses a looser config of its own.
+
+include: package:flutter_lints/flutter.yaml
+
+formatter:
+  page_width: 120
+  trailing_commas: preserve
+
+linter:
+  rules:
+    # ------ Disable individual rules ----- #
+    avoid_relative_lib_imports: false # We prefer relative imports within lib/ (see prefer_relative_imports below).
+    library_private_types_in_public_api: false # Standard Flutter pattern (e.g. State<Foo> exposing _FooState).
+
+    # ------ Enable individual rules ------ #
+    always_put_required_named_parameters_first: true
+    avoid_catches_without_on_clauses: true
+    avoid_double_and_int_checks: true
+    avoid_js_rounded_ints: true
+    avoid_returning_this: true
+    avoid_types_on_closure_parameters: true
+    cascade_invocations: true
+    directives_ordering: true
+    omit_local_variable_types: true
+    prefer_const_declarations: true
+    prefer_expression_function_bodies: true
+    prefer_final_in_for_each: true
+    prefer_final_locals: true
+    prefer_final_parameters: false
+    prefer_relative_imports: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_constructors_first: true
+    use_null_aware_elements: true
+    use_super_parameters: true
+    use_to_and_as_if_applicable: true

@@ -308,7 +308,9 @@ open class AudiobookNavigator(
                 val mediaSession = mediaServiceFacade!!
                 if (mediaSession.session.value == null) {
                     PluginLog.d(TAG, "::navigatorWithOpenMediaSession - open session")
-                    mediaSession.openSession(navigator)
+                    mediaSession.openSession(navigator) { isPlaying ->
+                        onIsPlayingFromPlayer(isPlaying)
+                    }
                 }
             } catch (e: Exception) {
                 PluginLog.e(TAG, "::navigatorWithOpenMediaSession - failed to open MediaSession: $e")

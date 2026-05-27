@@ -6,63 +6,51 @@ import '../extensions/index.dart';
 import '../state/index.dart';
 
 class ThemeSelectorWidget extends StatelessWidget {
-  const ThemeSelectorWidget({
-    required this.themes,
-    required this.isHighlight,
-    super.key,
-  });
+  const ThemeSelectorWidget({required this.themes, required this.isHighlight, super.key});
 
   final List<TextSettingsTheme> themes;
   final bool isHighlight;
 
   @override
   Widget build(final BuildContext context) => BlocBuilder<TextSettingsBloc, TextSettingsState>(
-        builder: (final context, final state) => ScrollConfiguration(
-          behavior: const MaterialScrollBehavior().copyWith(
-            dragDevices: {
-              PointerDeviceKind.touch,
-              PointerDeviceKind.mouse, // Enables mouse drag
-            },
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ToggleButtons(
-              key: ValueKey(isHighlight ? 'highlight_toggle' : 'theme_toggle'),
-              isSelected: themes
-                  .map(
-                    (final itemTheme) => itemTheme == (isHighlight ? state.highlight : state.theme),
-                  )
-                  .toList(),
-              selectedBorderColor: (isHighlight ? state.highlight : state.theme).textColor,
-              borderWidth: 4.0,
-              borderColor: Colors.transparent,
-              onPressed: (final index) {
-                if (isHighlight) {
-                  context.read<TextSettingsBloc>().add(ChangeHighlight(themes[index]));
-                } else {
-                  context.read<TextSettingsBloc>().add(ChangeTheme(themes[index]));
-                }
-              },
-              children: themes
-                  .map(
-                    (final itemTheme) => Container(
-                      width: 80,
-                      height: 80,
-                      color: itemTheme.backgroundColor,
-                      child: Center(
-                        child: Text(
-                          'Aa',
-                          style: TextStyle(
-                            color: itemTheme.textColor,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
+    builder: (final context, final state) => ScrollConfiguration(
+      behavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse, // Enables mouse drag
+        },
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ToggleButtons(
+          key: ValueKey(isHighlight ? 'highlight_toggle' : 'theme_toggle'),
+          isSelected: themes
+              .map((final itemTheme) => itemTheme == (isHighlight ? state.highlight : state.theme))
+              .toList(),
+          selectedBorderColor: (isHighlight ? state.highlight : state.theme).textColor,
+          borderWidth: 4.0,
+          borderColor: Colors.transparent,
+          onPressed: (final index) {
+            if (isHighlight) {
+              context.read<TextSettingsBloc>().add(ChangeHighlight(themes[index]));
+            } else {
+              context.read<TextSettingsBloc>().add(ChangeTheme(themes[index]));
+            }
+          },
+          children: themes
+              .map(
+                (final itemTheme) => Container(
+                  width: 80,
+                  height: 80,
+                  color: itemTheme.backgroundColor,
+                  child: Center(
+                    child: Text('Aa', style: TextStyle(color: itemTheme.textColor, fontSize: 20)),
+                  ),
+                ),
+              )
+              .toList(),
         ),
-      );
+      ),
+    ),
+  );
 }

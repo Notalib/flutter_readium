@@ -10,10 +10,20 @@ import 'flutter_readium_web.dart';
 import 'js_publication_channel.dart';
 
 class ReadiumWebView extends StatefulWidget {
-  const ReadiumWebView({super.key, required this.publication, this.currentLocator});
+  const ReadiumWebView({
+    required this.publication,
+    super.key,
+    this.currentLocator,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+  });
 
   final Publication publication;
   final Locator? currentLocator;
+  final void Function(TextSelectionEvent)? onTextSelected;
+  final void Function(SelectionActionEvent)? onSelectionAction;
+  final void Function(DecorationInteractionEvent)? onDecorationInteraction;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -29,9 +39,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
   final _readium = FlutterReadiumPlatform.instance;
 
-  EPUBPreferences? get _defaultPreferences {
-    return _readium.defaultPreferences;
-  }
+  EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
   @js_interop.JSExport()
   void onTextLocatorUpdate(final String locatorJsonString) {
@@ -51,9 +59,33 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     }
   }
 
+  @js_interop.JSExport()
+  void onTextSelectedHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = TextSelectionEvent.fromJson(json);
+    widget.onTextSelected?.call(event);
+  }
+
+  @js_interop.JSExport()
+  void onSelectionActionHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = SelectionActionEvent.fromJson(json);
+    widget.onSelectionAction?.call(event);
+  }
+
+  @js_interop.JSExport()
+  void onDecorationInteractionHandler(final String jsonString) {
+    final json = jsonDecode(jsonString);
+    final event = DecorationInteractionEvent.fromJson(json);
+    widget.onDecorationInteraction?.call(event);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
+    onTextSelectedCallback = onTextSelectedHandler.toJS;
+    onSelectionActionCallback = onSelectionActionHandler.toJS;
+    onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {
@@ -80,12 +112,12 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
       // This is a temporary solution to show an error message when opening a publication fails
       // Do we need to have the app send what message it wants to show and make a dialog here? or continue to display it in the html view?
       // Since this is when opening a widget there is nothing expecting a return value so we can't return an error
-      final errorElement = web.HTMLDivElement();
-      errorElement.textContent = 'Something went wrong opening the publication';
-      errorElement.style.fontSize = '24px';
-      errorElement.className = 'OpeningReadiumException';
-      errorElement.style.margin = '25% auto';
-      errorElement.style.textAlign = 'center';
+      final errorElement = web.HTMLDivElement()
+        ..textContent = 'Something went wrong opening the publication'
+        ..style.fontSize = '24px'
+        ..className = 'OpeningReadiumException'
+        ..style.margin = '25% auto'
+        ..style.textAlign = 'center';
 
       htmlElement.append(errorElement);
 
@@ -94,38 +126,35 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return HtmlElementView.fromTagName(
-      tagName: 'div',
-      onElementCreated: (element) {
-        final wrapperElement = element as web.HTMLDivElement;
-        wrapperElement.id = 'wrapper';
+  Widget build(BuildContext context) => HtmlElementView.fromTagName(
+    tagName: 'div',
+    onElementCreated: (element) {
+      final wrapperElement = (element as web.HTMLDivElement)..id = 'wrapper';
 
-        final htmlElement = web.HTMLDivElement();
-        htmlElement.id = 'container';
-        htmlElement.setAttribute('aria-label', 'Publication');
+      final htmlElement = web.HTMLDivElement()
+        ..id = 'container'
+        ..setAttribute('aria-label', 'Publication');
 
-        wrapperElement.append(htmlElement);
+      wrapperElement.append(htmlElement);
 
-        void mutationCallback(js_interop.JSArray<web.MutationRecord> mutations, web.MutationObserver observer) {
-          final container = web.document.getElementById('container');
+      void mutationCallback(js_interop.JSArray<web.MutationRecord> mutations, web.MutationObserver observer) {
+        final container = web.document.getElementById('container');
 
-          if (container != null) {
-            observer.disconnect();
-            createPlatformView(container.hashCode, htmlElement);
-          }
+        if (container != null) {
+          observer.disconnect();
+          createPlatformView(container.hashCode, htmlElement);
         }
+      }
 
-        final htmlObserver = web.MutationObserver(mutationCallback.toJS);
+      final htmlObserver = web.MutationObserver(mutationCallback.toJS);
 
-        final htmlBody = web.document.body;
+      final htmlBody = web.document.body;
 
-        if (htmlBody != null) {
-          htmlObserver.observe(htmlBody, web.MutationObserverInit(childList: true, subtree: true));
-        } else {
-          throw Exception('Body element not found');
-        }
-      },
-    );
-  }
+      if (htmlBody != null) {
+        htmlObserver.observe(htmlBody, web.MutationObserverInit(childList: true, subtree: true));
+      } else {
+        throw Exception('Body element not found');
+      }
+    },
+  );
 }

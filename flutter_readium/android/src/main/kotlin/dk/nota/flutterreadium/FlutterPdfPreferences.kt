@@ -1,21 +1,32 @@
 package dk.nota.flutterreadium
 
 import org.readium.adapter.pdfium.navigator.PdfiumPreferences
+import org.readium.r2.navigator.preferences.Axis
+import org.readium.r2.navigator.preferences.Fit
 import org.readium.r2.navigator.preferences.ReadingProgression
 import org.readium.r2.shared.ExperimentalReadiumApi
 
-private const val TAG = "FlutterPdfPreferences"
-
-// PdfiumPreferences in kotlin-toolkit 3.1.2 has no `scroll` field — the Pdfium
-// engine is continuous-scroll only, so the Dart-side `scroll` preference is
-// accepted but has no effect on Android. iOS PDFKit supports it.
+// PdfiumPreferences in kotlin-toolkit has no paginated mode — Pdfium is
+// always continuous-scroll. The Dart-side `PDFLayout.paginated` is therefore
+// mapped to `scrollAxis = HORIZONTAL`, which gives the closest equivalent
+// (single-page-wide viewport, one page per swipe). `scrollHorizontal` maps to
+// the same axis. `scrollVertical` maps to `Axis.VERTICAL`.
+//
+// Dart-side `PDFFit.page` maps to Pdfium `Fit.CONTAIN`. `PDFFit.auto` has no
+// Pdfium equivalent and is ignored on Android.
 @OptIn(ExperimentalReadiumApi::class)
 data class FlutterPdfPreferences(
     val readingProgression: ReadingProgression? = null,
+    val scrollAxis: Axis? = null,
+    val fit: Fit? = null,
+    val pageSpacing: Double? = null,
 ) {
     fun toPdfiumPreferences(): PdfiumPreferences =
         PdfiumPreferences(
+            fit = fit,
+            pageSpacing = pageSpacing,
             readingProgression = readingProgression,
+            scrollAxis = scrollAxis,
         )
 
     companion object {
@@ -28,7 +39,31 @@ data class FlutterPdfPreferences(
                     else -> null
                 }
             }
-            return FlutterPdfPreferences(readingProgression = readingProgression)
+            val layoutStr = map["layout"] as? String
+            val scrollAxis = layoutStr?.let {
+                when (it) {
+                    "paginated", "scrollHorizontal" -> Axis.HORIZONTAL
+                    "scrollVertical" -> Axis.VERTICAL
+                    else -> null
+                }
+            }
+            val fitStr = map["fit"] as? String
+            val fit = fitStr?.let {
+                when (it) {
+                    "page", "contain" -> Fit.CONTAIN
+                    "width" -> Fit.WIDTH
+                    // Kotlin toolkit Pdfium supports only CONTAIN and WIDTH.
+                    "auto" -> null
+                    else -> null
+                }
+            }
+            val pageSpacing = (map["pageSpacing"] as? Number)?.toDouble()
+            return FlutterPdfPreferences(
+                readingProgression = readingProgression,
+                scrollAxis = scrollAxis,
+                fit = fit,
+                pageSpacing = pageSpacing,
+            )
         }
     }
 }

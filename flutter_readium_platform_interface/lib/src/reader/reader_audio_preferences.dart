@@ -14,6 +14,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     final speed = jsonObject.optNullableDouble('speed', remove: true);
     final pitch = jsonObject.optNullableDouble('pitch', remove: true);
     final seekInterval = jsonObject.optNullableDouble('seekInterval', remove: true);
+    final continuousSeeking = jsonObject.optNullableBoolean('continuousSeeking', remove: true);
     final allowExternalSeeking = jsonObject.optNullableBoolean('allowExternalSeeking', remove: true);
     final updateIntervalSecs = jsonObject.optNullableDouble('updateIntervalSecs', remove: true);
     final controlPanelInfoTypeStr = jsonObject.optNullableString('controlPanelInfoType', remove: true);
@@ -23,6 +24,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
       speed: speed,
       pitch: pitch,
       seekInterval: seekInterval,
+      continuousSeeking: continuousSeeking,
       allowExternalSeeking: allowExternalSeeking,
       updateIntervalSecs: updateIntervalSecs,
       controlPanelInfoType: controlPanelInfoType,
@@ -34,6 +36,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     this.speed,
     this.pitch,
     this.seekInterval,
+    this.continuousSeeking,
     this.allowExternalSeeking,
     this.controlPanelInfoType,
     this.updateIntervalSecs,
@@ -52,6 +55,10 @@ class AudioPreferences with EquatableMixin implements JSONable {
   /// This is used to determine how much to seek when the user initiates a seek action.
   final double? seekInterval;
 
+  /// Whether to allow continuous seeking. If true, then rewinding and fast forwarding will seek the
+  /// exact specified seek interval even between resources.
+  final bool? continuousSeeking;
+
   /// Whether to allow external seeking. If true, the app will allow seeking to positions in the audio that are not currently buffered.
   /// This may be used to enable features like chapter skipping or seeking to specific timestamps.
   final bool? allowExternalSeeking;
@@ -68,6 +75,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     'speed': speed,
     'pitch': pitch,
     'seekInterval': seekInterval,
+    'continuousSeeking': continuousSeeking,
     'allowExternalSeeking': allowExternalSeeking,
     'updateIntervalSecs': updateIntervalSecs,
     'controlPanelInfoType': controlPanelInfoType?.toString().split('.').last,
@@ -79,6 +87,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     speed,
     pitch,
     seekInterval,
+    continuousSeeking,
     allowExternalSeeking,
     updateIntervalSecs,
     controlPanelInfoType,
@@ -89,6 +98,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     double? speed,
     double? pitch,
     double? seekInterval,
+    bool? continuousSeeking,
     bool? allowExternalSeeking,
     double? updateIntervalSecs,
     ControlPanelInfoType? controlPanelInfoType,
@@ -97,6 +107,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     speed: speed ?? this.speed,
     pitch: pitch ?? this.pitch,
     seekInterval: seekInterval ?? this.seekInterval,
+    continuousSeeking: continuousSeeking ?? this.continuousSeeking,
     allowExternalSeeking: allowExternalSeeking ?? this.allowExternalSeeking,
     updateIntervalSecs: updateIntervalSecs ?? this.updateIntervalSecs,
     controlPanelInfoType: controlPanelInfoType ?? this.controlPanelInfoType,

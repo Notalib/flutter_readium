@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum ScreenBreakpointEnum {
-  xsm,
-  sm,
-  md,
-  lg,
-  xl,
-}
+enum ScreenBreakpointEnum { xsm, sm, md, lg, xl }
 
 extension ContextExtension on BuildContext {
   bool get isxSmallScreen => portraitBreakpoint.name == ScreenBreakpointEnum.xsm.name;

@@ -10,7 +10,6 @@ import org.readium.r2.navigator.preferences.ImageFilter
 import org.readium.r2.navigator.preferences.ReadingProgression
 import org.readium.r2.navigator.preferences.Spread
 import org.readium.r2.navigator.preferences.TextAlign
-import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Language
 
@@ -43,7 +42,6 @@ data class FlutterEpubPreferences(
     val textAlign: TextAlign? = null,
     val textColor: String? = null,
     val textNormalization: Boolean? = null,
-    val theme: Theme? = null,
     val typeScale: Double? = null,
     val verticalText: Boolean? = null,
     val wordSpacing: Double? = null,
@@ -74,7 +72,6 @@ data class FlutterEpubPreferences(
             textAlign = other.textAlign ?: textAlign,
             textColor = other.textColor ?: textColor,
             textNormalization = other.textNormalization ?: textNormalization,
-            theme = other.theme ?: theme,
             typeScale = other.typeScale ?: typeScale,
             verticalText = other.verticalText ?: verticalText,
             wordSpacing = other.wordSpacing ?: wordSpacing,
@@ -106,7 +103,7 @@ data class FlutterEpubPreferences(
             textAlign,
             textColor = textColor?.let { readiumColorFromCSS(it) },
             textNormalization,
-            theme,
+            theme = null,
             typeScale,
             verticalText,
             wordSpacing,

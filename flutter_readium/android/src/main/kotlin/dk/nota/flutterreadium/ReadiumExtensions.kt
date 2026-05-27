@@ -47,11 +47,31 @@ fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     return ReadiumColor(color)
 }
 
+fun decorationFromJson(jsonString: String): Decoration? {
+    return try {
+        val json = jsonDecode(jsonString) as JSONObject
+        val id = json.getString("id")
+        val locator = Locator.fromJSON(json.getJSONObject("locator"))
+            ?: throw Exception("Failed to deserialize locator")
+        val styleJson = json.getJSONObject("style")
+        val style = decorationStyleFromMap(
+            mapOf("style" to styleJson.getString("style"), "tint" to styleJson.getString("tint"))
+        ) ?: throw Exception("Failed to deserialize decoration style")
+        Decoration(id, locator, style)
+    } catch (ex: Exception) {
+        PluginLog.e("ReadiumExtensions", "Error parsing Decoration JSON: $ex")
+        null
+    }
+}
+
 fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     try {
-        val id = decoMap["decorationId"] as String
+        val id = decoMap["id"] as String
+
+        @Suppress("UNCHECKED_CAST")
+        val locatorMap = decoMap["locator"] as Map<String, Any>
         val locator =
-            Locator.fromJSON(jsonDecode(decoMap["locator"] as String) as JSONObject)
+            Locator.fromJSON(JSONObject(locatorMap))
                 ?: throw Exception("Failed to deserialize locator")
 
         @Suppress("UNCHECKED_CAST")

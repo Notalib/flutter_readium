@@ -28,7 +28,7 @@ If your server issues short-lived tokens, call `setCustomHeaders` again whenever
 
 | Platform | Support |
 |----------|---------|
-| iOS / macOS | Supported (via `setAdditionalHeaders` on the Readium HTTP client) |
+| iOS | Supported (via `setAdditionalHeaders` on the Readium HTTP client) |
 | Android | Supported (via `setDefaultHttpHeaders`) |
 | Web | **Not supported** — calling `setCustomHeaders` throws `UnimplementedError`. The browser fetches publication resources directly; use cookies, URL-signed tokens, or a same-origin proxy instead. |
 

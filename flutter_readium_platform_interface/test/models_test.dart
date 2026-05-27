@@ -48,6 +48,33 @@ void main() {
     });
   });
 
+  group('PDFPreferences', () {
+    const prefs = PDFPreferences(
+      layout: PDFLayout.scrollVertical,
+      readingProgression: PDFReadingProgression.rtl,
+      pageSpacing: 12.5,
+      fit: PDFFit.page,
+    );
+
+    test('round-trips through toJson / fromJson', () {
+      final restored = PDFPreferences.fromJson(prefs.toJson());
+      expect(restored, prefs);
+    });
+
+    test('fromJson supports numeric pageSpacing and fit enum', () {
+      final restored = PDFPreferences.fromJson({
+        'layout': 'paginated',
+        'readingProgression': 'ltr',
+        'pageSpacing': 8,
+        'fit': 'auto',
+      });
+      expect(restored.layout, PDFLayout.paginated);
+      expect(restored.readingProgression, PDFReadingProgression.ltr);
+      expect(restored.pageSpacing, 8.0);
+      expect(restored.fit, PDFFit.auto);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // ReadiumException
   // ---------------------------------------------------------------------------

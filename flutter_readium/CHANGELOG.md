@@ -7,6 +7,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
+  `TextSelectionEvent` (locator + selected text) when the user selects text in the reader.
+  Supported on iOS, Android, and Web.
+- **Selection actions** — `ReadiumReaderWidget.selectionActions` configures native context menu
+  items (up to 5 on iOS) shown on text selection. Tapping an action fires
+  `ReadiumReaderWidget.onSelectionAction` with a `SelectionActionEvent`.
+- **Decoration interaction** — `ReadiumReaderWidget.onDecorationInteraction` fires a
+  `DecorationInteractionEvent` when the user taps an existing decoration/highlight.
+  Supported on iOS and Android.
+- **Allowed default actions** — `ReadiumReaderWidget.allowedDefaultActions` controls which
+  system-provided selection menu items (Copy, Share, Look Up, Translate, Select All) are
+  shown. Pass `null` for all defaults, or a specific `Set<DefaultSelectionAction>` to filter.
+  iOS supports `copy`, `share`, `lookup`, `translate`; Android supports `copy`, `share`,
+  `selectAll`. Unsupported values for a platform are silently ignored.
+
 - **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
   `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via
   `PdfiumNavigatorFragment` from kotlin-toolkit). PDF is not supported on Web.
@@ -24,7 +39,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `loadPublication`, `goToLocator`, `goToProgression`, `goForward`, `goBackward`.
 - **EPUB reader widget** — `ReadiumReaderWidget` renders EPUB and WebPub content via a native
   platform view (iOS/macOS/Android) or a WebView (web).
-- **EPUB preferences** — `EPUBPreferences` with font family, font size, theme, scroll mode,
+- **EPUB preferences** — `EPUBPreferences` with font family, font size, scroll mode,
   line height, word spacing, letter spacing, paragraph spacing, text alignment, column count,
   publisher styles, vertical writing, custom CSS properties and first-element margin.
 - **TTS (text-to-speech)** — `ttsEnable`, `ttsSetPreferences`, `ttsSetVoice`,

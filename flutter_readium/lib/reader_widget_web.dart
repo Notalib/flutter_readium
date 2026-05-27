@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium/flutter_readium.dart';
+import 'flutter_readium.dart';
 import 'src/index.dart';
 
 class ReadiumReaderWidget extends StatefulWidget {
@@ -14,6 +14,11 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.verticalScroll = false,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+    this.selectionActions,
+    this.allowedDefaultActions,
     super.key,
   });
 
@@ -26,6 +31,11 @@ class ReadiumReaderWidget extends StatefulWidget {
   final String goForwardSemanticLabel;
   final String toggleShowControlsSemanticLabel;
   final bool verticalScroll;
+  final void Function(TextSelectionEvent)? onTextSelected;
+  final void Function(SelectionActionEvent)? onSelectionAction;
+  final void Function(DecorationInteractionEvent)? onDecorationInteraction;
+  final List<SelectionAction>? selectionActions;
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
@@ -48,11 +58,15 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Widget build(final BuildContext context) {
-    return SizedBox.expand(
-      child: ReadiumWebView(publication: widget.publication, currentLocator: widget.initialLocator),
-    );
-  }
+  Widget build(final BuildContext context) => SizedBox.expand(
+    child: ReadiumWebView(
+      publication: widget.publication,
+      currentLocator: widget.initialLocator,
+      onTextSelected: widget.onTextSelected,
+      onSelectionAction: widget.onSelectionAction,
+      onDecorationInteraction: widget.onDecorationInteraction,
+    ),
+  );
 
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {

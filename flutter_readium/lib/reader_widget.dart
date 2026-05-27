@@ -6,9 +6,9 @@ import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_readium/flutter_readium.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import 'flutter_readium.dart';
 import 'reader_channel.dart';
 
 const _viewType = 'dk.nota.flutter_readium/ReadiumReaderWidget';
@@ -21,10 +21,16 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.initialLocator,
     this.shouldShowControls,
     this.onExternalLinkActivated,
+    this.onTextSelected,
+    this.onSelectionAction,
+    this.onDecorationInteraction,
+    this.selectionActions = const [],
+    this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
-    this.verticalScroll = false,
+    this.preloadPreviousPositionCount = 2,
+    this.preloadNextPositionCount = 6,
     super.key,
   });
 
@@ -45,6 +51,28 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Callback invoked when the reader activates an external (non-publication) link.
   final Function(String)? onExternalLinkActivated;
 
+  /// Callback invoked when the user selects text in the reader.
+  final ValueChanged<TextSelectionEvent>? onTextSelected;
+
+  /// Callback invoked when the user taps a configured editing action on selected text.
+  final ValueChanged<SelectionActionEvent>? onSelectionAction;
+
+  /// Callback invoked when the user interacts with an existing decoration (e.g. taps a highlight).
+  final ValueChanged<DecorationInteractionEvent>? onDecorationInteraction;
+
+  /// Native context menu actions shown when text is selected.
+  final List<SelectionAction> selectionActions;
+
+  /// Controls which system-provided actions appear in the text selection menu.
+  ///
+  /// If `null` (the default), all platform defaults are shown (Copy, Share, etc.).
+  /// If an empty set, only custom [selectionActions] are shown.
+  /// Otherwise, only the specified system actions are included.
+  ///
+  /// Note: [DefaultSelectionAction.translate] is iOS-only; [DefaultSelectionAction.selectAll]
+  /// is Android-only. Unsupported values for a platform are silently ignored.
+  final Set<DefaultSelectionAction>? allowedDefaultActions;
+
   /// Accessibility label for the backward navigation semantic region.
   final String goBackwardSemanticLabel;
 
@@ -54,8 +82,17 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Accessibility label for the controls toggle semantic region.
   final String toggleShowControlsSemanticLabel;
 
-  /// Whether the reader should use continuous vertical scroll (`true`) or paginated mode (`false`).
-  final bool verticalScroll;
+  /// Number of resource positions to preload before the current one. Default `2`.
+  /// Higher values smooth out backward navigation at the cost of memory; consider
+  /// increasing for local publications and lowering for remote ones.
+  ///
+  /// iOS only. kotlin-toolkit does not expose this on its public navigator
+  /// configuration, so the value is ignored on Android.
+  final int preloadPreviousPositionCount;
+
+  /// Number of resource positions to preload after the current one. Default `6`.
+  /// See [preloadPreviousPositionCount] for tradeoffs and platform support.
+  final int preloadNextPositionCount;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -76,9 +113,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
 
-  EPUBPreferences? get _defaultPreferences {
-    return _readium.defaultPreferences;
-  }
+  EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
+
+  bool _scrollMode = false;
 
   /// Last time that the controls were hidden due to a touch, used to guess whether a tap was caused
   /// by such a touch.
@@ -92,6 +129,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _readerWidget = _buildNativeReader();
     _enableWakelock();
     _setCurrentWidgetInterface();
+    _scrollMode = _defaultPreferences?.scroll ?? false;
   }
 
   @override
@@ -112,14 +150,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
     var userSwipe = false;
-    final verticalScroll = widget.verticalScroll;
 
     final readingProgression = widget.publication.metadata.readingProgression;
     // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
-    final leftUpLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+    final leftUpLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goForwardSemanticLabel
         : widget.goBackwardSemanticLabel;
-    final rightDownLabel = readingProgression == ReadingProgression.rtl && !verticalScroll
+    final rightDownLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goBackwardSemanticLabel
         : widget.goForwardSemanticLabel;
 
@@ -128,20 +165,20 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         Positioned(
           left: 0,
           top: 0,
-          width: verticalScroll ? null : 70,
-          height: verticalScroll ? 100 : null,
-          right: verticalScroll ? 0 : null,
-          bottom: verticalScroll ? null : 0,
+          width: _scrollMode ? null : 70,
+          height: _scrollMode ? 100 : null,
+          right: _scrollMode ? 0 : null,
+          bottom: _scrollMode ? null : 0,
           child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
         ),
         // TODO: This presumes there is only one semantic label, for when the different toggles
         Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
         Positioned(
-          top: verticalScroll ? null : 0,
+          top: _scrollMode ? null : 0,
           right: 0,
-          width: verticalScroll ? null : 70,
-          height: verticalScroll ? 100 : null,
-          left: verticalScroll ? 0 : null,
+          width: _scrollMode ? null : 70,
+          height: _scrollMode ? 100 : null,
+          left: _scrollMode ? 0 : null,
           bottom: 0,
           child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
         ),
@@ -206,6 +243,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     _channel?.setEPUBPreferences(preferences);
+
+    _scrollMode = preferences.scroll ?? false;
   }
 
   @override
@@ -229,6 +268,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
+      'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
+      'preloadNextPositionCount': widget.preloadNextPositionCount,
+      if (widget.selectionActions.isNotEmpty)
+        'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
+      if (widget.allowedDefaultActions != null)
+        'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
     };
 
     ReadiumLog.d('creationParams=$creationParams');
@@ -311,7 +356,14 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           _isReadyCompleter.complete(locator);
         }
       },
+      onTextSelected: widget.onTextSelected,
+      onSelectionAction: widget.onSelectionAction,
+      onDecorationInteraction: widget.onDecorationInteraction,
     );
+
+    if (widget.selectionActions.isNotEmpty) {
+      _channel!.configureSelectionActions(widget.selectionActions);
+    }
 
     ReadiumLog.d('New widget is: ${_channel?.name}');
   }
@@ -370,26 +422,22 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
-  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) {
-    return Semantics(
-      // TODO: this is not necessarily how it should be handled needs to be evaluated more
-      sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
-      button: true,
-      container: true,
-      label: label,
-      onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
-      child: Container(color: Colors.transparent),
-    );
-  }
+  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) => Semantics(
+    // TODO: this is not necessarily how it should be handled needs to be evaluated more
+    sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
+    button: true,
+    container: true,
+    label: label,
+    onTap: () => toNextPage ? _channel?.goForward() : _channel?.goBackward(),
+    child: Container(color: Colors.transparent),
+  );
 
-  Widget _buildSemanticsToggleFullScreen({required final String label}) {
-    return Semantics(
-      sortKey: const OrdinalSortKey(1.0),
-      button: true,
-      container: true,
-      label: label,
-      onTap: _toggleControls,
-      child: Container(color: Colors.transparent),
-    );
-  }
+  Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
+    sortKey: const OrdinalSortKey(1.0),
+    button: true,
+    container: true,
+    label: label,
+    onTap: _toggleControls,
+    child: Container(color: Colors.transparent),
+  );
 }

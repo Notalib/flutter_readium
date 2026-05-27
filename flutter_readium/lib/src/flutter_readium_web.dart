@@ -31,19 +31,13 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Stream<Locator> get onTextLocatorChanged {
-    return _locatorTextController.stream;
-  }
+  Stream<Locator> get onTextLocatorChanged => _locatorTextController.stream;
 
   @override
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    return _timebasedStateController.stream;
-  }
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedStateController.stream;
 
   @override
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged {
-    return _readerStatusController.stream;
-  }
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 
   @override
   Future<void> setCustomHeaders(Map<String, String> headers) =>
@@ -275,7 +269,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       await JsPublicationChannel.goToLocation(locator.hrefPath);
       return true;
     } on PlatformException catch (e, stackTrace) {
-      final pubID = 'unknown';
+      const pubID = 'unknown';
       throw ReadiumError(
         'Error when navigating to locator: ${e.message}',
         code: e.code,

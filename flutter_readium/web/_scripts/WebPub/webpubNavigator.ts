@@ -14,7 +14,6 @@ import {
   defaults,
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
-import { highlightSelection } from "../helpers";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 
 // TODO:
@@ -115,7 +114,17 @@ export async function initializeWebPubNavigatorAndPeripherals(
       return false;
     },
     textSelected: function (_selection: BasicTextSelection): void {
-      highlightSelection(nav, publication, _selection);
+      // Notify Dart about the text selection
+      const currentLocator = nav.currentLocator;
+      const locatorJson = {
+        href: currentLocator.href,
+        type: currentLocator.type,
+        locations: currentLocator.locations,
+        text: { highlight: _selection.text },
+      };
+      (window as any).onTextSelectedCallback?.(
+        JSON.stringify({ locator: locatorJson, selectedText: _selection.text })
+      );
     },
   };
 
