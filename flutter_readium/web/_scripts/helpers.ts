@@ -134,6 +134,18 @@ export const UNDERLINE_GROUP_SUFFIX = "__underline";
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
 export const RULER_GROUP_SUFFIX = "__ruler";
 
+/**
+ * Converts a Dart Color hex string from AARRGGBB to CSS RRGGBBAA format.
+ * Dart's Color.toCSS() emits '#AARRGGBB'; CSS expects '#RRGGBBAA'.
+ * Shorter or non-hex formats (e.g. '#RGB', '#RRGGBB', named colors) are returned unchanged.
+ */
+export function dartColorToCss(color: string): string {
+  if (/^#[0-9a-fA-F]{8}$/.test(color)) {
+    return "#" + color.slice(3) + color.slice(1, 3);
+  }
+  return color;
+}
+
 const SPOTLIGHT_CLASS = "flutter-readium-spotlight";
 const AUGMENT_STYLE_ID_PREFIX = "flutter-readium-augment-";
 const SPOTLIGHT_STYLE_ID = "flutter-readium-spotlight-style";
@@ -377,7 +389,10 @@ export function injectDecorationOverrides(wnd: Window): void {
 
   const bodyObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
-      for (const node of Array.from(m.addedNodes)) {
+      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
+      // to use its own iterator protocol, which fails for raw DOM Node objects.
+      for (let i = 0; i < m.addedNodes.length; i++) {
+        const node = m.addedNodes[i];
         if (node.nodeType !== 1) continue;
         const el = node as HTMLElement;
         if (isUnderlineBox(el)) mirrorTint(el);
@@ -402,7 +417,10 @@ export function injectDecorationOverrides(wnd: Window): void {
 
   const headObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
-      for (const node of Array.from(m.addedNodes)) {
+      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
+      // to use its own iterator protocol, which fails for raw DOM Node objects.
+      for (let i = 0; i < m.addedNodes.length; i++) {
+        const node = m.addedNodes[i];
         if (node.nodeType !== 1) continue;
         const el = node as Element;
         if (isReadiumGroupStyle(el)) pairWithPendingGroup(wnd, el);
