@@ -86,9 +86,13 @@ class _ReadiumReader {
   // Maps group name → set of decoration IDs currently applied, used for group-replacement semantics.
   private _decorationsByGroup: Map<string, Set<string>> = new Map();
 
-  // Stored decoration styles for TTS/media-overlay use (no TTS engine in Phase 1).
+  // Stored decoration styles for TTS/media-overlay use.
   private _utteranceStyle: object | null = null;
   private _rangeStyle: object | null = null;
+
+  // Deduplication key for Media Overlay decoration: "<href><fragment>".
+  // Avoids redundant applyDecorations calls when the poll fires during the same cue.
+  private _lastMediaOverlayLocatorKey: string | null = null;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
@@ -374,9 +378,9 @@ class _ReadiumReader {
   }
 
   /**
-   * Store default decoration styles for TTS utterance and range highlighting.
-   * No TTS engine is wired up in Phase 1 — these values are stored for future use
-   * once the web TTS implementation arrives.
+   * Set the decoration styles used to highlight TTS utterances and word-level
+   * ranges. Applied immediately to an active TTS engine; stored for use when
+   * the next TTS or Media Overlay session starts.
    *
    * @param utteranceStyleJson  JSON-encoded ReaderDecorationStyle or null.
    * @param rangeStyleJson      JSON-encoded ReaderDecorationStyle or null.
@@ -387,6 +391,7 @@ class _ReadiumReader {
   ): void {
     this._utteranceStyle = utteranceStyleJson ? JSON.parse(utteranceStyleJson) : null;
     this._rangeStyle = rangeStyleJson ? JSON.parse(rangeStyleJson) : null;
+    this._ttsEngine?.updateDecorationStyles(this._utteranceStyle, this._rangeStyle);
   }
 
   public closePublication(error?: any) {
@@ -396,6 +401,7 @@ class _ReadiumReader {
     this._hasSyncNarration = false;
     this._positions = [];
     this._publication = undefined;
+    this._lastMediaOverlayLocatorKey = null;
 
     this._decorationsByGroup.clear();
     this._nav?.destroy(); // Clean up the navigator instance
@@ -474,6 +480,11 @@ class _ReadiumReader {
     log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
     this._audioNav?.stop();
+    // Clear Media Overlay utterance decoration when narration stops.
+    if (this._hasSyncNarration && this._nav) {
+      this._lastMediaOverlayLocatorKey = null;
+      this.applyDecorations("media_overlay_utterance", "[]");
+    }
   }
 
   public next(): void {
@@ -555,7 +566,10 @@ class _ReadiumReader {
       this._nav,
       this._publication,
       prefs,
-      !this._disableSynchronization
+      !this._disableSynchronization,
+      this._utteranceStyle,
+      this._rangeStyle,
+      (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
     );
     const fromLocator = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
@@ -615,11 +629,26 @@ class _ReadiumReader {
       const fromLocator = fromLocatorJson
         ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
         : undefined;
+      // Reset deduplication key so a fresh session always applies its first decoration.
+      this._lastMediaOverlayLocatorKey = null;
       await initializeMediaOverlayNavigator(
         this._publication,
         fromLocator,
         prefsJson,
-        (nav) => { this._audioNav = nav; }
+        (nav) => { this._audioNav = nav; },
+        (textLocator) => {
+          if (!this._utteranceStyle || !this._nav) return;
+          // Skip redundant calls when the same cue is still active.
+          const key = textLocator.href + (textLocator.locations?.fragments?.[0] ?? "");
+          if (key === this._lastMediaOverlayLocatorKey) return;
+          this._lastMediaOverlayLocatorKey = key;
+          try {
+            const decoration = [{ id: textLocator.href, locator: textLocator.serialize(), style: this._utteranceStyle }];
+            this.applyDecorations("media_overlay_utterance", JSON.stringify(decoration));
+          } catch (e) {
+            log.warn("MediaOverlay: failed to apply decoration:", e);
+          }
+        }
       );
       // Re-read after await; cast to break TypeScript's control-flow narrowing
       // which assumes _audioNav is still undefined (it was set by the callback).

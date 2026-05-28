@@ -67,20 +67,24 @@ export type AudioLocatorMapper = (
  * Emits timebased-state + (optionally) text-locator events, applying the
  * locator mapper when one is provided.
  *
- * @param state        Timebased state string.
- * @param nav          Active AudioNavigator.
- * @param rawLocator   Raw locator from the listener callback (may be undefined
- *                     for stalled events, in which case nav.currentLocator is used).
- * @param mapper       Optional mapper (Media Overlay / custom sessions).
- * @param alsoText     When true and no mapper is provided, also emit to
- *                     updateTextLocator (used for positionChanged in plain audio).
+ * @param state                  Timebased state string.
+ * @param nav                    Active AudioNavigator.
+ * @param rawLocator             Raw locator from the listener callback (may be undefined
+ *                               for stalled events, in which case nav.currentLocator is used).
+ * @param mapper                 Optional mapper (Media Overlay / custom sessions).
+ * @param alsoText               When true and no mapper is provided, also emit to
+ *                               updateTextLocator (used for positionChanged in plain audio).
+ * @param onTextLocatorChanged   Optional callback fired each time a text locator is
+ *                               derived from the mapper. Used by Media Overlay to apply
+ *                               per-cue decorations without extra locator lookups.
  */
 function _emitState(
   state: string,
   nav: AudioNavigator,
   rawLocator: Locator | undefined,
   mapper: AudioLocatorMapper | undefined,
-  alsoText: boolean
+  alsoText: boolean,
+  onTextLocatorChanged?: (locator: Locator) => void
 ): void {
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
@@ -90,6 +94,7 @@ function _emitState(
     );
     if (textLocator) {
       window.updateTextLocator?.(JSON.stringify(textLocator));
+      onTextLocatorChanged?.(textLocator);
     }
   } else {
     window.updateTimebasedPlayerState?.(
@@ -106,7 +111,8 @@ export async function initializeAudioNavigator(
   initialPosition: Locator | undefined,
   preferencesJsonString: string,
   setNav: (nav: AudioNavigator) => void,
-  locatorMapper?: AudioLocatorMapper
+  locatorMapper?: AudioLocatorMapper,
+  onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
   log.info("Initializing AudioNavigator");
 
@@ -147,15 +153,15 @@ export async function initializeAudioNavigator(
       positionChanged: (locator) => {
         _emitState(
           nav.isPlaying ? "playing" : "paused",
-          nav, locator, locatorMapper, /* alsoText */ true
+          nav, locator, locatorMapper, /* alsoText */ true, onTextLocatorChanged
         );
       },
       timelineItemChanged: (_item) => {},
       play: (locator) => {
-        _emitState("playing", nav, locator, locatorMapper, false);
+        _emitState("playing", nav, locator, locatorMapper, false, onTextLocatorChanged);
       },
       pause: (locator) => {
-        _emitState("paused", nav, locator, locatorMapper, false);
+        _emitState("paused", nav, locator, locatorMapper, false, onTextLocatorChanged);
       },
       trackEnded: (locator) => {
         // Only emit "ended" when the publication is truly finished (last track).
@@ -163,7 +169,7 @@ export async function initializeAudioNavigator(
         // would cause Dart-side to close the player prematurely.
         if (!nav.canGoForward) {
           log.info("Publication ended (last track)");
-          _emitState("ended", nav, locator, locatorMapper, false);
+          _emitState("ended", nav, locator, locatorMapper, false, onTextLocatorChanged);
         } else {
           log.debug("Track ended, auto-advancing to next track");
         }
@@ -172,12 +178,12 @@ export async function initializeAudioNavigator(
         log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
         _emitState(
           isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
-          nav, undefined, locatorMapper, false
+          nav, undefined, locatorMapper, false, onTextLocatorChanged
         );
       },
       error: (_error, locator) => {
         log.error("AudioNavigator error:", _error, "locator:", locator?.href);
-        _emitState("failure", nav, locator, locatorMapper, false);
+        _emitState("failure", nav, locator, locatorMapper, false, onTextLocatorChanged);
       },
       metadataLoaded: (_metadata) => {},
       seeking: (_isSeeking) => {},
