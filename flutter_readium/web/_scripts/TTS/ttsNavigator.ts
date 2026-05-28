@@ -7,11 +7,10 @@
  *  - Emit state payloads to window.updateTimebasedPlayerState (same contract as AudioNavigator).
  *  - Emit locator updates to window.updateTextLocator for position bookmarking.
  *  - Navigate the visual navigator to the current paragraph on each utterance start.
+ *  - Apply utterance-level and word-level decorations via the onApplyDecorations callback
+ *    when decoration styles are provided (set via setDecorationStyle on the Dart side).
  *
  * Known limitations:
- *  - TODO(#209): TTS word/sentence highlighting is deferred until the ts-toolkit Decorator
- *    API (PR #209) merges.  Locators are emitted to Dart for bookmarking but no visual
- *    highlight is applied inside the EPUB iframe.
  *  - onboundary sub-utterance granularity is not available in all browsers (Firefox, some
  *    mobile).  When absent, the engine falls back to utterance (paragraph) level silently.
  */
@@ -107,16 +106,33 @@ export class WebTTSEngine {
   /** per-language voice map: lang -> voiceURI */
   private _langVoiceMap: Map<string, string> = new Map();
 
+  /** Decoration style for the active utterance span (null = no utterance decoration). */
+  private _utteranceStyle: object | null;
+  /** Decoration style for the active word/boundary span (null = no range decoration). */
+  private _rangeStyle: object | null;
+  /**
+   * Callback invoked to apply a decoration group. Receives the group name and a
+   * JSON-encoded array of ReaderDecoration objects (same shape as the Dart
+   * applyDecorations contract). Passing an empty array clears the group.
+   */
+  private _onApplyDecorations: ((group: string, decorationsJson: string) => void) | null;
+
   constructor(
     nav: AnyNavigator,
     publication: ReadiumPublication,
     prefs: WebTTSPreferences,
-    syncEnabled: boolean = true
+    syncEnabled: boolean = true,
+    utteranceStyle: object | null = null,
+    rangeStyle: object | null = null,
+    onApplyDecorations: ((group: string, decorationsJson: string) => void) | null = null
   ) {
     this._nav = nav;
     this._publication = publication;
     this._prefs = prefs;
     this._syncEnabled = syncEnabled;
+    this._utteranceStyle = utteranceStyle;
+    this._rangeStyle = rangeStyle;
+    this._onApplyDecorations = onApplyDecorations;
   }
 
   /**
@@ -126,6 +142,15 @@ export class WebTTSEngine {
    */
   setSyncEnabled(enabled: boolean): void {
     this._syncEnabled = enabled;
+  }
+
+  /**
+   * Updates the decoration styles for utterance and range highlighting.
+   * Takes effect on the next utterance; current utterance is not re-decorated.
+   */
+  updateDecorationStyles(utteranceStyle: object | null, rangeStyle: object | null): void {
+    this._utteranceStyle = utteranceStyle;
+    this._rangeStyle = rangeStyle;
   }
 
   // ---------------------------------------------------------------------------
@@ -140,6 +165,7 @@ export class WebTTSEngine {
       paused: speechSynthesis.paused,
       voices: speechSynthesis.getVoices().length,
     });
+    this._clearDecorations();
     // Prime the engine synchronously inside the user-gesture frame.
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
@@ -179,6 +205,7 @@ export class WebTTSEngine {
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
+    this._clearDecorations();
     emitState("none", null);
   }
 
@@ -220,6 +247,7 @@ export class WebTTSEngine {
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
+    this._clearDecorations();
   }
 
   // ---------------------------------------------------------------------------
@@ -326,6 +354,9 @@ export class WebTTSEngine {
       if (this._destroyed) return;
       emitState("playing", element.locator);
       emitLocator(element.locator);
+      // Apply utterance-level decoration; clear any stale range from the previous utterance.
+      this._applyDecoration("tts_utterance", element.locator, this._utteranceStyle);
+      if (this._rangeStyle) this._onApplyDecorations?.("tts_range", "[]");
       // Scroll the visual navigator to the current paragraph, unless the user
       // has opted out via EPUBPreferences.disableSynchronization.
       if (this._syncEnabled) {
@@ -371,6 +402,7 @@ export class WebTTSEngine {
         emitState("playing", segmentLocator);
         // NOTE: Do NOT call updateTextLocator here — sub-segment locators are
         // not stable enough for bookmark/position-save purposes.
+        this._applyDecoration("tts_range", segmentLocator, this._rangeStyle);
       }
     };
 
@@ -414,5 +446,27 @@ export class WebTTSEngine {
     // `language` getter comes from AttributesHolder (TextElement's grandparent in @readium/shared).
     // Cast is needed because the package's exported types don't surface the inherited getter.
     return (element as any).language ?? undefined;
+  }
+
+  /** Clear both TTS decoration groups. No-op when no callback is registered. */
+  private _clearDecorations(): void {
+    if (!this._onApplyDecorations) return;
+    this._onApplyDecorations("tts_utterance", "[]");
+    this._onApplyDecorations("tts_range", "[]");
+  }
+
+  /**
+   * Apply a single-decoration group. Skips silently when the callback, locator,
+   * or style is absent. Errors are swallowed so decoration failures never abort
+   * speech playback.
+   */
+  private _applyDecoration(group: string, locator: Locator | null, style: object | null): void {
+    if (!this._onApplyDecorations || !locator || !style) return;
+    try {
+      const decoration = [{ id: locator.href, locator: locator.serialize(), style }];
+      this._onApplyDecorations(group, JSON.stringify(decoration));
+    } catch (e) {
+      log.warn("TTS: failed to apply decoration:", e);
+    }
   }
 }

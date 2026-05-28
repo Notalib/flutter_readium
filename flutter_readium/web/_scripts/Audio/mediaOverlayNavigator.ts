@@ -30,16 +30,20 @@ const log = createLogger("MediaOverlay");
 /**
  * Initialises a Media Overlay session for the given EPUB publication.
  *
- * @param publication     The EPUB publication (must have Sync Narration alternates).
- * @param initialLocator  Optional starting text locator (will be mapped to audio time).
- * @param prefsJson       Dart AudioPreferences JSON string.
- * @param setNav          Callback invoked once AudioNavigator is ready.
+ * @param publication            The EPUB publication (must have Sync Narration alternates).
+ * @param initialLocator         Optional starting text locator (will be mapped to audio time).
+ * @param prefsJson              Dart AudioPreferences JSON string.
+ * @param setNav                 Callback invoked once AudioNavigator is ready.
+ * @param onTextLocatorChanged   Optional callback fired each time the active Sync Narration
+ *                               cue advances to a new text locator. Used by ReadiumReader to
+ *                               apply utterance-level decorations on the visual navigator.
  */
 export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator) => void
+  setNav: (nav: AudioNavigator) => void,
+  onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
   log.info("Initializing MediaOverlayNavigator");
 
@@ -81,7 +85,8 @@ export async function initializeMediaOverlayNavigator(
     audioInitialLocator,
     prefsJson,
     setNav,
-    mapper
+    mapper,
+    onTextLocatorChanged
   );
 }
 
