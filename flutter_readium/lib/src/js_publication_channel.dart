@@ -16,7 +16,6 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void goBackward();
   external void goForward();
   external void closePublication();
-  external JSPromise<JSString> getLinkContent(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
   external void setLogLevel(JSNumber level);
   external JSBoolean get isNavigatorReady;
@@ -160,25 +159,6 @@ class JsPublicationChannel {
       _readiumReader.closePublication();
     } on Object catch (error) {
       _log.e('Error closing publication: $error');
-    }
-  }
-
-  Future<String> getLinkContent(String link, {bool? asBytes}) async {
-    try {
-      final resourceJS = _readiumReader.getLinkContent(link.toJS, asBytes?.toJS);
-      final resourceString = (await resourceJS.toDart).toDart;
-      return resourceString;
-    } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
     }
   }
 

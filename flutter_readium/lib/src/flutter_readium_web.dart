@@ -209,12 +209,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     _audiobookCallbacks = null;
   }
 
-  static Future<String> getString(final Link link) async {
-    final linkString = json.encode(link);
-    final resourceString = await JsPublicationChannel().getLinkContent(linkString);
-    return resourceString;
-  }
-
   @override
   Future<void> goBackward({final bool animated = true}) async {
     JsPublicationChannel.goBackward();
