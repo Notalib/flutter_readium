@@ -301,8 +301,9 @@ class _ReadiumReader {
 
     const navDestroy = this._nav?.destroy();
     if (navDestroy) {
-      navDestroy.then(clearContainer).catch((err) => {
+      navDestroy.catch((err) => {
         log.error("Error destroying navigator:", err);
+      }).finally(() => {
         clearContainer();
       });
     } else {
@@ -519,29 +520,6 @@ class _ReadiumReader {
         ? prefs.updateIntervalSecs * 1000
         : null,
     }));
-  }
-
-  public async getLinkContent(linkString: String, asBytes: boolean = false) {
-    let linkJson = JSON.parse(linkString.toString());
-    let link: Link | undefined = Link.deserialize(linkJson);
-    if (!link) {
-      log.error("getLinkContent: invalid link string");
-    }
-    let resourceLink: Resource | undefined = this._publication?.get(link!);
-
-    if (!resourceLink) {
-      log.error("getLinkContent: resource not found", link);
-    }
-
-    let linkContent: string | undefined;
-    if (asBytes) {
-      let resourceBytes = await resourceLink?.read();
-      linkContent = JSON.stringify(Array.from(resourceBytes!));
-    } else {
-      linkContent = await resourceLink?.readAsString();
-    }
-
-    return linkContent;
   }
 }
 
