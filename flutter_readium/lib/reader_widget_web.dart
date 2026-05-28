@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'flutter_readium.dart';
@@ -104,6 +106,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    _log.d('applyDecorations not implemented in web version');
+    JsPublicationChannel().applyDecorations(
+      id,
+      json.encode(decorations.map((d) => d.toJson()).toList()),
+    );
   }
 }

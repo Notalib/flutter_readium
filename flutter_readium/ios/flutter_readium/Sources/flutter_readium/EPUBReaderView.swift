@@ -83,7 +83,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     config.debugState = false
 
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
-    config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    var decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    decorationTemplates[Decoration.Style.Id("spotlight")] = EPUBReaderView.spotlightDecorationTemplate()
+    decorationTemplates[Decoration.Style.Id("ruler")] = EPUBReaderView.rulerDecorationTemplate()
+    config.decorationTemplates = decorationTemplates
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
@@ -672,5 +675,43 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("goForward from progression:\(currentProgression) to \(nextProgression)")
     locator.locations.progression = clamp(nextProgression, minValue: 0.0, maxValue: 1.0)
     return await self.readiumViewController.go(to: locator, options: options)
+  }
+
+  // MARK: – Custom decoration templates
+
+  /// Spotlight: tinted box behind the active text range + large box-shadow that dims
+  /// the rest of the viewport. Because `experimentalPositioning` places this at z-index
+  /// -1, both the box and its shadow appear behind the publication text throughout the
+  /// page, giving a visually "dimmed background everywhere except the highlighted range"
+  /// effect without requiring any DOM mutation.
+  ///
+  /// Limitation: the box-shadow clips at column/page boundaries in paginated
+  /// multi-column EPUB layouts.
+  private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .boxes,
+      width: .wrap,
+      element: { decoration in
+        let config = decoration.style.config as! Decoration.Style.HighlightConfig
+        let tint = config.tint ?? UIColor.yellow
+        return "<div style=\"background-color: \(tint.cssValue(alpha: 1.0)); box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); box-sizing: border-box; z-index: -1;\"/>"
+      }
+    )
+  }
+
+  /// Ruler: full-viewport-width tinted stripe across each decorated text line.
+  /// `Layout.boxes + Width.viewport` produces one element per CSS border box (text
+  /// line), stretched to the full viewport width — a reading-ruler accessibility aid
+  /// that marks the active spoken line without obscuring the text above it.
+  private static func rulerDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .boxes,
+      width: .viewport,
+      element: { decoration in
+        let config = decoration.style.config as! Decoration.Style.HighlightConfig
+        let tint = config.tint ?? UIColor.yellow
+        return "<div style=\"background-color: \(tint.cssValue(alpha: 1.0)); box-sizing: border-box; z-index: -1;\"/>"
+      }
+    )
   }
 }

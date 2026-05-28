@@ -11,6 +11,8 @@ import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.RulerStyle
+import dk.nota.flutter_readium.SpotlightStyle
 import dk.nota.flutter_readium.isFixed
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.models.ViewPortSize
@@ -24,7 +26,9 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplate
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
+import org.readium.r2.navigator.html.toCss
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -141,7 +145,10 @@ class EpubReaderFragment :
         }
     }
 
-    fun addDecorationListener(group: String, listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+    fun addDecorationListener(
+        group: String,
+        listener: org.readium.r2.navigator.DecorableNavigator.Listener,
+    ) {
         val navigator =
             epubNavigator ?: run {
                 PluginLog.w(TAG, "::addDecorationListener. Navigator not ready.")
@@ -563,15 +570,22 @@ class EpubReaderFragment :
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
                         // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
-                        decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
-                            alpha = 1.0,
-                            experimentalPositioning = true,
-                        ),
+                        decorationTemplates =
+                            HtmlDecorationTemplates
+                                .defaultTemplates(
+                                    alpha = 1.0,
+                                    experimentalPositioning = true,
+                                ).also { templates ->
+                                    templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                                    templates[RulerStyle::class] = rulerDecorationTemplate()
+                                },
                         // Only register the callback if custom selectionActions are added.
-                        selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
-                            createSelectionActionModeCallback()
-                        else
-                            null,
+                        selectionActionModeCallback =
+                            if (ReadiumReader.selectionActions.isNotEmpty()) {
+                                createSelectionActionModeCallback()
+                            } else {
+                                null
+                            },
                     ),
                 initialLocator = model.locator,
                 listener = this,
@@ -619,7 +633,10 @@ class EpubReaderFragment :
         val menuItemIdOffset = 100
 
         return object : ActionMode.Callback {
-            override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            override fun onCreateActionMode(
+                mode: ActionMode?,
+                menu: Menu?,
+            ): Boolean {
                 PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
                 // Fire onTextSelected callback.
                 lifecycleScope.launch {
@@ -634,7 +651,10 @@ class EpubReaderFragment :
                 return true
             }
 
-            override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            override fun onPrepareActionMode(
+                mode: ActionMode?,
+                menu: Menu?,
+            ): Boolean {
                 if (menu == null) return false
                 var changed = false
 
@@ -649,7 +669,10 @@ class EpubReaderFragment :
                 return changed
             }
 
-            override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
+            override fun onActionItemClicked(
+                mode: ActionMode?,
+                item: MenuItem?,
+            ): Boolean {
                 if (item == null) return false
                 val index = item.itemId - menuItemIdOffset
                 val actions = ReadiumReader.selectionActions
@@ -681,5 +704,44 @@ class EpubReaderFragment :
 
     companion object {
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
+
+        /**
+         * Spotlight: tinted box behind the active range + large box-shadow that dims the rest of
+         * the viewport. Because experimentalPositioning places the box at z-index -1 (behind text),
+         * the shadow is also rendered behind all text throughout the page, giving a "dimmed
+         * background everywhere except the highlighted range" effect without DOM mutation.
+         *
+         * Limitation: box-shadow clips at column/page boundaries in paginated multi-column layouts.
+         */
+        private fun spotlightDecorationTemplate(): HtmlDecorationTemplate =
+            HtmlDecorationTemplate(
+                layout = HtmlDecorationTemplate.Layout.BOXES,
+                width = HtmlDecorationTemplate.Width.WRAP,
+                element = { decoration ->
+                    val tint =
+                        (decoration.style as? SpotlightStyle)?.tint
+                            ?: android.graphics.Color.YELLOW
+                    val css = "${tint.toCss()} !important"
+                    """<div style="background-color: $css; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); box-sizing: border-box; z-index: -1;"/>"""
+                },
+            )
+
+        /**
+         * Ruler: full-viewport-width tinted stripe across each decorated text line.
+         * Layout.BOXES + Width.VIEWPORT produces one element per CSS border box (text line)
+         * stretched to the full viewport width — a reading-ruler accessibility aid.
+         */
+        private fun rulerDecorationTemplate(): HtmlDecorationTemplate =
+            HtmlDecorationTemplate(
+                layout = HtmlDecorationTemplate.Layout.BOXES,
+                width = HtmlDecorationTemplate.Width.VIEWPORT,
+                element = { decoration ->
+                    val tint =
+                        (decoration.style as? RulerStyle)?.tint
+                            ?: android.graphics.Color.YELLOW
+                    val css = "${tint.toCss()} !important"
+                    """<div style="background-color: $css; box-sizing: border-box; z-index: -1;"/>"""
+                },
+            )
     }
 }

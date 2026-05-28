@@ -3,10 +3,21 @@ import "./style.css";
 import { AudioNavigator, AudioPreferences, EpubNavigator, WebPubNavigator } from "@readium/navigator";
 import { Locator, Resource } from "@readium/shared";
 import { Link } from "@readium/shared";
+import { Layout, Width, Decoration } from "@readium/navigator-html-injectables";
 
 // Helpers and extensions
-import { fetchManifest } from "./helpers";
 import { createLogger, LogLevel, setLogLevel } from "./logger";
+import {
+  fetchManifest,
+  setPreferencesFromString,
+  sendDecorate,
+  navIframeWindows,
+  registerPendingDecorationGroup,
+  setSpotlightGroupOnIframes,
+  UNDERLINE_GROUP_SUFFIX,
+  SPOTLIGHT_GROUP_SUFFIX,
+  RULER_GROUP_SUFFIX,
+} from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
 import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
@@ -71,6 +82,13 @@ class _ReadiumReader {
    * preference surface. Passed to the TTS engine on enable and on every change.
    */
   private _disableSynchronization = false;
+
+  // Maps group name → set of decoration IDs currently applied, used for group-replacement semantics.
+  private _decorationsByGroup: Map<string, Set<string>> = new Map();
+
+  // Stored decoration styles for TTS/media-overlay use (no TTS engine in Phase 1).
+  private _utteranceStyle: object | null = null;
+  private _rangeStyle: object | null = null;
 
   public get isNavigatorReady(): boolean {
     return !!this._nav;
@@ -271,6 +289,106 @@ class _ReadiumReader {
     setEpubPreferencesFromString(newPreferencesString, this._nav);
   }
 
+  /**
+   * Replace the entire decoration group with the provided list.
+   *
+   * Decorations are routed to one of four upstream subgroups based on style:
+   *   - `highlight` → `<group>` (filled rectangle behind text)
+   *   - `underline` → `<group>__underline` (border-bottom via injected CSS)
+   *   - `spotlight` → `<group>__spotlight` (filled rectangle + body-dim CSS)
+   *   - `ruler`     → `<group>__ruler` (full-viewport-width stripe per text line)
+   *
+   * All four subgroups are cleared on each call for replacement semantics. Spotlight
+   * CSS is activated/deactivated automatically based on whether the spotlight subgroup
+   * is non-empty after routing.
+   *
+   * @param group  Unique group identifier (opaque string passed from Dart).
+   * @param decorationsJson  JSON-encoded array of ReaderDecoration objects:
+   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline"|"spotlight"|"ruler", tint: "#RRGGBBAA" } }]
+   */
+  public applyDecorations(group: string, decorationsJson: string): void {
+    if (!this._nav) {
+      console.warn("applyDecorations: navigator not ready, skipping");
+      return;
+    }
+
+    const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
+    const spotlightGroup = group + SPOTLIGHT_GROUP_SUFFIX;
+    const rulerGroup = group + RULER_GROUP_SUFFIX;
+
+    // Clear all subgroups for replacement semantics.
+    for (const grp of [group, underlineGroup, spotlightGroup, rulerGroup]) {
+      sendDecorate(this._nav, grp, "clear", undefined);
+      this._decorationsByGroup.set(grp, new Set());
+    }
+
+    const decorationsRaw: Array<{
+      id: string;
+      locator: object;
+      style: { style: string; tint: string };
+    }> = JSON.parse(decorationsJson);
+
+    const iframes = navIframeWindows(this._nav);
+
+    // Look ahead to collect the first tint per subgroup for FIFO pairing.
+    const firstTintByGroup = new Map<string, { isUnderline: boolean; tint: string }>();
+    for (const raw of decorationsRaw) {
+      const grp = this._subgroupFor(group, raw.style.style);
+      if (!firstTintByGroup.has(grp)) {
+        firstTintByGroup.set(grp, { isUnderline: raw.style.style === "underline", tint: raw.style.tint });
+      }
+    }
+    for (const [grp, meta] of firstTintByGroup) {
+      registerPendingDecorationGroup(iframes, grp, meta.isUnderline, meta.tint);
+    }
+
+    for (const raw of decorationsRaw) {
+      const targetGroup = this._subgroupFor(group, raw.style.style);
+      const isRuler = raw.style.style === "ruler";
+      const decoration: Decoration = {
+        id: raw.id,
+        locator: Locator.deserialize(raw.locator)!,
+        style: {
+          tint: raw.style.tint,
+          layout: isRuler ? Layout.Boxes : Layout.Bounds,
+          width: isRuler ? Width.Viewport : Width.Wrap,
+        },
+      };
+      sendDecorate(this._nav, targetGroup, "add", decoration);
+      this._decorationsByGroup.get(targetGroup)!.add(raw.id);
+    }
+
+    // Spotlight is driven by decoration presence: activate when the spotlight
+    // subgroup is non-empty, deactivate when empty.
+    const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
+    setSpotlightGroupOnIframes(iframes, hasSpotlight ? spotlightGroup : null);
+  }
+
+  private _subgroupFor(group: string, style: string): string {
+    switch (style) {
+      case "underline": return group + UNDERLINE_GROUP_SUFFIX;
+      case "spotlight": return group + SPOTLIGHT_GROUP_SUFFIX;
+      case "ruler":     return group + RULER_GROUP_SUFFIX;
+      default:          return group; // "highlight" and anything unknown
+    }
+  }
+
+  /**
+   * Store default decoration styles for TTS utterance and range highlighting.
+   * No TTS engine is wired up in Phase 1 — these values are stored for future use
+   * once the web TTS implementation arrives.
+   *
+   * @param utteranceStyleJson  JSON-encoded ReaderDecorationStyle or null.
+   * @param rangeStyleJson      JSON-encoded ReaderDecorationStyle or null.
+   */
+  public setDecorationStyle(
+    utteranceStyleJson: string | null,
+    rangeStyleJson: string | null
+  ): void {
+    this._utteranceStyle = utteranceStyleJson ? JSON.parse(utteranceStyleJson) : null;
+    this._rangeStyle = rangeStyleJson ? JSON.parse(rangeStyleJson) : null;
+  }
+
   public closePublication(error?: any) {
     log.info("closePublication", error ? `(error: ${error})` : "");
     this._ttsEngine?.destroy();
@@ -279,6 +397,12 @@ class _ReadiumReader {
     this._positions = [];
     this._publication = undefined;
 
+    this._decorationsByGroup.clear();
+    this._nav?.destroy(); // Clean up the navigator instance
+    const container = document.getElementById("container");
+    if (container) {
+      container.innerHTML = ""; // Clear the container
+    }
     // Emit status synchronously so Dart receives it before any async navigator cleanup.
     // Do NOT delete the window callbacks here — the Dart side re-registers them before each
     // openPublication call, and deleting them asynchronously races with the new registration.
