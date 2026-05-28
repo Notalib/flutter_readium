@@ -17,6 +17,7 @@ import {
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { injectDecorationOverrides } from "../helpers";
 import { createLogger } from "../logger";
 
 const log = createLogger("WebPubNav");
@@ -86,6 +87,7 @@ export async function initializeWebPubNavigatorAndPeripherals(
       nav._cframes.forEach((frameManager: WebPubFrameManager | undefined) => {
         if (frameManager) {
           p.observe(frameManager.window);
+          injectDecorationOverrides(frameManager.window);
         }
       });
       p.observe(window);

@@ -18,6 +18,11 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void closePublication();
   external void setEPUBPreferences(JSString newPreferencesString);
   external void setLogLevel(JSNumber level);
+  external void applyDecorations(JSString group, JSString decorationsJson);
+  external void setDecorationStyle(
+    JSString? utteranceStyleJson,
+    JSString? rangeStyleJson,
+  );
   external JSBoolean get isNavigatorReady;
   external void play(JSString? locatorJson);
   external void pause();
@@ -234,5 +239,21 @@ class JsPublicationChannel {
         stacktrace: stackTrace.toString(),
       );
     }
+  }
+
+  void applyDecorations(String group, String decorationsJson) {
+    final isReady = _readiumReader.isNavigatorReady.toDart;
+    if (isReady) {
+      _readiumReader.applyDecorations(group.toJS, decorationsJson.toJS);
+    } else {
+      ReadiumLog.w('ReadiumReader is not ready yet, skipping applyDecorations');
+    }
+  }
+
+  void setDecorationStyle(String? utteranceStyleJson, String? rangeStyleJson) {
+    _readiumReader.setDecorationStyle(
+      utteranceStyleJson?.toJS,
+      rangeStyleJson?.toJS,
+    );
   }
 }

@@ -19,6 +19,7 @@ import {
   initializeEpubPreferencesFromString,
 } from "./epubPreferences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { injectDecorationOverrides } from "../helpers";
 import { createLogger } from "../logger";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
 
@@ -130,6 +131,7 @@ export async function initializeEpubNavigatorAndPeripherals(
         (frameManager: FrameManager | FXLFrameManager | undefined) => {
           if (frameManager) {
             p.observe(frameManager.window);
+            injectDecorationOverrides(frameManager.window);
           }
         }
       );

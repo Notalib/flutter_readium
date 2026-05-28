@@ -232,13 +232,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    _log.w('applyDecorations is not implemented on web platform');
-  }
-
-  @override
-  Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
-    _log.w('searchInPublication is not implemented on web platform');
-    return const [];
+    JsPublicationChannel().applyDecorations(
+      id,
+      jsonEncode(decorations.map((d) => d.toJson()).toList()),
+    );
   }
 
   // COMMON PLAYBACK API - BEGIN
@@ -319,7 +316,12 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    _log.w('setDecorationStyle is not implemented on web platform');
+    // NOTE: No TTS engine is wired up on web in Phase 1. The styles are forwarded
+    // to the JS layer and stored for future use when the web TTS implementation arrives.
+    JsPublicationChannel().setDecorationStyle(
+      utteranceDecoration == null ? null : jsonEncode(utteranceDecoration.toJson()),
+      rangeDecoration == null ? null : jsonEncode(rangeDecoration.toJson()),
+    );
   }
 
   @override

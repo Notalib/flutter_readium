@@ -7,40 +7,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Web: structured console logging** — all web TS modules now log through a
-  tagged logger (`[Readium/<Module>] LEVEL: message`) with runtime level control.
-  The `setLogLevel` interface method now propagates to the JS bundle so web
-  logging verbosity is controlled from Dart alongside the native platforms.
-- **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')`
-  factory creates child loggers named `flutter_readium.<Name>`, surfacing the
-  source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
-
-### Fixed
-
-- **Web: TTS read-aloud not starting** — extended the `@readium/shared` 2.2.0
-  patch to also fix the compiled `dist/` bundles (`index.js` and `index.umd.cjs`).
-  The previous patch only modified the `src/` TypeScript file, which webpack
-  never consumes (the package's `module`/`main` entries point to `dist/`), so
-  the `PublicationContentIterator.loadIteratorAt` bug (missing `return`)
-  remained in the shipped bundle and `hasNext()` always returned false.
-- **Web: Media Overlay audio playback crash** — fixed "Failed to create new
-  Audiobook manifest" error when starting Media Overlay playback. The synthetic
-  manifest was built using `JSON.stringify` on class instances (producing invalid
-  RWPM JSON); now uses the proper `Manifest.serialize()` / `Link.serialize()` API.
-- **Web: Audio does not advance to next track** — two issues fixed: (1)
-  AudioNavigator's `autoPlay` preference was hardcoded to `false`, overriding the
-  default and preventing auto-advance; now passes `null` so the `true` default
-  takes effect. (2) The `trackEnded` listener unconditionally emitted "ended" state
-  to Dart on every track boundary, causing the example app's player bloc to close
-  the session. Now only emits "ended" on the final track.
-- **Web: Audio requires pressing play twice** — `audioEnable` and `play` with a
-  `fromLocator` called `go()` to seek without starting playback first. Since the
-  navigator wasn't playing, `go()`'s `wasPlaying` check was `false` and it never
-  resumed after the seek. Now calls `play()` before `go()` so the play-intent is
-  captured and playback resumes automatically after seeking.
-
-### Added
-
 - **Web: `goToProgression` implemented** — navigates to an absolute progression
   (0.0–1.0) on the web platform. Supports EPUB (position-list lookup), audiobook
   (seek to `progression × duration`), and Media Overlay content types.
@@ -77,6 +43,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Web: content-protection, peripheral, and context-menu listener stubs** — new
   required listener fields from ts-toolkit 2.3.0 are now present on both EPUB and
   WebPub navigator configurations.
+- **Web: structured console logging** — all web TS modules now log through a
+  tagged logger (`[Readium/<Module>] LEVEL: message`) with runtime level control.
+  The `setLogLevel` interface method now propagates to the JS bundle so web
+  logging verbosity is controlled from Dart alongside the native platforms.
+- **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')`
+  factory creates child loggers named `flutter_readium.<Name>`, surfacing the
+  source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
 
 ### Fixed
 
@@ -112,6 +85,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   instead of `.find()`, eliminating `TypeError: alternates.find is not a function`.
   The same Links-vs-array bug was silently dropping nested TOC children in
   `flattenToc`; nested TOC entries are now flattened correctly.
+- **Web: TTS read-aloud not starting** — extended the `@readium/shared` 2.2.0
+  patch to also fix the compiled `dist/` bundles (`index.js` and `index.umd.cjs`).
+  The previous patch only modified the `src/` TypeScript file, which webpack
+  never consumes (the package's `module`/`main` entries point to `dist/`), so
+  the `PublicationContentIterator.loadIteratorAt` bug (missing `return`)
+  remained in the shipped bundle and `hasNext()` always returned false.
+- **Web: Media Overlay audio playback crash** — fixed "Failed to create new
+  Audiobook manifest" error when starting Media Overlay playback. The synthetic
+  manifest was built using `JSON.stringify` on class instances (producing invalid
+  RWPM JSON); now uses the proper `Manifest.serialize()` / `Link.serialize()` API.
+- **Web: Audio does not advance to next track** — two issues fixed: (1)
+  AudioNavigator's `autoPlay` preference was hardcoded to `false`, overriding the
+  default and preventing auto-advance; now passes `null` so the `true` default
+  takes effect. (2) The `trackEnded` listener unconditionally emitted "ended" state
+  to Dart on every track boundary, causing the example app's player bloc to close
+  the session. Now only emits "ended" on the final track.
+- **Web: Audio requires pressing play twice** — `audioEnable` and `play` with a
+  `fromLocator` called `go()` to seek without starting playback first. Since the
+  navigator wasn't playing, `go()`'s `wasPlaying` check was `false` and it never
+  resumed after the seek. Now calls `play()` before `go()` so the play-intent is
+  captured and playback resumes automatically after seeking.
 
 ### Changed
 
@@ -131,7 +125,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `@readium/shared` `^2.1.1` → `^2.2.0`. Picks up FXL `positionChanged` reliability
   fix (navigator #218), vertical/RTL writing-mode support, Readium CSS v2.0.0, and
   content-protection infrastructure.
-
+- **Web Decorator API** — `applyDecorations` and `setDecorationStyle` are now
+  functional on the web platform. `applyDecorations` replaces a group's decorations
+  by sending a `"clear"` then an `"add"` per decoration via the upstream
+  `@readium/navigator-html-injectables` FrameComms `"decorate"` command.
+  This API reaches into the upstream navigator's private `_cframes` channel, which is
+  intentional — `@readium/navigator` v2.2.4 exposes no public decoration surface.
+  `setDecorationStyle` stores TTS utterance/range styles for future use; no TTS engine
+  is wired up on web yet.
+- **Web underline-style decorations** — `DecorationStyle.underline` now renders as a
+  border-bottom in the tint colour rather than a filled box. Implementation routes
+  underline-style decorations to a separate upstream group (`<group>__underline`) and
+  injects a small stylesheet plus a MutationObserver into each EPUB iframe on load to
+  override `.readium-highlight` rendering for that group. The same underline distinction
+  also works in the CSS Custom Highlight API path (modern Chrome): a head-level
+  MutationObserver pairs upstream's per-group `<style id="readium-decoration-N-style">`
+  with our pending registrations FIFO and emits a sibling `<style>` whose
+  `::highlight(readium-decoration-N) { text-decoration: underline ... }` rule wins
+  by cascade order. Bold and box-model styling on `::highlight()` remain impossible
+  per the CSS Custom Highlight API spec allowlist.
+- **Four decoration styles** — `DecorationStyle` now has four modes: `highlight`
+  (filled rectangle behind text — default), `underline` (border-bottom in tint colour),
+  `spotlight` (filled rectangle + all surrounding body text dimmed, focusing the reader
+  on the active range — web and native), and `ruler` (full-viewport-width stripe across
+  each decorated text line, a reading-ruler aid — web and native).
+  Spotlight is only fully visible on web in the CSS Custom Highlight API path (Chrome ≥ 105);
+  it degrades gracefully to a plain highlight in DOM-fallback browsers.
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
   `TextSelectionEvent` (locator + selected text) when the user selects text in the reader.
   Supported on iOS, Android, and Web.
@@ -146,7 +165,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   shown. Pass `null` for all defaults, or a specific `Set<DefaultSelectionAction>` to filter.
   iOS supports `copy`, `share`, `lookup`, `translate`; Android supports `copy`, `share`,
   `selectAll`. Unsupported values for a platform are silently ignored.
-
 - **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
   `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via
   `PdfiumNavigatorFragment` from kotlin-toolkit). PDF is not supported on Web.

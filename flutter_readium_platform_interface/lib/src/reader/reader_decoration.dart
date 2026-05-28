@@ -5,12 +5,18 @@ import '../index.dart';
 
 enum DecorationStyle {
   highlight,
-  underline;
+  underline,
+  spotlight,
+  ruler;
 
   static DecorationStyle fromString(String? styleStr) {
     switch (styleStr) {
       case 'underline':
         return DecorationStyle.underline;
+      case 'spotlight':
+        return DecorationStyle.spotlight;
+      case 'ruler':
+        return DecorationStyle.ruler;
       case 'highlight':
       default:
         return DecorationStyle.highlight;
