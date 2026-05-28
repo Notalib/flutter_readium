@@ -253,19 +253,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.stop());
     });
 
-    on<SkipToNext>((final event, final emit) {
-      ReadiumLog.i("SkipToNext, currentLocator: $currentLocator");
-      if (currentLocator == null) {
-        return instance.next();
-      }
-
-      final newProgression = (currentLocator?.locations?.progression ?? 0) + 0.2;
-      if (newProgression > 1) {
-        return instance.next();
-      }
-
-      return instance.goToProgression(newProgression);
-    });
+    on<SkipToNext>((final event, final emit) => instance.next());
 
     on<SkipToPrevious>((final event, final emit) => instance.previous());
 

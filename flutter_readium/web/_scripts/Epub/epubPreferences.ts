@@ -8,6 +8,7 @@ import {
   convertVerticalScroll,
   normalizeTypes,
   textAlignFromJson,
+  dartColorToCss,
 } from "../helpers";
 import { createLogger } from "../logger";
 
@@ -43,7 +44,7 @@ export function epubPreferencesFromJson(
   // Direct pass-throughs (Dart key === web key, no type change).
   // ---------------------------------------------------------------------------
   /** Default page background color (CSS color string). */
-  if (typeof prefs.backgroundColor === "string") out.backgroundColor = prefs.backgroundColor;
+  if (typeof prefs.backgroundColor === "string") out.backgroundColor = dartColorToCss(prefs.backgroundColor);
   /** Font family for text content. */
   if (typeof prefs.fontFamily === "string") out.fontFamily = prefs.fontFamily;
   /** Font weight (CSS `font-weight`, 100–1000). */
@@ -63,7 +64,7 @@ export function epubPreferencesFromJson(
   /** Vertical scroll for reflowable content. Default false -> horizontal pagination. */
   if (typeof prefs.scroll === "boolean") out.scroll = prefs.scroll;
   /** Text color. */
-  if (typeof prefs.textColor === "string") out.textColor = prefs.textColor;
+  if (typeof prefs.textColor === "string") out.textColor = dartColorToCss(prefs.textColor);
   /** Normalize text styles for accessibility. */
   if (typeof prefs.textNormalization === "boolean") out.textNormalization = prefs.textNormalization;
   /** Space between words (rem). */

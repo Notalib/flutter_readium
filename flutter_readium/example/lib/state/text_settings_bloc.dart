@@ -282,6 +282,13 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       imageFilter: state.imageFilter,
     );
     instance.setDefaultPreferences(defaultPreferences);
+    // Propagate the initial decoration style so TTS/MediaOverlay highlight is
+    // active from the first utterance even before the user visits the highlight
+    // settings panel.
+    instance.setDecorationStyle(
+      ReaderDecorationStyle(style: DecorationStyle.spotlight, tint: state.highlight.backgroundColor),
+      ReaderDecorationStyle(style: DecorationStyle.ruler, tint: state.highlight.textColor),
+    );
   }
 
   TextSettingsBloc()

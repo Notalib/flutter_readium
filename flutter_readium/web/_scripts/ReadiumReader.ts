@@ -17,6 +17,7 @@ import {
   UNDERLINE_GROUP_SUFFIX,
   SPOTLIGHT_GROUP_SUFFIX,
   RULER_GROUP_SUFFIX,
+  dartColorToCss,
 } from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
 import { ReadiumPublication } from "./extensions/ReadiumPublication";
@@ -87,8 +88,10 @@ class _ReadiumReader {
   private _decorationsByGroup: Map<string, Set<string>> = new Map();
 
   // Stored decoration styles for TTS/media-overlay use.
-  private _utteranceStyle: object | null = null;
-  private _rangeStyle: object | null = null;
+  // Defaults match iOS/Android: yellow highlight for utterance, black underline for range.
+  // Overridden by setDecorationStyle() when called from Dart.
+  private _utteranceStyle: object | null = { style: "highlight", tint: "#ffff00ff" };
+  private _rangeStyle: object | null = { style: "underline", tint: "#000000ff" };
 
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
@@ -308,7 +311,8 @@ class _ReadiumReader {
    *
    * @param group  Unique group identifier (opaque string passed from Dart).
    * @param decorationsJson  JSON-encoded array of ReaderDecoration objects:
-   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline"|"spotlight"|"ruler", tint: "#RRGGBBAA" } }]
+   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline"|"spotlight"|"ruler", tint: "#AARRGGBB" } }]
+   *   Tints are in Dart's AARRGGBB format and are converted to CSS RRGGBBAA internally.
    */
   public applyDecorations(group: string, decorationsJson: string): void {
     if (!this._nav) {
@@ -331,6 +335,12 @@ class _ReadiumReader {
       locator: object;
       style: { style: string; tint: string };
     }> = JSON.parse(decorationsJson);
+
+    // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
+    // all downstream paths (highlight fill, underline CSS, spotlight) see CSS colors.
+    for (const item of decorationsRaw) {
+      item.style.tint = dartColorToCss(item.style.tint);
+    }
 
     const iframes = navIframeWindows(this._nav);
 
