@@ -361,6 +361,9 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
  *      rule wins by cascade order.
  *   3. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
  *      by {@link setSpotlightGroupOnIframes}.
+ *   4. **Ruler fill priority**: a MutationObserver re-asserts each ruler box's
+ *      inline `background-color` as `!important` so it survives Readium CSS's
+ *      `* { background-color: transparent !important }` theme override.
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
@@ -390,6 +393,30 @@ export function injectDecorationOverrides(wnd: Window): void {
     el.classList?.contains("readium-highlight") === true &&
     el.closest(`[data-group$="${UNDERLINE_GROUP_SUFFIX}"]`) !== null;
 
+  // ── Ruler fill (survive Readium CSS background override) ─────────────────
+  // Readium CSS injects `:root[style*="--USER__backgroundColor"] * {
+  // background-color: transparent !important }` whenever a custom theme is
+  // active (always, in practice). The ruler's only visual is its fill, which
+  // upstream sets as a *plain* inline `background-color` — so that rule wins and
+  // the stripe vanishes. Re-asserting the same tint as inline `!important` beats
+  // the stylesheet rule (inline important > stylesheet important), keeping the
+  // ruler visible. Spotlight needs no such fix: its effect is the body-dimming
+  // CSS, not a fill.
+  //
+  // `z-index: -1` places the stripe behind the publication text (the same
+  // experimentalPositioning technique as the native templates), so the tint sits
+  // under the glyphs instead of overlaying and recolouring them.
+  const forceRulerFill = (box: HTMLElement) => {
+    const tint = box.style.backgroundColor;
+    if (tint) {
+      box.style.setProperty("background-color", tint, "important");
+      box.style.setProperty("z-index", "-1");
+    }
+  };
+  const isRulerBox = (el: HTMLElement): boolean =>
+    el.classList?.contains("readium-highlight") === true &&
+    el.closest(`[data-group$="${RULER_GROUP_SUFFIX}"]`) !== null;
+
   const bodyObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
       // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
@@ -399,9 +426,13 @@ export function injectDecorationOverrides(wnd: Window): void {
         if (node.nodeType !== 1) continue;
         const el = node as HTMLElement;
         if (isUnderlineBox(el)) mirrorTint(el);
+        if (isRulerBox(el)) forceRulerFill(el);
         el.querySelectorAll?.(
           `[data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight`
         ).forEach((b) => mirrorTint(b as HTMLElement));
+        el.querySelectorAll?.(
+          `[data-group$="${RULER_GROUP_SUFFIX}"] .readium-highlight`
+        ).forEach((b) => forceRulerFill(b as HTMLElement));
       }
     }
   });

@@ -28,7 +28,6 @@ import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.html.HtmlDecorationTemplate
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
-import org.readium.r2.navigator.html.toCss
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -706,30 +705,55 @@ class EpubReaderFragment :
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
 
         /**
-         * Spotlight: tinted box behind the active range + large box-shadow that dims the rest of
-         * the viewport. Because experimentalPositioning places the box at z-index -1 (behind text),
-         * the shadow is also rendered behind all text throughout the page, giving a "dimmed
-         * background everywhere except the highlighted range" effect without DOM mutation.
+         * Spotlight: semi-transparent tinted box over the active range + large box-shadow
+         * that dims the rest of the viewport.
          *
-         * Limitation: box-shadow clips at column/page boundaries in paginated multi-column layouts.
+         * Uses BOUNDS layout (a single element covering the whole range) rather than BOXES
+         * (one element per line). With BOXES, a multi-line range produces one 9999px
+         * box-shadow per line; those shadows overlap and composite additively, darkening the
+         * whole viewport toward black. A single bounding element casts a single shadow, so
+         * the dim stays at the intended opacity regardless of how many lines the range spans.
+         *
+         * The fill renders at the decoration's natural stacking level (above the page
+         * background), so the tint is visible on both light and dark themes. A semi-
+         * transparent alpha (0.5) lets the text show through. The outward box-shadow covers
+         * everything outside the element, giving a "dimmed background everywhere except the
+         * spotlit range" effect.
+         *
+         * Limitation: box-shadow clips at column/page boundaries in paginated multi-column
+         * layouts.
          */
         private fun spotlightDecorationTemplate(): HtmlDecorationTemplate =
             HtmlDecorationTemplate(
-                layout = HtmlDecorationTemplate.Layout.BOXES,
-                width = HtmlDecorationTemplate.Width.WRAP,
+                layout = HtmlDecorationTemplate.Layout.BOUNDS,
+                width = HtmlDecorationTemplate.Width.BOUNDS,
                 element = { decoration ->
                     val tint =
                         (decoration.style as? SpotlightStyle)?.tint
                             ?: android.graphics.Color.YELLOW
-                    val css = "${tint.toCss()} !important"
-                    """<div style="background-color: $css; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); box-sizing: border-box; z-index: -1;"/>"""
+                    val r = android.graphics.Color.red(tint)
+                    val g = android.graphics.Color.green(tint)
+                    val b = android.graphics.Color.blue(tint)
+                    """<div style="background-color: rgba($r,$g,$b,0.5); box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); box-sizing: border-box;"/>"""
                 },
             )
 
         /**
-         * Ruler: full-viewport-width tinted stripe across each decorated text line.
-         * Layout.BOXES + Width.VIEWPORT produces one element per CSS border box (text line)
-         * stretched to the full viewport width — a reading-ruler accessibility aid.
+         * Ruler: full-viewport-width semi-transparent tinted stripe across each decorated
+         * text line. Layout.BOXES + Width.VIEWPORT produces one element per CSS border box
+         * (text line) stretched to the full viewport width — a reading-ruler accessibility aid.
+         *
+         * The background-color MUST be `!important`. Readium CSS injects
+         * `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
+         * whenever a custom theme/background is active (always, in practice), which would
+         * otherwise force this decoration's fill to transparent and make the ruler invisible.
+         * The upstream default highlight template uses `!important` for the same reason.
+         * Spotlight does not need it because its visible effect comes from the (non-overridden)
+         * box-shadow, not the fill.
+         *
+         * `z-index: -1` places the stripe behind the publication text (the same
+         * experimentalPositioning technique as the default highlight/underline templates),
+         * so the tint sits under the glyphs instead of overlaying and recolouring them.
          */
         private fun rulerDecorationTemplate(): HtmlDecorationTemplate =
             HtmlDecorationTemplate(
@@ -739,8 +763,10 @@ class EpubReaderFragment :
                     val tint =
                         (decoration.style as? RulerStyle)?.tint
                             ?: android.graphics.Color.YELLOW
-                    val css = "${tint.toCss()} !important"
-                    """<div style="background-color: $css; box-sizing: border-box; z-index: -1;"/>"""
+                    val r = android.graphics.Color.red(tint)
+                    val g = android.graphics.Color.green(tint)
+                    val b = android.graphics.Color.blue(tint)
+                    """<div style="background-color: rgba($r,$g,$b,0.5) !important; z-index: -1; box-sizing: border-box;"/>"""
                 },
             )
     }
