@@ -119,13 +119,10 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
 
   public func navigator(_ navigator: any ViewportObservingNavigator, viewportDidChange viewport: NavigatorViewport?) {
     lastViewport = viewport
-    if let locator = pdfViewController.currentLocation {
-      emitOnPageChanged(locator: locator)
-    }
   }
 
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
-    Log.reader.debug("onPageChanged: \(locator)")
+    Log.reader.debug("locationDidChange: \(locator)")
     if (!hasSentReady) {
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
@@ -203,15 +200,13 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    let viewport = lastViewport
-
-    Task.detached(priority: .high) { [locator, viewport] in
+    Task.detached(priority: .high) { [locator] in
       var resultLocator = locator
 
       // PDF TOC enrichment: find the last TOC entry whose "#page=N" fragment
       // is ≤ the current position, then attach its href and title to the locator.
       if let position = locator.locations.position {
-        let tocEntry = self.publication.getFlattenedToC()
+        let tocEntry = await self.publication.getFlattenedToC()
           .compactMap { link -> (Int, Link)? in
             let parts = link.href.components(separatedBy: "#")
             guard parts.count == 2,
@@ -225,16 +220,6 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
         if let entry = tocEntry {
           resultLocator.title = entry.title
           resultLocator.locations.otherLocations["tocHref"] = .string(entry.href)
-        }
-      }
-
-      if let viewport = viewport {
-        // TODO: Decide if we want to use & emit this.
-        resultLocator.locations.otherLocations["visibleProgressionStart"] = .double(viewport.progression.lowerBound)
-        resultLocator.locations.otherLocations["visibleProgressionEnd"] = .double(viewport.progression.upperBound)
-        if let positions = viewport.positions {
-          resultLocator.locations.otherLocations["visiblePositionStart"] = .integer(positions.lowerBound)
-          resultLocator.locations.otherLocations["visiblePositionEnd"] = .integer(positions.upperBound)
         }
       }
 
