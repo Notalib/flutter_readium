@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart' show Colors, TextAlign;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -287,7 +287,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     // settings panel.
     instance.setDecorationStyle(
       ReaderDecorationStyle(style: DecorationStyle.spotlight, tint: state.highlight.backgroundColor),
-      ReaderDecorationStyle(style: DecorationStyle.ruler, tint: state.highlight.textColor),
+      null,
+      // ReaderDecorationStyle(style: DecorationStyle.ruler, tint: state.highlight.textColor),
     );
   }
 
@@ -334,7 +335,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
 
       await FlutterReadium().setDecorationStyle(
         ReaderDecorationStyle(style: DecorationStyle.highlight, tint: event.highlight.backgroundColor),
-        ReaderDecorationStyle(style: DecorationStyle.underline, tint: event.highlight.textColor),
+        ReaderDecorationStyle(style: DecorationStyle.underline, tint: Colors.black),
       );
     });
 

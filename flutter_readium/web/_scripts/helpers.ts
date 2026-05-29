@@ -309,11 +309,13 @@ function applySpotlightToIframe(wnd: Window): void {
  * the head of the pending-groups queue and (if it's an underline group) emit
  * a sibling `<style>` whose rules win by cascade.
  *
- * The augmented stylesheet adds `text-decoration: underline ...` to the same
- * `::highlight()` pseudo-element. Both `text-decoration` properties and
- * `background-color: transparent` are valid on `::highlight()` per the CSS
- * Custom Highlight API spec, so this works in the experimental path that
- * upstream chooses on modern Chrome.
+ * The augmented stylesheet overrides the same `::highlight()` pseudo-element.
+ * Upstream Readium calls `bi(tint)` to set a contrasting `color` (black or white)
+ * on every decoration. For underline groups, that `color` can override the
+ * utterance decoration's text colour when both highlights cover the same word
+ * (range decorations are registered later and therefore have higher cascade
+ * priority). `color: inherit` neutralises that override so the document's
+ * natural text colour shows through instead.
  */
 function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
   const state = getIframeState(wnd);
@@ -328,6 +330,7 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
     augment.id = AUGMENT_STYLE_ID_PREFIX + internalId;
     augment.textContent = `
       ::highlight(${internalId}) {
+        color: inherit;
         background-color: transparent;
         text-decoration: underline 0.15em solid ${pending.tint};
       }

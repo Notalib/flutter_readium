@@ -38,6 +38,7 @@ Future<void> main() async {
       providers: [
         BlocProvider(create: (final _) => PublicationBloc(), lazy: false),
         BlocProvider(
+          lazy: false, // Needed to apply default preferences on start-up.
           create: (final _) {
             final bloc = TextSettingsBloc();
             bloc.setDefaultPreferences();
