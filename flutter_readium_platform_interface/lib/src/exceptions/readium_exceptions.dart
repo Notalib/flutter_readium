@@ -15,7 +15,13 @@ class ReadiumException implements Exception {
 
   static ReadiumException fromPlatformException(PlatformException ex) {
     final type = OpeningReadiumExceptionType.values.firstWhereOrNull((v) => v.name == ex.code);
-    return ReadiumException(ex.details ?? 'unknown', type: type);
+    // `ex.details` is `Object?` on the platform channel — for most error paths
+    // it's a String, but the iOS HTTPError(.errorResponse) path puts the
+    // response headers Map there. Prefer `ex.message` (always a human-readable
+    // string from FlutterError on the native side), fall back to a stringified
+    // details, then a generic 'unknown'. Avoids a Map-to-String cast crash.
+    final message = ex.message ?? ex.details?.toString() ?? 'unknown';
+    return ReadiumException(message, type: type);
   }
 
   static ReadiumException fromError(Object? err) {
