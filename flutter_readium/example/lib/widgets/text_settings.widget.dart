@@ -329,6 +329,46 @@ class TextSettingsWidget extends StatelessWidget {
               label: 'Highlight',
               child: ThemeSelectorWidget(themes: highlights, isHighlight: true),
             ),
+            ListItemWidget(
+              label: 'Utterance',
+              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
+                selector: (state) => state.utteranceStyle,
+                builder: (context, utteranceStyle) => SegmentedButton<DecorationStyle?>(
+                  key: const ValueKey('utterance_style_selector'),
+                  emptySelectionAllowed: true,
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('Off')),
+                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
+                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
+                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
+                    ButtonSegment(value: DecorationStyle.ruler, label: Text('Ruler')),
+                  ],
+                  selected: {utteranceStyle},
+                  onSelectionChanged: (values) =>
+                      context.read<TextSettingsBloc>().add(ChangeUtteranceStyle(values.isEmpty ? null : values.first)),
+                ),
+              ),
+            ),
+            ListItemWidget(
+              label: 'Range',
+              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
+                selector: (state) => state.rangeStyle,
+                builder: (context, rangeStyle) => SegmentedButton<DecorationStyle?>(
+                  key: const ValueKey('range_style_selector'),
+                  emptySelectionAllowed: true,
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('Off')),
+                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
+                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
+                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
+                    ButtonSegment(value: DecorationStyle.ruler, label: Text('Ruler')),
+                  ],
+                  selected: {rangeStyle},
+                  onSelectionChanged: (values) =>
+                      context.read<TextSettingsBloc>().add(ChangeRangeStyle(values.isEmpty ? null : values.first)),
+                ),
+              ),
+            ),
             const Divider(),
             TextButton(
               key: const ValueKey('text_settings_close_button'),

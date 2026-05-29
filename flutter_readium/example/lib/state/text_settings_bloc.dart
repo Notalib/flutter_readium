@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Colors, TextAlign;
+import 'package:flutter/material.dart' show TextAlign;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -32,6 +32,18 @@ class ChangeTheme extends TextSettingsEvent {
 class ChangeHighlight extends TextSettingsEvent {
   ChangeHighlight(this.highlight);
   final TextSettingsTheme highlight;
+}
+
+@immutable
+class ChangeUtteranceStyle extends TextSettingsEvent {
+  ChangeUtteranceStyle(this.value);
+  final DecorationStyle? value;
+}
+
+@immutable
+class ChangeRangeStyle extends TextSettingsEvent {
+  ChangeRangeStyle(this.value);
+  final DecorationStyle? value;
 }
 
 @immutable
@@ -141,6 +153,8 @@ class TextSettingsState {
     this.ligatures,
     this.textNormalization,
     this.imageFilter,
+    this.utteranceStyle = DecorationStyle.highlight,
+    this.rangeStyle = DecorationStyle.underline,
   });
 
   final bool scroll;
@@ -166,6 +180,8 @@ class TextSettingsState {
   final bool? ligatures;
   final bool? textNormalization;
   final EpubImageFilter? imageFilter;
+  final DecorationStyle? utteranceStyle;
+  final DecorationStyle? rangeStyle;
 
   @override
   String toString() => 'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
@@ -194,6 +210,8 @@ class TextSettingsState {
     final bool? ligatures,
     final bool? textNormalization,
     final Object? imageFilter = _sentinel,
+    final Object? utteranceStyle = _sentinel,
+    final Object? rangeStyle = _sentinel,
   }) {
     return TextSettingsState(
       scroll: scroll ?? this.scroll,
@@ -219,6 +237,8 @@ class TextSettingsState {
       ligatures: ligatures ?? this.ligatures,
       textNormalization: textNormalization ?? this.textNormalization,
       imageFilter: imageFilter == _sentinel ? this.imageFilter : imageFilter as EpubImageFilter?,
+      utteranceStyle: utteranceStyle == _sentinel ? this.utteranceStyle : utteranceStyle as DecorationStyle?,
+      rangeStyle: rangeStyle == _sentinel ? this.rangeStyle : rangeStyle as DecorationStyle?,
     );
   }
 }
@@ -286,9 +306,12 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     // active from the first utterance even before the user visits the highlight
     // settings panel.
     instance.setDecorationStyle(
-      ReaderDecorationStyle(style: DecorationStyle.spotlight, tint: state.highlight.backgroundColor),
-      null,
-      // ReaderDecorationStyle(style: DecorationStyle.ruler, tint: state.highlight.textColor),
+      state.utteranceStyle != null
+          ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: state.highlight.backgroundColor)
+          : null,
+      state.rangeStyle != null
+          ? ReaderDecorationStyle(style: state.rangeStyle!, tint: state.highlight.textColor)
+          : null,
     );
   }
 
@@ -303,6 +326,8 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
           blackAndWhiteComicMode: false,
           disableSynchronization: false,
           firstElementTopMargin: 40,
+          utteranceStyle: DecorationStyle.spotlight,
+          rangeStyle: DecorationStyle.underline,
         ),
       ) {
     on<ChangeFontSize>((final event, final emit) {
@@ -334,8 +359,32 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       emit(state.copyWith(highlight: event.highlight));
 
       await FlutterReadium().setDecorationStyle(
-        ReaderDecorationStyle(style: DecorationStyle.highlight, tint: event.highlight.backgroundColor),
-        ReaderDecorationStyle(style: DecorationStyle.underline, tint: Colors.black),
+        state.utteranceStyle != null
+            ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: event.highlight.backgroundColor)
+            : null,
+        state.rangeStyle != null
+            ? ReaderDecorationStyle(style: state.rangeStyle!, tint: event.highlight.textColor)
+            : null,
+      );
+    });
+
+    on<ChangeUtteranceStyle>((final event, final emit) async {
+      emit(state.copyWith(utteranceStyle: event.value));
+      await FlutterReadium().setDecorationStyle(
+        event.value != null ? ReaderDecorationStyle(style: event.value!, tint: state.highlight.backgroundColor) : null,
+        state.rangeStyle != null
+            ? ReaderDecorationStyle(style: state.rangeStyle!, tint: state.highlight.textColor)
+            : null,
+      );
+    });
+
+    on<ChangeRangeStyle>((final event, final emit) async {
+      emit(state.copyWith(rangeStyle: event.value));
+      await FlutterReadium().setDecorationStyle(
+        state.utteranceStyle != null
+            ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: state.highlight.backgroundColor)
+            : null,
+        event.value != null ? ReaderDecorationStyle(style: event.value!, tint: state.highlight.textColor) : null,
       );
     });
 
