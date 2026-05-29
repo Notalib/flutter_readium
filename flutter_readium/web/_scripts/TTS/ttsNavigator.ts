@@ -354,9 +354,9 @@ export class WebTTSEngine {
       if (this._destroyed) return;
       emitState("playing", element.locator);
       emitLocator(element.locator);
-      // Apply utterance-level decoration; clear any stale range from the previous utterance.
+      // Apply utterance-level decoration; always clear any stale range from the previous utterance.
       this._applyDecoration("tts_utterance", element.locator, this._utteranceStyle);
-      if (this._rangeStyle) this._onApplyDecorations?.("tts_range", "[]");
+      this._onApplyDecorations?.("tts_range", "[]");
       // Scroll the visual navigator to the current paragraph, unless the user
       // has opted out via EPUBPreferences.disableSynchronization.
       if (this._syncEnabled) {
@@ -376,10 +376,13 @@ export class WebTTSEngine {
     };
 
     utterance.onerror = (ev) => {
-      log.warn("utterance.onerror", ev.error);
       if (this._destroyed) return;
       // "interrupted" and "canceled" are expected when stop()/pause()/next() is called.
-      if (ev.error === "interrupted" || ev.error === "canceled") return;
+      if (ev.error === "interrupted" || ev.error === "canceled") {
+        log.debug("utterance.onerror (expected):", ev.error);
+        return;
+      }
+      log.warn("utterance.onerror", ev.error);
       emitState("failure", element.locator);
     };
 
