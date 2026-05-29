@@ -140,6 +140,71 @@ export function combinedLocatorForItem(
 }
 
 /**
+ * Maps a text-based Locator to an audio Locator by finding the matching
+ * SyncNarrationItem, then computing a time offset using (in priority order):
+ *  1. A `t=<n>` fragment already present in the text locator.
+ *  2. `progression × (audioEnd − audioStart)` offset within the item.
+ *  3. Fallback to item.audioStart.
+ *
+ * Returns undefined when no matching item is found.
+ *
+ * Mirrors FlutterMediaOverlayNavigator.mapTextLocatorToMediaOverlayAudioLocator
+ * (iOS) and SyncAudiobookNavigator.mapTextLocatorToMediaOverlayLocator (Android).
+ */
+export function textLocatorToAudioLocator(
+  items: SyncNarrationItem[],
+  textLocator: Locator
+): Locator | undefined {
+  log.debug("Mapping text locator to audio locator:", textLocator.href);
+  log.debug("Available SyncNarrationItems:");
+  for (const item of items) {
+    log.debug(`- textHref: ${item.textHref}, textId: ${item.textId}, audioHref: ${item.audioHref}, audioStart: ${item.audioStart}, audioEnd: ${item.audioEnd}`);
+  }
+  const targetHref = textLocator.href;
+  const targetId =
+    (textLocator.locations as any)?.fragments?.[0] ??
+    // cssSelector lives in otherLocations (a Map) — JSON.stringify would drop it,
+    // so we access it via Map.get rather than as a direct property.
+    textLocator.locations?.otherLocations?.get?.("cssSelector")?.replace(/^#/, "") ??
+    "";
+
+  const match = items.find(
+    (item) =>
+      _normalizeHref(item.textHref) === _normalizeHref(targetHref) &&
+      (!targetId || item.textId === targetId)
+  );
+
+  if (!match || match.audioStart === null) return undefined;
+
+  // Priority 1: t= fragment already in the incoming locator.
+  const tFragment = (textLocator.locations as any)?.fragments?.find(
+    (f: string) => f.startsWith("t=")
+  );
+  let timeOffset: number = match.audioStart;
+  if (tFragment) {
+    const parsed = parseFloat(tFragment.slice(2));
+    if (!isNaN(parsed)) timeOffset = parsed;
+  } else if (
+    textLocator.locations?.progression != null &&
+    match.audioEnd !== null
+  ) {
+    // Priority 2: progression within the item range.
+    timeOffset =
+      match.audioStart +
+      textLocator.locations.progression * (match.audioEnd - match.audioStart);
+  }
+  // Priority 3: fallback to audioStart (already set as default above).
+
+  return new Locator({
+    href: match.audioHref,
+    type: "audio/mpeg",
+    locations: new LocatorLocations({
+      fragments: [`t=${timeOffset}`],
+    }),
+  });
+}
+
+/**
  * Finds the SyncNarrationItem that covers a given audio position.
  * Mirrors FlutterMediaOverlay.itemInRangeOfTime.
  *

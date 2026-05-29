@@ -72,7 +72,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
     try {
-      await JsPublicationChannel.goToLocation(locator.hrefPath);
+      await JsPublicationChannel.goToLocator(json.encode(locator));
     } on PlatformException catch (e, stackTrace) {
       final pubID = widget.publication.metadata.identifier;
       throw ReadiumError(

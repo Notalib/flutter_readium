@@ -25,7 +25,7 @@ import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 import { initializeAudioNavigator } from "./Audio/audioNavigator";
-import { detectSyncNarration } from "./Audio/syncNarration";
+import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
 import { initializeMediaOverlayNavigator } from "./Audio/mediaOverlayNavigator";
 import { WebTTSEngine } from "./TTS/ttsNavigator";
 import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
@@ -77,6 +77,8 @@ class _ReadiumReader {
   private _positions: Locator[] = [];
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
   private _hasSyncNarration = false;
+  /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
+  private _syncItems: SyncNarrationItem[] = [];
   /**
    * Latest value of `EPUBPreferences.disableSynchronization` from the Dart side.
    * Held here because it is plugin-side state, not part of the navigator's
@@ -89,9 +91,10 @@ class _ReadiumReader {
 
   // Stored decoration styles for TTS/media-overlay use.
   // Defaults match iOS/Android: yellow highlight for utterance, black underline for range.
-  // Overridden by setDecorationStyle() when called from Dart.
-  private _utteranceStyle: object | null = { style: "highlight", tint: "#ffff00ff" };
-  private _rangeStyle: object | null = { style: "underline", tint: "#000000ff" };
+  // Stored in Dart #AARRGGBB format so dartColorToCss() converts them correctly when
+  // they flow through applyDecorations(). Overridden by setDecorationStyle() from Dart.
+  private _utteranceStyle: object | null = { style: "highlight", tint: "#ffffff00" };  // Dart AARRGGBB: A=ff R=ff G=ff B=00 → opaque yellow
+  private _rangeStyle: object | null = { style: "underline", tint: "#ff000000" };      // Dart AARRGGBB: A=ff R=00 G=00 B=00 → opaque black
 
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
@@ -148,42 +151,84 @@ class _ReadiumReader {
     this._nav?.goBackward(true, () => {});
   }
 
-  public async goTo(href: string): Promise<void> {
-    log.debug("goTo", href);
-    // Audiobook: build a Locator from the publication's reading order and navigate via AudioNavigator.
+  public async goTo(locatorJson: string): Promise<void> {
+    log.debug("goTo", locatorJson);
+
+    const locator = Locator.deserialize(JSON.parse(locatorJson));
+    if (!locator) {
+      log.error("goTo: failed to parse locator JSON");
+      throw new Error("Failed to parse locator JSON");
+    }
+
+    // MediaOverlay EPUB with audio enabled: map text locator → audio locator,
+    // seek audio nav, and also scroll the visual navigator to the text position.
+    // Mirrors FlutterMediaOverlayNavigator.seek(toLocator:) on iOS/Android.
+    if (this._audioNav && this._syncItems.length > 0) {
+      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator);
+      if (audioLocator) {
+        log.debug("goTo: MediaOverlay — mapped to audio locator", audioLocator.href, audioLocator.locations?.fragments);
+        const wasPlaying = this._audioNav.isPlaying;
+        await this._audioNav.go(audioLocator, wasPlaying, (ok) => {
+          if (!ok) log.error("goTo: MediaOverlay audio seek failed for", locator.href);
+        });
+      } else {
+        log.warn("goTo: MediaOverlay — no SyncNarrationItem found for", locator.href, "; falling through to visual navigation");
+      }
+      // Always update the visual navigator so the page scrolls to the bookmarked paragraph.
+      const visualPub = this._nav?.publication;
+      const visualLinks = [
+        ...(visualPub?.readingOrder?.items ?? []),
+        ...(visualPub?.resources?.items ?? []),
+      ];
+      const visualLink = findLinkByHref(visualLinks, locator.href);
+      if (visualLink) {
+        this._nav?.goLink(visualLink, true, (ok) => {
+          if (!ok) log.warn("goTo: MediaOverlay — visual navigation failed for", locator.href);
+        });
+      }
+      return;
+    }
+
+    // Pure audiobook (no sync narration): build an audio locator from the
+    // incoming locator, preserving any t= time fragment it already carries.
     if (this._audioNav) {
       const pub = this._publication;
       const allLinks = [
         ...(pub?.readingOrder?.items ?? []),
         ...(pub?.resources?.items ?? []),
       ];
-      const link = findLinkByHref(allLinks, href);
+      const link = findLinkByHref(allLinks, locator.href);
       if (!link) {
-        log.error("Audio link not found:", href);
-        throw new Error("Audio link not found " + href);
+        log.error("goTo: audio link not found:", locator.href);
+        throw new Error("Audio link not found " + locator.href);
       }
-      const locator = new Locator({ href: link.href, type: link.type ?? "audio/mpeg" });
-      await this._audioNav.go(locator, false, (ok) => {
-        if (!ok) log.error("Audiobook navigation failed for href:", href);
+      // Preserve t= fragment from the incoming locator when present.
+      const audioLocator = new Locator({
+        href: link.href,
+        type: link.type ?? "audio/mpeg",
+        locations: locator.locations,
+      });
+      await this._audioNav.go(audioLocator, false, (ok) => {
+        if (!ok) log.error("goTo: audiobook navigation failed for href:", locator.href);
       });
       return;
     }
 
-    // EPUB / WebPub: TOC entries point into the reading order or resources.
+    // EPUB / WebPub with no audio active: visual-only navigation.
     const pub = this._nav?.publication;
     const allLinks = [
       ...(pub?.readingOrder?.items ?? []),
       ...(pub?.resources?.items ?? []),
     ];
-    const link = findLinkByHref(allLinks, href);
+    const link = findLinkByHref(allLinks, locator.href);
     if (!link) {
-      log.error("Link not found:", href);
-      throw new Error("Link not found " + href);
+      log.error("goTo: link not found:", locator.href);
+      throw new Error("Link not found " + locator.href);
     }
     this._nav?.goLink(link, true, (ok) => {
       if (!ok) {
-        log.error("Failed to navigate to link:", href);
-        throw new Error("Failed to navigate to link " + href);
+        log.error("goTo: failed to navigate to link:", locator.href);
+        throw new Error("Failed to navigate to link " + locator.href);
       }
     });
   }
@@ -208,6 +253,7 @@ class _ReadiumReader {
 
     // Reset per-publication state so stale values don't bleed across openPublication calls.
     this._hasSyncNarration = false;
+    this._syncItems = [];
     this._positions = [];
 
     try {
@@ -409,6 +455,7 @@ class _ReadiumReader {
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
     this._hasSyncNarration = false;
+    this._syncItems = [];
     this._positions = [];
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
@@ -462,8 +509,12 @@ class _ReadiumReader {
     }
     if (!this._audioNav) return;
     if (locatorJson) {
-      const locator = Locator.deserialize(JSON.parse(locatorJson));
+      let locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
+        // MediaOverlay: map text locator → audio locator before seeking.
+        if (this._syncItems.length > 0) {
+          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+        }
         // Ensure playback is active so go() sees wasPlaying=true and resumes
         // after seeking.
         this._audioNav.play();
@@ -620,10 +671,15 @@ class _ReadiumReader {
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
     if (this._audioNav) {
-      // Pure audiobook already initialized — seek to locator (if provided) and play.
+      // AudioNavigator already initialized (pure audiobook or re-enable on MediaOverlay EPUB).
+      // Seek to locator (if provided), mapping text→audio for MediaOverlay first.
       if (fromLocatorJson) {
-        const locator = Locator.deserialize(JSON.parse(fromLocatorJson));
+        let locator = Locator.deserialize(JSON.parse(fromLocatorJson));
         if (locator) {
+          // MediaOverlay: map text locator → audio locator before seeking.
+          if (this._syncItems.length > 0) {
+            locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+          }
           // Set play intent before go() so wasPlaying is true and playback
           // resumes automatically after the seek completes.
           this._audioNav.play();
@@ -645,7 +701,7 @@ class _ReadiumReader {
         this._publication,
         fromLocator,
         prefsJson,
-        (nav) => { this._audioNav = nav; },
+        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
         (textLocator) => {
           if (!this._utteranceStyle || !this._nav) return;
           // Skip redundant calls when the same cue is still active.

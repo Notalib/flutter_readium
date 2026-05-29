@@ -11,18 +11,18 @@
  *     state/locator events matching iOS/Android behaviour.
  */
 
-import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { Link, Locator, Manifest, Profile } from "@readium/shared";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { createLogger } from "../logger";
 import { AudioLocatorMapper, initializeAudioNavigator } from "./audioNavigator";
 import {
   SyncNarrationItem,
-  _normalizeHref,
   combinedLocatorForItem,
   findItemByAudioTime,
   parseSyncNarration,
   textLocatorForItem,
+  textLocatorToAudioLocator,
 } from "./syncNarration";
 
 const log = createLogger("MediaOverlay");
@@ -33,7 +33,9 @@ const log = createLogger("MediaOverlay");
  * @param publication            The EPUB publication (must have Sync Narration alternates).
  * @param initialLocator         Optional starting text locator (will be mapped to audio time).
  * @param prefsJson              Dart AudioPreferences JSON string.
- * @param setNav                 Callback invoked once AudioNavigator is ready.
+ * @param setNav                 Callback invoked once AudioNavigator is ready. Receives the
+ *                               navigator and the parsed SyncNarrationItem list so callers can
+ *                               run text→audio mapping on subsequent navigation events.
  * @param onTextLocatorChanged   Optional callback fired each time the active Sync Narration
  *                               cue advances to a new text locator. Used by ReadiumReader to
  *                               apply utterance-level decorations on the visual navigator.
@@ -42,7 +44,7 @@ export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator) => void,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
   onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
   log.info("Initializing MediaOverlayNavigator");
@@ -62,7 +64,7 @@ export async function initializeMediaOverlayNavigator(
 
   // Map initial text locator -> audio locator.
   const audioInitialLocator = initialLocator
-    ? _textLocatorToAudioLocator(items, initialLocator)
+    ? textLocatorToAudioLocator(items, initialLocator)
     : undefined;
 
   // Locator mapper: applied by every state-emitting listener (play, pause,
@@ -84,7 +86,7 @@ export async function initializeMediaOverlayNavigator(
     syntheticPub,
     audioInitialLocator,
     prefsJson,
-    setNav,
+    (nav) => setNav(nav, items),
     mapper,
     onTextLocatorChanged
   );
@@ -172,33 +174,3 @@ function _buildAudiobookPublication(
   return new ReadiumPublication({ manifest, fetcher: (publication as any).fetcher });
 }
 
-/**
- * Maps a text-based starting locator to an audio locator by finding the first
- * SyncNarrationItem whose textHref/textId matches the requested href/fragment.
- */
-function _textLocatorToAudioLocator(
-  items: SyncNarrationItem[],
-  textLocator: Locator
-): Locator | undefined {
-  const targetHref = textLocator.href;
-  const targetId =
-    (textLocator.locations as any)?.fragments?.[0] ??
-    (textLocator.locations as any)?.cssSelector?.replace(/^#/, "") ??
-    "";
-
-  const match = items.find(
-    (item) =>
-      _normalizeHref(item.textHref) === _normalizeHref(targetHref) &&
-      (!targetId || item.textId === targetId)
-  );
-
-  if (!match || match.audioStart === null) return undefined;
-
-  return new Locator({
-    href: match.audioHref,
-    type: "audio/mpeg",
-    locations: new LocatorLocations({
-      fragments: [`t=${match.audioStart}`],
-    }),
-  });
-}
