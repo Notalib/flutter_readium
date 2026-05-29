@@ -160,6 +160,23 @@ class _ReadiumReader {
       throw new Error("Failed to parse locator JSON");
     }
 
+    log.info(
+      "goTo: routing decision",
+      `tts=${!!this._ttsEngine}`,
+      `audioNav=${!!this._audioNav}`,
+      `syncItems=${this._syncItems.length}`,
+      `hasSyncNarration=${this._hasSyncNarration}`
+    );
+
+    // TTS-narrated EPUB: restart narration at the new text locator so the spoken
+    // position follows ToC / bookmark navigation. The engine's onstart re-syncs
+    // the visual navigator to the same locator once the new utterance begins.
+    if (this._ttsEngine) {
+      log.info("goTo: TTS — restarting narration at", locator.href, locator.locations?.fragments);
+      await this._ttsEngine.play(locator);
+      return;
+    }
+
     // MediaOverlay EPUB with audio enabled: map text locator → audio locator,
     // seek audio nav, and also scroll the visual navigator to the text position.
     // Mirrors FlutterMediaOverlayNavigator.seek(toLocator:) on iOS/Android.

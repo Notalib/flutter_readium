@@ -19,6 +19,7 @@ import {
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { injectDecorationOverrides } from "../helpers";
 import { createLogger } from "../logger";
+import { enrichWithTotalProgression } from "../Epub/epubNavigator";
 
 const log = createLogger("WebPubNav");
 
@@ -39,6 +40,13 @@ export async function initializeWebPubNavigatorAndPeripherals(
   );
 
   log.debug("WebPub preferences", preferences);
+
+  // The WebPub navigator doesn't precompute a positions list; it derives
+  // `position` from the resource index in the reading order (see
+  // WebPubNavigator.createCurrentLocator → `position: currentIndex + 1`).
+  // Mirror that for `totalProgression` so consumers get a value even when
+  // the publication has no positionList in its manifest.
+  const totalPositions = publication.readingOrder.items.length;
 
   const configuration: WebPubNavigatorConfiguration = {
     preferences,
@@ -95,7 +103,10 @@ export async function initializeWebPubNavigatorAndPeripherals(
     positionChanged: (_locator: Locator): void => {
       window.focus();
 
-      window.updateTextLocator?.(JSON.stringify(_locator));
+      const enriched = enrichWithTotalProgression(_locator, totalPositions);
+      // Use Locator.serialize() so otherLocations Map entries survive the
+      // JSON round-trip (plain JSON.stringify silently drops Map values).
+      window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
     },
     tap: function (_e: FrameClickEvent): boolean {
       log.debug("tap event");
@@ -126,12 +137,11 @@ export async function initializeWebPubNavigatorAndPeripherals(
     peripheral: function (_data: KeyboardPeripheralEventData): void {},
     contextMenu: function (_data: ContextMenuEvent): void {},
     textSelected: function (_selection: BasicTextSelection): void {
-      // Notify Dart about the text selection
-      const currentLocator = nav.currentLocator;
+      // Notify Dart about the text selection.
+      // Use serialize() so otherLocations Map entries survive stringification,
+      // then override text with the active selection highlight.
       const locatorJson = {
-        href: currentLocator.href,
-        type: currentLocator.type,
-        locations: currentLocator.locations,
+        ...nav.currentLocator.serialize(),
         text: { highlight: _selection.text },
       };
       window.onTextSelectedCallback?.(
