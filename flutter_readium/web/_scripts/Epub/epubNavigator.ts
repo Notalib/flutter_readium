@@ -76,6 +76,8 @@ export async function initializeEpubNavigatorAndPeripherals(
     }, TEXT_LOCATOR_DEBOUNCE_MS);
   };
 
+  const totalPositions = positions.length;
+
   // Build a flat TOC list once per session so we can enrich every emitted
   // locator with `tocHref` in `locations.otherLocations` — matching the
   // contract the native plugins (iOS / Android) already use. Without this,
@@ -139,7 +141,12 @@ export async function initializeEpubNavigatorAndPeripherals(
     },
     positionChanged: (_locator: Locator): void => {
       window.focus();
-      emitTextLocatorDebounced(enrichWithTocHref(_locator, flatToc));
+      emitTextLocatorDebounced(
+        enrichWithTocHref(
+          enrichWithTotalProgression(_locator, totalPositions),
+          flatToc
+        )
+      );
     },
     tap: function (_e: FrameClickEvent): boolean {
       return false;
@@ -206,6 +213,43 @@ export async function initializeEpubNavigatorAndPeripherals(
   setPositions?.(positions);
 
   p.observe(window);
+}
+
+/**
+ * Adds `totalProgression` to the emitted locator. The upstream ts-toolkit
+ * navigator never populates this field — `Locator.serialize()` only forwards
+ * it when already set — so we compute it from the positions list we already
+ * have. Formula matches the upstream Readium positions-service convention:
+ *
+ *   (position - 1 + progression) / totalPositions
+ *
+ * `progression` (within-resource) falls back to 0 when undefined, which makes
+ * the value coincide with `(position - 1) / totalPositions` for paginated
+ * navigators that don't emit a sub-resource progression.
+ */
+export function enrichWithTotalProgression(
+  locator: Locator,
+  totalPositions: number
+): Locator {
+  if (totalPositions <= 0) return locator;
+  const position = locator.locations?.position;
+  if (position === undefined || position <= 0) return locator;
+  const progression = locator.locations?.progression ?? 0;
+  const raw = (position - 1 + progression) / totalPositions;
+  const totalProgression = Math.min(1, Math.max(0, raw));
+  return new Locator({
+    href: locator.href,
+    type: locator.type,
+    title: locator.title,
+    text: locator.text,
+    locations: new LocatorLocations({
+      fragments: locator.locations?.fragments,
+      progression: locator.locations?.progression,
+      position: locator.locations?.position,
+      totalProgression,
+      otherLocations: locator.locations?.otherLocations,
+    }),
+  });
 }
 
 /**
