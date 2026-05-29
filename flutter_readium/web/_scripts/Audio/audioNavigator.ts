@@ -193,7 +193,14 @@ export async function initializeAudioNavigator(
   locatorMapper?: AudioLocatorMapper,
   onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
-  log.info("Initializing AudioNavigator");
+  const tracks = publication.readingOrder.items.length;
+  log.info(
+    `Initializing AudioNavigator with ${tracks} track(s)`,
+    initialPosition
+      ? `from ${initialPosition.href} ${initialPosition.locations?.fragments?.[0] ?? ""}`
+      : "(no initial position — starting at first track)",
+    locatorMapper ? "[Media Overlay mapper attached]" : ""
+  );
 
   const configuration: AudioNavigatorConfiguration = {
     preferences: preferencesFromString(preferencesJsonString),
@@ -239,9 +246,11 @@ export async function initializeAudioNavigator(
       },
       timelineItemChanged: (_item) => {},
       play: (locator) => {
+        log.info("play event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
         _emitState("playing", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
       },
       pause: (locator) => {
+        log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
         _emitState("paused", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
       },
       trackEnded: (locator) => {
