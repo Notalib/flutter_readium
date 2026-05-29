@@ -392,9 +392,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
-    let viewport = lastViewport
-
-    Task.detached(priority: .high) { [locator, viewport] in
+    Task.detached(priority: .high) { [locator] in
       /// Enrich Locator with PageInformation and ToC.
       var resultLocator = locator
       if let pageInfo = await self.getPageInformation() {
