@@ -47,17 +47,30 @@ export async function initializeMediaOverlayNavigator(
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
   onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
-  log.info("Initializing MediaOverlayNavigator");
+  log.info(
+    "Initializing MediaOverlayNavigator",
+    initialLocator ? `from text locator ${initialLocator.href}` : "(no initial locator)"
+  );
 
   const items = await parseSyncNarration(publication);
   if (items.length === 0) {
     log.warn("No sync narration items found; aborting.");
     return;
   }
+  const uniqueAudioFiles = new Set(items.map((i) => i.audioHref)).size;
+  log.info(
+    `Parsed ${items.length} sync narration items across ${uniqueAudioFiles} audio file(s)`
+  );
 
   // Build synthetic audio reading order: one Link per unique audio file,
   // preserving reading-order position.
   const audioReadingOrder = _buildAudioReadingOrder(items, publication);
+  log.info(
+    `Built synthetic audio reading order with ${audioReadingOrder.length} entries`,
+    audioReadingOrder.length > 0
+      ? `(first=${audioReadingOrder[0].href}, last=${audioReadingOrder[audioReadingOrder.length - 1].href})`
+      : ""
+  );
 
   // Build a synthetic Publication with the audiobook profile and audio reading order.
   const syntheticPub = _buildAudiobookPublication(publication, audioReadingOrder);
@@ -66,6 +79,13 @@ export async function initializeMediaOverlayNavigator(
   const audioInitialLocator = initialLocator
     ? textLocatorToAudioLocator(items, initialLocator)
     : undefined;
+  if (initialLocator) {
+    log.info(
+      audioInitialLocator
+        ? `Initial text locator mapped to audio ${audioInitialLocator.href} ${audioInitialLocator.locations?.fragments?.[0] ?? ""}`
+        : `Initial text locator could not be mapped to an audio item — starting at beginning`
+    );
+  }
 
   // Locator mapper: applied by every state-emitting listener (play, pause,
   // positionChanged, trackEnded, error, stalled) so ALL state transitions
