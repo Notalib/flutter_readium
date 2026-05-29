@@ -156,7 +156,29 @@ extension ReadiumError: UserErrorConvertible {
       case ReadiumShared.ArchiveOpenError.reading(.access(.http(let httpError))),
            ReadiumShared.ReadError.access(.http(let httpError)),
            ReadiumShared.AccessError.http(let httpError):
-        return FlutterError(code: "readingError", message: "HTTPError(\(httpError.statusCode?.rawValue ?? 0)", details: httpError.responseHeaders)
+        let kind: String = {
+          switch httpError {
+          case .errorResponse: return "errorResponse"
+          case .malformedRequest: return "malformedRequest"
+          case .malformedResponse: return "malformedResponse"
+          case .timeout: return "timeout"
+          case .unreachable: return "unreachable"
+          case .redirection: return "redirection"
+          case .security: return "security"
+          case .rangeNotSupported: return "rangeNotSupported"
+          case .offline: return "offline"
+          case .fileSystem: return "fileSystem"
+          case .cancelled: return "cancelled"
+          case .other: return "other"
+          }
+        }()
+        let message: String
+        if let status = httpError.statusCode?.rawValue {
+          message = "HTTPError(\(kind), status=\(status))"
+        } else {
+          message = "HTTPError(\(kind)): \(httpError.localizedDescription)"
+        }
+        return FlutterError(code: "readingError", message: message, details: httpError.responseHeaders)
       case ReadiumShared.ArchiveOpenError.reading(.access(.fileSystem(let fsError))),
            ReadiumShared.ReadError.access(.fileSystem(let fsError)),
            ReadiumShared.AccessError.fileSystem(let fsError):
