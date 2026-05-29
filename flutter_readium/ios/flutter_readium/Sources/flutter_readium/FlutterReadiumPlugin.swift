@@ -618,7 +618,18 @@ extension FlutterReadiumPlugin {
     sender: UIViewController?
   ) async throws(ReadiumError) -> (Publication, Format) {
     do {
-      let asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
+      let asset: Asset
+      if let knownFormat = Self.knownFormat(for: url) {
+        // Skip the FormatSniffer (HEAD + sniff GET) when the URL clearly names an RWPM manifest.
+        // `retrieve(url:format:)` only opens the resource — no HEAD, no sniff body GET — so
+        // we go straight to the parser's manifest fetch with our custom headers/UA intact.
+        // The .rwpm specification is all the parser checks for dispatch; the manifest body
+        // drives the final webpub/audiobook/divina classification.
+        Log.readium.info("Skipping FormatSniffer for known manifest URL: \(url)")
+        asset = try await sharedReadium.assetRetriever!.retrieve(url: url, format: knownFormat).get()
+      } else {
+        asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
+      }
 
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
@@ -630,6 +641,21 @@ extension FlutterReadiumPlugin {
     } catch let err {
       throw err.toReadiumError()
     }
+  }
+
+  /// Returns a known `Format` for URLs whose path clearly names a recognised
+  /// publication entry-point (currently RWPM `manifest.json`). When non-nil,
+  /// `AssetRetriever.retrieve(url:format:)` can be used to skip the sniffer's
+  /// HEAD + sniff-GET, which is valuable on flaky/slow OPDS hosts where the
+  /// extra round-trips can stall and where custom headers (e.g. sanitised
+  /// User-Agent) must reach the manifest GET.
+  private static func knownFormat(for url: AbsoluteURL) -> Format? {
+    guard url.lastPathSegment == "manifest.json" else { return nil }
+    return Format(
+      specifications: .json, .rwpm,
+      mediaType: .readiumWebPubManifest,
+      fileExtension: "json"
+    )
   }
 
   /// Cleans up all publication-scoped state. Must be awaited — Dart relies on
