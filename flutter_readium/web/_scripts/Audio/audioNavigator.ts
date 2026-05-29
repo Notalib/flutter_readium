@@ -4,12 +4,79 @@ import {
   AudioNavigatorListeners,
   IAudioPreferences,
 } from "@readium/navigator";
-import { Locator } from "@readium/shared";
+import { Locator, LocatorLocations } from "@readium/shared";
 import { normalizeTypes } from "../helpers";
 import { createLogger } from "../logger";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 
 const log = createLogger("AudioNav");
+
+/**
+ * Builds a function that computes publication-wide `totalProgression` for an
+ * audio locator using accumulated track durations from `readingOrder`.
+ *
+ * Requires every `readingOrder.items[].duration` to be present and > 0. If any
+ * is missing, logs a single warning and returns a no-op that yields `undefined`
+ * — consumers should then leave `totalProgression` off the emitted locator.
+ *
+ * The upstream `@readium/navigator` AudioNavigator never populates
+ * `totalProgression` after construction (it sets `0` once and then drops the
+ * field on every subsequent `copyWithLocations`), so we have to compute it
+ * ourselves before emitting locators back to Dart.
+ */
+function makeAudioTotalProgressionFn(
+  publication: ReadiumPublication
+): (locator: Locator) => number | undefined {
+  const items = publication.readingOrder.items;
+  const missing = items.some(
+    (i) => i.duration === undefined || i.duration <= 0
+  );
+  if (missing) {
+    log.warn(
+      "Cannot compute audio totalProgression: one or more readingOrder items missing duration"
+    );
+    return () => undefined;
+  }
+  const cumulative: number[] = [];
+  let total = 0;
+  for (const item of items) {
+    cumulative.push(total);
+    total += item.duration!;
+  }
+  return (locator: Locator) => {
+    if (total <= 0) return undefined;
+    const bareHref = locator.href.split("#")[0];
+    const idx = items.findIndex((i) => i.href === bareHref);
+    if (idx < 0) return undefined;
+    const time = locator.locations?.time?.() ?? 0;
+    const value = (cumulative[idx] + time) / total;
+    return Math.min(1, Math.max(0, value));
+  };
+}
+
+/**
+ * Returns a copy of `locator` with `totalProgression` set. No-op when the
+ * computed value is `undefined` (e.g. durations missing from manifest).
+ */
+function withTotalProgression(
+  locator: Locator,
+  totalProgression: number | undefined
+): Locator {
+  if (totalProgression === undefined) return locator;
+  return new Locator({
+    href: locator.href,
+    type: locator.type,
+    title: locator.title,
+    text: locator.text,
+    locations: new LocatorLocations({
+      fragments: locator.locations?.fragments,
+      progression: locator.locations?.progression,
+      position: locator.locations?.position,
+      totalProgression,
+      otherLocations: locator.locations?.otherLocations,
+    }),
+  });
+}
 
 export function buildStatePayload(
   state: string,
@@ -84,24 +151,33 @@ function _emitState(
   rawLocator: Locator | undefined,
   mapper: AudioLocatorMapper | undefined,
   alsoText: boolean,
+  computeTotalProgression: (locator: Locator) => number | undefined,
   onTextLocatorChanged?: (locator: Locator) => void
 ): void {
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
     const { stateLocator, textLocator } = mapper(nav, locator);
+    const enrichedStateLocator = withTotalProgression(
+      stateLocator,
+      computeTotalProgression(stateLocator)
+    );
     window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, stateLocator)
+      buildStatePayload(state, nav, enrichedStateLocator)
     );
     if (textLocator) {
       window.updateTextLocator?.(JSON.stringify(textLocator));
       onTextLocatorChanged?.(textLocator);
     }
   } else {
+    const enriched = withTotalProgression(
+      locator,
+      computeTotalProgression(locator)
+    );
     window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, locator)
+      buildStatePayload(state, nav, enriched)
     );
     if (alsoText) {
-      window.updateTextLocator?.(JSON.stringify(locator));
+      window.updateTextLocator?.(JSON.stringify(enriched));
     }
   }
 }
@@ -130,6 +206,8 @@ export async function initializeAudioNavigator(
     },
   };
 
+  const computeTotalProgression = makeAudioTotalProgressionFn(publication);
+
   // nav is used inside the closure before assignment; TypeScript is fine with
   // this because the listeners are only called after `nav` is assigned below.
   let nav: AudioNavigator;
@@ -153,15 +231,15 @@ export async function initializeAudioNavigator(
       positionChanged: (locator) => {
         _emitState(
           nav.isPlaying ? "playing" : "paused",
-          nav, locator, locatorMapper, /* alsoText */ true, onTextLocatorChanged
+          nav, locator, locatorMapper, /* alsoText */ true, computeTotalProgression, onTextLocatorChanged
         );
       },
       timelineItemChanged: (_item) => {},
       play: (locator) => {
-        _emitState("playing", nav, locator, locatorMapper, false, onTextLocatorChanged);
+        _emitState("playing", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
       },
       pause: (locator) => {
-        _emitState("paused", nav, locator, locatorMapper, false, onTextLocatorChanged);
+        _emitState("paused", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
       },
       trackEnded: (locator) => {
         // Only emit "ended" when the publication is truly finished (last track).
@@ -169,7 +247,7 @@ export async function initializeAudioNavigator(
         // would cause Dart-side to close the player prematurely.
         if (!nav.canGoForward) {
           log.info("Publication ended (last track)");
-          _emitState("ended", nav, locator, locatorMapper, false, onTextLocatorChanged);
+          _emitState("ended", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
         } else {
           log.debug("Track ended, auto-advancing to next track");
         }
@@ -178,12 +256,12 @@ export async function initializeAudioNavigator(
         log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
         _emitState(
           isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
-          nav, undefined, locatorMapper, false, onTextLocatorChanged
+          nav, undefined, locatorMapper, false, computeTotalProgression, onTextLocatorChanged
         );
       },
       error: (_error, locator) => {
         log.error("AudioNavigator error:", _error, "locator:", locator?.href);
-        _emitState("failure", nav, locator, locatorMapper, false, onTextLocatorChanged);
+        _emitState("failure", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
       },
       metadataLoaded: (_metadata) => {},
       seeking: (_isSeeking) => {},
