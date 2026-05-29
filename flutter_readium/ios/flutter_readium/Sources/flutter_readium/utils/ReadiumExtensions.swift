@@ -110,7 +110,7 @@ extension Publication {
 
     let narrationLinks = self.narrationLinks
 
-    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.readAsJSONObject().get() }
+    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.read().asJSONObject().get() }
     let rawOverlays = narrationJson.enumerated().compactMap({ idx, json in
       let roDuration = readingOrder.getOrNil(idx)?.duration
       return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
@@ -130,7 +130,7 @@ extension Publication {
     // Strategy 1: single guided navigation document in publication links (preferred).
     if let singleDocLink = links.filterByMediaType(guidedNavMediaType).first {
       guard
-        let json = try? await get(singleDocLink)?.readAsJSONObject().get(),
+        let json = try? await get(singleDocLink)?.read().asJSONObject().get(),
         let document = GuidedNavigationDocument.fromJson(json)
       else { return nil }
 
@@ -158,7 +158,7 @@ extension Publication {
       guard let gnLink = roLink.alternates.filterByMediaType(guidedNavMediaType).first else { continue }
       hasAny = true
       guard
-        let json = try? await get(gnLink)?.readAsJSONObject().get(),
+        let json = try? await get(gnLink)?.read().asJSONObject().get(),
         let document = GuidedNavigationDocument.fromJson(json)
       else { continue }
       allOverlays += document.toMediaOverlays(atPosition: idx + 1, readingOrderDuration: roLink.duration)
