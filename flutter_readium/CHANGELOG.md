@@ -5,8 +5,82 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS / Android: `spotlight` decoration no longer darkens the whole page on multi-line
+  ranges** — the spotlight used a per-line (`boxes`) layout, so a range spanning N lines
+  emitted N copies of the `0 0 0 9999px` dimming box-shadow. Those shadows overlapped and
+  composited additively, pushing the entire viewport toward black (e.g. a 4-line range hit
+  ~91% black). The spotlight now uses a single `bounds` element, casting exactly one shadow
+  regardless of line count. The `ruler` keeps its per-line layout (it has no box-shadow, so
+  no stacking).
+- **iOS / Android: `spotlight` decoration now visible on dark themes** — the spotlight
+  fill was rendered at `z-index: -1`, which placed it below the EPUB page background on
+  dark-themed publications, making the tint invisible. The fill now renders at its natural
+  stacking level (above the background, like a regular highlight) with `alpha: 0.5` so
+  text remains readable through it. The surrounding dim (box-shadow) is also slightly
+  reduced from `0.55` to `0.45` opacity. The web implementation was already correct (it
+  uses CSS text-color dimming).
+- **Example: decoration style selectors support "Off" (no decoration)** — the Utterance
+  and Range selectors in the EPUB settings panel now include an "Off" option that disables
+  that decoration slot entirely (passes `null` to `setDecorationStyle`).
+
+- **Web: ToC tap now seeks audio (Media Overlay) when the fragment lacks a matching narration item** —
+  `textLocatorToAudioLocator` only matched when the locator's fragment/cssSelector exactly
+  corresponded to a SyncNarrationItem `textId`; ToC entries that pointed at section headings
+  with no sync data (e.g. `chap1.xhtml#title`) silently returned `undefined`, so `goTo` updated
+  the visual reader but left the audio playing where it was. Now falls back to the first
+  Sync Narration item in the matching resource (mirroring the iOS/Android `firstNotNullOfOrNull`
+  / `findItemFromLocator` "no fragments + HTML → first item by href" path) and logs a warning
+  so unmatched fragments remain discoverable in the console.
+
+- **Web: `audioEnable` now resumes at the visual reader's current position** — when Dart
+  passes no `fromLocator`, the web `ReadiumReader.audioEnable` falls back to the EPUB
+  navigator's current locator (both on fresh MediaOverlay init and on re-enable). This
+  mirrors Android's `initialLocator ?: epubNavigator?.currentLocator?.value` fallback,
+  so toggling audio mid-book starts playback from where the user is reading instead of
+  the beginning of the book. The example app's Play button now also passes the latest
+  visual/timebased locator from `PlayerControlsBloc` instead of the (stale) opening
+  locator from `PublicationBloc`.
+
+- **Web: `goToLocator` with audio enabled now maps text locators to the correct audio position** —
+  bookmarks and ToC entries pointing at a text paragraph (with a `#id` fragment or progression)
+  are resolved to the matching SyncNarrationItem and seek the audio navigator to the right
+  time offset, matching iOS and Android MediaOverlay Navigator behaviour. The visual EPUB
+  navigator is also scrolled to the same paragraph. The same mapping is applied when
+  re-enabling audio (`audioEnable`) or calling `play` with a locator.
+
+- **Web: TTS read-aloud not starting** — extended the `@readium/shared` 2.2.0
+  patch to also fix the compiled `dist/` bundles (`index.js` and `index.umd.cjs`).
+  The previous patch only modified the `src/` TypeScript file, which webpack
+  never consumes (the package's `module`/`main` entries point to `dist/`), so
+  the `PublicationContentIterator.loadIteratorAt` bug (missing `return`)
+  remained in the shipped bundle and `hasNext()` always returned false.
+- **Web: Media Overlay audio playback crash** — fixed "Failed to create new
+  Audiobook manifest" error when starting Media Overlay playback. The synthetic
+  manifest was built using `JSON.stringify` on class instances (producing invalid
+  RWPM JSON); now uses the proper `Manifest.serialize()` / `Link.serialize()` API.
+- **Web: Audio does not advance to next track** — two issues fixed: (1)
+  AudioNavigator's `autoPlay` preference was hardcoded to `false`, overriding the
+  default and preventing auto-advance; now passes `null` so the `true` default
+  takes effect. (2) The `trackEnded` listener unconditionally emitted "ended" state
+  to Dart on every track boundary, causing the example app's player bloc to close
+  the session. Now only emits "ended" on the final track.
+- **Web: Audio requires pressing play twice** — `audioEnable` and `play` with a
+  `fromLocator` called `go()` to seek without starting playback first. Since the
+  navigator wasn't playing, `go()`'s `wasPlaying` check was `false` and it never
+  resumed after the seek. Now calls `play()` before `go()` so the play-intent is
+  captured and playback resumes automatically after seeking.
+
 ### Added
 
+- **Web: structured console logging** — all web TS modules now log through a
+  tagged logger (`[Readium/<Module>] LEVEL: message`) with runtime level control.
+  The `setLogLevel` interface method now propagates to the JS bundle so web
+  logging verbosity is controlled from Dart alongside the native platforms.
+- **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')`
+  factory creates child loggers named `flutter_readium.<Name>`, surfacing the
+  source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
 - **Web: `goToProgression` implemented** — navigates to an absolute progression
   (0.0–1.0) on the web platform. Supports EPUB (position-list lookup), audiobook
   (seek to `progression × duration`), and Media Overlay content types.
