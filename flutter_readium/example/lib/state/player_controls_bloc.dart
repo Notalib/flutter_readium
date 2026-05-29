@@ -219,7 +219,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-          prefs: AudioPreferences(speed: 1.5, seekInterval: 10),
+          prefs: AudioPreferences(speed: 1.5, seekInterval: 10, continuousSeeking: true),
           fromLocator: event.fromLocator,
         );
         await instance.play(event.fromLocator);
