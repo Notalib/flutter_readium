@@ -177,12 +177,11 @@ export async function initializeEpubNavigatorAndPeripherals(
     peripheral: function (_data: KeyboardPeripheralEventData): void {},
     contextMenu: function (_data: ContextMenuEvent): void {},
     textSelected: function (_selection: BasicTextSelection): void {
-      // Notify Dart about the text selection
-      const currentLocator = nav.currentLocator;
+      // Notify Dart about the text selection.
+      // Use serialize() so otherLocations Map entries (e.g. tocHref) survive stringification,
+      // then override text with the active selection highlight.
       const locatorJson = {
-        href: currentLocator.href,
-        type: currentLocator.type,
-        locations: currentLocator.locations,
+        ...nav.currentLocator.serialize(),
         text: { highlight: _selection.text },
       };
       window.onTextSelectedCallback?.(
