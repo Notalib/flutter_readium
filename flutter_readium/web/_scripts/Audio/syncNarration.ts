@@ -161,6 +161,9 @@ export function textLocatorToAudioLocator(
     log.debug(`- textHref: ${item.textHref}, textId: ${item.textId}, audioHref: ${item.audioHref}, audioStart: ${item.audioStart}, audioEnd: ${item.audioEnd}`);
   }
   const targetHref = textLocator.href;
+  // Strip any fragment leaking into the href (e.g. ToC links like "chap1.xhtml#sec1")
+  // so the href-only fallback still matches the right resource.
+  const targetHrefNormalized = _normalizeHref(targetHref);
   const targetId =
     (textLocator.locations as any)?.fragments?.[0] ??
     // cssSelector lives in otherLocations (a Map) — JSON.stringify would drop it,
@@ -168,11 +171,27 @@ export function textLocatorToAudioLocator(
     textLocator.locations?.otherLocations?.get?.("cssSelector")?.replace(/^#/, "") ??
     "";
 
-  const match = items.find(
-    (item) =>
-      _normalizeHref(item.textHref) === _normalizeHref(targetHref) &&
-      (!targetId || item.textId === targetId)
+  const hrefMatches = items.filter(
+    (item) => _normalizeHref(item.textHref) === targetHrefNormalized
   );
+
+  // Primary: exact href + textId match (ID-anchored ToC entry, decoration callback, etc.).
+  // Fallback: first item in matching href (covers ToC entries whose fragment points at a
+  // heading or section that has no Sync Narration item — e.g. `chap1.xhtml#title`).
+  // Mirrors iOS/Android's "no fragments + HTML → first item by href" fallback in
+  // FlutterMediaOverlay.itemFromLocator / findItemFromLocator.
+  let match: SyncNarrationItem | undefined;
+  if (targetId) {
+    match = hrefMatches.find((item) => item.textId === targetId);
+    if (!match && hrefMatches.length > 0) {
+      log.warn(
+        `textLocatorToAudioLocator: no SyncNarrationItem matched textId "${targetId}" in ${targetHrefNormalized}; falling back to first item in resource.`
+      );
+      match = hrefMatches[0];
+    }
+  } else {
+    match = hrefMatches[0];
+  }
 
   if (!match || match.audioStart === null) return undefined;
 

@@ -148,16 +148,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         instance.onTextLocatorChanged,
         instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator).whereNotNull(),
       ]).listen((val) {
+        currentLocator = val;
         _currentLocatorSubject.add(val);
       }),
     );
 
     subscriptions.add(
       instance.onTimebasedPlayerStateChanged
-          .map((state) {
-            currentLocator = state.currentLocator;
-            return state.state;
-          })
+          .map((state) => state.state)
           .distinct()
           .debounceTime(const Duration(milliseconds: 50))
           .listen((playerState) {

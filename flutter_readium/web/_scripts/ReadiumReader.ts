@@ -152,7 +152,7 @@ class _ReadiumReader {
   }
 
   public async goTo(locatorJson: string): Promise<void> {
-    log.debug("goTo", locatorJson);
+    log.info("goTo", locatorJson);
 
     const locator = Locator.deserialize(JSON.parse(locatorJson));
     if (!locator) {
@@ -166,8 +166,13 @@ class _ReadiumReader {
     if (this._audioNav && this._syncItems.length > 0) {
       const audioLocator = textLocatorToAudioLocator(this._syncItems, locator);
       if (audioLocator) {
-        log.debug("goTo: MediaOverlay — mapped to audio locator", audioLocator.href, audioLocator.locations?.fragments);
         const wasPlaying = this._audioNav.isPlaying;
+        log.info(
+          "goTo: MediaOverlay — seeking audio to",
+          audioLocator.href,
+          audioLocator.locations?.fragments,
+          `(wasPlaying=${wasPlaying})`
+        );
         await this._audioNav.go(audioLocator, wasPlaying, (ok) => {
           if (!ok) log.error("goTo: MediaOverlay audio seek failed for", locator.href);
         });
@@ -670,31 +675,34 @@ class _ReadiumReader {
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
+    // Resolve starting locator: caller-supplied wins; otherwise fall back to the
+    // visual navigator's current locator so audio picks up where the reader is.
+    // Mirrors `initialLocator ?: epubNavigator?.currentLocator?.value` on Android.
+    const resolvedFromLocator: Locator | undefined = fromLocatorJson
+      ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
+      : this._nav?.currentLocator;
+
     if (this._audioNav) {
       // AudioNavigator already initialized (pure audiobook or re-enable on MediaOverlay EPUB).
-      // Seek to locator (if provided), mapping text→audio for MediaOverlay first.
-      if (fromLocatorJson) {
-        let locator = Locator.deserialize(JSON.parse(fromLocatorJson));
-        if (locator) {
-          // MediaOverlay: map text locator → audio locator before seeking.
-          if (this._syncItems.length > 0) {
-            locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
-          }
-          // Set play intent before go() so wasPlaying is true and playback
-          // resumes automatically after the seek completes.
-          this._audioNav.play();
-          this._audioNav.go(locator, false, () => {});
-          return;
+      // Seek to locator (if available), mapping text→audio for MediaOverlay first.
+      if (resolvedFromLocator) {
+        let locator = resolvedFromLocator;
+        // MediaOverlay: map text locator → audio locator before seeking.
+        if (this._syncItems.length > 0) {
+          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
         }
+        // Set play intent before go() so wasPlaying is true and playback
+        // resumes automatically after the seek completes.
+        this._audioNav.play();
+        this._audioNav.go(locator, false, () => {});
+        return;
       }
       this._audioNav.play();
       return;
     }
 
     if (this._hasSyncNarration && this._publication) {
-      const fromLocator = fromLocatorJson
-        ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
-        : undefined;
+      const fromLocator = resolvedFromLocator;
       // Reset deduplication key so a fresh session always applies its first decoration.
       this._lastMediaOverlayLocatorKey = null;
       await initializeMediaOverlayNavigator(
