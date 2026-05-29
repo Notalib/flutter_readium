@@ -274,7 +274,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   @override
   Future<bool> goToLocator(final Locator locator) async {
     try {
-      await JsPublicationChannel.goToLocation(locator.hrefPath);
+      await JsPublicationChannel.goToLocator(json.encode(locator));
       return true;
     } on PlatformException catch (e, stackTrace) {
       const pubID = 'unknown';

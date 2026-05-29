@@ -88,7 +88,9 @@ export function buildStatePayload(
     state,
     currentOffset: Math.round(nav.currentTime * 1000),
     currentDuration: nav.duration > 0 ? Math.round(nav.duration * 1000) : null,
-    currentLocator: JSON.parse(JSON.stringify(currentLocator)),
+    // Use serialize() so otherLocations Map entries are inlined into locations.
+    // Plain JSON.stringify drops Map entries silently.
+    currentLocator: currentLocator?.serialize(),
   });
 }
 
@@ -165,7 +167,8 @@ function _emitState(
       buildStatePayload(state, nav, enrichedStateLocator)
     );
     if (textLocator) {
-      window.updateTextLocator?.(JSON.stringify(textLocator));
+      // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
+      window.updateTextLocator?.(JSON.stringify(textLocator.serialize()));
       onTextLocatorChanged?.(textLocator);
     }
   } else {
@@ -177,7 +180,7 @@ function _emitState(
       buildStatePayload(state, nav, enriched)
     );
     if (alsoText) {
-      window.updateTextLocator?.(JSON.stringify(enriched));
+      window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
     }
   }
 }

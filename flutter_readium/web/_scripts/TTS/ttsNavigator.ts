@@ -52,7 +52,8 @@ function normalizeWhitespace(s: string | undefined | null): string | undefined {
 
 /** Returns a JSON-cloned locator with LocatorText fields whitespace-normalized. */
 function normalizeLocatorJson(locator: Locator): any {
-  const clone = JSON.parse(JSON.stringify(locator));
+  // Use serialize() so otherLocations Map entries survive the JSON round-trip.
+  const clone = JSON.parse(JSON.stringify(locator.serialize()));
   if (clone?.text) {
     clone.text = {
       before: normalizeWhitespace(clone.text.before),

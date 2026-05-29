@@ -12,7 +12,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString preferencesJson,
   );
   external JSPromise<JSString> getPublication(JSString link);
-  external JSPromise goTo(JSString location);
+  external JSPromise goTo(JSString locatorJson);
   external void goBackward();
   external void goForward();
   external void closePublication();
@@ -134,9 +134,9 @@ class JsPublicationChannel {
     }
   }
 
-  static Future<void> goToLocation(String locationHref) async {
+  static Future<void> goToLocator(String locatorJson) async {
     try {
-      await _readiumReader.goTo(locationHref.toJS).toDart;
+      await _readiumReader.goTo(locatorJson.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
       final errorString = jsError.toString();
       final statusCode = _extractStatusCode(errorString);
