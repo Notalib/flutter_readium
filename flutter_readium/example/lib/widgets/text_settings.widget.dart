@@ -92,10 +92,10 @@ class TextSettingsWidget extends StatelessWidget {
                   child: Slider(
                     key: const ValueKey('font_weight_slider'),
                     value: state.fontWeight,
-                    min: 0.5,
-                    max: 2.0,
-                    divisions: 6,
-                    label: state.fontWeight.toStringAsFixed(1),
+                    min: kIsWeb ? 1.0 : 0.5,
+                    max: kIsWeb ? 9.0 : 2.0,
+                    divisions: kIsWeb ? 8 : 6,
+                    label: kIsWeb ? (state.fontWeight * 100).toStringAsFixed(0) : state.fontWeight.toStringAsFixed(1),
                     onChanged: (value) {
                       textSettingsBloc.add(ChangeFontWeight(value));
                     },
