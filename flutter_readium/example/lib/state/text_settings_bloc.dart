@@ -226,62 +226,44 @@ class TextSettingsState {
 class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   final FlutterReadium instance = FlutterReadium();
 
-  void submitPreferenceUpdate() async {
-    final epubPreferences = EPUBPreferences(
-      fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
-      fontWeight: state.fontWeight,
-      scroll: state.scroll,
-      backgroundColor: state.theme.backgroundColor,
-      textColor: state.theme.textColor,
-      pageMargins: state.pageMargins,
-      paragraphSpacing: state.paragraphSpacing,
-      publisherStyles: state.publisherStyles,
-      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
-      disableSynchronization: state.disableSynchronization,
-      firstElementTopMargin: state.firstElementTopMargin,
-      letterSpacing: state.letterSpacing,
-      wordSpacing: state.wordSpacing,
-      lineHeight: state.lineHeight,
-      textAlign: state.textAlign,
-      columnCount: state.columnCount,
-      readingProgression: state.readingProgression,
-      paragraphIndent: state.paragraphIndent,
-      hyphens: state.hyphens,
-      ligatures: state.ligatures,
-      textNormalization: state.textNormalization,
-      imageFilter: state.imageFilter,
+  EPUBPreferences buildPreferences(final TextSettingsState settings) {
+    final clampedFontSize = settings.fontSize.clamp(70, 200);
+    final fontScale = clampedFontSize / 100.0;
+
+    return EPUBPreferences(
+      fontFamily: settings.fontFamily,
+      fontSize: defaultTargetPlatform == TargetPlatform.iOS ? clampedFontSize.toDouble() : fontScale,
+      typeScale: fontScale,
+      fontWeight: settings.fontWeight,
+      scroll: settings.scroll,
+      backgroundColor: settings.theme.backgroundColor,
+      textColor: settings.theme.textColor,
+      pageMargins: settings.pageMargins,
+      paragraphSpacing: settings.paragraphSpacing,
+      publisherStyles: settings.publisherStyles,
+      blackAndWhiteComicMode: settings.blackAndWhiteComicMode,
+      disableSynchronization: settings.disableSynchronization,
+      firstElementTopMargin: settings.firstElementTopMargin,
+      letterSpacing: settings.letterSpacing,
+      wordSpacing: settings.wordSpacing,
+      lineHeight: settings.lineHeight,
+      textAlign: settings.textAlign,
+      columnCount: settings.columnCount,
+      readingProgression: settings.readingProgression,
+      paragraphIndent: settings.paragraphIndent,
+      hyphens: settings.hyphens,
+      ligatures: settings.ligatures,
+      textNormalization: settings.textNormalization,
+      imageFilter: settings.imageFilter,
     );
-    instance.setEPUBPreferences(epubPreferences);
+  }
+
+  void submitPreferenceUpdate() async {
+    instance.setEPUBPreferences(buildPreferences(state));
   }
 
   void setDefaultPreferences() {
-    final defaultPreferences = EPUBPreferences(
-      fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
-      fontWeight: state.fontWeight,
-      scroll: state.scroll,
-      backgroundColor: state.theme.backgroundColor,
-      textColor: state.theme.textColor,
-      pageMargins: state.pageMargins,
-      paragraphSpacing: state.paragraphSpacing,
-      publisherStyles: state.publisherStyles,
-      blackAndWhiteComicMode: state.blackAndWhiteComicMode,
-      disableSynchronization: state.disableSynchronization,
-      firstElementTopMargin: state.firstElementTopMargin,
-      letterSpacing: state.letterSpacing,
-      wordSpacing: state.wordSpacing,
-      lineHeight: state.lineHeight,
-      textAlign: state.textAlign,
-      columnCount: state.columnCount,
-      readingProgression: state.readingProgression,
-      paragraphIndent: state.paragraphIndent,
-      hyphens: state.hyphens,
-      ligatures: state.ligatures,
-      textNormalization: state.textNormalization,
-      imageFilter: state.imageFilter,
-    );
-    instance.setDefaultPreferences(defaultPreferences);
+    instance.setDefaultPreferences(buildPreferences(state));
   }
 
   TextSettingsBloc()

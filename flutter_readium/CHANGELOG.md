@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- Example app EPUB font-size preferences now convert the persisted percentage
+  value to the scale expected by Android/Web and keep `typeScale` in sync.
+
 ### Added
 
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
