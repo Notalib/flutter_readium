@@ -48,7 +48,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   final String? fontFamily;
 
   /// Font size for text content.
-  final int? fontSize;
+  final double? fontSize;
 
   /// Font weight for text content.
   final double? fontWeight;
@@ -131,7 +131,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     final columnCountStr = jsonObject.optNullableString('columnCount', remove: true);
     final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
-    final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
+    final fontSize = jsonObject.optNullableDouble('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
     final hyphens = jsonObject.optNullableBoolean('hyphens', remove: true);
     final imageFilterStr = jsonObject.optNullableString('imageFilter', remove: true);
@@ -226,7 +226,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     Color? backgroundColor,
     EpubColumnCount? columnCount,
     String? fontFamily,
-    int? fontSize,
+    double? fontSize,
     double? fontWeight,
     bool? hyphens,
     EpubImageFilter? imageFilter,
@@ -315,7 +315,8 @@ class EPUBPreferences with EquatableMixin implements JSONable {
 enum EpubColumnCount {
   auto,
   one,
-  two;
+  two
+  ;
 
   static EpubColumnCount? fromJson(String? value) {
     switch (value) {
@@ -344,7 +345,8 @@ enum EpubColumnCount {
 
 enum EpubImageFilter {
   darken,
-  invert;
+  invert
+  ;
 
   static EpubImageFilter? fromJson(String? value) {
     switch (value) {
@@ -369,7 +371,8 @@ enum EpubImageFilter {
 
 enum EpubReadingProgression {
   ltr,
-  rtl;
+  rtl
+  ;
 
   static EpubReadingProgression? fromJson(String? value) {
     switch (value) {
