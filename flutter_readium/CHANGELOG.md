@@ -14,15 +14,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `onErrorCallback` window setter. Pure audiobook paths register the same
   callback via `_AudiobookCallbacks`.
 
-- **`ReaderDecorationStyle.isActive`** — new `bool` field (default `false`) that
-  renders the decoration in a visually distinct "active" state (e.g. brighter
-  highlight) to mark the currently focused annotation. Maps to the upstream
-  `Decoration.Style.HighlightConfig.isActive` on iOS and
-  `Decoration.Style.Highlight/Underline.isActive` on Android. Also fixed two
-  pre-existing iOS parsing bugs: `Decoration.init(fromMap:)` now correctly reads
-  the locator as a nested JSON object (not a string), and `setDecorationStyle`
-  now accepts the `[String: Any]` map that the method channel actually delivers.
-
 ### Added (platform interface) — PDF preferences
 
 - **`PDFPreferences`: three new iOS-only fields** — `offsetFirstPage: bool?`,
@@ -71,33 +62,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **iOS / Android / Web: `ruler` decoration is no longer invisible** — Readium CSS injects
-  `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
-  whenever a custom theme/background is active (which the reader effectively always sets),
-  forcing every element's `background-color` to transparent. The ruler's only visual is its
-  fill, so it was overridden to transparent and rendered nothing. The fill is now marked
-  `!important` on all three platforms (matching the upstream default highlight template) so
-  the tinted stripe survives the override: on iOS/Android directly in the decoration
-  template; on Web by re-asserting each ruler box's inline `background-color` as `!important`
-  via the decoration-override `MutationObserver`. The stripe is also placed at `z-index: -1`
-  (the same `experimentalPositioning` technique as the default highlight/underline templates)
-  so it renders behind the text instead of overlaying and recolouring it. `spotlight` was
-  unaffected because its visible effect comes from the box-shadow (iOS/Android) or body-dimming
-  CSS (Web), not the fill.
-- **iOS / Android: `spotlight` decoration no longer darkens the whole page on multi-line
-  ranges** — the spotlight used a per-line (`boxes`) layout, so a range spanning N lines
-  emitted N copies of the `0 0 0 9999px` dimming box-shadow. Those shadows overlapped and
-  composited additively, pushing the entire viewport toward black (e.g. a 4-line range hit
-  ~91% black). The spotlight now uses a single `bounds` element, casting exactly one shadow
-  regardless of line count. The `ruler` keeps its per-line layout (it has no box-shadow, so
-  no stacking).
-- **iOS / Android: `spotlight` decoration now visible on dark themes** — the spotlight
-  fill was rendered at `z-index: -1`, which placed it below the EPUB page background on
-  dark-themed publications, making the tint invisible. The fill now renders at its natural
-  stacking level (above the background, like a regular highlight) with `alpha: 0.5` so
-  text remains readable through it. The surrounding dim (box-shadow) is also slightly
-  reduced from `0.55` to `0.45` opacity. The web implementation was already correct (it
-  uses CSS text-color dimming).
 - **Example: decoration style selectors support "Off" (no decoration)** — the Utterance
   and Range selectors in the EPUB settings panel now include an "Off" option that disables
   that decoration slot entirely (passes `null` to `setDecorationStyle`).
@@ -295,13 +259,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `::highlight(readium-decoration-N) { text-decoration: underline ... }` rule wins
   by cascade order. Bold and box-model styling on `::highlight()` remain impossible
   per the CSS Custom Highlight API spec allowlist.
-- **Four decoration styles** — `DecorationStyle` now has four modes: `highlight`
-  (filled rectangle behind text — default), `underline` (border-bottom in tint colour),
-  `spotlight` (filled rectangle + all surrounding body text dimmed, focusing the reader
-  on the active range — web and native), and `ruler` (full-viewport-width stripe across
-  each decorated text line, a reading-ruler aid — web and native).
-  Spotlight is only fully visible on web in the CSS Custom Highlight API path (Chrome ≥ 105);
-  it degrades gracefully to a plain highlight in DOM-fallback browsers.
+- **Decoration styles** — `DecorationStyle` has two modes: `highlight`
+  (filled rectangle behind text — default) and `underline` (border-bottom in tint
+  colour). Both are supported on iOS, Android, and Web.
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
   `TextSelectionEvent` (locator + selected text) when the user selects text in the reader.
   Supported on iOS, Android, and Web.

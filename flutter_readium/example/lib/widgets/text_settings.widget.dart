@@ -340,8 +340,6 @@ class TextSettingsWidget extends StatelessWidget {
                     ButtonSegment(value: null, label: Text('Off')),
                     ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
                     ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                    ButtonSegment(value: DecorationStyle.ruler, label: Text('Ruler')),
                   ],
                   selected: {utteranceStyle},
                   onSelectionChanged: (values) =>
@@ -360,8 +358,6 @@ class TextSettingsWidget extends StatelessWidget {
                     ButtonSegment(value: null, label: Text('Off')),
                     ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
                     ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                    ButtonSegment(value: DecorationStyle.ruler, label: Text('Ruler')),
                   ],
                   selected: {rangeStyle},
                   onSelectionChanged: (values) =>

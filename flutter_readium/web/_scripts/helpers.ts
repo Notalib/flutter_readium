@@ -131,8 +131,6 @@ export function setPreferencesFromString(
  * (CSS Custom Highlight API path).
  */
 export const UNDERLINE_GROUP_SUFFIX = "__underline";
-export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
-export const RULER_GROUP_SUFFIX = "__ruler";
 
 /**
  * Converts a Dart Color hex string from AARRGGBB to CSS RRGGBBAA format.
@@ -146,9 +144,7 @@ export function dartColorToCss(color: string): string {
   return color;
 }
 
-const SPOTLIGHT_CLASS = "flutter-readium-spotlight";
 const AUGMENT_STYLE_ID_PREFIX = "flutter-readium-augment-";
-const SPOTLIGHT_STYLE_ID = "flutter-readium-spotlight-style";
 const OVERRIDES_STYLE_ID = "flutter-readium-decoration-overrides";
 const OVERRIDES_DATASET_FLAG = "flutterReadiumOverrides";
 const IFRAME_STATE_KEY = "__flutterReadiumDecorationState";
@@ -164,11 +160,7 @@ interface IframeDecorationState {
   pendingNewGroups: PendingGroup[];
   // Our group name → upstream internal id (e.g. "readium-decoration-3")
   groupInternalId: Map<string, string>;
-  // The currently-active spotlight group (mirrors module state, kept for reapply)
-  spotlightGroup: string | null;
 }
-
-let _currentSpotlightGroup: string | null = null;
 
 function getIframeState(wnd: Window): IframeDecorationState {
   const w = wnd as any;
@@ -176,7 +168,6 @@ function getIframeState(wnd: Window): IframeDecorationState {
     w[IFRAME_STATE_KEY] = {
       pendingNewGroups: [],
       groupInternalId: new Map<string, string>(),
-      spotlightGroup: null,
     } as IframeDecorationState;
   }
   return w[IFRAME_STATE_KEY];
@@ -208,7 +199,7 @@ export function sendDecorate(
 
 /**
  * Return the list of content-frame `Window`s for a navigator. Used for fanning
- * out CSS injection / spotlight state to every loaded EPUB iframe.
+ * out CSS injection to every loaded EPUB iframe.
  */
 export function navIframeWindows(
   nav: EpubNavigator | WebPubNavigator
@@ -237,71 +228,6 @@ export function registerPendingDecorationGroup(
     if (state.pendingNewGroups.some((p) => p.group === group)) continue;
     state.pendingNewGroups.push({ group, isUnderline, tint });
   }
-}
-
-/**
- * Set or clear the spotlight group across the given iframes. When a group is
- * set, all body text in the iframe is dimmed and the spotlight group's
- * `::highlight()` pseudo-elements restore original color. Passing `null`
- * removes the dim and spotlight rules.
- *
- * Limitation: spotlight only takes effect when upstream uses the CSS Custom
- * Highlight API path (`"Highlight" in window`). In the DOM-fallback path the
- * `.readium-highlight` box sits *behind* dimmed text, so the dim still shows
- * through. Document this for callers.
- */
-export function setSpotlightGroupOnIframes(
-  iframes: Window[],
-  group: string | null
-): void {
-  _currentSpotlightGroup = group;
-  for (const wnd of iframes) {
-    const state = getIframeState(wnd);
-    state.spotlightGroup = group;
-    applySpotlightToIframe(wnd);
-  }
-}
-
-function applySpotlightToIframe(wnd: Window): void {
-  const doc = wnd.document;
-  const body = doc.body;
-  if (!body) return;
-  const state = getIframeState(wnd);
-  const group = state.spotlightGroup;
-
-  body.classList.toggle(SPOTLIGHT_CLASS, !!group);
-
-  let styleEl = doc.getElementById(SPOTLIGHT_STYLE_ID) as HTMLStyleElement | null;
-  if (!styleEl) {
-    styleEl = doc.createElement("style");
-    styleEl.id = SPOTLIGHT_STYLE_ID;
-    styleEl.dataset.readium = "true";
-    doc.head.appendChild(styleEl);
-  }
-  if (!group) {
-    styleEl.textContent = "";
-    return;
-  }
-  const internalIds: string[] = [];
-  const mainId = state.groupInternalId.get(group);
-  if (mainId) internalIds.push(mainId);
-  const underlineId = state.groupInternalId.get(group + UNDERLINE_GROUP_SUFFIX);
-  if (underlineId) internalIds.push(underlineId);
-
-  const restoreRules = internalIds
-    .map(
-      (id) =>
-        `body.${SPOTLIGHT_CLASS} ::highlight(${id}) { color: initial !important; }`
-    )
-    .join("\n  ");
-
-  styleEl.textContent = `
-    body.${SPOTLIGHT_CLASS},
-    body.${SPOTLIGHT_CLASS} * {
-      color: rgba(0, 0, 0, 0.22) !important;
-    }
-    ${restoreRules}
-  `;
 }
 
 /**
@@ -337,17 +263,12 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
     `;
     styleEl.parentNode?.insertBefore(augment, styleEl.nextSibling);
   }
-
-  // Spotlight rules may need to expand now that we know this group's internal id.
-  if (state.spotlightGroup) {
-    applySpotlightToIframe(wnd);
-  }
 }
 
 /**
- * Inject our decoration override layer + group-pairing observer + spotlight
- * stylesheet stub into a freshly-loaded EPUB iframe. Idempotent: flagged on
- * the iframe documentElement so repeated `frameLoaded` calls are no-ops.
+ * Inject our decoration override layer + group-pairing observer into a
+ * freshly-loaded EPUB iframe. Idempotent: flagged on the iframe documentElement
+ * so repeated `frameLoaded` calls are no-ops.
  *
  * What this layer adds on top of upstream's Decorator:
  *   1. **Underline via DOM-fallback path**: CSS rule on
@@ -359,11 +280,6 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
  *      watches for upstream's `<style id="readium-decoration-N-style">`
  *      additions and inserts a sibling style whose `text-decoration: underline`
  *      rule wins by cascade order.
- *   3. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
- *      by {@link setSpotlightGroupOnIframes}.
- *   4. **Ruler fill priority**: a MutationObserver re-asserts each ruler box's
- *      inline `background-color` as `!important` so it survives Readium CSS's
- *      `* { background-color: transparent !important }` theme override.
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
@@ -393,30 +309,6 @@ export function injectDecorationOverrides(wnd: Window): void {
     el.classList?.contains("readium-highlight") === true &&
     el.closest(`[data-group$="${UNDERLINE_GROUP_SUFFIX}"]`) !== null;
 
-  // ── Ruler fill (survive Readium CSS background override) ─────────────────
-  // Readium CSS injects `:root[style*="--USER__backgroundColor"] * {
-  // background-color: transparent !important }` whenever a custom theme is
-  // active (always, in practice). The ruler's only visual is its fill, which
-  // upstream sets as a *plain* inline `background-color` — so that rule wins and
-  // the stripe vanishes. Re-asserting the same tint as inline `!important` beats
-  // the stylesheet rule (inline important > stylesheet important), keeping the
-  // ruler visible. Spotlight needs no such fix: its effect is the body-dimming
-  // CSS, not a fill.
-  //
-  // `z-index: -1` places the stripe behind the publication text (the same
-  // experimentalPositioning technique as the native templates), so the tint sits
-  // under the glyphs instead of overlaying and recolouring them.
-  const forceRulerFill = (box: HTMLElement) => {
-    const tint = box.style.backgroundColor;
-    if (tint) {
-      box.style.setProperty("background-color", tint, "important");
-      box.style.setProperty("z-index", "-1");
-    }
-  };
-  const isRulerBox = (el: HTMLElement): boolean =>
-    el.classList?.contains("readium-highlight") === true &&
-    el.closest(`[data-group$="${RULER_GROUP_SUFFIX}"]`) !== null;
-
   const bodyObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
       // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
@@ -426,19 +318,15 @@ export function injectDecorationOverrides(wnd: Window): void {
         if (node.nodeType !== 1) continue;
         const el = node as HTMLElement;
         if (isUnderlineBox(el)) mirrorTint(el);
-        if (isRulerBox(el)) forceRulerFill(el);
         el.querySelectorAll?.(
           `[data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight`
         ).forEach((b) => mirrorTint(b as HTMLElement));
-        el.querySelectorAll?.(
-          `[data-group$="${RULER_GROUP_SUFFIX}"] .readium-highlight`
-        ).forEach((b) => forceRulerFill(b as HTMLElement));
       }
     }
   });
   bodyObserver.observe(doc.body, { childList: true, subtree: true });
 
-  // ── Group pairing observer (Web Highlight API path + spotlight) ─────────
+  // ── Group pairing observer (Web Highlight API path) ─────────────────────
   const isReadiumGroupStyle = (el: Element): el is HTMLStyleElement =>
     el.tagName === "STYLE" &&
     typeof (el as HTMLStyleElement).id === "string" &&
@@ -462,13 +350,6 @@ export function injectDecorationOverrides(wnd: Window): void {
     }
   });
   headObserver.observe(doc.head, { childList: true });
-
-  // Apply current spotlight (if any) to the freshly-loaded iframe.
-  if (_currentSpotlightGroup) {
-    const state = getIframeState(wnd);
-    state.spotlightGroup = _currentSpotlightGroup;
-    applySpotlightToIframe(wnd);
-  }
 }
 
 export function highlightSelection(
