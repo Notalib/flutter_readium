@@ -5,8 +5,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
-<<<<<<< HEAD
-=======
 ### Added (platform interface)
 
 - **Web: `onErrorEvent` stream implemented** — subscribing to
@@ -71,9 +69,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   factory creates child loggers named `flutter_readium.<Name>`, surfacing the
   source/area in log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
 
->>>>>>> 7ba9a6be (feat(pdf): add offsetFirstPage, spread, visibleScrollbar preferences (iOS))
 ### Fixed
 
+- **iOS / Android / Web: `ruler` decoration is no longer invisible** — Readium CSS injects
+  `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
+  whenever a custom theme/background is active (which the reader effectively always sets),
+  forcing every element's `background-color` to transparent. The ruler's only visual is its
+  fill, so it was overridden to transparent and rendered nothing. The fill is now marked
+  `!important` on all three platforms (matching the upstream default highlight template) so
+  the tinted stripe survives the override: on iOS/Android directly in the decoration
+  template; on Web by re-asserting each ruler box's inline `background-color` as `!important`
+  via the decoration-override `MutationObserver`. The stripe is also placed at `z-index: -1`
+  (the same `experimentalPositioning` technique as the default highlight/underline templates)
+  so it renders behind the text instead of overlaying and recolouring it. `spotlight` was
+  unaffected because its visible effect comes from the box-shadow (iOS/Android) or body-dimming
+  CSS (Web), not the fill.
 - **iOS / Android: `spotlight` decoration no longer darkens the whole page on multi-line
   ranges** — the spotlight used a per-line (`boxes`) layout, so a range spanning N lines
   emitted N copies of the `0 0 0 9999px` dimming box-shadow. Those shadows overlapped and

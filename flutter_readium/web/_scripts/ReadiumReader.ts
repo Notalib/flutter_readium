@@ -26,7 +26,8 @@ import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
 import { initializeAudioNavigator } from "./Audio/audioNavigator";
 import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
-import { initializeMediaOverlayNavigator } from "./Audio/mediaOverlayNavigator";
+import { detectGuidedNavigation } from "./Audio/guidedNavigation";
+import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./Audio/mediaOverlayNavigator";
 import { WebTTSEngine } from "./TTS/ttsNavigator";
 import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
 
@@ -77,6 +78,7 @@ class _ReadiumReader {
   private _positions: Locator[] = [];
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
   private _hasSyncNarration = false;
+  private _hasGuidedNavigation = false;
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
   /**
@@ -275,6 +277,7 @@ class _ReadiumReader {
 
     // Reset per-publication state so stale values don't bleed across openPublication calls.
     this._hasSyncNarration = false;
+    this._hasGuidedNavigation = false;
     this._syncItems = [];
     this._positions = [];
 
@@ -313,6 +316,8 @@ class _ReadiumReader {
           // Detect sync narration before opening the navigator (async fetch-free check).
           this._hasSyncNarration = detectSyncNarration(this._publication);
           if (this._hasSyncNarration) log.info("Sync Narration detected");
+          this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
+          if (this._hasGuidedNavigation) log.info("Guided Navigation detected");
           await initializeEpubNavigatorAndPeripherals(
             container,
             this._publication,
@@ -479,6 +484,7 @@ class _ReadiumReader {
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
     this._hasSyncNarration = false;
+    this._hasGuidedNavigation = false;
     this._syncItems = [];
     this._positions = [];
     this._publication = undefined;
@@ -717,6 +723,31 @@ class _ReadiumReader {
         return;
       }
       this._audioNav.play();
+      return;
+    }
+
+    if (this._hasGuidedNavigation && this._publication) {
+      const fromLocator = resolvedFromLocator;
+      this._lastMediaOverlayLocatorKey = null;
+      await initializeGuidedNavigationNavigator(
+        this._publication,
+        fromLocator,
+        prefsJson,
+        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+        (textLocator) => {
+          if (!this._utteranceStyle || !this._nav) return;
+          const key = textLocator.href + (textLocator.locations?.fragments?.[0] ?? "");
+          if (key === this._lastMediaOverlayLocatorKey) return;
+          this._lastMediaOverlayLocatorKey = key;
+          try {
+            const decoration = [{ id: textLocator.href, locator: textLocator.serialize(), style: this._utteranceStyle }];
+            this.applyDecorations("media_overlay_utterance", JSON.stringify(decoration));
+          } catch (e) {
+            log.warn("GuidedNavigation: failed to apply decoration:", e);
+          }
+        }
+      );
+      (this._audioNav as AudioNavigator | undefined)?.play();
       return;
     }
 
