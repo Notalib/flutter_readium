@@ -83,7 +83,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     config.debugState = false
 
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
-    config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    var decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    decorationTemplates[Decoration.Style.Id("spotlight")] = EPUBReaderView.spotlightDecorationTemplate()
+    decorationTemplates[Decoration.Style.Id("ruler")] = EPUBReaderView.rulerDecorationTemplate()
+    config.decorationTemplates = decorationTemplates
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
@@ -672,5 +675,66 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("goForward from progression:\(currentProgression) to \(nextProgression)")
     locator.locations.progression = clamp(nextProgression, minValue: 0.0, maxValue: 1.0)
     return await self.readiumViewController.go(to: locator, options: options)
+  }
+
+  // MARK: – Custom decoration templates
+
+  /// Spotlight: semi-transparent tinted box over the active text range + large
+  /// box-shadow that dims the rest of the viewport.
+  ///
+  /// Uses `.bounds` layout (a single element covering the whole range) rather than
+  /// `.boxes` (one element per line). With `.boxes`, a multi-line range produces one
+  /// 9999px box-shadow per line; those shadows overlap and composite additively,
+  /// darkening the whole viewport toward black. A single bounding element casts a
+  /// single shadow, so the dim stays at the intended opacity regardless of how many
+  /// lines the range spans.
+  ///
+  /// The fill renders at the decoration's natural stacking level (above the page
+  /// background), so the tint is visible on both light and dark themes. A semi-
+  /// transparent alpha (0.5) lets the text show through. The outward box-shadow
+  /// covers everything outside the element, giving a "dimmed background everywhere
+  /// except the spotlit range" effect.
+  ///
+  /// Limitation: the box-shadow clips at column/page boundaries in paginated
+  /// multi-column EPUB layouts.
+  private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .bounds,
+      width: .bounds,
+      element: { decoration in
+        let config = decoration.style.config as! Decoration.Style.HighlightConfig
+        let tint = config.tint ?? UIColor.yellow
+        return "<div style=\"background-color: \(tint.cssValue(alpha: 0.5)); box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); box-sizing: border-box;\"/>"
+      }
+    )
+  }
+
+  /// Ruler: full-viewport-width semi-transparent tinted stripe across each decorated
+  /// text line. `Layout.boxes + Width.viewport` produces one element per CSS border
+  /// box (text line), stretched to the full viewport width — a reading-ruler
+  /// accessibility aid that marks the active spoken line.
+  ///
+  /// The `background-color` MUST be `!important`. Readium CSS injects
+  /// `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
+  /// whenever a custom theme/background is active (always, in practice), which would
+  /// otherwise force this decoration's fill to transparent and make the ruler
+  /// invisible. The upstream default highlight template uses `!important` for the
+  /// same reason. Spotlight does not need it because its visible effect comes from
+  /// the (non-overridden) box-shadow, not the fill.
+  ///
+  /// `z-index: -1` places the stripe behind the publication text (the same
+  /// `experimentalPositioning` technique as the default highlight/underline
+  /// templates), so the tint sits under the glyphs instead of overlaying and
+  /// recolouring them.
+  private static func rulerDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .boxes,
+      width: .viewport,
+      element: { decoration in
+        let config = decoration.style.config as! Decoration.Style.HighlightConfig
+        let tint = config.tint ?? UIColor.yellow
+        return "<div style=\"background-color: \(tint.cssValue(alpha: 0.5)) !important; z-index: -1; box-sizing: border-box;\"/>"
+      }
+    )
   }
 }

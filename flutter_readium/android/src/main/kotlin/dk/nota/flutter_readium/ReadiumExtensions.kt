@@ -60,6 +60,7 @@ fun decorationFromJson(jsonString: String): Decoration? =
                 mapOf(
                     "style" to styleJson.getString("style"),
                     "tint" to styleJson.getString("tint"),
+                    "isActive" to styleJson.optBoolean("isActive", false),
                 ),
             ) ?: throw Exception("Failed to deserialize decoration style")
         Decoration(id, locator, style)
@@ -95,11 +96,14 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
 
         val styleStr = decoMap["style"] as String
         val tintColorStr = decoMap["tint"] as String
+        val isActive = decoMap["isActive"] as? Boolean ?: false
         val tint = readiumColorFromCSS(tintColorStr).int
         val style =
             when (styleStr) {
-                "underline" -> Decoration.Style.Underline(tint)
-                else -> Decoration.Style.Highlight(tint) // "highlight" + unknown
+                "underline" -> Decoration.Style.Underline(tint, isActive)
+                "spotlight" -> SpotlightStyle(tint)
+                "ruler" -> RulerStyle(tint)
+                else -> Decoration.Style.Highlight(tint, isActive) // "highlight" + unknown
             }
         return style
     } catch (ex: Exception) {

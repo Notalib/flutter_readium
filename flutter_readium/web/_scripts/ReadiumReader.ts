@@ -13,7 +13,10 @@ import {
   sendDecorate,
   navIframeWindows,
   registerPendingDecorationGroup,
+  setSpotlightGroupOnIframes,
   UNDERLINE_GROUP_SUFFIX,
+  SPOTLIGHT_GROUP_SUFFIX,
+  RULER_GROUP_SUFFIX,
   dartColorToCss,
 } from "./helpers";
 import { ReadiumReaderStatus } from "./enums";
@@ -378,15 +381,19 @@ class _ReadiumReader {
   /**
    * Replace the entire decoration group with the provided list.
    *
-   * Decorations are routed to one of two upstream subgroups based on style:
+   * Decorations are routed to one of four upstream subgroups based on style:
    *   - `highlight` → `<group>` (filled rectangle behind text)
    *   - `underline` → `<group>__underline` (border-bottom via injected CSS)
+   *   - `spotlight` → `<group>__spotlight` (filled rectangle + body-dim CSS)
+   *   - `ruler`     → `<group>__ruler` (full-viewport-width stripe per text line)
    *
-   * Both subgroups are cleared on each call for replacement semantics.
+   * All four subgroups are cleared on each call for replacement semantics. Spotlight
+   * CSS is activated/deactivated automatically based on whether the spotlight subgroup
+   * is non-empty after routing.
    *
    * @param group  Unique group identifier (opaque string passed from Dart).
    * @param decorationsJson  JSON-encoded array of ReaderDecoration objects:
-   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline", tint: "#AARRGGBB" } }]
+   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline"|"spotlight"|"ruler", tint: "#AARRGGBB" } }]
    *   Tints are in Dart's AARRGGBB format and are converted to CSS RRGGBBAA internally.
    */
   public applyDecorations(group: string, decorationsJson: string): void {
@@ -396,9 +403,11 @@ class _ReadiumReader {
     }
 
     const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
+    const spotlightGroup = group + SPOTLIGHT_GROUP_SUFFIX;
+    const rulerGroup = group + RULER_GROUP_SUFFIX;
 
     // Clear all subgroups for replacement semantics.
-    for (const grp of [group, underlineGroup]) {
+    for (const grp of [group, underlineGroup, spotlightGroup, rulerGroup]) {
       sendDecorate(this._nav, grp, "clear", undefined);
       this._decorationsByGroup.set(grp, new Set());
     }
@@ -410,7 +419,7 @@ class _ReadiumReader {
     }> = JSON.parse(decorationsJson);
 
     // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
-    // all downstream paths (highlight fill, underline CSS) see CSS colors.
+    // all downstream paths (highlight fill, underline CSS, spotlight) see CSS colors.
     for (const item of decorationsRaw) {
       item.style.tint = dartColorToCss(item.style.tint);
     }
@@ -431,23 +440,31 @@ class _ReadiumReader {
 
     for (const raw of decorationsRaw) {
       const targetGroup = this._subgroupFor(group, raw.style.style);
+      const isRuler = raw.style.style === "ruler";
       const decoration: Decoration = {
         id: raw.id,
         locator: Locator.deserialize(raw.locator)!,
         style: {
           tint: raw.style.tint,
-          layout: Layout.Bounds,
-          width: Width.Wrap,
+          layout: isRuler ? Layout.Boxes : Layout.Bounds,
+          width: isRuler ? Width.Viewport : Width.Wrap,
         },
       };
       sendDecorate(this._nav, targetGroup, "add", decoration);
       this._decorationsByGroup.get(targetGroup)!.add(raw.id);
     }
+
+    // Spotlight is driven by decoration presence: activate when the spotlight
+    // subgroup is non-empty, deactivate when empty.
+    const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
+    setSpotlightGroupOnIframes(iframes, hasSpotlight ? spotlightGroup : null);
   }
 
   private _subgroupFor(group: string, style: string): string {
     switch (style) {
       case "underline": return group + UNDERLINE_GROUP_SUFFIX;
+      case "spotlight": return group + SPOTLIGHT_GROUP_SUFFIX;
+      case "ruler":     return group + RULER_GROUP_SUFFIX;
       default:          return group; // "highlight" and anything unknown
     }
   }

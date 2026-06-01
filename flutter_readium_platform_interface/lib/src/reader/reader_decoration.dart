@@ -8,12 +8,22 @@ enum DecorationStyle {
   highlight,
 
   /// Colored border-bottom under the active text line. No box behind text.
-  underline;
+  underline,
+
+  /// Tinted box behind text **and** all surrounding body text is dimmed, drawing the eye to the active range. |
+  spotlight,
+
+  /// Full-viewport-width stripe across the active text line — wide enough to reach page margins, a reading-ruler aid.
+  ruler;
 
   static DecorationStyle fromString(String? styleStr) {
     switch (styleStr) {
       case 'underline':
         return DecorationStyle.underline;
+      case 'spotlight':
+        return DecorationStyle.spotlight;
+      case 'ruler':
+        return DecorationStyle.ruler;
       case 'highlight':
       default:
         return DecorationStyle.highlight;
@@ -50,19 +60,31 @@ class ReaderDecoration implements JSONable {
 }
 
 class ReaderDecorationStyle implements JSONable {
-  const ReaderDecorationStyle({required this.style, required this.tint});
+  const ReaderDecorationStyle({required this.style, required this.tint, this.isActive = false});
 
   final DecorationStyle style;
   final Color tint;
 
+  /// When `true`, the decoration is rendered in a visually distinct "active"
+  /// state (e.g. brighter highlight) to indicate the currently focused item —
+  /// for example, the search result being navigated to in a result list.
+  ///
+  /// Supported on iOS and Android. Ignored on web until decorations are
+  /// implemented there.
+  final bool isActive;
+
   @override
-  Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
+  Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS(), 'isActive': isActive};
 
   factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
     style: DecorationStyle.fromString(map['style']),
     tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
+    isActive: map['isActive'] as bool? ?? false,
   );
 
-  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) =>
-      ReaderDecorationStyle(style: style ?? this.style, tint: tint ?? this.tint);
+  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint, bool? isActive}) => ReaderDecorationStyle(
+    style: style ?? this.style,
+    tint: tint ?? this.tint,
+    isActive: isActive ?? this.isActive,
+  );
 }

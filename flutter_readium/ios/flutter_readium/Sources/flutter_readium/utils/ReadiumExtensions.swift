@@ -334,7 +334,7 @@ extension Decoration {
       throw JSONError.parsing(Self.self)
     }
 
-    // Style is a nested object with "style" and "tint".
+    // Style is a nested object with "style", "tint", and optional "isActive".
     guard let styleMap = jsonObject["style"] as? [String: Any] else {
       Log.readium.error("Decoration parse error: `style` object required")
       throw JSONError.parsing(Self.self)
@@ -349,9 +349,9 @@ extension Decoration {
 }
 
 extension Decoration.Style {
-  init(withStyle style: String, tintColor: Color) throws {
+  init(withStyle style: String, tintColor: Color, isActive: Bool = false) throws {
     let styleId = Decoration.Style.Id(rawValue: style)
-    self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor))
+    self.init(id: styleId, config: HighlightConfig(tint: tintColor.uiColor, isActive: isActive))
   }
 
   init(fromJson jsonString: String) throws {
@@ -366,7 +366,7 @@ extension Decoration.Style {
   }
 
   // Accepts the flat style map produced by ReaderDecorationStyle.toJson() on the Dart side:
-  // { "style": "highlight", "tint": "#RRGGBB" }
+  // { "style": "highlight", "tint": "#RRGGBB", "isActive": true/false }
   init(fromMap jsonMap: [String: Any]?) throws {
     guard let map = jsonMap,
           let styleStr = map["style"] as? String,
@@ -376,7 +376,8 @@ extension Decoration.Style {
       Log.readium.error("Decoration parse error: `style` and `tint` required")
       throw JSONError.parsing(Self.self)
     }
-    try self.init(withStyle: styleStr, tintColor: tintColor)
+    let isActive = map["isActive"] as? Bool ?? false
+    try self.init(withStyle: styleStr, tintColor: tintColor, isActive: isActive)
   }
 }
 
