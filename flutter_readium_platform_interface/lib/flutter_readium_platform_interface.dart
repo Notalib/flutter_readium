@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'method_channel_flutter_readium.dart';
@@ -35,11 +36,27 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  /// The currently mounted [ReadiumReaderWidgetInterface], if any.
-  ReadiumReaderWidgetInterface? currentReaderWidget;
+  ReadiumReaderWidgetInterface? _currentReaderWidget;
+
+  /// The currently mounted [ReadiumReaderWidgetInterface], if any. Read-only for
+  /// consumers; the active reader widget registers itself via the protected setter.
+  ReadiumReaderWidgetInterface? get currentReaderWidget => _currentReaderWidget;
+
+  @protected
+  set currentReaderWidget(ReadiumReaderWidgetInterface? value) {
+    _currentReaderWidget = value;
+  }
+
+  EPUBPreferences? _defaultPreferences;
 
   /// Default EPUB preferences applied to all publications unless overridden per-session.
-  EPUBPreferences? defaultPreferences;
+  /// Use [setDefaultPreferences] to update.
+  EPUBPreferences? get defaultPreferences => _defaultPreferences;
+
+  @protected
+  set defaultPreferences(EPUBPreferences? value) {
+    _defaultPreferences = value;
+  }
 
   /// Sets custom HTTP headers forwarded to the native HTTP layer for all network requests.
   Future<void> setCustomHeaders(Map<String, String> headers) =>

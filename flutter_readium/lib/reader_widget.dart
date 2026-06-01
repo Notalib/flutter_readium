@@ -332,11 +332,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   void _setCurrentWidgetInterface() {
     ReadiumLog.d('Set current reader in plugin');
+    // ignore: invalid_use_of_protected_member
     _readium.currentReaderWidget = this;
   }
 
   void _cleanup() {
     ReadiumLog.d('cleanup ${_channel?.name}!');
+    // ignore: invalid_use_of_protected_member
     _readium.currentReaderWidget = null;
   }
 
