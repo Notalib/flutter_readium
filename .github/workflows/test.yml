@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/instructions/**'
+      - '.github/skills/**'
 
 concurrency:
   group: test-${{ github.ref }}

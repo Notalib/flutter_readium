@@ -1,10 +1,11 @@
-name: Build iOS
+name: Integration Tests (iOS)
 
 on:
   workflow_call:
 
 jobs:
-  build-ios:
+  ios:
+    name: iOS (Simulator)
     runs-on: macos-latest
     timeout-minutes: 30
 
@@ -36,7 +37,7 @@ jobs:
           restore-keys: |
             xcode-deriveddata-${{ runner.os }}-
 
-      - name: Install dependencies
+      - name: Install Dart dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
 
@@ -44,6 +45,16 @@ jobs:
         run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
         working-directory: flutter_readium/example/ios
 
-      - name: Build iOS (no codesign)
-        run: flutter build ios --no-codesign
+      - name: Boot iOS simulator
+        run: |
+          xcrun simctl list devices available
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS")) | {runtime: .key, devices: [.value[] | select(.name | startswith("iPhone"))]} | select(.devices | length > 0)] | sort_by(.runtime) | last | .devices[0].udid')
+          echo "Booting simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run integration tests
+        run: flutter test integration_test --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
