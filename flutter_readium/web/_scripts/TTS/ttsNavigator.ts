@@ -406,7 +406,12 @@ export class WebTTSEngine {
         emitState("playing", segmentLocator);
         // NOTE: Do NOT call updateTextLocator here — sub-segment locators are
         // not stable enough for bookmark/position-save purposes.
-        this._applyDecoration("tts_range", segmentLocator, this._rangeStyle);
+        // Skip the range decoration when the segment spans exactly the same
+        // text as the utterance — otherwise the range highlight stacks on top
+        // of the utterance highlight, double-decorating the whole paragraph.
+        if (!this._locatorHighlightsSameText(segmentLocator, element.locator)) {
+          this._applyDecoration("tts_range", segmentLocator, this._rangeStyle);
+        }
       }
     };
 
@@ -444,6 +449,16 @@ export class WebTTSEngine {
     // charIndex is past the last segment — return the last segment locator.
     const last = element.segments[element.segments.length - 1];
     return last?.locator ?? element.locator;
+  }
+
+  /**
+   * True when both locators highlight the same text — i.e. the boundary
+   * segment spans exactly the utterance. Comparing `text.highlight` is enough:
+   * if the spoken text matches, the range decoration would just stack on the
+   * utterance decoration over the same span.
+   */
+  private _locatorHighlightsSameText(a: Locator, b: Locator): boolean {
+    return normalizeWhitespace(a.text?.highlight) === normalizeWhitespace(b.text?.highlight);
   }
 
   private _resolveVoiceLang(element: TextElement): string | undefined {
