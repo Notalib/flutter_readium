@@ -41,6 +41,14 @@ export interface SyncNarrationItem {
   textId: string;
   tocTitle?: string;
   tocHref?: string;
+  /**
+   * Duration in seconds of the parent reading-order item, when declared in the
+   * manifest. Used as an authoritative fallback for synthetic audio Link.duration
+   * (the cue-sum can underestimate the real file length if cues don't cover the
+   * whole file). Mirrors `readingOrderDuration` on FlutterMediaOverlay in the
+   * native plugin.
+   */
+  readingOrderDuration?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,14 +87,14 @@ export async function parseSyncNarration(
     try {
       const resource: Resource = publication.get(narrationLink);
       const json = await resource.readAsJSON();
-      const items = _parseNarrationJson(json, i);
+      const items = _parseNarrationJson(json, i, link.duration);
       result.push(...items);
     } catch (err) {
       log.warn("Failed to fetch/parse alternate for", link.href, err);
     }
   }
 
-  return result;
+  return enrichItemsWithToc(result, publication);
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +171,7 @@ export function textLocatorToAudioLocator(
   const targetHref = textLocator.href;
   // Strip any fragment leaking into the href (e.g. ToC links like "chap1.xhtml#sec1")
   // so the href-only fallback still matches the right resource.
-  const targetHrefNormalized = _normalizeHref(targetHref);
+  const targetHrefNormalized = normalizeHref(targetHref);
   const targetId =
     (textLocator.locations as any)?.fragments?.[0] ??
     // cssSelector lives in otherLocations (a Map) — JSON.stringify would drop it,
@@ -172,7 +180,7 @@ export function textLocatorToAudioLocator(
     "";
 
   const hrefMatches = items.filter(
-    (item) => _normalizeHref(item.textHref) === targetHrefNormalized
+    (item) => normalizeHref(item.textHref) === targetHrefNormalized
   );
 
   // Primary: exact href + textId match (ID-anchored ToC entry, decoration callback, etc.).
@@ -237,10 +245,10 @@ export function findItemByAudioTime(
   timeSecs: number
 ): SyncNarrationItem | undefined {
   // Normalise hrefs for comparison (strip leading slash / URL prefix if any).
-  const normHref = _normalizeHref(audioHref);
+  const normHref = normalizeHref(audioHref);
 
   for (const item of items) {
-    if (_normalizeHref(item.audioHref) !== normHref) continue;
+    if (normalizeHref(item.audioHref) !== normHref) continue;
     const start = item.audioStart ?? 0;
     const end = item.audioEnd;
     if (timeSecs >= start && (end === null || timeSecs <= end)) {
@@ -251,58 +259,77 @@ export function findItemByAudioTime(
 }
 
 // ---------------------------------------------------------------------------
-// Private helpers
+// ToC enrichment
 // ---------------------------------------------------------------------------
 
-function _narrationAlternate(link: Link): Link | null {
-  // `alternates` is a `Links` instance (not a plain array): use `.items` for
-  // iteration and `findWithMediaType` for the typed lookup.
-  const alternates = link.alternates;
-  if (!alternates) return null;
-  const byType = alternates.findWithMediaType(NARRATION_MEDIA_TYPE);
-  if (byType) return byType;
-  return alternates.items.find((alt) => alt.href.endsWith(".json")) ?? null;
-}
+/**
+ * Recursively flatten the publication's table of contents into a single list.
+ *
+ * Mirrors `Publication.getFlattenedToC()` (iOS / Android), which the native
+ * plugins use to attach chapter titles to media-overlay items. The web
+ * toolkit's `Links` class doesn't expose a `flattened()` helper, so we walk
+ * `Link.children` ourselves.
+ */
+export function flattenToc(publication: ReadiumPublication): Link[] {
+  const toc = publication.manifest.toc?.items;
+  if (!toc) return [];
 
-/** Recursively parse { narration: [{audio, text}, ...] } entries. */
-function _parseNarrationJson(
-  json: any,
-  position: number
-): SyncNarrationItem[] {
-  const items: SyncNarrationItem[] = [];
-
-  if (!json || !Array.isArray(json.narration)) return items;
-
-  for (const entry of json.narration) {
-    if (entry && typeof entry.audio === "string" && typeof entry.text === "string") {
-      items.push(_parseEntry(entry, position));
-    } else if (entry && Array.isArray(entry.narration)) {
-      // Nested narration (body element groups in some authoring tools).
-      items.push(..._parseNarrationJson(entry, position));
+  const out: Link[] = [];
+  const walk = (links: readonly Link[]): void => {
+    for (const link of links) {
+      out.push(link);
+      const children = link.children?.items;
+      if (children && children.length > 0) walk(children);
     }
-  }
-
-  return items;
-}
-
-function _parseEntry(entry: { audio: string; text: string }, position: number): SyncNarrationItem {
-  const { audioHref, audioStart, audioEnd } = _parseAudioField(entry.audio);
-  const { textHref, textId } = _parseTextField(entry.text);
-
-  return {
-    audio: entry.audio,
-    text: entry.text,
-    position,
-    audioHref,
-    audioStart,
-    audioEnd,
-    textHref,
-    textId,
   };
+  walk(toc);
+  return out;
 }
+
+/**
+ * Enriches each item with `tocTitle` / `tocHref` derived from the publication's
+ * table of contents. Uses a sliding-window match:
+ *
+ *   1. Look for a ToC entry whose href EXACTLY matches the item's raw text
+ *      reference (full href, including fragment). On hit, attach title/href
+ *      and remember it.
+ *   2. Otherwise, if the previously-matched entry shares the same text file
+ *      (ignoring its fragment) as the current item, inherit title/href from it.
+ *   3. Otherwise, leave the item unenriched.
+ *
+ * Mirrors `enrichOverlaysWithToc()` in the native plugin
+ * (ReadiumExtensions.swift on iOS, ReadiumExtensions.kt on Android).
+ */
+export function enrichItemsWithToc(
+  items: SyncNarrationItem[],
+  publication: ReadiumPublication
+): SyncNarrationItem[] {
+  const toc = flattenToc(publication);
+  if (toc.length === 0) return items;
+
+  let lastMatch: Link | undefined;
+
+  return items.map((item) => {
+    const exact = toc.find((link) => link.href === item.text);
+    if (exact) {
+      lastMatch = exact;
+      return { ...item, tocTitle: exact.title, tocHref: exact.href };
+    }
+
+    if (lastMatch && normalizeHref(lastMatch.href) === normalizeHref(item.textHref)) {
+      return { ...item, tocTitle: lastMatch.title, tocHref: lastMatch.href };
+    }
+
+    return item;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers (exported for use by guidedNavigation.ts and tests)
+// ---------------------------------------------------------------------------
 
 /** Parses "chapter.mp3#t=12.34,15.67" into its components. */
-function _parseAudioField(audio: string): {
+export function parseAudioField(audio: string): {
   audioHref: string;
   audioStart: number | null;
   audioEnd: number | null;
@@ -330,7 +357,7 @@ function _parseAudioField(audio: string): {
 }
 
 /** Parses "chapter.html#p001" into href and fragment id. */
-function _parseTextField(text: string): { textHref: string; textId: string } {
+export function parseTextField(text: string): { textHref: string; textId: string } {
   const hashIdx = text.indexOf("#");
   if (hashIdx === -1) {
     return { textHref: text, textId: "" };
@@ -341,7 +368,77 @@ function _parseTextField(text: string): { textHref: string; textId: string } {
   };
 }
 
-export function _normalizeHref(href: string): string {
+export function normalizeHref(href: string): string {
   // Strip leading slash and query/fragment for comparison purposes.
   return href.replace(/^\//, "").split("?")[0].split("#")[0];
+}
+
+/**
+ * Narrows an `unknown` JSON value to a plain object (excluding arrays). Used
+ * by the JSON parsers so that property access goes through the type system
+ * instead of relying on `any`.
+ */
+export function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
+
+function _narrationAlternate(link: Link): Link | null {
+  // `alternates` is a `Links` instance (not a plain array): use `.items` for
+  // iteration and `findWithMediaType` for the typed lookup.
+  const alternates = link.alternates;
+  if (!alternates) return null;
+  const byType = alternates.findWithMediaType(NARRATION_MEDIA_TYPE);
+  if (byType) return byType;
+  return alternates.items.find((alt) => alt.href.endsWith(".json")) ?? null;
+}
+
+/** Recursively parse { narration: [{audio, text}, ...] } entries. */
+function _parseNarrationJson(
+  json: unknown,
+  position: number,
+  readingOrderDuration: number | undefined
+): SyncNarrationItem[] {
+  const items: SyncNarrationItem[] = [];
+
+  if (!isJsonObject(json) || !Array.isArray(json["narration"])) return items;
+
+  for (const entry of json["narration"]) {
+    if (!isJsonObject(entry)) continue;
+    const audio = entry["audio"];
+    const text = entry["text"];
+    if (typeof audio === "string" && typeof text === "string") {
+      items.push(_parseEntry(audio, text, position, readingOrderDuration));
+    } else if (Array.isArray(entry["narration"])) {
+      // Nested narration (body element groups in some authoring tools).
+      items.push(..._parseNarrationJson(entry, position, readingOrderDuration));
+    }
+  }
+
+  return items;
+}
+
+function _parseEntry(
+  audio: string,
+  text: string,
+  position: number,
+  readingOrderDuration: number | undefined
+): SyncNarrationItem {
+  const { audioHref, audioStart, audioEnd } = parseAudioField(audio);
+  const { textHref, textId } = parseTextField(text);
+
+  return {
+    audio,
+    text,
+    position,
+    audioHref,
+    audioStart,
+    audioEnd,
+    textHref,
+    textId,
+    readingOrderDuration,
+  };
 }

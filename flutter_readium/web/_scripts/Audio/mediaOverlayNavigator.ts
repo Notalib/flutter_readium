@@ -24,11 +24,12 @@ import {
   textLocatorForItem,
   textLocatorToAudioLocator,
 } from "./syncNarration";
+import { parseGuidedNavigation } from "./guidedNavigation";
 
 const log = createLogger("MediaOverlay");
 
 /**
- * Initialises a Media Overlay session for the given EPUB publication.
+ * Initialises a Media Overlay session backed by Sync Narration JSON alternates.
  *
  * @param publication            The EPUB publication (must have Sync Narration alternates).
  * @param initialLocator         Optional starting text locator (will be mapped to audio time).
@@ -47,23 +48,55 @@ export async function initializeMediaOverlayNavigator(
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
   onTextLocatorChanged?: (locator: Locator) => void
 ): Promise<void> {
+  const items = await parseSyncNarration(publication);
+  return _initializeFromItems(
+    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "SyncNarration"
+  );
+}
+
+/**
+ * Initialises a Media Overlay session backed by Guided Navigation JSON.
+ *
+ * Same downstream pipeline as `initializeMediaOverlayNavigator`; only the
+ * parser differs. Guided Navigation takes precedence over Sync Narration when
+ * both are present — matching native behaviour (iOS getSyncNarrationMediaOverlays).
+ */
+export async function initializeGuidedNavigationNavigator(
+  publication: ReadiumPublication,
+  initialLocator: Locator | undefined,
+  prefsJson: string,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
+  onTextLocatorChanged?: (locator: Locator) => void
+): Promise<void> {
+  const items = await parseGuidedNavigation(publication);
+  return _initializeFromItems(
+    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "GuidedNavigation"
+  );
+}
+
+async function _initializeFromItems(
+  publication: ReadiumPublication,
+  items: SyncNarrationItem[],
+  initialLocator: Locator | undefined,
+  prefsJson: string,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
+  onTextLocatorChanged: ((locator: Locator) => void) | undefined,
+  sourceLabel: string
+): Promise<void> {
   log.info(
-    "Initializing MediaOverlayNavigator",
+    `Initializing MediaOverlayNavigator (source: ${sourceLabel})`,
     initialLocator ? `from text locator ${initialLocator.href}` : "(no initial locator)"
   );
 
-  const items = await parseSyncNarration(publication);
   if (items.length === 0) {
-    log.warn("No sync narration items found; aborting.");
+    log.warn(`No items found from ${sourceLabel}; aborting.`);
     return;
   }
   const uniqueAudioFiles = new Set(items.map((i) => i.audioHref)).size;
   log.info(
-    `Parsed ${items.length} sync narration items across ${uniqueAudioFiles} audio file(s)`
+    `Parsed ${items.length} items across ${uniqueAudioFiles} audio file(s)`
   );
 
-  // Build synthetic audio reading order: one Link per unique audio file,
-  // preserving reading-order position.
   const audioReadingOrder = _buildAudioReadingOrder(items, publication);
   log.info(
     `Built synthetic audio reading order with ${audioReadingOrder.length} entries`,
@@ -72,10 +105,8 @@ export async function initializeMediaOverlayNavigator(
       : ""
   );
 
-  // Build a synthetic Publication with the audiobook profile and audio reading order.
   const syntheticPub = _buildAudiobookPublication(publication, audioReadingOrder);
 
-  // Map initial text locator -> audio locator.
   const audioInitialLocator = initialLocator
     ? textLocatorToAudioLocator(items, initialLocator)
     : undefined;
@@ -87,9 +118,6 @@ export async function initializeMediaOverlayNavigator(
     );
   }
 
-  // Locator mapper: applied by every state-emitting listener (play, pause,
-  // positionChanged, trackEnded, error, stalled) so ALL state transitions
-  // carry text-based locators, not raw audio-file hrefs.
   const mapper: AudioLocatorMapper = (nav, audioLocator) => {
     const item = findItemByAudioTime(items, audioLocator.href, nav.currentTime);
     if (item) {
@@ -98,7 +126,6 @@ export async function initializeMediaOverlayNavigator(
         textLocator: textLocatorForItem(item),
       };
     }
-    // No item matched (e.g. gap between cues) — fall back to raw audio locator.
     return { stateLocator: audioLocator };
   };
 
@@ -118,42 +145,56 @@ export async function initializeMediaOverlayNavigator(
 
 /**
  * One Link per unique audio file, ordered by first appearance in reading order.
- * Duration is the sum of (audioEnd - audioStart) for items in that file.
+ *
+ * Duration policy: prefer the largest reading-order item duration declared by
+ * the publication's manifest for items that map to this audio file; fall back
+ * to the sum of (audioEnd - audioStart) of all cues in that file. The manifest
+ * value is authoritative when present because cues can leave gaps (silence,
+ * intro/outro) that the cue-sum would underestimate.
  */
 function _buildAudioReadingOrder(
   items: SyncNarrationItem[],
   publication: ReadiumPublication
 ): Link[] {
-  const seen = new Map<string, { duration: number; title?: string }>();
+  const seen = new Map<
+    string,
+    { cueSum: number; declaredDuration?: number; title?: string }
+  >();
 
   for (const item of items) {
     const key = item.audioHref;
     if (!seen.has(key)) {
-      seen.set(key, { duration: 0 });
+      seen.set(key, { cueSum: 0 });
     }
     const entry = seen.get(key)!;
     if (item.audioStart !== null && item.audioEnd !== null) {
-      entry.duration += item.audioEnd - item.audioStart;
+      entry.cueSum += item.audioEnd - item.audioStart;
+    }
+    if (item.readingOrderDuration !== undefined) {
+      entry.declaredDuration = Math.max(
+        entry.declaredDuration ?? 0,
+        item.readingOrderDuration
+      );
     }
     if (!entry.title && item.tocTitle) {
       entry.title = item.tocTitle;
     }
   }
 
-  // Resolve absolute hrefs using the publication's self-link base URL.
   const selfHref = publication.manifest.linksWithRel("self")[0]?.href ?? "";
   const baseUrl = selfHref.endsWith("/")
     ? selfHref
     : selfHref.slice(0, selfHref.lastIndexOf("/") + 1);
 
   return Array.from(seen.entries()).map(([href, meta]) => {
-    // href may be relative; resolve against the publication base.
     const absoluteHref = href.startsWith("http") ? href : baseUrl + href;
+    const duration =
+      meta.declaredDuration ?? (meta.cueSum > 0 ? meta.cueSum : undefined);
     return new Link({
       href: absoluteHref,
       type: _audioMimeType(href),
       title: meta.title,
-      duration: meta.duration > 0 ? meta.duration : undefined,
+      duration,
     });
   });
 }
@@ -175,8 +216,6 @@ function _buildAudiobookPublication(
   publication: ReadiumPublication,
   audioReadingOrder: Link[]
 ): ReadiumPublication {
-  // Serialise manifest via the proper RWPM serialize() API, swap readingOrder,
-  // and set the audiobook profile so AudioNavigator accepts it.
   const manifestJson = publication.manifest.serialize();
   manifestJson.readingOrder = audioReadingOrder.map((l) => l.serialize());
   if (!manifestJson.metadata) manifestJson.metadata = {};
@@ -187,10 +226,8 @@ function _buildAudiobookPublication(
     throw new Error("Failed to create new Audiobook manifest");
   }
 
-  // Preserve the self-link so the fetcher base URL remains correct.
   const selfLink = publication.manifest.linksWithRel("self")[0];
   if (selfLink?.href) manifest.setSelfLink(selfLink.href);
 
   return new ReadiumPublication({ manifest, fetcher: (publication as any).fetcher });
 }
-
