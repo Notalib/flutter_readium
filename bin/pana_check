@@ -9,16 +9,10 @@
 #   bin/pana_check flutter_readium # run pana on one package only
 #
 # Options:
-#   -v, --verbose  show pana's raw output (includes pub's verbose log dump on
-#                  failure — file contents, HTTP transcripts, solver traces)
+#   -v, --verbose  show full pana output including pub's verbose log dumps
 #   --no-warning   passed through to pana (matches CI)
-#
-# By default, noisy pub-verbose continuation lines (SLVR/IO/FINE/MSG/ERR
-# markers, HTTP `|` transcripts, and entire verbose-rerun blocks) are filtered
-# out so the markdown report stays readable. Use -v to see everything.
 
 set -e
-set -o pipefail
 
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
@@ -50,26 +44,6 @@ for arg in "$@"; do
   esac
 done
 
-# Drop pub's verbose log spam (file content dumps, HTTP transcripts, solver
-# traces). Pana falls back to `pub get --verbose` when initial resolution fails
-# and the resulting block can be thousands of lines. Anything inside a
-# "Re-running with verbose output" block is suppressed up to the next
-# timestamp; the surviving error summary line is preserved.
-filter_pana() {
-  if [ -n "$VERBOSE" ]; then
-    cat
-    return
-  fi
-  awk '
-    /Re-running with verbose output/ { print; print "                                 [verbose pub log suppressed — re-run with -v to see it]"; suppress=1; next }
-    suppress && /^[0-9]{4}-[0-9]{2}-[0-9]{2}/ { suppress=0 }
-    suppress { next }
-    /^[[:space:]]+(SLVR|IO  |FINE|MSG |ERR ):/ { next }
-    /^[[:space:]]+\|/ { next }
-    { print }
-  '
-}
-
 if [ ${#TARGETS[@]} -gt 0 ]; then
   PACKAGES=("${TARGETS[@]}")
 fi
@@ -86,5 +60,17 @@ for pkg in "${PACKAGES[@]}"; do
   fi
 
   echo -e "\033[35;1m=== pana $pkg ===\033[0m"
-  (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub global run pana "${PANA_ARGS[@]}" . 2>&1) | filter_pana
+  if [ -n "$VERBOSE" ]; then
+    (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub global run pana "${PANA_ARGS[@]}" .)
+  else
+    (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub global run pana "${PANA_ARGS[@]}" . 2>&1) | \
+      awk '
+        /Re-running with verbose output/ { print; print "                                 [verbose log omitted — re-run with -v to see it]"; suppress=1; next }
+        suppress && /^[0-9]{4}-[0-9]{2}-[0-9]{2}/ { suppress=0 }
+        suppress { next }
+        /^[[:space:]]+(SLVR|IO  |FINE|MSG |ERR ):/ { next }
+        /^[[:space:]]+\|/ { next }
+        { print }
+      '
+  fi
 done
