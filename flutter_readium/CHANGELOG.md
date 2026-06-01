@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.0.1] - 2025-06-01
+
 ### Added
 
 - **Text selection callback** — `ReadiumReaderWidget.onTextSelected` fires a
@@ -21,20 +23,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   shown. Pass `null` for all defaults, or a specific `Set<DefaultSelectionAction>` to filter.
   iOS supports `copy`, `share`, `lookup`, `translate`; Android supports `copy`, `share`,
   `selectAll`. Unsupported values for a platform are silently ignored.
-
 - **PDF reading** — `ReadiumReaderWidget` now opens PDF publications on iOS (PDFKit via
   `PDFNavigatorViewController` from swift-toolkit) and Android (PDFium via
   `PdfiumNavigatorFragment` from kotlin-toolkit). PDF is not supported on Web.
 - **PDF preferences** — `FlutterReadium.setPDFPreferences(PDFPreferences)` applies runtime
-  display settings (`scroll`, `readingProgression`) to the active PDF navigator.
+  display settings (`layout`, `readingProgression`, `pageSpacing`, `fit`) to the active PDF
+  navigator. `PDFLayout` unifies iOS's `scroll` + `scrollAxis` and Android's `scrollAxis` into
+  one cross-platform setting (`paginated`, `scrollVertical`, `scrollHorizontal`); `PDFFit`
+  controls page fitting (`auto`, `page`, `width`).
 - **PDF TOC enrichment** — `onTextLocatorChanged` events for PDF publications now include
   `title` (chapter name) and `locations.otherLocations["tocHref"]` derived from `#page=N`
   TOC fragments, matching the existing EPUB enrichment behaviour.
-
-## [0.0.1] - 2025-05-12
-
-### Added
-
 - **Core reader API** — `FlutterReadium` singleton providing `openPublication`, `closePublication`,
   `loadPublication`, `goToLocator`, `goToProgression`, `goForward`, `goBackward`.
 - **EPUB reader widget** — `ReadiumReaderWidget` renders EPUB and WebPub content via a native
@@ -42,6 +41,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **EPUB preferences** — `EPUBPreferences` with font family, font size, scroll mode,
   line height, word spacing, letter spacing, paragraph spacing, text alignment, column count,
   publisher styles, vertical writing, custom CSS properties and first-element margin.
+  `FlutterReadium.setDefaultPreferences(EPUBPreferences)` stores defaults applied to future
+  publications; `FlutterReadium.setEPUBPreferences(EPUBPreferences)` applies preferences to
+  the active reader widget.
 - **TTS (text-to-speech)** — `ttsEnable`, `ttsSetPreferences`, `ttsSetVoice`,
   `ttsGetAvailableVoices` with voice metadata loaded from the Readium speech voice-data registry.
   TTS decoration styles are configurable via `setDecorationStyle`.
@@ -59,6 +61,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Web (TypeScript webpack bundle using @readium/navigator).
 - **Custom HTTP headers** — `setCustomHeaders` forwards headers to the native HTTP layer.
 - **Log level control** — `setLogLevel` configures the plugin's internal logging verbosity.
-- **Page information** — `PageInformation` model exposes `currentPage` and `totalPages` for
-  publications that include a page list.
+- **Page information** — `Locations.page` and `Locations.totalPages` extension getters expose
+  the current page and total page count (parsed from locator fragments) for publications that
+  include a page list.
 - **Progress slider** support in the example app via a slider bound to `totalProgression`.

@@ -5,19 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.0.1] - 2025-06-01
+
 ### Added
 
-- `PDFPreferences` — model for PDF reader display preferences (`scroll: bool?`,
-  `readingProgression: PDFReadingProgression?`) with `toJson` / `fromJson` and `copyWith`.
+- `PDFPreferences` — model for PDF reader display preferences (`layout: PDFLayout?`,
+  `readingProgression: PDFReadingProgression?`, `pageSpacing: double?`, `fit: PDFFit?`) with
+  `toJson` / `fromJson` and `copyWith`.
+- `PDFLayout` — enum (`paginated` / `scrollVertical` / `scrollHorizontal`) used by
+  `PDFPreferences`. Unifies iOS's `scroll` + `scrollAxis` and Android's `scrollAxis` into a
+  single cross-platform setting.
 - `PDFReadingProgression` — enum (`ltr` / `rtl`) used by `PDFPreferences`.
+- `PDFFit` — enum (`auto` / `page` / `width`) controlling how PDF pages are fitted in the
+  viewport.
 - `setPDFPreferences(PDFPreferences)` — new method on the platform interface and
   `MethodChannelFlutterReadium`; routes through the existing `setPreferences` method-channel
   call, dispatched by format on the native side.
-
-## [0.0.1] - 2025-05-12
-
-### Added
-
 - `FlutterReadiumPlatform` — abstract platform interface class that all platform implementations
   must extend.
 - `MethodChannelFlutterReadium` — default `MethodChannel` / `EventChannel` implementation of the
@@ -42,6 +45,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `duration`, `currentTime`, `currentBuffered`, and play/pause status.
   - `ReadiumError` — structured error type propagated from native to Dart.
   - `TextSearchResult` — single search hit containing the matching `Locator` and surrounding text.
-  - `PageInformation` — page counter snapshot with `currentPage` and `totalPages`.
+- **Reader enums**:
+  - `DefaultSelectionAction` — system-provided selection menu items (`copy`, `share`, `lookup`,
+    `translate`, `selectAll`) that callers can allow or filter out via
+    `ReadiumReaderWidget.allowedDefaultActions`.
+  - `DecorationStyle` — built-in decoration styles (`highlight`, `underline`) used when
+    constructing a `ReaderDecorationStyle`.
+  - `LogLevel` — log verbosity (`none`, `error`, `warn`, `info`, `debug`) passed to
+    `setLogLevel`.
+- `ReadiumReaderWidgetInterface` — abstract interface that platform-specific reader widget
+  implementations extend; consumed by `FlutterReadiumPlatform.currentReaderWidget`.
 - `ReadiumException` — Dart exception wrapping a `ReadiumError`.
 - `ReaderTTSVoiceUtils` — utility to load and query the bundled Readium voice-data JSON.
