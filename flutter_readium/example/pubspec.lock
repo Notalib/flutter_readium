@@ -171,11 +171,12 @@ packages:
     source: path
     version: "0.0.1"
   flutter_readium_platform_interface:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
-      path: "../../flutter_readium_platform_interface"
-      relative: true
-    source: path
+      name: flutter_readium_platform_interface
+      sha256: ad7a5f84131b8006b28e321eafb6f19b769c97022e82dff531370d9371f4e66e
+      url: "https://pub.dev"
+    source: hosted
     version: "0.0.1"
   flutter_test:
     dependency: "direct dev"
