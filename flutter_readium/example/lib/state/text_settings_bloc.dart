@@ -326,7 +326,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
           blackAndWhiteComicMode: false,
           disableSynchronization: false,
           firstElementTopMargin: 40,
-          utteranceStyle: DecorationStyle.spotlight,
+          utteranceStyle: DecorationStyle.highlight,
           rangeStyle: DecorationStyle.underline,
         ),
       ) {
