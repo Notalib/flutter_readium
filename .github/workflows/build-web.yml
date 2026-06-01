@@ -1,14 +1,7 @@
 name: Build Web
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-concurrency:
-  group: build-web-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   build-web:

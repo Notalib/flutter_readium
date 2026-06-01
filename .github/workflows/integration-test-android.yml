@@ -1,73 +1,9 @@
-name: Integration Tests
+name: Integration Tests (Android)
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-# Cancel in-progress runs when a new commit is pushed to the same PR.
-concurrency:
-  group: integration-test-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
-  ios:
-    name: iOS (Simulator)
-    runs-on: macos-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          channel: stable
-          flutter-version-file: .flutter-version
-          cache: true
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v5
-        id: pods-cache
-        with:
-          path: |
-            flutter_readium/example/ios/Pods
-            ~/.cocoapods
-          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
-          restore-keys: |
-            pods-${{ runner.os }}-
-
-      - name: Cache Xcode derived data
-        uses: actions/cache@v5
-        with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-deriveddata-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
-          restore-keys: |
-            xcode-deriveddata-${{ runner.os }}-
-
-      - name: Install Dart dependencies
-        run: flutter pub get
-        working-directory: flutter_readium/example
-
-      - name: Install CocoaPods dependencies
-        run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
-        working-directory: flutter_readium/example/ios
-
-      - name: Boot iOS simulator
-        run: |
-          xcrun simctl list devices available
-          UDID=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices | to_entries[] | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS")) | {runtime: .key, devices: [.value[] | select(.name | startswith("iPhone"))]} | select(.devices | length > 0)] | sort_by(.runtime) | last | .devices[0].udid')
-          echo "Booting simulator $UDID"
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
-          echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
-
-      - name: Run integration tests
-        run: flutter test integration_test --device-id="$IOS_SIMULATOR_UDID"
-        working-directory: flutter_readium/example
-
   android:
     name: Android (Emulator)
     runs-on: ubuntu-latest
