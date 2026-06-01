@@ -51,9 +51,10 @@ dev_dependencies:
   plugin_platform_interface: ^2.0.2
   mocktail: ^1.0.0
 
-dependency_overrides:
-  flutter_readium_platform_interface:
-    path: ../flutter_readium_platform_interface
+# NOTE: For local development, when changing platform_interface.
+# dependency_overrides:
+#   flutter_readium_platform_interface:
+#     path: ../flutter_readium_platform_interface
 
 executables:
   copy_js_file:
