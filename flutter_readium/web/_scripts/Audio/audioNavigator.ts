@@ -159,9 +159,15 @@ function _emitState(
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
     const { stateLocator, textLocator } = mapper(nav, locator);
+    // Compute publication-wide totalProgression from the AUDIO locator, not the
+    // mapped state locator. The mapper rewrites the locator to the text href
+    // (so the player highlights the right element), but computeTotalProgression
+    // keys on the audio reading order — passing the text-href stateLocator would
+    // never match and yield `undefined`, leaving totalProgression null on the
+    // emitted currentLocator. The raw `locator` still carries the audio href + time.
     const enrichedStateLocator = withTotalProgression(
       stateLocator,
-      computeTotalProgression(stateLocator)
+      computeTotalProgression(locator)
     );
     window.updateTimebasedPlayerState?.(
       buildStatePayload(state, nav, enrichedStateLocator)
@@ -289,3 +295,14 @@ export async function initializeAudioNavigator(
 
   await ready;
 }
+
+// ---------------------------------------------------------------------------
+// Test-only exports
+//
+// The double-underscore prefix marks these as internal — not part of the
+// module's public API, only exposed for unit tests in __tests__/.
+// ---------------------------------------------------------------------------
+
+export const __testing__ = {
+  makeAudioTotalProgressionFn,
+};
