@@ -40,13 +40,14 @@ const log = createLogger("MediaOverlay");
  * @param onTextLocatorChanged   Optional callback fired each time the active Sync Narration
  *                               cue advances to a new text locator. Used by ReadiumReader to
  *                               apply utterance-level decorations on the visual navigator.
+ *                               Receives the text locator and the cue duration in milliseconds.
  */
 export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
-  onTextLocatorChanged?: (locator: Locator) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
 ): Promise<void> {
   const items = await parseSyncNarration(publication);
   return _initializeFromItems(
@@ -66,7 +67,7 @@ export async function initializeGuidedNavigationNavigator(
   initialLocator: Locator | undefined,
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
-  onTextLocatorChanged?: (locator: Locator) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
 ): Promise<void> {
   const items = await parseGuidedNavigation(publication);
   return _initializeFromItems(
@@ -80,7 +81,7 @@ async function _initializeFromItems(
   initialLocator: Locator | undefined,
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
-  onTextLocatorChanged: ((locator: Locator) => void) | undefined,
+  onTextLocatorChanged: ((locator: Locator, durationMs: number | undefined) => void) | undefined,
   sourceLabel: string
 ): Promise<void> {
   log.info(
@@ -138,23 +139,47 @@ async function _initializeFromItems(
     return { stateLocator: audioLocator };
   };
 
+  // Wrap the caller's callback to enrich it with the cue duration.
+  // The AudioLocatorMapper knows which SyncNarrationItem is active, but the
+  // callback signature at the audioNavigator layer doesn't carry that info.
+  // Instead, we re-derive the item here from the text locator fragment by
+  // matching against resolvedItems — same lookup the mapper does, just keyed on
+  // the text side.
+  const wrappedCallback:
+    | ((locator: Locator, durationMs: number | undefined) => void)
+    | undefined = onTextLocatorChanged
+    ? (locator, _ignored) => {
+        const fragId = locator.locations?.fragments?.[0];
+        const item = fragId
+          ? resolvedItems.find((i) => i.textId === fragId)
+          : undefined;
+        const durationMs =
+          item?.audioStart != null && item?.audioEnd != null
+            ? (item.audioEnd - item.audioStart) * 1000
+            : undefined;
+        log.debug(
+          `[mediaOverlay] cue fragment="${fragId ?? "(none)"}" ` +
+          `item=${item ? `audioStart=${item.audioStart} audioEnd=${item.audioEnd}` : "NOT FOUND"} ` +
+          `→ durationMs=${durationMs ?? "undefined"}`
+        );
+        onTextLocatorChanged(locator, durationMs);
+      }
+    : undefined;
+
   await initializeAudioNavigator(
     syntheticPub,
     audioInitialLocator,
     prefsJson,
     (nav) => setNav(nav, resolvedItems),
     mapper,
-    onTextLocatorChanged
+    wrappedCallback,
+    // Media overlay cue synchronisation requires finer granularity than the
+    // Dart-side updateIntervalSecs preference (which controls the progress bar).
+    // 100ms keeps panel panning within one frame of the audio cue boundary.
+    100
   );
 
-  // The AudioNavigator fires its `play` event before the initial seek to
-  // `audioInitialLocator` completes, so `nav.currentTime` is ~0 at that point
-  // and the mapper finds no item → no highlight is applied on first load.
-  // Emit the initial text locator directly here, using the already-resolved
-  // `audioInitialLocator` (which carries the correct start time) to look up the
-  // matching cue, so decorations appear immediately without waiting for the
-  // first poll tick or user interaction.
-  if (onTextLocatorChanged) {
+  if (wrappedCallback) {
     const fragment = audioInitialLocator?.locations?.fragments?.[0];
     const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
     const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
@@ -162,7 +187,11 @@ async function _initializeFromItems(
       ? findItemByAudioTime(resolvedItems, initHref, initTime) ?? resolvedItems[0]
       : resolvedItems[0];
     if (initItem) {
-      onTextLocatorChanged(textLocatorForItem(initItem));
+      const initDurationMs =
+        initItem.audioStart != null && initItem.audioEnd != null
+          ? (initItem.audioEnd - initItem.audioStart) * 1000
+          : undefined;
+      wrappedCallback(textLocatorForItem(initItem), initDurationMs);
     }
   }
 }
