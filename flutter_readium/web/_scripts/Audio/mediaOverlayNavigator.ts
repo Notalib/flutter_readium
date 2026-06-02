@@ -107,8 +107,16 @@ async function _initializeFromItems(
 
   const syntheticPub = _buildAudiobookPublication(publication, audioReadingOrder);
 
+  // Resolve relative audioHref values in items to the absolute form used in the
+  // reading order. Narration JSON stores relative hrefs ("chap.mp3") but the
+  // reading order and every locator the AudioNavigator emits use absolute URLs
+  // ("https://.../chap.mp3"). AudioNavigator does exact href lookups, so all
+  // three consumers — the mapper, textLocatorToAudioLocator (initial seek /
+  // goToLocator), and the setNav callback — must see the same absolute hrefs.
+  const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
+
   const audioInitialLocator = initialLocator
-    ? textLocatorToAudioLocator(items, initialLocator)
+    ? textLocatorToAudioLocator(resolvedItems, initialLocator)
     : undefined;
   if (initialLocator) {
     log.info(
@@ -119,7 +127,7 @@ async function _initializeFromItems(
   }
 
   const mapper: AudioLocatorMapper = (nav, audioLocator) => {
-    const item = findItemByAudioTime(items, audioLocator.href, nav.currentTime);
+    const item = findItemByAudioTime(resolvedItems, audioLocator.href, nav.currentTime);
     if (item) {
       return {
         stateLocator: combinedLocatorForItem(item, audioLocator),
@@ -133,7 +141,7 @@ async function _initializeFromItems(
     syntheticPub,
     audioInitialLocator,
     prefsJson,
-    (nav) => setNav(nav, items),
+    (nav) => setNav(nav, resolvedItems),
     mapper,
     onTextLocatorChanged
   );
@@ -142,6 +150,25 @@ async function _initializeFromItems(
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Resolves relative `audioHref` values in items to the absolute hrefs used in
+ * the synthetic reading order. The narration JSON stores relative paths; the
+ * reading order and AudioNavigator locators use absolute URLs. Any item whose
+ * relative href matches a reading-order entry via suffix comparison is updated
+ * in place; unmatched items are left unchanged.
+ */
+function _resolveItemHrefs(
+  items: SyncNarrationItem[],
+  audioReadingOrder: Link[]
+): SyncNarrationItem[] {
+  return items.map((item) => {
+    const absLink = audioReadingOrder.find(
+      (l) => l.href === item.audioHref || l.href.endsWith("/" + item.audioHref)
+    );
+    return absLink ? { ...item, audioHref: absLink.href } : item;
+  });
+}
 
 /**
  * One Link per unique audio file, ordered by first appearance in reading order.

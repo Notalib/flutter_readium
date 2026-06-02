@@ -554,8 +554,8 @@ class _ReadiumReader {
     log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
     this._audioNav?.stop();
-    // Clear Media Overlay utterance decoration when narration stops.
-    if (this._hasSyncNarration && this._nav) {
+    // Clear Media Overlay / Guided Navigation utterance decoration when narration stops.
+    if ((this._hasSyncNarration || this._hasGuidedNavigation) && this._nav) {
       this._lastMediaOverlayLocatorKey = null;
       this.applyDecorations("media_overlay_utterance", "[]");
     }
@@ -677,6 +677,75 @@ class _ReadiumReader {
   // ---------------------------------------------------------------------------
 
   /**
+   * Follows Media Overlay / Guided Navigation audio with the visual navigator:
+   * turns the page to the spoken text, then highlights it. Invoked on every
+   * audio cue; de-duplicated by "<href><fragment>" so repeated poll ticks
+   * within a single cue don't re-navigate or re-decorate.
+   *
+   * Order matters. The page turn must finish before the decoration is applied,
+   * otherwise the target resource's iframe isn't rendered yet and the upstream
+   * Decorator logs "Can't locate DOM range for decoration". `nav.go()` resolves
+   * the resource from the position list by href — so a position-less text
+   * locator (sync-narration / guided-nav locators only carry href + fragments)
+   * is fine — and scrolls to the fragment / cssSelector within it. The
+   * decoration is applied in the navigation-completion callback.
+   *
+   * Mirrors iOS FlutterMediaOverlayNavigator: `reachedLocator` → syncToLocator
+   * (page-follow, skipped when sync is disabled) plus `requestsHighlightAt` →
+   * decoration. When synchronization is disabled the page is left where it is
+   * and only the highlight is refreshed.
+   */
+  private _syncVisualToMediaOverlayLocator(
+    textLocator: Locator,
+    sourceLabel: string
+  ): void {
+    const nav = this._nav;
+    if (!nav) return;
+    // Skip redundant work when the same cue is still active.
+    const key =
+      textLocator.href + (textLocator.locations?.fragments?.[0] ?? "");
+    if (key === this._lastMediaOverlayLocatorKey) return;
+    this._lastMediaOverlayLocatorKey = key;
+
+    const applyUtteranceDecoration = () => {
+      if (!this._utteranceStyle || !this._nav) return;
+      try {
+        const decoration = [
+          {
+            id: textLocator.href,
+            locator: textLocator.serialize(),
+            style: this._utteranceStyle,
+          },
+        ];
+        this.applyDecorations(
+          "media_overlay_utterance",
+          JSON.stringify(decoration)
+        );
+      } catch (e) {
+        log.warn(`${sourceLabel}: failed to apply decoration:`, e);
+      }
+    };
+
+    // When the user has disabled synchronization, don't drag the page around —
+    // just refresh the highlight on whatever is currently shown.
+    if (this._disableSynchronization) {
+      applyUtteranceDecoration();
+      return;
+    }
+
+    // Follow the audio: turn the visual page to the spoken text, then highlight
+    // once navigation settles so the target iframe is rendered.
+    nav.go(textLocator, false, (ok) => {
+      if (!ok) {
+        log.warn(
+          `${sourceLabel}: visual navigation failed for ${textLocator.href}`
+        );
+      }
+      applyUtteranceDecoration();
+    });
+  }
+
+  /**
    * Enables audio playback.
    *  - Pure audiobook: AudioNavigator already initialized in openPublication — just play.
    *  - Media Overlay EPUB: lazy-initialize MediaOverlayNavigator, then play.
@@ -717,18 +786,7 @@ class _ReadiumReader {
         fromLocator,
         prefsJson,
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator) => {
-          if (!this._utteranceStyle || !this._nav) return;
-          const key = textLocator.href + (textLocator.locations?.fragments?.[0] ?? "");
-          if (key === this._lastMediaOverlayLocatorKey) return;
-          this._lastMediaOverlayLocatorKey = key;
-          try {
-            const decoration = [{ id: textLocator.href, locator: textLocator.serialize(), style: this._utteranceStyle }];
-            this.applyDecorations("media_overlay_utterance", JSON.stringify(decoration));
-          } catch (e) {
-            log.warn("GuidedNavigation: failed to apply decoration:", e);
-          }
-        }
+        (textLocator) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation")
       );
       (this._audioNav as AudioNavigator | undefined)?.play();
       return;
@@ -743,19 +801,7 @@ class _ReadiumReader {
         fromLocator,
         prefsJson,
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator) => {
-          if (!this._utteranceStyle || !this._nav) return;
-          // Skip redundant calls when the same cue is still active.
-          const key = textLocator.href + (textLocator.locations?.fragments?.[0] ?? "");
-          if (key === this._lastMediaOverlayLocatorKey) return;
-          this._lastMediaOverlayLocatorKey = key;
-          try {
-            const decoration = [{ id: textLocator.href, locator: textLocator.serialize(), style: this._utteranceStyle }];
-            this.applyDecorations("media_overlay_utterance", JSON.stringify(decoration));
-          } catch (e) {
-            log.warn("MediaOverlay: failed to apply decoration:", e);
-          }
-        }
+        (textLocator) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay")
       );
       // Re-read after await; cast to break TypeScript's control-flow narrowing
       // which assumes _audioNav is still undefined (it was set by the callback).
