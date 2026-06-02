@@ -1,16 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-set -e
+"$REPO_ROOT/bin/forAll" flutter pub get
 
-PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
-
-$PROJECT_ROOT/bin/forAll flutter pub get
-
-# this is not working as expected
-if [ "$(uname)" == "Darwin" ]; then
-  (cd $PROJECT_ROOT/flutter_readium/example/ios; pod update && pod install --repo-update)
+if [ "$(uname)" = "Darwin" ]; then
+  ( cd "$REPO_ROOT/flutter_readium/example/ios" && pod update && pod install --repo-update )
 fi
 
-$PROJECT_ROOT/flutter_readium/bin/build_helper_scripts.sh
-$PROJECT_ROOT/bin/build_js
-$PROJECT_ROOT/bin/update_web_example
+"$REPO_ROOT/flutter_readium/bin/build_helper_scripts.sh"
+"$REPO_ROOT/bin/build_js"
+"$REPO_ROOT/bin/update_web_example"

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Preflight check: verifies the toolchain bin/ scripts depend on is resolvable
+# in the CURRENT shell (after _common.sh's PATH bootstrap). Prints one line per
+# tool and exits non-zero if anything required is missing — so a sandbox/CI run
+# gets one actionable line instead of a deep failure mid-build.
+set +e  # report every tool, don't abort on the first miss
+
+status=0
+
+check() {
+  local name="$1" required="$2"
+  if command -v "$name" >/dev/null 2>&1; then
+    printf '  ✓ %-8s %s\n' "$name" "$(command -v "$name")"
+  elif [ "$required" = "required" ]; then
+    printf '  ✗ %-8s NOT FOUND (required)\n' "$name"; status=1
+  else
+    printf '  - %-8s not found (optional)\n' "$name"
+  fi
+}
+
+echo "flutter_readium toolchain"
+echo "  REPO_ROOT=$REPO_ROOT"
+check dart    required
+check flutter required
+check node    required
+check npm     required
+[ "$(uname)" = "Darwin" ] && check pod optional
+
+if [ "$status" -ne 0 ]; then
+  echo
+  echo "Missing a required tool. Put it on your PATH, or install fvm to use the"
+  echo ".fvmrc-pinned Flutter/Dart. bin/_common.sh prepends the usual locations"
+  echo "(/opt/homebrew/bin, /usr/local/bin, ~/.pub-cache/bin, nvm node)."
+fi
+
+exit "$status"
