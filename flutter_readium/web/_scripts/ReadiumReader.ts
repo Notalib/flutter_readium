@@ -21,7 +21,7 @@ import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
-import { initializeAudioNavigator } from "./Audio/audioNavigator";
+import { initializeAudioNavigator, seekAudioAndResume } from "./Audio/audioNavigator";
 import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
 import { detectGuidedNavigation } from "./Audio/guidedNavigation";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./Audio/mediaOverlayNavigator";
@@ -189,9 +189,7 @@ class _ReadiumReader {
           audioLocator.locations?.fragments,
           `(wasPlaying=${wasPlaying})`
         );
-        await this._audioNav.go(audioLocator, wasPlaying, (ok) => {
-          if (!ok) log.error("goTo: MediaOverlay audio seek failed for", locator.href);
-        });
+        await this._seekAudioAndResume(audioLocator, wasPlaying);
       } else {
         log.warn("goTo: MediaOverlay — no SyncNarrationItem found for", locator.href, "; falling through to visual navigation");
       }
@@ -229,9 +227,8 @@ class _ReadiumReader {
         type: link.type ?? "audio/mpeg",
         locations: locator.locations,
       });
-      await this._audioNav.go(audioLocator, false, (ok) => {
-        if (!ok) log.error("goTo: audiobook navigation failed for href:", locator.href);
-      });
+      const wasPlaying = this._audioNav.isPlaying;
+      await this._seekAudioAndResume(audioLocator, wasPlaying);
       return;
     }
 
@@ -511,6 +508,24 @@ class _ReadiumReader {
     }
   }
 
+  /**
+   * Seeks the AudioNavigator to `audioLocator` and (optionally) resumes playback,
+   * restarting upstream position polling. Thin wrapper over the shared
+   * {@link seekAudioAndResume} helper that no-ops when no navigator is active.
+   *
+   * See `seekAudioAndResume` for why the pause-before-seek is required (upstream
+   * `go()` leaves position polling stopped when resuming an already-playing
+   * element, freezing `currentLocator` and Media Overlay highlights).
+   */
+  private _seekAudioAndResume(
+    audioLocator: Locator,
+    resumePlaying: boolean
+  ): Promise<void> {
+    const nav = this._audioNav;
+    if (!nav) return Promise.resolve();
+    return seekAudioAndResume(nav, audioLocator, resumePlaying);
+  }
+
   public play(locatorJson?: string): void {
     log.debug("play", locatorJson ? "(with locator)" : "");
     if (this._ttsEngine) {
@@ -528,10 +543,7 @@ class _ReadiumReader {
         if (this._syncItems.length > 0) {
           locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
         }
-        // Ensure playback is active so go() sees wasPlaying=true and resumes
-        // after seeking.
-        this._audioNav.play();
-        this._audioNav.go(locator, false, () => {});
+        this._seekAudioAndResume(locator, true);
         return;
       }
     }
@@ -768,10 +780,7 @@ class _ReadiumReader {
         if (this._syncItems.length > 0) {
           locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
         }
-        // Set play intent before go() so wasPlaying is true and playback
-        // resumes automatically after the seek completes.
-        this._audioNav.play();
-        this._audioNav.go(locator, false, () => {});
+        this._seekAudioAndResume(locator, true);
         return;
       }
       this._audioNav.play();

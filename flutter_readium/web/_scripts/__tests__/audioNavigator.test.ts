@@ -11,7 +11,12 @@
  */
 
 import { Locator, LocatorLocations } from "@readium/shared";
-import { buildStatePayload, __testing__ } from "../Audio/audioNavigator";
+import {
+  buildStatePayload,
+  seekAudioAndResume,
+  SeekableAudioNavigator,
+  __testing__,
+} from "../Audio/audioNavigator";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { AudioNavigator } from "@readium/navigator";
 
@@ -260,5 +265,123 @@ describe("buildStatePayload", () => {
     const p = JSON.parse(buildStatePayload("playing", nav));
     expect(p.currentOffset).toBe(2500);
     expect(p.currentDuration).toBe(10999);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// seekAudioAndResume
+// ---------------------------------------------------------------------------
+
+/**
+ * Records the order of pause/play/go calls so tests can assert that the
+ * pause-before-seek / resume-after-seek sequencing (the regression fix) holds.
+ *
+ * `goResolves` controls whether the simulated `go()` reports success; the
+ * resume `play()` fires from inside the go callback regardless, mirroring the
+ * real navigator which always invokes the completion callback.
+ */
+function recordingNav(opts: {
+  isPlaying: boolean;
+  goResolves?: boolean;
+  currentHref?: string;
+  currentTime?: number;
+}): SeekableAudioNavigator & { calls: string[] } {
+  const calls: string[] = [];
+  return {
+    calls,
+    get isPlaying() {
+      return opts.isPlaying;
+    },
+    get currentLocator() {
+      return new Locator({
+        href: opts.currentHref ?? "other.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({
+          fragments: [`t=${opts.currentTime ?? 0}`],
+        }),
+      });
+    },
+    get currentTime() {
+      return opts.currentTime ?? 0;
+    },
+    pause() {
+      calls.push("pause");
+    },
+    play() {
+      calls.push("play");
+    },
+    go(_locator: Locator, _animated: boolean, cb: (ok: boolean) => void): Promise<void> {
+      calls.push("go");
+      cb(opts.goResolves ?? true);
+      return Promise.resolve();
+    },
+  };
+}
+
+describe("seekAudioAndResume", () => {
+  const loc = () =>
+    new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=5"] }),
+    });
+
+  it("pauses before seeking when currently playing, then resumes after", async () => {
+    const nav = recordingNav({ isPlaying: true });
+    await seekAudioAndResume(nav, loc(), true);
+    // pause must precede go (forces upstream poll restart), play must follow go.
+    expect(nav.calls).toEqual(["pause", "go", "play"]);
+  });
+
+  it("does not pause when already paused, but still resumes after seeking", async () => {
+    const nav = recordingNav({ isPlaying: false });
+    await seekAudioAndResume(nav, loc(), true);
+    expect(nav.calls).toEqual(["go", "play"]);
+  });
+
+  it("does not resume when resumePlaying is false (was playing)", async () => {
+    const nav = recordingNav({ isPlaying: true });
+    await seekAudioAndResume(nav, loc(), false);
+    // Still pauses (to keep the engine state consistent) but never re-plays.
+    expect(nav.calls).toEqual(["pause", "go"]);
+  });
+
+  it("does not resume when resumePlaying is false (was paused)", async () => {
+    const nav = recordingNav({ isPlaying: false });
+    await seekAudioAndResume(nav, loc(), false);
+    expect(nav.calls).toEqual(["go"]);
+  });
+
+  it("does not resume playback when the seek fails", async () => {
+    const nav = recordingNav({ isPlaying: true, goResolves: false });
+    await seekAudioAndResume(nav, loc(), true);
+    // Failed seek: pause + go ran, but no resume since go reported failure.
+    expect(nav.calls).toEqual(["pause", "go"]);
+  });
+
+  it("skips go() and restarts playback when already at the target position", async () => {
+    // Same href + same time as loc() (t=5): a real seek would hang upstream go(),
+    // so the helper must restart playback directly instead of seeking.
+    const nav = recordingNav({ isPlaying: true, currentHref: "chap1.mp3", currentTime: 5 });
+    await seekAudioAndResume(nav, loc(), true);
+    expect(nav.calls).toEqual(["pause", "play"]);
+  });
+
+  it("skips go() and plays once when already at target and currently paused", async () => {
+    const nav = recordingNav({ isPlaying: false, currentHref: "chap1.mp3", currentTime: 5 });
+    await seekAudioAndResume(nav, loc(), true);
+    expect(nav.calls).toEqual(["play"]);
+  });
+
+  it("does nothing when already at target and not resuming", async () => {
+    const nav = recordingNav({ isPlaying: false, currentHref: "chap1.mp3", currentTime: 5 });
+    await seekAudioAndResume(nav, loc(), false);
+    expect(nav.calls).toEqual([]);
+  });
+
+  it("still seeks when the target time differs beyond the epsilon", async () => {
+    const nav = recordingNav({ isPlaying: true, currentHref: "chap1.mp3", currentTime: 4 });
+    await seekAudioAndResume(nav, loc(), true);
+    expect(nav.calls).toEqual(["pause", "go", "play"]);
   });
 });
