@@ -133,6 +133,106 @@ export type AudioLocatorMapper = (
 ) => { stateLocator: Locator; textLocator?: Locator };
 
 /**
+ * Narrow structural view of the parts of `AudioNavigator` that
+ * {@link seekAudioAndResume} drives. Declaring exactly the members used (rather
+ * than depending on the full `AudioNavigator`) keeps the helper decoupled and
+ * trivially fakeable in unit tests. The real `AudioNavigator` satisfies this
+ * interface structurally, so callers pass it directly.
+ */
+export interface SeekableAudioNavigator {
+  readonly isPlaying: boolean;
+  readonly currentLocator: Locator;
+  readonly currentTime: number;
+  play(): void;
+  pause(): void;
+  go(locator: Locator, animated: boolean, cb: (ok: boolean) => void): Promise<void>;
+}
+
+/**
+ * Tolerance (seconds) for treating a requested seek target as "already there".
+ * The upstream same-position hang (see {@link seekAudioAndResume}) only triggers
+ * on an exact match, but `mediaElement.currentTime` can drift by a few
+ * milliseconds from the value we requested, so a small window avoids issuing a
+ * redundant — and hang-prone — seek while never skipping a real reposition.
+ */
+const SAME_POSITION_EPSILON_S = 0.1;
+
+/**
+ * True when `nav` is already positioned at `audioLocator` (same track href and a
+ * current time within {@link SAME_POSITION_EPSILON_S}). Used to avoid a
+ * redundant seek that would hang upstream `go()`.
+ */
+function isAlreadyAtPosition(
+  nav: SeekableAudioNavigator,
+  audioLocator: Locator
+): boolean {
+  const targetHref = audioLocator.href.split("#")[0];
+  const currentHref = nav.currentLocator.href.split("#")[0];
+  if (targetHref !== currentHref) return false;
+  const targetTime = audioLocator.locations?.time();
+  if (targetTime === undefined) return false;
+  return Math.abs(targetTime - nav.currentTime) <= SAME_POSITION_EPSILON_S;
+}
+
+/**
+ * Seeks `nav` to `audioLocator` and (optionally) resumes playback afterwards,
+ * restarting upstream position polling.
+ *
+ * Works around an upstream `AudioNavigator` quirk: `go()` stops position polling
+ * for the duration of the seek and, when it finishes, resumes playback via a
+ * bare `play()`. The underlying audio engine's `play()` no-ops when the element
+ * is already playing, so the DOM "play" event never re-fires and position
+ * polling is never restarted. The result is a frozen `currentLocator` and Media
+ * Overlay highlights that only advance on the next pause/seek (those fire
+ * `positionChanged` directly).
+ *
+ * To force a clean restart we pause the engine first (when it is playing) so the
+ * post-seek `play()` is a genuine paused→playing transition, which re-fires the
+ * DOM "play" event and restarts polling.
+ *
+ * Additionally guards a second upstream hazard: `AudioNavigator.seek()` issues
+ * `mediaElement.currentTime = currentTime` when the requested time equals the
+ * current one, which fires no "seeked" event. `go()`'s `waitForLoadedAndSeeked`
+ * then never resolves, leaving `_isNavigating` stuck `true` forever — every
+ * subsequent DOM "play" is swallowed by its `if (_isNavigating) return` guard
+ * and polling never restarts. This is exactly the fresh-init Media Overlay case:
+ * the navigator is constructed already seeked to the start cue, then `play()`
+ * seeks to that same cue. When we detect the target is already the current
+ * position we skip `go()` entirely and just restart playback.
+ *
+ * @param nav           Active audio navigator.
+ * @param audioLocator  Audio-domain locator to seek to (href + `t=` fragment).
+ * @param resumePlaying When true, playback resumes once the seek completes.
+ */
+export function seekAudioAndResume(
+  nav: SeekableAudioNavigator,
+  audioLocator: Locator,
+  resumePlaying: boolean
+): Promise<void> {
+  // Already at the target: a real seek would set currentTime to its current
+  // value, fire no "seeked", and hang upstream go(). Restart playback directly
+  // so the DOM "play" event re-fires and position polling resumes.
+  if (isAlreadyAtPosition(nav, audioLocator)) {
+    if (resumePlaying) {
+      if (nav.isPlaying) nav.pause(); // force a paused→playing transition
+      nav.play();
+    }
+    return Promise.resolve();
+  }
+
+  // Pausing here (when playing) guarantees the post-seek play() restarts the
+  // upstream position poll; go() alone would leave it stopped.
+  if (nav.isPlaying) nav.pause();
+  return nav.go(audioLocator, false, (ok) => {
+    if (!ok) {
+      log.warn("seekAudioAndResume: audio seek failed for", audioLocator.href);
+      return;
+    }
+    if (resumePlaying) nav.play();
+  });
+}
+
+/**
  * Emits timebased-state + (optionally) text-locator events, applying the
  * locator mapper when one is provided.
  *

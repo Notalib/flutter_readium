@@ -126,8 +126,9 @@ async function _initializeFromItems(
     );
   }
 
-  const mapper: AudioLocatorMapper = (nav, audioLocator) => {
-    const item = findItemByAudioTime(resolvedItems, audioLocator.href, nav.currentTime);
+  const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
+    const resolvedTime = audioLocator.locations?.time() ?? _nav.currentTime;
+    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
     if (item) {
       return {
         stateLocator: combinedLocatorForItem(item, audioLocator),
@@ -145,6 +146,25 @@ async function _initializeFromItems(
     mapper,
     onTextLocatorChanged
   );
+
+  // The AudioNavigator fires its `play` event before the initial seek to
+  // `audioInitialLocator` completes, so `nav.currentTime` is ~0 at that point
+  // and the mapper finds no item → no highlight is applied on first load.
+  // Emit the initial text locator directly here, using the already-resolved
+  // `audioInitialLocator` (which carries the correct start time) to look up the
+  // matching cue, so decorations appear immediately without waiting for the
+  // first poll tick or user interaction.
+  if (onTextLocatorChanged) {
+    const fragment = audioInitialLocator?.locations?.fragments?.[0];
+    const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
+    const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
+    const initItem = initHref
+      ? findItemByAudioTime(resolvedItems, initHref, initTime) ?? resolvedItems[0]
+      : resolvedItems[0];
+    if (initItem) {
+      onTextLocatorChanged(textLocatorForItem(initItem));
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
