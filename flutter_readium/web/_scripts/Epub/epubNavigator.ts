@@ -190,12 +190,40 @@ export async function initializeEpubNavigatorAndPeripherals(
     },
   };
 
+  // EpubNavigator requires locations.position to be a number for its internal
+  // position-list lookup. Locators saved during sync-narration playback only
+  // carry href + fragments (no position number) — patch in the position from
+  // the nearest chapter entry so the constructor doesn't throw, while
+  // preserving the original fragments so the navigator scrolls to the right
+  // element within the chapter.
+  let resolvedInitialPosition = initialPosition;
+  if (initialPosition && initialPosition.locations?.position == null) {
+    const chapPos = positions.find((p) => p.href === initialPosition.href);
+    if (chapPos) {
+      resolvedInitialPosition = new Locator({
+        href: initialPosition.href,
+        type: initialPosition.type,
+        title: initialPosition.title ?? chapPos.title,
+        locations: new LocatorLocations({
+          position: chapPos.locations?.position,
+          fragments: initialPosition.locations?.fragments,
+          otherLocations: initialPosition.locations?.otherLocations,
+        }),
+      });
+      log.debug(
+        `Resolved position-less initial locator: ${initialPosition.href} → position ${chapPos.locations?.position}`
+      );
+    } else {
+      log.warn(`Couldn't resolve position for initial locator: ${initialPosition.href}, falling back to href-only lookup (may be inaccurate)`);
+    }
+  }
+
   const nav = new EpubNavigator(
     container,
     publication,
     listeners,
     positions,
-    initialPosition,
+    resolvedInitialPosition,
     configuration
   );
 
