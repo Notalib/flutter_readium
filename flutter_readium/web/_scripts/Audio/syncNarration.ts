@@ -111,11 +111,19 @@ export async function parseSyncNarration(
 /**
  * Builds a text-based Locator for a SyncNarrationItem.
  * Mirrors FlutterMediaOverlayItem.asTextLocator in the Swift plugin.
+ *
+ * `otherLocations` carries:
+ *   - `cssSelector` — CSS ID selector for the active cue element (when textId is set).
+ *   - `tocHref`     — TOC chapter href, so Dart-side `Locator.locations.tocHref`
+ *                     returns the current chapter (when the item was enriched by
+ *                     `enrichItemsWithToc`).
  */
 export function textLocatorForItem(item: SyncNarrationItem): Locator {
-  const otherLocations: Map<string, any> | undefined = item.textId
-    ? new Map<string, any>([["cssSelector", `#${item.textId}`]])
-    : undefined;
+  const otherLocationEntries: [string, any][] = [];
+  if (item.textId) otherLocationEntries.push(["cssSelector", `#${item.textId}`]);
+  if (item.tocHref) otherLocationEntries.push(["tocHref", item.tocHref]);
+  const otherLocations =
+    otherLocationEntries.length > 0 ? new Map<string, any>(otherLocationEntries) : undefined;
   return new Locator({
     href: item.textHref,
     type: "text/html",
@@ -139,15 +147,16 @@ export function textLocatorForItem(item: SyncNarrationItem): Locator {
  * Merges a text locator with audio progression data from an AudioNavigator
  * position locator.
  * Mirrors FlutterMediaOverlayItem.toCombinedLocator in the Swift plugin.
+ *
+ * Reuses `otherLocations` from `textLocatorForItem` (which carries `cssSelector`
+ * and `tocHref`) so both fields survive in the combined locator without
+ * rebuilding them here.
  */
 export function combinedLocatorForItem(
   item: SyncNarrationItem,
   audioLocator: Locator
 ): Locator {
   const textLoc = textLocatorForItem(item);
-  const otherLocations: Map<string, any> | undefined = item.textId
-    ? new Map<string, any>([["cssSelector", `#${item.textId}`]])
-    : undefined;
   return new Locator({
     href: textLoc.href,
     type: textLoc.type,
@@ -162,7 +171,7 @@ export function combinedLocatorForItem(
       // report. `totalProgression` is (re)computed in audioNavigator._emitState
       // from the audio locator, since the upstream AudioNavigator never sets it.
       position: item.position + 1,
-      otherLocations,
+      otherLocations: textLoc.locations?.otherLocations,
     }),
     text: textLoc.text,
   });
