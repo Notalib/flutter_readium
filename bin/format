@@ -1,9 +1,7 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 # Format all Dart code across all packages in the repo.
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-
 echo "Formatting flutter_readium_platform_interface..."
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
 

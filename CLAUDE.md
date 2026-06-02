@@ -29,8 +29,11 @@ When upgrading any toolkit version, check that all three platforms move together
 
 ## Developer workflow
 
-Key scripts (run from repo root):
+Scripts in `bin/` source `bin/_common.sh`, so they're location-independent (run from any directory) and self-bootstrap the toolchain on PATH for non-interactive shells (CI / AI agents). Run them directly (`bash bin/<script>`), never via `bash -lc`. Use `bin/doctor` to check the toolchain resolves.
 
+Key scripts:
+
+- `bin/doctor` — verify `dart`/`flutter`/`node`/`npm` resolve; exits non-zero if a required tool is missing.
 - `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
 - `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
 - `bin/analyze` — run `dart analyze --fatal-infos --fatal-warnings` across all three packages.
