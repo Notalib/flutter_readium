@@ -74,7 +74,7 @@ describe("textLocatorForItem", () => {
     expect(loc.locations.otherLocations?.get("cssSelector")).toBe("#par001");
   });
 
-  it("produces empty fragments and no otherLocations when textId is empty", () => {
+  it("produces empty fragments and no otherLocations when textId is empty and no tocHref", () => {
     const item = makeItem({ textHref: "chap1.html", textId: "", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3 });
     const loc = textLocatorForItem(item);
     expect(loc.locations.fragments).toHaveLength(0);
@@ -95,6 +95,44 @@ describe("textLocatorForItem", () => {
     const item = makeItem({ textHref: "chap1.html", textId: "p1", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3 });
     const loc = textLocatorForItem(item);
     expect(loc.title).toBeUndefined();
+  });
+
+  it("includes tocHref in otherLocations when set on item", () => {
+    const item = makeItem({
+      textHref: "chap1.html", textId: "p1",
+      audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3,
+      tocHref: "chap1.html#sec1",
+    });
+    const loc = textLocatorForItem(item);
+    expect(loc.locations.otherLocations?.get("tocHref")).toBe("chap1.html#sec1");
+  });
+
+  it("includes both cssSelector and tocHref when both textId and tocHref are set", () => {
+    const item = makeItem({
+      textHref: "chap1.html", textId: "par002",
+      audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3,
+      tocHref: "chap1.html",
+    });
+    const loc = textLocatorForItem(item);
+    expect(loc.locations.otherLocations?.get("cssSelector")).toBe("#par002");
+    expect(loc.locations.otherLocations?.get("tocHref")).toBe("chap1.html");
+  });
+
+  it("sets otherLocations with only tocHref when textId is empty but tocHref is set", () => {
+    const item = makeItem({
+      textHref: "chap1.html", textId: "",
+      audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3,
+      tocHref: "chap1.html",
+    });
+    const loc = textLocatorForItem(item);
+    expect(loc.locations.otherLocations?.get("tocHref")).toBe("chap1.html");
+    expect(loc.locations.otherLocations?.has("cssSelector")).toBe(false);
+  });
+
+  it("does not include tocHref in otherLocations when item has no tocHref", () => {
+    const item = makeItem({ textHref: "chap1.html", textId: "p1", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 3 });
+    const loc = textLocatorForItem(item);
+    expect(loc.locations.otherLocations?.has("tocHref")).toBeFalsy();
   });
 });
 
@@ -152,6 +190,48 @@ describe("combinedLocatorForItem", () => {
     });
     const combined = combinedLocatorForItem(item, audioLoc);
     expect(combined.text?.highlight).toBe("Once upon a time");
+  });
+
+  it("propagates tocHref from item into otherLocations", () => {
+    const item = makeItem({
+      textHref: "chap1.html", textId: "p1",
+      audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5,
+      tocHref: "chap1.html#intro",
+    });
+    const audioLoc = new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=1.0"] }),
+    });
+    const combined = combinedLocatorForItem(item, audioLoc);
+    expect(combined.locations.otherLocations?.get("tocHref")).toBe("chap1.html#intro");
+  });
+
+  it("propagates both cssSelector and tocHref when both are on the item", () => {
+    const item = makeItem({
+      textHref: "chap1.html", textId: "par005",
+      audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5,
+      tocHref: "chap1.html",
+    });
+    const audioLoc = new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=1.0"] }),
+    });
+    const combined = combinedLocatorForItem(item, audioLoc);
+    expect(combined.locations.otherLocations?.get("cssSelector")).toBe("#par005");
+    expect(combined.locations.otherLocations?.get("tocHref")).toBe("chap1.html");
+  });
+
+  it("does not include tocHref in otherLocations when item has no tocHref", () => {
+    const item = makeItem({ textHref: "chap1.html", textId: "p1", audioHref: "chap1.mp3", audioStart: 0, audioEnd: 5 });
+    const audioLoc = new Locator({
+      href: "chap1.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=1.0"] }),
+    });
+    const combined = combinedLocatorForItem(item, audioLoc);
+    expect(combined.locations.otherLocations?.has("tocHref")).toBeFalsy();
   });
 });
 

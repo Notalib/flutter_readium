@@ -20,7 +20,7 @@ import {
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { AudioNavigator } from "@readium/navigator";
 
-const { makeAudioTotalProgressionFn } = __testing__;
+const { makeAudioTotalProgressionFn, withTocHref } = __testing__;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -265,6 +265,62 @@ describe("buildStatePayload", () => {
     const p = JSON.parse(buildStatePayload("playing", nav));
     expect(p.currentOffset).toBe(2500);
     expect(p.currentDuration).toBe(10999);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// withTocHref
+// ---------------------------------------------------------------------------
+
+describe("withTocHref", () => {
+  function makeLocator(href: string, otherLocations?: Map<string, any>): Locator {
+    return new Locator({
+      href,
+      type: "audio/mpeg",
+      locations: new LocatorLocations({
+        fragments: ["t=0"],
+        progression: 0.25,
+        totalProgression: 0.1,
+        otherLocations,
+      }),
+    });
+  }
+
+  it("returns the locator unchanged when tocHref is undefined", () => {
+    const loc = makeLocator("chap1.mp3");
+    const result = withTocHref(loc, undefined);
+    expect(result).toBe(loc);
+  });
+
+  it("injects tocHref into otherLocations when not already present", () => {
+    const loc = makeLocator("chap1.mp3");
+    const result = withTocHref(loc, "chap1.xhtml#intro");
+    expect(result.locations.otherLocations?.get("tocHref")).toBe("chap1.xhtml#intro");
+  });
+
+  it("preserves existing otherLocations entries alongside the new tocHref", () => {
+    const existing = new Map<string, any>([["cssSelector", "#par1"]]);
+    const loc = makeLocator("chap1.mp3", existing);
+    const result = withTocHref(loc, "chap1.xhtml");
+    expect(result.locations.otherLocations?.get("cssSelector")).toBe("#par1");
+    expect(result.locations.otherLocations?.get("tocHref")).toBe("chap1.xhtml");
+  });
+
+  it("preserves href, type, progression, totalProgression, and fragments", () => {
+    const loc = makeLocator("chap1.mp3");
+    const result = withTocHref(loc, "chap1.xhtml");
+    expect(result.href).toBe("chap1.mp3");
+    expect(result.type).toBe("audio/mpeg");
+    expect(result.locations.progression).toBe(0.25);
+    expect(result.locations.totalProgression).toBe(0.1);
+    expect(result.locations.fragments).toContain("t=0");
+  });
+
+  it("does not mutate the original locator's otherLocations", () => {
+    const original = new Map<string, any>([["cssSelector", "#par1"]]);
+    const loc = makeLocator("chap1.mp3", original);
+    withTocHref(loc, "chap1.xhtml");
+    expect(original.has("tocHref")).toBe(false);
   });
 });
 

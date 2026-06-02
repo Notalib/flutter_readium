@@ -4,7 +4,7 @@ import {
   AudioNavigatorListeners,
   IAudioPreferences,
 } from "@readium/navigator";
-import { Locator, LocatorLocations } from "@readium/shared";
+import { Locator, LocatorLocations, Timeline } from "@readium/shared";
 import { normalizeTypes } from "../helpers";
 import { createLogger } from "../logger";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
@@ -74,6 +74,31 @@ function withTotalProgression(
       position: locator.locations?.position,
       totalProgression,
       otherLocations: locator.locations?.otherLocations,
+    }),
+  });
+}
+
+/**
+ * Returns a copy of `locator` with `tocHref` injected into
+ * `locations.otherLocations`. Used by plain audiobook sessions to propagate the
+ * current ToC chapter href so Dart-side `Locator.locations.tocHref` is populated.
+ * No-op when `tocHref` is undefined.
+ */
+function withTocHref(locator: Locator, tocHref: string | undefined): Locator {
+  if (!tocHref) return locator;
+  const merged = new Map<string, any>(locator.locations?.otherLocations ?? []);
+  merged.set("tocHref", tocHref);
+  return new Locator({
+    href: locator.href,
+    type: locator.type,
+    title: locator.title,
+    text: locator.text,
+    locations: new LocatorLocations({
+      fragments: locator.locations?.fragments,
+      progression: locator.locations?.progression,
+      position: locator.locations?.position,
+      totalProgression: locator.locations?.totalProgression,
+      otherLocations: merged,
     }),
   });
 }
@@ -248,6 +273,12 @@ export function seekAudioAndResume(
  *                               per-cue decorations without extra locator lookups.
  *                               Receives the text locator and the cue duration in
  *                               milliseconds (undefined when unavailable).
+ * @param getTocHref             Optional getter for the current ToC chapter href (plain
+ *                               audiobook path). When provided and returns a value, the
+ *                               href is injected as `otherLocations.tocHref` so Dart-side
+ *                               `Locator.locations.tocHref` is populated. Ignored when a
+ *                               mapper is active (Media Overlay items carry tocHref
+ *                               directly from `SyncNarrationItem.tocHref`).
  */
 function _emitState(
   state: string,
@@ -256,7 +287,8 @@ function _emitState(
   mapper: AudioLocatorMapper | undefined,
   alsoText: boolean,
   computeTotalProgression: (locator: Locator) => number | undefined,
-  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  getTocHref?: () => string | undefined
 ): void {
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
@@ -280,9 +312,9 @@ function _emitState(
       onTextLocatorChanged?.(textLocator, undefined);
     }
   } else {
-    const enriched = withTotalProgression(
-      locator,
-      computeTotalProgression(locator)
+    const enriched = withTocHref(
+      withTotalProgression(locator, computeTotalProgression(locator)),
+      getTocHref?.()
     );
     window.updateTimebasedPlayerState?.(
       buildStatePayload(state, nav, enriched)
@@ -336,6 +368,14 @@ export async function initializeAudioNavigator(
 
   const computeTotalProgression = makeAudioTotalProgressionFn(publication);
 
+  // Build the publication timeline so we can extract the current ToC chapter
+  // href from `timelineItemChanged` events. Only used on the plain audiobook
+  // path (no locatorMapper); Media Overlay items already carry `tocHref` via
+  // `SyncNarrationItem.tocHref` (enriched by `enrichItemsWithToc`).
+  const timeline = locatorMapper ? undefined : Timeline.build(publication);
+  let currentTocHref: string | undefined;
+  const getTocHref = timeline ? () => currentTocHref : undefined;
+
   // nav is used inside the closure before assignment; TypeScript is fine with
   // this because the listeners are only called after `nav` is assigned below.
   let nav: AudioNavigator;
@@ -359,17 +399,23 @@ export async function initializeAudioNavigator(
       positionChanged: (locator) => {
         _emitState(
           nav.isPlaying ? "playing" : "paused",
-          nav, locator, locatorMapper, /* alsoText */ true, computeTotalProgression, onTextLocatorChanged
+          nav, locator, locatorMapper, /* alsoText */ true, computeTotalProgression, onTextLocatorChanged, getTocHref
         );
       },
-      timelineItemChanged: (_item) => {},
+      timelineItemChanged: (item) => {
+        if (timeline && item) {
+          const link = timeline.linkFor(item);
+          currentTocHref = link?.href;
+          log.debug("timelineItemChanged", item.title, "→ tocHref:", currentTocHref ?? "(none)");
+        }
+      },
       play: (locator) => {
         log.info("play event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
-        _emitState("playing", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
+        _emitState("playing", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
       },
       pause: (locator) => {
         log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
-        _emitState("paused", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
+        _emitState("paused", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
       },
       trackEnded: (locator) => {
         // Only emit "ended" when the publication is truly finished (last track).
@@ -377,7 +423,7 @@ export async function initializeAudioNavigator(
         // would cause Dart-side to close the player prematurely.
         if (!nav.canGoForward) {
           log.info("Publication ended (last track)");
-          _emitState("ended", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
+          _emitState("ended", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
         } else {
           log.debug("Track ended, auto-advancing to next track");
         }
@@ -386,12 +432,12 @@ export async function initializeAudioNavigator(
         log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
         _emitState(
           isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
-          nav, undefined, locatorMapper, false, computeTotalProgression, onTextLocatorChanged
+          nav, undefined, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref
         );
       },
       error: (_error, locator) => {
         log.error("AudioNavigator error:", _error, "locator:", locator?.href);
-        _emitState("failure", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged);
+        _emitState("failure", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
       },
       metadataLoaded: (_metadata) => {},
       seeking: (_isSeeking) => {},
@@ -417,4 +463,5 @@ export async function initializeAudioNavigator(
 
 export const __testing__ = {
   makeAudioTotalProgressionFn,
+  withTocHref,
 };
