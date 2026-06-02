@@ -258,3 +258,16 @@ function _buildAudiobookPublication(
 
   return new ReadiumPublication({ manifest, fetcher: (publication as any).fetcher });
 }
+
+// ---------------------------------------------------------------------------
+// Test-only exports
+//
+// The double-underscore prefix marks these as internal — not part of the
+// module's public API, only exposed for unit tests in __tests__/.
+// ---------------------------------------------------------------------------
+
+export const __testing__ = {
+  audioMimeType: _audioMimeType,
+  resolveItemHrefs: _resolveItemHrefs,
+  buildAudioReadingOrder: _buildAudioReadingOrder,
+};

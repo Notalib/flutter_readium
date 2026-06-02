@@ -15,7 +15,7 @@
  *   application/vnd.readium.narration+json
  */
 
-import { Link, Locator, LocatorLocations, Resource } from "@readium/shared";
+import { Link, Locator, LocatorLocations, LocatorText, Resource } from "@readium/shared";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { createLogger } from "../logger";
 
@@ -49,6 +49,13 @@ export interface SyncNarrationItem {
    * native plugin.
    */
   readingOrderDuration?: number;
+  /**
+   * Readable text content at this item's position (the highlighted/spoken text).
+   * Not present in the Sync Narration JSON itself; may be populated by
+   * higher-level code (e.g. by reading the referenced HTML element's text).
+   * When set, it is forwarded as `Locator.text.highlight` in the text locator.
+   */
+  highlight?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +131,7 @@ export function textLocatorForItem(item: SyncNarrationItem): Locator {
       otherLocations,
     }),
     title: item.tocTitle,
+    text: item.highlight ? new LocatorText({ highlight: item.highlight }) : undefined,
   });
 }
 
@@ -156,7 +164,7 @@ export function combinedLocatorForItem(
       position: item.position + 1,
       otherLocations,
     }),
-    text: audioLocator.text,
+    text: textLoc.text,
   });
 }
 
