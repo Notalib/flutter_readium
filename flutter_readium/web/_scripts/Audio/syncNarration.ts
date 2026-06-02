@@ -114,6 +114,13 @@ export function textLocatorForItem(item: SyncNarrationItem): Locator {
     type: "text/html",
     locations: new LocatorLocations({
       fragments: item.textId ? [item.textId] : [],
+      // `item.position` is the 0-based reading-order index of the parent link;
+      // emit it as a 1-based EPUB position, matching Android's syncTextLocator
+      // (`position = position`) so the text channel reports where in the
+      // publication the active cue is. progression/totalProgression are left to
+      // the timebased-state currentLocator (the position-of-record), matching
+      // native — neither iOS asTextLocator nor Android syncTextLocator set them.
+      position: item.position + 1,
       otherLocations,
     }),
     title: item.tocTitle,
@@ -141,6 +148,12 @@ export function combinedLocatorForItem(
       fragments: textLoc.locations?.fragments ?? [],
       progression: audioLocator.locations?.progression,
       totalProgression: audioLocator.locations?.totalProgression,
+      // 1-based EPUB position from the parent reading-order link, mirroring
+      // iOS toCombinedLocator (`position: self.position + 1`). Without this the
+      // timebased-state currentLocator has no position number for the player to
+      // report. `totalProgression` is (re)computed in audioNavigator._emitState
+      // from the audio locator, since the upstream AudioNavigator never sets it.
+      position: item.position + 1,
       otherLocations,
     }),
     text: audioLocator.text,
