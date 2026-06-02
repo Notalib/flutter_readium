@@ -19,7 +19,7 @@ import {
   initializeEpubPreferencesFromString,
 } from "./epubPreferences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
-import { injectDecorationOverrides } from "../helpers";
+import { injectDecorationOverrides, injectFlutterReadiumHelperScripts } from "../helpers";
 import { createLogger } from "../logger";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
 
@@ -132,8 +132,19 @@ export async function initializeEpubNavigatorAndPeripherals(
       nav._cframes.forEach(
         (frameManager: FrameManager | FXLFrameManager | undefined) => {
           if (frameManager) {
+            log.debug("Injecting helpers into FrameManager for:", frameManager.window.location.href);
             p.observe(frameManager.window);
             injectDecorationOverrides(frameManager.window);
+            // Inject the same helper bundle (JS + CSS) that native iOS/Android
+            // inject into the EPUB webview. This sets up the comic pan/zoom
+            // overlay, `window.flutterReadium` tools, responsive tables, etc.
+            const tocFragmentIds = flatToc
+              .map((l) => {
+                const hash = l.href.indexOf("#");
+                return hash !== -1 ? l.href.slice(hash + 1) : "";
+              })
+              .filter((id) => id.length > 0);
+            injectFlutterReadiumHelperScripts(frameManager.window, tocFragmentIds);
           }
         }
       );

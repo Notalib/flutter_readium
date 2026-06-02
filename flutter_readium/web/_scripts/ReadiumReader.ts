@@ -99,6 +99,10 @@ class _ReadiumReader {
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
   private _lastMediaOverlayLocatorKey: string | null = null;
 
+  // Set to true once we've confirmed that any iframe in the current publication
+  // is a comic-book page. Used to skip nav.go() for all subsequent cues.
+  private _isComicBook = false;
+
   public get isNavigatorReady(): boolean {
     return !!this._nav;
   }
@@ -469,6 +473,7 @@ class _ReadiumReader {
     this._positions = [];
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
+    this._isComicBook = false;
 
     this._decorationsByGroup.clear();
     this._nav?.destroy(); // Clean up the navigator instance
@@ -707,9 +712,59 @@ class _ReadiumReader {
    * decoration. When synchronization is disabled the page is left where it is
    * and only the highlight is refreshed.
    */
+  /**
+   * Calls `window.gotoComicFrame(fragmentId, durationMs)` on the given iframe
+   * window, retrying via requestAnimationFrame until `window.comicBookPage` is
+   * available (it is initialised asynchronously inside a setTimeout + rAF in the
+   * helper bundle).
+   */
+  private _callGotoComicFrame(
+    wnd: Window,
+    fragmentId: string,
+    durationMs: number,
+    retriesLeft = 20
+  ): void {
+    type ComicWindow = Window & {
+      comicBookPage?: unknown;
+      gotoComicFrame?: (id: string, duration: number) => void;
+    };
+    const cw = wnd as ComicWindow;
+    if (cw.comicBookPage) {
+      log.debug(
+        `[comic] gotoComicFrame("${fragmentId}", ${durationMs}ms)`
+      );
+      cw.gotoComicFrame?.(fragmentId, durationMs);
+      return;
+    }
+    if (retriesLeft <= 0) {
+      log.warn(
+        `[comic] comicBookPage never became available; giving up for fragment "${fragmentId}"`
+      );
+      return;
+    }
+    log.debug(
+      `[comic] comicBookPage not ready yet, retrying (${retriesLeft} left)…`
+    );
+    wnd.requestAnimationFrame(() =>
+      this._callGotoComicFrame(wnd, fragmentId, durationMs, retriesLeft - 1)
+    );
+  }
+
+  /**
+   * Synchronises the visual EPUB navigator to the active Media Overlay / Guided
+   * Navigation cue.
+   *
+   * For normal (non-comic) publications: calls nav.go() to follow the page, then
+   * applies the utterance-highlight decoration.
+   *
+   * For comic-book publications (detected via window.isNotaComicBook()): skips
+   * nav.go() entirely (it would crash ColumnSnapper on quirks-mode FXL docs) and
+   * delegates pan/zoom to window.gotoComicFrame(fragmentId, durationMs).
+   */
   private _syncVisualToMediaOverlayLocator(
     textLocator: Locator,
-    sourceLabel: string
+    sourceLabel: string,
+    durationMs: number | undefined
   ): void {
     const nav = this._nav;
     if (!nav) return;
@@ -719,6 +774,95 @@ class _ReadiumReader {
     if (key === this._lastMediaOverlayLocatorKey) return;
     this._lastMediaOverlayLocatorKey = key;
 
+    const fragmentId = textLocator.locations?.fragments?.[0] ?? "";
+    log.debug(
+      `${sourceLabel}: sync locator href="${textLocator.href}" fragment="${fragmentId}" durationMs=${durationMs ?? "undefined"}`
+    );
+
+    // --- Comic-book path ---
+    // Check whether any loaded iframe is a comic page. Once confirmed, cache the
+    // result so subsequent cues don't re-scan (all pages in a comic book are comics).
+    if (!this._isComicBook) {
+      const iframes = navIframeWindows(nav);
+      for (const wnd of iframes) {
+        const isComic = (
+          wnd as Window & { isNotaComicBook?: () => boolean }
+        ).isNotaComicBook;
+        if (typeof isComic === "function" && isComic()) {
+          log.info(`${sourceLabel}: comic-book publication detected; skipping nav.go() for all cues`);
+          this._isComicBook = true;
+          break;
+        }
+      }
+    }
+
+    if (this._isComicBook) {
+      const iframes = navIframeWindows(nav);
+
+      // Determine whether the target resource is already loaded in an iframe.
+      // If not (cross-resource navigation), we must call nav.go() first so Readium
+      // loads the new XHTML into the iframe. Without it the reader stays on the old
+      // resource. Once nav.go() completes (new document rendered), we call
+      // gotoComicFrame to pan to the first panel. The scrollingElement null-guard
+      // in our bootstrap script prevents the ColumnSnapper crash during navigation.
+      const targetWnd = iframes.find((w) => {
+        try {
+          return (
+            w.location?.href?.includes(textLocator.href) ||
+            w.document?.URL?.includes(textLocator.href)
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      const frameDuration = durationMs ?? 3000;
+
+      const doGotoFrame = (wnd: Window) =>
+        this._callGotoComicFrame(wnd, fragmentId, frameDuration);
+
+      if (!targetWnd) {
+        // Resource not loaded yet — navigate first, then pan.
+        log.debug(
+          `${sourceLabel}: [comic] cross-resource nav to "${textLocator.href}", calling nav.go() then gotoComicFrame`
+        );
+        nav.go(textLocator, false, (ok) => {
+          if (!ok) {
+            log.warn(
+              `${sourceLabel}: [comic] nav.go() failed for ${textLocator.href}`
+            );
+            return;
+          }
+          // After nav.go() the iframes list is updated — find the newly loaded one.
+          const newIframes = navIframeWindows(nav);
+          const newWnd =
+            newIframes.find((w) => {
+              try {
+                return (
+                  w.location?.href?.includes(textLocator.href) ||
+                  w.document?.URL?.includes(textLocator.href)
+                );
+              } catch {
+                return false;
+              }
+            }) ?? newIframes[0];
+          if (newWnd) doGotoFrame(newWnd);
+          else
+            log.warn(
+              `${sourceLabel}: [comic] no iframe found after nav.go() for "${textLocator.href}"`
+            );
+        });
+      } else {
+        // Same resource — skip nav.go() entirely, just pan.
+        log.debug(
+          `${sourceLabel}: [comic] same-resource frame, calling gotoComicFrame directly`
+        );
+        doGotoFrame(targetWnd);
+      }
+      return;
+    }
+
+    // --- Normal (non-comic) path ---
     const applyUtteranceDecoration = () => {
       if (!this._utteranceStyle || !this._nav) return;
       try {
@@ -795,7 +939,7 @@ class _ReadiumReader {
         fromLocator,
         prefsJson,
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation")
+        (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
       );
       (this._audioNav as AudioNavigator | undefined)?.play();
       return;
@@ -810,7 +954,7 @@ class _ReadiumReader {
         fromLocator,
         prefsJson,
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay")
+        (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
       );
       // Re-read after await; cast to break TypeScript's control-flow narrowing
       // which assumes _audioNav is still undefined (it was set by the callback).

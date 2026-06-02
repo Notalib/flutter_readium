@@ -246,6 +246,8 @@ export function seekAudioAndResume(
  * @param onTextLocatorChanged   Optional callback fired each time a text locator is
  *                               derived from the mapper. Used by Media Overlay to apply
  *                               per-cue decorations without extra locator lookups.
+ *                               Receives the text locator and the cue duration in
+ *                               milliseconds (undefined when unavailable).
  */
 function _emitState(
   state: string,
@@ -254,7 +256,7 @@ function _emitState(
   mapper: AudioLocatorMapper | undefined,
   alsoText: boolean,
   computeTotalProgression: (locator: Locator) => number | undefined,
-  onTextLocatorChanged?: (locator: Locator) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
 ): void {
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
@@ -275,7 +277,7 @@ function _emitState(
     if (textLocator) {
       // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
       window.updateTextLocator?.(JSON.stringify(textLocator.serialize()));
-      onTextLocatorChanged?.(textLocator);
+      onTextLocatorChanged?.(textLocator, undefined);
     }
   } else {
     const enriched = withTotalProgression(
@@ -297,7 +299,12 @@ export async function initializeAudioNavigator(
   preferencesJsonString: string,
   setNav: (nav: AudioNavigator) => void,
   locatorMapper?: AudioLocatorMapper,
-  onTextLocatorChanged?: (locator: Locator) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  /** Override the poll interval (ms) regardless of preferences. Used by media
+   *  overlay sessions where cue synchronisation requires much finer granularity
+   *  than the Dart-side `updateIntervalSecs` preference (which controls the
+   *  progress bar, not cue timing). */
+  pollIntervalOverrideMs?: number
 ): Promise<void> {
   const tracks = publication.readingOrder.items.length;
   log.info(
@@ -305,11 +312,16 @@ export async function initializeAudioNavigator(
     initialPosition
       ? `from ${initialPosition.href} ${initialPosition.locations?.fragments?.[0] ?? ""}`
       : "(no initial position — starting at first track)",
-    locatorMapper ? "[Media Overlay mapper attached]" : ""
+    locatorMapper ? "[Media Overlay mapper attached]" : "",
+    pollIntervalOverrideMs != null ? `[pollInterval override: ${pollIntervalOverrideMs}ms]` : ""
   );
 
+  const basePrefs = preferencesFromString(preferencesJsonString);
+  if (pollIntervalOverrideMs != null) {
+    basePrefs.pollInterval = pollIntervalOverrideMs;
+  }
   const configuration: AudioNavigatorConfiguration = {
-    preferences: preferencesFromString(preferencesJsonString),
+    preferences: basePrefs,
     defaults: {
       volume: 1.0,
       playbackRate: 1.0,
