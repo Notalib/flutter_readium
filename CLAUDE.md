@@ -37,11 +37,11 @@ Key scripts:
 - `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
 - `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
 - `bin/analyze` — run `dart analyze --fatal-infos --fatal-warnings` across all three packages.
-- `bin/forAll <cmd>` — run a command in both pub packages. Example: `bin/forAll dart pub upgrade`.
+- `bin/typecheck` — type-check the web TypeScript (sources + Jest tests) via `tsc --noEmit` against `web/_scripts/tsconfig.json`. Run after editing any TS in `flutter_readium/web/`. Exits non-zero on a type error.
 - `bin/build_js` — build the web bundle (currently `build_dev`; production build is commented out).
 - `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
 - `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
-- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview.
+- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview. Relevant when having touched files in `flutter_readium/assets/_helper_scripts/src`.
 
 ## Conventions
 
