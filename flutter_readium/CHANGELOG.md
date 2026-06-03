@@ -137,6 +137,10 @@ their net effect is the `Added` entries above.)
   it now uses the `Links` API.
 - **`LocalizedString` translation-map parsing** and **`Properties.toJson` `page` key**
   serialization corrected (affects all platforms).
+- **iOS: `applyDecorations` and `setEPUBPreferences` no longer hang when awaited** — the
+  EPUB reader view's native handlers now return a method-channel result on success
+  (matching the PDF reader view); previously they never completed, so awaiting these
+  methods could hang forever.
 
 ## [0.0.1] - 2025-06-01
 
