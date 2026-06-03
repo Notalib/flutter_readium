@@ -528,6 +528,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       self.preferences = preferences
+      result(nil)
       break
     case "applyDecorations":
       let args = call.arguments as! [Any?]
@@ -542,6 +543,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
 
       applyDecorations(decorations, forGroup: identifier)
+      result(nil)
       break
     case "configureSelectionActions":
       let args = call.arguments as! [[String: Any]]
