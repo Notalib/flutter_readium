@@ -5,7 +5,7 @@ module.exports = (argv) => {
   const isDev = argv.mode === "development";
   return {
     mode: argv.mode || "production",
-    entry: path.resolve(__dirname, "ReadiumReader.ts"), // Entry point relative to 'src'
+    entry: path.resolve(__dirname, "index.ts"), // Entry point relative to 'src'
     output: {
       // TODO: differentiate dev and prod output filenames when ready
       filename: "readiumReader.js", // Name of the output file
