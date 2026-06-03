@@ -16,8 +16,8 @@ import {
   seekAudioAndResume,
   SeekableAudioNavigator,
   __testing__,
-} from "../Audio/audioNavigator";
-import { ReadiumPublication } from "../extensions/ReadiumPublication";
+} from "../navigators/FlutterAudioNavigator";
+import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { AudioNavigator } from "@readium/navigator";
 
 const { makeAudioTotalProgressionFn, withTocHref } = __testing__;

@@ -6,7 +6,7 @@
  */
 
 import { Locator, LocatorLocations } from "@readium/shared";
-import { enrichWithTotalProgression } from "../Epub/epubNavigator";
+import { enrichWithTotalProgression } from "../navigators/locatorEnrich";
 
 // ---------------------------------------------------------------------------
 // Helpers

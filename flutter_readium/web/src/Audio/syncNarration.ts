@@ -16,8 +16,8 @@
  */
 
 import { Link, Locator, LocatorLocations, LocatorText, Resource } from "@readium/shared";
-import { ReadiumPublication } from "../extensions/ReadiumPublication";
-import { createLogger } from "../logger";
+import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { createLogger } from "../utils/ReadiumPluginLogger";
 
 const log = createLogger("SyncNarration");
 

@@ -15,8 +15,8 @@
  */
 
 import { Link, Resource } from "@readium/shared";
-import { ReadiumPublication } from "../extensions/ReadiumPublication";
-import { createLogger } from "../logger";
+import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { createLogger } from "../utils/ReadiumPluginLogger";
 import {
   SyncNarrationItem,
   enrichItemsWithToc,
@@ -181,7 +181,7 @@ function _flattenWithReadingOrderLookup(
   if (obj.audioref !== undefined && obj.textref !== undefined) {
     const { textHref } = parseTextField(obj.textref);
     const roIndex = publication.readingOrder.items.findIndex(
-      (link) => normalizeHref(link.href) === normalizeHref(textHref)
+      (link: Link) => normalizeHref(link.href) === normalizeHref(textHref)
     );
     const position = roIndex === -1 ? 0 : roIndex + 1;
     const readingOrderDuration =
