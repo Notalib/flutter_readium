@@ -1,19 +1,32 @@
 # Platform Parity Plans
 
-This directory contains decision-grade gap analysis and implementation plans for `flutter_readium`. Each plan describes either a feature from an upstream Readium toolkit that is not yet exposed through the Dart API (**Upstream feature**), or a place where iOS, Android, and Web behave differently within the plugin itself (**Cross-platform parity**). Plans are ordered roughly by consumer impact.
+This directory contains decision-grade gap analysis and implementation plans for `flutter_readium`. Each plan describes either a feature from an upstream Readium toolkit that is not yet exposed through the Dart API (**Upstream feature**), or a place where iOS, Android, and Web behave differently within the plugin itself (**Cross-platform parity**).
 
-## Plans
+Plans are split into **Open** (still actionable) and **Implemented** (kept for reference; the work has landed). Completed plan files carry an `> **✅ Implemented**` note at the top.
 
-- **[web-decorations.md](web-decorations.md)** — `applyDecorations` is a silent no-op on web; highlights and annotations are dropped entirely. *(Cross-platform parity / M)*
+## Open plans
 
-- **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — Web `goToLocator` navigates to the chapter (href) only, discarding cssSelector / progression; iOS and Android navigate to the exact element. *(Cross-platform parity / M)*
+- **[web-search.md](web-search.md)** — `searchInPublication` throws `UnimplementedError` on web; iOS and Android fully implement it via their native `SearchService`. **This is the only remaining gap required for Web to reach feature parity with native.** *(Cross-platform parity / M)*
 
-- **[web-search.md](web-search.md)** — `searchInPublication` throws `UnimplementedError` on web; iOS and Android fully implement it via their native `SearchService`. *(Cross-platform parity / M)*
+- **[cross-platform-search-options.md](cross-platform-search-options.md)** — `searchInPublication` accepts only a plain query string; both upstream toolkits expose `SearchOptions` (caseSensitive, wholeWord, diacriticSensitive, regularExpression, language) that are not forwarded. Affects iOS + Android (web is out of scope until web-search.md lands). *(Upstream feature / M)*
 
-- **[cross-platform-search-options.md](cross-platform-search-options.md)** — `searchInPublication` accepts only a plain query string; both upstream toolkits expose `SearchOptions` (caseSensitive, wholeWord, diacriticSensitive, regularExpression, language) that are not forwarded. *(Upstream feature / M)*
+- **[epub-theme-preference.md](epub-theme-preference.md)** — `docs/api-reference/preferences.md` documents an `EpubThemeType` enum (`light`/`dark`/`sepia`) that does not exist in any platform. A doc/code mismatch to resolve by either implementing the feature or removing the reference — missing equally on all platforms, so not a web-vs-native gap. *(Upstream feature / S)*
 
+## Implemented
 
+These plans have been implemented on the `feat/web-feature-parity` branch and are retained for reference.
 
+- **[web-decorations.md](web-decorations.md)** — `applyDecorations` now renders highlights/underlines and fires `onDecorationInteraction` on web. *(Cross-platform parity / M)*
+
+- **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — Web `goToLocator` now passes the full serialised `Locator` (cssSelector / progression / text) instead of href-only. *(Cross-platform parity / M)*
+
+- **[web-error-event.md](web-error-event.md)** — `onErrorEvent` on web is now a real broadcast stream rather than throwing `UnimplementedError`. *(Cross-platform parity / S)*
+
+- **[web-comic-support-plan.md](web-comic-support-plan.md)** — Nota comic-book media-overlay EPUBs now pan/zoom panels on web (helper bundle injected into the navigator iframe), with the spurious yellow highlight suppressed. *(Cross-platform parity / M)*
+
+- **[pdf-preferences-gaps.md](pdf-preferences-gaps.md)** — `offsetFirstPage`, `spread`, and `visibleScrollbar` PDF preferences are now surfaced in the Dart model. *(Upstream feature / S)*
+
+- **[decoration-active-flag.md](decoration-active-flag.md)** — The `isActive` flag (plus `spotlight`/`ruler` styles) was implemented, then **extracted to the stacked PR `feat/decoration-styles`** to keep this branch web-focused. Not present on `feat/web-feature-parity`; tracked on that PR. *(Upstream feature / S)*
 
 ---
 
