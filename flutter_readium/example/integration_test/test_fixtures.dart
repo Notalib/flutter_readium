@@ -20,8 +20,17 @@ abstract final class FixtureKeys {
   static const pdfTest = 'pdf_test.pdf';
   static const timeMachinePdf = 'time_machine.pdf';
 
+  /// Fixed-layout EPUB (web-only; served as a local exploded webpub).
+  static const fixedLayout = 'fixed_layout.webpub';
+
+  /// Guided-navigation publication (web-only; served as a local exploded webpub).
+  static const guidedNav = 'guided_navigation.webpub';
+
+  /// Nota comic-book media-overlay EPUB (web-only; served as a local exploded webpub).
+  static const comic = 'comic.webpub';
+
   /// All fixture keys that should be available on web.
-  static const web = {mobyDickEpub, overlayWebpub, audiobook};
+  static const web = {mobyDickEpub, overlayWebpub, audiobook, fixedLayout, guidedNav, comic};
 
   /// True when [key] is not expected to be available on web.
   static bool isUnavailableOnWeb(String key) => kIsWeb && !web.contains(key);

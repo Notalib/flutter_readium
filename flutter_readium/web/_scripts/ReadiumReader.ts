@@ -21,7 +21,7 @@ import { ReadiumPublication } from "./extensions/ReadiumPublication";
 import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
 import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
 import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
-import { initializeAudioNavigator, seekAudioAndResume } from "./Audio/audioNavigator";
+import { initializeAudioNavigator, seekAudioAndResume, setAudioEmissionsEnabled } from "./Audio/audioNavigator";
 import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
 import { detectGuidedNavigation } from "./Audio/guidedNavigation";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./Audio/mediaOverlayNavigator";
@@ -125,6 +125,12 @@ class _ReadiumReader {
       return JSON.stringify(manifest.serialize());
     } catch (error) {
       log.error("Failed to get publication:", error);
+      // Surface the failure on the onErrorEvent stream. Most open failures (bad
+      // URL, unreachable host, non-JSON response) happen here in the manifest
+      // fetch, before openPublication runs — so without this, onErrorEvent would
+      // never see the most common error case.
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      window.onErrorCallback?.(JSON.stringify({ message: "Failed to get publication: " + errorMessage }));
       throw new Error("Error getting publication: " + error);
     }
   }
@@ -465,8 +471,20 @@ class _ReadiumReader {
 
   public closePublication(error?: any) {
     log.info("closePublication", error ? `(error: ${error})` : "");
+
+    // Suppress any post-close stragglers, then stop+destroy audio/TTS. An
+    // autoplay-blocked play() keeps retrying and the position poll keeps firing;
+    // destroy() alone does not reliably halt a trailing event, so without the
+    // emissions gate a stale textLocator/state could leak into the next opened
+    // publication (and the visual Media Overlay sync would run against a
+    // torn-down frame).
+    setAudioEmissionsEnabled(false);
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
+    this._audioNav?.stop();
+    this._audioNav?.destroy();
+    this._audioNav = undefined;
+
     this._hasSyncNarration = false;
     this._hasGuidedNavigation = false;
     this._syncItems = [];
@@ -474,9 +492,14 @@ class _ReadiumReader {
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
     this._isComicBook = false;
-
     this._decorationsByGroup.clear();
-    this._nav?.destroy(); // Clean up the navigator instance
+
+    // Detach the visual navigator reference synchronously so any late
+    // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
+    // even while the async destroy() below is still settling.
+    const nav = this._nav;
+    this._nav = undefined;
+
     const container = document.getElementById("container");
     if (container) {
       container.innerHTML = ""; // Clear the container
@@ -484,32 +507,18 @@ class _ReadiumReader {
     // Emit status synchronously so Dart receives it before any async navigator cleanup.
     // Do NOT delete the window callbacks here — the Dart side re-registers them before each
     // openPublication call, and deleting them asynchronously races with the new registration.
-    if (error) {
-      window.updateReaderStatus?.(ReadiumReaderStatus.error);
-    } else {
-      window.updateReaderStatus?.(ReadiumReaderStatus.closed);
-    }
+    window.updateReaderStatus?.(error ? ReadiumReaderStatus.error : ReadiumReaderStatus.closed);
 
-    this._audioNav?.destroy();
-    this._audioNav = undefined;
-
-    const clearContainer = () => {
-      this._nav = undefined;
-      const container = document.getElementById("container");
-      if (container) {
-        container.innerHTML = "";
-      }
-    };
-
-    const navDestroy = this._nav?.destroy();
+    const navDestroy = nav?.destroy();
     if (navDestroy) {
-      navDestroy.catch((err) => {
-        log.error("Error destroying navigator:", err);
-      }).finally(() => {
-        clearContainer();
-      });
-    } else {
-      clearContainer();
+      navDestroy
+        .catch((err) => {
+          log.error("Error destroying navigator:", err);
+        })
+        .finally(() => {
+          const c = document.getElementById("container");
+          if (c) c.innerHTML = "";
+        });
     }
   }
 
@@ -989,3 +998,8 @@ declare global {
 }
 
 globalThis.ReadiumReader = _ReadiumReader;
+
+// Test-only export. Lets unit tests construct the reader and assert teardown
+// behaviour (e.g. closePublication stops/destroys navigators) without going
+// through the global the webview bootstrap relies on.
+export const __testing__ = { ReadiumReader: _ReadiumReader };

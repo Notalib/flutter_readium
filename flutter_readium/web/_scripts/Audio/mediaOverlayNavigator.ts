@@ -257,7 +257,20 @@ function _buildAudioReadingOrder(
     }
   }
 
-  const selfHref = publication.manifest.linksWithRel("self")[0]?.href ?? "";
+  // Absolutize the self link against the document origin before deriving the
+  // base URL. If the manifest's self link is relative/root-relative (e.g. a
+  // publication served at "/test-overlay/manifest.json"), a non-absolute base
+  // produces non-absolute audio hrefs, which the upstream AudioNavigator then
+  // resolves a *second* time against the publication base — doubling the
+  // sub-path (".../test-overlay/test-overlay/01.mp3" → 404). Fully-qualifying
+  // here makes the synthetic hrefs absolute so upstream leaves them untouched.
+  // Already-absolute self links (e.g. remote "https://…/manifest.json") are
+  // returned unchanged by `new URL`.
+  const rawSelfHref = publication.manifest.linksWithRel("self")[0]?.href ?? "";
+  const selfHref =
+    rawSelfHref && typeof window !== "undefined"
+      ? new URL(rawSelfHref, window.location.href).href
+      : rawSelfHref;
   const baseUrl = selfHref.endsWith("/")
     ? selfHref
     : selfHref.slice(0, selfHref.lastIndexOf("/") + 1);

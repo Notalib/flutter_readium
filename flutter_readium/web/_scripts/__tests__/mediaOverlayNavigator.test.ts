@@ -270,4 +270,24 @@ describe("buildAudioReadingOrder", () => {
     const ro = buildAudioReadingOrder(items, pub);
     expect(ro[0].duration).toBeUndefined();
   });
+
+  it("absolutizes a root-relative self link so the sub-path is not doubled", () => {
+    // Regression: a publication served at a sub-path with a relative/root-relative
+    // self link (e.g. "/test-overlay/manifest.json") used to produce non-absolute
+    // audio hrefs that the upstream AudioNavigator re-resolved against the base,
+    // doubling the sub-path (".../test-overlay/test-overlay/chap1.mp3" → 404).
+    // Provide a document origin so the absolutization branch runs (the prod code
+    // guards on `typeof window` and falls back to the raw href when absent).
+    const original = (globalThis as any).window;
+    (globalThis as any).window = { location: { href: "http://localhost/app/" } };
+    try {
+      const items = [makeItem("chap1.mp3", 0, 5)];
+      const pub = fakePub("/test-overlay/manifest.json");
+      const ro = buildAudioReadingOrder(items, pub);
+      expect(ro[0].href).toBe("http://localhost/test-overlay/chap1.mp3");
+    } finally {
+      if (original === undefined) delete (globalThis as any).window;
+      else (globalThis as any).window = original;
+    }
+  });
 });

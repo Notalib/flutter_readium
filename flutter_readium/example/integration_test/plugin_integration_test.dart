@@ -28,6 +28,8 @@ void main() {
   // before closePublication() runs in tearDown. Without this, the native
   // renderer may still be rendering while its resources are torn down.
   tearDown(() async {
+    // closePublication stops audio/TTS and tears down the navigators, so a
+    // previous publication's playback can't leak textLocators into the next test.
     await reader.closePublication();
   });
 
@@ -42,19 +44,26 @@ void main() {
     expect(pub.containsMediaOverlays, isFalse, reason: 'Plain EPUB should not report media overlays');
   });
 
-  test('opens EPUB and enables TTS', () async {
-    final path = fixturePaths['moby_dick.epub'];
-    expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+  test(
+    'opens EPUB and enables TTS',
+    // Web TTS uses the browser Web Speech API, which exposes no voices and is
+    // blocked in automated/headless Chrome — real TTS playback can't be
+    // exercised in the web test harness. Covered on iOS/Android.
+    skip: kIsWeb ? 'Web Speech API unavailable in the web test harness' : false,
+    () async {
+      final path = fixturePaths['moby_dick.epub'];
+      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
 
-    await reader.openPublication(path!);
+      await reader.openPublication(path!);
 
-    await _exerciseAudioPlayback(
-      reader,
-      enable: () => reader.ttsEnable(TTSPreferences(speed: 1.0)),
-      // First-time TTS engine init on Android can be slow.
-      timeout: const Duration(seconds: 10),
-    );
-  });
+      await _exerciseAudioPlayback(
+        reader,
+        enable: () => reader.ttsEnable(TTSPreferences(speed: 1.0)),
+        // First-time TTS engine init on Android can be slow.
+        timeout: const Duration(seconds: 10),
+      );
+    },
+  );
 
   testWidgets('opens and navigates forward in EPUB and receives a new textLocator', (tester) async {
     final path = fixturePaths['moby_dick.epub'];
@@ -111,7 +120,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  test('webpub with media-overlays plays audio', () async {
+  test('webpub with media-overlays opens (and plays audio on native)', () async {
     final path = fixturePaths['38533_overlay_preview.webpub'];
     expect(path, isNotNull, reason: 'Fixture 38533_overlay_preview.webpub missing from asset bundle');
 
@@ -120,10 +129,15 @@ void main() {
     expect(pub.readingOrder, isNotEmpty);
     expect(pub.containsMediaOverlays, isTrue, reason: 'Overlay webpub should report media overlays');
 
-    await _exerciseAudioPlayback(reader, enable: () => reader.audioEnable(prefs: AudioPreferences(speed: 1.0)));
+    // Real audio playback isn't testable in the web harness (autoplay gating is
+    // non-deterministic and the browser can't reliably decode the media), so on
+    // web we assert open + media-overlay detection only. Native plays for real.
+    if (!kIsWeb) {
+      await _exerciseAudioPlayback(reader, enable: () => reader.audioEnable(prefs: AudioPreferences(speed: 1.0)));
+    }
   });
 
-  test('audiobooks plays audio', () async {
+  test('audiobook opens (and plays audio on native)', () async {
     final path = fixturePaths['38533.audiobook'];
     expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
 
@@ -136,7 +150,10 @@ void main() {
       reason: 'Audiobook fixture should conform to the Readium audiobook profile',
     );
 
-    await _exerciseAudioPlayback(reader, enable: () => reader.audioEnable(prefs: AudioPreferences(speed: 1.0)));
+    // See note above: web asserts open + profile only; native plays for real.
+    if (!kIsWeb) {
+      await _exerciseAudioPlayback(reader, enable: () => reader.audioEnable(prefs: AudioPreferences(speed: 1.0)));
+    }
   });
 
   // ---------------------------------------------------------------------------
@@ -435,16 +452,20 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('EPUB navigation and state', () {
-    test('searchInPublication returns hits for a common word in Moby-Dick', () async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+    test(
+      'searchInPublication returns hits for a common word in Moby-Dick',
+      skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
+      () async {
+        final path = fixturePaths['moby_dick.epub'];
+        expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
 
-      await reader.openPublication(path!);
+        await reader.openPublication(path!);
 
-      final results = await reader.searchInPublication('whale');
-      expect(results, isNotEmpty, reason: '"whale" should yield matches in Moby-Dick');
-      expect(results.first.locator.href, isNotEmpty);
-    });
+        final results = await reader.searchInPublication('whale');
+        expect(results, isNotEmpty, reason: '"whale" should yield matches in Moby-Dick');
+        expect(results.first.locator.href, isNotEmpty);
+      },
+    );
 
     testWidgets('goToLocator round-trips back to a saved position', (tester) async {
       final path = fixturePaths['moby_dick.epub'];
@@ -613,88 +634,332 @@ void main() {
 
       await tester.pumpWidget(const SizedBox());
     });
+
+    testWidgets('applyDecorations applies a highlight without throwing', (tester) async {
+      final path = fixturePaths['moby_dick.epub'];
+      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial locator before applying decorations',
+      );
+
+      // We can only assert that applying a decoration round-trips the bridge
+      // without throwing. The visual result and onDecorationInteraction callback
+      // live inside the navigator iframe and are not reachable by WidgetTester —
+      // those are covered by unit tests / manual verification.
+      await expectLater(
+        reader.applyDecorations('test-highlights', [
+          ReaderDecoration(
+            id: 'd1',
+            locator: locators.last,
+            style: const ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Colors.yellow),
+          ),
+        ]),
+        completes,
+        reason: 'applyDecorations should not throw',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('goToLocator round-trips cssSelector precision', (tester) async {
+      final path = fixturePaths['moby_dick.epub'];
+      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'No initial textLocator emitted',
+      );
+      await _waitForListStable(tester, locators);
+      final savedLocator = locators.last;
+
+      // goToLocator must preserve the full Locator (cssSelector / progression /
+      // text) rather than collapsing to href-only. The initial locator does not
+      // always carry a cssSelector (it can be progression-only), so we assert the
+      // cssSelector round-trip opportunistically, only when one is present.
+      final savedCssSelector = savedLocator.locations?.cssSelector;
+
+      await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => locators.last != savedLocator,
+        timeout: const Duration(seconds: 30),
+        reason: 'goForward() did not produce a new locator',
+      );
+
+      final ok = await reader.goToLocator(savedLocator);
+      expect(ok, isTrue, reason: 'goToLocator should report success');
+      await _waitWithPump(
+        tester,
+        () => locators.last.href == savedLocator.href,
+        timeout: const Duration(seconds: 30),
+        reason: 'goToLocator() did not return to the saved resource',
+      );
+      expect(locators.last.href, equals(savedLocator.href));
+
+      if (savedCssSelector != null) {
+        expect(
+          locators.last.locations?.cssSelector,
+          equals(savedCssSelector),
+          reason: 'Restored locator should round-trip the saved cssSelector precisely',
+        );
+      }
+
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   // ---------------------------------------------------------------------------
   // Audio playback control
   // ---------------------------------------------------------------------------
 
-  group('Audio playback controls', () {
-    test('audiobook pause then resume cycles through state transitions', () async {
-      final path = fixturePaths['38533.audiobook'];
-      expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
+  group(
+    'Audio playback controls',
+    skip: kIsWeb ? 'Real audio playback is not available in the web test harness' : null,
+    () {
+      test('audiobook pause then resume cycles through state transitions', () async {
+        final path = fixturePaths['38533.audiobook'];
+        expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
 
-      await reader.openPublication(path!);
+        await reader.openPublication(path!);
 
-      final states = <ReadiumTimebasedState>[];
-      final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
+        final states = <ReadiumTimebasedState>[];
+        final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+
+        await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await reader.play(null);
+
+        await _waitUntil(
+          () => states.any((s) => s.state == TimebasedState.playing),
+          timeout: const Duration(seconds: 10),
+          reason: 'Never reached initial playing state',
+        );
+
+        await reader.pause();
+        await _waitUntil(
+          () => states.last.state == TimebasedState.paused,
+          timeout: const Duration(seconds: 10),
+          reason: 'pause() did not produce a paused state',
+        );
+
+        await reader.resume();
+        await _waitUntil(
+          () => states.last.state == TimebasedState.playing,
+          timeout: const Duration(seconds: 10),
+          reason: 'resume() did not return to playing state',
+        );
+
+        await reader.pause();
+      });
+
+      test('audioSeekBy advances the timebased position', () async {
+        final path = fixturePaths['38533.audiobook'];
+        expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
+
+        await reader.openPublication(path!);
+
+        final states = <ReadiumTimebasedState>[];
+        final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+
+        await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await reader.play(null);
+
+        await _waitUntil(
+          () => states.any((s) => s.state == TimebasedState.playing && s.currentOffset != null),
+          timeout: const Duration(seconds: 20),
+          reason: 'Never reached playing state with an offset',
+        );
+
+        final beforeSeek = states.last.currentOffset!;
+        // Keep the seek small enough to stay within the current audiobook track.
+        // AudioNavigator.seek(offset) is ignored if offset goes beyond end of current resource.
+        final seekDuration = const Duration(seconds: 5);
+        final tolerance = const Duration(milliseconds: 500);
+        final expectedMinOffset = beforeSeek + seekDuration - tolerance;
+
+        await reader.audioSeekBy(seekDuration);
+        await reader.resume();
+
+        await _waitUntil(
+          () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
+          timeout: const Duration(seconds: 10),
+          reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
+        );
+
+        expect(
+          states.last.currentOffset! - beforeSeek,
+          greaterThanOrEqualTo(seekDuration - tolerance),
+          reason: 'audioSeekBy() should have advanced offset by ~seekDuration',
+        );
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Web feature parity
+  //
+  // These exercise reading/playback modes and web-only behaviours whose fixtures
+  // are served locally from example/web/ (see test_fixtures_web.dart). They are
+  // web-gated: the local exploded webpub fixtures are not wired into the native
+  // asset loader. Extending them to native (the equivalent .webpub assets are
+  // bundled) is a follow-up via a key->basename alias in test_fixtures_native.
+  // ---------------------------------------------------------------------------
+
+  group('Web feature parity', skip: kIsWeb ? null : 'Web-only fixtures / behaviour', () {
+    testWidgets('fixed-layout EPUB opens and navigates', (tester) async {
+      final path = fixturePaths[FixtureKeys.fixedLayout];
+      expect(path, isNotNull, reason: 'Fixture ${FixtureKeys.fixedLayout} missing');
+
+      final pub = await reader.openPublication(path!);
+
+      expect(pub.readingOrder, isNotEmpty);
+      expect(
+        pub.metadata.presentation.layout,
+        equals(EpubLayout.fixed),
+        reason: 'Fixed-layout fixture should report a fixed presentation layout',
+      );
+
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
-      await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
-      await reader.play(null);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'Fixed-layout reader never emitted an initial textLocator',
+      );
+      final initialLocator = locators.last;
 
-      await _waitUntil(
-        () => states.any((s) => s.state == TimebasedState.playing),
-        timeout: const Duration(seconds: 10),
-        reason: 'Never reached initial playing state',
+      await reader.goForward();
+      await _waitWithPump(
+        tester,
+        () => locators.last != initialLocator,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not produce a new textLocator in fixed-layout EPUB',
       );
 
-      await reader.pause();
-      await _waitUntil(
-        () => states.last.state == TimebasedState.paused,
-        timeout: const Duration(seconds: 10),
-        reason: 'pause() did not produce a paused state',
-      );
-
-      await reader.resume();
-      await _waitUntil(
-        () => states.last.state == TimebasedState.playing,
-        timeout: const Duration(seconds: 10),
-        reason: 'resume() did not return to playing state',
-      );
-
-      await reader.pause();
+      await tester.pumpWidget(const SizedBox());
     });
 
-    test('audioSeekBy advances the timebased position', () async {
-      final path = fixturePaths['38533.audiobook'];
-      expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
+    // NOTE: these assert open + render only, not real audio playback. Audio
+    // playback isn't reliably testable in the web harness (autoplay gating is
+    // non-deterministic and the browser can't reliably decode the media), so
+    // we verify the publication opens, reports the right profile, and renders.
+    testWidgets('guided-navigation publication opens and renders', (tester) async {
+      final path = fixturePaths[FixtureKeys.guidedNav];
+      expect(path, isNotNull, reason: 'Fixture ${FixtureKeys.guidedNav} missing');
 
-      await reader.openPublication(path!);
+      final pub = await reader.openPublication(path!);
+      expect(pub.readingOrder, isNotEmpty);
 
-      final states = <ReadiumTimebasedState>[];
-      final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
-      await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
-      await reader.play(null);
-
-      await _waitUntil(
-        () => states.any((s) => s.state == TimebasedState.playing && s.currentOffset != null),
-        timeout: const Duration(seconds: 20),
-        reason: 'Never reached playing state with an offset',
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'Guided-navigation reader never emitted an initial textLocator',
       );
 
-      final beforeSeek = states.last.currentOffset!;
-      // Keep the seek small enough to stay within the current audiobook track.
-      // AudioNavigator.seek(offset) is ignored if offset goes beyond end of current resource.
-      final seekDuration = const Duration(seconds: 5);
-      final tolerance = const Duration(milliseconds: 500);
-      final expectedMinOffset = beforeSeek + seekDuration - tolerance;
+      await tester.pumpWidget(const SizedBox());
+    });
 
-      await reader.audioSeekBy(seekDuration);
-      await reader.resume();
+    testWidgets('comic media-overlay EPUB opens, reports overlays, and renders', (tester) async {
+      final path = fixturePaths[FixtureKeys.comic];
+      expect(path, isNotNull, reason: 'Fixture ${FixtureKeys.comic} missing');
 
-      await _waitUntil(
-        () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
-        timeout: const Duration(seconds: 10),
-        reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
-      );
+      final pub = await reader.openPublication(path!);
 
+      expect(pub.readingOrder, isNotEmpty);
       expect(
-        states.last.currentOffset! - beforeSeek,
-        greaterThanOrEqualTo(seekDuration - tolerance),
-        reason: 'audioSeekBy() should have advanced offset by ~seekDuration',
+        pub.containsMediaOverlays,
+        isTrue,
+        reason: 'Comic fixture should report media overlays',
+      );
+
+      // Panel pan/zoom and audio happen inside the navigator iframe / browser
+      // media layer and aren't observable in the harness — assert open +
+      // media-overlay detection + that the reader renders.
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'Comic reader never emitted an initial textLocator',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    test('onErrorEvent emits when opening an unreachable publication', () async {
+      final errors = <ReadiumError>[];
+      final sub = reader.onErrorEvent.listen(errors.add);
+      addTearDown(sub.cancel);
+
+      // openPublication for a 404 manifest rejects on web; the JS catch path also
+      // forwards the failure to the onErrorEvent broadcast stream
+      // (see docs/parity/web-error-event.md). We only care that the stream is
+      // subscribable without UnimplementedError and that it emits.
+      try {
+        await reader.openPublication('/no-such-fixture/manifest.json');
+      } on Object {
+        // Expected — the open fails; the error event is what we assert on.
+      }
+
+      await _waitUntil(
+        () => errors.isNotEmpty,
+        timeout: const Duration(seconds: 15),
+        reason: 'onErrorEvent did not emit after a failed openPublication',
       );
     });
   });
