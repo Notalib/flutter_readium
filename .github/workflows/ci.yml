@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ios == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+      android: ${{ github.event_name != 'pull_request' || steps.filter.outputs.android == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+      web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            dart:
+              - '**/*.dart'
+              - '**/pubspec.yaml'
+              - '.flutter-version'
+            ios:
+              - 'flutter_readium/ios/**'
+              - 'flutter_readium/example/ios/**'
+            android:
+              - 'flutter_readium/android/**'
+              - 'flutter_readium/example/android/**'
+            web:
+              - 'flutter_readium/web/**'
+              - 'flutter_readium/example/web/**'
+              - 'flutter_readium/assets/_helper_scripts/**'
+              - 'flutter_readium/package.json'
+              - 'flutter_readium/package-lock.json'
+            ci:
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/build-android.yml'
+              - '.github/workflows/build-ios.yml'
+              - '.github/workflows/build-web.yml'
+              - '.github/workflows/integration-test-ios.yml'
+              - '.github/workflows/integration-test-android.yml'
+
+  build-ios:
+    name: Build iOS
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/build-ios.yml
+
+  build-android:
+    name: Build Android
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/build-android.yml
+
+  build-web:
+    name: Build Web
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/build-web.yml
+
+  integration-ios:
+    name: Integration Tests iOS
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/integration-test-ios.yml
+
+  integration-android:
+    name: Integration Tests Android
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/integration-test-android.yml

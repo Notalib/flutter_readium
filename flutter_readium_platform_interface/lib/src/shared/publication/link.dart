@@ -35,9 +35,7 @@ class Link with EquatableMixin implements JSONable {
   });
 
   /// Creates an [Link] from its RWPM JSON representation.
-  /// It's [href] and its children's recursively will be normalized using the provided
-  /// [normalizeHref] closure.
-  /// If the link can't be parsed, a warning will be logged with [warnings].
+  /// If the link can't be parsed, a warning will be logged.
   static Link? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
@@ -68,9 +66,7 @@ class Link with EquatableMixin implements JSONable {
   }
 
   /// Creates a list of [Link] from its RWPM JSON representation.
-  /// It's [href] and its children's recursively will be normalized using the provided
-  /// [normalizeHref] closure.
-  /// If a link can't be parsed, a warning will be logged with [warnings].
+  /// If a link can't be parsed, a warning will be logged.
   static List<Link> fromJsonArray(List<dynamic>? json) =>
       // Non-map entries (e.g. JSON-LD @context strings) are silently skipped.
       (json ?? []).parseObjects((it) => it is Map<String, dynamic> ? Link.fromJson(it) : null);

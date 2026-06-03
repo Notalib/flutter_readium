@@ -33,9 +33,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
 
   /// Parses a [PublicationCollection] from its RWPM JSON representation.
   ///
-  /// If the collection can't be parsed, a warning will be logged with [warnings].
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
+  /// If the collection can't be parsed, a warning will be logged.
   static PublicationCollection? fromJson(dynamic json) {
     if (json == null) {
       return null;
@@ -68,9 +66,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
 
   /// Parses a map of [PublicationCollection] indexed by their roles from its RWPM JSON representation.
   ///
-  /// If the collection can't be parsed, a warning will be logged with [warnings].
-  /// The [links]' href and their children's will be normalized recursively using the
-  /// provided [normalizeHref] closure.
+  /// If the collection can't be parsed, a warning will be logged.
   static Map<String, List<PublicationCollection>> collectionsFromJSON(Map<String, dynamic> json) {
     final collections = <String, List<PublicationCollection>>{};
     for (final role in json.keys.toList()..sort((a, b) => a.compareTo(b))) {
