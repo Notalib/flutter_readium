@@ -23,8 +23,8 @@ import {
   parseSyncNarration,
   textLocatorForItem,
   textLocatorToAudioLocator,
-} from "../Audio/syncNarration";
-import { parseGuidedNavigation } from "../Audio/guidedNavigation";
+} from "../mediaoverlay/syncNarration";
+import { parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
 
 const log = createLogger("MediaOverlay");
 

@@ -26,8 +26,8 @@ import { setEpubPreferencesFromString } from "./preferences/FlutterEpubPreferenc
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
 import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 // Sync narration
-import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
-import { detectGuidedNavigation } from "./Audio/guidedNavigation";
+import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
+import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationOverrides";
 // setAudioEmissionsEnabled (still needed for closePublication)

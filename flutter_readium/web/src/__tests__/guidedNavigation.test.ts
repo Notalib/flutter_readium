@@ -7,13 +7,13 @@
  * `Resource.readAsJSON` and the full `ReadiumPublication` fetcher.
  */
 
-import { __testing__ } from "../Audio/guidedNavigation";
+import { __testing__ } from "../mediaoverlay/guidedNavigation";
 import {
   enrichItemsWithToc,
   parseAudioField,
   parseTextField,
   SyncNarrationItem,
-} from "../Audio/syncNarration";
+} from "../mediaoverlay/syncNarration";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
 const { parseDocument, parseObject } = __testing__;
