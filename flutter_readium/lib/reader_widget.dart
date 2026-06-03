@@ -98,8 +98,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
 
-class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
-    implements ReadiumReaderWidgetInterface {
+class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
   static final _log = ReadiumLog.tag('ReaderWidget');
   static const _wakelockTimerDuration = Duration(minutes: 30);
 
@@ -155,12 +154,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
 
     final readingProgression = widget.publication.metadata.readingProgression;
     // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
-    final leftUpLabel =
-        readingProgression == ReadingProgression.rtl && !_scrollMode
+    final leftUpLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goForwardSemanticLabel
         : widget.goBackwardSemanticLabel;
-    final rightDownLabel =
-        readingProgression == ReadingProgression.rtl && !_scrollMode
+    final rightDownLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goBackwardSemanticLabel
         : widget.goForwardSemanticLabel;
 
@@ -234,8 +231,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
             child: _readerWidget,
           ),
         ),
-        if (!isReady && widget.loadingWidget != null)
-          Positioned.fill(child: widget.loadingWidget!),
+        if (!isReady && widget.loadingWidget != null) Positioned.fill(child: widget.loadingWidget!),
       ],
     );
   }
@@ -258,12 +254,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
   }
 
   @override
-  Future<void> goBackward({final bool animated = true}) async =>
-      _channel?.goBackward();
+  Future<void> goBackward({final bool animated = true}) async => _channel?.goBackward();
 
   @override
-  Future<void> goForward({final bool animated = true}) async =>
-      _channel?.goForward();
+  Future<void> goForward({final bool animated = true}) async => _channel?.goForward();
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
@@ -295,19 +289,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     final creationParams = <String, dynamic>{
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
-      'initialLocator': widget.initialLocator == null
-          ? null
-          : json.encode(widget.initialLocator),
+      'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       if (widget.selectionActions.isNotEmpty)
-        'selectionActions': widget.selectionActions
-            .map((a) => a.toJson())
-            .toList(),
+        'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
       if (widget.allowedDefaultActions != null)
-        'allowedDefaultActions': widget.allowedDefaultActions!
-            .map((a) => a.serialized)
-            .toList(),
+        'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
     };
 
     _log.d('creationParams=$creationParams');
@@ -435,8 +423,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
           _channel?.go(
             _currentLocator!,
             animated: false,
-            isAudioBookWithText:
-                false, // TODO: isAudioBookWithText - we don't know atm.
+            isAudioBookWithText: false, // TODO: isAudioBookWithText - we don't know atm.
           );
         });
       }
@@ -479,13 +466,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
     child: Container(color: Colors.transparent),
   );
 
-  Widget _buildSemanticsToggleFullScreen({required final String label}) =>
-      Semantics(
-        sortKey: const OrdinalSortKey(1.0),
-        button: true,
-        container: true,
-        label: label,
-        onTap: _toggleControls,
-        child: Container(color: Colors.transparent),
-      );
+  Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
+    sortKey: const OrdinalSortKey(1.0),
+    button: true,
+    container: true,
+    label: label,
+    onTap: _toggleControls,
+    child: Container(color: Colors.transparent),
+  );
 }

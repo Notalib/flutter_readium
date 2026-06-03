@@ -23,9 +23,7 @@ class PDFPreferences with EquatableMixin implements JSONable {
     final spreadStr = json['spread'] as String?;
     return PDFPreferences(
       layout: layoutStr != null ? PDFLayout.fromJson(layoutStr) : null,
-      readingProgression: rpStr != null
-          ? PDFReadingProgression.fromJson(rpStr)
-          : null,
+      readingProgression: rpStr != null ? PDFReadingProgression.fromJson(rpStr) : null,
       pageSpacing: pageSpacingNum?.toDouble(),
       fit: fitStr != null ? PDFFit.fromJson(fitStr) : null,
       offsetFirstPage: json['offsetFirstPage'] as bool?,

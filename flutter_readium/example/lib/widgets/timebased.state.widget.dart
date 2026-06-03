@@ -34,19 +34,11 @@ class _TimebasedStateWidgetState extends State<TimebasedStateWidget> {
               SizedBox(height: 22),
               Text('Chapter progress:'),
               LinearProgressIndicator(
-                value:
-                    snapshot.data?.currentLocator?.locations?.progression ??
-                    0.0,
+                value: snapshot.data?.currentLocator?.locations?.progression ?? 0.0,
               ),
               Text('Total book progress:'),
               LinearProgressIndicator(
-                value:
-                    snapshot
-                        .data
-                        ?.currentLocator
-                        ?.locations
-                        ?.totalProgression ??
-                    0,
+                value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0,
               ),
             ],
           );

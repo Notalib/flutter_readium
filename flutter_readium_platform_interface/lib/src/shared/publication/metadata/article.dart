@@ -12,8 +12,7 @@ import 'contributor.dart';
 /// https://readium.org/webpub-manifest/schema/article.schema.json
 @immutable
 class Article extends BaseCollection {
-  factory Article.fromString(String name) =>
-      Article(localizedName: LocalizedString.fromJsonString(name));
+  factory Article.fromString(String name) => Article(localizedName: LocalizedString.fromJsonString(name));
 
   factory Article.fromJson(dynamic json) {
     if (json is String) {

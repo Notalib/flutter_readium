@@ -184,8 +184,7 @@ class TextSettingsState {
   final DecorationStyle? rangeStyle;
 
   @override
-  String toString() =>
-      'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
+  String toString() => 'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
 
   TextSettingsState copyWith({
     final bool? scroll,
@@ -221,20 +220,15 @@ class TextSettingsState {
       highlight: highlight ?? this.highlight,
       pageMargins: pageMargins ?? this.pageMargins,
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
-      blackAndWhiteComicMode:
-          blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
-      disableSynchronization:
-          disableSynchronization ?? this.disableSynchronization,
-      firstElementTopMargin:
-          firstElementTopMargin ?? this.firstElementTopMargin,
+      blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+      disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+      firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
       fontFamily: fontFamily ?? this.fontFamily,
       fontWeight: fontWeight ?? this.fontWeight,
       letterSpacing: letterSpacing ?? this.letterSpacing,
       wordSpacing: wordSpacing ?? this.wordSpacing,
       lineHeight: lineHeight ?? this.lineHeight,
-      textAlign: textAlign == _sentinel
-          ? this.textAlign
-          : textAlign as TextAlign?,
+      textAlign: textAlign == _sentinel ? this.textAlign : textAlign as TextAlign?,
       columnCount: columnCount ?? this.columnCount,
       readingProgression: readingProgression ?? this.readingProgression,
       paragraphIndent: paragraphIndent ?? this.paragraphIndent,
@@ -242,15 +236,9 @@ class TextSettingsState {
       hyphens: hyphens ?? this.hyphens,
       ligatures: ligatures ?? this.ligatures,
       textNormalization: textNormalization ?? this.textNormalization,
-      imageFilter: imageFilter == _sentinel
-          ? this.imageFilter
-          : imageFilter as EpubImageFilter?,
-      utteranceStyle: utteranceStyle == _sentinel
-          ? this.utteranceStyle
-          : utteranceStyle as DecorationStyle?,
-      rangeStyle: rangeStyle == _sentinel
-          ? this.rangeStyle
-          : rangeStyle as DecorationStyle?,
+      imageFilter: imageFilter == _sentinel ? this.imageFilter : imageFilter as EpubImageFilter?,
+      utteranceStyle: utteranceStyle == _sentinel ? this.utteranceStyle : utteranceStyle as DecorationStyle?,
+      rangeStyle: rangeStyle == _sentinel ? this.rangeStyle : rangeStyle as DecorationStyle?,
     );
   }
 }

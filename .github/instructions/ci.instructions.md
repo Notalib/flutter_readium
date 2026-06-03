@@ -37,6 +37,12 @@ Use `bin/prepare-release <version>` before tagging. It:
 
 Do not automate this in the CI pipeline — the changelog rewrite should be in the tagged commit itself, not a commit pushed by the workflow after tagging.
 
+## `dart format` and `pub get` ordering
+
+`analysis_options.base.yaml` sets `formatter: page_width: 120`. `dart format` only reads this setting if it can resolve the `flutter_lints` include — which requires `pub get` to have been run first. Without `pub get`, the formatter silently falls back to 80-char page width and produces different (narrower) output.
+
+**Always run `flutter pub get` before `dart format`**, both locally and in CI. `bin/format` does this automatically. In CI workflows, the existing `Install dependencies` step runs `flutter pub get` before the `Check formatting` step — preserve that ordering.
+
 ## Flutter version pinning
 
 All workflows pin Flutter via `.flutter-version` (the fvm version file). **Do not use `flutter-version-file:` in `subosito/flutter-action`** — that input treats the version as a semver constraint and resolves to the latest matching stable, not an exact pin. Instead, read the file in a dedicated step and pass the result as `flutter-version:`:

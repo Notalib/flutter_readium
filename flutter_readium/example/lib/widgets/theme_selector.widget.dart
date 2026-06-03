@@ -32,12 +32,10 @@ class ThemeSelectorWidget extends StatelessWidget {
           key: ValueKey(isHighlight ? 'highlight_toggle' : 'theme_toggle'),
           isSelected: themes
               .map(
-                (final itemTheme) =>
-                    itemTheme == (isHighlight ? state.highlight : state.theme),
+                (final itemTheme) => itemTheme == (isHighlight ? state.highlight : state.theme),
               )
               .toList(),
-          selectedBorderColor:
-              (isHighlight ? state.highlight : state.theme).textColor,
+          selectedBorderColor: (isHighlight ? state.highlight : state.theme).textColor,
           borderWidth: 4.0,
           borderColor: Colors.transparent,
           onPressed: (final index) {

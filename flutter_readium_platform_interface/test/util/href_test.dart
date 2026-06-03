@@ -154,8 +154,7 @@ void main() {
     // Percent encoding
     expect(
       Href(
-        href:
-            'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
+        href: 'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
         baseHref: '/',
       ).string,
       'http://absolute.com/foo bar.txt?query=param#Hello world £500',
@@ -173,8 +172,7 @@ void main() {
     expect(
       'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
       Href(
-        href:
-            'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
+        href: 'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
         baseHref: '/',
       ).percentEncodedString,
     );

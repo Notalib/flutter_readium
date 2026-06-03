@@ -88,9 +88,7 @@ abstract class ReadiumLog {
     final name = record.loggerName.replaceFirst('.', '/');
     final level = record.level.name.padRight(5);
     final msg = record.message;
-    final line = record.error != null
-        ? '$level [$name] $msg (${record.error})'
-        : '$level [$name] $msg';
+    final line = record.error != null ? '$level [$name] $msg (${record.error})' : '$level [$name] $msg';
     if (!colored) return line;
     if (record.level >= _levelError) return '\x1B[31m$line\x1B[0m'; // red
     if (record.level >= _levelWarn) return '\x1B[33m$line\x1B[0m'; // yellow
@@ -129,8 +127,7 @@ abstract class ReadiumLog {
 
   static void info(final String? message) => _logger.info(message ?? '');
 
-  static void warn(final String? message) =>
-      _logger.log(_levelWarn, message ?? '');
+  static void warn(final String? message) => _logger.log(_levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
   static void error(
@@ -178,8 +175,7 @@ abstract class ReadiumLog {
 /// INFO  [flutter_readium/TTS] play (with locator)
 /// ```
 class TaggedReadiumLog {
-  TaggedReadiumLog._(final String tag)
-    : _logger = Logger('flutter_readium.$tag');
+  TaggedReadiumLog._(final String tag) : _logger = Logger('flutter_readium.$tag');
 
   final Logger _logger;
 
@@ -200,8 +196,7 @@ class TaggedReadiumLog {
 
   void info(final String? message) => _logger.info(message ?? '');
 
-  void warn(final String? message) =>
-      _logger.log(ReadiumLog._levelWarn, message ?? '');
+  void warn(final String? message) => _logger.log(ReadiumLog._levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
   void error(

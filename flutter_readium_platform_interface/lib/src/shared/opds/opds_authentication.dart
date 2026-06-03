@@ -11,9 +11,7 @@ import '../publication/link.dart';
 ///
 /// NYPL extensions: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions
 @immutable
-class OpdsAuthentication extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class OpdsAuthentication extends AdditionalProperties with EquatableMixin implements JSONable {
   factory OpdsAuthentication.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -27,8 +25,7 @@ class OpdsAuthentication extends AdditionalProperties
         jsonObject
             .optJsonArray('links', remove: true)
             ?.map(
-              (dynamic linkJson) =>
-                  Link.fromJson(linkJson as Map<String, dynamic>),
+              (dynamic linkJson) => Link.fromJson(linkJson as Map<String, dynamic>),
             )
             .nonNulls
             .toList() ??
@@ -66,17 +63,14 @@ class OpdsAuthentication extends AdditionalProperties
     } else if (audienceJson is List) {
       audiences = audienceJson
           .map(
-            (dynamic audienceValue) =>
-                Audience.fromString(audienceValue as String?),
+            (dynamic audienceValue) => Audience.fromString(audienceValue as String?),
           )
           .nonNulls
           .toList();
     }
 
     final collectionSize =
-        jsonObject
-            .optJsonObject('collection_size', remove: true)
-            ?.map((key, value) => MapEntry(key, value as int)) ??
+        jsonObject.optJsonObject('collection_size', remove: true)?.map((key, value) => MapEntry(key, value as int)) ??
         {};
 
     final colorScheme = jsonObject.optNullableString(
@@ -88,23 +82,17 @@ class OpdsAuthentication extends AdditionalProperties
       'feature_flags',
       remove: true,
     );
-    final featureFlags = featureFlagsJson != null
-        ? FeatureFlags.fromJson(featureFlagsJson)
-        : null;
+    final featureFlags = featureFlagsJson != null ? FeatureFlags.fromJson(featureFlagsJson) : null;
 
     final inputDataJson = jsonObject.optJsonObject('inputs', remove: true);
-    final inputs = inputDataJson != null
-        ? InputData.fromJson(inputDataJson)
-        : null;
+    final inputs = inputDataJson != null ? InputData.fromJson(inputDataJson) : null;
 
     final labels = jsonObject
         .optJsonObject('labels', remove: true)
         ?.map((key, value) => MapEntry(key, value.toString()));
 
     final publicKeyJson = jsonObject.optJsonObject('public_key', remove: true);
-    final publicKey = publicKeyJson != null
-        ? PublicKeyData.fromJson(publicKeyJson)
-        : null;
+    final publicKey = publicKeyJson != null ? PublicKeyData.fromJson(publicKeyJson) : null;
 
     final serviceDescription = jsonObject.optNullableString(
       'service_description',
@@ -114,9 +102,7 @@ class OpdsAuthentication extends AdditionalProperties
       'web_color_scheme',
       remove: true,
     );
-    final webColorScheme = webColorSchemeJson != null
-        ? WebColor.fromJson(webColorSchemeJson)
-        : null;
+    final webColorScheme = webColorSchemeJson != null ? WebColor.fromJson(webColorSchemeJson) : null;
 
     return OpdsAuthentication(
       type: type,
@@ -295,8 +281,7 @@ class OpdsAuthenticationFlow with EquatableMixin implements JSONable {
         jsonObject
             .optJsonArray('links', remove: true)
             ?.map(
-              (dynamic linkJson) =>
-                  Link.fromJson(linkJson as Map<String, dynamic>),
+              (dynamic linkJson) => Link.fromJson(linkJson as Map<String, dynamic>),
             )
             .nonNulls
             .toList() ??
@@ -314,11 +299,10 @@ class OpdsAuthenticationFlow with EquatableMixin implements JSONable {
     ..put('type', type)
     ..putIterableIfNotEmpty('links', links);
 
-  OpdsAuthenticationFlow copyWith({String? type, List<Link>? links}) =>
-      OpdsAuthenticationFlow(
-        type: type ?? this.type,
-        links: links ?? this.links,
-      );
+  OpdsAuthenticationFlow copyWith({String? type, List<Link>? links}) => OpdsAuthenticationFlow(
+    type: type ?? this.type,
+    links: links ?? this.links,
+  );
 
   @override
   List<Object?> get props => [type, links];
@@ -344,11 +328,10 @@ class OpdsAuthenticationLabels with EquatableMixin implements JSONable {
     ..putOpt('login', login)
     ..putOpt('password', password);
 
-  OpdsAuthenticationLabels copyWith({String? login, String? password}) =>
-      OpdsAuthenticationLabels(
-        login: login ?? this.login,
-        password: password ?? this.password,
-      );
+  OpdsAuthenticationLabels copyWith({String? login, String? password}) => OpdsAuthenticationLabels(
+    login: login ?? this.login,
+    password: password ?? this.password,
+  );
 
   @override
   List<Object?> get props => [login, password];
@@ -357,9 +340,7 @@ class OpdsAuthenticationLabels with EquatableMixin implements JSONable {
 /// Announcement object
 /// See: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions#sitewide-announcements
 @immutable
-class Announcement extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Announcement extends AdditionalProperties with EquatableMixin implements JSONable {
   factory Announcement.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -476,11 +457,10 @@ class FeatureFlags with EquatableMixin implements JSONable {
     ..putIterableIfNotEmpty('enabled', enabled)
     ..putIterableIfNotEmpty('disabled', disabled);
 
-  FeatureFlags copyWith({List<String>? enabled, List<String>? disabled}) =>
-      FeatureFlags(
-        enabled: enabled ?? this.enabled,
-        disabled: disabled ?? this.disabled,
-      );
+  FeatureFlags copyWith({List<String>? enabled, List<String>? disabled}) => FeatureFlags(
+    enabled: enabled ?? this.enabled,
+    disabled: disabled ?? this.disabled,
+  );
 
   @override
   List<Object?> get props => [enabled, disabled];
@@ -512,11 +492,10 @@ class InputField with EquatableMixin implements JSONable {
     ..putOpt('keyboard', keyboard?.name)
     ..putOpt('maximum_length', maximumLength);
 
-  InputField copyWith({KeyboardType? keyboard, int? maximumLength}) =>
-      InputField(
-        keyboard: keyboard ?? this.keyboard,
-        maximumLength: maximumLength ?? this.maximumLength,
-      );
+  InputField copyWith({KeyboardType? keyboard, int? maximumLength}) => InputField(
+    keyboard: keyboard ?? this.keyboard,
+    maximumLength: maximumLength ?? this.maximumLength,
+  );
 
   @override
   List<Object?> get props => [keyboard, maximumLength];
@@ -532,11 +511,9 @@ enum KeyboardType {
 
   final String name;
 
-  static KeyboardType? optFromString(String? value) =>
-      KeyboardType.values.firstWhereOrNull(
-        (keyboardType) =>
-            keyboardType.name.toLowerCase() == value?.toLowerCase(),
-      );
+  static KeyboardType? optFromString(String? value) => KeyboardType.values.firstWhereOrNull(
+    (keyboardType) => keyboardType.name.toLowerCase() == value?.toLowerCase(),
+  );
 }
 
 @immutable
@@ -575,8 +552,7 @@ class LoginInputField extends InputField with EquatableMixin {
   final String? barcodeFormat;
 
   @override
-  Map<String, dynamic> toJson() =>
-      super.toJson()..putOpt('barcode_format', barcodeFormat);
+  Map<String, dynamic> toJson() => super.toJson()..putOpt('barcode_format', barcodeFormat);
 
   @override
   LoginInputField copyWith({
@@ -622,11 +598,10 @@ class InputData with EquatableMixin implements JSONable {
     ..put('login', login)
     ..put('password', password);
 
-  InputData copyWith({LoginInputField? login, InputField? password}) =>
-      InputData(
-        login: login ?? this.login,
-        password: password ?? this.password,
-      );
+  InputData copyWith({LoginInputField? login, InputField? password}) => InputData(
+    login: login ?? this.login,
+    password: password ?? this.password,
+  );
 
   @override
   List<Object?> get props => [login, password];
@@ -670,8 +645,7 @@ class WebColor with EquatableMixin implements JSONable {
   factory WebColor.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final primary = jsonObject.optNullableString('primary', remove: true) ?? '';
-    final secondary =
-        jsonObject.optNullableString('secondary', remove: true) ?? '';
+    final secondary = jsonObject.optNullableString('secondary', remove: true) ?? '';
     return WebColor(primary: primary, secondary: secondary);
   }
 
@@ -690,8 +664,7 @@ class WebColor with EquatableMixin implements JSONable {
   bool get shouldSerializeSecondary => secondary.trim().isNotEmpty;
 
   /// Returns true if either primary or secondary should be serialized.
-  bool get shouldSerializeThis =>
-      shouldSerializePrimary || shouldSerializeSecondary;
+  bool get shouldSerializeThis => shouldSerializePrimary || shouldSerializeSecondary;
 
   @override
   Map<String, dynamic> toJson() => {}

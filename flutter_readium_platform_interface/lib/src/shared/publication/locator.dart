@@ -22,21 +22,17 @@ const int _emptyIntValue = -1;
 const double _emptyDoubleValue = -1;
 
 extension IntCheck on int? {
-  int? check(int? defaultValue) =>
-      (this == _emptyIntValue) ? defaultValue : this;
+  int? check(int? defaultValue) => (this == _emptyIntValue) ? defaultValue : this;
 }
 
 extension DoubleNullableCheck on double? {
-  double? check(double? defaultValue) =>
-      (this == _emptyDoubleValue) ? defaultValue : this;
+  double? check(double? defaultValue) => (this == _emptyDoubleValue) ? defaultValue : this;
 
   /// Ensure that this double? is within [epsilon] of [defaultValue], otherwise return this double? (or defaultValue if this is null).
   double roundToIfCloseTo(
     double defaultValue, {
     double epsilon = _defaultEpsilon,
-  }) => this?.isCloseTo(defaultValue, epsilon: epsilon) ?? false
-      ? defaultValue
-      : this ?? defaultValue;
+  }) => this?.isCloseTo(defaultValue, epsilon: epsilon) ?? false ? defaultValue : this ?? defaultValue;
 }
 
 const double _defaultEpsilon = 1e-3;
@@ -44,8 +40,7 @@ const double _defaultEpsilon = 1e-3;
 extension DoubleCheck on double {
   /// Returns true if this double is within [epsilon] of [other].
   /// Useful for comparing doubles that may have been subject to rounding errors.
-  bool isCloseTo(double other, {double epsilon = _defaultEpsilon}) =>
-      (this - other).abs() <= epsilon;
+  bool isCloseTo(double other, {double epsilon = _defaultEpsilon}) => (this - other).abs() <= epsilon;
 
   /// If the double is within [epsilon] of [other], returns [other], otherwise returns this double.
   double roundToIfCloseTo(double other, {double epsilon = _defaultEpsilon}) =>
@@ -63,9 +58,7 @@ extension DoubleCheck on double {
 ///
 /// https://github.com/readium/architecture/tree/master/models/locators
 @immutable
-class Locator extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Locator extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locator({
     required this.href,
     required this.type,
@@ -222,11 +215,8 @@ class Locator extends AdditionalProperties
     // to it as fx. [readium.scrollToId('t=287.55899999999997')] which will cause the book
     // starts from the beginning.
     // Only set id fragments to less confusing readium.
-    final selector =
-        locations?.cssSelector ?? locations?.domRange?.start.cssSelector;
-    final idFragment = selector?.startsWith('#') == true
-        ? selector!.substring(1)
-        : null;
+    final selector = locations?.cssSelector ?? locations?.domRange?.start.cssSelector;
+    final idFragment = selector?.startsWith('#') == true ? selector!.substring(1) : null;
 
     return copyWith(
       // Makes sure href only contains /path.
@@ -250,9 +240,7 @@ class Locator extends AdditionalProperties
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
 @immutable
-class Locations extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Locations extends AdditionalProperties with EquatableMixin implements JSONable {
   const Locations({
     this.position,
     this.progression,
@@ -271,17 +259,11 @@ class Locations extends AdditionalProperties
 
     final jsonObject = Map<String, dynamic>.of(json);
     final fragments =
-        jsonObject
-            .optStringsFromArrayOrSingle('fragments', remove: true)
-            .takeIf((it) => it.isNotEmpty) ??
+        jsonObject.optStringsFromArrayOrSingle('fragments', remove: true).takeIf((it) => it.isNotEmpty) ??
         jsonObject.optStringsFromArrayOrSingle('fragment', remove: true);
 
-    final progression = jsonObject
-        .optPositiveDouble('progression', remove: true)
-        ?.let((it) => it.clamp(0.0, 1.0));
-    final position = jsonObject
-        .optPositiveInt('position', remove: true)
-        ?.takeIf((it) => it > 0);
+    final progression = jsonObject.optPositiveDouble('progression', remove: true)?.let((it) => it.clamp(0.0, 1.0));
+    final position = jsonObject.optPositiveInt('position', remove: true)?.takeIf((it) => it > 0);
 
     final totalProgression = jsonObject
         .optPositiveDouble('totalProgression', remove: true)

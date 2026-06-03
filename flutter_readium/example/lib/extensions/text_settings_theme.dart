@@ -10,8 +10,7 @@ class TextSettingsTheme {
   final Color backgroundColor;
 
   @override
-  String toString() =>
-      'backgroundColor: $backgroundColor, textColor: $textColor';
+  String toString() => 'backgroundColor: $backgroundColor, textColor: $textColor';
 }
 
 const List<TextSettingsTheme> themes = [

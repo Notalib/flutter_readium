@@ -11,16 +11,12 @@ abstract class AdditionalProperties {
 
   T? getAdditionalEnum<T extends Enum>(String key, List<T> enumValues) {
     final value = additionalProperties[key];
-    return value is String
-        ? enumValues.firstWhereOrNull((v) => v.name == value)
-        : null;
+    return value is String ? enumValues.firstWhereOrNull((v) => v.name == value) : null;
   }
 
   /// Helper to get a DateTime from an additional property value.
   DateTime? getAdditionalDateTime(final String key) =>
-      additionalProperties[key] != null
-      ? DateTime.parse(additionalProperties[key] as String)
-      : null;
+      additionalProperties[key] != null ? DateTime.parse(additionalProperties[key] as String) : null;
 
   /// Safely get an additional property value of type [T].
   T? safeGetAdditionalValue<T>(final String key) {

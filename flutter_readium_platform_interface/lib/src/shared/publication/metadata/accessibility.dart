@@ -55,9 +55,7 @@ class Accessibility with EquatableMixin implements JSONable {
       remove: true,
     );
 
-    final certification = certificationJson != null
-        ? AccessibilityCertification.fromJson(certificationJson)
-        : null;
+    final certification = certificationJson != null ? AccessibilityCertification.fromJson(certificationJson) : null;
 
     final summary = jsonObject.optNullableString('summary', remove: true);
 

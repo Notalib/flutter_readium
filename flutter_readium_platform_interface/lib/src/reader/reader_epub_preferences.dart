@@ -135,9 +135,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       'columnCount',
       remove: true,
     );
-    final columnCount = columnCountStr != null
-        ? EpubColumnCount.fromJson(columnCountStr)
-        : null;
+    final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
     final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
@@ -146,9 +144,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       'imageFilter',
       remove: true,
     );
-    final imageFilter = imageFilterStr != null
-        ? EpubImageFilter.fromJson(imageFilterStr)
-        : null;
+    final imageFilter = imageFilterStr != null ? EpubImageFilter.fromJson(imageFilterStr) : null;
     final language = jsonObject.optNullableString('language', remove: true);
     final letterSpacing = jsonObject.optNullableDouble(
       'letterSpacing',
@@ -190,9 +186,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       'textColor',
       remove: true,
     );
-    final textColor = textColorStr != null
-        ? ReadiumColorExtension.fromCSS(textColorStr)
-        : null;
+    final textColor = textColorStr != null ? ReadiumColorExtension.fromCSS(textColorStr) : null;
     final textNormalization = jsonObject.optNullableBoolean(
       'textNormalization',
       remove: true,
@@ -220,9 +214,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     );
 
     return EPUBPreferences(
-      backgroundColor: backgroundColorStr != null
-          ? ReadiumColorExtension.fromCSS(backgroundColorStr)
-          : null,
+      backgroundColor: backgroundColorStr != null ? ReadiumColorExtension.fromCSS(backgroundColorStr) : null,
       columnCount: columnCount,
       fontFamily: fontFamily,
       fontSize: fontSize,
@@ -335,10 +327,8 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     typeScale: typeScale ?? this.typeScale,
     verticalText: verticalText ?? this.verticalText,
     wordSpacing: wordSpacing ?? this.wordSpacing,
-    blackAndWhiteComicMode:
-        blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
-    disableSynchronization:
-        disableSynchronization ?? this.disableSynchronization,
+    blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+    disableSynchronization: disableSynchronization ?? this.disableSynchronization,
     firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
   );
 

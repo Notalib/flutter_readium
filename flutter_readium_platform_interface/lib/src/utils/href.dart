@@ -34,8 +34,7 @@ class Href {
     try {
       final absoluteUri = Uri.parse(baseHref!).resolve(href);
       final absoluteString = absoluteUri.toString(); // This is percent-decoded
-      final addSlash =
-          !absoluteUri.hasScheme && !absoluteString.startsWith('/');
+      final addSlash = !absoluteUri.hasScheme && !absoluteString.startsWith('/');
       resolved = ((addSlash) ? '/' : '') + absoluteString;
     } on Exception {
       if (href.startsWith('http://') || href.startsWith('https://')) {
@@ -73,11 +72,9 @@ class Href {
   }
 
   /// Returns the query parameters present in this HREF, in the order they appear.
-  List<QueryParameter> get queryParameters => Uri.parse(percentEncodedString)
-      .queryParameters
-      .entries
-      .map((it) => QueryParameter(it.key, value: it.value))
-      .toList();
+  List<QueryParameter> get queryParameters => Uri.parse(
+    percentEncodedString,
+  ).queryParameters.entries.map((it) => QueryParameter(it.key, value: it.value)).toList();
 }
 
 class QueryParameter {
@@ -90,9 +87,7 @@ class QueryParameter {
 }
 
 extension QueryParameterExtension on List<QueryParameter> {
-  String? firstNamedOrNull(String name) =>
-      firstWhereOrNull((it) => it.name == name)?.value;
+  String? firstNamedOrNull(String name) => firstWhereOrNull((it) => it.name == name)?.value;
 
-  List<String> allNamed(String name) =>
-      where((it) => it.name == name).mapNotNull((it) => it.value).toList();
+  List<String> allNamed(String name) => where((it) => it.name == name).mapNotNull((it) => it.value).toList();
 }

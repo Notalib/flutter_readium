@@ -138,8 +138,7 @@ enum ControlPanelInfoType {
   chapterTitle,
   titleChapter;
 
-  static ControlPanelInfoType? fromOptString(final String type) =>
-      ControlPanelInfoType.values.firstWhereOrNull(
-        (e) => e.toString().split('.').last == type,
-      );
+  static ControlPanelInfoType? fromOptString(final String type) => ControlPanelInfoType.values.firstWhereOrNull(
+    (e) => e.toString().split('.').last == type,
+  );
 }

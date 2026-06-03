@@ -134,8 +134,7 @@ void main() {
       expect(
         locators.last,
         isNot(equals(initialLocator)),
-        reason:
-            'goForward() should emit a textLocator distinct from the initial one.',
+        reason: 'goForward() should emit a textLocator distinct from the initial one.',
       );
 
       await tester.pumpWidget(const SizedBox());
@@ -184,8 +183,7 @@ void main() {
     expect(
       pub.conformsToReadiumAudiobook,
       isTrue,
-      reason:
-          'Audiobook fixture should conform to the Readium audiobook profile',
+      reason: 'Audiobook fixture should conform to the Readium audiobook profile',
     );
 
     // See note above: web asserts open + profile only; native plays for real.
@@ -284,8 +282,7 @@ void main() {
           tester,
           () => locators.isNotEmpty,
           timeout: const Duration(seconds: 30),
-          reason:
-              'PDF ReadiumReaderWidget never emitted an initial textLocator',
+          reason: 'PDF ReadiumReaderWidget never emitted an initial textLocator',
         );
 
         expect(
@@ -349,8 +346,7 @@ void main() {
         tester,
         () => locators.last.locations?.position == startPage + 1,
         timeout: const Duration(seconds: 15),
-        reason:
-            'goForward() did not settle on startPage + 1 (start=$startPage)',
+        reason: 'goForward() did not settle on startPage + 1 (start=$startPage)',
       );
       expect(locators.last.locations?.position, equals(startPage + 1));
 
@@ -360,8 +356,7 @@ void main() {
         tester,
         () => locators.last.locations?.position == afterForward - 1,
         timeout: const Duration(seconds: 15),
-        reason:
-            'goBackward() did not return to afterForward - 1 (afterForward=$afterForward)',
+        reason: 'goBackward() did not return to afterForward - 1 (afterForward=$afterForward)',
       );
       expect(locators.last.locations?.position, equals(afterForward - 1));
 
@@ -411,8 +406,7 @@ void main() {
           tester,
           () => (locators.last.locations?.position ?? startPage) > startPage,
           timeout: const Duration(seconds: 15),
-          reason:
-              'goForward() did not advance past the start page (start=$startPage)',
+          reason: 'goForward() did not advance past the start page (start=$startPage)',
         );
         final advanced = locators.last.locations!.position!;
         expect(advanced, greaterThan(startPage));
@@ -422,8 +416,7 @@ void main() {
           tester,
           () => (locators.last.locations?.position ?? advanced) < advanced,
           timeout: const Duration(seconds: 15),
-          reason:
-              'goBackward() did not retreat past the advanced page (advanced=$advanced)',
+          reason: 'goBackward() did not retreat past the advanced page (advanced=$advanced)',
         );
         expect(locators.last.locations!.position, lessThan(advanced));
 
@@ -472,8 +465,7 @@ void main() {
         tester,
         () => locators.last.locations?.position != baselinePage,
         timeout: const Duration(seconds: 15),
-        reason:
-            'goForward() did not produce a new locator (baseline=$baselinePage)',
+        reason: 'goForward() did not produce a new locator (baseline=$baselinePage)',
       );
       await _waitForListStable(tester, locators);
       final savedLocator = locators.last;
@@ -485,8 +477,7 @@ void main() {
         tester,
         () => locators.last.locations?.position != savedPage,
         timeout: const Duration(seconds: 15),
-        reason:
-            'second goForward() did not produce a new locator (saved=$savedPage)',
+        reason: 'second goForward() did not produce a new locator (saved=$savedPage)',
       );
       await _waitForListStable(tester, locators);
       final afterSecondForward = locators.last;
@@ -565,9 +556,7 @@ void main() {
   group('EPUB navigation and state', () {
     test(
       'searchInPublication returns hits for a common word in Moby-Dick',
-      skip: kIsWeb
-          ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)'
-          : false,
+      skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
       () async {
         final path = fixturePaths['moby_dick.epub'];
         expect(
@@ -889,8 +878,7 @@ void main() {
         expect(
           locators.last.locations?.cssSelector,
           equals(savedCssSelector),
-          reason:
-              'Restored locator should round-trip the saved cssSelector precisely',
+          reason: 'Restored locator should round-trip the saved cssSelector precisely',
         );
       }
 
@@ -904,9 +892,7 @@ void main() {
 
   group(
     'Audio playback controls',
-    skip: kIsWeb
-        ? 'Real audio playback is not available in the web test harness'
-        : null,
+    skip: kIsWeb ? 'Real audio playback is not available in the web test harness' : null,
     () {
       test(
         'audiobook pause then resume cycles through state transitions',
@@ -987,12 +973,9 @@ void main() {
         await reader.resume();
 
         await _waitUntil(
-          () =>
-              states.last.currentOffset != null &&
-              states.last.currentOffset! >= expectedMinOffset,
+          () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
           timeout: const Duration(seconds: 10),
-          reason:
-              'currentOffset did not advance after audioSeekBy($seekDuration)',
+          reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
         );
 
         expect(
@@ -1029,8 +1012,7 @@ void main() {
       expect(
         pub.metadata.presentation.layout,
         equals(EpubLayout.fixed),
-        reason:
-            'Fixed-layout fixture should report a fixed presentation layout',
+        reason: 'Fixed-layout fixture should report a fixed presentation layout',
       );
 
       final locators = <Locator>[];
@@ -1055,8 +1037,7 @@ void main() {
         tester,
         () => locators.last != initialLocator,
         timeout: const Duration(seconds: 15),
-        reason:
-            'goForward() did not produce a new textLocator in fixed-layout EPUB',
+        reason: 'goForward() did not produce a new textLocator in fixed-layout EPUB',
       );
 
       await tester.pumpWidget(const SizedBox());

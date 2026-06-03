@@ -51,9 +51,7 @@ class BookshelfPageState extends State<BookshelfPage> {
           Publication? pub;
           final rawHref = href.toString();
           // WEB: Resolve root-relative paths against the current origin, so local files can be loaded.
-          final localPubPath = rawHref.startsWith('/')
-              ? Uri.base.resolve(rawHref).toString()
-              : rawHref;
+          final localPubPath = rawHref.startsWith('/') ? Uri.base.resolve(rawHref).toString() : rawHref;
           pub = await loadPublicationFromUrl(localPubPath);
           if (pub != null) {
             loadedPublications.add(pub);
@@ -65,8 +63,7 @@ class BookshelfPageState extends State<BookshelfPage> {
       }
     } else {
       // should only be done first time app is started. how to do that?
-      final localPublications =
-          await PublicationUtils.moveAssetPublicationsToReadiumStorage();
+      final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
       for (String localPubPath in localPublications) {
         _log.info('Loading publication from local path: $localPubPath');
@@ -170,10 +167,7 @@ class BookshelfPageState extends State<BookshelfPage> {
     final metadata = pub.metadata;
     final authors = metadata.authors;
 
-    final authorNames = authors
-        .map((final author) => author.localizedName?.string)
-        .nonNulls
-        .join(', ');
+    final authorNames = authors.map((final author) => author.localizedName?.string).nonNulls.join(', ');
 
     return authorNames.isEmpty ? 'Unknown author' : authorNames;
   }

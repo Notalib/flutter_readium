@@ -15,8 +15,7 @@
 Future<Map<String, String>> loadFixturePaths() async {
   return const {
     // Moby-Dick EPUB served as exploded webpub by readium.org (reflowable).
-    'moby_dick.epub':
-        'https://readium.org/webpub-manifest/examples/MobyDick/manifest.json',
+    'moby_dick.epub': 'https://readium.org/webpub-manifest/examples/MobyDick/manifest.json',
 
     // EPUB with media overlays (trimmed, local) — synced audio + text.
     '38533_overlay_preview.webpub': '/test-overlay/manifest.json',

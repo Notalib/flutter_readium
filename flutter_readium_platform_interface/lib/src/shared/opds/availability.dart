@@ -47,12 +47,8 @@ class Availability with EquatableMixin implements JSONable {
     if (state == null) {
       return null;
     }
-    final since = jsonObject
-        .optNullableString('since', remove: true)
-        ?.iso8601ToDate();
-    final until = jsonObject
-        .optNullableString('until', remove: true)
-        ?.iso8601ToDate();
+    final since = jsonObject.optNullableString('since', remove: true)?.iso8601ToDate();
+    final until = jsonObject.optNullableString('until', remove: true)?.iso8601ToDate();
 
     return Availability(state: state, since: since, until: until);
   }

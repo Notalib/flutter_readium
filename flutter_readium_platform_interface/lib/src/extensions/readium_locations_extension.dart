@@ -5,10 +5,7 @@ import '../shared/publication.dart';
 import 'index.dart';
 
 extension LocationExtension on Locations {
-  TimeFragment? get timeFragment => fragments
-      .map((final e) => TimeFragment.fromFragment(e))
-      .nonNulls
-      .firstOrNull;
+  TimeFragment? get timeFragment => fragments.map((final e) => TimeFragment.fromFragment(e)).nonNulls.firstOrNull;
 
   String? get tocHref => this['tocHref'] as String?;
 
@@ -50,38 +47,20 @@ extension LocationExtension on Locations {
     return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
   }
 
-  String? get physicalPage => fragments
-      .firstWhereOrNull((final f) => f.startsWith('physicalPage='))
-      ?.split('=')
-      .last;
+  String? get physicalPage => fragments.firstWhereOrNull((final f) => f.startsWith('physicalPage='))?.split('=').last;
 
   int? get page => int.tryParse(
-    fragments
-            .firstWhereOrNull((final f) => f.startsWith('page='))
-            ?.split('=')
-            .last ??
-        '',
+    fragments.firstWhereOrNull((final f) => f.startsWith('page='))?.split('=').last ?? '',
   );
 
   int? get totalPages => int.tryParse(
-    fragments
-            .firstWhereOrNull((final f) => f.startsWith('totalPages='))
-            ?.split('=')
-            .last ??
-        '',
+    fragments.firstWhereOrNull((final f) => f.startsWith('totalPages='))?.split('=').last ?? '',
   );
 
-  String? get tocFragment => fragments
-      .firstWhereOrNull((final f) => f.startsWith('toc='))
-      ?.split('=')
-      .last;
+  String? get tocFragment => fragments.firstWhereOrNull((final f) => f.startsWith('toc='))?.split('=').last;
 
   int? get durationFragment => int.tryParse(
-    fragments
-            .firstWhereOrNull((final f) => f.startsWith('duration='))
-            ?.split('=')
-            .last ??
-        '',
+    fragments.firstWhereOrNull((final f) => f.startsWith('duration='))?.split('=').last ?? '',
   );
 }
 
@@ -105,9 +84,7 @@ class TimeFragment {
   String get fragment {
     final end = this.end;
 
-    return end == null
-        ? 't=${begin.toSecondsString()}'
-        : 't=${begin.toSecondsString()},${end.toSecondsString()}';
+    return end == null ? 't=${begin.toSecondsString()}' : 't=${begin.toSecondsString()},${end.toSecondsString()}';
   }
 
   @override

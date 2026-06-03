@@ -46,8 +46,7 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
     final jsonObject = Map<String, dynamic>.of(json);
 
     final identifier = jsonObject.optString('identifier', remove: true);
-    final name =
-        jsonObject.optNullableString('name', remove: true) ?? identifier;
+    final name = jsonObject.optNullableString('name', remove: true) ?? identifier;
     final language = jsonObject.optString('language', remove: true);
     final networkRequired = jsonObject.optBoolean(
       'networkRequired',

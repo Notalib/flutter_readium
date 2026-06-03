@@ -57,10 +57,7 @@ class Link with EquatableMixin implements JSONable {
         remove: true,
       ),
       title: jsonObject.optNullableString('title', remove: true),
-      rels: jsonObject
-          .optStringsFromArrayOrSingle('rel', remove: true)
-          .toSet()
-          .toList(),
+      rels: jsonObject.optStringsFromArrayOrSingle('rel', remove: true).toSet().toList(),
       properties: Properties.fromJson(
         jsonObject.optJsonObject('properties', remove: true),
       ),
@@ -180,8 +177,7 @@ class Link with EquatableMixin implements JSONable {
   }
 
   /// List of URI template parameter keys, if the [Link] is templated.
-  List<String> get templateParameters =>
-      (templated) ? UriTemplate(href).parameters.toList() : [];
+  List<String> get templateParameters => (templated) ? UriTemplate(href).parameters.toList() : [];
 
   /// Expands the HREF by replacing URI template variables by the given parameters.
   ///
@@ -249,6 +245,5 @@ class Link with EquatableMixin implements JSONable {
   ];
 
   @override
-  String toString() =>
-      'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
+  String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
 }

@@ -101,11 +101,10 @@ class ReadiumReaderChannel extends MethodChannel {
   ]);
 
   /// Configure the native selection context menu actions.
-  Future<void> configureSelectionActions(List<SelectionAction> actions) async =>
-      await _invokeMethod(
-        _ReaderChannelMethodInvoke.configureSelectionActions,
-        actions.map((a) => a.toJson()).toList(),
-      );
+  Future<void> configureSelectionActions(List<SelectionAction> actions) async => await _invokeMethod(
+    _ReaderChannelMethodInvoke.configureSelectionActions,
+    actions.map((a) => a.toJson()).toList(),
+  );
 
   /// Tears down the method channel handler and signals the native side to clean up.
   Future<void> dispose() async {

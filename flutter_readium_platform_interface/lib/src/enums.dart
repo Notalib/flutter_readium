@@ -46,10 +46,9 @@ enum ReadiumReaderStatus {
   error;
 
   /// Returns the [ReadiumReaderStatus] matching [status] (case-insensitive), or `null` if unknown.
-  static ReadiumReaderStatus? optFromString(final String status) =>
-      ReadiumReaderStatus.values.firstWhereOrNull(
-        (e) => e.name.toLowerCase() == status.toLowerCase(),
-      );
+  static ReadiumReaderStatus? optFromString(final String status) => ReadiumReaderStatus.values.firstWhereOrNull(
+    (e) => e.name.toLowerCase() == status.toLowerCase(),
+  );
 
   /// Whether the reader is in the loading state.
   bool get isLoading => this == ReadiumReaderStatus.loading;
@@ -61,8 +60,7 @@ enum ReadiumReaderStatus {
   bool get isClosed => this == ReadiumReaderStatus.closed;
 
   /// Whether the reader has reached the end of the publication.
-  bool get hasReachedEndOfPublication =>
-      this == ReadiumReaderStatus.reachedEndOfPublication;
+  bool get hasReachedEndOfPublication => this == ReadiumReaderStatus.reachedEndOfPublication;
 
   /// Whether the reader is in an error state.
   bool get isError => this == ReadiumReaderStatus.error;
@@ -75,13 +73,11 @@ enum TTSVoiceGender {
   unspecified;
 
   /// Returns the [TTSVoiceGender] matching [gender] (case-insensitive), or `null` if unknown.
-  static TTSVoiceGender? optFromString(final String gender) => TTSVoiceGender
-      .values
-      .firstWhereOrNull((e) => e.name.toLowerCase() == gender.toLowerCase());
+  static TTSVoiceGender? optFromString(final String gender) =>
+      TTSVoiceGender.values.firstWhereOrNull((e) => e.name.toLowerCase() == gender.toLowerCase());
 
   /// Returns the [TTSVoiceGender] matching [gender], falling back to [unspecified].
-  static TTSVoiceGender fromString(final String gender) =>
-      optFromString(gender) ?? TTSVoiceGender.unspecified;
+  static TTSVoiceGender fromString(final String gender) => optFromString(gender) ?? TTSVoiceGender.unspecified;
 }
 
 /// Reported quality level of a TTS voice.
@@ -93,11 +89,9 @@ enum TTSVoiceQuality {
   highest;
 
   /// Returns the [TTSVoiceQuality] matching [quality] (case-insensitive), or `null` if unknown.
-  static TTSVoiceQuality? optFromString(final String quality) => TTSVoiceQuality
-      .values
-      .firstWhereOrNull((e) => e.name.toLowerCase() == quality.toLowerCase());
+  static TTSVoiceQuality? optFromString(final String quality) =>
+      TTSVoiceQuality.values.firstWhereOrNull((e) => e.name.toLowerCase() == quality.toLowerCase());
 
   /// Returns the [TTSVoiceQuality] matching [quality], falling back to [normal].
-  static TTSVoiceQuality fromString(final String quality) =>
-      optFromString(quality) ?? TTSVoiceQuality.normal;
+  static TTSVoiceQuality fromString(final String quality) => optFromString(quality) ?? TTSVoiceQuality.normal;
 }

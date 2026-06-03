@@ -16,9 +16,7 @@ import 'base_collection.dart';
 ///     to get the calculated reading progression from the declared direction and the language.
 /// @param additionalProperties Additional metadata for extensions, as a JSON dictionary.
 @immutable
-class Metadata extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Metadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const Metadata({
     required this.localizedTitle,
     this.identifier,
@@ -321,9 +319,7 @@ class Metadata extends AdditionalProperties
       remove: true,
     );
     final contains =
-        jsonObject
-            .optNullableMap('contains', remove: true)
-            ?.let((it) => MetadataContains.fromJson(it)) ??
+        jsonObject.optNullableMap('contains', remove: true)?.let((it) => MetadataContains.fromJson(it)) ??
         MetadataContains();
 
     final belongsToJson =
@@ -454,9 +450,7 @@ class Metadata extends AdditionalProperties
 }
 
 @immutable
-class MetadataContains extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class MetadataContains extends AdditionalProperties with EquatableMixin implements JSONable {
   factory MetadataContains.fromJson(Map<String, dynamic>? json) {
     final jsonObject = Map<String, dynamic>.of(json ?? {});
     final article = Article.listFromJson(

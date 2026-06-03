@@ -59,14 +59,12 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   }
 
   /// Sets custom HTTP headers forwarded to the native HTTP layer for all network requests.
-  Future<void> setCustomHeaders(Map<String, String> headers) =>
-      throw UnimplementedError(
-        'setCustomHeaders(headers) has not been implemented.',
-      );
+  Future<void> setCustomHeaders(Map<String, String> headers) => throw UnimplementedError(
+    'setCustomHeaders(headers) has not been implemented.',
+  );
 
   /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
-  Future<void> setLogLevel(LogLevel level) =>
-      throw UnimplementedError('setLogLevel() has not been implemented.');
+  Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
   /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
@@ -76,29 +74,24 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
   /// This will NOT store a reference to the Publication and is purely meant to be used for fetching metadata/manifest
   /// for multiple books.
-  Future<Publication> loadPublication(String pubUrl) =>
-      throw UnimplementedError(
-        'loadPublication(pubUrl) has not been implemented.',
-      );
+  Future<Publication> loadPublication(String pubUrl) => throw UnimplementedError(
+    'loadPublication(pubUrl) has not been implemented.',
+  );
 
   /// Opens a publication from a URL and prepares it for reading or playback.
   /// If the URL has not already been loaded, it will implicitly do this.
-  Future<Publication> openPublication(String pubUrl) =>
-      throw UnimplementedError(
-        'openPublication(pubUrl) has not been implemented.',
-      );
+  Future<Publication> openPublication(String pubUrl) => throw UnimplementedError(
+    'openPublication(pubUrl) has not been implemented.',
+  );
 
   /// Close the currently open publication and its related reader or playback ressources.
-  Future<void> closePublication() =>
-      throw UnimplementedError('closePublication() has not been implemented.');
+  Future<void> closePublication() => throw UnimplementedError('closePublication() has not been implemented.');
 
   /// Navigate left/backwards visually in the current publication renderer.
-  Future<void> goBackward() =>
-      throw UnimplementedError('goBackward() has not been implemented.');
+  Future<void> goBackward() => throw UnimplementedError('goBackward() has not been implemented.');
 
   /// Navigate right/forwards visually in the current publication renderer.
-  Future<void> goForward() =>
-      throw UnimplementedError('goForward() has not been implemented.');
+  Future<void> goForward() => throw UnimplementedError('goForward() has not been implemented.');
 
   /// Sets the default EPUB rendering preferences and updates preferences for the ReaderWidgetView.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
@@ -117,8 +110,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   ) => throw UnimplementedError('applyDecorations() has not been implemented');
 
   /// Go directly to the given [Locator] in the publication, whether visual or audio.
-  Future<bool> goToLocator(Locator locator) =>
-      throw UnimplementedError('goToLocator() has not been implemented.');
+  Future<bool> goToLocator(Locator locator) => throw UnimplementedError('goToLocator() has not been implemented.');
 
   /// Go to a specific progression in the current resource of the publication, where 0.0 is the start and 1.0 is the end.
   Future<bool> goToProgression(double progression) =>
@@ -126,28 +118,22 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
 
   // COMMON PLAYBACK API - BEGIN
   /// Play the publication from the given locator, or resume if null.
-  Future<void> play(Locator? fromLocator) =>
-      throw UnimplementedError('play() has not been implemented');
+  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');
 
   /// Stop playback.
-  Future<void> stop() =>
-      throw UnimplementedError('stop() has not been implemented');
+  Future<void> stop() => throw UnimplementedError('stop() has not been implemented');
 
   /// Pause playback.
-  Future<void> pause() =>
-      throw UnimplementedError('pause() has not been implemented');
+  Future<void> pause() => throw UnimplementedError('pause() has not been implemented');
 
   /// Resume playback.
-  Future<void> resume() =>
-      throw UnimplementedError('resume() has not been implemented');
+  Future<void> resume() => throw UnimplementedError('resume() has not been implemented');
 
   /// Skip to next logical item during playback. For audiobooks this is the default seek interval. For TTS this is the next paragraph.
-  Future<void> next() =>
-      throw UnimplementedError('next() has not been implemented');
+  Future<void> next() => throw UnimplementedError('next() has not been implemented');
 
   /// Skip to previous logical item during playback. For audiobooks this is the default seek interval. For TTS this is the previous paragraph.
-  Future<void> previous() =>
-      throw UnimplementedError('previous() has not been implemented');
+  Future<void> previous() => throw UnimplementedError('previous() has not been implemented');
   // COMMON PLAYBACK API - END
 
   // TTS API - BEGIN
@@ -156,10 +142,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsEnable() has not been implemented');
 
   /// Get the list of available TTS voices on the platform.
-  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() =>
-      throw UnimplementedError(
-        'ttsGetAvailableVoices() has not been implemented',
-      );
+  Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() => throw UnimplementedError(
+    'ttsGetAvailableVoices() has not been implemented',
+  );
 
   /// Set the TTS voice by its identifier, optionally for a specific language.
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) =>
@@ -169,8 +154,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Future<void> setDecorationStyle(
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
-  ) =>
-      throw UnimplementedError('setDecorationStyle() has not been implemented');
+  ) => throw UnimplementedError('setDecorationStyle() has not been implemented');
 
   /// Change the TTS preferences such as speed, pitch, and volume.
   Future<void> ttsSetPreferences(TTSPreferences preferences) =>
@@ -183,15 +167,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('audioEnable() has not been implemented');
 
   /// Change the audiobook playback preferences such as speed and seek interval.
-  Future<void> audioSetPreferences(AudioPreferences prefs) =>
-      throw UnimplementedError(
-        'audioSetPreferences() has not been implemented',
-      );
+  Future<void> audioSetPreferences(AudioPreferences prefs) => throw UnimplementedError(
+    'audioSetPreferences() has not been implemented',
+  );
 
   /// Seek in audio playback relative to current position by the given offset in seconds. Positive values seek forward, negative values seek backward.
   /// This is an alternative to next/previous which seeks by a fixed interval.
-  Future<void> audioSeekBy(Duration offset) =>
-      throw UnimplementedError('seekInAudio() has not been implemented');
+  Future<void> audioSeekBy(Duration offset) => throw UnimplementedError('seekInAudio() has not been implemented');
   // AUDIOBOOK API - END
 
   /// Searches for [searchKey] in the currently opened publication and returns matching results.

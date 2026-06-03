@@ -3,9 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../../../flutter_readium_platform_interface.dart';
 
 /// Base class for collections of metadata, such as Series, StoryArc, Season, Issue, etc.
-abstract class BaseCollection extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+abstract class BaseCollection extends AdditionalProperties with EquatableMixin implements JSONable {
   const BaseCollection({
     required this.position,
     this.localizedName,

@@ -64,28 +64,25 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// Fires whenever the TimebasedNavigator changes state
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    _onTimebasedPlayerStateChanged ??= timebasedStateChannel
-        .receiveBroadcastStream()
-        .map((dynamic event) {
-          final state = ReadiumTimebasedState.fromJson(
-            json.decode(event) as Map<String, dynamic>,
+    _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
+      final state = ReadiumTimebasedState.fromJson(
+        json.decode(event) as Map<String, dynamic>,
+      );
+
+      state.currentLocator?.locations?.let((locations) {
+        if (locations.position == null) {
+          debugPrint(
+            'Received timebased player state with currentLocator missing position: $state',
           );
+        } else if (locations.position! <= 0) {
+          debugPrint(
+            'Received timebased player state with currentLocator invalid position: $state',
+          );
+        }
+      });
 
-          state.currentLocator?.locations?.let((locations) {
-            if (locations.position == null) {
-              debugPrint(
-                'Received timebased player state with currentLocator missing position: $state',
-              );
-            } else if (locations.position! <= 0) {
-              debugPrint(
-                'Received timebased player state with currentLocator invalid position: $state',
-              );
-            }
-          });
-
-          return state;
-        })
-        .asBroadcastStream();
+      return state;
+    }).asBroadcastStream();
 
     return _onTimebasedPlayerStateChanged!;
   }
@@ -158,8 +155,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> closePublication() async =>
-      await methodChannel.invokeMethod<void>('closePublication');
+  Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
 
   @override
   Future<void> goBackward() async => await currentReaderWidget?.goBackward();
@@ -176,8 +172,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   @override
   Future<bool> goToProgression(double progression) async =>
-      await methodChannel.invokeMethod<bool>('goToProgression', progression) ??
-      false;
+      await methodChannel.invokeMethod<bool>('goToProgression', progression) ?? false;
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
@@ -202,8 +197,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       await methodChannel.invokeMethod('ttsEnable', preferences?.toJson());
 
   @override
-  Future<void> play(Locator? fromLocator) async =>
-      await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);
+  Future<void> play(Locator? fromLocator) async => await methodChannel.invokeMethod('play', [fromLocator?.toJson()]);
 
   @override
   Future<void> stop() async => await methodChannel.invokeMethod('stop');
@@ -270,8 +264,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('audioSetPreferences', prefs.toJson());
 
   @override
-  Future<void> audioSeekBy(Duration offset) =>
-      methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
+  Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async {
@@ -285,10 +278,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     }
 
     try {
-      final results = resultList
-          .map((e) => TextSearchResult.fromJsonDynamic(e))
-          .whereType<TextSearchResult>()
-          .toList();
+      final results = resultList.map((e) => TextSearchResult.fromJsonDynamic(e)).whereType<TextSearchResult>().toList();
       return results;
     } on Exception catch (e) {
       throw Exception('Failed to parse search results: $e');

@@ -7,9 +7,7 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'test_fixtures_native.dart'
-    if (dart.library.js_interop) 'test_fixtures_web.dart'
-    as platform;
+import 'test_fixtures_native.dart' if (dart.library.js_interop) 'test_fixtures_web.dart' as platform;
 
 /// Returns a map of fixture name → path/URL suitable for the current platform.
 Future<Map<String, String>> loadFixturePaths() => platform.loadFixturePaths();

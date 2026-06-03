@@ -50,11 +50,7 @@ class GuidedNavigationDescription with EquatableMixin implements JSONable {
       jsonObject.opt('text', remove: true),
     );
 
-    if (audioref == null &&
-        imgref == null &&
-        textref == null &&
-        videoref == null &&
-        text == null) {
+    if (audioref == null && imgref == null && textref == null && videoref == null && text == null) {
       ReadiumLog.d(
         'GuidedNavigationDescription: at least one media reference is required',
       );
