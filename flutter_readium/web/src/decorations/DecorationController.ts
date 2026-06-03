@@ -8,7 +8,7 @@
  * and delegate the corresponding public methods to it.
  */
 
-import { EpubNavigator } from "@readium/navigator";
+import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
 import { Decoration, Layout, Width } from "@readium/navigator-html-injectables";
 import { Locator } from "@readium/shared";
 import {
@@ -42,7 +42,7 @@ export class DecorationController {
    * Apply a set of decorations to the visual navigator.
    * Replaces any previously applied decorations in the same group.
    */
-  applyDecorations(nav: EpubNavigator, group: string, decorationsJson: string): void {
+  applyDecorations(nav: EpubNavigator | WebPubNavigator, group: string, decorationsJson: string): void {
     const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
 
     // Clear all subgroups for replacement semantics.
