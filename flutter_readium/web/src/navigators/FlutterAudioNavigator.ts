@@ -5,9 +5,9 @@ import {
   IAudioPreferences,
 } from "@readium/navigator";
 import { Locator, LocatorLocations, Timeline } from "@readium/shared";
-import { normalizeTypes } from "../helpers";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { audioPreferencesFromJson } from "../preferences/FlutterAudioPreferences";
 
 const log = createLogger("AudioNav");
 
@@ -119,24 +119,6 @@ export function buildStatePayload(
   });
 }
 
-// Maps Dart AudioPreferences JSON keys to IAudioPreferences.
-// Dart "speed" -> TS "playbackRate"; Dart "seekInterval" (s) -> TS skip intervals (s);
-// Dart "updateIntervalSecs" (s) -> TS "pollInterval" (ms).
-function preferencesFromString(preferencesString: string): IAudioPreferences {
-  const prefs = normalizeTypes(JSON.parse(preferencesString));
-  log.debug("Parsed AudioPreferences", prefs);
-  return {
-    volume: prefs.volume ?? null,
-    playbackRate: prefs.speed ?? null,
-    skipBackwardInterval: prefs.seekInterval ?? null,
-    skipForwardInterval: prefs.seekInterval ?? null,
-    pollInterval:
-      prefs.updateIntervalSecs != null
-        ? prefs.updateIntervalSecs * 1000
-        : null,
-    autoPlay: true,
-  };
-}
 
 /**
  * Optional locator mapper for custom audio sessions (e.g. Media Overlay).
@@ -350,7 +332,7 @@ export class FlutterAudioNavigator {
     // suppress post-close stragglers from a previous navigator).
     _emissionsEnabled = true;
 
-    const basePrefs = preferencesFromString(preferencesJsonString);
+    const basePrefs = audioPreferencesFromJson(preferencesJsonString);
     if (pollIntervalOverrideMs != null) {
       basePrefs.pollInterval = pollIntervalOverrideMs;
     }
