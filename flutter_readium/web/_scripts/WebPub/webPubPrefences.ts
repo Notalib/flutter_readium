@@ -58,12 +58,11 @@ export function initializeWebPubPreferencesFromString(
     textAlign: prefs.textAlign ?? null,
     textNormalization: prefs.textNormalization ?? null,
     wordSpacing: prefs.wordSpacing ?? null,
-    // Dart sends `fontSize` as a percentage int; convert to the zoom ratio
-    // the navigator expects (matches Epub mapper's `/100`).
-    zoom:
-      typeof prefs.fontSize === "number"
-        ? prefs.fontSize / 100
-        : prefs.zoom ?? null,
+    // Use `fontSize` as a fallback to zoom.
+    // It's sent as a percentage int, so we convert to a zoom ratio.
+    zoom: prefs.zoom ?? typeof prefs.fontSize === "number"
+      ? prefs.fontSize / 100
+      : null,
   };
 
   preferences = normalizeTypes(preferences);
@@ -131,8 +130,8 @@ function warnIfUnsupportedKeys(prefs: Record<string, unknown>): void {
   if (dropped.length > 0) {
     log.warn(
       `Ignoring WebPub-unsupported preferences: ${dropped.join(", ")}. ` +
-        "Upstream WebPubPreferences has no equivalent field. Route via the " +
-        "EPUB profile (manifest conformsTo) to get full preference support."
+      "Upstream WebPubPreferences has no equivalent field. Route via the " +
+      "EPUB profile (manifest conformsTo) to get full preference support."
     );
   }
 }
