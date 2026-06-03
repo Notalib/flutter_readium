@@ -1,0 +1,11 @@
+# Local development override: build this plugin against the in-repo
+# flutter_readium_platform_interface instead of the published version.
+#
+# Kept out of pubspec.yaml on purpose: dependency_overrides in pubspec.yaml would
+# ride along in `dart pub publish`. Per the pub docs, overrides only apply to the
+# root package being resolved and are ignored by consumers of a published package,
+# so this file affects only our own builds (this package as root, e.g. unit tests
+# / analyze) — never client apps.
+dependency_overrides:
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface
