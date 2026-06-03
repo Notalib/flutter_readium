@@ -364,6 +364,24 @@ export class FlutterAudioNavigator {
     // this because the listeners are only called after `nav` is assigned below.
     let nav: AudioNavigator;
 
+    // Local emit shorthand — captures the 5 context args so each listener
+    // only names the state, locator, and alsoText flag it actually varies.
+    const emit = (
+      state: string,
+      locator: Locator | undefined,
+      alsoText: boolean
+    ) =>
+      _emitState(
+        state,
+        nav,
+        locator,
+        locatorMapper,
+        alsoText,
+        computeTotalProgression,
+        onTextLocatorChanged,
+        getTocHref
+      );
+
     // Promise that resolves once the first track is loaded and the navigator is
     // ready for playback. Callers awaiting create() will block until this point,
     // preventing race conditions where Dart calls play() before the navigator is set.
@@ -380,10 +398,7 @@ export class FlutterAudioNavigator {
           }
         },
         positionChanged: (locator) => {
-          _emitState(
-            nav.isPlaying ? "playing" : "paused",
-            nav, locator, locatorMapper, /* alsoText */ true, computeTotalProgression, onTextLocatorChanged, getTocHref
-          );
+          emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
         },
         timelineItemChanged: (item) => {
           if (timeline && item) {
@@ -394,11 +409,11 @@ export class FlutterAudioNavigator {
         },
         play: (locator) => {
           log.info("play event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
-          _emitState("playing", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
+          emit("playing", locator, false);
         },
         pause: (locator) => {
           log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
-          _emitState("paused", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
+          emit("paused", locator, false);
         },
         trackEnded: (locator) => {
           // Only emit "ended" when the publication is truly finished (last track).
@@ -406,21 +421,18 @@ export class FlutterAudioNavigator {
           // would cause Dart-side to close the player prematurely.
           if (!nav.canGoForward) {
             log.info("Publication ended (last track)");
-            _emitState("ended", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
+            emit("ended", locator, false);
           } else {
             log.debug("Track ended, auto-advancing to next track");
           }
         },
         stalled: (isStalled) => {
           log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
-          _emitState(
-            isStalled ? "loading" : nav.isPlaying ? "playing" : "paused",
-            nav, undefined, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref
-          );
+          emit(isStalled ? "loading" : nav.isPlaying ? "playing" : "paused", undefined, false);
         },
         error: (_error, locator) => {
           log.error("AudioNavigator error:", _error, "locator:", locator?.href);
-          _emitState("failure", nav, locator, locatorMapper, false, computeTotalProgression, onTextLocatorChanged, getTocHref);
+          emit("failure", locator, false);
         },
         metadataLoaded: (_metadata) => {},
         seeking: (_isSeeking) => {},
