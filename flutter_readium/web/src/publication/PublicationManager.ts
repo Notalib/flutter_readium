@@ -1,10 +1,9 @@
 /**
  * PublicationManager — publication lifecycle and manifest cache.
  *
- * Extracts the static `_publications` cache and manifest-fetch glue from
- * `_ReadiumReader` so the god class can delegate to this collaborator.
- * The cache is shared across all `PublicationManager` instances (static map)
- * to mirror the original singleton behaviour.
+ * Manages a shared in-memory cache of fetched publications (keyed by
+ * publication identifier). The static cache mirrors the original
+ * singleton behaviour so all instances share the same pool.
  */
 
 import { ReadiumPublication } from "../utils/ReadiumExtensions";

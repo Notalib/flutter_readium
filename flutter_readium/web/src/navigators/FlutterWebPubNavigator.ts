@@ -179,7 +179,9 @@ export class FlutterWebPubNavigator {
 
     try {
       await nav.load();
+      log.info("EpubNavigator loaded");
     } catch (error) {
+      log.error("Failed to load EpubNavigator:", error);
       throw error;
     }
 

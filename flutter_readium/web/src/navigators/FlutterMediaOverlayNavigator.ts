@@ -310,8 +310,8 @@ function _buildAudiobookPublication(
   if (!manifestJson.metadata) manifestJson.metadata = {};
   manifestJson.metadata.conformsTo = [Profile.AUDIOBOOK];
 
-  const manifest = Manifest.deserialize(manifestJson)!;
-  if (manifest == undefined) {
+  const manifest = Manifest.deserialize(manifestJson);
+  if (!manifest) {
     throw new Error("Failed to create new Audiobook manifest");
   }
 
