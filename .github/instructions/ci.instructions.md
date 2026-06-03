@@ -37,6 +37,24 @@ Use `bin/prepare-release <version>` before tagging. It:
 
 Do not automate this in the CI pipeline — the changelog rewrite should be in the tagged commit itself, not a commit pushed by the workflow after tagging.
 
+## Flutter version pinning
+
+All workflows pin Flutter via `.flutter-version` (the fvm version file). **Do not use `flutter-version-file:` in `subosito/flutter-action`** — that input treats the version as a semver constraint and resolves to the latest matching stable, not an exact pin. Instead, read the file in a dedicated step and pass the result as `flutter-version:`:
+
+```yaml
+- name: Read Flutter version
+  id: flutter_version
+  run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
+
+- uses: subosito/flutter-action@<sha> # v2.x
+  with:
+    flutter-version: ${{ steps.flutter_version.outputs.version }}
+    cache: true
+    pub-cache: true
+```
+
+Omit `channel:` when an exact version is passed — it's inferred and `channel: stable` in combination with `flutter-version-file:` was observed to override the pinned version with latest stable.
+
 ## Integration vs build workflows
 
 `flutter test integration_test` performs its own build internally (targeting the emulator/simulator) and cannot consume a pre-built APK/app from the build workflows. Don't couple the integration-test workflow to the build workflows — they serve different purposes. Share only caching patterns.
