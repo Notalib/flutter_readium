@@ -1,56 +1,39 @@
 import "./style.css";
 
-import { AudioNavigator, AudioPreferences, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Locator, Resource } from "@readium/shared";
+import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
+import { Locator } from "@readium/shared";
 import { Link } from "@readium/shared";
-import { Layout, Width, Decoration } from "@readium/navigator-html-injectables";
 
-// Helpers and extensions
-import { createLogger, LogLevel, setLogLevel } from "./logger";
-import {
-  fetchManifest,
-  setPreferencesFromString,
-  sendDecorate,
-  navIframeWindows,
-  registerPendingDecorationGroup,
-  UNDERLINE_GROUP_SUFFIX,
-  dartColorToCss,
-} from "./helpers";
-import { ReadiumReaderStatus } from "./enums";
-import { ReadiumPublication } from "./extensions/ReadiumPublication";
-import { initializeEpubNavigatorAndPeripherals } from "./Epub/epubNavigator";
-import { setEpubPreferencesFromString } from "./Epub/epubPreferences";
-import { initializeWebPubNavigatorAndPeripherals } from "./WebPub/webpubNavigator";
-import { initializeAudioNavigator, seekAudioAndResume, setAudioEmissionsEnabled } from "./Audio/audioNavigator";
+// Bridge
+import { ReadiumBridge } from "./bridge/ReadiumBridge";
+// Publication
+import { PublicationManager } from "./publication/PublicationManager";
+// Decorations
+import { DecorationController } from "./decorations/DecorationController";
+// Model
+import { ReadiumReaderStatus } from "./model/ReadiumReaderStatus";
+// Utils
+import { createLogger, LogLevel, setLogLevel } from "./utils/ReadiumPluginLogger";
+import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
+// Navigators
+import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
+import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
+import { FlutterAudioNavigator } from "./navigators/FlutterAudioNavigator";
+import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
+import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
+// Preferences
+import { setEpubPreferencesFromString } from "./preferences/FlutterEpubPreferences";
+import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
+import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
+// Sync narration
 import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./Audio/syncNarration";
 import { detectGuidedNavigation } from "./Audio/guidedNavigation";
-import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./Audio/mediaOverlayNavigator";
-import { WebTTSEngine } from "./TTS/ttsNavigator";
-import { ttsPreferencesFromJson } from "./TTS/ttsPreferences";
+// Decoration overrides (for comic/visual sync)
+import { navIframeWindows } from "./decorations/decorationOverrides";
+// setAudioEmissionsEnabled (still needed for closePublication)
+import { setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
 
 const log = createLogger("Reader");
-
-/** Finds a link by href, falling back to pathname comparison for relative vs. absolute mismatches. */
-function findLinkByHref(
-  items: Link[] | undefined,
-  href: string
-): Link | undefined {
-  if (!items || items.length === 0) return undefined;
-  const exact = items.find((l) => l.href === href);
-  if (exact) return exact;
-  try {
-    const hrefPath = new URL(href, "http://localhost").pathname;
-    return items.find((l) => {
-      try {
-        return new URL(l.href, "http://localhost").pathname === hrefPath;
-      } catch {
-        return false;
-      }
-    });
-  } catch {
-    return undefined;
-  }
-}
 
 class _ReadiumReader {
   public constructor() {
@@ -70,7 +53,7 @@ class _ReadiumReader {
   private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
-  private _ttsEngine: WebTTSEngine | undefined;
+  private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
   private _positions: Locator[] = [];
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
@@ -85,16 +68,6 @@ class _ReadiumReader {
    */
   private _disableSynchronization = false;
 
-  // Maps group name → set of decoration IDs currently applied, used for group-replacement semantics.
-  private _decorationsByGroup: Map<string, Set<string>> = new Map();
-
-  // Stored decoration styles for TTS/media-overlay use.
-  // Defaults match iOS/Android: yellow highlight for utterance, black underline for range.
-  // Stored in Dart #AARRGGBB format so dartColorToCss() converts them correctly when
-  // they flow through applyDecorations(). Overridden by setDecorationStyle() from Dart.
-  private _utteranceStyle: object | null = { style: "highlight", tint: "#ffffff00" };  // Dart AARRGGBB: A=ff R=ff G=ff B=00 → opaque yellow
-  private _rangeStyle: object | null = { style: "underline", tint: "#ff000000" };      // Dart AARRGGBB: A=ff R=00 G=00 B=00 → opaque black
-
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
   private _lastMediaOverlayLocatorKey: string | null = null;
@@ -103,34 +76,26 @@ class _ReadiumReader {
   // is a comic-book page. Used to skip nav.go() for all subsequent cues.
   private _isComicBook = false;
 
+  // Collaborators
+  private readonly _bridge = new ReadiumBridge();
+  private readonly _pubManager = new PublicationManager();
+  private readonly _decorations = new DecorationController();
+
   public get isNavigatorReady(): boolean {
     return !!this._nav;
   }
 
-  private static _publications: Map<string, ReadiumPublication> = new Map<
-    string,
-    ReadiumPublication
-  >();
-
   public async getPublication(publicationURL: string) {
     log.info("getPublication", publicationURL);
     try {
-      const { manifest, fetcher } = await fetchManifest(publicationURL);
-      this._publication = new ReadiumPublication({ manifest, fetcher });
-
-      let pubId = this._publication.metadata.identifier ?? "unidentified";
-      _ReadiumReader._publications.set(pubId, this._publication);
-
-      log.info("Publication fetched:", pubId);
-      return JSON.stringify(manifest.serialize());
+      const { publication, manifestJson } = await this._pubManager.fetchAndCache(publicationURL);
+      this._publication = publication;
+      log.info("Publication fetched:", publication.metadata.identifier ?? "unidentified");
+      return manifestJson;
     } catch (error) {
       log.error("Failed to get publication:", error);
-      // Surface the failure on the onErrorEvent stream. Most open failures (bad
-      // URL, unreachable host, non-JSON response) happen here in the manifest
-      // fetch, before openPublication runs — so without this, onErrorEvent would
-      // never see the most common error case.
       const errorMessage = error instanceof Error ? error.message : String(error);
-      window.onErrorCallback?.(JSON.stringify({ message: "Failed to get publication: " + errorMessage }));
+      this._bridge.emitError("Failed to get publication: " + errorMessage);
       throw new Error("Error getting publication: " + error);
     }
   }
@@ -268,7 +233,7 @@ class _ReadiumReader {
     preferencesJson: string | undefined
   ) {
     log.info("openPublication", { pubId, hasInitialPosition: !!initialPositionJson });
-    window.updateReaderStatus?.(ReadiumReaderStatus.loading);
+    this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
 
     let initialPosition: Locator | undefined;
 
@@ -287,23 +252,18 @@ class _ReadiumReader {
 
     try {
       // TODO: match native
-      this._publication = _ReadiumReader._publications.get(pubId);
-      if (!this._publication) {
-        const { manifest, fetcher } = await fetchManifest(publicationURL);
-        this._publication = new ReadiumPublication({ manifest, fetcher });
-        _ReadiumReader._publications.set(pubId, this._publication);
-      }
+      this._publication = await this._pubManager.getOrFetch(pubId, publicationURL);
 
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
-        await initializeAudioNavigator(
+        await FlutterAudioNavigator.create(
           this._publication,
           initialPosition,
           preferencesJsonString,
           (nav) => {
             this._audioNav = nav;
-            window.updateReaderStatus?.(ReadiumReaderStatus.ready);
+            this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
           }
         );
       } else {
@@ -312,7 +272,7 @@ class _ReadiumReader {
           document.body.querySelector("#container");
         if (!container) {
           log.error("Container element #container not found in DOM");
-          window.updateReaderStatus?.(ReadiumReaderStatus.error);
+          this._bridge.emitReaderStatus(ReadiumReaderStatus.error);
           throw new Error("Container element not found");
         }
         if (this._publication.conformsToEpub) {
@@ -322,27 +282,27 @@ class _ReadiumReader {
           if (this._hasSyncNarration) log.info("Sync Narration detected");
           this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
           if (this._hasGuidedNavigation) log.info("Guided Navigation detected");
-          await initializeEpubNavigatorAndPeripherals(
+          await FlutterEpubNavigator.create(
             container,
             this._publication,
             initialPosition,
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
-              window.updateReaderStatus?.(ReadiumReaderStatus.ready);
+              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
             (positions) => { this._positions = positions; }
           );
         } else {
           log.info("Publication conforms to WebPub profile");
-          await initializeWebPubNavigatorAndPeripherals(
+          await FlutterWebPubNavigator.create(
             container,
             this._publication,
             initialPosition,
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
-              window.updateReaderStatus?.(ReadiumReaderStatus.ready);
+              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             }
           );
         }
@@ -350,7 +310,7 @@ class _ReadiumReader {
     } catch (error) {
       log.error("Failed to open publication:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      window.onErrorCallback?.(JSON.stringify({ message: "Failed to open publication: " + errorMessage }));
+      this._bridge.emitError("Failed to open publication: " + errorMessage);
       this.closePublication(error);
       throw new Error("Error opening publication: " + error);
     }
@@ -367,7 +327,6 @@ class _ReadiumReader {
     try {
       const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
       this._disableSynchronization = parsed.disableSynchronization === true;
-      // TODO: Also notify MediaOverlayNavigator or generalize the callback?
       this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
     } catch (_) {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
@@ -394,62 +353,7 @@ class _ReadiumReader {
       console.warn("applyDecorations: navigator not ready, skipping");
       return;
     }
-
-    const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
-
-    // Clear all subgroups for replacement semantics.
-    for (const grp of [group, underlineGroup]) {
-      sendDecorate(this._nav, grp, "clear", undefined);
-      this._decorationsByGroup.set(grp, new Set());
-    }
-
-    const decorationsRaw: Array<{
-      id: string;
-      locator: object;
-      style: { style: string; tint: string };
-    }> = JSON.parse(decorationsJson);
-
-    // Convert tints from Dart's AARRGGBB to CSS RRGGBBAA at the entry point so
-    // all downstream paths (highlight fill, underline CSS) see CSS colors.
-    for (const item of decorationsRaw) {
-      item.style.tint = dartColorToCss(item.style.tint);
-    }
-
-    const iframes = navIframeWindows(this._nav);
-
-    // Look ahead to collect the first tint per subgroup for FIFO pairing.
-    const firstTintByGroup = new Map<string, { isUnderline: boolean; tint: string }>();
-    for (const raw of decorationsRaw) {
-      const grp = this._subgroupFor(group, raw.style.style);
-      if (!firstTintByGroup.has(grp)) {
-        firstTintByGroup.set(grp, { isUnderline: raw.style.style === "underline", tint: raw.style.tint });
-      }
-    }
-    for (const [grp, meta] of firstTintByGroup) {
-      registerPendingDecorationGroup(iframes, grp, meta.isUnderline, meta.tint);
-    }
-
-    for (const raw of decorationsRaw) {
-      const targetGroup = this._subgroupFor(group, raw.style.style);
-      const decoration: Decoration = {
-        id: raw.id,
-        locator: Locator.deserialize(raw.locator)!,
-        style: {
-          tint: raw.style.tint,
-          layout: Layout.Bounds,
-          width: Width.Wrap,
-        },
-      };
-      sendDecorate(this._nav, targetGroup, "add", decoration);
-      this._decorationsByGroup.get(targetGroup)!.add(raw.id);
-    }
-  }
-
-  private _subgroupFor(group: string, style: string): string {
-    switch (style) {
-      case "underline": return group + UNDERLINE_GROUP_SUFFIX;
-      default:          return group; // "highlight" and anything unknown
-    }
+    this._decorations.applyDecorations(this._nav, group, decorationsJson);
   }
 
   /**
@@ -464,9 +368,11 @@ class _ReadiumReader {
     utteranceStyleJson: string | null,
     rangeStyleJson: string | null
   ): void {
-    this._utteranceStyle = utteranceStyleJson ? JSON.parse(utteranceStyleJson) : null;
-    this._rangeStyle = rangeStyleJson ? JSON.parse(rangeStyleJson) : null;
-    this._ttsEngine?.updateDecorationStyles(this._utteranceStyle, this._rangeStyle);
+    this._decorations.setDecorationStyle(
+      utteranceStyleJson,
+      rangeStyleJson,
+      (utterance, range) => this._ttsEngine?.updateDecorationStyles(utterance, range)
+    );
   }
 
   public closePublication(error?: any) {
@@ -492,7 +398,7 @@ class _ReadiumReader {
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
     this._isComicBook = false;
-    this._decorationsByGroup.clear();
+    this._decorations.reset();
 
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
@@ -507,7 +413,7 @@ class _ReadiumReader {
     // Emit status synchronously so Dart receives it before any async navigator cleanup.
     // Do NOT delete the window callbacks here — the Dart side re-registers them before each
     // openPublication call, and deleting them asynchronously races with the new registration.
-    window.updateReaderStatus?.(error ? ReadiumReaderStatus.error : ReadiumReaderStatus.closed);
+    this._bridge.emitReaderStatus(error ? ReadiumReaderStatus.error : ReadiumReaderStatus.closed);
 
     const navDestroy = nav?.destroy();
     if (navDestroy) {
@@ -526,10 +432,6 @@ class _ReadiumReader {
    * Seeks the AudioNavigator to `audioLocator` and (optionally) resumes playback,
    * restarting upstream position polling. Thin wrapper over the shared
    * {@link seekAudioAndResume} helper that no-ops when no navigator is active.
-   *
-   * See `seekAudioAndResume` for why the pause-before-seek is required (upstream
-   * `go()` leaves position polling stopped when resuming an already-playing
-   * element, freezing `currentLocator` and Media Overlay highlights).
    */
   private _seekAudioAndResume(
     audioLocator: Locator,
@@ -662,13 +564,13 @@ class _ReadiumReader {
     // Destroy any previous TTS session.
     this._ttsEngine?.destroy();
     const prefs = ttsPreferencesFromJson(JSON.parse(prefsJson));
-    this._ttsEngine = new WebTTSEngine(
+    this._ttsEngine = new FlutterTTSNavigator(
       this._nav,
       this._publication,
       prefs,
       !this._disableSynchronization,
-      this._utteranceStyle,
-      this._rangeStyle,
+      this._decorations.utteranceStyle,
+      this._decorations.rangeStyle,
       (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
     );
     const fromLocator = fromLocatorJson
@@ -679,7 +581,7 @@ class _ReadiumReader {
 
   /** Returns a JSON string containing available browser TTS voices. */
   public async ttsGetAvailableVoices(): Promise<string> {
-    return WebTTSEngine.getAvailableVoices();
+    return FlutterTTSNavigator.getAvailableVoices();
   }
 
   /**
@@ -702,25 +604,6 @@ class _ReadiumReader {
   // Audio / Media Overlay API
   // ---------------------------------------------------------------------------
 
-  /**
-   * Follows Media Overlay / Guided Navigation audio with the visual navigator:
-   * turns the page to the spoken text, then highlights it. Invoked on every
-   * audio cue; de-duplicated by "<href><fragment>" so repeated poll ticks
-   * within a single cue don't re-navigate or re-decorate.
-   *
-   * Order matters. The page turn must finish before the decoration is applied,
-   * otherwise the target resource's iframe isn't rendered yet and the upstream
-   * Decorator logs "Can't locate DOM range for decoration". `nav.go()` resolves
-   * the resource from the position list by href — so a position-less text
-   * locator (sync-narration / guided-nav locators only carry href + fragments)
-   * is fine — and scrolls to the fragment / cssSelector within it. The
-   * decoration is applied in the navigation-completion callback.
-   *
-   * Mirrors iOS FlutterMediaOverlayNavigator: `reachedLocator` → syncToLocator
-   * (page-follow, skipped when sync is disabled) plus `requestsHighlightAt` →
-   * decoration. When synchronization is disabled the page is left where it is
-   * and only the highlight is refreshed.
-   */
   /**
    * Calls `window.gotoComicFrame(fragmentId, durationMs)` on the given iframe
    * window, retrying via requestAnimationFrame until `window.comicBookPage` is
@@ -762,13 +645,6 @@ class _ReadiumReader {
   /**
    * Synchronises the visual EPUB navigator to the active Media Overlay / Guided
    * Navigation cue.
-   *
-   * For normal (non-comic) publications: calls nav.go() to follow the page, then
-   * applies the utterance-highlight decoration.
-   *
-   * For comic-book publications (detected via window.isNotaComicBook()): skips
-   * nav.go() entirely (it would crash ColumnSnapper on quirks-mode FXL docs) and
-   * delegates pan/zoom to window.gotoComicFrame(fragmentId, durationMs).
    */
   private _syncVisualToMediaOverlayLocator(
     textLocator: Locator,
@@ -789,8 +665,6 @@ class _ReadiumReader {
     );
 
     // --- Comic-book path ---
-    // Check whether any loaded iframe is a comic page. Once confirmed, cache the
-    // result so subsequent cues don't re-scan (all pages in a comic book are comics).
     if (!this._isComicBook) {
       const iframes = navIframeWindows(nav);
       for (const wnd of iframes) {
@@ -808,12 +682,6 @@ class _ReadiumReader {
     if (this._isComicBook) {
       const iframes = navIframeWindows(nav);
 
-      // Determine whether the target resource is already loaded in an iframe.
-      // If not (cross-resource navigation), we must call nav.go() first so Readium
-      // loads the new XHTML into the iframe. Without it the reader stays on the old
-      // resource. Once nav.go() completes (new document rendered), we call
-      // gotoComicFrame to pan to the first panel. The scrollingElement null-guard
-      // in our bootstrap script prevents the ColumnSnapper crash during navigation.
       const targetWnd = iframes.find((w) => {
         try {
           return (
@@ -831,7 +699,6 @@ class _ReadiumReader {
         this._callGotoComicFrame(wnd, fragmentId, frameDuration);
 
       if (!targetWnd) {
-        // Resource not loaded yet — navigate first, then pan.
         log.debug(
           `${sourceLabel}: [comic] cross-resource nav to "${textLocator.href}", calling nav.go() then gotoComicFrame`
         );
@@ -842,7 +709,6 @@ class _ReadiumReader {
             );
             return;
           }
-          // After nav.go() the iframes list is updated — find the newly loaded one.
           const newIframes = navIframeWindows(nav);
           const newWnd =
             newIframes.find((w) => {
@@ -862,7 +728,6 @@ class _ReadiumReader {
             );
         });
       } else {
-        // Same resource — skip nav.go() entirely, just pan.
         log.debug(
           `${sourceLabel}: [comic] same-resource frame, calling gotoComicFrame directly`
         );
@@ -873,13 +738,13 @@ class _ReadiumReader {
 
     // --- Normal (non-comic) path ---
     const applyUtteranceDecoration = () => {
-      if (!this._utteranceStyle || !this._nav) return;
+      if (!this._decorations.utteranceStyle || !this._nav) return;
       try {
         const decoration = [
           {
             id: textLocator.href,
             locator: textLocator.serialize(),
-            style: this._utteranceStyle,
+            style: this._decorations.utteranceStyle,
           },
         ];
         this.applyDecorations(
@@ -891,15 +756,11 @@ class _ReadiumReader {
       }
     };
 
-    // When the user has disabled synchronization, don't drag the page around —
-    // just refresh the highlight on whatever is currently shown.
     if (this._disableSynchronization) {
       applyUtteranceDecoration();
       return;
     }
 
-    // Follow the audio: turn the visual page to the spoken text, then highlight
-    // once navigation settles so the target iframe is rendered.
     nav.go(textLocator, false, (ok) => {
       if (!ok) {
         log.warn(
@@ -917,19 +778,13 @@ class _ReadiumReader {
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
-    // Resolve starting locator: caller-supplied wins; otherwise fall back to the
-    // visual navigator's current locator so audio picks up where the reader is.
-    // Mirrors `initialLocator ?: epubNavigator?.currentLocator?.value` on Android.
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : this._nav?.currentLocator;
 
     if (this._audioNav) {
-      // AudioNavigator already initialized (pure audiobook or re-enable on MediaOverlay EPUB).
-      // Seek to locator (if available), mapping text→audio for MediaOverlay first.
       if (resolvedFromLocator) {
         let locator = resolvedFromLocator;
-        // MediaOverlay: map text locator → audio locator before seeking.
         if (this._syncItems.length > 0) {
           locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
         }
@@ -956,7 +811,6 @@ class _ReadiumReader {
 
     if (this._hasSyncNarration && this._publication) {
       const fromLocator = resolvedFromLocator;
-      // Reset deduplication key so a fresh session always applies its first decoration.
       this._lastMediaOverlayLocatorKey = null;
       await initializeMediaOverlayNavigator(
         this._publication,
@@ -965,9 +819,6 @@ class _ReadiumReader {
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
         (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
       );
-      // Re-read after await; cast to break TypeScript's control-flow narrowing
-      // which assumes _audioNav is still undefined (it was set by the callback).
-      // TODO: This seems awkward, could the Future just return navigator?
       (this._audioNav as AudioNavigator | undefined)?.play();
       return;
     }
@@ -978,16 +829,7 @@ class _ReadiumReader {
   public setAudioPreferences(preferencesJson: string): void {
     log.debug("setAudioPreferences");
     if (!this._audioNav) return;
-    const prefs = JSON.parse(preferencesJson);
-    this._audioNav.submitPreferences(new AudioPreferences({
-      volume: prefs.volume ?? null,
-      playbackRate: prefs.speed ?? null,
-      skipBackwardInterval: prefs.seekInterval ?? null,
-      skipForwardInterval: prefs.seekInterval ?? null,
-      pollInterval: prefs.updateIntervalSecs != null
-        ? prefs.updateIntervalSecs * 1000
-        : null,
-    }));
+    applyAudioPreferences(this._audioNav, preferencesJson);
   }
 }
 
