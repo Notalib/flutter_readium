@@ -1,4 +1,4 @@
-import { ReadiumReaderStatus } from "./enums";
+import { ReadiumReaderStatus } from "../model/ReadiumReaderStatus";
 
 declare global {
   interface Window {
@@ -33,4 +33,3 @@ declare global {
     onErrorCallback?: (errorJson: string) => void;
   }
 }
-
