@@ -52,20 +52,59 @@ export interface Logger {
   error(...args: unknown[]): void;
 }
 
+/**
+ * Renders the log args into a single human-readable string. `Error`s collapse to
+ * `name: message`; other objects are JSON-stringified (with a `String()` fallback
+ * for circular structures).
+ */
+function format(args: unknown[]): string {
+  return args
+    .map((a) => {
+      if (typeof a === "string") return a;
+      if (a instanceof Error) return `${a.name}: ${a.message}`;
+      try {
+        return JSON.stringify(a);
+      } catch {
+        return String(a);
+      }
+    })
+    .join(" ");
+}
+
+/** The object/Error args worth inspecting interactively in DevTools. */
+function inspectables(args: unknown[]): unknown[] {
+  return args.filter((a) => a !== null && typeof a === "object");
+}
+
+/**
+ * Each log call passes the fully-formatted message as the FIRST argument, then
+ * re-appends any object/Error args.
+ *
+ * Why both: browser DevTools renders the original variadic objects as expandable
+ * trees (with `Error` stacks), but `flutter drive`'s console bridge forwards only
+ * the FIRST argument to the terminal — so the old `console.info(level, prefix,
+ * ...args)` form collapsed to just "INFO" under web integration tests. Putting the
+ * full string first keeps the terminal output complete, while the trailing object
+ * args (ignored by flutter-drive) preserve DevTools' interactive inspection.
+ */
 export function createLogger(tag: string): Logger {
   const prefix = `[Readium/${tag}]`;
   return {
     debug: (...args) => {
-      if (_currentLevel >= LogLevel.debug) console.debug("DEBUG", prefix, ...args);
+      if (_currentLevel >= LogLevel.debug)
+        console.debug(`DEBUG ${prefix} ${format(args)}`, ...inspectables(args));
     },
     info: (...args) => {
-      if (_currentLevel >= LogLevel.info) console.info("INFO ", prefix, ...args);
+      if (_currentLevel >= LogLevel.info)
+        console.info(`INFO  ${prefix} ${format(args)}`, ...inspectables(args));
     },
     warn: (...args) => {
-      if (_currentLevel >= LogLevel.warn) console.warn("WARN ", prefix, ...args);
+      if (_currentLevel >= LogLevel.warn)
+        console.warn(`WARN  ${prefix} ${format(args)}`, ...inspectables(args));
     },
     error: (...args) => {
-      if (_currentLevel >= LogLevel.error) console.error("ERROR", prefix, ...args);
+      if (_currentLevel >= LogLevel.error)
+        console.error(`ERROR ${prefix} ${format(args)}`, ...inspectables(args));
     },
   };
 }

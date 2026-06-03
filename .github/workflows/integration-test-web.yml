@@ -1,0 +1,42 @@
+name: Integration Tests (Android)
+
+on:
+  workflow_call:
+
+jobs:
+
+  web:
+    name: Web (ChromeDriver)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true # allowed to fail for now
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version-file: .flutter-version
+          cache: true
+          pub-cache: true
+
+      - name: Install Dart dependencies
+        run: flutter pub get
+        working-directory: flutter_readium/example
+
+      - name: Install ChromeDriver
+        uses: nanasess/setup-chromedriver@c75c3d53d445b96d41dbf2355797b470953c6c30 # v2.4.0
+
+      - name: Start ChromeDriver
+        run: |
+          chromedriver --port=4444 &
+          sleep 2
+
+      - name: Run web integration tests
+        working-directory: flutter_readium/example
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/plugin_integration_test.dart \
+            -d chrome

@@ -38,3 +38,34 @@ Gutenberg no longer offers PDF as a native download format, hence the HTML →
 Chrome round-trip. The result is a real text-based PDF (selectable text,
 embedded fonts) suitable for exercising `PDFPositionsService` and the PDFium
 adapter.
+
+## Web integration-test fixtures (`example/web/`)
+
+The web integration tests fetch RWPM `manifest.json` endpoints. To keep CI
+deterministic (no dependency on external hosts), most fixtures are served
+**locally** from `example/web/` — Flutter copies the whole `web/` tree into the
+build output, so each resolves at the app origin during `flutter drive -d chrome`.
+The mapping lives in `integration_test/test_fixtures_web.dart`.
+
+| Served path                     | Reading mode        | Produced from                                  |
+| ------------------------------- | ------------------- | ---------------------------------------------- |
+| `/test-overlay/`                | media overlay       | `38533_overlay_preview.webpub`, trimmed to 4 ch |
+| `/test-audiobook-nota/`         | audiobook           | `38533.audiobook`, trimmed to 3 tracks          |
+| `/test-guided-navigation/`      | guided navigation   | 38533 guided-nav preview (4 ch)                 |
+| `/test-comic/`                  | comic media overlay | `50272-nota-comics.webpub`, exploded as-is      |
+| `/test-fixed-layout/`           | fixed-layout EPUB   | hand-authored (inline SVG, public-domain)       |
+
+Reflowable EPUB stays remote (`readium.org` Moby-Dick) — it is the shared
+cross-platform workhorse and ships only as `.epub` (no manifest to explode).
+
+The packaged Nota `.webpub` / `.audiobook` assets already contain a relative-href
+`manifest.json`, so they were exploded into `example/web/` and trimmed to a few
+chapters (drop trailing reading-order entries + the resources/toc/audio they
+reference, then recompute `metadata.duration`) to keep them ~3–5 MB each. The
+explode/trim is reproducible via `bin/trim_web_fixture.py` — e.g.
+`bin/trim_web_fixture.py …/38533_overlay_preview.webpub …/web/test-overlay 4`
+(omit the count to explode as-is, as for `test-comic/`).
+`test-fixed-layout/` was authored by hand: a `manifest.json` declaring
+`metadata.presentation.layout: "fixed"` plus three viewport-sized XHTML pages, each
+an inline `<svg>` (no binary images), so the fixture is tiny and unambiguously
+public-domain.

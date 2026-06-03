@@ -280,6 +280,20 @@ export function seekAudioAndResume(
  *                               mapper is active (Media Overlay items carry tocHref
  *                               directly from `SyncNarrationItem.tocHref`).
  */
+// When a publication is closed, the upstream AudioNavigator can still fire a
+// trailing event (e.g. a settling `onSeeked` → `positionChanged`) after stop()
+// and destroy(). Those would emit a stale textLocator / timebased state to Dart
+// and run the visual Media Overlay sync against a torn-down frame ("Trying to use
+// frame window when it doesn't exist"). `_emitState` is the single chokepoint for
+// all such emissions, so gating it here suppresses any post-close stragglers.
+// Re-enabled whenever a fresh AudioNavigator is created (see initializeAudioNavigator).
+let _emissionsEnabled = true;
+
+/** Enable/disable audio navigator emissions (text/state/visual sync). */
+export function setAudioEmissionsEnabled(enabled: boolean): void {
+  _emissionsEnabled = enabled;
+}
+
 function _emitState(
   state: string,
   nav: AudioNavigator,
@@ -290,6 +304,7 @@ function _emitState(
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   getTocHref?: () => string | undefined
 ): void {
+  if (!_emissionsEnabled) return;
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
     const { stateLocator, textLocator } = mapper(nav, locator);
@@ -347,6 +362,10 @@ export async function initializeAudioNavigator(
     locatorMapper ? "[Media Overlay mapper attached]" : "",
     pollIntervalOverrideMs != null ? `[pollInterval override: ${pollIntervalOverrideMs}ms]` : ""
   );
+
+  // A fresh session: re-enable emissions (closePublication disables them to
+  // suppress post-close stragglers from a previous navigator).
+  _emissionsEnabled = true;
 
   const basePrefs = preferencesFromString(preferencesJsonString);
   if (pollIntervalOverrideMs != null) {
