@@ -5,7 +5,7 @@
  * translating Dart Color values into CSS colour strings for decorations.
  */
 
-import { dartColorToCss } from "../helpers";
+import { dartColorToCss } from "../utils/colors";
 
 describe("dartColorToCss", () => {
   // ── Normal 8-digit hex ──────────────────────────────────────────────────

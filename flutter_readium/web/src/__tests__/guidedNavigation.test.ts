@@ -14,7 +14,7 @@ import {
   parseTextField,
   SyncNarrationItem,
 } from "../Audio/syncNarration";
-import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
 const { parseDocument, parseObject } = __testing__;
 
