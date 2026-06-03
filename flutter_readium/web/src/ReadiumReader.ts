@@ -17,7 +17,7 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 // Navigators
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
-import { FlutterAudioNavigator } from "./navigators/FlutterAudioNavigator";
+import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
@@ -29,8 +29,6 @@ import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } fro
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationOverrides";
-// setAudioEmissionsEnabled (still needed for closePublication)
-import { setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
 
 const log = createLogger("Reader");
 
