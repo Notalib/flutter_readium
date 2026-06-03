@@ -20,6 +20,11 @@ import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { injectDecorationOverrides } from "../decorations/decorationOverrides";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { enrichWithTotalProgression } from "./locatorEnrich";
+import {
+  scrollVisibleIframes,
+  handleExternalLocator,
+  buildTextSelectionPayload,
+} from "./navigatorUtils";
 
 const log = createLogger("WebPubNav");
 
@@ -89,24 +94,8 @@ export class FlutterWebPubNavigator {
           nav.goRight(true, () => {});
         } else if (direction === "left") {
           nav.goLeft(true, () => {});
-        } else if (direction === "up") {
-          const iframes = document.querySelectorAll(".readium-navigator-iframe");
-          iframes.forEach((iframe) => {
-            if (iframe instanceof HTMLIFrameElement) {
-              if (iframe.style.visibility !== "hidden") {
-                iframe.contentWindow?.scrollBy(0, -100);
-              }
-            }
-          });
-        } else if (direction === "down") {
-          const iframes = document.querySelectorAll(".readium-navigator-iframe");
-          iframes.forEach((iframe) => {
-            if (iframe instanceof HTMLIFrameElement) {
-              if (iframe.style.visibility !== "hidden") {
-                iframe.contentWindow?.scrollBy(0, 100);
-              }
-            }
-          });
+        } else if (direction === "up" || direction === "down") {
+          scrollVisibleIframes(direction);
         }
       },
       menu: (_show) => {},
@@ -142,29 +131,15 @@ export class FlutterWebPubNavigator {
       zoom: function (_scale: number): void {},
       customEvent: function (_key: string, _data: unknown): void {},
       handleLocator: function (locator: Locator): boolean {
-        const href = locator.href;
-        if (
-          href.startsWith("http://") ||
-          href.startsWith("https://") ||
-          href.startsWith("mailto:") ||
-          href.startsWith("tel:")
-        ) {
-          if (confirm(`Open "${href}" ?`)) window.open(href, "_blank");
-        } else {
-          log.warn("Unhandled locator href:", href);
-        }
+        handleExternalLocator(locator.href);
         return false;
       },
       contentProtection: function (_type: string, _data: any): void {},
       peripheral: function (_data: KeyboardPeripheralEventData): void {},
       contextMenu: function (_data: ContextMenuEvent): void {},
       textSelected: function (_selection: BasicTextSelection): void {
-        const locatorJson = {
-          ...nav.currentLocator.serialize(),
-          text: { highlight: _selection.text },
-        };
         window.onTextSelectedCallback?.(
-          JSON.stringify({ locator: locatorJson, selectedText: _selection.text })
+          buildTextSelectionPayload(nav.currentLocator, _selection)
         );
       },
     };
