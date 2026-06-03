@@ -1,5 +1,5 @@
 /**
- * Unit tests for locator helpers in Audio/syncNarration.ts.
+ * Unit tests for locator helpers in mediaoverlay/syncNarration.ts.
  *
  * Covers:
  *   - textLocatorForItem
@@ -15,7 +15,7 @@ import {
   findItemByAudioTime,
   textLocatorForItem,
   textLocatorToAudioLocator,
-} from "../Audio/syncNarration";
+} from "../mediaoverlay/syncNarration";
 
 // ---------------------------------------------------------------------------
 // Helpers

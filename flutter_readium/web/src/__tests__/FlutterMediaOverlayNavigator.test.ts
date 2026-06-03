@@ -11,7 +11,7 @@
 
 import { Link } from "@readium/shared";
 import { __testing__ } from "../navigators/FlutterMediaOverlayNavigator";
-import { SyncNarrationItem } from "../Audio/syncNarration";
+import { SyncNarrationItem } from "../mediaoverlay/syncNarration";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
 const { audioMimeType, resolveItemHrefs, buildAudioReadingOrder } = __testing__;
