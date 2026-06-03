@@ -1,5 +1,4 @@
-import { Profile, Publication, MediaType } from "@readium/shared";
-import { Link } from "@readium/shared";
+import { Profile, Publication, MediaType, Link } from "@readium/shared";
 
 export class ReadiumPublication extends Publication {
   private conformsToArray = this.manifest.metadata.conformsTo;
@@ -47,15 +46,9 @@ export function findLinkByHref(
   }
 }
 
-export function mediaTypes(publication: ReadiumPublication) {
-  let selfLinks = publication.manifest.linksWithRel("self");
-  let mediaTypesString = selfLinks
+export function mediaTypes(publication: ReadiumPublication): MediaType[] {
+  return publication.manifest.linksWithRel("self")
     .map((link) => link.type)
-    .filter((type): type is string => typeof type === "string");
-
-  let mediaTypesList: MediaType[] = mediaTypesString.map((type) =>
-    MediaType.parse({ mediaType: type })
-  );
-
-  return mediaTypesList;
+    .filter((type): type is string => typeof type === "string")
+    .map((type) => MediaType.parse({ mediaType: type }));
 }

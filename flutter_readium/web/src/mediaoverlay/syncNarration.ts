@@ -193,12 +193,8 @@ export function textLocatorToAudioLocator(
   items: SyncNarrationItem[],
   textLocator: Locator
 ): Locator | undefined {
-  log.debug("Mapping text locator to audio locator:", textLocator.href);
-  log.debug("Available SyncNarrationItems:");
-  for (const item of items) {
-    log.debug(`- textHref: ${item.textHref}, textId: ${item.textId}, audioHref: ${item.audioHref}, audioStart: ${item.audioStart}, audioEnd: ${item.audioEnd}`);
-  }
   const targetHref = textLocator.href;
+  log.debug(`Mapping text locator to audio: href="${targetHref}", ${items.length} items`);
   // Strip any fragment leaking into the href (e.g. ToC links like "chap1.xhtml#sec1")
   // so the href-only fallback still matches the right resource.
   const targetHrefNormalized = normalizeHref(targetHref);
