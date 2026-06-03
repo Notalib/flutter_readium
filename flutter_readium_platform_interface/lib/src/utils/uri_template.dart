@@ -45,9 +45,7 @@ class UriTemplate {
       }
     });
 
-    return Href(href: expanded).percentEncodedString
-        .replaceAll('~~+~~', '%2B')
-        .replaceAll('~~%20~~', '%2B');
+    return Href(href: expanded).percentEncodedString.replaceAll('~~+~~', '%2B').replaceAll('~~%20~~', '%2B');
   }
 
   String _expandSimpleString(String string, Map<String, String> parameters) =>

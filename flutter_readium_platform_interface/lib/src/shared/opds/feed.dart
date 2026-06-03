@@ -10,9 +10,7 @@ import 'package:meta/meta.dart';
 import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
-class Feed extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
   const Feed({
     this.metadata = const OpdsMetadata(localizedTitle: LocalizedString()),
     this.links = const [],
@@ -117,9 +115,7 @@ class Feed extends AdditionalProperties
     final navigation = Link.fromJsonArray(
       jsonObject.optJsonArray('navigation', remove: true),
     );
-    final context = (jsonObject.optJsonArray('@context', remove: true) ?? [])
-        .map((e) => e.toString())
-        .toList();
+    final context = (jsonObject.optJsonArray('@context', remove: true) ?? []).map((e) => e.toString()).toList();
 
     return Feed(
       metadata: metadata,

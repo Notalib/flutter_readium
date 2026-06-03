@@ -123,8 +123,7 @@ class PlayerControlsState {
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
 
-  PlayerControlsState togglePlay(final bool playing) =>
-      copyWith(playing: playing);
+  PlayerControlsState togglePlay(final bool playing) => copyWith(playing: playing);
 
   PlayerControlsState toggleTTSEnabled(
     final bool ttsEnabled,
@@ -144,8 +143,7 @@ class PlayerControlsState {
     currentTocHref: tocHref ?? currentTocHref,
   );
 
-  PlayerControlsState setTocHref(final String tocHref) =>
-      copyWith(currentTocHref: tocHref);
+  PlayerControlsState setTocHref(final String tocHref) => copyWith(currentTocHref: tocHref);
 
   PlayerControlsState stop() => PlayerControlsState(
     playing: false,
@@ -155,16 +153,14 @@ class PlayerControlsState {
   );
 }
 
-class PlayerControlsBloc
-    extends Bloc<PlayerControlsEvent, PlayerControlsState> {
+class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   List<StreamSubscription> subscriptions = [];
   Locator? currentLocator;
 
   /// Broadcasts the current resource [Locator] regardless of media type, retaining
   /// the latest value so late subscribers (e.g. a slider rebuilt by the parent
   /// `BlocBuilder`) immediately receive the current progression.
-  final BehaviorSubject<Locator> _currentLocatorSubject =
-      BehaviorSubject<Locator>();
+  final BehaviorSubject<Locator> _currentLocatorSubject = BehaviorSubject<Locator>();
 
   PlayerControlsBloc()
     : super(
@@ -177,9 +173,7 @@ class PlayerControlsBloc
     subscriptions.add(
       Rx.merge<Locator>([
         instance.onTextLocatorChanged,
-        instance.onTimebasedPlayerStateChanged
-            .map((s) => s.currentLocator)
-            .whereNotNull(),
+        instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator).whereNotNull(),
       ]).listen((val) {
         currentLocator = val;
         _currentLocatorSubject.add(val);
@@ -224,20 +218,16 @@ class PlayerControlsBloc
     // NOTE: This does not include the tocHref for the initial locator.
     subscriptions.add(
       Rx.merge([
-            instance.onTimebasedPlayerStateChanged.map(
-              (s) => s.currentLocator?.locations?.tocHref,
-            ),
-            instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
-          ])
-          .whereNotNull()
-          .distinct()
-          .debounceTime(const Duration(milliseconds: 50))
-          .listen((tocHref) {
-            if (tocHref != state.currentTocHref) {
-              _log.fine('Current TOC href: $tocHref');
-              add(UpdateCurrentTocHref(tocHref));
-            }
-          }),
+        instance.onTimebasedPlayerStateChanged.map(
+          (s) => s.currentLocator?.locations?.tocHref,
+        ),
+        instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
+      ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
+        if (tocHref != state.currentTocHref) {
+          _log.fine('Current TOC href: $tocHref');
+          add(UpdateCurrentTocHref(tocHref));
+        }
+      }),
     );
 
     subscriptions.add(
@@ -389,8 +379,7 @@ class PlayerControlsBloc
     return super.close();
   }
 
-  Stream<ReadiumTimebasedState> get timebasedStateStream =>
-      instance.onTimebasedPlayerStateChanged;
+  Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
 
   /// Emits the current [Locator] for the active publication, regardless of media type.
   /// Backed by a [BehaviorSubject] so a single underlying subscription is reused and

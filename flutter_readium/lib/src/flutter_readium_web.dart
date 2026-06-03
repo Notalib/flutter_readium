@@ -48,15 +48,12 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   static _AudiobookCallbacks? _audiobookCallbacks;
 
-  static final StreamController<Locator> _locatorTextController =
-      StreamController<Locator>.broadcast();
-  static final StreamController<ReadiumTimebasedState>
-  _timebasedStateController =
+  static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
+  static final StreamController<ReadiumTimebasedState> _timebasedStateController =
       StreamController<ReadiumTimebasedState>.broadcast();
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
-  static final StreamController<ReadiumError> _errorEventController =
-      StreamController<ReadiumError>.broadcast();
+  static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();
 
   static void addTextLocatorUpdate(Locator locator) {
     _locatorTextController.add(locator);
@@ -78,12 +75,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Stream<Locator> get onTextLocatorChanged => _locatorTextController.stream;
 
   @override
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged =>
-      _timebasedStateController.stream;
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedStateController.stream;
 
   @override
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged =>
-      _readerStatusController.stream;
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 
   @override
   Future<void> setLogLevel(LogLevel level) async {
@@ -113,8 +108,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
         pubUrl,
       );
 
-      var publicationJson =
-          jsonDecode(publicationString) as Map<String, dynamic>;
+      var publicationJson = jsonDecode(publicationString) as Map<String, dynamic>;
 
       publicationJson = _transformPublicationJson(publicationJson);
 
@@ -152,8 +146,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
     // Handle sortAs edge case: upstream serializes as a LocalizedString map
     // but Dart Publication.fromJson expects a plain String.
-    if (publicationJson.containsKey('metadata') &&
-        publicationJson['metadata'] is Map) {
+    if (publicationJson.containsKey('metadata') && publicationJson['metadata'] is Map) {
       final metadataMap = publicationJson['metadata'] as Map<String, dynamic>;
 
       if (metadataMap.containsKey('sortAs')) {
@@ -212,8 +205,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       // Hold a static reference so Dart's GC doesn't collect the instance while
       // the JS AudioNavigator still holds the function references.
       _audiobookCallbacks = _AudiobookCallbacks();
-      updateTimebasedPlayerState =
-          _audiobookCallbacks!.onTimebasedPlayerState.toJS;
+      updateTimebasedPlayerState = _audiobookCallbacks!.onTimebasedPlayerState.toJS;
       updateReaderStatus = _audiobookCallbacks!.onReaderStatus.toJS;
       onErrorCallback = _audiobookCallbacks!.onErrorHandler.toJS;
       try {
@@ -322,8 +314,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<bool> goToProgression(double progression) async =>
-      JsPublicationChannel.goToProgression(progression);
+  Future<bool> goToProgression(double progression) async => JsPublicationChannel.goToProgression(progression);
 
   // COMMON PLAYBACK API - END
 
@@ -338,10 +329,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
     final voicesJson = await JsPublicationChannel.ttsGetAvailableVoices();
     final decoded = jsonDecode(voicesJson) as List<dynamic>;
-    return decoded
-        .whereType<Map<String, dynamic>>()
-        .map(ReaderTTSVoice.fromJson)
-        .toList();
+    return decoded.whereType<Map<String, dynamic>>().map(ReaderTTSVoice.fromJson).toList();
   }
 
   @override
@@ -357,9 +345,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     // NOTE: No TTS engine is wired up on web in Phase 1. The styles are forwarded
     // to the JS layer and stored for future use when the web TTS implementation arrives.
     JsPublicationChannel().setDecorationStyle(
-      utteranceDecoration == null
-          ? null
-          : jsonEncode(utteranceDecoration.toJson()),
+      utteranceDecoration == null ? null : jsonEncode(utteranceDecoration.toJson()),
       rangeDecoration == null ? null : jsonEncode(rangeDecoration.toJson()),
     );
   }

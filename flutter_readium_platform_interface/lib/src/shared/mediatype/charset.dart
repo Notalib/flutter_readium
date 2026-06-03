@@ -31,8 +31,7 @@ class Charset {
   final List<String> aliases;
 
   static Charset? forName(String name) => values.firstWhereOrNull(
-    (c) =>
-        c.name == name.toUpperCase() || c.aliases.contains(name.toUpperCase()),
+    (c) => c.name == name.toUpperCase() || c.aliases.contains(name.toUpperCase()),
   );
 
   @override

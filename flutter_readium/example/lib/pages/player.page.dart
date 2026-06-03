@@ -27,8 +27,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     final BuildContext context,
   ) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
-      final isAudioBook =
-          pubState.publication?.conformsToReadiumAudiobook ?? false;
+      final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
 
       return PopScope(
         canPop: true,
@@ -48,9 +47,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             title: Semantics(
               header: true,
               child: Text(
-                pubState.error != null
-                    ? 'Error'
-                    : pubState.publication?.metadata.title ?? 'Unknown',
+                pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
             actions: _buildActionButtons(),
@@ -108,9 +105,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
           context: context,
           isScrollControlled: true,
           builder: (final context) => PointerInterceptor(
-            child: isPDF
-                ? const PDFSettingsWidget()
-                : const TextSettingsWidget(),
+            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
           ),
         );
       },
@@ -125,9 +120,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         );
         if (!context.mounted) return;
         final publication = context.read<PublicationBloc>().state.publication;
-        if (publication != null &&
-            tappedSearchResult != null &&
-            tappedSearchResult is TextSearchResult) {
+        if (publication != null && tappedSearchResult != null && tappedSearchResult is TextSearchResult) {
           if (context.mounted) {
             context.read<PlayerControlsBloc>().add(
               GoToLocator(tappedSearchResult.locator),
@@ -142,9 +135,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       onPressed: () async {
         final publication = context.read<PublicationBloc>().state.publication;
         final isPdfWithoutToc =
-            publication != null &&
-            publication.conformsToReadiumPDF &&
-            publication.tableOfContents.isEmpty;
+            publication != null && publication.conformsToReadiumPDF && publication.tableOfContents.isEmpty;
         final route = isPdfWithoutToc ? '/pagelist' : '/toc';
         final result = await Navigator.pushNamed<dynamic>(context, route);
         if (!context.mounted) return;

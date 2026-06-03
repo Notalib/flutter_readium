@@ -77,8 +77,7 @@ class MediaType {
     // > letters.
     // > https://www.iana.org/assignments/character-sets/character-sets.xhtml
     parameters['charset']?.let(
-      (it) =>
-          parameters['charset'] = Charset.forName(it)?.name ?? it.toUpperCase(),
+      (it) => parameters['charset'] = Charset.forName(it)?.name ?? it.toUpperCase(),
     );
 
     return MediaType(
@@ -611,11 +610,8 @@ class MediaType {
   /// The string representation of this media type.
   @override
   String toString() {
-    final params =
-        parameters.entries
-            .map((entry) => '${entry.key}=${entry.value}')
-            .toList()
-          ..sort((a, b) => a.compareTo(b));
+    final params = parameters.entries.map((entry) => '${entry.key}=${entry.value}').toList()
+      ..sort((a, b) => a.compareTo(b));
     var paramsStr = '';
     if (params.isNotEmpty) {
       paramsStr = ";${params.join(";")}";
@@ -631,8 +627,7 @@ class MediaType {
   /// likely not the desired result. Instead, you can use [matches] to check if any of the media
   /// types is a parameterized version of the other one.
   @override
-  bool operator ==(Object other) =>
-      toString() == (other as MediaType?)?.toString();
+  bool operator ==(Object other) => toString() == (other as MediaType?)?.toString();
 
   @override
   int get hashCode => type.hashCode ^ subtype.hashCode ^ parameters.hashCode;
@@ -647,17 +642,11 @@ class MediaType {
   /// - Wildcards are supported, meaning that `image/*` contains `image/png` and `*/*` contains
   ///   everything.
   bool contains(MediaType? other) {
-    if (other == null ||
-        (type != '*' && type != other.type) ||
-        (subtype != '*' && subtype != other.subtype)) {
+    if (other == null || (type != '*' && type != other.type) || (subtype != '*' && subtype != other.subtype)) {
       return false;
     }
-    final paramsSet = parameters.entries
-        .map((e) => '${e.key}=${e.value}')
-        .toSet();
-    final otherParamsSet = other.parameters.entries
-        .map((e) => '${e.key}=${e.value}')
-        .toSet();
+    final paramsSet = parameters.entries.map((e) => '${e.key}=${e.value}').toSet();
+    final otherParamsSet = other.parameters.entries.map((e) => '${e.key}=${e.value}').toSet();
     return otherParamsSet.containsAll(paramsSet);
   }
 
@@ -675,25 +664,20 @@ class MediaType {
   ///
   /// For example, `text/html` matches `text/html;charset=utf-8`, but `text/html;charset=ascii`
   /// doesn't. This is basically like `contains`, but working in both direction.
-  bool matches(MediaType? other) =>
-      contains(other) || (other?.contains(this) == true);
+  bool matches(MediaType? other) => contains(other) || (other?.contains(this) == true);
 
   /// Returns whether this media type and `other` are the same, ignoring parameters that are not
   /// in both media types.
   bool matchesFromName(String? other) => matches(other?.let((it) => parse(it)));
 
   /// Returns whether this media type matches any of the `others` media types.
-  bool matchesAny(Iterable<MediaType> others) =>
-      others.any((it) => matches(it));
+  bool matchesAny(Iterable<MediaType> others) => others.any((it) => matches(it));
 
   /// Returns whether this media type matches any of the `others` media types.
-  bool matchesAnyFromName(Iterable<String> others) =>
-      others.any((it) => matchesFromName(it));
+  bool matchesAnyFromName(Iterable<String> others) => others.any((it) => matchesFromName(it));
 
   /// Returns whether this media type is structured as a ZIP archive.
-  bool get isZip =>
-      matchesAny([zip, lcpProtectedAudiobook, lcpProtectedPdf]) ||
-      structuredSyntaxSuffix == '+zip';
+  bool get isZip => matchesAny([zip, lcpProtectedAudiobook, lcpProtectedPdf]) || structuredSyntaxSuffix == '+zip';
 
   /// Returns whether this media type is structured as a JSON file.
   bool get isJson => matches(json) || structuredSyntaxSuffix == '+json';
@@ -744,15 +728,14 @@ class MediaType {
     zab,
   ]);
 
-  static MediaType? filterByFileExtension(String? fileExtension) =>
-      fileExtension?.let((it) {
-        for (final mediaType in _values) {
-          if (it == mediaType.fileExtension) {
-            return mediaType;
-          }
-        }
-        return null;
-      });
+  static MediaType? filterByFileExtension(String? fileExtension) => fileExtension?.let((it) {
+    for (final mediaType in _values) {
+      if (it == mediaType.fileExtension) {
+        return mediaType;
+      }
+    }
+    return null;
+  });
 
   static void addSupportedType(MediaType mediaType) => _values.add(mediaType);
 }

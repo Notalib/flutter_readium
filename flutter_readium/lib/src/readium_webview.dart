@@ -117,9 +117,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
       final pubId = widget.publication.identifier;
       final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
-      final currentLocatorString = widget.currentLocator != null
-          ? json.encode(widget.currentLocator)
-          : null;
+      final currentLocatorString = widget.currentLocator != null ? json.encode(widget.currentLocator) : null;
       registerJSExports();
       await JsPublicationChannel().openPublication(
         publicationUrl,

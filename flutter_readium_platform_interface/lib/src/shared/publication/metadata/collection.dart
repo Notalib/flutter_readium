@@ -25,8 +25,7 @@ class Collection extends BaseCollection {
   factory Collection.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position =
-        jsonObject.optNullableDouble('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(
       jsonObject.opt('name', remove: true),
     );
@@ -35,8 +34,7 @@ class Collection extends BaseCollection {
       jsonObject.opt('altIdentifier', remove: true),
     );
     final localizedSortAs = LocalizedString.fromJsonDynamic(
-      jsonObject.opt('sortAs', remove: true) ??
-          jsonObject.opt('sort-as', remove: true),
+      jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(
       jsonObject.optJsonArray('links', remove: true),

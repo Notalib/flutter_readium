@@ -91,13 +91,10 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Finds the first [Link] with the given relation in the manifest's links.
   Link? linkWithRel(String rel) =>
-      readingOrder.firstWithRel(rel) ??
-      resources.firstWithRel(rel) ??
-      links.firstWithRel(rel);
+      readingOrder.firstWithRel(rel) ?? resources.firstWithRel(rel) ?? links.firstWithRel(rel);
 
   /// Finds all [Link]s having the given [rel] in the manifest's links.
-  List<Link> linksWithRel(String rel) =>
-      (readingOrder + resources + links).filterByRel(rel);
+  List<Link> linksWithRel(String rel) => (readingOrder + resources + links).filterByRel(rel);
 
   /// Serializes a [Publication] to its RWPM JSON representation.
   @override
@@ -118,8 +115,7 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Returns the [links] of the first child [PublicationCollection] with the given role, or an
   /// empty list.
-  List<Link> collectionLinks(String role) =>
-      subCollections[role]?.firstOrNull?.links ?? [];
+  List<Link> collectionLinks(String role) => subCollections[role]?.firstOrNull?.links ?? [];
 
   /// Parses a [Publication] from its RWPM JSON representation.
   ///
@@ -147,18 +143,17 @@ class Publication with EquatableMixin implements JSONable {
       return null;
     }
 
-    final links =
-        Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true))
-            .map(
-              (it) => (!packaged || !it.rels.contains('self'))
-                  ? it
-                  : it.copyWith(
-                      rels: it.rels
-                        ..remove('self')
-                        ..add('alternate'),
-                    ),
-            )
-            .toList();
+    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true))
+        .map(
+          (it) => (!packaged || !it.rels.contains('self'))
+              ? it
+              : it.copyWith(
+                  rels: it.rels
+                    ..remove('self')
+                    ..add('alternate'),
+                ),
+        )
+        .toList();
     // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
     final readingOrderJSON = jsonObject.safeRemove<List<dynamic>>(
       'readingOrder',
@@ -199,9 +194,7 @@ class Publication with EquatableMixin implements JSONable {
     final (href, fragments) = link.href.splitPathAndFragment();
     final resourceLink = linkWithHref(href);
     final type = resourceLink?.type ?? typeOverride?.name;
-    final linkIndex = resourceLink == null
-        ? -1
-        : readingOrder.indexOf(resourceLink);
+    final linkIndex = resourceLink == null ? -1 : readingOrder.indexOf(resourceLink);
     return type == null
         ? null
         : Locator(
@@ -210,9 +203,7 @@ class Publication with EquatableMixin implements JSONable {
             title: resourceLink!.title ?? link.title,
             text: LocatorText(),
             locations: Locations(
-              cssSelector: fragments != null && fragments.isNotEmpty
-                  ? '#$fragments'
-                  : null,
+              cssSelector: fragments != null && fragments.isNotEmpty ? '#$fragments' : null,
               fragments: fragments == null ? [] : [fragments],
               progression: fragments == null ? 0 : null,
               position: linkIndex == -1 ? null : linkIndex + 1,
@@ -238,8 +229,7 @@ class Publication with EquatableMixin implements JSONable {
 
     final allDeepLinks = [readingOrder, resources, links].expand(deepLinks);
 
-    Link? find(final String href) =>
-        allDeepLinks.firstWhereOrNull((final link) => link.href == href);
+    Link? find(final String href) => allDeepLinks.firstWhereOrNull((final link) => link.href == href);
     final full = find(href);
     if (full != null) {
       return full;
@@ -252,8 +242,7 @@ class Publication with EquatableMixin implements JSONable {
   Link? get coverLink => resources.firstWhereOrNull(
     (final r) =>
         (r.rels.contains('cover')) ||
-        (r.href.contains('cover') && r.type == MediaType.jpeg.type ||
-            r.type == MediaType.png.type),
+        (r.href.contains('cover') && r.type == MediaType.jpeg.type || r.type == MediaType.png.type),
   );
 
   /// The parsed URI of the cover resource, or `null` if no cover link is present.
@@ -297,8 +286,7 @@ class Publication with EquatableMixin implements JSONable {
   bool get containsGuidedNavigation =>
       conformsToReadiumEbook &&
       (links.any(
-            (link) =>
-                MediaType.syncMediaNarrationManifest.matchesFromName(link.type),
+            (link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type),
           ) ||
           readingOrder.any(
             (link) => link.alternates.any(
@@ -310,8 +298,5 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Whether this publication should be treated as an audiobook — true for the Readium Audiobook
   /// profile and for any EPUB/WebPub that carries audio-text sync data (media overlays or guided navigation).
-  bool get isAudioBook =>
-      conformsToReadiumAudiobook ||
-      containsMediaOverlays ||
-      containsGuidedNavigation;
+  bool get isAudioBook => conformsToReadiumAudiobook || containsMediaOverlays || containsGuidedNavigation;
 }

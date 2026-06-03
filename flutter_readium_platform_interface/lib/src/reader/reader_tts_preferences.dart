@@ -49,8 +49,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voiceIdentifier: voiceIdentifier,
       voices: voices,
       languageOverride: languageOverride,
-      controlPanelInfoType:
-          controlPanelInfoType ?? ControlPanelInfoType.standard,
+      controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
     );
   }
 

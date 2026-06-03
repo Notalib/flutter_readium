@@ -33,20 +33,11 @@ class LocatorCollection with EquatableMixin implements JSONable {
     );
 
     final linksJson = jsonObject['links'] as List<dynamic>?;
-    final links =
-        linksJson
-            ?.map((e) => Link.fromJson(e as Map<String, dynamic>?))
-            .whereType<Link>()
-            .toList() ??
-        [];
+    final links = linksJson?.map((e) => Link.fromJson(e as Map<String, dynamic>?)).whereType<Link>().toList() ?? [];
 
     final locatorsJson = jsonObject['locators'] as List<dynamic>?;
     final locators =
-        locatorsJson
-            ?.map((e) => Locator.fromJson(e as Map<String, dynamic>?))
-            .whereType<Locator>()
-            .toList() ??
-        [];
+        locatorsJson?.map((e) => Locator.fromJson(e as Map<String, dynamic>?)).whereType<Locator>().toList() ?? [];
 
     return LocatorCollection(
       metadata: metadata,
@@ -87,15 +78,12 @@ class LocatorCollection with EquatableMixin implements JSONable {
   List<Object?> get props => [metadata, links, locators];
 
   @override
-  String toString() =>
-      'LocatorCollection{metadata: $metadata, links: $links, locators: $locators}';
+  String toString() => 'LocatorCollection{metadata: $metadata, links: $links, locators: $locators}';
 }
 
 /// Holds the metadata of a [LocatorCollection].
 @immutable
-class LocatorCollectionMetadata extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const LocatorCollectionMetadata({
     this.localizedTitle,
     this.numberOfItems,
@@ -141,9 +129,7 @@ class LocatorCollectionMetadata extends AdditionalProperties
     );
 
     // Validate numberOfItems is positive
-    final validNumberOfItems = (numberOfItems != null && numberOfItems >= 0)
-        ? numberOfItems
-        : null;
+    final validNumberOfItems = (numberOfItems != null && numberOfItems >= 0) ? numberOfItems : null;
 
     return LocatorCollectionMetadata(
       localizedTitle: localizedTitle,

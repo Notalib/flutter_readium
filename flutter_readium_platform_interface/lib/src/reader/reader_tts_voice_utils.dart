@@ -34,8 +34,7 @@ final _voiceMappings = <String, Map<String, String>>{
   'en-au': {'aua': 'Phoebe', 'aub': 'Chris', 'auc': 'Rachel', 'aud': 'Jack'},
 };
 
-const _voiceAssetPath =
-    'packages/flutter_readium/assets/voice_data/voices.json';
+const _voiceAssetPath = 'packages/flutter_readium/assets/voice_data/voices.json';
 
 Map<String, List<ReadiumSpeechVoice>> _readiumVoiceData = {};
 
@@ -112,11 +111,7 @@ abstract class ReaderTTSVoiceUtils {
 
     // Find by identifier in nativeID.
     final byId = voices.firstWhereOrNull(
-      (v) =>
-          v.nativeID
-              ?.where((id) => id.toLowerCase() == identifier.toLowerCase())
-              .isNotEmpty ==
-          true,
+      (v) => v.nativeID?.where((id) => id.toLowerCase() == identifier.toLowerCase()).isNotEmpty == true,
     );
 
     if (byId != null) {
@@ -130,8 +125,7 @@ abstract class ReaderTTSVoiceUtils {
         (v) =>
             v.altNames
                 ?.where(
-                  (altName) =>
-                      altName.toLowerCase().endsWith(identifier.toLowerCase()),
+                  (altName) => altName.toLowerCase().endsWith(identifier.toLowerCase()),
                 )
                 .isNotEmpty ==
             true,

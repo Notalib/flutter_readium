@@ -15,9 +15,7 @@ import '../../../flutter_readium_platform_interface.dart';
 /// @param value Price value, should only be used for display purposes, because of precision issues
 ///     inherent with Double and the JSON parsing.
 @immutable
-class Price extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class Price extends AdditionalProperties with EquatableMixin implements JSONable {
   const Price({
     required this.currency,
     required this.value,

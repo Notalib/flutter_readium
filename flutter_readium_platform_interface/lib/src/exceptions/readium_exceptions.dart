@@ -43,8 +43,7 @@ class PublicationNotSetReadiumException extends ReadiumException {
 }
 
 class OfflineReadiumException extends ReadiumException {
-  const OfflineReadiumException([final String? message])
-    : super('Offline: $message');
+  const OfflineReadiumException([final String? message]) : super('Offline: $message');
 
   @override
   String toString() => 'OfflineReadiumException';
@@ -88,9 +87,7 @@ class ReadiumError implements Error {
       message,
       code: code,
       data: data,
-      stackTrace: stackTraceStr != null
-          ? StackTrace.fromString(stackTraceStr)
-          : null,
+      stackTrace: stackTraceStr != null ? StackTrace.fromString(stackTraceStr) : null,
     );
   }
 
@@ -111,15 +108,13 @@ class ReadiumError implements Error {
 
   @override
   bool operator ==(covariant final Object other) =>
-      identical(this, other) ||
-      other is ReadiumError && other.message == message && other.code == code;
+      identical(this, other) || other is ReadiumError && other.message == message && other.code == code;
 
   @override
   int get hashCode => message.hashCode ^ code.hashCode;
 
   @override
-  String toString() =>
-      'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
+  String toString() => 'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
 
   Map<String, dynamic> toJson() => {}
     ..put('message', message)

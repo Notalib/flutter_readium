@@ -11,9 +11,7 @@ import 'package:meta/meta.dart';
 import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
-class OpdsMetadata extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
+class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
   const OpdsMetadata({
     required this.localizedTitle,
     this.identifier,

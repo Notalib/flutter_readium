@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart'
-    show FlutterReadium, TextSearchResult;
+import 'package:flutter_readium/flutter_readium.dart' show FlutterReadium, TextSearchResult;
 import 'package:flutter_readium_example/state/index.dart';
 import 'package:logging/logging.dart';
 

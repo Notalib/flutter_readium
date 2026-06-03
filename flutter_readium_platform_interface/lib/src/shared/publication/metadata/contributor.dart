@@ -7,8 +7,7 @@ import 'base_collection.dart';
 /// See: https://readium.org/webpub-manifest/schema/contributor.schema.json
 @immutable
 class Contributor extends BaseCollection {
-  factory Contributor.fromJsonString(String name) =>
-      Contributor(localizedName: LocalizedString.fromJsonString(name));
+  factory Contributor.fromJsonString(String name) => Contributor(localizedName: LocalizedString.fromJsonString(name));
 
   factory Contributor.fromJson(dynamic json) {
     if (json is String) {
@@ -23,8 +22,7 @@ class Contributor extends BaseCollection {
   factory Contributor.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position =
-        jsonObject.optNullableDouble('position', remove: true) ?? 0;
+    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
     final localizedName = LocalizedString.fromJsonDynamic(
       jsonObject.opt('name', remove: true),
     );
@@ -33,16 +31,12 @@ class Contributor extends BaseCollection {
       jsonObject.opt('altIdentifier', remove: true),
     );
     final localizedSortAs = LocalizedString.fromJsonDynamic(
-      jsonObject.opt('sortAs', remove: true) ??
-          jsonObject.opt('sort-as', remove: true),
+      jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
     final links = Link.fromJsonArray(
       jsonObject.optJsonArray('links', remove: true),
     );
-    final roles = jsonObject
-        .optJsonArray('role', remove: true)
-        ?.map((e) => e.toString())
-        .toList();
+    final roles = jsonObject.optJsonArray('role', remove: true)?.map((e) => e.toString()).toList();
 
     return Contributor(
       position: position,

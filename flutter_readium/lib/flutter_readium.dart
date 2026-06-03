@@ -21,12 +21,10 @@ class FlutterReadium {
 
   static final _log = ReadiumLog.tag('FlutterReadium');
 
-  static FlutterReadiumPlatform get _platform =>
-      FlutterReadiumPlatform.instance;
+  static FlutterReadiumPlatform get _platform => FlutterReadiumPlatform.instance;
 
   /// Sets custom HTTP headers to be used for all network requests made by the reader.
-  Future<void> setCustomHeaders(Map<String, String> headers) =>
-      _platform.setCustomHeaders(headers);
+  Future<void> setCustomHeaders(Map<String, String> headers) => _platform.setCustomHeaders(headers);
 
   /// Sets the log level for the plugin's internal logging.
   Future<void> setLogLevel(LogLevel level) => _platform.setLogLevel(level);
@@ -37,31 +35,27 @@ class FlutterReadium {
   }
 
   /// Loads a publication from the given URL and returns a [Publication] object representing its metadata and structure. This does not open the publication for reading.
-  Future<Publication> loadPublication(String pubUrl) =>
-      _platform.loadPublication(pubUrl);
+  Future<Publication> loadPublication(String pubUrl) => _platform.loadPublication(pubUrl);
 
   /// Opens a publication for reading from the given URL. This is required before any reading-related operations can be performed on the publication.
   ///
   /// Returns a [Publication] object representing the opened publication.
-  Future<Publication> openPublication(String pubUrl) =>
-      _platform.openPublication(pubUrl).onError((err, _) {
-        _log.e('OpenPublication error: ${err.toString()}');
-        throw ReadiumException.fromError(err);
-      });
+  Future<Publication> openPublication(String pubUrl) => _platform.openPublication(pubUrl).onError((err, _) {
+    _log.e('OpenPublication error: ${err.toString()}');
+    throw ReadiumException.fromError(err);
+  });
 
   /// Closes the currently opened publication, if any. This will release any resources associated with the publication and reset the reader state.
   Future<void> closePublication() => _platform.closePublication();
 
   /// Stream emitting the current status of the visual reader.
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged =>
-      _platform.onReaderStatusChanged;
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _platform.onReaderStatusChanged;
 
   /// Stream emitting the current text locator for the visual reader, such as when the user navigates to the next page or section of the publication.
   Stream<Locator> get onTextLocatorChanged => _platform.onTextLocatorChanged;
 
   /// Stream emitting the current time-based playback state (including audio Locator) during playback.
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged =>
-      _platform.onTimebasedPlayerStateChanged;
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _platform.onTimebasedPlayerStateChanged;
 
   /// Stream emitting any errors that occur within the reader, such as failed navigation or playback errors.
   Stream<ReadiumError> get onErrorEvent => _platform.onErrorEvent;
@@ -95,12 +89,10 @@ class FlutterReadium {
   /// Sets the EPUB preferences for the currently opened publication.
   ///
   /// These preferences will override any default preferences set by [setDefaultPreferences] for this publication.
-  Future<void> setEPUBPreferences(EPUBPreferences preferences) =>
-      _platform.setEPUBPreferences(preferences);
+  Future<void> setEPUBPreferences(EPUBPreferences preferences) => _platform.setEPUBPreferences(preferences);
 
   /// Sets the PDF preferences for the currently opened PDF publication.
-  Future<void> setPDFPreferences(PDFPreferences preferences) =>
-      _platform.setPDFPreferences(preferences);
+  Future<void> setPDFPreferences(PDFPreferences preferences) => _platform.setPDFPreferences(preferences);
 
   /// Applies a list of decorations to the visual reader.
   ///
@@ -111,12 +103,10 @@ class FlutterReadium {
   ) => _platform.applyDecorations(id, decorations);
 
   /// Enables TTS (text-to-speech) for the currently opened publication, optionally applying the given [preferences].
-  Future<void> ttsEnable(TTSPreferences? preferences) =>
-      _platform.ttsEnable(preferences);
+  Future<void> ttsEnable(TTSPreferences? preferences) => _platform.ttsEnable(preferences);
 
   /// Updates the TTS preferences for the current session without restarting TTS.
-  Future<void> ttsSetPreferences(TTSPreferences preferences) =>
-      _platform.ttsSetPreferences(preferences);
+  Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
 
   /// Sets the decoration styles used to highlight the active TTS utterance and the surrounding range.
   Future<void> setDecorationStyle(
@@ -163,16 +153,14 @@ class FlutterReadium {
   /// Navigates the reader to a specific progression in the current resource, where 0.0 is the start and 1.0 is the end.
   ///
   /// Returns `true` if navigation succeeded, `false` otherwise.
-  Future<bool> goToProgression(double progression) =>
-      _platform.goToProgression(progression);
+  Future<bool> goToProgression(double progression) => _platform.goToProgression(progression);
 
   /// Enables audio playback for the currently opened publication, optionally applying [prefs] and starting from [fromLocator].
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       _platform.audioEnable(prefs: prefs, fromLocator: fromLocator);
 
   /// Updates the audio preferences for the current session without restarting playback.
-  Future<void> audioSetPreferences(AudioPreferences prefs) =>
-      _platform.audioSetPreferences(prefs);
+  Future<void> audioSetPreferences(AudioPreferences prefs) => _platform.audioSetPreferences(prefs);
 
   /// Seeks audio playback forward or backward by the given [offset].
   ///

@@ -91,9 +91,7 @@ class PublicationCollection with EquatableMixin implements JSONable {
         collections.putIfAbsent(role, () => []).add(collection);
         // Parses a list of collection objects.
       } else if (subJSON is List) {
-        final subcollections = subJSON
-            .map((it) => PublicationCollection.fromJson(it))
-            .nonNulls;
+        final subcollections = subJSON.map((it) => PublicationCollection.fromJson(it)).nonNulls;
         collections.putIfAbsent(role, () => []).addAll(subcollections);
       }
     }

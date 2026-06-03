@@ -24,12 +24,8 @@ class Profile extends AdditionalProperties implements JSONable {
             .toList() ??
         [];
 
-    final loans = jsonObject
-        .optJsonObject('loans', remove: true)
-        ?.let((it) => ProfileLoans.fromJson(it));
-    final holds = jsonObject
-        .optJsonObject('holds', remove: true)
-        ?.let((it) => ProfileHolds.fromJson(it));
+    final loans = jsonObject.optJsonObject('loans', remove: true)?.let((it) => ProfileLoans.fromJson(it));
+    final holds = jsonObject.optJsonObject('holds', remove: true)?.let((it) => ProfileHolds.fromJson(it));
 
     return Profile(
       name: name,

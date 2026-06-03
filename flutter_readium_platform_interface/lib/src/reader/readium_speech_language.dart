@@ -11,10 +11,7 @@ class ReadiumSpeechLanguage with EquatableMixin implements JSONable {
     final defaultRegion = jsonObject.optString('defaultRegion', remove: true);
     final testUtterance = jsonObject.optString('testUtterance', remove: true);
     final voicesJson = jsonObject.optJsonArray('voices', remove: true) ?? [];
-    final voices = voicesJson
-        .cast<Map<String, dynamic>>()
-        .map((e) => ReadiumSpeechVoice.fromJson(e))
-        .toList();
+    final voices = voicesJson.cast<Map<String, dynamic>>().map((e) => ReadiumSpeechVoice.fromJson(e)).toList();
 
     return ReadiumSpeechLanguage(
       language: language,

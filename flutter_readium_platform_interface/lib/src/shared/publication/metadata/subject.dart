@@ -8,11 +8,8 @@ import '../../../../flutter_readium_platform_interface.dart';
 /// See https://github.com/readium/webpub-manifest/tree/master/contexts/default#subjects
 /// https://readium.org/webpub-manifest/schema/subject.schema.json
 @immutable
-class Subject extends AdditionalProperties
-    with EquatableMixin
-    implements JSONable {
-  factory Subject.fromJsonString(String name) =>
-      Subject(localizedName: LocalizedString.fromJsonString(name));
+class Subject extends AdditionalProperties with EquatableMixin implements JSONable {
+  factory Subject.fromJsonString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
 
   factory Subject.fromJson(dynamic json) {
     if (json is String) {

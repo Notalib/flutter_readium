@@ -73,15 +73,13 @@ class ReaderDecorationStyle implements JSONable {
   @override
   Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
 
-  factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) =>
-      ReaderDecorationStyle(
-        style: DecorationStyle.fromString(map['style']),
-        tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
-      );
+  factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
+    style: DecorationStyle.fromString(map['style']),
+    tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
+  );
 
-  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) =>
-      ReaderDecorationStyle(
-        style: style ?? this.style,
-        tint: tint ?? this.tint,
-      );
+  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) => ReaderDecorationStyle(
+    style: style ?? this.style,
+    tint: tint ?? this.tint,
+  );
 }

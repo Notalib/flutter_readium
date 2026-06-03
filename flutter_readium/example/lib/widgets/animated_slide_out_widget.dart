@@ -44,8 +44,7 @@ class _AnimatedSlideOut extends StatefulWidget {
   _AnimatedSlideOutState createState() => _AnimatedSlideOutState();
 }
 
-class _AnimatedSlideOutState extends State<_AnimatedSlideOut>
-    with SingleTickerProviderStateMixin {
+class _AnimatedSlideOutState extends State<_AnimatedSlideOut> with SingleTickerProviderStateMixin {
   late final _controller = AnimationController(
     value: widget.visible ? 0 : 1,
     duration: widget.duration,

@@ -64,12 +64,9 @@ class TextSettingsWidget extends StatelessWidget {
               child: DropdownMenu<String>(
                 key: const ValueKey('font_family_selector'),
                 initialSelection: state.fontFamily,
-                dropdownMenuEntries: _fontFamilies
-                    .map((f) => DropdownMenuEntry(value: f, label: f))
-                    .toList(),
+                dropdownMenuEntries: _fontFamilies.map((f) => DropdownMenuEntry(value: f, label: f)).toList(),
                 onSelected: (value) {
-                  if (value != null)
-                    textSettingsBloc.add(ChangeFontFamily(value));
+                  if (value != null) textSettingsBloc.add(ChangeFontFamily(value));
                 },
               ),
             ),
@@ -117,9 +114,7 @@ class TextSettingsWidget extends StatelessWidget {
                     min: kIsWeb ? 1.0 : 0.5,
                     max: kIsWeb ? 9.0 : 2.0,
                     divisions: kIsWeb ? 8 : 6,
-                    label: kIsWeb
-                        ? (state.fontWeight * 100).toStringAsFixed(0)
-                        : state.fontWeight.toStringAsFixed(1),
+                    label: kIsWeb ? (state.fontWeight * 100).toStringAsFixed(0) : state.fontWeight.toStringAsFixed(1),
                     onChanged: (value) {
                       textSettingsBloc.add(ChangeFontWeight(value));
                     },
@@ -378,71 +373,57 @@ class TextSettingsWidget extends StatelessWidget {
             ),
             ListItemWidget(
               label: 'Utterance',
-              child:
-                  BlocSelector<
-                    TextSettingsBloc,
-                    TextSettingsState,
-                    DecorationStyle?
-                  >(
-                    selector: (state) => state.utteranceStyle,
-                    builder: (context, utteranceStyle) =>
-                        SegmentedButton<DecorationStyle?>(
-                          key: const ValueKey('utterance_style_selector'),
-                          emptySelectionAllowed: true,
-                          segments: const [
-                            ButtonSegment(value: null, label: Text('Off')),
-                            ButtonSegment(
-                              value: DecorationStyle.highlight,
-                              label: Text('Fill'),
-                            ),
-                            ButtonSegment(
-                              value: DecorationStyle.underline,
-                              label: Text('Line'),
-                            ),
-                          ],
-                          selected: {utteranceStyle},
-                          onSelectionChanged: (values) =>
-                              context.read<TextSettingsBloc>().add(
-                                ChangeUtteranceStyle(
-                                  values.isEmpty ? null : values.first,
-                                ),
-                              ),
-                        ),
+              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
+                selector: (state) => state.utteranceStyle,
+                builder: (context, utteranceStyle) => SegmentedButton<DecorationStyle?>(
+                  key: const ValueKey('utterance_style_selector'),
+                  emptySelectionAllowed: true,
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('Off')),
+                    ButtonSegment(
+                      value: DecorationStyle.highlight,
+                      label: Text('Fill'),
+                    ),
+                    ButtonSegment(
+                      value: DecorationStyle.underline,
+                      label: Text('Line'),
+                    ),
+                  ],
+                  selected: {utteranceStyle},
+                  onSelectionChanged: (values) => context.read<TextSettingsBloc>().add(
+                    ChangeUtteranceStyle(
+                      values.isEmpty ? null : values.first,
+                    ),
                   ),
+                ),
+              ),
             ),
             ListItemWidget(
               label: 'Range',
-              child:
-                  BlocSelector<
-                    TextSettingsBloc,
-                    TextSettingsState,
-                    DecorationStyle?
-                  >(
-                    selector: (state) => state.rangeStyle,
-                    builder: (context, rangeStyle) =>
-                        SegmentedButton<DecorationStyle?>(
-                          key: const ValueKey('range_style_selector'),
-                          emptySelectionAllowed: true,
-                          segments: const [
-                            ButtonSegment(value: null, label: Text('Off')),
-                            ButtonSegment(
-                              value: DecorationStyle.highlight,
-                              label: Text('Fill'),
-                            ),
-                            ButtonSegment(
-                              value: DecorationStyle.underline,
-                              label: Text('Line'),
-                            ),
-                          ],
-                          selected: {rangeStyle},
-                          onSelectionChanged: (values) =>
-                              context.read<TextSettingsBloc>().add(
-                                ChangeRangeStyle(
-                                  values.isEmpty ? null : values.first,
-                                ),
-                              ),
-                        ),
+              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
+                selector: (state) => state.rangeStyle,
+                builder: (context, rangeStyle) => SegmentedButton<DecorationStyle?>(
+                  key: const ValueKey('range_style_selector'),
+                  emptySelectionAllowed: true,
+                  segments: const [
+                    ButtonSegment(value: null, label: Text('Off')),
+                    ButtonSegment(
+                      value: DecorationStyle.highlight,
+                      label: Text('Fill'),
+                    ),
+                    ButtonSegment(
+                      value: DecorationStyle.underline,
+                      label: Text('Line'),
+                    ),
+                  ],
+                  selected: {rangeStyle},
+                  onSelectionChanged: (values) => context.read<TextSettingsBloc>().add(
+                    ChangeRangeStyle(
+                      values.isEmpty ? null : values.first,
+                    ),
                   ),
+                ),
+              ),
             ),
             const Divider(),
             TextButton(

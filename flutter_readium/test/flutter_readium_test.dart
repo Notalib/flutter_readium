@@ -8,9 +8,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 // Mock platform
 // ---------------------------------------------------------------------------
 
-class MockFlutterReadiumPlatform
-    with MockPlatformInterfaceMixin
-    implements FlutterReadiumPlatform {
+class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements FlutterReadiumPlatform {
   @override
   ReadiumReaderWidgetInterface? currentReaderWidget;
 
@@ -19,20 +17,17 @@ class MockFlutterReadiumPlatform
 
   final _textLocatorController = StreamController<Locator>.broadcast();
   final _statusController = StreamController<ReadiumReaderStatus>.broadcast();
-  final _timebasedController =
-      StreamController<ReadiumTimebasedState>.broadcast();
+  final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
   final _errorController = StreamController<ReadiumError>.broadcast();
 
   @override
   Stream<Locator> get onTextLocatorChanged => _textLocatorController.stream;
 
   @override
-  Stream<ReadiumReaderStatus> get onReaderStatusChanged =>
-      _statusController.stream;
+  Stream<ReadiumReaderStatus> get onReaderStatusChanged => _statusController.stream;
 
   @override
-  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged =>
-      _timebasedController.stream;
+  Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedController.stream;
 
   @override
   Stream<ReadiumError> get onErrorEvent => _errorController.stream;
@@ -138,8 +133,7 @@ class MockFlutterReadiumPlatform
   Future<void> setLogLevel(LogLevel level) async {}
 
   @override
-  Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
-      [];
+  Future<List<TextSearchResult>> searchInPublication(String searchKey) async => [];
 
   void emitLocator(Locator l) => _textLocatorController.add(l);
   void emitStatus(ReadiumReaderStatus s) => _statusController.add(s);

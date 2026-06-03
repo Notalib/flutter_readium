@@ -49,23 +49,15 @@ class ReadiumTimebasedState implements JSONable {
               epsilon: 0.01,
             ) ??
             1.0,
-        totalProgression:
-            currentLocator.locations?.totalProgression?.roundToIfCloseTo(1.0) ??
-            1.0,
+        totalProgression: currentLocator.locations?.totalProgression?.roundToIfCloseTo(1.0) ?? 1.0,
       );
     }
 
     return ReadiumTimebasedState(
       state: state,
-      currentOffset: currentOffset != null
-          ? Duration(milliseconds: currentOffset)
-          : null,
-      currentBuffered: currentBuffered != null
-          ? Duration(milliseconds: currentBuffered)
-          : null,
-      currentDuration: currentDuration != null
-          ? Duration(milliseconds: currentDuration)
-          : null,
+      currentOffset: currentOffset != null ? Duration(milliseconds: currentOffset) : null,
+      currentBuffered: currentBuffered != null ? Duration(milliseconds: currentBuffered) : null,
+      currentDuration: currentDuration != null ? Duration(milliseconds: currentDuration) : null,
       currentLocator: currentLocator,
     );
   }

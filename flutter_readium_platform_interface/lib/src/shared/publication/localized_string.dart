@@ -18,10 +18,7 @@ class Translation {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Translation &&
-          runtimeType == other.runtimeType &&
-          string == other.string;
+      identical(this, other) || other is Translation && runtimeType == other.runtimeType && string == other.string;
 
   @override
   int get hashCode => string.hashCode;
@@ -54,17 +51,15 @@ class LocalizedString with EquatableMixin implements JSONable {
   /// BCP-47 tag for an undefined language.
   static const String undefinedLanguage = 'und';
 
-  static LocalizedString fromStrings(Map<String?, String> strings) =>
-      LocalizedString(
-        translations: strings.map(
-          (key, value) => MapEntry(key, Translation(value)),
-        ),
-      );
+  static LocalizedString fromStrings(Map<String?, String> strings) => LocalizedString(
+    translations: strings.map(
+      (key, value) => MapEntry(key, Translation(value)),
+    ),
+  );
 
   static LocalizedString fromJsonString(String input) => fromString(input);
 
-  static LocalizedString fromString(String input) =>
-      LocalizedString(translations: {null: Translation(input)});
+  static LocalizedString fromString(String input) => LocalizedString(translations: {null: Translation(input)});
 
   static LocalizedString empty() => const LocalizedString();
 
@@ -127,8 +122,7 @@ class LocalizedString with EquatableMixin implements JSONable {
   /// Returns a new [LocalizedString] after adding (or replacing) the translation with the given
   /// [language].
   LocalizedString copyWithString(String language, String string) => copyWith(
-    translations: Map.from(translations)
-      ..putIfAbsent(language, () => Translation(string)),
+    translations: Map.from(translations)..putIfAbsent(language, () => Translation(string)),
   );
 
   /// Returns a new [LocalizedString] after applying the [transform] function to each language.
@@ -136,8 +130,7 @@ class LocalizedString with EquatableMixin implements JSONable {
     String Function(String?, Translation) transform,
   ) => copyWith(
     translations: translations.map(
-      (language, translation) =>
-          MapEntry(transform(language, translation), translation),
+      (language, translation) => MapEntry(transform(language, translation), translation),
     ),
   );
 
@@ -146,8 +139,7 @@ class LocalizedString with EquatableMixin implements JSONable {
     Translation Function(String?, Translation) transform,
   ) => copyWith(
     translations: translations.map(
-      (language, translation) =>
-          MapEntry(language, transform(language, translation)),
+      (language, translation) => MapEntry(language, transform(language, translation)),
     ),
   );
 
@@ -157,8 +149,7 @@ class LocalizedString with EquatableMixin implements JSONable {
   /// Serializes a [LocalizedString] to its RWPM JSON representation.
   @override
   Map<String, String> toJson() => translations.map(
-    (language, translation) =>
-        MapEntry(language ?? undefinedLanguage, translation.string),
+    (language, translation) => MapEntry(language ?? undefinedLanguage, translation.string),
   );
 
   @override

@@ -85,8 +85,7 @@ class PublicationState {
       publication != other.publication ||
       initialLocator != other.initialLocator;
 
-  PublicationState loading(Locator? initialLocator) =>
-      copyWith(isLoading: true, initialLocator: initialLocator);
+  PublicationState loading(Locator? initialLocator) => copyWith(isLoading: true, initialLocator: initialLocator);
 
   String errorDebugDescription() {
     if (error is ReadiumException) {
@@ -170,9 +169,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
           _log.fine('onTextLocatorChanged: $locator');
-          if ((publication.containsMediaOverlays ||
-                  publication.containsGuidedNavigation) &&
-              timebasedLocatorReceived) {
+          if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
             // If the publication has media overlays, we prefer the locator from the timebased player state.
             return;
@@ -197,8 +194,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     });
 
     on<AddHighlight>((final event, final emit) {
-      final updated = Map<String, ReaderDecoration>.from(state.highlights)
-        ..[event.decoration.id] = event.decoration;
+      final updated = Map<String, ReaderDecoration>.from(state.highlights)..[event.decoration.id] = event.decoration;
       emit(state.copyWith(highlights: updated));
       instance.applyDecorations('user_highlights', updated.values.toList());
     });

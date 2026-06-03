@@ -35,11 +35,7 @@ extension MapExtension on Map<String, dynamic>? {
             (key, value) => MapEntry<dynamic, dynamic>(key, _wrapJSON(value)),
           );
     } else if (value is List) {
-      return (value)
-          .takeIf((it) => it.isNotEmpty)
-          ?.nonNulls
-          .map(_wrapJSON)
-          .toList();
+      return (value).takeIf((it) => it.isNotEmpty)?.nonNulls.map(_wrapJSON).toList();
     }
     return value;
   }
