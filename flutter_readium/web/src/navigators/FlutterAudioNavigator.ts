@@ -297,11 +297,9 @@ function _emitState(
 }
 
 export class FlutterAudioNavigator {
-  readonly underlying: AudioNavigator;
-
-  private constructor(nav: AudioNavigator) {
-    this.underlying = nav;
-  }
+  // This class is a static factory only. The constructed navigator is delivered
+  // via the `setNav` callback so that ReadiumReader can hold it as the raw
+  // upstream type (AudioNavigator) without wrapping.
 
   // See Readium's guide on ts-toolkit AudioNavigator configuration:
   // https://github.com/readium/ts-toolkit/blob/develop/navigator/docs/audio/ConfiguringAudioNavigator.md
@@ -317,7 +315,7 @@ export class FlutterAudioNavigator {
      *  than the Dart-side `updateIntervalSecs` preference (which controls the
      *  progress bar, not cue timing). */
     pollIntervalOverrideMs?: number
-  ): Promise<FlutterAudioNavigator> {
+  ): Promise<void> {
     const tracks = publication.readingOrder.items.length;
     log.info(
       `Initializing AudioNavigator with ${tracks} track(s)`,
@@ -385,7 +383,7 @@ export class FlutterAudioNavigator {
     // Promise that resolves once the first track is loaded and the navigator is
     // ready for playback. Callers awaiting create() will block until this point,
     // preventing race conditions where Dart calls play() before the navigator is set.
-    const ready = new Promise<FlutterAudioNavigator>((resolve) => {
+    const ready = new Promise<void>((resolve) => {
       let resolved = false;
 
       const listeners: AudioNavigatorListeners = {
@@ -394,7 +392,7 @@ export class FlutterAudioNavigator {
             resolved = true;
             log.info("AudioNavigator ready (first track loaded)");
             setNav(nav);
-            resolve(new FlutterAudioNavigator(nav));
+            resolve();
           }
         },
         positionChanged: (locator) => {
