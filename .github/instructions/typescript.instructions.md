@@ -16,7 +16,7 @@ applyTo: 'flutter_readium/web/**/*.ts'
 
 ## Built JS
 
-Do **not** hand-edit the compiled JS in `example/web/`. Edit TS sources in `flutter_readium/web/_scripts/`, then run `bin/update_web_example` from the repo root to rebuild and copy the bundle.
+Do **not** hand-edit the compiled JS in `example/web/`. Edit TS sources in `flutter_readium/web/src/`, then run `bin/update_web_example` from the repo root to rebuild and copy the bundle.
 
 ## Linting
 
