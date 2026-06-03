@@ -32,11 +32,17 @@ class GuidedNavigationDocument with EquatableMixin implements JSONable {
     if (json == null) return null;
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
-    final guided = GuidedNavigationObject.fromJsonArray(jsonObject.optJsonArray('guided', remove: true));
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
+    final guided = GuidedNavigationObject.fromJsonArray(
+      jsonObject.optJsonArray('guided', remove: true),
+    );
 
     if (guided.isEmpty) {
-      ReadiumLog.d('GuidedNavigationDocument: [guided] is required and must not be empty');
+      ReadiumLog.d(
+        'GuidedNavigationDocument: [guided] is required and must not be empty',
+      );
       return null;
     }
 

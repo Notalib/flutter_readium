@@ -31,19 +31,33 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
     name = ReaderTTSVoiceUtils.getVoiceName(language, identifier, name);
     gender = ReaderTTSVoiceUtils.getVoiceGender(language, identifier, gender);
 
-    return ReaderTTSVoice._(identifier, name, language, networkRequired, gender, quality, active);
+    return ReaderTTSVoice._(
+      identifier,
+      name,
+      language,
+      networkRequired,
+      gender,
+      quality,
+      active,
+    );
   }
 
   factory ReaderTTSVoice.fromJson(final Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
     final identifier = jsonObject.optString('identifier', remove: true);
-    final name = jsonObject.optNullableString('name', remove: true) ?? identifier;
+    final name =
+        jsonObject.optNullableString('name', remove: true) ?? identifier;
     final language = jsonObject.optString('language', remove: true);
-    final networkRequired = jsonObject.optBoolean('networkRequired', remove: true);
+    final networkRequired = jsonObject.optBoolean(
+      'networkRequired',
+      remove: true,
+    );
     final active = jsonObject.optNullableBoolean('active', remove: true);
 
-    final gender = TTSVoiceGender.fromString(jsonObject.optString('gender', remove: true));
+    final gender = TTSVoiceGender.fromString(
+      jsonObject.optString('gender', remove: true),
+    );
 
     final qualityStr = jsonObject.optNullableString('quality', remove: true);
     TTSVoiceQuality? quality;
@@ -52,11 +66,15 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
       try {
         quality = TTSVoiceQuality.optFromString(qualityStr);
         if (quality == null) {
-          ReadiumLog.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
+          ReadiumLog.w(
+            'Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.',
+          );
         }
         // ignore: avoid_catches_without_on_clauses
       } catch (e) {
-        ReadiumLog.w('Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.');
+        ReadiumLog.w(
+          'Unknown TTSVoiceQuality value: $qualityStr, defaulting to null.',
+        );
         quality = null;
       }
     }
@@ -91,7 +109,15 @@ class ReaderTTSVoice with EquatableMixin implements JSONable {
     ..putOpt('active', active);
 
   @override
-  List<Object?> get props => [identifier, name, language, networkRequired, gender, quality, active];
+  List<Object?> get props => [
+    identifier,
+    name,
+    language,
+    networkRequired,
+    gender,
+    quality,
+    active,
+  ];
 
   ReaderTTSVoice copyWith({
     String? identifier,

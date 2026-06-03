@@ -184,7 +184,8 @@ class TextSettingsState {
   final DecorationStyle? rangeStyle;
 
   @override
-  String toString() => 'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
+  String toString() =>
+      'TextSettingsState(theme: $theme, fontSize: $fontSize, scroll: $scroll, highlight: $highlight)';
 
   TextSettingsState copyWith({
     final bool? scroll,
@@ -220,15 +221,20 @@ class TextSettingsState {
       highlight: highlight ?? this.highlight,
       pageMargins: pageMargins ?? this.pageMargins,
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
-      blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
-      disableSynchronization: disableSynchronization ?? this.disableSynchronization,
-      firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
+      blackAndWhiteComicMode:
+          blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+      disableSynchronization:
+          disableSynchronization ?? this.disableSynchronization,
+      firstElementTopMargin:
+          firstElementTopMargin ?? this.firstElementTopMargin,
       fontFamily: fontFamily ?? this.fontFamily,
       fontWeight: fontWeight ?? this.fontWeight,
       letterSpacing: letterSpacing ?? this.letterSpacing,
       wordSpacing: wordSpacing ?? this.wordSpacing,
       lineHeight: lineHeight ?? this.lineHeight,
-      textAlign: textAlign == _sentinel ? this.textAlign : textAlign as TextAlign?,
+      textAlign: textAlign == _sentinel
+          ? this.textAlign
+          : textAlign as TextAlign?,
       columnCount: columnCount ?? this.columnCount,
       readingProgression: readingProgression ?? this.readingProgression,
       paragraphIndent: paragraphIndent ?? this.paragraphIndent,
@@ -236,9 +242,15 @@ class TextSettingsState {
       hyphens: hyphens ?? this.hyphens,
       ligatures: ligatures ?? this.ligatures,
       textNormalization: textNormalization ?? this.textNormalization,
-      imageFilter: imageFilter == _sentinel ? this.imageFilter : imageFilter as EpubImageFilter?,
-      utteranceStyle: utteranceStyle == _sentinel ? this.utteranceStyle : utteranceStyle as DecorationStyle?,
-      rangeStyle: rangeStyle == _sentinel ? this.rangeStyle : rangeStyle as DecorationStyle?,
+      imageFilter: imageFilter == _sentinel
+          ? this.imageFilter
+          : imageFilter as EpubImageFilter?,
+      utteranceStyle: utteranceStyle == _sentinel
+          ? this.utteranceStyle
+          : utteranceStyle as DecorationStyle?,
+      rangeStyle: rangeStyle == _sentinel
+          ? this.rangeStyle
+          : rangeStyle as DecorationStyle?,
     );
   }
 }
@@ -307,10 +319,16 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     // settings panel.
     instance.setDecorationStyle(
       state.utteranceStyle != null
-          ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: state.highlight.backgroundColor)
+          ? ReaderDecorationStyle(
+              style: state.utteranceStyle!,
+              tint: state.highlight.backgroundColor,
+            )
           : null,
       state.rangeStyle != null
-          ? ReaderDecorationStyle(style: state.rangeStyle!, tint: state.highlight.textColor)
+          ? ReaderDecorationStyle(
+              style: state.rangeStyle!,
+              tint: state.highlight.textColor,
+            )
           : null,
     );
   }
@@ -341,12 +359,16 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<ToggleBlackAndWhiteComicMode>((final event, final emit) {
-      emit(state.copyWith(blackAndWhiteComicMode: !state.blackAndWhiteComicMode));
+      emit(
+        state.copyWith(blackAndWhiteComicMode: !state.blackAndWhiteComicMode),
+      );
       submitPreferenceUpdate();
     });
 
     on<ToggleDisableSynchronization>((final event, final emit) {
-      emit(state.copyWith(disableSynchronization: !state.disableSynchronization));
+      emit(
+        state.copyWith(disableSynchronization: !state.disableSynchronization),
+      );
       submitPreferenceUpdate();
     });
 
@@ -360,10 +382,16 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
 
       await FlutterReadium().setDecorationStyle(
         state.utteranceStyle != null
-            ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: event.highlight.backgroundColor)
+            ? ReaderDecorationStyle(
+                style: state.utteranceStyle!,
+                tint: event.highlight.backgroundColor,
+              )
             : null,
         state.rangeStyle != null
-            ? ReaderDecorationStyle(style: state.rangeStyle!, tint: event.highlight.textColor)
+            ? ReaderDecorationStyle(
+                style: state.rangeStyle!,
+                tint: event.highlight.textColor,
+              )
             : null,
       );
     });
@@ -371,9 +399,17 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     on<ChangeUtteranceStyle>((final event, final emit) async {
       emit(state.copyWith(utteranceStyle: event.value));
       await FlutterReadium().setDecorationStyle(
-        event.value != null ? ReaderDecorationStyle(style: event.value!, tint: state.highlight.backgroundColor) : null,
+        event.value != null
+            ? ReaderDecorationStyle(
+                style: event.value!,
+                tint: state.highlight.backgroundColor,
+              )
+            : null,
         state.rangeStyle != null
-            ? ReaderDecorationStyle(style: state.rangeStyle!, tint: state.highlight.textColor)
+            ? ReaderDecorationStyle(
+                style: state.rangeStyle!,
+                tint: state.highlight.textColor,
+              )
             : null,
       );
     });
@@ -382,9 +418,17 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
       emit(state.copyWith(rangeStyle: event.value));
       await FlutterReadium().setDecorationStyle(
         state.utteranceStyle != null
-            ? ReaderDecorationStyle(style: state.utteranceStyle!, tint: state.highlight.backgroundColor)
+            ? ReaderDecorationStyle(
+                style: state.utteranceStyle!,
+                tint: state.highlight.backgroundColor,
+              )
             : null,
-        event.value != null ? ReaderDecorationStyle(style: event.value!, tint: state.highlight.textColor) : null,
+        event.value != null
+            ? ReaderDecorationStyle(
+                style: event.value!,
+                tint: state.highlight.textColor,
+              )
+            : null,
       );
     });
 
@@ -433,7 +477,9 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<ChangeParagraphIndent>((event, emit) {
-      emit(state.copyWith(paragraphIndent: event.value, publisherStyles: false));
+      emit(
+        state.copyWith(paragraphIndent: event.value, publisherStyles: false),
+      );
       submitPreferenceUpdate();
     });
 
@@ -443,17 +489,29 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     });
 
     on<ToggleHyphens>((event, emit) {
-      emit(state.copyWith(hyphens: !(state.hyphens ?? false), publisherStyles: false));
+      emit(
+        state.copyWith(
+          hyphens: !(state.hyphens ?? false),
+          publisherStyles: false,
+        ),
+      );
       submitPreferenceUpdate();
     });
 
     on<ToggleLigatures>((event, emit) {
-      emit(state.copyWith(ligatures: !(state.ligatures ?? false), publisherStyles: false));
+      emit(
+        state.copyWith(
+          ligatures: !(state.ligatures ?? false),
+          publisherStyles: false,
+        ),
+      );
       submitPreferenceUpdate();
     });
 
     on<ToggleTextNormalization>((event, emit) {
-      emit(state.copyWith(textNormalization: !(state.textNormalization ?? false)));
+      emit(
+        state.copyWith(textNormalization: !(state.textNormalization ?? false)),
+      );
       submitPreferenceUpdate();
     });
 

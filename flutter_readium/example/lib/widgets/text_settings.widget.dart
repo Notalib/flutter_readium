@@ -7,7 +7,12 @@ import '../extensions/text_settings_theme.dart';
 import '../state/text_settings_bloc.dart';
 import 'index.dart';
 
-const List<String> _fontFamilies = ['Original', 'serif', 'sans-serif', 'monospace'];
+const List<String> _fontFamilies = [
+  'Original',
+  'serif',
+  'sans-serif',
+  'monospace',
+];
 
 class TextSettingsWidget extends StatelessWidget {
   const TextSettingsWidget({super.key});
@@ -59,9 +64,12 @@ class TextSettingsWidget extends StatelessWidget {
               child: DropdownMenu<String>(
                 key: const ValueKey('font_family_selector'),
                 initialSelection: state.fontFamily,
-                dropdownMenuEntries: _fontFamilies.map((f) => DropdownMenuEntry(value: f, label: f)).toList(),
+                dropdownMenuEntries: _fontFamilies
+                    .map((f) => DropdownMenuEntry(value: f, label: f))
+                    .toList(),
                 onSelected: (value) {
-                  if (value != null) textSettingsBloc.add(ChangeFontFamily(value));
+                  if (value != null)
+                    textSettingsBloc.add(ChangeFontFamily(value));
                 },
               ),
             ),
@@ -71,13 +79,27 @@ class TextSettingsWidget extends StatelessWidget {
                 key: const ValueKey('text_align_selector'),
                 emptySelectionAllowed: true,
                 segments: const [
-                  ButtonSegment(value: TextAlign.start, icon: Icon(Icons.format_align_left), tooltip: 'Start'),
-                  ButtonSegment(value: TextAlign.right, icon: Icon(Icons.format_align_right), tooltip: 'Right'),
-                  ButtonSegment(value: TextAlign.justify, icon: Icon(Icons.format_align_justify), tooltip: 'Justify'),
+                  ButtonSegment(
+                    value: TextAlign.start,
+                    icon: Icon(Icons.format_align_left),
+                    tooltip: 'Start',
+                  ),
+                  ButtonSegment(
+                    value: TextAlign.right,
+                    icon: Icon(Icons.format_align_right),
+                    tooltip: 'Right',
+                  ),
+                  ButtonSegment(
+                    value: TextAlign.justify,
+                    icon: Icon(Icons.format_align_justify),
+                    tooltip: 'Justify',
+                  ),
                 ],
                 selected: state.textAlign != null ? {state.textAlign!} : {},
                 onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeTextAlign(values.isEmpty ? null : values.first));
+                  textSettingsBloc.add(
+                    ChangeTextAlign(values.isEmpty ? null : values.first),
+                  );
                 },
               ),
             ),
@@ -95,7 +117,9 @@ class TextSettingsWidget extends StatelessWidget {
                     min: kIsWeb ? 1.0 : 0.5,
                     max: kIsWeb ? 9.0 : 2.0,
                     divisions: kIsWeb ? 8 : 6,
-                    label: kIsWeb ? (state.fontWeight * 100).toStringAsFixed(0) : state.fontWeight.toStringAsFixed(1),
+                    label: kIsWeb
+                        ? (state.fontWeight * 100).toStringAsFixed(0)
+                        : state.fontWeight.toStringAsFixed(1),
                     onChanged: (value) {
                       textSettingsBloc.add(ChangeFontWeight(value));
                     },
@@ -184,7 +208,10 @@ class TextSettingsWidget extends StatelessWidget {
               child: SegmentedButton<EpubColumnCount>(
                 key: const ValueKey('column_count_selector'),
                 segments: const [
-                  ButtonSegment(value: EpubColumnCount.auto, label: Text('Auto')),
+                  ButtonSegment(
+                    value: EpubColumnCount.auto,
+                    label: Text('Auto'),
+                  ),
                   ButtonSegment(value: EpubColumnCount.one, label: Text('One')),
                   ButtonSegment(value: EpubColumnCount.two, label: Text('Two')),
                 ],
@@ -203,12 +230,22 @@ class TextSettingsWidget extends StatelessWidget {
                 child: SegmentedButton<EpubReadingProgression>(
                   key: const ValueKey('reading_progression_selector'),
                   segments: const [
-                    ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
-                    ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
+                    ButtonSegment(
+                      value: EpubReadingProgression.ltr,
+                      label: Text('LTR'),
+                    ),
+                    ButtonSegment(
+                      value: EpubReadingProgression.rtl,
+                      label: Text('RTL'),
+                    ),
                   ],
-                  selected: {state.readingProgression ?? EpubReadingProgression.ltr},
+                  selected: {
+                    state.readingProgression ?? EpubReadingProgression.ltr,
+                  },
                   onSelectionChanged: (values) {
-                    textSettingsBloc.add(ChangeReadingProgression(values.first));
+                    textSettingsBloc.add(
+                      ChangeReadingProgression(values.first),
+                    );
                   },
                 ),
               ),
@@ -315,12 +352,22 @@ class TextSettingsWidget extends StatelessWidget {
                 key: const ValueKey('image_filter_selector'),
                 emptySelectionAllowed: true,
                 segments: const [
-                  ButtonSegment(value: EpubImageFilter.darken, label: Text('Darken')),
-                  ButtonSegment(value: EpubImageFilter.invert, label: Text('Invert')),
+                  ButtonSegment(
+                    value: EpubImageFilter.darken,
+                    label: Text('Darken'),
+                  ),
+                  ButtonSegment(
+                    value: EpubImageFilter.invert,
+                    label: Text('Invert'),
+                  ),
                 ],
-                selected: {state.imageFilter}.whereType<EpubImageFilter?>().toSet(),
+                selected: {
+                  state.imageFilter,
+                }.whereType<EpubImageFilter?>().toSet(),
                 onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeImageFilter(values.isEmpty ? null : values.first));
+                  textSettingsBloc.add(
+                    ChangeImageFilter(values.isEmpty ? null : values.first),
+                  );
                 },
               ),
             ),
@@ -331,48 +378,84 @@ class TextSettingsWidget extends StatelessWidget {
             ),
             ListItemWidget(
               label: 'Utterance',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.utteranceStyle,
-                builder: (context, utteranceStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('utterance_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                  ],
-                  selected: {utteranceStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeUtteranceStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
+              child:
+                  BlocSelector<
+                    TextSettingsBloc,
+                    TextSettingsState,
+                    DecorationStyle?
+                  >(
+                    selector: (state) => state.utteranceStyle,
+                    builder: (context, utteranceStyle) =>
+                        SegmentedButton<DecorationStyle?>(
+                          key: const ValueKey('utterance_style_selector'),
+                          emptySelectionAllowed: true,
+                          segments: const [
+                            ButtonSegment(value: null, label: Text('Off')),
+                            ButtonSegment(
+                              value: DecorationStyle.highlight,
+                              label: Text('Fill'),
+                            ),
+                            ButtonSegment(
+                              value: DecorationStyle.underline,
+                              label: Text('Line'),
+                            ),
+                          ],
+                          selected: {utteranceStyle},
+                          onSelectionChanged: (values) =>
+                              context.read<TextSettingsBloc>().add(
+                                ChangeUtteranceStyle(
+                                  values.isEmpty ? null : values.first,
+                                ),
+                              ),
+                        ),
+                  ),
             ),
             ListItemWidget(
               label: 'Range',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.rangeStyle,
-                builder: (context, rangeStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('range_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                  ],
-                  selected: {rangeStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeRangeStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
+              child:
+                  BlocSelector<
+                    TextSettingsBloc,
+                    TextSettingsState,
+                    DecorationStyle?
+                  >(
+                    selector: (state) => state.rangeStyle,
+                    builder: (context, rangeStyle) =>
+                        SegmentedButton<DecorationStyle?>(
+                          key: const ValueKey('range_style_selector'),
+                          emptySelectionAllowed: true,
+                          segments: const [
+                            ButtonSegment(value: null, label: Text('Off')),
+                            ButtonSegment(
+                              value: DecorationStyle.highlight,
+                              label: Text('Fill'),
+                            ),
+                            ButtonSegment(
+                              value: DecorationStyle.underline,
+                              label: Text('Line'),
+                            ),
+                          ],
+                          selected: {rangeStyle},
+                          onSelectionChanged: (values) =>
+                              context.read<TextSettingsBloc>().add(
+                                ChangeRangeStyle(
+                                  values.isEmpty ? null : values.first,
+                                ),
+                              ),
+                        ),
+                  ),
             ),
             const Divider(),
             TextButton(
               key: const ValueKey('text_settings_close_button'),
               onPressed: () => Navigator.of(context).pop(),
               style: ButtonStyle(
-                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
+                padding: WidgetStateProperty.all<EdgeInsets>(
+                  const EdgeInsets.symmetric(vertical: 16.0),
+                ),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(0.0),
+                  ),
                 ),
               ),
               child: Row(
@@ -403,7 +486,11 @@ class _CollapsibleSection extends StatelessWidget {
       child: ExpansionTile(
         title: Text(
           title,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         initiallyExpanded: false,
         children: children,
@@ -424,7 +511,11 @@ class _SectionHeader extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
       ),
     );

@@ -51,17 +51,33 @@ class Link with EquatableMixin implements JSONable {
     return Link(
       href: href,
       type: jsonObject.optNullableString('type', remove: true),
-      templated: jsonObject.optBoolean('templated', fallback: false, remove: true),
+      templated: jsonObject.optBoolean(
+        'templated',
+        fallback: false,
+        remove: true,
+      ),
       title: jsonObject.optNullableString('title', remove: true),
-      rels: jsonObject.optStringsFromArrayOrSingle('rel', remove: true).toSet().toList(),
-      properties: Properties.fromJson(jsonObject.optJsonObject('properties', remove: true)),
+      rels: jsonObject
+          .optStringsFromArrayOrSingle('rel', remove: true)
+          .toSet()
+          .toList(),
+      properties: Properties.fromJson(
+        jsonObject.optJsonObject('properties', remove: true),
+      ),
       height: jsonObject.optPositiveInt('height', remove: true),
       width: jsonObject.optPositiveInt('width', remove: true),
       bitrate: jsonObject.optPositiveDouble('bitrate', remove: true),
       duration: jsonObject.optPositiveDouble('duration', remove: true),
-      languages: jsonObject.optStringsFromArrayOrSingle('language', remove: true),
-      alternates: fromJsonArray(jsonObject.optJsonArray('alternate', remove: true)),
-      children: fromJsonArray(jsonObject.optJsonArray('children', remove: true)),
+      languages: jsonObject.optStringsFromArrayOrSingle(
+        'language',
+        remove: true,
+      ),
+      alternates: fromJsonArray(
+        jsonObject.optJsonArray('alternate', remove: true),
+      ),
+      children: fromJsonArray(
+        jsonObject.optJsonArray('children', remove: true),
+      ),
     );
   }
 
@@ -69,7 +85,9 @@ class Link with EquatableMixin implements JSONable {
   /// If a link can't be parsed, a warning will be logged.
   static List<Link> fromJsonArray(List<dynamic>? json) =>
       // Non-map entries (e.g. JSON-LD @context strings) are silently skipped.
-      (json ?? []).parseObjects((it) => it is Map<String, dynamic> ? Link.fromJson(it) : null);
+      (json ?? []).parseObjects(
+        (it) => it is Map<String, dynamic> ? Link.fromJson(it) : null,
+      );
 
   /// (Nullable) Unique identifier for this link in the [Publication].
   final String? id;
@@ -162,7 +180,8 @@ class Link with EquatableMixin implements JSONable {
   }
 
   /// List of URI template parameter keys, if the [Link] is templated.
-  List<String> get templateParameters => (templated) ? UriTemplate(href).parameters.toList() : [];
+  List<String> get templateParameters =>
+      (templated) ? UriTemplate(href).parameters.toList() : [];
 
   /// Expands the HREF by replacing URI template variables by the given parameters.
   ///
@@ -230,5 +249,6 @@ class Link with EquatableMixin implements JSONable {
   ];
 
   @override
-  String toString() => 'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
+  String toString() =>
+      'Link{id: $id, href: $href, type: $type, title: $title, rels: $rels, properties: $properties}';
 }

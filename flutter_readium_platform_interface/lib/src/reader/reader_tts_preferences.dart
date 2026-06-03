@@ -12,19 +12,30 @@ class TTSPreferences with EquatableMixin implements JSONable {
 
     final speed = jsonObject.optDouble('speed', remove: true);
     final pitch = jsonObject.optDouble('pitch', remove: true);
-    final voiceIdentifier = jsonObject.optNullableString('voiceIdentifier', remove: true);
+    final voiceIdentifier = jsonObject.optNullableString(
+      'voiceIdentifier',
+      remove: true,
+    );
     final voicesJson = jsonObject.optJsonObject('voices', remove: true) ?? {};
     final voices = Map<String, String>.fromEntries(
       voicesJson.entries
           .where((entry) => entry.value is String)
           .map((entry) => MapEntry(entry.key, entry.value as String)),
     );
-    final languageOverride = jsonObject.optNullableString('languageOverride', remove: true);
-    final controlPanelInfoTypeStr = jsonObject.optNullableString('controlPanelInfoType', remove: true);
+    final languageOverride = jsonObject.optNullableString(
+      'languageOverride',
+      remove: true,
+    );
+    final controlPanelInfoTypeStr = jsonObject.optNullableString(
+      'controlPanelInfoType',
+      remove: true,
+    );
     ControlPanelInfoType? controlPanelInfoType;
 
     if (controlPanelInfoTypeStr != null) {
-      controlPanelInfoType = ControlPanelInfoType.fromOptString(controlPanelInfoTypeStr);
+      controlPanelInfoType = ControlPanelInfoType.fromOptString(
+        controlPanelInfoTypeStr,
+      );
       if (controlPanelInfoType == null) {
         ReadiumLog.w(
           'Unknown ControlPanelInfoType value: $controlPanelInfoTypeStr, defaulting to ControlPanelInfoType.standard.',
@@ -38,7 +49,8 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voiceIdentifier: voiceIdentifier,
       voices: voices,
       languageOverride: languageOverride,
-      controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
+      controlPanelInfoType:
+          controlPanelInfoType ?? ControlPanelInfoType.standard,
     );
   }
 
@@ -76,8 +88,18 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putOpt('voiceIdentifier', voiceIdentifier)
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
-    ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last);
+    ..putOpt(
+      'controlPanelInfoType',
+      controlPanelInfoType?.toString().split('.').last,
+    );
 
   @override
-  List<Object?> get props => [speed, pitch, voiceIdentifier, voices, languageOverride, controlPanelInfoType];
+  List<Object?> get props => [
+    speed,
+    pitch,
+    voiceIdentifier,
+    voices,
+    languageOverride,
+    controlPanelInfoType,
+  ];
 }

@@ -27,7 +27,11 @@ sealed class GuidedNavigationText implements JSONable {
       final ssml = jsonObject.optNullableString('ssml', remove: true);
       final language = jsonObject.optNullableString('language', remove: true);
       if (plain == null && ssml == null) return null;
-      return GuidedNavigationTextObject(plain: plain, ssml: ssml, language: language);
+      return GuidedNavigationTextObject(
+        plain: plain,
+        ssml: ssml,
+        language: language,
+      );
     }
     return null;
   }
@@ -35,7 +39,8 @@ sealed class GuidedNavigationText implements JSONable {
 
 /// A guided navigation text represented as a plain string.
 @immutable
-final class GuidedNavigationTextString extends GuidedNavigationText with EquatableMixin {
+final class GuidedNavigationTextString extends GuidedNavigationText
+    with EquatableMixin {
   const GuidedNavigationTextString(this.value);
 
   final String value;
@@ -50,7 +55,8 @@ final class GuidedNavigationTextString extends GuidedNavigationText with Equatab
 /// A guided navigation text represented as a structured object with optional
 /// SSML markup and BCP 47 language tag.
 @immutable
-final class GuidedNavigationTextObject extends GuidedNavigationText with EquatableMixin {
+final class GuidedNavigationTextObject extends GuidedNavigationText
+    with EquatableMixin {
   const GuidedNavigationTextObject({this.plain, this.ssml, this.language});
 
   final String? plain;

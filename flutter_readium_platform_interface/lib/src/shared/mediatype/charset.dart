@@ -30,8 +30,10 @@ class Charset {
   final String name;
   final List<String> aliases;
 
-  static Charset? forName(String name) =>
-      values.firstWhereOrNull((c) => c.name == name.toUpperCase() || c.aliases.contains(name.toUpperCase()));
+  static Charset? forName(String name) => values.firstWhereOrNull(
+    (c) =>
+        c.name == name.toUpperCase() || c.aliases.contains(name.toUpperCase()),
+  );
 
   @override
   String toString() => 'Charset{name: $name, aliases: $aliases}';

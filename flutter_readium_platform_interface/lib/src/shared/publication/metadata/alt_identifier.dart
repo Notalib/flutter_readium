@@ -8,7 +8,8 @@ import '../../../utils/jsonable.dart';
 /// https://readium.org/webpub-manifest/schema/altIdentifier.schema.json
 @immutable
 class AltIdentifier with EquatableMixin implements JSONable {
-  factory AltIdentifier.fromJsonString(String json) => AltIdentifier(scheme: json);
+  factory AltIdentifier.fromJsonString(String json) =>
+      AltIdentifier(scheme: json);
 
   /// Factory to parse from JSON.
   factory AltIdentifier.fromJson(dynamic json) {

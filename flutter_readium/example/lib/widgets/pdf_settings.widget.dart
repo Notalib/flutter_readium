@@ -38,9 +38,18 @@ class PDFSettingsWidget extends StatelessWidget {
               child: SegmentedButton<PDFLayout>(
                 key: const ValueKey('pdf_layout_selector'),
                 segments: const [
-                  ButtonSegment(value: PDFLayout.paginated, label: Text('Paginated')),
-                  ButtonSegment(value: PDFLayout.scrollVertical, label: Text('Scroll V')),
-                  ButtonSegment(value: PDFLayout.scrollHorizontal, label: Text('Scroll H')),
+                  ButtonSegment(
+                    value: PDFLayout.paginated,
+                    label: Text('Paginated'),
+                  ),
+                  ButtonSegment(
+                    value: PDFLayout.scrollVertical,
+                    label: Text('Scroll V'),
+                  ),
+                  ButtonSegment(
+                    value: PDFLayout.scrollHorizontal,
+                    label: Text('Scroll H'),
+                  ),
                 ],
                 selected: {state.layout},
                 onSelectionChanged: (values) {
@@ -70,8 +79,14 @@ class PDFSettingsWidget extends StatelessWidget {
               child: SegmentedButton<PDFReadingProgression>(
                 key: const ValueKey('pdf_reading_progression_selector'),
                 segments: const [
-                  ButtonSegment(value: PDFReadingProgression.ltr, label: Text('LTR')),
-                  ButtonSegment(value: PDFReadingProgression.rtl, label: Text('RTL')),
+                  ButtonSegment(
+                    value: PDFReadingProgression.ltr,
+                    label: Text('LTR'),
+                  ),
+                  ButtonSegment(
+                    value: PDFReadingProgression.rtl,
+                    label: Text('RTL'),
+                  ),
                 ],
                 selected: {state.readingProgression},
                 onSelectionChanged: (values) {
@@ -99,9 +114,13 @@ class PDFSettingsWidget extends StatelessWidget {
               key: const ValueKey('pdf_settings_close_button'),
               onPressed: () => Navigator.of(context).pop(),
               style: ButtonStyle(
-                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
+                padding: WidgetStateProperty.all<EdgeInsets>(
+                  const EdgeInsets.symmetric(vertical: 16.0),
+                ),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(0.0),
+                  ),
                 ),
               ),
               child: Row(

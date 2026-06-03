@@ -11,7 +11,9 @@ import 'package:meta/meta.dart';
 import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
-class OpdsMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
+class OpdsMetadata extends AdditionalProperties
+    with EquatableMixin
+    implements JSONable {
   const OpdsMetadata({
     required this.localizedTitle,
     this.identifier,
@@ -116,12 +118,27 @@ class OpdsMetadata extends AdditionalProperties with EquatableMixin implements J
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final localizedTitle = LocalizedString.fromJsonDynamic(jsonObject.opt('title', remove: true)) ?? LocalizedString();
-    final description = jsonObject.optNullableString('description', remove: true);
-    final localizedSubtitle = LocalizedString.fromJsonDynamic(jsonObject.opt('subtitle', remove: true));
+    final localizedTitle =
+        LocalizedString.fromJsonDynamic(
+          jsonObject.opt('title', remove: true),
+        ) ??
+        LocalizedString();
+    final description = jsonObject.optNullableString(
+      'description',
+      remove: true,
+    );
+    final localizedSubtitle = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('subtitle', remove: true),
+    );
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
-    final itemsPerPage = jsonObject.optNullableInt('itemsPerPage', remove: true);
+    final numberOfItems = jsonObject.optNullableInt(
+      'numberOfItems',
+      remove: true,
+    );
+    final itemsPerPage = jsonObject.optNullableInt(
+      'itemsPerPage',
+      remove: true,
+    );
     final currentPage = jsonObject.optNullableInt('currentPage', remove: true);
     final modified = jsonObject.optNullableDateTime('modified', remove: true);
     final position = jsonObject.optNullableDouble('position', remove: true);

@@ -24,7 +24,11 @@ class AddHighlight extends PublicationEvent {
 
 @immutable
 class OpenPublication extends PublicationEvent {
-  OpenPublication({required this.publicationUrl, this.initialLocator, this.autoPlay});
+  OpenPublication({
+    required this.publicationUrl,
+    this.initialLocator,
+    this.autoPlay,
+  });
   final String publicationUrl;
   final Locator? initialLocator;
   final bool? autoPlay;
@@ -61,8 +65,15 @@ class PublicationState {
     highlights: highlights ?? this.highlights,
   );
 
-  PublicationState openPublicationSuccess(final Publication publication, Locator? initialLocator) =>
-      PublicationState(publication: publication, initialLocator: initialLocator, isLoading: false, error: null);
+  PublicationState openPublicationSuccess(
+    final Publication publication,
+    Locator? initialLocator,
+  ) => PublicationState(
+    publication: publication,
+    initialLocator: initialLocator,
+    isLoading: false,
+    error: null,
+  );
 
   PublicationState openPublicationFail(final dynamic error) =>
       copyWith(publication: publication, error: error, isLoading: false);
@@ -74,7 +85,8 @@ class PublicationState {
       publication != other.publication ||
       initialLocator != other.initialLocator;
 
-  PublicationState loading(Locator? initialLocator) => copyWith(isLoading: true, initialLocator: initialLocator);
+  PublicationState loading(Locator? initialLocator) =>
+      copyWith(isLoading: true, initialLocator: initialLocator);
 
   String errorDebugDescription() {
     if (error is ReadiumException) {
@@ -101,10 +113,18 @@ class PublicationState {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final publication = Publication.fromJson(jsonObject.optNullableMap('publication', remove: true));
-    final initialLocator = Locator.fromJson(jsonObject.optNullableMap('initialLocator', remove: true));
+    final publication = Publication.fromJson(
+      jsonObject.optNullableMap('publication', remove: true),
+    );
+    final initialLocator = Locator.fromJson(
+      jsonObject.optNullableMap('initialLocator', remove: true),
+    );
     final error = jsonObject.opt('error', remove: true);
-    final isLoading = jsonObject.optBoolean('isLoading', fallback: false, remove: true);
+    final isLoading = jsonObject.optBoolean(
+      'isLoading',
+      fallback: false,
+      remove: true,
+    );
 
     return PublicationState(
       publication: publication,
@@ -126,7 +146,9 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
     on<OpenPublication>((final event, final emit) async {
       emit(state.loading(event.initialLocator));
       try {
-        final publication = await instance.openPublication(event.publicationUrl);
+        final publication = await instance.openPublication(
+          event.publicationUrl,
+        );
         final pubUrlHashCode = event.publicationUrl.hashCode.toString();
         bool timebasedLocatorReceived = false;
 
@@ -136,7 +158,11 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         timebasedStateSub = instance.onTimebasedPlayerStateChanged
             .map((state) => state.currentLocator)
             .whereNotNull()
-            .throttleTime(const Duration(milliseconds: 1000), leading: false, trailing: true)
+            .throttleTime(
+              const Duration(milliseconds: 1000),
+              leading: false,
+              trailing: true,
+            )
             .listen((locator) {
               _log.fine('onTimebasedPlayerState.currentLocator: $locator');
               savedLocators[pubUrlHashCode] = locator;
@@ -144,7 +170,9 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
           _log.fine('onTextLocatorChanged: $locator');
-          if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
+          if ((publication.containsMediaOverlays ||
+                  publication.containsGuidedNavigation) &&
+              timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
             // If the publication has media overlays, we prefer the locator from the timebased player state.
             return;
@@ -156,16 +184,21 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         });
       } on Exception catch (error) {
         if (error is ReadiumException) {
-          _log.severe('ReadiumException on opening publication: ${error.type} - ${error.message}');
+          _log.severe(
+            'ReadiumException on opening publication: ${error.type} - ${error.message}',
+          );
         } else {
-          _log.severe('Unknown exception on opening publication: ${error.toString()}');
+          _log.severe(
+            'Unknown exception on opening publication: ${error.toString()}',
+          );
         }
         emit(state.openPublicationFail(error));
       }
     });
 
     on<AddHighlight>((final event, final emit) {
-      final updated = Map<String, ReaderDecoration>.from(state.highlights)..[event.decoration.id] = event.decoration;
+      final updated = Map<String, ReaderDecoration>.from(state.highlights)
+        ..[event.decoration.id] = event.decoration;
       emit(state.copyWith(highlights: updated));
       instance.applyDecorations('user_highlights', updated.values.toList());
     });
@@ -177,7 +210,9 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
         textLocatorSub?.cancel();
         errorEventSub?.cancel();
       } on Exception catch (error) {
-        _log.warning('Exception while closing publication: ${error.toString()}');
+        _log.warning(
+          'Exception while closing publication: ${error.toString()}',
+        );
       }
       emit(PublicationState());
     });

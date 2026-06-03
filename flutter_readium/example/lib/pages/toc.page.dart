@@ -1,8 +1,9 @@
-﻿import 'dart:math' show min, max;
+import 'dart:math' show min, max;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart' show Link, PublicationLists;
+import 'package:flutter_readium/flutter_readium.dart'
+    show Link, PublicationLists;
 import 'package:flutter_readium_example/state/index.dart';
 import 'package:logging/logging.dart';
 
@@ -28,10 +29,18 @@ class TableOfContentsPage extends StatelessWidget {
                   icon: const Icon(Icons.menu_book),
                   onPressed: () async {
                     // Replace ToC page with Page List page, if page is clicked, pop it back to Player page.
-                    final result = await Navigator.pushNamed(context, '/pagelist');
+                    final result = await Navigator.pushNamed(
+                      context,
+                      '/pagelist',
+                    );
                     if (!context.mounted) return;
-                    final publication = context.read<PublicationBloc>().state.publication;
-                    if (publication != null && result != null && result is Link) {
+                    final publication = context
+                        .read<PublicationBloc>()
+                        .state
+                        .publication;
+                    if (publication != null &&
+                        result != null &&
+                        result is Link) {
                       Navigator.pop(context, result);
                     }
                   },
@@ -45,7 +54,9 @@ class TableOfContentsPage extends StatelessWidget {
                 return Text('No publication');
               } else {
                 // Note: If no ToC, fallback to readingOrder.
-                final links = pub.tableOfContents.isNotEmpty ? pub.tableOfContents : pub.readingOrder;
+                final links = pub.tableOfContents.isNotEmpty
+                    ? pub.tableOfContents
+                    : pub.readingOrder;
                 return ListView.builder(
                   itemCount: links.length,
                   itemBuilder: (context, idx) {
@@ -70,7 +81,9 @@ class TableOfContentsPage extends StatelessWidget {
         controlAffinity: ListTileControlAffinity.leading,
         backgroundColor: Colors.blue[min(max(level * 100, 0), 900)],
         initiallyExpanded: true,
-        children: children.map((c) => _buildLinkTile(context, c, level: level + 1)).toList(),
+        children: children
+            .map((c) => _buildLinkTile(context, c, level: level + 1))
+            .toList(),
       );
     } else {
       return ListTile(

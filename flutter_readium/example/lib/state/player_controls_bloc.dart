@@ -111,42 +111,75 @@ class PlayerControlsState {
   final bool audioEnabled;
   final String? currentTocHref;
 
-  PlayerControlsState copyWith({bool? playing, bool? ttsEnabled, bool? audioEnabled, String? currentTocHref}) =>
-      PlayerControlsState(
-        playing: playing ?? this.playing,
-        ttsEnabled: ttsEnabled ?? this.ttsEnabled,
-        audioEnabled: audioEnabled ?? this.audioEnabled,
-        currentTocHref: currentTocHref ?? this.currentTocHref,
-      );
+  PlayerControlsState copyWith({
+    bool? playing,
+    bool? ttsEnabled,
+    bool? audioEnabled,
+    String? currentTocHref,
+  }) => PlayerControlsState(
+    playing: playing ?? this.playing,
+    ttsEnabled: ttsEnabled ?? this.ttsEnabled,
+    audioEnabled: audioEnabled ?? this.audioEnabled,
+    currentTocHref: currentTocHref ?? this.currentTocHref,
+  );
 
-  PlayerControlsState togglePlay(final bool playing) => copyWith(playing: playing);
+  PlayerControlsState togglePlay(final bool playing) =>
+      copyWith(playing: playing);
 
-  PlayerControlsState toggleTTSEnabled(final bool ttsEnabled, final String? tocHref) =>
-      copyWith(playing: ttsEnabled && playing, ttsEnabled: ttsEnabled, currentTocHref: tocHref ?? currentTocHref);
+  PlayerControlsState toggleTTSEnabled(
+    final bool ttsEnabled,
+    final String? tocHref,
+  ) => copyWith(
+    playing: ttsEnabled && playing,
+    ttsEnabled: ttsEnabled,
+    currentTocHref: tocHref ?? currentTocHref,
+  );
 
-  PlayerControlsState toggleAudioEnabled(final bool audioEnabled, final String? tocHref) =>
-      copyWith(playing: audioEnabled && playing, audioEnabled: audioEnabled, currentTocHref: tocHref ?? currentTocHref);
+  PlayerControlsState toggleAudioEnabled(
+    final bool audioEnabled,
+    final String? tocHref,
+  ) => copyWith(
+    playing: audioEnabled && playing,
+    audioEnabled: audioEnabled,
+    currentTocHref: tocHref ?? currentTocHref,
+  );
 
-  PlayerControlsState setTocHref(final String tocHref) => copyWith(currentTocHref: tocHref);
+  PlayerControlsState setTocHref(final String tocHref) =>
+      copyWith(currentTocHref: tocHref);
 
-  PlayerControlsState stop() =>
-      PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false, currentTocHref: null);
+  PlayerControlsState stop() => PlayerControlsState(
+    playing: false,
+    ttsEnabled: false,
+    audioEnabled: false,
+    currentTocHref: null,
+  );
 }
 
-class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
+class PlayerControlsBloc
+    extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   List<StreamSubscription> subscriptions = [];
   Locator? currentLocator;
 
   /// Broadcasts the current resource [Locator] regardless of media type, retaining
   /// the latest value so late subscribers (e.g. a slider rebuilt by the parent
   /// `BlocBuilder`) immediately receive the current progression.
-  final BehaviorSubject<Locator> _currentLocatorSubject = BehaviorSubject<Locator>();
+  final BehaviorSubject<Locator> _currentLocatorSubject =
+      BehaviorSubject<Locator>();
 
-  PlayerControlsBloc() : super(PlayerControlsState(playing: false, ttsEnabled: false, audioEnabled: false)) {
+  PlayerControlsBloc()
+    : super(
+        PlayerControlsState(
+          playing: false,
+          ttsEnabled: false,
+          audioEnabled: false,
+        ),
+      ) {
     subscriptions.add(
       Rx.merge<Locator>([
         instance.onTextLocatorChanged,
-        instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator).whereNotNull(),
+        instance.onTimebasedPlayerStateChanged
+            .map((s) => s.currentLocator)
+            .whereNotNull(),
       ]).listen((val) {
         currentLocator = val;
         _currentLocatorSubject.add(val);
@@ -191,14 +224,20 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     // NOTE: This does not include the tocHref for the initial locator.
     subscriptions.add(
       Rx.merge([
-        instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator?.locations?.tocHref),
-        instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
-      ]).whereNotNull().distinct().debounceTime(const Duration(milliseconds: 50)).listen((tocHref) {
-        if (tocHref != state.currentTocHref) {
-          _log.fine('Current TOC href: $tocHref');
-          add(UpdateCurrentTocHref(tocHref));
-        }
-      }),
+            instance.onTimebasedPlayerStateChanged.map(
+              (s) => s.currentLocator?.locations?.tocHref,
+            ),
+            instance.onTextLocatorChanged.map((l) => l.locations?.tocHref),
+          ])
+          .whereNotNull()
+          .distinct()
+          .debounceTime(const Duration(milliseconds: 50))
+          .listen((tocHref) {
+            if (tocHref != state.currentTocHref) {
+              _log.fine('Current TOC href: $tocHref');
+              add(UpdateCurrentTocHref(tocHref));
+            }
+          }),
     );
 
     subscriptions.add(
@@ -215,7 +254,9 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       if (!state.ttsEnabled) {
         await instance.ttsEnable(TTSPreferences(speed: 1.2));
         await instance.play(event.fromLocator);
-        emit(state.toggleTTSEnabled(true, event.fromLocator?.locations?.tocHref));
+        emit(
+          state.toggleTTSEnabled(true, event.fromLocator?.locations?.tocHref),
+        );
       } else {
         await instance.resume();
       }
@@ -224,11 +265,17 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-          prefs: AudioPreferences(speed: 1.5, seekInterval: 10, continuousSeeking: true),
+          prefs: AudioPreferences(
+            speed: 1.5,
+            seekInterval: 10,
+            continuousSeeking: true,
+          ),
           fromLocator: event.fromLocator,
         );
         await instance.play(event.fromLocator);
-        emit(state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref));
+        emit(
+          state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref),
+        );
       } else {
         await instance.resume();
       }
@@ -257,27 +304,45 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<SkipToNextChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        ReadiumLog.e("No currentTocHref in state, cannot skip to next TOC chapter");
+        ReadiumLog.e(
+          "No currentTocHref in state, cannot skip to next TOC chapter",
+        );
         return null;
       }
-      return instance.skipToNextTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
+      return instance.skipToNextTOC(
+        publication: event.publication,
+        currentTocHref: state.currentTocHref!,
+      );
     });
 
     on<SkipToPreviousChapter>((final event, final emit) {
       if (state.currentTocHref == null) {
-        ReadiumLog.e("No currentTocHref in state, cannot skip to previous TOC chapter");
+        ReadiumLog.e(
+          "No currentTocHref in state, cannot skip to previous TOC chapter",
+        );
         return null;
       }
-      return instance.skipToPreviousTOC(publication: event.publication, currentTocHref: state.currentTocHref!);
+      return instance.skipToPreviousTOC(
+        publication: event.publication,
+        currentTocHref: state.currentTocHref!,
+      );
     });
 
-    on<SkipToNextPage>((final event, final emit) async => await instance.goForward());
+    on<SkipToNextPage>(
+      (final event, final emit) async => await instance.goForward(),
+    );
 
-    on<SkipToPreviousPage>((final event, final emit) async => await instance.goBackward());
+    on<SkipToPreviousPage>(
+      (final event, final emit) async => await instance.goBackward(),
+    );
 
-    on<GoToLocator>((event, emit) async => await instance.goToLocator(event.locator));
+    on<GoToLocator>(
+      (event, emit) async => await instance.goToLocator(event.locator),
+    );
 
-    on<GoToProgression>((event, emit) async => await instance.goToProgression(event.progression));
+    on<GoToProgression>(
+      (event, emit) async => await instance.goToProgression(event.progression),
+    );
 
     on<SeekRelative>(
       (event, emit) async => await instance.audioSeekBy(
@@ -324,7 +389,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     return super.close();
   }
 
-  Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
+  Stream<ReadiumTimebasedState> get timebasedStateStream =>
+      instance.onTimebasedPlayerStateChanged;
 
   /// Emits the current [Locator] for the active publication, regardless of media type.
   /// Backed by a [BehaviorSubject] so a single underlying subscription is reused and

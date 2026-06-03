@@ -7,7 +7,9 @@ import '../properties.dart';
 // See https://github.com/readium/webpub-manifest/blob/master/schema/extensions/encryption/properties.schema.json
 extension EncryptionPropertiesExtension on Properties {
   static const String _encryptedKey = 'encrypted';
-  EncryptedProperties? get encrypted => EncryptedProperties.fromJson(additionalProperties.optJsonObject(_encryptedKey));
+  EncryptedProperties? get encrypted => EncryptedProperties.fromJson(
+    additionalProperties.optJsonObject(_encryptedKey),
+  );
 
   Properties setEncrypted(final EncryptedProperties? value) =>
       copyWith(additionalProperties: {_encryptedKey: value?.toJson()});
@@ -30,7 +32,13 @@ class EncryptedProperties with EquatableMixin implements JSONable {
   final String? scheme;
 
   @override
-  List<Object?> get props => [algorithm, compression, originalLength, profile, scheme];
+  List<Object?> get props => [
+    algorithm,
+    compression,
+    originalLength,
+    profile,
+    scheme,
+  ];
 
   @override
   Map<String, dynamic> toJson() => {}

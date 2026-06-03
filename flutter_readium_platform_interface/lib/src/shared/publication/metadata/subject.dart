@@ -8,8 +8,11 @@ import '../../../../flutter_readium_platform_interface.dart';
 /// See https://github.com/readium/webpub-manifest/tree/master/contexts/default#subjects
 /// https://readium.org/webpub-manifest/schema/subject.schema.json
 @immutable
-class Subject extends AdditionalProperties with EquatableMixin implements JSONable {
-  factory Subject.fromJsonString(String name) => Subject(localizedName: LocalizedString.fromJsonString(name));
+class Subject extends AdditionalProperties
+    with EquatableMixin
+    implements JSONable {
+  factory Subject.fromJsonString(String name) =>
+      Subject(localizedName: LocalizedString.fromJsonString(name));
 
   factory Subject.fromJson(dynamic json) {
     if (json is String) {
@@ -25,8 +28,12 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
 
   factory Subject.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
-    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('sortAs', remove: true),
+    );
     final code = jsonObject.optNullableString('code', remove: true);
     final scheme = jsonObject.optNullableString('scheme', remove: true);
     final links = Link.fromJsonArray(jsonObject.opt('links', remove: true));
@@ -74,7 +81,14 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
   }
 
   @override
-  List<Object?> get props => [localizedName, localizedSortAs, code, scheme, links, additionalProperties];
+  List<Object?> get props => [
+    localizedName,
+    localizedSortAs,
+    code,
+    scheme,
+    links,
+    additionalProperties,
+  ];
 
   @override
   toJson() {

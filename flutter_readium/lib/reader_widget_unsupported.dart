@@ -36,5 +36,6 @@ class ReadiumReaderWidget extends StatelessWidget {
   final bool verticalScroll;
 
   @override
-  Widget build(final BuildContext context) => Center(child: Text('ReaderWidget is not available on this platform.'));
+  Widget build(final BuildContext context) =>
+      Center(child: Text('ReaderWidget is not available on this platform.'));
 }

@@ -10,7 +10,11 @@ import '../index.dart';
 /// Contains a [Locator] to the location of the search result, an optional chapter title, and optional page numbers.
 /// This class was created to provide a simpler structure rather than sending full [LocatorCollection] over the bridge.
 class TextSearchResult with EquatableMixin implements JSONable {
-  const TextSearchResult({required this.locator, this.chapterTitle, this.pageNumbers});
+  const TextSearchResult({
+    required this.locator,
+    this.chapterTitle,
+    this.pageNumbers,
+  });
 
   factory TextSearchResult.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
@@ -31,7 +35,10 @@ class TextSearchResult with EquatableMixin implements JSONable {
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return TextSearchResult.fromJson(json);
     } on Exception catch (ex, st) {
-      ReadiumLog.e('fromJsonString: Failed to decode TextSearchResult: $jsonString', stackTrace: st);
+      ReadiumLog.e(
+        'fromJsonString: Failed to decode TextSearchResult: $jsonString',
+        stackTrace: st,
+      );
     }
     return null;
   }
@@ -45,7 +52,9 @@ class TextSearchResult with EquatableMixin implements JSONable {
       return TextSearchResult.fromJson(json);
     }
 
-    ReadiumLog.e('TextSearchResult.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e(
+      'TextSearchResult.fromJsonDynamic: Unsupported json type: ${json.runtimeType}',
+    );
     return null;
   }
 

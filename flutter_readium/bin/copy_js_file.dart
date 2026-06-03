@@ -5,12 +5,16 @@ import 'dart:isolate';
 
 void main(List<String> args) async {
   if (args.isEmpty) {
-    print('Usage: dart run flutter_readium:copy_js_file <destination_directory> [dev|prod]');
+    print(
+      'Usage: dart run flutter_readium:copy_js_file <destination_directory> [dev|prod]',
+    );
     return;
   }
 
   final destinationDir = args[0];
-  final packageUri = Uri.parse('package:flutter_readium/helpers/readiumReader.js');
+  final packageUri = Uri.parse(
+    'package:flutter_readium/helpers/readiumReader.js',
+  );
   final resolvedUri = await Isolate.resolvePackageUri(packageUri);
 
   if (resolvedUri == null) {

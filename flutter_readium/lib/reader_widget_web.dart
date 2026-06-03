@@ -43,7 +43,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
 }
 
-class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
+    implements ReadiumReaderWidgetInterface {
   static final _log = ReadiumLog.tag('ReaderWidget');
 
   @override
@@ -70,7 +71,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   );
 
   @override
-  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
+  Future<void> go(
+    final Locator locator, {
+    required final bool isAudioBookWithText,
+    final bool animated = false,
+  }) async {
     try {
       await JsPublicationChannel.goToLocator(json.encode(locator));
     } on PlatformException catch (e, stackTrace) {
@@ -105,7 +110,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async {
     JsPublicationChannel().applyDecorations(
       id,
       json.encode(decorations.map((d) => d.toJson()).toList()),

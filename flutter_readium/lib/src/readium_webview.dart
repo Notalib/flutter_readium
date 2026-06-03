@@ -117,7 +117,9 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
       final pubId = widget.publication.identifier;
       final preferences = _defaultPreferences?.toJson() ?? <String, dynamic>{};
-      final currentLocatorString = widget.currentLocator != null ? json.encode(widget.currentLocator) : null;
+      final currentLocatorString = widget.currentLocator != null
+          ? json.encode(widget.currentLocator)
+          : null;
       registerJSExports();
       await JsPublicationChannel().openPublication(
         publicationUrl,
@@ -154,7 +156,10 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
       wrapperElement.append(htmlElement);
 
-      void mutationCallback(js_interop.JSArray<web.MutationRecord> mutations, web.MutationObserver observer) {
+      void mutationCallback(
+        js_interop.JSArray<web.MutationRecord> mutations,
+        web.MutationObserver observer,
+      ) {
         final container = web.document.getElementById('container');
 
         if (container != null) {
@@ -168,7 +173,10 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
       final htmlBody = web.document.body;
 
       if (htmlBody != null) {
-        htmlObserver.observe(htmlBody, web.MutationObserverInit(childList: true, subtree: true));
+        htmlObserver.observe(
+          htmlBody,
+          web.MutationObserverInit(childList: true, subtree: true),
+        );
       } else {
         throw Exception('Body element not found');
       }

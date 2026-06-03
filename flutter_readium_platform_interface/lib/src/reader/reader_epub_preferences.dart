@@ -127,42 +127,102 @@ class EPUBPreferences with EquatableMixin implements JSONable {
 
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
-    final backgroundColorStr = jsonObject.optNullableString('backgroundColor', remove: true);
-    final columnCountStr = jsonObject.optNullableString('columnCount', remove: true);
-    final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
+    final backgroundColorStr = jsonObject.optNullableString(
+      'backgroundColor',
+      remove: true,
+    );
+    final columnCountStr = jsonObject.optNullableString(
+      'columnCount',
+      remove: true,
+    );
+    final columnCount = columnCountStr != null
+        ? EpubColumnCount.fromJson(columnCountStr)
+        : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
     final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
     final hyphens = jsonObject.optNullableBoolean('hyphens', remove: true);
-    final imageFilterStr = jsonObject.optNullableString('imageFilter', remove: true);
-    final imageFilter = imageFilterStr != null ? EpubImageFilter.fromJson(imageFilterStr) : null;
+    final imageFilterStr = jsonObject.optNullableString(
+      'imageFilter',
+      remove: true,
+    );
+    final imageFilter = imageFilterStr != null
+        ? EpubImageFilter.fromJson(imageFilterStr)
+        : null;
     final language = jsonObject.optNullableString('language', remove: true);
-    final letterSpacing = jsonObject.optNullableDouble('letterSpacing', remove: true);
+    final letterSpacing = jsonObject.optNullableDouble(
+      'letterSpacing',
+      remove: true,
+    );
     final ligatures = jsonObject.optNullableBoolean('ligatures', remove: true);
     final lineHeight = jsonObject.optNullableDouble('lineHeight', remove: true);
-    final pageMargins = jsonObject.optNullableDouble('pageMargins', remove: true);
-    final paragraphIndent = jsonObject.optNullableDouble('paragraphIndent', remove: true);
-    final paragraphSpacing = jsonObject.optNullableDouble('paragraphSpacing', remove: true);
-    final publisherStyles = jsonObject.optNullableBoolean('publisherStyles', remove: true);
-    final readingProgressionStr = jsonObject.optNullableString('readingProgression', remove: true);
+    final pageMargins = jsonObject.optNullableDouble(
+      'pageMargins',
+      remove: true,
+    );
+    final paragraphIndent = jsonObject.optNullableDouble(
+      'paragraphIndent',
+      remove: true,
+    );
+    final paragraphSpacing = jsonObject.optNullableDouble(
+      'paragraphSpacing',
+      remove: true,
+    );
+    final publisherStyles = jsonObject.optNullableBoolean(
+      'publisherStyles',
+      remove: true,
+    );
+    final readingProgressionStr = jsonObject.optNullableString(
+      'readingProgression',
+      remove: true,
+    );
     final readingProgression = readingProgressionStr != null
         ? EpubReadingProgression.fromJson(readingProgressionStr)
         : null;
     final scroll = jsonObject.optNullableBoolean('scroll', remove: true);
     final spread = jsonObject.opt('spread', remove: true);
-    final textAlign = jsonObject.optEnumFromString('textAlign', TextAlign.values, remove: true);
-    final textColorStr = jsonObject.optNullableString('textColor', remove: true);
-    final textColor = textColorStr != null ? ReadiumColorExtension.fromCSS(textColorStr) : null;
-    final textNormalization = jsonObject.optNullableBoolean('textNormalization', remove: true);
+    final textAlign = jsonObject.optEnumFromString(
+      'textAlign',
+      TextAlign.values,
+      remove: true,
+    );
+    final textColorStr = jsonObject.optNullableString(
+      'textColor',
+      remove: true,
+    );
+    final textColor = textColorStr != null
+        ? ReadiumColorExtension.fromCSS(textColorStr)
+        : null;
+    final textNormalization = jsonObject.optNullableBoolean(
+      'textNormalization',
+      remove: true,
+    );
     final typeScale = jsonObject.optNullableDouble('typeScale', remove: true);
-    final verticalText = jsonObject.optNullableBoolean('verticalText', remove: true);
-    final wordSpacing = jsonObject.optNullableDouble('wordSpacing', remove: true);
-    final blackAndWhiteComicMode = jsonObject.optBoolean('blackAndWhiteComicMode', remove: true);
-    final disableSynchronization = jsonObject.optBoolean('disableSynchronization', remove: true);
-    final firstElementTopMargin = jsonObject.optNullableInt('firstElementTopMargin', remove: true);
+    final verticalText = jsonObject.optNullableBoolean(
+      'verticalText',
+      remove: true,
+    );
+    final wordSpacing = jsonObject.optNullableDouble(
+      'wordSpacing',
+      remove: true,
+    );
+    final blackAndWhiteComicMode = jsonObject.optBoolean(
+      'blackAndWhiteComicMode',
+      remove: true,
+    );
+    final disableSynchronization = jsonObject.optBoolean(
+      'disableSynchronization',
+      remove: true,
+    );
+    final firstElementTopMargin = jsonObject.optNullableInt(
+      'firstElementTopMargin',
+      remove: true,
+    );
 
     return EPUBPreferences(
-      backgroundColor: backgroundColorStr != null ? ReadiumColorExtension.fromCSS(backgroundColorStr) : null,
+      backgroundColor: backgroundColorStr != null
+          ? ReadiumColorExtension.fromCSS(backgroundColorStr)
+          : null,
       columnCount: columnCount,
       fontFamily: fontFamily,
       fontSize: fontSize,
@@ -275,8 +335,10 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     typeScale: typeScale ?? this.typeScale,
     verticalText: verticalText ?? this.verticalText,
     wordSpacing: wordSpacing ?? this.wordSpacing,
-    blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
-    disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+    blackAndWhiteComicMode:
+        blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+    disableSynchronization:
+        disableSynchronization ?? this.disableSynchronization,
     firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
   );
 
