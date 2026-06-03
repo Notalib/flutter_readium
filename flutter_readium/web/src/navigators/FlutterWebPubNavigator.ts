@@ -10,7 +10,7 @@ import {
   WebPubNavigatorConfiguration,
   WebPubNavigatorListeners,
 } from "@readium/navigator";
-import { Locator, Link } from "@readium/shared";
+import { Locator } from "@readium/shared";
 import Peripherals from "../utils/Peripherals";
 import {
   defaults,
@@ -29,43 +29,9 @@ import {
 const log = createLogger("WebPubNav");
 
 export class FlutterWebPubNavigator {
-  readonly underlying: WebPubNavigator;
-
-  private constructor(nav: WebPubNavigator) {
-    this.underlying = nav;
-  }
-
-  get currentLocator(): Locator {
-    return this.underlying.currentLocator;
-  }
-
-  goRight(animated: boolean, completion: () => void): void {
-    this.underlying.goRight(animated, completion);
-  }
-
-  goLeft(animated: boolean, completion: () => void): void {
-    this.underlying.goLeft(animated, completion);
-  }
-
-  goForward(animated: boolean, completion: () => void): void {
-    this.underlying.goForward(animated, completion);
-  }
-
-  goBackward(animated: boolean, completion: () => void): void {
-    this.underlying.goBackward(animated, completion);
-  }
-
-  goLink(link: Link, animated: boolean, completion: (ok: boolean) => void): void {
-    this.underlying.goLink(link, animated, completion);
-  }
-
-  go(locator: Locator, animated: boolean, completion: (ok: boolean) => void): void {
-    this.underlying.go(locator, animated, completion);
-  }
-
-  destroy(): void {
-    this.underlying.destroy();
-  }
+  // This class is a static factory only. The constructed navigator is delivered
+  // via the `setNav` callback so that ReadiumReader can hold it as the raw
+  // upstream type (WebPubNavigator) without wrapping.
 
   static async create(
     container: HTMLElement,
@@ -73,7 +39,7 @@ export class FlutterWebPubNavigator {
     initialPosition: Locator | undefined,
     preferencesJsonString: string,
     setNav: (nav: WebPubNavigator) => void
-  ): Promise<FlutterWebPubNavigator> {
+  ): Promise<void> {
     log.info("Initializing WebPubNavigator");
     const preferences = initializeWebPubPreferencesFromString(preferencesJsonString);
 
@@ -154,16 +120,14 @@ export class FlutterWebPubNavigator {
 
     try {
       await nav.load();
-      log.info("EpubNavigator loaded");
+      log.info("WebPubNavigator loaded");
     } catch (error) {
-      log.error("Failed to load EpubNavigator:", error);
+      log.error("Failed to load WebPubNavigator:", error);
       throw error;
     }
 
     setNav(nav);
 
     p.observe(window);
-
-    return new FlutterWebPubNavigator(nav);
   }
 }

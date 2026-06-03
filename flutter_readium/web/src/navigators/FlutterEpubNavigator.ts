@@ -38,44 +38,16 @@ import {
 const log = createLogger("EpubNav");
 
 export class FlutterEpubNavigator {
-  readonly underlying: EpubNavigator | WebPubNavigator;
+  /**
+   * Pre-computed position list for this publication.
+   * Exposed here so callers that need positions alongside the navigator can
+   * receive both via a single `await FlutterEpubNavigator.create(...)` call
+   * rather than fetching them again from the manifest separately.
+   */
   readonly positions: Locator[];
 
-  private constructor(nav: EpubNavigator | WebPubNavigator, positions: Locator[]) {
-    this.underlying = nav;
+  private constructor(positions: Locator[]) {
     this.positions = positions;
-  }
-
-  get currentLocator(): Locator {
-    return this.underlying.currentLocator;
-  }
-
-  goRight(animated: boolean, completion: () => void): void {
-    this.underlying.goRight(animated, completion);
-  }
-
-  goLeft(animated: boolean, completion: () => void): void {
-    this.underlying.goLeft(animated, completion);
-  }
-
-  goForward(animated: boolean, completion: () => void): void {
-    this.underlying.goForward(animated, completion);
-  }
-
-  goBackward(animated: boolean, completion: () => void): void {
-    this.underlying.goBackward(animated, completion);
-  }
-
-  goLink(link: Link, animated: boolean, completion: (ok: boolean) => void): void {
-    this.underlying.goLink(link, animated, completion);
-  }
-
-  go(locator: Locator, animated: boolean, completion: (ok: boolean) => void): void {
-    this.underlying.go(locator, animated, completion);
-  }
-
-  destroy(): void {
-    this.underlying.destroy();
   }
 
   static async create(
@@ -241,6 +213,6 @@ export class FlutterEpubNavigator {
 
     p.observe(window);
 
-    return new FlutterEpubNavigator(nav, positions);
+    return new FlutterEpubNavigator(positions);
   }
 }

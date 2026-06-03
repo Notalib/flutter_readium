@@ -2,14 +2,7 @@
 // https://github.com/readium/ts-toolkit/pull/209 (Decorator API) merges.
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import {
-  BasicTextSelection,
-  Width,
-  Layout,
-  Decoration,
-} from "@readium/navigator-html-injectables";
-import { Locator, LocatorText } from "@readium/shared";
-import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { Decoration } from "@readium/navigator-html-injectables";
 
 /**
  * Group-name suffix used to mark decorations whose Dart style is "underline".
@@ -228,36 +221,3 @@ export function injectDecorationOverrides(wnd: Window): void {
   headObserver.observe(doc.head, { childList: true });
 }
 
-export function highlightSelection(
-  nav: EpubNavigator | WebPubNavigator,
-  publication: ReadiumPublication,
-  selection: BasicTextSelection
-) {
-  // TODO: Save decoration state to re-apply after reload
-  // Should probably be handled by the Flutter side
-  // TODO:  Make optional and configurable decoration style
-  // For now, hardcode a simple highlight style that always happens on textSelection
-  const currentLocator = nav.currentLocator;
-  const locator = new Locator({
-    href: currentLocator.href,
-    type: currentLocator.type,
-    locations: currentLocator.locations,
-    text: {
-      highlight: selection.text,
-    } as LocatorText,
-  });
-
-  const decorationId = [selection.text, selection.x, selection.y].join("_");
-
-  const decoration = {
-    id: decorationId,
-    locator,
-    style: {
-      tint: "#ff9fff55",
-      layout: Layout.Bounds,
-      width: Width.Wrap,
-    },
-  };
-
-  sendDecorate(nav, "selection_" + publication.metadata.identifier, "add", decoration);
-}
