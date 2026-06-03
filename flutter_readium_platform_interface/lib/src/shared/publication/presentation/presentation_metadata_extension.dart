@@ -5,5 +5,6 @@
 import '../../publication.dart';
 
 extension PresentionMetadataExtension on Metadata {
-  Presentation get presentation => Presentation.fromJson((this['presentation'] as Map<String, dynamic>?));
+  Presentation get presentation =>
+      Presentation.fromJson((this['presentation'] as Map<String, dynamic>?));
 }

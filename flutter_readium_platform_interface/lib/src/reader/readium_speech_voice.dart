@@ -12,15 +12,31 @@ class ReadiumSpeechVoice with EquatableMixin implements JSONable {
     final name = jsonObject.optString('name', remove: true);
     final language = jsonObject.optString('language', remove: true);
     final gender = jsonObject.optString('gender', remove: true);
-    final quality = (jsonObject.optJsonArray('quality', remove: true)?.cast<String>()) ?? [];
+    final quality =
+        (jsonObject.optJsonArray('quality', remove: true)?.cast<String>()) ??
+        [];
     final rate = jsonObject.optNullableDouble('rate', remove: true);
-    final localizedName = jsonObject.optNullableString('localizedName', remove: true);
+    final localizedName = jsonObject.optNullableString(
+      'localizedName',
+      remove: true,
+    );
     final pitch = jsonObject.optNullableDouble('pitch', remove: true);
-    final pitchControl = jsonObject.optNullableBoolean('pitchControl', remove: true);
-    final browser = jsonObject.optJsonArray('browser', remove: true)?.cast<String>();
-    final os = jsonObject.optJsonArray('os', remove: true)?.cast<String>().map((os) => os.toLowerCase()).toList();
+    final pitchControl = jsonObject.optNullableBoolean(
+      'pitchControl',
+      remove: true,
+    );
+    final browser = jsonObject
+        .optJsonArray('browser', remove: true)
+        ?.cast<String>();
+    final os = jsonObject
+        .optJsonArray('os', remove: true)
+        ?.cast<String>()
+        .map((os) => os.toLowerCase())
+        .toList();
     final preloaded = jsonObject.optNullableBoolean('preloaded', remove: true);
-    final altNames = jsonObject.optJsonArray('altNames', remove: true)?.cast<String>();
+    final altNames = jsonObject
+        .optJsonArray('altNames', remove: true)
+        ?.cast<String>();
     final nativeID = jsonObject
         .optJsonArray('nativeID', remove: true)
         ?.cast<String>()

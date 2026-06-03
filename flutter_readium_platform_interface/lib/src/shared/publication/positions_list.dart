@@ -32,7 +32,10 @@ class PositionsList with EquatableMixin implements JSONable {
       return null;
     }
 
-    final positions = positionsJson.map((locator) => Locator.fromJson(locator)).whereType<Locator>().toList();
+    final positions = positionsJson
+        .map((locator) => Locator.fromJson(locator))
+        .whereType<Locator>()
+        .toList();
 
     return PositionsList(total: total, positions: positions);
   }

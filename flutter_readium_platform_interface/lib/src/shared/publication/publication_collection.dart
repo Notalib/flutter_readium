@@ -15,7 +15,11 @@ import '../publication.dart';
 /// Can be used as extension point in the Readium Web Publication Manifest.
 @immutable
 class PublicationCollection with EquatableMixin implements JSONable {
-  const PublicationCollection({this.metadata = const {}, this.links = const [], this.subcollections = const {}});
+  const PublicationCollection({
+    this.metadata = const {},
+    this.links = const [],
+    this.subcollections = const {},
+  });
   final Map<String, dynamic> metadata;
   final List<Link> links;
   final Map<String, List<PublicationCollection>> subcollections;
@@ -26,7 +30,10 @@ class PublicationCollection with EquatableMixin implements JSONable {
   /// Serializes a [PublicationCollection] to its RWPM JSON representation.
   @override
   Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{'metadata': metadata, 'links': links.toJson()};
+    final json = <String, dynamic>{
+      'metadata': metadata,
+      'links': links.toJson(),
+    };
     subcollections.appendToJsonObject(json);
     return json;
   }
@@ -61,13 +68,19 @@ class PublicationCollection with EquatableMixin implements JSONable {
       return null;
     }
 
-    return PublicationCollection(metadata: metadata ?? {}, links: links, subcollections: subcollections ?? {});
+    return PublicationCollection(
+      metadata: metadata ?? {},
+      links: links,
+      subcollections: subcollections ?? {},
+    );
   }
 
   /// Parses a map of [PublicationCollection] indexed by their roles from its RWPM JSON representation.
   ///
   /// If the collection can't be parsed, a warning will be logged.
-  static Map<String, List<PublicationCollection>> collectionsFromJSON(Map<String, dynamic> json) {
+  static Map<String, List<PublicationCollection>> collectionsFromJSON(
+    Map<String, dynamic> json,
+  ) {
     final collections = <String, List<PublicationCollection>>{};
     for (final role in json.keys.toList()..sort((a, b) => a.compareTo(b))) {
       final dynamic subJSON = json[role];
@@ -78,7 +91,9 @@ class PublicationCollection with EquatableMixin implements JSONable {
         collections.putIfAbsent(role, () => []).add(collection);
         // Parses a list of collection objects.
       } else if (subJSON is List) {
-        final subcollections = subJSON.map((it) => PublicationCollection.fromJson(it)).nonNulls;
+        final subcollections = subJSON
+            .map((it) => PublicationCollection.fromJson(it))
+            .nonNulls;
         collections.putIfAbsent(role, () => []).addAll(subcollections);
       }
     }

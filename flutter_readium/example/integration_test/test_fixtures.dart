@@ -7,7 +7,9 @@
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-import 'test_fixtures_native.dart' if (dart.library.js_interop) 'test_fixtures_web.dart' as platform;
+import 'test_fixtures_native.dart'
+    if (dart.library.js_interop) 'test_fixtures_web.dart'
+    as platform;
 
 /// Returns a map of fixture name → path/URL suitable for the current platform.
 Future<Map<String, String>> loadFixturePaths() => platform.loadFixturePaths();
@@ -30,7 +32,14 @@ abstract final class FixtureKeys {
   static const comic = 'comic.webpub';
 
   /// All fixture keys that should be available on web.
-  static const web = {mobyDickEpub, overlayWebpub, audiobook, fixedLayout, guidedNav, comic};
+  static const web = {
+    mobyDickEpub,
+    overlayWebpub,
+    audiobook,
+    fixedLayout,
+    guidedNav,
+    comic,
+  };
 
   /// True when [key] is not expected to be available on web.
   static bool isUnavailableOnWeb(String key) => kIsWeb && !web.contains(key);

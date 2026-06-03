@@ -10,7 +10,13 @@ import '../../utils/jsonable.dart';
 /// Indicates that a resource is encrypted/obfuscated and provides relevant information for decryption.
 @immutable
 class Encryption with EquatableMixin implements JSONable {
-  const Encryption({required this.algorithm, this.compression, this.originalLength, this.profile, this.scheme});
+  const Encryption({
+    required this.algorithm,
+    this.compression,
+    this.originalLength,
+    this.profile,
+    this.scheme,
+  });
 
   /// Identifies the algorithm used to encrypt the resource.
   final String algorithm; // URI
@@ -28,7 +34,13 @@ class Encryption with EquatableMixin implements JSONable {
   final String? scheme;
 
   @override
-  List<Object?> get props => [algorithm, compression, originalLength, profile, scheme];
+  List<Object?> get props => [
+    algorithm,
+    compression,
+    originalLength,
+    profile,
+    scheme,
+  ];
 
   /// Serializes an [Encryption] to its RWPM JSON representation.
   @override

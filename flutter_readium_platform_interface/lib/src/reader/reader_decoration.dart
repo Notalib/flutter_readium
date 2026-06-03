@@ -22,7 +22,11 @@ enum DecorationStyle {
 }
 
 class ReaderDecoration implements JSONable {
-  const ReaderDecoration({required this.id, required this.locator, required this.style});
+  const ReaderDecoration({
+    required this.id,
+    required this.locator,
+    required this.style,
+  });
 
   factory ReaderDecoration.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
@@ -43,10 +47,21 @@ class ReaderDecoration implements JSONable {
   final ReaderDecorationStyle style;
 
   @override
-  Map<String, dynamic> toJson() => {'id': id, 'locator': locator.toJson(), 'style': style.toJson()};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'locator': locator.toJson(),
+    'style': style.toJson(),
+  };
 
-  ReaderDecoration copyWith({String? id, Locator? locator, ReaderDecorationStyle? style}) =>
-      ReaderDecoration(id: id ?? this.id, locator: locator ?? this.locator, style: style ?? this.style);
+  ReaderDecoration copyWith({
+    String? id,
+    Locator? locator,
+    ReaderDecorationStyle? style,
+  }) => ReaderDecoration(
+    id: id ?? this.id,
+    locator: locator ?? this.locator,
+    style: style ?? this.style,
+  );
 }
 
 class ReaderDecorationStyle implements JSONable {
@@ -58,11 +73,15 @@ class ReaderDecorationStyle implements JSONable {
   @override
   Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
 
-  factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
-    style: DecorationStyle.fromString(map['style']),
-    tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
-  );
+  factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) =>
+      ReaderDecorationStyle(
+        style: DecorationStyle.fromString(map['style']),
+        tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
+      );
 
   ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) =>
-      ReaderDecorationStyle(style: style ?? this.style, tint: tint ?? this.tint);
+      ReaderDecorationStyle(
+        style: style ?? this.style,
+        tint: tint ?? this.tint,
+      );
 }

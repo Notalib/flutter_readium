@@ -42,14 +42,18 @@ class BookshelfPageState extends State<BookshelfPage> {
 
     if (kIsWeb) {
       // Web: Load publications from JSON asset
-      final String response = await rootBundle.loadString('assets/webManifestList.json');
+      final String response = await rootBundle.loadString(
+        'assets/webManifestList.json',
+      );
       final List<dynamic> manifestHrefs = json.decode(response);
       for (final href in manifestHrefs) {
         try {
           Publication? pub;
           final rawHref = href.toString();
           // WEB: Resolve root-relative paths against the current origin, so local files can be loaded.
-          final localPubPath = rawHref.startsWith('/') ? Uri.base.resolve(rawHref).toString() : rawHref;
+          final localPubPath = rawHref.startsWith('/')
+              ? Uri.base.resolve(rawHref).toString()
+              : rawHref;
           pub = await loadPublicationFromUrl(localPubPath);
           if (pub != null) {
             loadedPublications.add(pub);
@@ -61,7 +65,8 @@ class BookshelfPageState extends State<BookshelfPage> {
       }
     } else {
       // should only be done first time app is started. how to do that?
-      final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
+      final localPublications =
+          await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
       for (String localPubPath in localPublications) {
         _log.info('Loading publication from local path: $localPubPath');
@@ -135,7 +140,11 @@ class BookshelfPageState extends State<BookshelfPage> {
                       itemBuilder: (final context, final index) {
                         final publication = _testPublications[index];
                         final publicationUrl = _testPublicationURLs[index];
-                        return _buildPubCard(publication, publicationUrl, context);
+                        return _buildPubCard(
+                          publication,
+                          publicationUrl,
+                          context,
+                        );
                       },
                     ),
                   ),
@@ -148,15 +157,23 @@ class BookshelfPageState extends State<BookshelfPage> {
   );
 
   // ignore: unused_element
-  void _toast(final String text, {final Duration duration = const Duration(milliseconds: 4000)}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: duration));
+  void _toast(
+    final String text, {
+    final Duration duration = const Duration(milliseconds: 4000),
+  }) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(text), duration: duration));
   }
 
   String _listAuthors(final Publication pub) {
     final metadata = pub.metadata;
     final authors = metadata.authors;
 
-    final authorNames = authors.map((final author) => author.localizedName?.string).nonNulls.join(', ');
+    final authorNames = authors
+        .map((final author) => author.localizedName?.string)
+        .nonNulls
+        .join(', ');
 
     return authorNames.isEmpty ? 'Unknown author' : authorNames;
   }
@@ -193,7 +210,11 @@ class BookshelfPageState extends State<BookshelfPage> {
     }
   }
 
-  Widget _buildPubCard(final Publication publication, String publicationUrl, final BuildContext context) => Container(
+  Widget _buildPubCard(
+    final Publication publication,
+    String publicationUrl,
+    final BuildContext context,
+  ) => Container(
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 4.0),
     child: InkWell(
@@ -207,7 +228,10 @@ class BookshelfPageState extends State<BookshelfPage> {
 
         try {
           context.read<PublicationBloc>().add(
-            OpenPublication(publicationUrl: publicationUrl, initialLocator: savedInitialLocator),
+            OpenPublication(
+              publicationUrl: publicationUrl,
+              initialLocator: savedInitialLocator,
+            ),
           );
 
           Navigator.restorablePushNamed(context, '/player');
@@ -225,7 +249,10 @@ class BookshelfPageState extends State<BookshelfPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(publication.metadata.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    publication.metadata.title,
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
                   Text(_listAuthors(publication)),
                   Text(_bookFormatFromConformsTo(publication)),
                   Text(publicationUrl.split('/').last),
@@ -237,7 +264,9 @@ class BookshelfPageState extends State<BookshelfPage> {
                   icon: Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
                     try {
-                      PublicationUtils.removePublicationFromReadiumStorage(publication.identifier);
+                      PublicationUtils.removePublicationFromReadiumStorage(
+                        publication.identifier,
+                      );
                       setState(() {
                         _testPublications.remove(publication);
                       });

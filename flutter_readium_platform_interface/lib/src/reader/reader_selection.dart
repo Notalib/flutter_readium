@@ -6,7 +6,10 @@ class TextSelectionEvent implements JSONable {
 
   factory TextSelectionEvent.fromJson(final Map<String, dynamic> map) {
     final locatorJson = map['locator'] as Map<String, dynamic>?;
-    return TextSelectionEvent(locator: Locator.fromJson(locatorJson)!, selectedText: map['selectedText'] as String?);
+    return TextSelectionEvent(
+      locator: Locator.fromJson(locatorJson)!,
+      selectedText: map['selectedText'] as String?,
+    );
   }
 
   /// Location of the selection in the publication.
@@ -24,7 +27,11 @@ class TextSelectionEvent implements JSONable {
 
 /// Fired when the user taps a configured editing action on selected text.
 class SelectionActionEvent implements JSONable {
-  const SelectionActionEvent({required this.actionId, required this.locator, this.selectedText});
+  const SelectionActionEvent({
+    required this.actionId,
+    required this.locator,
+    this.selectedText,
+  });
 
   factory SelectionActionEvent.fromJson(final Map<String, dynamic> map) {
     final locatorJson = map['locator'] as Map<String, dynamic>?;

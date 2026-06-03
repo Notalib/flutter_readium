@@ -88,7 +88,9 @@ abstract class ReadiumLog {
     final name = record.loggerName.replaceFirst('.', '/');
     final level = record.level.name.padRight(5);
     final msg = record.message;
-    final line = record.error != null ? '$level [$name] $msg (${record.error})' : '$level [$name] $msg';
+    final line = record.error != null
+        ? '$level [$name] $msg (${record.error})'
+        : '$level [$name] $msg';
     if (!colored) return line;
     if (record.level >= _levelError) return '\x1B[31m$line\x1B[0m'; // red
     if (record.level >= _levelWarn) return '\x1B[33m$line\x1B[0m'; // yellow
@@ -118,16 +120,24 @@ abstract class ReadiumLog {
   /// actually be emitted).
   static void debug(final dynamic message) {
     if (kDebugMode) {
-      _logger.log(_levelDebug, message is Function ? message() : message.toString());
+      _logger.log(
+        _levelDebug,
+        message is Function ? message() : message.toString(),
+      );
     }
   }
 
   static void info(final String? message) => _logger.info(message ?? '');
 
-  static void warn(final String? message) => _logger.log(_levelWarn, message ?? '');
+  static void warn(final String? message) =>
+      _logger.log(_levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
-  static void error(final Object err, {final Object? data, final StackTrace? stackTrace}) {
+  static void error(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) {
     final msg = data != null ? '$err $data' : err.toString();
     _logger.log(_levelError, msg, err, stackTrace);
   }
@@ -146,8 +156,11 @@ abstract class ReadiumLog {
   static void w(final String? message) => warn(message);
 
   /// Alias for [error].
-  static void e(final Object err, {final Object? data, final StackTrace? stackTrace}) =>
-      error(err, data: data, stackTrace: stackTrace);
+  static void e(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) => error(err, data: data, stackTrace: stackTrace);
 }
 
 /// A tagged variant of [ReadiumLog] that routes logs through a child logger
@@ -165,7 +178,8 @@ abstract class ReadiumLog {
 /// INFO  [flutter_readium/TTS] play (with locator)
 /// ```
 class TaggedReadiumLog {
-  TaggedReadiumLog._(final String tag) : _logger = Logger('flutter_readium.$tag');
+  TaggedReadiumLog._(final String tag)
+    : _logger = Logger('flutter_readium.$tag');
 
   final Logger _logger;
 
@@ -177,16 +191,24 @@ class TaggedReadiumLog {
   /// zero-argument function (evaluated lazily).
   void debug(final dynamic message) {
     if (kDebugMode) {
-      _logger.log(ReadiumLog._levelDebug, message is Function ? message() : message.toString());
+      _logger.log(
+        ReadiumLog._levelDebug,
+        message is Function ? message() : message.toString(),
+      );
     }
   }
 
   void info(final String? message) => _logger.info(message ?? '');
 
-  void warn(final String? message) => _logger.log(ReadiumLog._levelWarn, message ?? '');
+  void warn(final String? message) =>
+      _logger.log(ReadiumLog._levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
-  void error(final Object err, {final Object? data, final StackTrace? stackTrace}) {
+  void error(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) {
     final msg = data != null ? '$err $data' : err.toString();
     _logger.log(ReadiumLog._levelError, msg, err, stackTrace);
   }
@@ -205,6 +227,9 @@ class TaggedReadiumLog {
   void w(final String? message) => warn(message);
 
   /// Alias for [error].
-  void e(final Object err, {final Object? data, final StackTrace? stackTrace}) =>
-      error(err, data: data, stackTrace: stackTrace);
+  void e(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) => error(err, data: data, stackTrace: stackTrace);
 }

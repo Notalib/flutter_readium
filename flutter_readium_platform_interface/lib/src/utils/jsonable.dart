@@ -31,9 +31,15 @@ extension MapExtension on Map<String, dynamic>? {
     } else if (value is Map) {
       return (value)
           .takeIf((it) => it.isNotEmpty)
-          ?.map((key, value) => MapEntry<dynamic, dynamic>(key, _wrapJSON(value)));
+          ?.map(
+            (key, value) => MapEntry<dynamic, dynamic>(key, _wrapJSON(value)),
+          );
     } else if (value is List) {
-      return (value).takeIf((it) => it.isNotEmpty)?.nonNulls.map(_wrapJSON).toList();
+      return (value)
+          .takeIf((it) => it.isNotEmpty)
+          ?.nonNulls
+          .map(_wrapJSON)
+          .toList();
     }
     return value;
   }
@@ -192,7 +198,11 @@ extension MapExtension on Map<String, dynamic>? {
   /// Returns the value mapped by [name] if it exists and is a positive double or can be coerced to a
   /// positive double, or [fallback] otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
-  double? optPositiveDouble(String name, {double fallback = -1.0, bool remove = false}) {
+  double? optPositiveDouble(
+    String name, {
+    double fallback = -1.0,
+    bool remove = false,
+  }) {
     final d = optDouble(name, fallback: fallback, remove: remove);
     final value = (d >= 0) ? d : null;
     return value;
@@ -240,7 +250,11 @@ extension MapExtension on Map<String, dynamic>? {
   /// Returns the value mapped by {@code name} if it exists and is a double or
   /// can be coerced to a double, or {@code fallback} otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
-  double optDouble(String name, {double fallback = double.nan, bool remove = false}) {
+  double optDouble(
+    String name, {
+    double fallback = double.nan,
+    bool remove = false,
+  }) {
     final dynamic object = opt(name, remove: remove);
     return _toDouble(object) ?? fallback;
   }
@@ -346,13 +360,21 @@ extension MapExtension on Map<String, dynamic>? {
 
   /// Returns the value mapped by [name] if it exists and is an enum of type [T], or `null` otherwise.
   /// If [remove] is true, then the mapping will be removed from the [Map].
-  T? optEnumFromString<T extends Enum>(String name, List<T> enumValues, {T? fallback, bool remove = false}) {
+  T? optEnumFromString<T extends Enum>(
+    String name,
+    List<T> enumValues, {
+    T? fallback,
+    bool remove = false,
+  }) {
     final enumStr = optNullableString(name, remove: remove);
     if (enumStr == null) {
       return fallback;
     }
 
-    return enumValues.firstWhereOrNull((e) => e.name.toLowerCase() == enumStr.toLowerCase()) ?? fallback;
+    return enumValues.firstWhereOrNull(
+          (e) => e.name.toLowerCase() == enumStr.toLowerCase(),
+        ) ??
+        fallback;
   }
 }
 

@@ -8,7 +8,8 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/episode.schema.json
 @immutable
 class Episode extends BaseCollection {
-  factory Episode.fromJsonNumber(num number) => Episode(position: number.toDouble());
+  factory Episode.fromJsonNumber(num number) =>
+      Episode(position: number.toDouble());
 
   factory Episode.fromJson(dynamic json) {
     if (json is String) {
@@ -30,14 +31,22 @@ class Episode extends BaseCollection {
   factory Episode.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
-    final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJsonDynamic(
-      jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
+    final position =
+        jsonObject.optNullableDouble('position', remove: true) ?? 0;
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final identifier = jsonObject.optNullableString('identifier', remove: true);
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('sortAs', remove: true) ??
+          jsonObject.opt('sort-as', remove: true),
+    );
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
 
     return Episode(
       position: position,

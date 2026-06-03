@@ -7,7 +7,8 @@ import 'base_collection.dart';
 /// https://readium.org/webpub-manifest/schema/chapter.schema.json
 @immutable
 class Chapter extends BaseCollection {
-  factory Chapter.fromJsonNumber(num number) => Chapter(position: number.toDouble());
+  factory Chapter.fromJsonNumber(num number) =>
+      Chapter(position: number.toDouble());
 
   factory Chapter.fromJson(dynamic json) {
     if (json is String) {
@@ -29,14 +30,22 @@ class Chapter extends BaseCollection {
   factory Chapter.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
 
-    final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
-    final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJsonDynamic(
-      jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
+    final position =
+        jsonObject.optNullableDouble('position', remove: true) ?? 0;
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final identifier = jsonObject.optNullableString('identifier', remove: true);
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('sortAs', remove: true) ??
+          jsonObject.opt('sort-as', remove: true),
+    );
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
     final series = Series.listFromJson(jsonObject.opt('series', remove: true));
 
     return Chapter(

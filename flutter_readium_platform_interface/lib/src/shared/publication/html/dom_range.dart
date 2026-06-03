@@ -51,12 +51,17 @@ class DomRange with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final start = Point.fromJson(jsonObject.optJsonObject('start', remove: true));
+    final start = Point.fromJson(
+      jsonObject.optJsonObject('start', remove: true),
+    );
     if (start == null) {
       return null;
     }
 
-    return DomRange(start: start, end: Point.fromJson(jsonObject.optJsonObject('end', remove: true)));
+    return DomRange(
+      start: start,
+      end: Point.fromJson(jsonObject.optJsonObject('end', remove: true)),
+    );
   }
 }
 
@@ -75,7 +80,11 @@ class DomRange with EquatableMixin implements JSONable {
 /// https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-start-and-end-object
 @immutable
 class Point with EquatableMixin implements JSONable {
-  const Point({required this.cssSelector, required this.textNodeIndex, this.charOffset});
+  const Point({
+    required this.cssSelector,
+    required this.textNodeIndex,
+    this.charOffset,
+  });
 
   /// A CSS Selector to a DOM element.
   final String cssSelector;
@@ -101,8 +110,14 @@ class Point with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
-    final textNodeIndex = jsonObject.optPositiveInt('textNodeIndex', remove: true);
+    final cssSelector = jsonObject.optNullableString(
+      'cssSelector',
+      remove: true,
+    );
+    final textNodeIndex = jsonObject.optPositiveInt(
+      'textNodeIndex',
+      remove: true,
+    );
     if (cssSelector == null || textNodeIndex == null) {
       return null;
     }

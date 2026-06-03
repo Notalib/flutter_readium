@@ -19,7 +19,12 @@ class ListItemWidget extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding),
+    padding: EdgeInsets.fromLTRB(
+      horizontalPadding,
+      verticalPadding,
+      horizontalPadding,
+      verticalPadding,
+    ),
     child: isVerticalAlignment
         ? Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

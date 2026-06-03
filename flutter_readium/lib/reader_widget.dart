@@ -98,7 +98,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
 
-class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget>
+    implements ReadiumReaderWidgetInterface {
   static final _log = ReadiumLog.tag('ReaderWidget');
   static const _wakelockTimerDuration = Duration(minutes: 30);
 
@@ -154,10 +155,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
     final readingProgression = widget.publication.metadata.readingProgression;
     // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
-    final leftUpLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
+    final leftUpLabel =
+        readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goForwardSemanticLabel
         : widget.goBackwardSemanticLabel;
-    final rightDownLabel = readingProgression == ReadingProgression.rtl && !_scrollMode
+    final rightDownLabel =
+        readingProgression == ReadingProgression.rtl && !_scrollMode
         ? widget.goBackwardSemanticLabel
         : widget.goForwardSemanticLabel;
 
@@ -170,10 +173,17 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           height: _scrollMode ? 100 : null,
           right: _scrollMode ? 0 : null,
           bottom: _scrollMode ? null : 0,
-          child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
+          child: _buildSemanticsPrevNextPage(
+            label: leftUpLabel,
+            toNextPage: false,
+          ),
         ),
         // TODO: This presumes there is only one semantic label, for when the different toggles
-        Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
+        Positioned.fill(
+          child: _buildSemanticsToggleFullScreen(
+            label: widget.toggleShowControlsSemanticLabel,
+          ),
+        ),
         Positioned(
           top: _scrollMode ? null : 0,
           right: 0,
@@ -181,7 +191,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           height: _scrollMode ? 100 : null,
           left: _scrollMode ? 0 : null,
           bottom: 0,
-          child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
+          child: _buildSemanticsPrevNextPage(
+            label: rightDownLabel,
+            toNextPage: true,
+          ),
         ),
         ExcludeSemantics(
           child: Listener(
@@ -221,25 +234,36 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
             child: _readerWidget,
           ),
         ),
-        if (!isReady && widget.loadingWidget != null) Positioned.fill(child: widget.loadingWidget!),
+        if (!isReady && widget.loadingWidget != null)
+          Positioned.fill(child: widget.loadingWidget!),
       ],
     );
   }
 
   @override
-  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
+  Future<void> go(
+    final Locator locator, {
+    required final bool isAudioBookWithText,
+    final bool animated = false,
+  }) async {
     _log.d(() => 'Go to $locator');
 
-    await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
+    await _channel?.go(
+      locator,
+      animated: animated,
+      isAudioBookWithText: isAudioBookWithText,
+    );
 
     _log.d('Go to locator completed');
   }
 
   @override
-  Future<void> goBackward({final bool animated = true}) async => _channel?.goBackward();
+  Future<void> goBackward({final bool animated = true}) async =>
+      _channel?.goBackward();
 
   @override
-  Future<void> goForward({final bool animated = true}) async => _channel?.goForward();
+  Future<void> goForward({final bool animated = true}) async =>
+      _channel?.goForward();
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
@@ -254,7 +278,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async {
     await _channel?.applyDecorations(id, decorations);
   }
 
@@ -268,13 +295,19 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     final creationParams = <String, dynamic>{
       'pubIdentifier': publication.identifier,
       'preferences': defaultPreferences,
-      'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
+      'initialLocator': widget.initialLocator == null
+          ? null
+          : json.encode(widget.initialLocator),
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
       if (widget.selectionActions.isNotEmpty)
-        'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
+        'selectionActions': widget.selectionActions
+            .map((a) => a.toJson())
+            .toList(),
       if (widget.allowedDefaultActions != null)
-        'allowedDefaultActions': widget.allowedDefaultActions!.map((a) => a.serialized).toList(),
+        'allowedDefaultActions': widget.allowedDefaultActions!
+            .map((a) => a.serialized)
+            .toList(),
     };
 
     _log.d('creationParams=$creationParams');
@@ -310,7 +343,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
     return ColoredBox(
       color: const Color(0xffff00ff),
-      child: Center(child: Text('TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.')),
+      child: Center(
+        child: Text(
+          'TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.',
+        ),
+      ),
     );
   }
 
@@ -391,12 +428,15 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       if (_lastOrientation != null && _currentLocator != null) {
         Future.delayed(const Duration(milliseconds: 500)).then((final value) {
           _log
-            ..d('Orientation changed. Re-navigating to current locator to re-align page.')
+            ..d(
+              'Orientation changed. Re-navigating to current locator to re-align page.',
+            )
             ..d('locator = $_currentLocator');
           _channel?.go(
             _currentLocator!,
             animated: false,
-            isAudioBookWithText: false, // TODO: isAudioBookWithText - we don't know atm.
+            isAudioBookWithText:
+                false, // TODO: isAudioBookWithText - we don't know atm.
           );
         });
       }
@@ -426,7 +466,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
-  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) => Semantics(
+  Widget _buildSemanticsPrevNextPage({
+    required final String label,
+    required final bool toNextPage,
+  }) => Semantics(
     // TODO: this is not necessarily how it should be handled needs to be evaluated more
     sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
     button: true,
@@ -436,12 +479,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     child: Container(color: Colors.transparent),
   );
 
-  Widget _buildSemanticsToggleFullScreen({required final String label}) => Semantics(
-    sortKey: const OrdinalSortKey(1.0),
-    button: true,
-    container: true,
-    label: label,
-    onTap: _toggleControls,
-    child: Container(color: Colors.transparent),
-  );
+  Widget _buildSemanticsToggleFullScreen({required final String label}) =>
+      Semantics(
+        sortKey: const OrdinalSortKey(1.0),
+        button: true,
+        container: true,
+        label: label,
+        onTap: _toggleControls,
+        child: Container(color: Colors.transparent),
+      );
 }

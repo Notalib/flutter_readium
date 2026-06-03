@@ -17,29 +17,55 @@ class ReadiumTimebasedState implements JSONable {
   factory ReadiumTimebasedState.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
 
-    final state = TimebasedState.fromString(jsonObject.optString('state', remove: true));
+    final state = TimebasedState.fromString(
+      jsonObject.optString('state', remove: true),
+    );
 
-    final currentOffset = jsonObject.optNullableInt('currentOffset', remove: true);
-    final currentBuffered = jsonObject.optNullableInt('currentBuffered', remove: true);
-    final currentDuration = jsonObject.optNullableInt('currentDuration', remove: true);
+    final currentOffset = jsonObject.optNullableInt(
+      'currentOffset',
+      remove: true,
+    );
+    final currentBuffered = jsonObject.optNullableInt(
+      'currentBuffered',
+      remove: true,
+    );
+    final currentDuration = jsonObject.optNullableInt(
+      'currentDuration',
+      remove: true,
+    );
 
-    var currentLocator = Locator.fromJsonDynamic(jsonObject.opt('currentLocator', remove: true));
+    var currentLocator = Locator.fromJsonDynamic(
+      jsonObject.opt('currentLocator', remove: true),
+    );
 
     if (state == TimebasedState.ended && currentLocator != null) {
       // Workaround rounding error from native layer.
       // Sometimes progression and totalProgression are very close to 1.0 but not exactly, which causes confusion for
       // the UI.
       currentLocator = currentLocator.copyWithLocations(
-        progression: currentLocator.locations?.progression?.roundToIfCloseTo(1.0, epsilon: 0.01) ?? 1.0,
-        totalProgression: currentLocator.locations?.totalProgression?.roundToIfCloseTo(1.0) ?? 1.0,
+        progression:
+            currentLocator.locations?.progression?.roundToIfCloseTo(
+              1.0,
+              epsilon: 0.01,
+            ) ??
+            1.0,
+        totalProgression:
+            currentLocator.locations?.totalProgression?.roundToIfCloseTo(1.0) ??
+            1.0,
       );
     }
 
     return ReadiumTimebasedState(
       state: state,
-      currentOffset: currentOffset != null ? Duration(milliseconds: currentOffset) : null,
-      currentBuffered: currentBuffered != null ? Duration(milliseconds: currentBuffered) : null,
-      currentDuration: currentDuration != null ? Duration(milliseconds: currentDuration) : null,
+      currentOffset: currentOffset != null
+          ? Duration(milliseconds: currentOffset)
+          : null,
+      currentBuffered: currentBuffered != null
+          ? Duration(milliseconds: currentBuffered)
+          : null,
+      currentDuration: currentDuration != null
+          ? Duration(milliseconds: currentDuration)
+          : null,
       currentLocator: currentLocator,
     );
   }

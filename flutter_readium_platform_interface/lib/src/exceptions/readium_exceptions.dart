@@ -14,7 +14,9 @@ class ReadiumException implements Exception {
   String toString() => 'ReadiumException{$message}';
 
   static ReadiumException fromPlatformException(PlatformException ex) {
-    final type = OpeningReadiumExceptionType.values.firstWhereOrNull((v) => v.name == ex.code);
+    final type = OpeningReadiumExceptionType.values.firstWhereOrNull(
+      (v) => v.name == ex.code,
+    );
     // `ex.details` is `Object?` on the platform channel — for most error paths
     // it's a String, but the iOS HTTPError(.errorResponse) path puts the
     // response headers Map there. Prefer `ex.message` (always a human-readable
@@ -41,7 +43,8 @@ class PublicationNotSetReadiumException extends ReadiumException {
 }
 
 class OfflineReadiumException extends ReadiumException {
-  const OfflineReadiumException([final String? message]) : super('Offline: $message');
+  const OfflineReadiumException([final String? message])
+    : super('Offline: $message');
 
   @override
   String toString() => 'OfflineReadiumException';
@@ -76,18 +79,27 @@ class ReadiumError implements Error {
     final message = jsonObject.optString('message', remove: true);
     final code = jsonObject.optNullableString('code', remove: true);
     final data = jsonObject.opt('data', remove: true);
-    final stackTraceStr = jsonObject.optNullableString('stackTrace', remove: true);
+    final stackTraceStr = jsonObject.optNullableString(
+      'stackTrace',
+      remove: true,
+    );
 
     return ReadiumError(
       message,
       code: code,
       data: data,
-      stackTrace: stackTraceStr != null ? StackTrace.fromString(stackTraceStr) : null,
+      stackTrace: stackTraceStr != null
+          ? StackTrace.fromString(stackTraceStr)
+          : null,
     );
   }
 
-  ReadiumError(this.message, {this.code, this.data, final StackTrace? stackTrace})
-    : stackTrace = stackTrace ?? StackTrace.current;
+  ReadiumError(
+    this.message, {
+    this.code,
+    this.data,
+    final StackTrace? stackTrace,
+  }) : stackTrace = stackTrace ?? StackTrace.current;
 
   final String message;
   final String? code;
@@ -99,13 +111,15 @@ class ReadiumError implements Error {
 
   @override
   bool operator ==(covariant final Object other) =>
-      identical(this, other) || other is ReadiumError && other.message == message && other.code == code;
+      identical(this, other) ||
+      other is ReadiumError && other.message == message && other.code == code;
 
   @override
   int get hashCode => message.hashCode ^ code.hashCode;
 
   @override
-  String toString() => 'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
+  String toString() =>
+      'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
 
   Map<String, dynamic> toJson() => {}
     ..put('message', message)

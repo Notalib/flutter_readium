@@ -23,11 +23,19 @@ final _voiceMappings = <String, Map<String, String>>{
     'tpd': 'Tom',
     'tpf': 'Daisy',
   },
-  'en-gb': {'rjs': 'Stephen', 'gba': 'Jane', 'gbb': 'Ian', 'gbc': 'Maggie', 'gbd': 'Charles', 'gbg': 'Amy'},
+  'en-gb': {
+    'rjs': 'Stephen',
+    'gba': 'Jane',
+    'gbb': 'Ian',
+    'gbc': 'Maggie',
+    'gbd': 'Charles',
+    'gbg': 'Amy',
+  },
   'en-au': {'aua': 'Phoebe', 'aub': 'Chris', 'auc': 'Rachel', 'aud': 'Jack'},
 };
 
-const _voiceAssetPath = 'packages/flutter_readium/assets/voice_data/voices.json';
+const _voiceAssetPath =
+    'packages/flutter_readium/assets/voice_data/voices.json';
 
 Map<String, List<ReadiumSpeechVoice>> _readiumVoiceData = {};
 
@@ -44,7 +52,14 @@ abstract class ReaderTTSVoiceUtils {
       final jsonString = await rootBundle.loadString(_voiceAssetPath);
       final jsonList = jsonDecode(jsonString) as Map<String, dynamic>;
       final voices = jsonList
-          .map((key, json) => MapEntry(key, ReadiumSpeechLanguage.fromJson(json as Map<String, dynamic>).voices))
+          .map(
+            (key, json) => MapEntry(
+              key,
+              ReadiumSpeechLanguage.fromJson(
+                json as Map<String, dynamic>,
+              ).voices,
+            ),
+          )
           .values
           .reduce((acc, langVoices) => acc..addAll(langVoices))
           .toList();
@@ -55,7 +70,11 @@ abstract class ReaderTTSVoiceUtils {
   /// Returns a user-friendly voice name for voices.
   /// For android we need to resolve the name of the voice, we do that from the Readium Speech data unless we have a
   /// hardcoded mapping for that voice.
-  static String getVoiceName(final String language, final String identifier, final String? name) {
+  static String getVoiceName(
+    final String language,
+    final String identifier,
+    final String? name,
+  ) {
     if (RuntimePlatform.isAndroid) {
       return _androidName(language, identifier, name);
     } else {
@@ -65,7 +84,11 @@ abstract class ReaderTTSVoiceUtils {
 
   /// Resolve the gender for the voice. For Android we look up in the Readium Speech data, for other platforms we trust
   /// the platform to provide it.
-  static TTSVoiceGender getVoiceGender(final String language, final String identifier, TTSVoiceGender fallback) {
+  static TTSVoiceGender getVoiceGender(
+    final String language,
+    final String identifier,
+    TTSVoiceGender fallback,
+  ) {
     if (RuntimePlatform.isAndroid) {
       final voice = _findMatchingVoiceData(language, identifier);
       if (voice != null && voice.gender.isNotEmpty) {
@@ -77,7 +100,10 @@ abstract class ReaderTTSVoiceUtils {
   }
 
   /// Find a matching voice in the Readium Speech data for the given [language] and [identifier].
-  static ReadiumSpeechVoice? _findMatchingVoiceData(final String language, final String identifier) {
+  static ReadiumSpeechVoice? _findMatchingVoiceData(
+    final String language,
+    final String identifier,
+  ) {
     // Lookup in the voices loaded from the Readium Speech repository for the requested language.
     final voices = _readiumVoiceData[language.toLowerCase()];
     if (voices == null || voices.isEmpty) {
@@ -86,7 +112,11 @@ abstract class ReaderTTSVoiceUtils {
 
     // Find by identifier in nativeID.
     final byId = voices.firstWhereOrNull(
-      (v) => v.nativeID?.where((id) => id.toLowerCase() == identifier.toLowerCase()).isNotEmpty == true,
+      (v) =>
+          v.nativeID
+              ?.where((id) => id.toLowerCase() == identifier.toLowerCase())
+              .isNotEmpty ==
+          true,
     );
 
     if (byId != null) {
@@ -98,7 +128,13 @@ abstract class ReaderTTSVoiceUtils {
     if (identifier.endsWith('-language')) {
       final byAltName = voices.firstWhereOrNull(
         (v) =>
-            v.altNames?.where((altName) => altName.toLowerCase().endsWith(identifier.toLowerCase())).isNotEmpty == true,
+            v.altNames
+                ?.where(
+                  (altName) =>
+                      altName.toLowerCase().endsWith(identifier.toLowerCase()),
+                )
+                .isNotEmpty ==
+            true,
       );
 
       if (byAltName != null) {
@@ -110,7 +146,10 @@ abstract class ReaderTTSVoiceUtils {
   }
 
   /// Look up the hardcoded friendly name for known Android voices based on the identifier.
-  static String? _getAndroidVoiceNameFromIdentifier(final String language, final String identifier) {
+  static String? _getAndroidVoiceNameFromIdentifier(
+    final String language,
+    final String identifier,
+  ) {
     if (identifier.endsWith('-language')) {
       // Some Android voices have identifiers like "<lang-code>-language" and are not listed in nativeID.
       return null;
@@ -119,14 +158,22 @@ abstract class ReaderTTSVoiceUtils {
     final mappings = _voiceMappings[language.toLowerCase()];
     if (mappings != null && mappings.isNotEmpty) {
       final identifierParts = identifier.toLowerCase().split('-').toSet();
-      return mappings.entries.firstWhereOrNull((e) => identifierParts.contains(e.key.toLowerCase()))?.value;
+      return mappings.entries
+          .firstWhereOrNull(
+            (e) => identifierParts.contains(e.key.toLowerCase()),
+          )
+          ?.value;
     }
 
     return null;
   }
 
   /// Get the voice name for Android voices.
-  static String _androidName(final String language, final String identifier, final String? name) {
+  static String _androidName(
+    final String language,
+    final String identifier,
+    final String? name,
+  ) {
     // Start by looking up in the hardcoded mapping for known Android voices with non-descriptive names.
     final mappedName = _getAndroidVoiceNameFromIdentifier(language, identifier);
     if (mappedName != null && mappedName.isNotEmpty) {
@@ -138,7 +185,10 @@ abstract class ReaderTTSVoiceUtils {
     if (voice != null) {
       // We found a voice from the identifier, before using the label, check for a hardcoded friendly name.
       for (final nativeId in voice.nativeID ?? []) {
-        final mappedName = _getAndroidVoiceNameFromIdentifier(language, nativeId);
+        final mappedName = _getAndroidVoiceNameFromIdentifier(
+          language,
+          nativeId,
+        );
         if (mappedName != null && mappedName.isNotEmpty) {
           return mappedName;
         }

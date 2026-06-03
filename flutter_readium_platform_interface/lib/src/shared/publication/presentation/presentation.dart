@@ -51,11 +51,21 @@ class Presentation with EquatableMixin implements JSONable {
     return Presentation(
       clipped: jsonObject.optNullableBoolean('clipped', remove: true),
       continuous: jsonObject.optNullableBoolean('continuous', remove: true),
-      fit: PresentationFit.fromString(jsonObject.optString('fit', remove: true)),
-      orientation: PresentationOrientation.fromString(jsonObject.optString('orientation', remove: true)),
-      overflow: PresentationOverflow.fromString(jsonObject.optString('overflow', remove: true)),
-      spread: PresentationSpread.fromString(jsonObject.optString('spread', remove: true)),
-      layout: EpubLayout.fromString(jsonObject.optString('layout', remove: true)),
+      fit: PresentationFit.fromString(
+        jsonObject.optString('fit', remove: true),
+      ),
+      orientation: PresentationOrientation.fromString(
+        jsonObject.optString('orientation', remove: true),
+      ),
+      overflow: PresentationOverflow.fromString(
+        jsonObject.optString('overflow', remove: true),
+      ),
+      spread: PresentationSpread.fromString(
+        jsonObject.optString('spread', remove: true),
+      ),
+      layout: EpubLayout.fromString(
+        jsonObject.optString('layout', remove: true),
+      ),
     );
   }
 
@@ -76,11 +86,20 @@ class Presentation with EquatableMixin implements JSONable {
   final bool? continuous;
 
   @override
-  List<Object?> get props => [layout, orientation, overflow, spread, fit, clipped, continuous];
+  List<Object?> get props => [
+    layout,
+    orientation,
+    overflow,
+    spread,
+    fit,
+    clipped,
+    continuous,
+  ];
 
   /// Determines the layout of the given resource in this publication.
   /// The default layout is reflowable.
-  EpubLayout layoutOf(Link link) => link.properties.layout ?? layout ?? EpubLayout.reflowable;
+  EpubLayout layoutOf(Link link) =>
+      link.properties.layout ?? layout ?? EpubLayout.reflowable;
 
   /// Serializes a [Presentation] to its RWPM JSON representation.
   @override
@@ -106,8 +125,8 @@ enum PresentationFit {
 
   const PresentationFit();
 
-  static PresentationFit? fromString(String? value) =>
-      PresentationFit.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static PresentationFit? fromString(String? value) => PresentationFit.values
+      .firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Hints how the layout of the resource should be presented.
@@ -115,8 +134,8 @@ enum EpubLayout {
   fixed,
   reflowable;
 
-  static EpubLayout? fromString(String? value) =>
-      EpubLayout.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static EpubLayout? fromString(String? value) => EpubLayout.values
+      .firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Suggested orientation for the device when displaying the linked resource.
@@ -126,7 +145,9 @@ enum PresentationOrientation {
   portrait;
 
   static PresentationOrientation? fromString(String? value) =>
-      PresentationOrientation.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+      PresentationOrientation.values.firstWhereOrNull(
+        (element) => element.name == value?.toLowerCase(),
+      );
 }
 
 /// Suggested method for handling overflow while displaying the linked resource.
@@ -140,8 +161,9 @@ enum PresentationOverflow {
   /// Indicates the Author preference is to provide a scrolled view for overflow content, and each spine item with this property is to be rendered as separate scrollable document.
   scrolled;
 
-  static PresentationOverflow? fromString(String? value) =>
-      PresentationOverflow.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static PresentationOverflow? fromString(String? value) => PresentationOverflow
+      .values
+      .firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Indicates how the linked resource should be displayed in a reading
@@ -151,8 +173,8 @@ enum PresentationPage {
   right,
   center;
 
-  static PresentationPage? fromString(String? value) =>
-      PresentationPage.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static PresentationPage? fromString(String? value) => PresentationPage.values
+      .firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }
 
 /// Indicates the condition to be met for the linked resource to be rendered within a synthetic spread.
@@ -169,6 +191,7 @@ enum PresentationSpread {
   /// Specifies the Reading System should render a synthetic spread for the readingOrder item only when in landscape orientation.
   landscape;
 
-  static PresentationSpread? fromString(String? value) =>
-      PresentationSpread.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static PresentationSpread? fromString(String? value) => PresentationSpread
+      .values
+      .firstWhereOrNull((element) => element.name == value?.toLowerCase());
 }

@@ -10,7 +10,9 @@ class PlayerControls extends StatelessWidget {
 
   final Publication publication;
   @override
-  Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
+  Widget build(
+    final BuildContext context,
+  ) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
       final isAudioBook = publication.isAudioBook;
       final audioActive = state.audioEnabled;
@@ -24,28 +26,40 @@ class PlayerControls extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
-                onPressed: () =>
-                    context.read<PlayerControlsBloc>().add(SkipToPreviousChapter(publication: publication)),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  SkipToPreviousChapter(publication: publication),
+                ),
                 tooltip: 'Skip to previous chapter',
               ),
               IconButton(
                 icon: const Icon(Icons.fast_rewind),
                 onPressed: () => context.read<PlayerControlsBloc>().add(
-                  state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToPrevious() : SkipToPreviousPage(),
+                  state.ttsEnabled || (state.audioEnabled && isAudioBook)
+                      ? SkipToPrevious()
+                      : SkipToPreviousPage(),
                 ),
-                tooltip: state.ttsEnabled ? 'Skip to previous paragraph' : 'Skip to previous page',
+                tooltip: state.ttsEnabled
+                    ? 'Skip to previous paragraph'
+                    : 'Skip to previous page',
               ),
               IconButton(
-                icon: state.playing ? const Icon(Icons.pause) : const Icon(Icons.play_arrow),
+                icon: state.playing
+                    ? const Icon(Icons.pause)
+                    : const Icon(Icons.play_arrow),
                 onPressed: state.playing
                     ? () => context.read<PlayerControlsBloc>().add(Pause())
                     : () {
                         // Prefer the latest visual/timebased reader locator so playback resumes where the
                         // user actually is; fall back to the saved initialLocator from PublicationBloc
                         // (only set at open time) for the very first play after open.
-                        final playerControls = context.read<PlayerControlsBloc>();
+                        final playerControls = context
+                            .read<PlayerControlsBloc>();
                         final Locator? fromLocator =
-                            playerControls.currentLocator ?? context.read<PublicationBloc>().state.initialLocator;
+                            playerControls.currentLocator ??
+                            context
+                                .read<PublicationBloc>()
+                                .state
+                                .initialLocator;
 
                         // DEMO: Start from the 3rd item in readingOrder.
                         // final pub = context.read<PublicationBloc>().state.publication;
@@ -53,7 +67,9 @@ class PlayerControls extends StatelessWidget {
                         // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                         isAudioBook
                             ? playerControls.add(Play(fromLocator: fromLocator))
-                            : playerControls.add(PlayTTS(fromLocator: fromLocator));
+                            : playerControls.add(
+                                PlayTTS(fromLocator: fromLocator),
+                              );
                       },
                 tooltip: state.playing ? 'Pause' : 'Play',
               ),
@@ -66,33 +82,43 @@ class PlayerControls extends StatelessWidget {
                 icon: const Icon(Icons.fast_forward),
                 onPressed: () {
                   context.read<PlayerControlsBloc>().add(
-                    state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToNext() : SkipToNextPage(),
+                    state.ttsEnabled || (state.audioEnabled && isAudioBook)
+                        ? SkipToNext()
+                        : SkipToNextPage(),
                   );
                 },
-                tooltip: state.ttsEnabled ? 'Skip to next paragraph' : 'Skip to next page',
+                tooltip: state.ttsEnabled
+                    ? 'Skip to next paragraph'
+                    : 'Skip to next page',
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next),
-                onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter(publication: publication)),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  SkipToNextChapter(publication: publication),
+                ),
                 tooltip: 'Skip to next chapter',
               ),
               if (audioActive) ...[
                 IconButton(
                   key: const ValueKey('seek_back_10s'),
                   icon: const Icon(Icons.replay_10),
-                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(-10)),
+                  onPressed: () =>
+                      context.read<PlayerControlsBloc>().add(SeekRelative(-10)),
                   tooltip: 'Seek back 10 s',
                 ),
                 IconButton(
                   key: const ValueKey('seek_forward_10s'),
                   icon: const Icon(Icons.forward_10),
-                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(10)),
+                  onPressed: () =>
+                      context.read<PlayerControlsBloc>().add(SeekRelative(10)),
                   tooltip: 'Seek forward 10 s',
                 ),
               ],
               IconButton(
                 icon: const Icon(Icons.settings_voice),
-                onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  GetAvailableVoices(),
+                ),
                 tooltip: 'Change voice',
               ),
             ],

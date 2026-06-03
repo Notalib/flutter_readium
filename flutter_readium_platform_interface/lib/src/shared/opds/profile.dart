@@ -24,8 +24,12 @@ class Profile extends AdditionalProperties implements JSONable {
             .toList() ??
         [];
 
-    final loans = jsonObject.optJsonObject('loans', remove: true)?.let((it) => ProfileLoans.fromJson(it));
-    final holds = jsonObject.optJsonObject('holds', remove: true)?.let((it) => ProfileHolds.fromJson(it));
+    final loans = jsonObject
+        .optJsonObject('loans', remove: true)
+        ?.let((it) => ProfileLoans.fromJson(it));
+    final holds = jsonObject
+        .optJsonObject('holds', remove: true)
+        ?.let((it) => ProfileHolds.fromJson(it));
 
     return Profile(
       name: name,
@@ -37,7 +41,14 @@ class Profile extends AdditionalProperties implements JSONable {
     );
   }
 
-  const Profile({this.name, this.email, this.links, this.loans, this.holds, super.additionalProperties});
+  const Profile({
+    this.name,
+    this.email,
+    this.links,
+    this.loans,
+    this.holds,
+    super.additionalProperties,
+  });
 
   /// Given name for the user
   final String? name;
