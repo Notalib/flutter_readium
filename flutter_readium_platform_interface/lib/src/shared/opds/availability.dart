@@ -33,7 +33,7 @@ class Availability with EquatableMixin implements JSONable {
     ..putOpt('until', until?.toIso8601String());
 
   /// Creates an [Availability] from its JSON representation.
-  /// If the availability can't be parsed, a warning will be logged with [warnings].
+  /// If the availability can't be parsed, a warning will be logged.
   static Availability? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;

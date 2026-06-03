@@ -9,11 +9,24 @@
 #   bin/pana_check flutter_readium # run pana on one package only
 #
 # Options:
+#   -v, --verbose  show full pana output including pub's verbose log dumps
 #   --no-warning   passed through to pana (matches CI)
 
 set -e
 
 PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+# Pick a dart binary: prefer `fvm dart` when the project pins a Flutter version
+# via .fvmrc, fall back to a system `dart` on PATH.
+if [ -f "$PROJECT_ROOT/.fvmrc" ] && command -v fvm >/dev/null 2>&1; then
+  DART=(fvm dart)
+elif command -v dart >/dev/null 2>&1; then
+  DART=(dart)
+else
+  echo -e "\033[31;1mERROR: no \`dart\` on PATH and \`fvm\` is not installed.\033[0m"
+  echo "Install Flutter (https://docs.flutter.dev/get-started/install) or FVM (https://fvm.app)."
+  exit 1
+fi
 
 PACKAGES=(
   "flutter_readium_platform_interface"
@@ -22,8 +35,10 @@ PACKAGES=(
 
 PANA_ARGS=()
 TARGETS=()
+VERBOSE=
 for arg in "$@"; do
   case "$arg" in
+    -v|--verbose) VERBOSE=1 ;;
     --*) PANA_ARGS+=("$arg") ;;
     *)   TARGETS+=("$arg") ;;
   esac
@@ -33,9 +48,9 @@ if [ ${#TARGETS[@]} -gt 0 ]; then
   PACKAGES=("${TARGETS[@]}")
 fi
 
-if ! dart pub global list 2>/dev/null | grep -q '^pana '; then
+if ! "${DART[@]}" pub global list 2>/dev/null | grep -q '^pana '; then
   echo -e "\033[33;1mpana not installed — activating globally...\033[0m"
-  dart pub global activate pana
+  "${DART[@]}" pub global activate pana
 fi
 
 for pkg in "${PACKAGES[@]}"; do
@@ -45,5 +60,17 @@ for pkg in "${PACKAGES[@]}"; do
   fi
 
   echo -e "\033[35;1m=== pana $pkg ===\033[0m"
-  (cd "$PROJECT_ROOT/$pkg" && dart pub global run pana "${PANA_ARGS[@]}" .)
+  if [ -n "$VERBOSE" ]; then
+    (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub global run pana "${PANA_ARGS[@]}" .)
+  else
+    (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub global run pana "${PANA_ARGS[@]}" . 2>&1) | \
+      awk '
+        /Re-running with verbose output/ { print; print "                                 [verbose log omitted — re-run with -v to see it]"; suppress=1; next }
+        suppress && /^[0-9]{4}-[0-9]{2}-[0-9]{2}/ { suppress=0 }
+        suppress { next }
+        /^[[:space:]]+(SLVR|IO  |FINE|MSG |ERR ):/ { next }
+        /^[[:space:]]+\|/ { next }
+        { print }
+      '
+  fi
 done

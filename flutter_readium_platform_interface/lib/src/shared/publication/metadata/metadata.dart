@@ -219,7 +219,7 @@ class Metadata extends AdditionalProperties with EquatableMixin implements JSONa
 
   /// Parses a [Metadata] from its RWPM JSON representation.
   ///
-  /// If the metadata can't be parsed, a warning will be logged with [warnings].
+  /// If the metadata can't be parsed, a warning will be logged.
   static Metadata? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;

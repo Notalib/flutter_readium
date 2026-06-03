@@ -28,7 +28,7 @@ class Price extends AdditionalProperties with EquatableMixin implements JSONable
   Map<String, dynamic> toJson() => {...additionalProperties, 'currency': currency, 'value': value};
 
   /// Creates an [Price] from its JSON representation.
-  /// If the price can't be parsed, a warning will be logged with [warnings].
+  /// If the price can't be parsed, a warning will be logged.
   static Price? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       ReadiumLog.d('Price.fromJSON: null json');

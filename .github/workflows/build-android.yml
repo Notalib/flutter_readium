@@ -1,14 +1,7 @@
 name: Build Android
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-concurrency:
-  group: build-android-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
 
 jobs:
   build-android:

@@ -34,7 +34,7 @@ class Acquisition with EquatableMixin implements JSONable {
     ..putIterableIfNotEmpty('child', children);
 
   /// Creates an [Acquisition] from its JSON representation.
-  /// If the acquisition can't be parsed, a warning will be logged with [warnings].
+  /// If the acquisition can't be parsed, a warning will be logged.
   static Acquisition? fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
@@ -50,7 +50,7 @@ class Acquisition with EquatableMixin implements JSONable {
   }
 
   /// Creates a list of [Acquisition] from its JSON representation.
-  /// If an acquisition can't be parsed, a warning will be logged with [warnings].
+  /// If an acquisition can't be parsed, a warning will be logged.
   static List<Acquisition> fromJsonArray(List<dynamic>? json) =>
       json?.parseObjects((it) => Acquisition.fromJson(it as Map<String, dynamic>?)) ?? [];
 }

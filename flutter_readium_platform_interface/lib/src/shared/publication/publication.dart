@@ -111,7 +111,7 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Parses a [Publication] from its RWPM JSON representation.
   ///
-  /// If the publication can't be parsed, a warning will be logged with [warnings].
+  /// If the publication can't be parsed, a warning will be logged.
   /// https://readium.org/webpub-manifest/
   /// https://readium.org/webpub-manifest/schema/publication.schema.json
   static Publication? fromJson(Map<String, dynamic>? json, {bool packaged = false}) {
