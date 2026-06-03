@@ -362,8 +362,6 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
   // AUDIOBOOK API - END
 
-  // TODO: Is this used anymore with the new JS implementation? If not, remove.
-  @override
   @override
   Stream<ReadiumError> get onErrorEvent => _errorEventController.stream;
 }
