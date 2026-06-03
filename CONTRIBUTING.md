@@ -96,7 +96,7 @@ The same suite runs in CI on every push/PR via [.github/workflows/integration-te
 
 ## Building the web bundle
 
-After editing TypeScript files in `flutter_readium/web/_scripts/` or `flutter_readium/assets/_helper_scripts/src/`:
+After editing TypeScript files in `flutter_readium/web/src/` or `flutter_readium/assets/_helper_scripts/src/`:
 
 ```bash
 bin/update_web_example   # build + copy into example/web/

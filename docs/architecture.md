@@ -40,7 +40,7 @@ All models in `flutter_readium_platform_interface` define hand-written `toJson` 
 
 ## Web implementation
 
-The web plugin is a TypeScript/webpack bundle (`flutter_readium/web/_scripts/`) compiled to `flutter_readium/lib/helpers/readiumReader.js`. It is loaded inside a webview and communicates with Dart via `postMessage` / JS interop.
+The web plugin is a TypeScript/webpack bundle (`flutter_readium/web/src/`) compiled to `flutter_readium/lib/helpers/readiumReader.js`. It is loaded inside a webview and communicates with Dart via `postMessage` / JS interop.
 
 After any TypeScript change run `bin/update_web_example` to rebuild and deploy to the example app.
 

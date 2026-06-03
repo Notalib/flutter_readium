@@ -2,8 +2,8 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 # Type-check the flutter_readium web TypeScript (sources + Jest tests) without
-# emitting any output. Uses web/_scripts/tsconfig.test.json so test files are
-# included too. Run after editing any TS under flutter_readium/web/_scripts.
+# emitting any output. Uses web/src/tsconfig.test.json so test files are
+# included too. Run after editing any TS under flutter_readium/web/src.
 echo "Type-checking flutter_readium web TypeScript"
 cd "$REPO_ROOT/flutter_readium"
 
