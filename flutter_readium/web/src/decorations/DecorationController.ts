@@ -1,11 +1,8 @@
 /**
  * DecorationController — manages decoration groups and styles.
  *
- * Extracts `applyDecorations`, `setDecorationStyle`, and the subgroup/style
- * state from `_ReadiumReader` into a focused collaborator.
- *
- * Phase D will wire `_ReadiumReader` to hold a `DecorationController` instance
- * and delegate the corresponding public methods to it.
+ * Holds the `applyDecorations` / `setDecorationStyle` logic and the
+ * subgroup / style state used by the reader facade.
  */
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
