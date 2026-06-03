@@ -13,59 +13,15 @@ export {
   injectDecorationOverrides,
   highlightSelection,
 } from "./decorations/decorationOverrides";
+export {
+  convertVerticalScroll,
+  textAlignFromJson,
+  normalizeTypes,
+} from "./preferences/FlutterEpubPreferences";
 
-// Preferences helpers — will move to preferences/FlutterEpubPreferences.ts in Phase A3.
-import { EpubNavigator, TextAlignment, WebPubNavigator } from "@readium/navigator";
-
-export function convertVerticalScroll(prefs: any) {
-  if ("verticalScroll" in prefs) {
-    prefs.scroll = prefs.verticalScroll;
-    delete prefs.verticalScroll;
-  }
-}
-
-export function textAlignFromJson(textAlignString: string): TextAlignment {
-  switch (textAlignString) {
-    case "left":
-      return TextAlignment.left;
-    case "right":
-      return TextAlignment.right;
-    case "start":
-      return TextAlignment.start;
-    case "justify":
-      return TextAlignment.justify;
-    default:
-      return TextAlignment.left;
-  }
-}
-
-export function normalizeTypes(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(normalizeTypes);
-  } else if (obj !== null && typeof obj === "object") {
-    for (const key in obj) {
-      if (!obj.hasOwnProperty(key)) continue;
-      const value = obj[key];
-      if (typeof value === "string") {
-        if (value === "true") {
-          obj[key] = true;
-        } else if (value === "false") {
-          obj[key] = false;
-        } else if (/^-?\d+(\.\d+)?$/.test(value)) {
-          // Only convert if the string is a pure number (int or float)
-          obj[key] = value.includes(".")
-            ? parseFloat(value)
-            : parseInt(value, 10);
-        }
-      } else if (typeof value === "object" && value !== null) {
-        obj[key] = normalizeTypes(value);
-      } else if (value === "null" || value == null) {
-        delete obj[key];
-      }
-    }
-  }
-  return obj;
-}
+// setPreferencesFromString — will move to preferences/ in Phase D.
+import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
+import { convertVerticalScroll, textAlignFromJson, normalizeTypes } from "./preferences/FlutterEpubPreferences";
 
 export function setPreferencesFromString(
   newPreferencesString: string,
@@ -89,3 +45,4 @@ export function setPreferencesFromString(
   nav.submitPreferences(newPreferences);
   // }
 }
+
