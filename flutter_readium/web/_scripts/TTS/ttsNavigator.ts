@@ -19,7 +19,9 @@ import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
 import {
   ContentElement,
   HTMLResourceContentIterator,
+  Link,
   Locator,
+  LocatorLocations,
   PublicationContentIterator,
   TextElement,
 } from "@readium/shared";
@@ -85,6 +87,70 @@ function emitLocator(locator: Locator) {
   window.updateTextLocator?.(JSON.stringify(normalizeLocatorJson(locator)));
 }
 
+// ---------------------------------------------------------------------------
+// TOC-href enrichment (mirrors the equivalent helpers in epubNavigator.ts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively walks the publication's TOC link tree and returns a flat list.
+ * Duplicated from epubNavigator.ts to avoid a cross-module import that would
+ * touch a file the downstream refactor branch is already restructuring.
+ */
+function flattenToc(items: Link[]): Link[] {
+  const out: Link[] = [];
+  for (const link of items) {
+    out.push(link);
+    const children = link.children?.items;
+    if (children && children.length > 0) {
+      out.push(...flattenToc(children));
+    }
+  }
+  return out;
+}
+
+/**
+ * Returns a copy of `locator` with `tocHref` set in `locations.otherLocations`,
+ * matching the current chapter's TOC href by resource href (fragment-stripped).
+ * No-op when `flatToc` is empty, no match is found, or `tocHref` is already set.
+ */
+function enrichWithTocHref(locator: Locator, flatToc: Link[]): Locator {
+  if (flatToc.length === 0) return locator;
+  const tocHref = _findCurrentTocHref(locator.href, flatToc);
+  if (!tocHref) return locator;
+  const existing = locator.locations?.otherLocations ?? new Map<string, any>();
+  // Avoid clobbering an existing tocHref (e.g. set by an upstream caller).
+  if (existing.get("tocHref") === tocHref) return locator;
+  const merged = new Map(existing);
+  merged.set("tocHref", tocHref);
+  return new Locator({
+    href: locator.href,
+    type: locator.type,
+    title: locator.title,
+    text: locator.text,
+    locations: new LocatorLocations({
+      fragments: locator.locations?.fragments,
+      progression: locator.locations?.progression,
+      position: locator.locations?.position,
+      totalProgression: locator.locations?.totalProgression,
+      otherLocations: merged,
+    }),
+  });
+}
+
+function _findCurrentTocHref(
+  resourceHref: string,
+  flatToc: Link[]
+): string | undefined {
+  const targetPath = _stripFragment(resourceHref);
+  const match = flatToc.find((l) => _stripFragment(l.href) === targetPath);
+  return match?.href;
+}
+
+function _stripFragment(href: string): string {
+  const i = href.indexOf("#");
+  return i === -1 ? href : href.substring(0, i);
+}
+
 export class WebTTSEngine {
   private readonly _nav: AnyNavigator;
   private readonly _publication: ReadiumPublication;
@@ -106,6 +172,14 @@ export class WebTTSEngine {
   private _selectedVoice: SpeechSynthesisVoice | null = null;
   /** per-language voice map: lang -> voiceURI */
   private _langVoiceMap: Map<string, string> = new Map();
+
+  /**
+   * Flattened TOC built once per session. Used to enrich every Dart-facing
+   * locator emission with `tocHref` so chapter-aware features (next/previous
+   * chapter, current-chapter display) work during TTS playback — matching the
+   * behaviour already present for visual navigation and audiobook playback.
+   */
+  private readonly _flatToc: Link[];
 
   /** Decoration style for the active utterance span (null = no utterance decoration). */
   private _utteranceStyle: object | null;
@@ -134,6 +208,7 @@ export class WebTTSEngine {
     this._utteranceStyle = utteranceStyle;
     this._rangeStyle = rangeStyle;
     this._onApplyDecorations = onApplyDecorations;
+    this._flatToc = flattenToc(publication.manifest.toc?.items ?? []);
   }
 
   /**
@@ -353,8 +428,12 @@ export class WebTTSEngine {
     utterance.onstart = () => {
       log.debug("utterance.onstart");
       if (this._destroyed) return;
-      emitState("playing", element.locator);
-      emitLocator(element.locator);
+      // Enrich with tocHref so chapter-aware Dart consumers (next/previous chapter,
+      // current-chapter display) work during TTS playback. Decoration calls keep the
+      // raw locator — they're href/cssSelector-based and don't need tocHref.
+      const enrichedLocator = enrichWithTocHref(element.locator, this._flatToc);
+      emitState("playing", enrichedLocator);
+      emitLocator(enrichedLocator);
       // Apply utterance-level decoration; always clear any stale range from the previous utterance.
       this._applyDecoration("tts_utterance", element.locator, this._utteranceStyle);
       this._onApplyDecorations?.("tts_range", "[]");
@@ -403,7 +482,7 @@ export class WebTTSEngine {
         ev.charLength ?? 0
       );
       if (segmentLocator) {
-        emitState("playing", segmentLocator);
+        emitState("playing", enrichWithTocHref(segmentLocator, this._flatToc));
         // NOTE: Do NOT call updateTextLocator here — sub-segment locators are
         // not stable enough for bookmark/position-save purposes.
         // Skip the range decoration when the segment spans exactly the same
