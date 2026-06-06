@@ -56,6 +56,10 @@ supporting cross-platform additions.
 - **Web: `onTextLocatorChanged` locators now carry `tocHref`** — the EPUB navigator
   enriches each emitted locator with the current chapter's ToC href, matching the
   iOS / Android contract and unblocking chapter-skip features on the consumer side.
+- **Web: TTS locators now carry `tocHref`** — `Locator.locations.tocHref` is now
+  populated on every locator emitted during TTS playback (utterance-start and
+  word-boundary events), so chapter-aware features work during TTS on web — matching
+  the existing behaviour for visual navigation and audiobook / media-overlay playback.
 - **Web: reading-order item duration propagated to media-overlay items** — the parent
   reading-order link's declared `duration` (when present) is carried on each item and
   used as the authoritative fallback for the synthetic audio Link's duration, replacing
