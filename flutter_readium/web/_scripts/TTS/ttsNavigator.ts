@@ -30,7 +30,6 @@ import { createLogger } from "../logger";
 import {
   WebTTSPreferences,
   serializeVoices,
-  ttsPreferencesFromJson,
 } from "./ttsPreferences";
 
 const log = createLogger("TTS");
@@ -246,6 +245,7 @@ export class WebTTSEngine {
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
     // A zero-length utterance consumes the gesture and wakes the engine.
+    log.debug("Priming speechSynthesis engine");
     speechSynthesis.speak(new SpeechSynthesisUtterance(""));
     // Only cancel if there's something queued — cancel() on an idle engine
     // can leave Chromium in a stalled state.
@@ -260,17 +260,20 @@ export class WebTTSEngine {
           new HTMLResourceContentIterator(resource, locator),
       ]
     );
+    log.debug("Initialized - Speaking first element");
     await this._speakNext();
   }
 
   pause(): void {
     if (this._destroyed) return;
+    log.debug("pause");
     speechSynthesis.pause();
     emitState("paused", this._currentElement?.locator ?? null);
   }
 
   resume(): void {
     if (this._destroyed) return;
+    log.debug("resume");
     speechSynthesis.resume();
     emitState("playing", this._currentElement?.locator ?? null);
   }
