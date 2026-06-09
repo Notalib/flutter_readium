@@ -4,13 +4,13 @@ In-house narrated comic book format, developed by Nota-service.
 
 This is an extention to Readium's webpub+EPUB profile, intended to be used with media overlays or guided navigation.
 
-An example is available in [example](example/nota-comic-page.xhtml).
+You can see an example in this [file](example/nota-comic-page.xhtml).
 
-## Markup.
+## XHTML Markup
 
 ### figure - the container.
 
-A comic page is a single `figure`-element, which contains one `img`-element with the class `page` and a number of `div`-elements with the class `area`.
+A comic page is contained in a `figure`-element, which has one `img`-element with the class `page` and a number of `div`-elements with the class `area`.
 
 ```html
 <figure>
@@ -20,11 +20,15 @@ A comic page is a single `figure`-element, which contains one `img`-element with
 </figure>
 ```
 
-A single XHTML document can contain multiple comic book pages.
+A XHTML document can contain multiple comic book pages.
 
 #### img.page
 
 The full sized comic book page.
+
+```html
+  <img class="page" id="..." style="..." />
+```
 
 | Attribute | Description                                         | Required |
 | --------- | --------------------------------------------------- | -------- |
@@ -44,6 +48,10 @@ The size information is used to scale rendering and focus on panels.
 #### div.area
 
 Each panel has its own `div.area` element. This elemenet positions the panel relative to the image.
+
+```html
+  <div id="..." style="..." class="area"></div>
+```
 
 | Attribute | Description                                          | Required |
 | --------- | ---------------------------------------------------- | -------- |
