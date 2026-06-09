@@ -32,5 +32,8 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 ### Architecture
 - [Overview](architecture.md)
 
+### Nota Comics
+- [XHTML Structure](nota-comics/xhtml-structure.md) — page and panel structure for Nota digital comics in Nordic EPUB
+
 ### Troubleshooting
 - [Troubleshooting](troubleshooting.md)
