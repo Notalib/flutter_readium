@@ -430,22 +430,27 @@ function applySpotlightToIframe(wnd: Window): void {
     if (underlineId) internalIds.push(underlineId);
   }
 
-  // Restore the spotlit range to normal: undo the body-wide color dim AND
-  // suppress the fill Readium paints from the decoration tint (it emits
-  // `::highlight(id) { background-color: <tint> }`, which for the range's
-  // default opaque-black tint renders a solid black box over the current word).
-  // Spotlight has no fill — its only effect is the surrounding dim — so the
-  // current range must be transparent.
+  // Restore the spotlit range's text colour so the body-wide dim doesn't apply
+  // inside it. The fill (background-color) is left alone — the caller controls
+  // it by passing a tint with the spotlight decoration: a non-transparent tint
+  // renders as a fill inside the spotlit range, while a null/transparent tint
+  // gives pure dim-outside-only.
   const restoreRules = internalIds
     .map(
       (id) =>
-        `body.${SPOTLIGHT_CLASS} ::highlight(${id}) { color: initial !important; background-color: transparent !important; }`
+        `body.${SPOTLIGHT_CLASS} ::highlight(${id}) { color: initial !important; }`
     )
     .join("\n  ");
 
+  // Selector specificity must beat ReadiumCSS's `customColors_pref.css` rule
+  // (`:root[style*="--USER__textColor"] body { color: ... !important }`, specificity
+  // (0,2,1)) which fires on EPUB-profile publications whenever the user has set
+  // a text-colour preference. Adding `:not(a)` raises us to (0,3,1) and wins.
+  // Without this bump the body-wide dim silently fails on EPUB content while
+  // appearing to work on plain WebPub.
   styleEl.textContent = `
-    body.${SPOTLIGHT_CLASS},
-    body.${SPOTLIGHT_CLASS} * {
+    :root[style*="--USER__textColor"] body.${SPOTLIGHT_CLASS} *:not(a),
+    body.${SPOTLIGHT_CLASS} *:not(a) {
       color: rgba(0, 0, 0, 0.22) !important;
     }
     ${restoreRules}
