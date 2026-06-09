@@ -299,7 +299,14 @@ function ensureBandEl(doc: Document, id: string): HTMLElement {
     el.style.width = "100%";
     el.style.pointerEvents = "none";
     el.style.zIndex = "2147483646";
-    el.style.backgroundColor = `rgba(0, 0, 0, ${RULER_MASK_DIM})`;
+    // ReadiumCSS injects `:root[style*="--USER__backgroundColor"] * {
+    // background-color: transparent !important }` whenever a user theme is
+    // active, so the fill must be `!important` to remain visible.
+    el.style.setProperty(
+      "background-color",
+      `rgba(0, 0, 0, ${RULER_MASK_DIM})`,
+      "important"
+    );
     doc.body.appendChild(el);
   }
   return el;

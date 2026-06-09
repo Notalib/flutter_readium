@@ -14,6 +14,7 @@ import {
   navIframeWindows,
   registerPendingDecorationGroup,
   setSpotlightGroupOnIframes,
+  setRulerBandForGroup,
   UNDERLINE_GROUP_SUFFIX,
   SPOTLIGHT_GROUP_SUFFIX,
   RULER_GROUP_SUFFIX,
@@ -438,12 +439,14 @@ class _ReadiumReader {
       registerPendingDecorationGroup(iframes, grp, meta.isUnderline, meta.tint);
     }
 
+    const rulerLocators: Locator[] = [];
     for (const raw of decorationsRaw) {
       const targetGroup = this._subgroupFor(group, raw.style.style);
       const isRuler = raw.style.style === "ruler";
+      const locator = Locator.deserialize(raw.locator)!;
       const decoration: Decoration = {
         id: raw.id,
-        locator: Locator.deserialize(raw.locator)!,
+        locator,
         style: {
           tint: raw.style.tint,
           layout: isRuler ? Layout.Boxes : Layout.Bounds,
@@ -452,12 +455,17 @@ class _ReadiumReader {
       };
       sendDecorate(this._nav, targetGroup, "add", decoration);
       this._decorationsByGroup.get(targetGroup)!.add(raw.id);
+      if (isRuler) rulerLocators.push(locator);
     }
 
     // Spotlight is driven by decoration presence: activate when the spotlight
     // subgroup is non-empty, deactivate when empty.
     const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
     setSpotlightGroupOnIframes(iframes, spotlightGroup, hasSpotlight);
+
+    // Ruler typoscope: paint dim bands above/below the active range, or clear
+    // when no ruler decorations remain for this group.
+    setRulerBandForGroup(this._nav, rulerGroup, rulerLocators);
   }
 
   private _subgroupFor(group: string, style: string): string {
