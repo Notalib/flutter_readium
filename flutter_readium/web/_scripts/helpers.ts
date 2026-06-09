@@ -132,6 +132,7 @@ export function setPreferencesFromString(
  */
 export const UNDERLINE_GROUP_SUFFIX = "__underline";
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
+export const RULER_GROUP_SUFFIX = "__ruler";
 
 /**
  * Opacity of the dim applied above/below the ruler "reading window" (typoscope).

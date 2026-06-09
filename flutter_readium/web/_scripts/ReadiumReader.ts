@@ -457,7 +457,7 @@ class _ReadiumReader {
     // Spotlight is driven by decoration presence: activate when the spotlight
     // subgroup is non-empty, deactivate when empty.
     const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
-    setSpotlightGroupOnIframes(iframes, hasSpotlight ? spotlightGroup : null);
+    setSpotlightGroupOnIframes(iframes, spotlightGroup, hasSpotlight);
   }
 
   private _subgroupFor(group: string, style: string): string {
