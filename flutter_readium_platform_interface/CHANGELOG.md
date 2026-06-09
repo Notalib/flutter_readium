@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `PDFSpread` — enum (`auto` / `never` / `always`) for synthetic dual-page spread on
+  PDF publications. iOS only; Android `PdfiumPreferences` does not expose spread.
+- `PDFPreferences` — three new iOS-only fields: `offsetFirstPage: bool?`,
+  `spread: PDFSpread?`, and `visibleScrollbar: bool?`, with matching `toJson` /
+  `fromJson` / `copyWith` / `props` wiring. Ignored on Android and web.
+- `MediaType.readiumNarration` — `application/vnd.readium.narration+json`, the
+  per-item Sync Narration media-overlay format used by the Readium ts-toolkit (web).
+- `TaggedReadiumLog` — `ReadiumLog.tag('Name')` factory creating child loggers named
+  `flutter_readium.<Name>`, surfacing the source / area in log records.
+
+### Changed
+
+- `FlutterReadiumPlatform.currentReaderWidget` and `defaultPreferences` are now
+  read-only getters for consumers, with `@protected` setters — the active reader widget
+  registers itself rather than being assigned directly. Use `setDefaultPreferences` to
+  update default preferences.
+
 ## [0.0.1] - 2025-06-01
 
 ### Added
@@ -53,6 +72,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     constructing a `ReaderDecorationStyle`.
   - `LogLevel` — log verbosity (`none`, `error`, `warn`, `info`, `debug`) passed to
     `setLogLevel`.
+- **Page information** — `Locations.page` / `Locations.totalPages` extension getters expose the
+  current page and total page count parsed from locator fragments.
 - `ReadiumReaderWidgetInterface` — abstract interface that platform-specific reader widget
   implementations extend; consumed by `FlutterReadiumPlatform.currentReaderWidget`.
 - `ReadiumException` — Dart exception wrapping a `ReadiumError`.

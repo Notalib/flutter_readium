@@ -8,6 +8,10 @@
       "command": "dart",
       "args": ["run", "marionette_mcp"],
       "cwd": "flutter_readium/example"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@3.0.0"]
     }
   }
 }

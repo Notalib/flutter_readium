@@ -32,6 +32,7 @@ jobs:
           channel: stable
           flutter-version-file: .flutter-version
           cache: true
+          pub-cache: true
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v5

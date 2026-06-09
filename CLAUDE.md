@@ -21,22 +21,27 @@ The native sides are thin wrappers around upstream Readium code — when debuggi
 
 When you need to inspect upstream implementation details (e.g. how a navigator handles a locator, what fields a model uses), read the source on GitHub — do NOT decompile local JARs, .framework bundles, or other build artifacts. Use `gh api` or `WebFetch` against the repos above.
 
+If unsure about plugin architecture, be sure to read the README.md files, /docs/architecture.md and /docs/api-reference files.
+
 Voice data for TTS comes from https://github.com/readium/speech (refreshed by `bin/update_readium_voice_data`).
 
 When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Keep the build/package files above as the source-of-truth, and avoid duplicating exact version numbers broadly in docs.
 
 ## Developer workflow
 
-Key scripts (run from repo root):
+Scripts in `bin/` source `bin/_common.sh`, so they're location-independent (run from any directory) and self-bootstrap the toolchain on PATH for non-interactive shells (CI / AI agents). Run them directly (`bash bin/<script>`), never via `bash -lc`. Use `bin/doctor` to check the toolchain resolves.
 
+Key scripts:
+
+- `bin/doctor` — verify `dart`/`flutter`/`node`/`npm` resolve; exits non-zero if a required tool is missing.
 - `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
 - `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
 - `bin/analyze` — run `dart analyze --fatal-infos --fatal-warnings` across all three packages.
-- `bin/forAll <cmd>` — run a command in both pub packages. Example: `bin/forAll dart pub upgrade`.
+- `bin/typecheck` — type-check the web TypeScript (sources + Jest tests) via `tsc --noEmit` against `web/_scripts/tsconfig.json`. Run after editing any TS in `flutter_readium/web/`. Exits non-zero on a type error.
 - `bin/build_js` — build the web bundle (currently `build_dev`; production build is commented out).
 - `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
 - `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
-- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview.
+- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview. Relevant when having touched files in `flutter_readium/assets/_helper_scripts/src`.
 
 ## Conventions
 
@@ -46,8 +51,11 @@ Key scripts (run from repo root):
 - **Models & method-channel contract**: keep the Dart side in `flutter_readium_platform_interface` in sync with both native implementations. **Make intentional gaps explicit:** if you add a method-channel call, all three native sides (Swift, Kotlin, web) need a matching handler — or an explicit `UnimplementedError` if intentionally unsupported. Undocumented silence looks like a bug; an explicit error makes the intent clear.
 - **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
 - **Method channel serialization**: Use **JSON strings** (via `json.encode`) for any Readium-owned objects crossing the bridge (`Locator`, `Decoration`, etc.) — the upstream toolkits already own the schema and provide the deserializers, so encoding as a string avoids lossy `[String: Any]` / `Map<String, dynamic>` round-trips. Use **Maps/Dictionaries** only for flat plugin-owned structures (e.g. preferences, action configs) where the shape is simple and fully controlled by this plugin.
+- **Web TS: Locator → JSON always via `.serialize()`**: `@readium/shared` Locators store extra location fields (e.g. `cssSelector`, `tocHref`) in `locations.otherLocations` as a `Map<string, any>`. `JSON.stringify(locator)` silently drops all Map entries. Always use `JSON.stringify(locator.serialize())` when emitting a Locator to Dart, and `locator.serialize()` when embedding a locator inside a larger object before stringifying. The same applies to `JSON.parse(JSON.stringify(locator))` deep-clones — use `JSON.parse(JSON.stringify(locator.serialize()))` instead. Reading `otherLocations` entries also requires the Map API: `locator.locations?.otherLocations?.get('cssSelector')`, not `(locator.locations as any)?.cssSelector`.
 - **Pre-PR validation**: before considering a task done or creating a PR, run `bin/format` and `bin/analyze` from the repo root. Fix any issues they report. These scripts check all packages (platform interface, plugin, and example app).
-- **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased.
+- **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased. Write for **consumers of the published package**, applying the Keep a Changelog test — *would someone upgrading from the last release notice this?*
+  - **Keep intra-PR fixes out.** Bugs introduced and resolved within the same unreleased PR were never in a release, so don't list them as `Fixed` — their net effect is already the feature's `Added` entry. Only list `Fixed` items that change behaviour which actually shipped in a prior release. Fold any genuinely useful *behaviour* from a dropped dev-fix into the relevant `Added`/`Changed` entry instead.
+  - **Keep example-app changes out.** The `example/` app is a smoke-test target, not part of the published package — changes to it don't belong in the CHANGELOG.
 - **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
 - **PDF locator shape**: PDFs are represented as a single-resource publication. The canonical position lives in `Locator.locations.position` as a **1-based page number** — this matches the upstream `PDFPositionsService` (swift-toolkit) and `Locator.locations.position` from `PdfNavigatorFragment.currentLocator` (kotlin-toolkit). The PDF resource href is always the single reading-order entry, and the locator's `fragments` carry `"page=N"` on iOS (where the upstream parser produces it). **Don't duplicate upstream models:** if upstream Readium already models something (locator position, decoration style, etc.), use that representation rather than inventing a plugin-side parallel — alternatives create two sources of truth that diverge over time. Consumers should read `locations.position` for page navigation and round-trip via `goToLocator`.
 
@@ -77,6 +85,7 @@ Key scripts (run from repo root):
 - The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
 - **Prefer honest limitations over brittle workarounds:** When a platform constraint makes a feature impossible or incomplete, document the limitation clearly rather than reimplementing platform behaviour. Reimplementing system UI (copy semantics, share intents, localised strings, DRM-aware actions) to work around a constraint produces code that is hard to maintain and silently diverges from platform conventions. A clear doc comment is more valuable than a fragile shim.
 - **Ask before committing to a solution with obvious downsides:** if a planned approach has significant trade-offs, platform gaps, or multiple reasonable alternatives, surface them to the user with a brief summary of options before implementing. Don't silently pick the path of least resistance — a short "here are the options" saves a revert later.
+- **Readium CSS overrides decoration `background-color` — fills MUST be `!important`:** When a custom theme/background is active (the reader effectively always sets one), Readium CSS injects `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`, which forces *every* element's background to transparent. Any decoration whose visible effect is its fill (e.g. `highlight`, `ruler`) must declare `background-color: … !important`, or it renders invisibly — this is why the upstream default highlight template uses `!important`. This applies on all three platforms: iOS/Android emit the `!important` directly in the decoration template HTML; on Web the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`. Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
 
 ## Testability (marionette)
 

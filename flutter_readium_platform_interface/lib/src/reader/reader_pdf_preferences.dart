@@ -5,18 +5,30 @@ import '../index.dart';
 
 @immutable
 class PDFPreferences with EquatableMixin implements JSONable {
-  const PDFPreferences({this.layout, this.readingProgression, this.pageSpacing, this.fit});
+  const PDFPreferences({
+    this.layout,
+    this.readingProgression,
+    this.pageSpacing,
+    this.fit,
+    this.offsetFirstPage,
+    this.spread,
+    this.visibleScrollbar,
+  });
 
   factory PDFPreferences.fromJson(Map<String, dynamic> json) {
     final layoutStr = json['layout'] as String?;
     final rpStr = json['readingProgression'] as String?;
     final pageSpacingNum = json['pageSpacing'] as num?;
     final fitStr = json['fit'] as String?;
+    final spreadStr = json['spread'] as String?;
     return PDFPreferences(
       layout: layoutStr != null ? PDFLayout.fromJson(layoutStr) : null,
       readingProgression: rpStr != null ? PDFReadingProgression.fromJson(rpStr) : null,
       pageSpacing: pageSpacingNum?.toDouble(),
       fit: fitStr != null ? PDFFit.fromJson(fitStr) : null,
+      offsetFirstPage: json['offsetFirstPage'] as bool?,
+      spread: spreadStr != null ? PDFSpread.fromJson(spreadStr) : null,
+      visibleScrollbar: json['visibleScrollbar'] as bool?,
     );
   }
 
@@ -42,27 +54,63 @@ class PDFPreferences with EquatableMixin implements JSONable {
   /// - Ignored on web (PDF rendering is not supported on web).
   final PDFFit? fit;
 
+  /// When `true`, the first page is displayed alone rather than paired in a
+  /// two-up (spread) view. Useful when the cover page occupies page 1.
+  ///
+  /// - iOS only. Ignored on Android and web.
+  /// - Only takes effect when [spread] is [PDFSpread.always] or the display is
+  ///   wide enough for [PDFSpread.auto] to engage.
+  final bool? offsetFirstPage;
+
+  /// Whether the publication is rendered with a synthetic spread (dual-page view).
+  ///
+  /// - iOS only. Android `PdfiumPreferences` does not expose spread.
+  /// - Ignored on web (PDF rendering is not supported on web).
+  final PDFSpread? spread;
+
+  /// Whether the scroll indicator is visible while scrolling.
+  ///
+  /// - iOS only. Ignored on Android and web.
+  final bool? visibleScrollbar;
+
   @override
   Map<String, dynamic> toJson() => <String, dynamic>{}
     ..putOpt('layout', layout?.toJson())
     ..putOpt('readingProgression', readingProgression?.toJson())
     ..putOpt('pageSpacing', pageSpacing)
-    ..putOpt('fit', fit?.toJson());
+    ..putOpt('fit', fit?.toJson())
+    ..putOpt('offsetFirstPage', offsetFirstPage)
+    ..putOpt('spread', spread?.toJson())
+    ..putOpt('visibleScrollbar', visibleScrollbar);
 
   PDFPreferences copyWith({
     PDFLayout? layout,
     PDFReadingProgression? readingProgression,
     double? pageSpacing,
     PDFFit? fit,
+    bool? offsetFirstPage,
+    PDFSpread? spread,
+    bool? visibleScrollbar,
   }) => PDFPreferences(
     layout: layout ?? this.layout,
     readingProgression: readingProgression ?? this.readingProgression,
     pageSpacing: pageSpacing ?? this.pageSpacing,
     fit: fit ?? this.fit,
+    offsetFirstPage: offsetFirstPage ?? this.offsetFirstPage,
+    spread: spread ?? this.spread,
+    visibleScrollbar: visibleScrollbar ?? this.visibleScrollbar,
   );
 
   @override
-  List<Object?> get props => [layout, readingProgression, pageSpacing, fit];
+  List<Object?> get props => [
+    layout,
+    readingProgression,
+    pageSpacing,
+    fit,
+    offsetFirstPage,
+    spread,
+    visibleScrollbar,
+  ];
 }
 
 /// Page layout / scroll mode for PDF publications.
@@ -132,6 +180,46 @@ enum PDFReadingProgression {
         return 'ltr';
       case PDFReadingProgression.rtl:
         return 'rtl';
+    }
+  }
+}
+
+/// Synthetic spread (dual-page view) mode for PDF publications.
+///
+/// Maps to `ReadiumNavigator.Spread` on iOS.
+/// iOS only — Android `PdfiumPreferences` does not expose spread.
+enum PDFSpread {
+  /// Show a spread when the screen is wide enough (portrait = single,
+  /// landscape = two-up).
+  auto,
+
+  /// Never show two pages side by side.
+  never,
+
+  /// Always show two pages side by side.
+  always;
+
+  static PDFSpread? fromJson(String? value) {
+    switch (value) {
+      case 'auto':
+        return PDFSpread.auto;
+      case 'never':
+        return PDFSpread.never;
+      case 'always':
+        return PDFSpread.always;
+      default:
+        return null;
+    }
+  }
+
+  String toJson() {
+    switch (this) {
+      case PDFSpread.auto:
+        return 'auto';
+      case PDFSpread.never:
+        return 'never';
+      case PDFSpread.always:
+        return 'always';
     }
   }
 }

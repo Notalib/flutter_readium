@@ -21,7 +21,7 @@ Future<void> main() async {
 
   Logger.root.level = Level.ALL;
   Logger.root.onRecord.listen((record) {
-    debugPrint('[${record.level.name}] ${record.loggerName}: ${record.message}');
+    debugPrint(ReadiumLog.format(record, colored: !kIsWeb));
   });
 
   HydratedBloc.storage = await HydratedStorage.build(
@@ -38,6 +38,7 @@ Future<void> main() async {
       providers: [
         BlocProvider(create: (final _) => PublicationBloc(), lazy: false),
         BlocProvider(
+          lazy: false, // Needed to apply default preferences on start-up.
           create: (final _) {
             final bloc = TextSettingsBloc();
             bloc.setDefaultPreferences();

@@ -79,6 +79,13 @@ class GoToProgression extends PlayerControlsEvent {
 }
 
 @immutable
+class SeekRelative extends PlayerControlsEvent {
+  SeekRelative(this.seconds);
+
+  final double seconds;
+}
+
+@immutable
 class GetAvailableVoices extends PlayerControlsEvent {}
 
 @immutable
@@ -141,16 +148,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         instance.onTextLocatorChanged,
         instance.onTimebasedPlayerStateChanged.map((s) => s.currentLocator).whereNotNull(),
       ]).listen((val) {
+        currentLocator = val;
         _currentLocatorSubject.add(val);
       }),
     );
 
     subscriptions.add(
       instance.onTimebasedPlayerStateChanged
-          .map((state) {
-            currentLocator = state.currentLocator;
-            return state.state;
-          })
+          .map((state) => state.state)
           .distinct()
           .debounceTime(const Duration(milliseconds: 50))
           .listen((playerState) {
@@ -246,19 +251,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.stop());
     });
 
-    on<SkipToNext>((final event, final emit) {
-      ReadiumLog.i("SkipToNext, currentLocator: $currentLocator");
-      if (currentLocator == null) {
-        return instance.next();
-      }
-
-      final newProgression = (currentLocator?.locations?.progression ?? 0) + 0.2;
-      if (newProgression > 1) {
-        return instance.next();
-      }
-
-      return instance.goToProgression(newProgression);
-    });
+    on<SkipToNext>((final event, final emit) => instance.next());
 
     on<SkipToPrevious>((final event, final emit) => instance.previous());
 
@@ -285,6 +278,12 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<GoToLocator>((event, emit) async => await instance.goToLocator(event.locator));
 
     on<GoToProgression>((event, emit) async => await instance.goToProgression(event.progression));
+
+    on<SeekRelative>(
+      (event, emit) async => await instance.audioSeekBy(
+        Duration(milliseconds: (event.seconds * 1000).round()),
+      ),
+    );
 
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();

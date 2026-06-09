@@ -47,22 +47,26 @@ fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     return ReadiumColor(color)
 }
 
-fun decorationFromJson(jsonString: String): Decoration? {
-    return try {
+fun decorationFromJson(jsonString: String): Decoration? =
+    try {
         val json = jsonDecode(jsonString) as JSONObject
         val id = json.getString("id")
-        val locator = Locator.fromJSON(json.getJSONObject("locator"))
-            ?: throw Exception("Failed to deserialize locator")
+        val locator =
+            Locator.fromJSON(json.getJSONObject("locator"))
+                ?: throw Exception("Failed to deserialize locator")
         val styleJson = json.getJSONObject("style")
-        val style = decorationStyleFromMap(
-            mapOf("style" to styleJson.getString("style"), "tint" to styleJson.getString("tint"))
-        ) ?: throw Exception("Failed to deserialize decoration style")
+        val style =
+            decorationStyleFromMap(
+                mapOf(
+                    "style" to styleJson.getString("style"),
+                    "tint" to styleJson.getString("tint"),
+                ),
+            ) ?: throw Exception("Failed to deserialize decoration style")
         Decoration(id, locator, style)
     } catch (ex: Exception) {
         PluginLog.e("ReadiumExtensions", "Error parsing Decoration JSON: $ex")
         null
     }
-}
 
 fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
     try {
@@ -76,7 +80,7 @@ fun decorationFromMap(decoMap: Map<String, Any>): Decoration? {
 
         @Suppress("UNCHECKED_CAST")
         val style =
-            decorationStyleFromMap(decoMap["style"] as Map<String, String>)
+            decorationStyleFromMap(decoMap["style"] as Map<String, Any>)
                 ?: throw Exception("Failed to deserialize decoration")
         return Decoration(id, locator, style)
     } catch (ex: Exception) {
@@ -91,11 +95,11 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
 
         val styleStr = decoMap["style"] as String
         val tintColorStr = decoMap["tint"] as String
+        val tint = readiumColorFromCSS(tintColorStr).int
         val style =
             when (styleStr) {
-                "underline" -> Decoration.Style.Underline(readiumColorFromCSS(tintColorStr).int)
-                "highlight" -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
-                else -> Decoration.Style.Highlight(readiumColorFromCSS(tintColorStr).int)
+                "underline" -> Decoration.Style.Underline(tint)
+                else -> Decoration.Style.Highlight(tint) // "highlight" + unknown
             }
         return style
     } catch (ex: Exception) {
@@ -230,7 +234,7 @@ private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay
             lastTocMatch != null && lastTocMatch!!.first.substringBefore("#") == textFile -> {
                 copy(
                     title = lastTocMatch!!.second.title ?: "",
-                    tocHref = lastTocMatch!!.second.href.resolve()
+                    tocHref = lastTocMatch!!.second.href.resolve(),
                 )
             }
 
@@ -317,7 +321,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
             get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
                 PluginLog.w(
                     TAG,
-                    "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}"
+                    "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}",
                 )
                 return null
             }
@@ -325,7 +329,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
             GuidedNavigationDocument.fromJSON(jsonString) ?: run {
                 PluginLog.w(
                     TAG,
-                    "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}"
+                    "::getGuidedNavigationMediaOverlays - failed to parse document from ${singleDocLink.href}",
                 )
                 return null
             }
@@ -486,27 +490,23 @@ fun Locator.Locations.timeWithDuration(duration: Duration?): Duration? =
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Int?): Duration? =
-    timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Int?): Duration? = timeWithDuration(duration?.seconds)
 
 /**
  * Computes the time position from the resource duration.
  * This takes progression value over time fragment, if both are present
  */
-fun Locator.Locations.timeWithDuration(duration: Double?): Duration? =
-    timeWithDuration(duration?.seconds)
+fun Locator.Locations.timeWithDuration(duration: Double?): Duration? = timeWithDuration(duration?.seconds)
 
 /**
  * Find a link in the reading order from its href.
  */
-fun Publication.findReadingOrderLink(href: Url): Link? =
-    readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
+fun Publication.findReadingOrderLink(href: Url): Link? = readingOrder.firstOrNull { href.isEquivalent(it.href.resolve()) }
 
 /**
  * Get the duration for an item in the reading order.
  */
-fun Publication.getReadingOrderItemDuration(href: Url): Duration? =
-    findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
+fun Publication.getReadingOrderItemDuration(href: Url): Duration? = findReadingOrderLink(href)?.duration?.takeIf { it >= 0.0 }?.seconds
 
 /**
  * Helper for getting all cssSelectors for a HTML document.

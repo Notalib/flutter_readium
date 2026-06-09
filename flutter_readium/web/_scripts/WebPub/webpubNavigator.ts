@@ -1,7 +1,9 @@
 import {
   BasicTextSelection,
+  ContextMenuEvent,
   FrameClickEvent,
 } from "@readium/navigator-html-injectables";
+import { KeyboardPeripheralEventData } from "@readium/navigator";
 import {
   WebPubFrameManager,
   WebPubNavigator,
@@ -15,6 +17,11 @@ import {
   initializeWebPubPreferencesFromString,
 } from "./webPubPrefences";
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
+import { injectDecorationOverrides } from "../helpers";
+import { createLogger } from "../logger";
+import { enrichWithTotalProgression } from "../Epub/epubNavigator";
+
+const log = createLogger("WebPubNav");
 
 // TODO:
 // There is a webpub from readiums publication-server called molly hopper that is an accessible epub and it doesn't quite work
@@ -27,10 +34,19 @@ export async function initializeWebPubNavigatorAndPeripherals(
   preferencesJsonString: string,
   setNav: (nav: WebPubNavigator) => void
 ) {
-  console.log("Initializing WebPubNavigator");
+  log.info("Initializing WebPubNavigator");
   let preferences = initializeWebPubPreferencesFromString(
     preferencesJsonString
   );
+
+  log.debug("WebPub preferences", preferences);
+
+  // The WebPub navigator doesn't precompute a positions list; it derives
+  // `position` from the resource index in the reading order (see
+  // WebPubNavigator.createCurrentLocator → `position: currentIndex + 1`).
+  // Mirror that for `totalProgression` so consumers get a value even when
+  // the publication has no positionList in its manifest.
+  const totalPositions = publication.readingOrder.items.length;
 
   const configuration: WebPubNavigatorConfiguration = {
     preferences,
@@ -79,6 +95,7 @@ export async function initializeWebPubNavigatorAndPeripherals(
       nav._cframes.forEach((frameManager: WebPubFrameManager | undefined) => {
         if (frameManager) {
           p.observe(frameManager.window);
+          injectDecorationOverrides(frameManager.window);
         }
       });
       p.observe(window);
@@ -86,15 +103,18 @@ export async function initializeWebPubNavigatorAndPeripherals(
     positionChanged: (_locator: Locator): void => {
       window.focus();
 
-      (window as any).updateTextLocator?.(JSON.stringify(_locator));
+      const enriched = enrichWithTotalProgression(_locator, totalPositions);
+      // Use Locator.serialize() so otherLocations Map entries survive the
+      // JSON round-trip (plain JSON.stringify silently drops Map values).
+      window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
     },
     tap: function (_e: FrameClickEvent): boolean {
-      console.log("tap event received in WebPubNavigator");
+      log.debug("tap event");
 
       return false;
     },
     click: function (_e: FrameClickEvent): boolean {
-      console.log("click event received in WebPubNavigator");
+      log.debug("click event");
       return false;
     },
     zoom: function (_scale: number): void {},
@@ -109,20 +129,22 @@ export async function initializeWebPubNavigatorAndPeripherals(
       ) {
         if (confirm(`Open "${href}" ?`)) window.open(href, "_blank");
       } else {
-        console.warn("Unhandled locator", locator);
+        log.warn("Unhandled locator href:", href);
       }
       return false;
     },
+    contentProtection: function (_type: string, _data: any): void {},
+    peripheral: function (_data: KeyboardPeripheralEventData): void {},
+    contextMenu: function (_data: ContextMenuEvent): void {},
     textSelected: function (_selection: BasicTextSelection): void {
-      // Notify Dart about the text selection
-      const currentLocator = nav.currentLocator;
+      // Notify Dart about the text selection.
+      // Use serialize() so otherLocations Map entries survive stringification,
+      // then override text with the active selection highlight.
       const locatorJson = {
-        href: currentLocator.href,
-        type: currentLocator.type,
-        locations: currentLocator.locations,
+        ...nav.currentLocator.serialize(),
         text: { highlight: _selection.text },
       };
-      (window as any).onTextSelectedCallback?.(
+      window.onTextSelectedCallback?.(
         JSON.stringify({ locator: locatorJson, selectedText: _selection.text })
       );
     },

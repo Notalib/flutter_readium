@@ -64,7 +64,7 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
   /// Serializes a [Properties] to its RWPM JSON representation.
   @override
   Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
-    ..putOpt('page', page)
+    ..putOpt('page', page?.name)
     ..putIterableIfNotEmpty('contains', contains)
     ..putOpt('orientation', orientation)
     ..putOpt('layout', layout)

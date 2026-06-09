@@ -14,6 +14,16 @@
       "preLaunchTask": "build_helper_scripts"
     },
     {
+      "name": "example (web)",
+      "cwd": "flutter_readium/example",
+      "program": "lib/main.dart",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "chrome",
+      "flutterMode": "debug",
+      "preLaunchTask": "build_web"
+    },
+    {
       "name": "example (profile mode)",
       "cwd": "flutter_readium/example",
       "program": "lib/main.dart",

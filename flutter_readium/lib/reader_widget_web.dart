@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'flutter_readium.dart';
@@ -42,19 +44,18 @@ class ReadiumReaderWidget extends StatefulWidget {
 }
 
 class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements ReadiumReaderWidgetInterface {
+  static final _log = ReadiumLog.tag('ReaderWidget');
+
   @override
   void initState() {
     super.initState();
-    ReadiumLog.d('Widget initiated');
+    _log.d('Widget initiated');
   }
 
   @override
   void dispose() {
-    ReadiumLog.d('Widget disposed');
+    _log.d('Widget disposed');
     super.dispose();
-
-    // Close the publication when the widget is disposed
-    FlutterReadium().closePublication();
   }
 
   @override
@@ -71,7 +72,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
     try {
-      await JsPublicationChannel.goToLocation(locator.hrefPath);
+      await JsPublicationChannel.goToLocator(json.encode(locator));
     } on PlatformException catch (e, stackTrace) {
       final pubID = widget.publication.metadata.identifier;
       throw ReadiumError(
@@ -95,16 +96,19 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    ReadiumLog.d('setEPUBPreferences not implemented in web version');
+    _log.d('setEPUBPreferences not implemented in web version');
   }
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    ReadiumLog.d('setPDFPreferences not supported on web');
+    _log.d('setPDFPreferences not supported on web');
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    ReadiumLog.d('applyDecorations not implemented in web version');
+    JsPublicationChannel().applyDecorations(
+      id,
+      json.encode(decorations.map((d) => d.toJson()).toList()),
+    );
   }
 }

@@ -1,0 +1,93 @@
+#!/bin/bash
+# Rebuilds the web bundle, clears the stale Flutter build, installs ChromeDriver
+# (matching the local Chrome version), starts it, runs the web integration tests,
+# then cleans up.
+#
+# Usage:
+#   bin/integration_test_web
+#
+# Requirements: npx, node/npm, flutter, Google Chrome installed
+
+set -e
+
+PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+EXAMPLE_DIR="$PROJECT_ROOT/flutter_readium/example"
+CHROMEDRIVER_DIR="$PROJECT_ROOT/.chromedriver"
+
+# Build first so a stale JS bundle or a cached web asset tree can't silently break
+# the run. `update_web_example` rebuilds readiumReader.js and copies it into
+# example/web/; `flutter clean` drops the cached web build so newly added web/
+# files (e.g. test fixtures) are picked up and served.
+echo "==> Rebuilding web JS bundle..."
+"$PROJECT_ROOT/bin/update_web_example"
+
+echo "==> Clearing stale Flutter build..."
+cd "$EXAMPLE_DIR"
+flutter clean
+flutter pub get
+
+cleanup() {
+  if [ -n "$CHROMEDRIVER_PID" ]; then
+    echo "Stopping ChromeDriver (PID $CHROMEDRIVER_PID)..."
+    kill "$CHROMEDRIVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# Detect installed Chrome major version
+if [ "$(uname)" == "Darwin" ]; then
+  CHROME_VERSION=$("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --version 2>/dev/null | grep -oE '[0-9]+' | head -1)
+else
+  CHROME_VERSION=$(google-chrome --version 2>/dev/null | grep -oE '[0-9]+' | head -1)
+fi
+
+if [ -z "$CHROME_VERSION" ]; then
+  echo "ERROR: Could not detect Chrome version. Is Google Chrome installed?"
+  exit 1
+fi
+echo "==> Detected Chrome major version: $CHROME_VERSION"
+
+# Install matching ChromeDriver
+echo "==> Installing ChromeDriver for Chrome $CHROME_VERSION..."
+mkdir -p "$CHROMEDRIVER_DIR"
+INSTALL_OUTPUT=$(npx --yes @puppeteer/browsers install "chromedriver@$CHROME_VERSION" --path "$CHROMEDRIVER_DIR" 2>&1)
+echo "$INSTALL_OUTPUT"
+
+# Extract the binary path from install output (format: "chromedriver@<version> <path>")
+CHROMEDRIVER_BIN=$(echo "$INSTALL_OUTPUT" | grep -oE '/.*chromedriver$' | head -1)
+if [ -z "$CHROMEDRIVER_BIN" ]; then
+  # Fallback: find it in the cache dir
+  CHROMEDRIVER_BIN=$(find "$CHROMEDRIVER_DIR" -name chromedriver -type f | head -1)
+fi
+
+if [ -z "$CHROMEDRIVER_BIN" ] || [ ! -x "$CHROMEDRIVER_BIN" ]; then
+  echo "ERROR: Could not find chromedriver binary after install."
+  echo "Install output was: $INSTALL_OUTPUT"
+  exit 1
+fi
+
+echo "==> Using ChromeDriver at: $CHROMEDRIVER_BIN"
+
+# Start ChromeDriver in the background
+"$CHROMEDRIVER_BIN" --port=4444 &
+CHROMEDRIVER_PID=$!
+sleep 2
+
+if ! kill -0 "$CHROMEDRIVER_PID" 2>/dev/null; then
+  echo "ERROR: ChromeDriver failed to start."
+  exit 1
+fi
+echo "==> ChromeDriver running on port 4444 (PID $CHROMEDRIVER_PID)"
+
+# Run the web integration tests.
+# NOTE: do not pass --test-arguments here. On the web/`flutter drive` path that
+# string is forwarded to the Dart VM (not the test runner), so flags like
+# --reporter=expanded fail with "Setting VM flags failed: Unrecognized flags".
+# flutter drive prints pass/fail results without it.
+echo "==> Running web integration tests..."
+cd "$EXAMPLE_DIR"
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/plugin_integration_test.dart \
+  -d chrome \
+  --no-headless # show the browser window for debugging

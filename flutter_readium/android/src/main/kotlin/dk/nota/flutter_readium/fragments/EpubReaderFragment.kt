@@ -141,7 +141,10 @@ class EpubReaderFragment :
         }
     }
 
-    fun addDecorationListener(group: String, listener: org.readium.r2.navigator.DecorableNavigator.Listener) {
+    fun addDecorationListener(
+        group: String,
+        listener: org.readium.r2.navigator.DecorableNavigator.Listener,
+    ) {
         val navigator =
             epubNavigator ?: run {
                 PluginLog.w(TAG, "::addDecorationListener. Navigator not ready.")
@@ -563,15 +566,18 @@ class EpubReaderFragment :
                                 "flutter_assets/packages/flutter_readium/assets/.*",
                             ),
                         // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
-                        decorationTemplates = HtmlDecorationTemplates.defaultTemplates(
-                            alpha = 1.0,
-                            experimentalPositioning = true,
-                        ),
+                        decorationTemplates =
+                            HtmlDecorationTemplates.defaultTemplates(
+                                alpha = 1.0,
+                                experimentalPositioning = true,
+                            ),
                         // Only register the callback if custom selectionActions are added.
-                        selectionActionModeCallback = if (ReadiumReader.selectionActions.isNotEmpty())
-                            createSelectionActionModeCallback()
-                        else
-                            null,
+                        selectionActionModeCallback =
+                            if (ReadiumReader.selectionActions.isNotEmpty()) {
+                                createSelectionActionModeCallback()
+                            } else {
+                                null
+                            },
                     ),
                 initialLocator = model.locator,
                 listener = this,
@@ -619,7 +625,10 @@ class EpubReaderFragment :
         val menuItemIdOffset = 100
 
         return object : ActionMode.Callback {
-            override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            override fun onCreateActionMode(
+                mode: ActionMode?,
+                menu: Menu?,
+            ): Boolean {
                 PluginLog.d(TAG, "::onCreateActionMode - text selection detected")
                 // Fire onTextSelected callback.
                 lifecycleScope.launch {
@@ -634,7 +643,10 @@ class EpubReaderFragment :
                 return true
             }
 
-            override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            override fun onPrepareActionMode(
+                mode: ActionMode?,
+                menu: Menu?,
+            ): Boolean {
                 if (menu == null) return false
                 var changed = false
 
@@ -649,7 +661,10 @@ class EpubReaderFragment :
                 return changed
             }
 
-            override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
+            override fun onActionItemClicked(
+                mode: ActionMode?,
+                item: MenuItem?,
+            ): Boolean {
                 if (item == null) return false
                 val index = item.itemId - menuItemIdOffset
                 val actions = ReadiumReader.selectionActions

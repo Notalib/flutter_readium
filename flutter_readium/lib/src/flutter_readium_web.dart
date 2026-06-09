@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:js_interop' as js_interop;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
@@ -7,16 +8,52 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'js_publication_channel.dart';
 
+/// Provides JS-callable callbacks for pure audiobooks, where [ReadiumWebView]
+/// (and its [registerJSExports] call) is never in the widget tree.
+@js_interop.JSExport()
+class _AudiobookCallbacks {
+  static final _log = ReadiumLog.tag('WebPlugin');
+
+  @js_interop.JSExport()
+  void onTimebasedPlayerState(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final state = ReadiumTimebasedState.fromJson(json);
+    FlutterReadiumWebPlugin.addTimeBasedStateUpdate(state);
+  }
+
+  @js_interop.JSExport()
+  void onReaderStatus(final String statusString) {
+    final status = ReadiumReaderStatus.optFromString(statusString);
+    if (status != null) {
+      FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
+    } else {
+      _log.w('Unknown ReadiumReaderStatus: $statusString');
+    }
+  }
+
+  @js_interop.JSExport()
+  void onErrorHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final error = ReadiumError.fromJson(json);
+    FlutterReadiumWebPlugin.addErrorEvent(error);
+  }
+}
+
 class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
+  static final _log = ReadiumLog.tag('WebPlugin');
+
   static void registerWith(Registrar registrar) {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
   }
+
+  static _AudiobookCallbacks? _audiobookCallbacks;
 
   static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
   static final StreamController<ReadiumTimebasedState> _timebasedStateController =
       StreamController<ReadiumTimebasedState>.broadcast();
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
+  static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();
 
   static void addTextLocatorUpdate(Locator locator) {
     _locatorTextController.add(locator);
@@ -30,6 +67,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     _readerStatusController.add(status);
   }
 
+  static void addErrorEvent(ReadiumError error) {
+    _errorEventController.add(error);
+  }
+
   @override
   Stream<Locator> get onTextLocatorChanged => _locatorTextController.stream;
 
@@ -40,8 +81,16 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
 
   @override
-  Future<void> setCustomHeaders(Map<String, String> headers) =>
-      throw UnimplementedError('setCustomHeaders is not implemented on web platform');
+  Future<void> setLogLevel(LogLevel level) async {
+    ReadiumLog.setLevel(level);
+    // Forward to the JS bundle so web-side logging respects the same level.
+    JsPublicationChannel.setLogLevel(level);
+  }
+
+  @override
+  Future<void> setCustomHeaders(Map<String, String> headers) async {
+    _log.w('setCustomHeaders is not supported on web (browser controls HTTP headers)');
+  }
 
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {
@@ -81,66 +130,28 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   static Map<String, dynamic> _transformPublicationJson(final Map<String, dynamic> publicationJson) {
-    // Transform 'links', 'readingOrder', 'resources', and 'tableOfContents' keys
-    _transformKeyItems(publicationJson, 'links');
-    _transformKeyItems(publicationJson, 'readingOrder');
-    _transformKeyItems(publicationJson, 'resources');
+    // The upstream ts-toolkit's Manifest.serialize() already produces correct
+    // RWPM JSON (flat arrays for links/readingOrder/resources/toc, proper
+    // metadata keys, LocalizedString as {lang: value} maps). The only known
+    // issue is that raw manifest data passing through `otherMetadata` may carry
+    // the literal key "undefined" instead of the BCP-47 "und" for the undefined
+    // language. Fix that recursively.
+    _replaceUndefinedKey(publicationJson);
 
-    // rename key 'tableOfContents' to 'toc'
-    if (publicationJson.containsKey('tableOfContents')) {
-      publicationJson['toc'] = publicationJson.remove('tableOfContents');
-    }
-
-    // Transform 'children' key in 'toc'
-    if (publicationJson.containsKey('toc') && publicationJson['toc'] is Map<String, dynamic>) {
-      _transformKeyItems(publicationJson, 'toc');
-      publicationJson['toc'] = _transformChildren(publicationJson['toc']);
-    }
-
-    // Transform 'translations' key in 'metadata'
+    // Handle sortAs edge case: upstream serializes as a LocalizedString map
+    // but Dart Publication.fromJson expects a plain String.
     if (publicationJson.containsKey('metadata') && publicationJson['metadata'] is Map) {
       final metadataMap = publicationJson['metadata'] as Map<String, dynamic>;
 
-      if (metadataMap.containsKey('authors') && metadataMap['authors'] is Map) {
-        // rename key 'authors' to 'author'
-        metadataMap['author'] = metadataMap.remove('authors');
-        // remove 'items' wrapper if exists
-        _transformKeyItems(metadataMap, 'author');
-
-        for (final author in metadataMap['author']) {
-          if (author is Map && author.containsKey('name') && author['name'] is Map) {
-            final nameMap = author['name'] as Map<String, dynamic>;
-            if (nameMap.containsKey('translations') && nameMap['translations'] is Map) {
-              final translationsMap = nameMap['translations'] as Map<String, dynamic>;
-              _validateTranslations(translationsMap);
-              author['name'] = translationsMap;
-            }
-          }
-        }
-      }
-
-      if (metadataMap.containsKey('title') && metadataMap['title'] is Map) {
-        final titleMap = metadataMap['title'] as Map<String, dynamic>;
-        if (titleMap.containsKey('translations') && titleMap['translations'] is Map) {
-          final translationsMap = titleMap['translations'] as Map<String, dynamic>;
-
-          _validateTranslations(translationsMap);
-
-          metadataMap['title'] = translationsMap;
-        }
-      }
-
       if (metadataMap.containsKey('sortAs')) {
         final sortAs = metadataMap['sortAs'];
-        if (sortAs is Map && sortAs['translations'] is Map) {
-          final translations = sortAs['translations'] as Map;
-          if (translations.isNotEmpty) {
-            // Use the first value in the translations map
-            metadataMap['sortAs'] = translations.values.first;
+        if (sortAs is Map) {
+          if (sortAs.isNotEmpty) {
+            metadataMap['sortAs'] = sortAs.values.first;
           } else {
             metadataMap['sortAs'] = null;
           }
-        } else if (sortAs is! String) {
+        } else if (sortAs != null && sortAs is! String) {
           metadataMap['sortAs'] = null;
         }
       }
@@ -149,73 +160,66 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return publicationJson;
   }
 
-  static void _transformKeyItems(final Map<String, dynamic> json, final String key) {
-    if (json.containsKey(key) && json[key] is Map) {
-      final map = json[key] as Map<String, dynamic>;
-      if (map.containsKey('items') && map['items'] is List) {
-        json[key] = map['items'];
+  /// Recursively replaces the literal key `"undefined"` with `"und"` (the
+  /// BCP-47 tag for undetermined language) throughout a JSON structure.
+  static void _replaceUndefinedKey(Map<dynamic, dynamic> map) {
+    final keysToReplace = <dynamic>[];
+    map.forEach((key, value) {
+      if (key == 'undefined') {
+        keysToReplace.add(key);
       }
-    }
-  }
-
-  static List<dynamic> _transformChildren(final List<dynamic> items) => items.map((final item) {
-    if (item is Map<String, dynamic> && item.containsKey('children')) {
-      final children = item['children'];
-      if (children is Map<String, dynamic> && children.containsKey('items')) {
-        item['children'] = children['items'];
-      }
-      if (item['children'] is List) {
-        item['children'] = _transformChildren(item['children']);
-      }
-    }
-    return item;
-  }).toList();
-
-  static void _validateTranslations(Map<String, dynamic> translationsMap) {
-    if (translationsMap.containsKey('undefined')) {
-      translationsMap['und'] = translationsMap.remove('undefined');
-    }
-
-    // TODO: unknown if other languages also fails the validation, needs better handling
-    translationsMap.forEach((final key, final value) {
-      if (key.length > 3) {
-        ReadiumLog.d('PUBLICATION WEB: Translations map key "$key" is longer than three letters.');
+      if (value is Map) {
+        _replaceUndefinedKey(value);
+      } else if (value is List) {
+        for (final item in value) {
+          if (item is Map) {
+            _replaceUndefinedKey(item);
+          }
+        }
       }
     });
+    for (final key in keysToReplace) {
+      map['und'] = map.remove(key);
+    }
   }
 
   @override
   Future<Publication> openPublication(String pubUrl) async {
-    // NOTE: For web, loadPublication and openPublication does the same thing,
-    //
-    // If calling the openPublication method outside of ReadiumWebView it will throw an error right away if there is no div with the id 'container'
-    // additionally the openPublication method does currently not return a publication object
-    ReadiumLog.d(
-      'Cannot call openPublication outside of ReadiumWebView on web. Using getPublication instead to fetch the publication data.',
-    );
     final publication = await loadPublication(pubUrl);
+
+    if (publication.conformsToReadiumAudiobook) {
+      // Pure audiobooks: ReadiumWebView (and its #container div) is not in the
+      // widget tree, so call openPublication on the JS side directly.
+      // AudioNavigator drives <audio> elements and needs no DOM container.
+      // Sync-narration EPUBs (containsMediaOverlays) DO need the container —
+      // those publications use the EPUB navigator and are handled by ReadiumWebView.
+      //
+      // Register the JS->Dart callbacks that ReadiumWebViewState would normally
+      // set up, since there is no ReadiumWebView in the tree for audiobooks.
+      // Hold a static reference so Dart's GC doesn't collect the instance while
+      // the JS AudioNavigator still holds the function references.
+      _audiobookCallbacks = _AudiobookCallbacks();
+      updateTimebasedPlayerState = _audiobookCallbacks!.onTimebasedPlayerState.toJS;
+      updateReaderStatus = _audiobookCallbacks!.onReaderStatus.toJS;
+      onErrorCallback = _audiobookCallbacks!.onErrorHandler.toJS;
+      try {
+        await JsPublicationChannel().openPublication(
+          pubUrl,
+          pubId: publication.identifier,
+          initialPreferences: json.encode(defaultPreferences?.toJson() ?? <String, dynamic>{}),
+        );
+      } on Exception catch (e) {
+        throw ReadiumError('Exception opening audiobook on web: $e');
+      }
+    }
+
     return publication;
   }
 
   @override
   Future<void> closePublication() async {
     JsPublicationChannel().closePublication();
-    return;
-  }
-
-  static Future<String> getString(final Link link) async {
-    // Get HTML string for full chapters, for example
-    final linkString = json.encode(link);
-    final resourceString = await JsPublicationChannel().getResource(linkString);
-    return resourceString;
-  }
-
-  static Future<Uint8List> getBytes(final Link link) async {
-    // TODO: Is this still needed for audio books with the new implementation
-    final linkString = json.encode(link);
-    final resourceBytesString = await JsPublicationChannel().getResource(linkString, asBytes: true);
-    final byteList = jsonDecode(resourceBytesString).cast<int>();
-    return Uint8List.fromList(byteList);
+    _audiobookCallbacks = null;
   }
 
   @override
@@ -236,37 +240,54 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    ReadiumLog.d('setPDFPreferences is not supported on web platform');
+    _log.w('setPDFPreferences is not supported on web platform');
   }
 
   @override
   Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
-    ReadiumLog.d('applyDecorations is not implemented on web platform');
+    JsPublicationChannel().applyDecorations(
+      id,
+      jsonEncode(decorations.map((d) => d.toJson()).toList()),
+    );
   }
 
   // COMMON PLAYBACK API - BEGIN
   @override
-  Future<void> play(Locator? fromLocator) => throw UnimplementedError('play is not implemented on web platform');
+  Future<void> play(Locator? fromLocator) async {
+    JsPublicationChannel.playAudio(
+      locatorJson: fromLocator != null ? json.encode(fromLocator) : null,
+    );
+  }
 
   @override
-  Future<void> stop() => throw UnimplementedError('stop is not implemented on web platform');
+  Future<void> stop() async {
+    JsPublicationChannel.stopAudio();
+  }
 
   @override
-  Future<void> pause() => throw UnimplementedError('pause is not implemented on web platform');
+  Future<void> pause() async {
+    JsPublicationChannel.pauseAudio();
+  }
 
   @override
-  Future<void> resume() => throw UnimplementedError('resume is not implemented on web platform');
+  Future<void> resume() async {
+    JsPublicationChannel.resumeAudio();
+  }
 
   @override
-  Future<void> next() => throw UnimplementedError('next is not implemented on web platform');
+  Future<void> next() async {
+    JsPublicationChannel.nextAudio();
+  }
 
   @override
-  Future<void> previous() => throw UnimplementedError('previous is not implemented on web platform');
+  Future<void> previous() async {
+    JsPublicationChannel.previousAudio();
+  }
 
   @override
   Future<bool> goToLocator(final Locator locator) async {
     try {
-      await JsPublicationChannel.goToLocation(locator.hrefPath);
+      await JsPublicationChannel.goToLocator(json.encode(locator));
       return true;
     } on PlatformException catch (e, stackTrace) {
       const pubID = 'unknown';
@@ -278,23 +299,29 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
       );
     }
   }
+
+  @override
+  Future<bool> goToProgression(double progression) async => JsPublicationChannel.goToProgression(progression);
+
   // COMMON PLAYBACK API - END
 
   // TTS API - BEGIN
   @override
   Future<void> ttsEnable(TTSPreferences? preferences) async {
-    ReadiumLog.d('ttsEnable is not implemented on web platform');
+    final prefsJson = json.encode(preferences?.toJson() ?? <String, dynamic>{});
+    await JsPublicationChannel.ttsEnable(prefsJson);
   }
 
   @override
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
-    ReadiumLog.d('ttsGetAvailableVoices is not implemented on web platform');
-    return [];
+    final voicesJson = await JsPublicationChannel.ttsGetAvailableVoices();
+    final decoded = jsonDecode(voicesJson) as List<dynamic>;
+    return decoded.whereType<Map<String, dynamic>>().map(ReaderTTSVoice.fromJson).toList();
   }
 
   @override
   Future<void> ttsSetVoice(String voiceIdentifier, String? forLanguage) async {
-    ReadiumLog.d('ttsSetVoice is not implemented on web platform');
+    JsPublicationChannel.ttsSetVoice(voiceIdentifier, lang: forLanguage);
   }
 
   @override
@@ -302,27 +329,39 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     ReaderDecorationStyle? utteranceDecoration,
     ReaderDecorationStyle? rangeDecoration,
   ) async {
-    ReadiumLog.d('setDecorationStyle is not implemented on web platform');
+    // NOTE: No TTS engine is wired up on web in Phase 1. The styles are forwarded
+    // to the JS layer and stored for future use when the web TTS implementation arrives.
+    JsPublicationChannel().setDecorationStyle(
+      utteranceDecoration == null ? null : jsonEncode(utteranceDecoration.toJson()),
+      rangeDecoration == null ? null : jsonEncode(rangeDecoration.toJson()),
+    );
   }
 
   @override
   Future<void> ttsSetPreferences(TTSPreferences preferences) async {
-    ReadiumLog.d('ttsSetPreferences is not implemented on web platform');
+    JsPublicationChannel.ttsSetPreferences(json.encode(preferences.toJson()));
   }
   // TTS API - END
 
   // AUDIOBOOK API - BEGIN
   @override
-  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
-      throw UnimplementedError('audioEnable is not implemented on web platform');
+  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) async {
+    final prefsJson = json.encode(prefs?.toJson() ?? <String, dynamic>{});
+    final locatorJson = fromLocator != null ? json.encode(fromLocator) : null;
+    await JsPublicationChannel.audioEnable(prefsJson, fromLocatorJson: locatorJson);
+  }
 
   @override
-  Future<void> audioSetPreferences(AudioPreferences prefs) =>
-      throw UnimplementedError('audioSetPreferences is not implemented on web platform');
+  Future<void> audioSetPreferences(AudioPreferences prefs) async {
+    JsPublicationChannel.setAudioPreferences(json.encode(prefs.toJson()));
+  }
+
+  @override
+  Future<void> audioSeekBy(Duration offset) async {
+    JsPublicationChannel.seekBy(offset.inMilliseconds / 1000.0);
+  }
   // AUDIOBOOK API - END
 
   @override
-  Stream<ReadiumError> get onErrorEvent {
-    throw UnimplementedError('get onErrorEvent is not implemented on web platform');
-  }
+  Stream<ReadiumError> get onErrorEvent => _errorEventController.stream;
 }
