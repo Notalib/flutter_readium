@@ -1,5 +1,9 @@
 {
   "servers": {
+    "dart": {
+      "command": "dart",
+      "args": ["mcp-server"]
+    },
     "marionette": {
       "type": "stdio",
       "command": "dart",

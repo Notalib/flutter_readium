@@ -13,6 +13,7 @@ class PlayerControls extends StatelessWidget {
   Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
       final isAudioBook = publication.isAudioBook;
+      final audioActive = state.audioEnabled;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -39,16 +40,20 @@ class PlayerControls extends StatelessWidget {
                 onPressed: state.playing
                     ? () => context.read<PlayerControlsBloc>().add(Pause())
                     : () {
-                        // Use the saved initialLocator from PublicationBloc, which may be set when opening a publication.
-                        Locator? initialLocator = context.read<PublicationBloc>().state.initialLocator;
+                        // Prefer the latest visual/timebased reader locator so playback resumes where the
+                        // user actually is; fall back to the saved initialLocator from PublicationBloc
+                        // (only set at open time) for the very first play after open.
+                        final playerControls = context.read<PlayerControlsBloc>();
+                        final Locator? fromLocator =
+                            playerControls.currentLocator ?? context.read<PublicationBloc>().state.initialLocator;
 
                         // DEMO: Start from the 3rd item in readingOrder.
                         // final pub = context.read<PublicationBloc>().state.publication;
                         // final fakeInitialLink = pub?.readingOrder[2];
                         // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                         isAudioBook
-                            ? context.read<PlayerControlsBloc>().add(Play(fromLocator: initialLocator))
-                            : context.read<PlayerControlsBloc>().add(PlayTTS(fromLocator: initialLocator));
+                            ? playerControls.add(Play(fromLocator: fromLocator))
+                            : playerControls.add(PlayTTS(fromLocator: fromLocator));
                       },
                 tooltip: state.playing ? 'Pause' : 'Play',
               ),
@@ -71,6 +76,20 @@ class PlayerControls extends StatelessWidget {
                 onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter(publication: publication)),
                 tooltip: 'Skip to next chapter',
               ),
+              if (audioActive) ...[
+                IconButton(
+                  key: const ValueKey('seek_back_10s'),
+                  icon: const Icon(Icons.replay_10),
+                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(-10)),
+                  tooltip: 'Seek back 10 s',
+                ),
+                IconButton(
+                  key: const ValueKey('seek_forward_10s'),
+                  icon: const Icon(Icons.forward_10),
+                  onPressed: () => context.read<PlayerControlsBloc>().add(SeekRelative(10)),
+                  tooltip: 'Seek forward 10 s',
+                ),
+              ],
               IconButton(
                 icon: const Icon(Icons.settings_voice),
                 onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),

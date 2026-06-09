@@ -9,6 +9,14 @@
 			"problemMatcher": [],
 			"label": "build_helper_scripts",
 			"detail": "cross-env NODE_ENV=production IS_FLUTTER=1 webpack"
+		},
+		{
+			"label": "build_web",
+			"type": "shell",
+			"command": "${workspaceFolder}/bin/update_web_example",
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "Build TypeScript bundle and copy readiumReader.js to example/web/"
 		}
 	]
 }

@@ -1,0 +1,49 @@
+{
+  "@context": "https://readium.org/webpub-manifest/context.jsonld",
+  "metadata": {
+    "@type": "http://schema.org/Book",
+    "conformsTo": "https://readium.org/webpub-manifest/profiles/epub",
+    "identifier": "flutter-readium-test-fixed-layout",
+    "title": "Fixed Layout Test Book",
+    "language": "en",
+    "layout": "fixed",
+    "presentation": {
+      "layout": "fixed",
+      "orientation": "portrait",
+      "spread": "none"
+    }
+  },
+  "links": [
+    { "rel": "self", "href": "manifest.json", "type": "application/webpub+json" }
+  ],
+  "readingOrder": [
+    {
+      "href": "page1.xhtml",
+      "type": "text/html",
+      "title": "Page 1",
+      "properties": { "layout": "fixed", "page": "center" }
+    },
+    {
+      "href": "page2.xhtml",
+      "type": "text/html",
+      "title": "Page 2",
+      "properties": { "layout": "fixed", "page": "left" }
+    },
+    {
+      "href": "page3.xhtml",
+      "type": "text/html",
+      "title": "Page 3",
+      "properties": { "layout": "fixed", "page": "right" }
+    }
+  ],
+  "resources": [
+    { "href": "page1.xhtml", "type": "text/html" },
+    { "href": "page2.xhtml", "type": "text/html" },
+    { "href": "page3.xhtml", "type": "text/html" }
+  ],
+  "toc": [
+    { "href": "page1.xhtml", "title": "Page 1" },
+    { "href": "page2.xhtml", "title": "Page 2" },
+    { "href": "page3.xhtml", "title": "Page 3" }
+  ]
+}

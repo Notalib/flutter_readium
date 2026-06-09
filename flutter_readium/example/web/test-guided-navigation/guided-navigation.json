@@ -1,0 +1,96 @@
+{
+  "guided": [
+    {
+      "role": [
+        "section"
+      ],
+      "children": [
+        {
+          "audioref": "01_De_nye_lsere_Essaysa.mp3#t=0,10.397",
+          "textref": "38533-0001-generic.xhtml#uwlh00005"
+        }
+      ]
+    },
+    {
+      "role": [
+        "section"
+      ],
+      "children": [
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=0,1.999",
+          "textref": "38533-0002-generic.xhtml#uwlh00008"
+        },
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=1.999,5.799",
+          "textref": "38533-0002-generic.xhtml#uwlh00009"
+        },
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=5.799,18.199",
+          "textref": "38533-0002-generic.xhtml#uwlh00011"
+        },
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=18.199,33.399",
+          "textref": "38533-0002-generic.xhtml#uwlh00012"
+        },
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=33.399,40.399",
+          "textref": "38533-0002-generic.xhtml#uwlh00013"
+        },
+        {
+          "audioref": "02_Om_denne_udgave.mp3#t=40.399,43.951",
+          "textref": "38533-0002-generic.xhtml#xbdi_0001"
+        }
+      ]
+    },
+    {
+      "role": [
+        "section"
+      ],
+      "children": [
+        {
+          "audioref": "03_Kolofon_og_bibliogra.mp3#t=0,3.799",
+          "textref": "38533-0003-generic.xhtml#uwlh00015"
+        },
+        {
+          "audioref": "03_Kolofon_og_bibliogra.mp3#t=3.799,13.199",
+          "textref": "38533-0003-generic.xhtml#uwlh00016"
+        },
+        {
+          "audioref": "03_Kolofon_og_bibliogra.mp3#t=13.199,71.399",
+          "textref": "38533-0003-generic.xhtml#uwlh00017"
+        },
+        {
+          "audioref": "03_Kolofon_og_bibliogra.mp3#t=71.399,78.799",
+          "textref": "38533-0003-generic.xhtml#uwlh00022"
+        },
+        {
+          "audioref": "03_Kolofon_og_bibliogra.mp3#t=78.799,79.935",
+          "textref": "38533-0003-generic.xhtml#uwlh00025"
+        }
+      ]
+    },
+    {
+      "role": [
+        "section"
+      ],
+      "children": [
+        {
+          "audioref": "04_INDLEDNING.mp3#t=0,1.799",
+          "textref": "38533-0004-generic.xhtml#uwlh00026"
+        },
+        {
+          "audioref": "04_INDLEDNING.mp3#t=1.799,18.999",
+          "textref": "38533-0004-generic.xhtml#uwlh00027"
+        },
+        {
+          "audioref": "04_INDLEDNING.mp3#t=18.999,46.406",
+          "textref": "38533-0004-generic.xhtml#uwlh00028"
+        },
+        {
+          "audioref": "04_INDLEDNING.mp3#t=46.406,66.005",
+          "textref": "38533-0004-generic.xhtml#uwlh00029"
+        }
+      ]
+    }
+  ]
+}

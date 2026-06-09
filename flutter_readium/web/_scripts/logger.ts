@@ -1,0 +1,110 @@
+/**
+ * Lightweight tagged logger for the Readium web bundle.
+ *
+ * All messages are prefixed with the padded level and `[Readium/<tag>]` so
+ * they align vertically and can be easily filtered in the browser DevTools
+ * console:
+ *
+ *   DEBUG [Readium/Reader] goForward
+ *   INFO  [Readium/WebPlugin] publication opened
+ *   WARN  [Readium/TTS] voice not found, using default
+ *   ERROR [Readium/Reader] failed to open publication
+ *
+ * The active level can be changed at runtime via `setLogLevel()` which is
+ * exposed on the ReadiumReader class so the Dart side can control verbosity
+ * through the plugin's `setLogLevel` interface method.
+ */
+
+/**
+ * Log verbosity levels.
+ *
+ * Values are intentionally identical to the indices of Dart's `LogLevel` enum:
+ *   none=0, error=1, warn=2, info=3, debug=4
+ *
+ * This means the Dart bridge can pass `level.index` directly as a number and
+ * this enum interprets it correctly — no translation layer needed.
+ * Do NOT reorder or insert values.
+ */
+export enum LogLevel {
+  none = 0,
+  error = 1,
+  warn = 2,
+  info = 3,
+  debug = 4,
+}
+
+let _currentLevel: LogLevel = LogLevel.info;
+
+/** Sets the minimum log level. Messages below this level are suppressed. */
+export function setLogLevel(level: LogLevel): void {
+  _currentLevel = level;
+}
+
+/** Returns the current active log level. */
+export function getLogLevel(): LogLevel {
+  return _currentLevel;
+}
+
+export interface Logger {
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+}
+
+/**
+ * Renders the log args into a single human-readable string. `Error`s collapse to
+ * `name: message`; other objects are JSON-stringified (with a `String()` fallback
+ * for circular structures).
+ */
+function format(args: unknown[]): string {
+  return args
+    .map((a) => {
+      if (typeof a === "string") return a;
+      if (a instanceof Error) return `${a.name}: ${a.message}`;
+      try {
+        return JSON.stringify(a);
+      } catch {
+        return String(a);
+      }
+    })
+    .join(" ");
+}
+
+/** The object/Error args worth inspecting interactively in DevTools. */
+function inspectables(args: unknown[]): unknown[] {
+  return args.filter((a) => a !== null && typeof a === "object");
+}
+
+/**
+ * Each log call passes the fully-formatted message as the FIRST argument, then
+ * re-appends any object/Error args.
+ *
+ * Why both: browser DevTools renders the original variadic objects as expandable
+ * trees (with `Error` stacks), but `flutter drive`'s console bridge forwards only
+ * the FIRST argument to the terminal — so the old `console.info(level, prefix,
+ * ...args)` form collapsed to just "INFO" under web integration tests. Putting the
+ * full string first keeps the terminal output complete, while the trailing object
+ * args (ignored by flutter-drive) preserve DevTools' interactive inspection.
+ */
+export function createLogger(tag: string): Logger {
+  const prefix = `[Readium/${tag}]`;
+  return {
+    debug: (...args) => {
+      if (_currentLevel >= LogLevel.debug)
+        console.debug(`DEBUG ${prefix} ${format(args)}`, ...inspectables(args));
+    },
+    info: (...args) => {
+      if (_currentLevel >= LogLevel.info)
+        console.info(`INFO  ${prefix} ${format(args)}`, ...inspectables(args));
+    },
+    warn: (...args) => {
+      if (_currentLevel >= LogLevel.warn)
+        console.warn(`WARN  ${prefix} ${format(args)}`, ...inspectables(args));
+    },
+    error: (...args) => {
+      if (_currentLevel >= LogLevel.error)
+        console.error(`ERROR ${prefix} ${format(args)}`, ...inspectables(args));
+    },
+  };
+}

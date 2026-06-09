@@ -12,17 +12,39 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString preferencesJson,
   );
   external JSPromise<JSString> getPublication(JSString link);
-  external JSPromise goTo(JSString location);
+  external JSPromise goTo(JSString locatorJson);
   external void goBackward();
   external void goForward();
   external void closePublication();
-  external JSPromise<JSString> getResource(JSString linkString, JSBoolean? asBytes);
   external void setEPUBPreferences(JSString newPreferencesString);
+  external void setLogLevel(JSNumber level);
+  external void applyDecorations(JSString group, JSString decorationsJson);
+  external void setDecorationStyle(
+    JSString? utteranceStyleJson,
+    JSString? rangeStyleJson,
+  );
   external JSBoolean get isNavigatorReady;
+  external void play(JSString? locatorJson);
+  external void pause();
+  external void resume();
+  external void stop();
+  external void next();
+  external void previous();
+  external void seekBy(JSNumber seconds);
+  external JSBoolean goToProgression(JSNumber progression);
+  external void setAudioPreferences(JSString preferencesJson);
+  external JSPromise<JSString> ttsGetAvailableVoices();
+  external JSPromise<JSAny?> ttsEnable(JSString prefsJson, JSString? fromLocatorJson);
+  external void ttsSetVoice(JSString identifier, JSString? lang);
+  external void ttsSetPreferences(JSString prefsJson);
+  external JSPromise<JSAny?> audioEnable(JSString prefsJson, JSString? fromLocatorJson);
 }
 
 @JS()
 external set updateTextLocator(JSFunction f);
+
+@JS()
+external set updateTimebasedPlayerState(JSFunction f);
 
 @JS()
 external set updateReaderStatus(JSFunction f);
@@ -36,8 +58,16 @@ external set onSelectionActionCallback(JSFunction f);
 @JS()
 external set onDecorationInteractionCallback(JSFunction f);
 
+@JS()
+external set onErrorCallback(JSFunction f);
+
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
+  static final _log = ReadiumLog.tag('JsChannel');
+
+  static void setLogLevel(LogLevel level) {
+    _readiumReader.setLogLevel(level.index.toJS);
+  }
 
   Future<void> openPublication(
     String publicationURL, {
@@ -107,9 +137,9 @@ class JsPublicationChannel {
     }
   }
 
-  static Future<void> goToLocation(String locationHref) async {
+  static Future<void> goToLocator(String locatorJson) async {
     try {
-      await _readiumReader.goTo(locationHref.toJS).toDart;
+      await _readiumReader.goTo(locatorJson.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
       final errorString = jsError.toString();
       final statusCode = _extractStatusCode(errorString);
@@ -133,26 +163,63 @@ class JsPublicationChannel {
   }
 
   void closePublication() {
-    _readiumReader.closePublication();
+    try {
+      _readiumReader.closePublication();
+    } on Object catch (error) {
+      _log.e('Error closing publication: $error');
+    }
   }
 
-  Future<String> getResource(String link, {bool? asBytes}) async {
-    try {
-      final resourceJS = _readiumReader.getResource(link.toJS, asBytes?.toJS);
-      final resourceString = (await resourceJS.toDart).toDart;
-      return resourceString;
-    } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
+  static void playAudio({String? locatorJson}) {
+    _readiumReader.play(locatorJson?.toJS);
+  }
 
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
-    }
+  static void pauseAudio() {
+    _readiumReader.pause();
+  }
+
+  static void resumeAudio() {
+    _readiumReader.resume();
+  }
+
+  static void stopAudio() {
+    _readiumReader.stop();
+  }
+
+  static void nextAudio() {
+    _readiumReader.next();
+  }
+
+  static void previousAudio() {
+    _readiumReader.previous();
+  }
+
+  static void seekBy(double seconds) {
+    _readiumReader.seekBy(seconds.toJS);
+  }
+
+  static bool goToProgression(double progression) => _readiumReader.goToProgression(progression.toJS).toDart;
+
+  static void setAudioPreferences(String preferencesJson) {
+    _readiumReader.setAudioPreferences(preferencesJson.toJS);
+  }
+
+  static Future<String> ttsGetAvailableVoices() async => (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
+
+  static Future<void> ttsEnable(String prefsJson, {String? fromLocatorJson}) async {
+    await _readiumReader.ttsEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
+  }
+
+  static void ttsSetVoice(String identifier, {String? lang}) {
+    _readiumReader.ttsSetVoice(identifier.toJS, lang?.toJS);
+  }
+
+  static void ttsSetPreferences(String prefsJson) {
+    _readiumReader.ttsSetPreferences(prefsJson.toJS);
+  }
+
+  static Future<void> audioEnable(String prefsJson, {String? fromLocatorJson}) async {
+    await _readiumReader.audioEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
   }
 
   Future<void> setEPUBPreferences(String newPreferencesString) async {
@@ -161,7 +228,7 @@ class JsPublicationChannel {
       if (isReady) {
         _readiumReader.setEPUBPreferences(newPreferencesString.toJS);
       } else {
-        ReadiumLog.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
+        _log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
       final errorString = jsError.toString();
@@ -175,5 +242,21 @@ class JsPublicationChannel {
         stacktrace: stackTrace.toString(),
       );
     }
+  }
+
+  void applyDecorations(String group, String decorationsJson) {
+    final isReady = _readiumReader.isNavigatorReady.toDart;
+    if (isReady) {
+      _readiumReader.applyDecorations(group.toJS, decorationsJson.toJS);
+    } else {
+      ReadiumLog.w('ReadiumReader is not ready yet, skipping applyDecorations');
+    }
+  }
+
+  void setDecorationStyle(String? utteranceStyleJson, String? rangeStyleJson) {
+    _readiumReader.setDecorationStyle(
+      utteranceStyleJson?.toJS,
+      rangeStyleJson?.toJS,
+    );
   }
 }

@@ -1,7 +1,17 @@
-# Build for flutter_readium web
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Build the flutter_readium web bundle (lib/helpers/readiumReader.js).
 echo "Building flutter_readium web"
-cd ./flutter_readium/
-npm i
+cd "$REPO_ROOT/flutter_readium"
+
+# Install deps deterministically, and skip the (slow) reinstall when already
+# present — a bare `npm i` on every build reads as a hang in agent sandboxes
+# and churns the lockfile.
+if [ ! -d node_modules ]; then
+  npm ci
+fi
+
 npm run build_dev
 ### this is for when production build is ready
 # npm run build

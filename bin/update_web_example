@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-./bin/build_js
+# Build the web bundle, then copy it into the example app's web/ directory.
+"$REPO_ROOT/bin/build_js"
 
-cd flutter_readium/example
-dart run flutter_readium:copy_js_file web dev
-
-cd ../..
+# Subshell so the cd can't leak into anything that runs after this.
+( cd "$REPO_ROOT/flutter_readium/example" && dart run flutter_readium:copy_js_file web dev )
 
 echo "Finished at $(date +'%H:%M')"

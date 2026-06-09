@@ -38,6 +38,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   }
 
   final _readium = FlutterReadiumPlatform.instance;
+  static final _log = ReadiumLog.tag('WebView');
 
   EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
@@ -50,12 +51,12 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
 
   @js_interop.JSExport()
   void onReaderStatusChanged(final String statusString) {
-    ReadiumLog.d('Reader status changed: $statusString');
+    _log.d('Reader status changed: $statusString');
     final status = ReadiumReaderStatus.optFromString(statusString);
     if (status != null) {
       FlutterReadiumWebPlugin.addReaderStatusUpdate(status);
     } else {
-      ReadiumLog.w('Unknown ReadiumReaderStatus: $statusString');
+      _log.w('Unknown ReadiumReaderStatus: $statusString');
     }
   }
 
@@ -80,12 +81,28 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     widget.onDecorationInteraction?.call(event);
   }
 
+  @js_interop.JSExport()
+  void onTimebasedPlayerStateHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final state = ReadiumTimebasedState.fromJson(json);
+    FlutterReadiumWebPlugin.addTimeBasedStateUpdate(state);
+  }
+
+  @js_interop.JSExport()
+  void onErrorHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final error = ReadiumError.fromJson(json);
+    FlutterReadiumWebPlugin.addErrorEvent(error);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
+    updateTimebasedPlayerState = onTimebasedPlayerStateHandler.toJS;
     onTextSelectedCallback = onTextSelectedHandler.toJS;
     onSelectionActionCallback = onSelectionActionHandler.toJS;
     onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
+    onErrorCallback = onErrorHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {

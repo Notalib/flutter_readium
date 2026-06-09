@@ -4,7 +4,10 @@ import 'package:flutter/material.dart' show Color, Colors;
 import '../index.dart';
 
 enum DecorationStyle {
+  /// Opaque filled rectangle placed **behind** text (`experimentalPositioning: true`, alpha 1.0). Default.
   highlight,
+
+  /// Colored border-bottom under the active text line. No box behind text.
   underline;
 
   static DecorationStyle fromString(String? styleStr) {

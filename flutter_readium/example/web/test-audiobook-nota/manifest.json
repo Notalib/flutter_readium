@@ -1,0 +1,66 @@
+{
+  "readingOrder": [
+    {
+      "href": "De_nye_l_sere-00001.mp3",
+      "duration": 10,
+      "title": "De nye læsere: Essaysamling om nye medier og svage læsereProjektansvarlig: Lóa Stefánsdóttir",
+      "type": "audio/mpeg"
+    },
+    {
+      "href": "De_nye_l_sere-00002.mp3",
+      "duration": 44,
+      "title": "Om denne udgave",
+      "type": "audio/mpeg"
+    },
+    {
+      "href": "De_nye_l_sere-00003.mp3",
+      "duration": 80,
+      "title": "Kolofon og bibliografiske oplysninger",
+      "type": "audio/mpeg"
+    }
+  ],
+  "toc": [
+    {
+      "href": "De_nye_l_sere-00001.mp3#t=0",
+      "title": "De nye læsere: Essaysamling om nye medier og svage læsereProjektansvarlig: Lóa Stefánsdóttir",
+      "children": [
+        {
+          "href": "De_nye_l_sere-00002.mp3#t=0",
+          "title": "Om denne udgave"
+        },
+        {
+          "href": "De_nye_l_sere-00003.mp3#t=0",
+          "title": "Kolofon og bibliografiske oplysninger"
+        }
+      ]
+    }
+  ],
+  "@context": "https://readium.org/webpub-manifest/context.jsonld",
+  "metadata": {
+    "conformsTo": "https://readium.org/webpub-manifest/profiles/audiobook",
+    "identifier": "dk-nota-38533",
+    "modified": "2012-07-30",
+    "narrator": [
+      "Nota"
+    ],
+    "author": "Innovationlab",
+    "duration": 134,
+    "title": "De nye læsere",
+    "language": null,
+    "@type": "http://schema.org/Audiobook"
+  },
+  "links": [
+    {
+      "href": "manifest.json",
+      "rel": "self",
+      "type": "application/webpub+json"
+    }
+  ],
+  "resources": [
+    {
+      "href": "cover.jpg",
+      "rel": "cover",
+      "type": "image/jpeg"
+    }
+  ]
+}

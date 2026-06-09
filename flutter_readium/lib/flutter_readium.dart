@@ -19,6 +19,8 @@ class FlutterReadium {
 
   static FlutterReadium? _singleton;
 
+  static final _log = ReadiumLog.tag('FlutterReadium');
+
   static FlutterReadiumPlatform get _platform => FlutterReadiumPlatform.instance;
 
   /// Sets custom HTTP headers to be used for all network requests made by the reader.
@@ -39,7 +41,7 @@ class FlutterReadium {
   ///
   /// Returns a [Publication] object representing the opened publication.
   Future<Publication> openPublication(String pubUrl) => _platform.openPublication(pubUrl).onError((err, _) {
-    ReadiumLog.e('OpenPublication error: ${err.toString()}');
+    _log.e('OpenPublication error: ${err.toString()}');
     throw ReadiumException.fromError(err);
   });
 
@@ -176,11 +178,11 @@ class FlutterReadium {
   ///
   /// Throws a [ReadiumException] if the link cannot be resolved to a locator.
   Future<bool> goByLink(final Link link, final Publication pub) async {
-    ReadiumLog.d(() => 'Navigating to link: $link');
+    _log.d(() => 'Navigating to link: $link');
 
     final locator = pub.locatorFromLink(link);
 
-    ReadiumLog.d(locator);
+    _log.d(locator);
 
     if (locator == null) {
       throw const ReadiumException('Link could not be resolved to locator');

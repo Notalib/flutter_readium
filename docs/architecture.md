@@ -5,27 +5,15 @@
 This is a federated Flutter plugin split into two pub packages:
 
 ```
-flutter_readium/                  — app-facing package
-flutter_readium_platform_interface/ — shared models & platform contract
+flutter_readium/                      : app-facing package
+flutter_readium_platform_interface/   : shared models & platform contract
 ```
 
-```
-Flutter App
-    │
-    ▼
-FlutterReadium (singleton, flutter_readium)
-    │
-    ▼
-FlutterReadiumPlatform (abstract interface)
-    │
-    ├── MethodChannelFlutterReadium  (default implementation)
-    │       │
-    │       ├── iOS        — Swift / swift-toolkit (pinned in `flutter_readium/ios/flutter_readium.podspec`)
-    │       ├── Android    — Kotlin / kotlin-toolkit (pinned in `flutter_readium/android/build.gradle`)
-    │       └── Web        — TypeScript / @readium/navigator
-    │
-    └── ReadiumReaderWidget  (platform view)
-```
+![Architecture overview](diagrams/architecture.png)
+
+> Source: [diagrams/architecture.drawio](diagrams/architecture.drawio). Re-export with `draw.io -x -f png --scale 2 -b 20 -o docs/diagrams/architecture.png docs/diagrams/architecture.drawio`.
+
+The plugin exposes `FlutterReadiumPlatform` as the abstract interface, with `MethodChannelFlutterReadium` as the default implementation routing calls to each native side. `ReadiumReaderWidget` is a platform view that renders the reader surface.
 
 ## Communication
 

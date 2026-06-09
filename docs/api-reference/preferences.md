@@ -38,7 +38,6 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `theme` | `EpubThemeType?` | One of `light`, `dark`, `sepia`. Overrides `backgroundColor` and `textColor` when set. |
 | `backgroundColor` | `Color?` | Page background color. |
 | `textColor` | `Color?` | Text color. |
 
@@ -70,6 +69,9 @@ Controls the visual appearance of the PDF reader. All fields are optional; omitt
 | `readingProgression` | `PDFReadingProgression?` | `ltr` or `rtl`. |
 | `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Must be `>= 0`. |
 | `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. |
+| `offsetFirstPage` | `bool?` | When `true`, the first page is displayed alone rather than paired in two-up view. Useful when the cover is page 1. **iOS only.** |
+| `spread` | `PDFSpread?` | Synthetic spread (dual-page view) mode: `auto`, `never`, `always`. **iOS only.** |
+| `visibleScrollbar` | `bool?` | Whether the scroll indicator is shown while scrolling. **iOS only.** |
 
 ```dart
 await reader.setPDFPreferences(const PDFPreferences(
