@@ -132,3 +132,58 @@ table {
     }
   }
 }
+
+// Spotlight text-fade.
+// `startSpotlightObserver()` in FlutterReadiumTools.ts toggles
+// `body.flutter-readium-spotlight-active` whenever any
+// `.flutter-readium-spotlight` decoration element is present in the DOM.
+//
+// Specificity battle — dim rule:
+//   ReadiumCSS injects
+//   `:root[style*="--USER__textColor"] *:not(a) { color: inherit !important }`
+//   at specificity (0,2,1). To beat that we use a (0,2,2) dim selector by chaining
+//   `:root[style*="--USER__textColor"]` and `body.flutter-readium-spotlight-active`.
+//   A plain `body.class * {}` rule at (0,1,1) is overridden by ReadiumCSS.
+//   Fallback rule (no user theme set) at (0,1,2) covers EPUBs without a theme.
+//
+// Restore rule:
+//   `.flutter-readium-spotlit-text` is added by `startSpotlightObserver()` to the
+//   element whose text is currently being spoken (via its `data-css-selector`).
+//   `var(--USER__textColor)` restores the exact theme text colour when a theme is
+//   active; `initial` (black) is used as the no-theme fallback.
+
+// — DIM —
+:root[style*="--USER__textColor"] body.flutter-readium-spotlight-active *:not(a),
+body.flutter-readium-spotlight-active *:not(a) {
+  color: rgba(0, 0, 0, 0.22) !important;
+}
+
+// PATH 1: CSS Custom Highlight API — sub-element precision.
+// `::highlight()` rules live in the highlight cascade layer, which applies on
+// top of the element cascade — including `!important` element rules — for the
+// exact characters covered by the Range. No specificity tricks needed.
+// `var(--USER__textColor, initial)` restores the theme text colour when a theme
+// is active; `initial` (black) is the no-theme fallback.
+// `background-color` uses the tint forwarded by JS as a CSS variable, falling
+// back to semi-transparent yellow. JS strips the decoration div's own inline
+// background-color when this path is active (inline !important cannot be
+// overridden from a stylesheet), so ::highlight() is the sole visual source
+// of the tint for precisely the spoken character range.
+::highlight(flutter-readium-spotlit) {
+  color: var(--USER__textColor, initial);
+  background-color: var(--flutter-readium-spotlight-tint, rgba(255, 255, 0, 0.5));
+}
+
+// PATH 2: class fallback — element-level granularity.
+// Used when the CSS Custom Highlight API is not available (iOS < 17.2, older
+// Android WebView). Specificity must beat the dim rule above:
+//   with theme:    (0,3,1)/(0,3,2) > dim (0,2,2) ✓
+//   without theme: (0,2,1)/(0,2,2) > dim (0,1,2) ✓
+:root[style*="--USER__textColor"] body.flutter-readium-spotlight-active .flutter-readium-spotlit-text,
+:root[style*="--USER__textColor"] body.flutter-readium-spotlight-active .flutter-readium-spotlit-text *:not(a) {
+  color: var(--USER__textColor) !important;
+}
+body.flutter-readium-spotlight-active .flutter-readium-spotlit-text,
+body.flutter-readium-spotlight-active .flutter-readium-spotlit-text *:not(a) {
+  color: initial !important;
+}

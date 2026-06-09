@@ -421,48 +421,170 @@ window.gotoComicFrame = (id: string, duration: number) => {
 
 /**
  * Watch for `.flutter-readium-spotlight` decoration elements being added or
- * removed from the document, toggle `body.flutter-readium-spotlight-active`,
- * and on first activation inject the text-fade CSS rule at the END of <head>.
+ * removed from the document.
  *
- * The dynamic injection is intentional: `flutterReadiumTools.css` is injected
- * at document-start, before Readium CSS loads. Readium may inject its own
- * `!important` text-color rules later (e.g. for user theme colours). Because
- * equal-specificity `!important` rules are resolved by declaration order (last
- * wins), our fade must appear AFTER Readium's rules to take effect. By
- * appending the style element at activation time — after the page is fully
- * loaded and Readium's CSS is in the head — we guarantee that ordering.
+ * On activation, two paths are tried in order:
+ *
+ * 1. **CSS Custom Highlight API** (iOS 17.2+, Chrome 105+): reads
+ *    `data-text-highlight` / `data-text-before` from the decoration element,
+ *    walks the text nodes of the containing element to locate the exact spoken
+ *    range, and registers it as `CSS.highlights.set('flutter-readium-spotlit', …)`.
+ *    A `::highlight()` rule in FlutterReadiumTools.scss restores the text colour
+ *    for precisely those characters, leaving the rest of the paragraph dimmed.
+ *
+ * 2. **Class fallback** (all other platforms): adds `.flutter-readium-spotlit-text`
+ *    to the containing element. A higher-specificity CSS rule restores colour at
+ *    element granularity (whole paragraph un-dimmed rather than exact range).
+ *
+ * In both cases `body.flutter-readium-spotlight-active` gates the body-wide
+ * text-fade rule that dims everything except the spotlit range.
+ *
+ * On deactivation, both the `CSS.highlights` entry and any class marks are cleared.
  */
 function startSpotlightObserver(doc: Document): void {
   const SPOTLIGHT_ELEM_CLASS = 'flutter-readium-spotlight';
-  const BODY_ACTIVE_CLASS = 'flutter-readium-spotlight-active';
-  const STYLE_ID = 'flutter-readium-spotlight-style';
+  const BODY_ACTIVE_CLASS    = 'flutter-readium-spotlight-active';
+  const SPOTLIT_TEXT_CLASS   = 'flutter-readium-spotlit-text';
+  const HIGHLIGHT_KEY        = 'flutter-readium-spotlit';
+  // CSS custom property written to body.style so ::highlight() can use the
+  // same tint colour as the decoration div without hard-coding yellow.
+  const TINT_VAR             = '--flutter-readium-spotlight-tint';
 
-  let wasActive = false;
+  // Detect CSS Custom Highlight API once at setup — stable for the page lifetime.
+  const highlightRegistry = (typeof CSS !== 'undefined')
+    ? (CSS as unknown as Record<string, unknown>).highlights as
+        { set(k: string, v: unknown): void; delete(k: string): void } | undefined
+    : undefined;
+  const HighlightCtor = (window as unknown as Record<string, unknown>).Highlight as
+    (new (...ranges: Range[]) => unknown) | undefined;
+  const supportsHighlightApi = !!(highlightRegistry && HighlightCtor);
+  if (!supportsHighlightApi) {
+    console.warn('[spotlight] CSS Custom Highlight API not supported in this browser. Falling back to class-based spotlight with reduced precision and potential edge-case bugs.');
+  }
 
   const update = () => {
-    const isActive = !!doc.querySelector('.' + SPOTLIGHT_ELEM_CLASS);
-
-    if (isActive && !wasActive) {
-      // Transitioning to active: (re-)append the style element to the end of
-      // <head> so it is the last stylesheet declared — beating any Readium CSS
-      // rule with the same specificity + !important. appendChild() moves an
-      // already-present element rather than duplicating it.
-      let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
-      if (!styleEl) {
-        styleEl = doc.createElement('style');
-        styleEl.id = STYLE_ID;
-        styleEl.textContent =
-          `body.${BODY_ACTIVE_CLASS},body.${BODY_ACTIVE_CLASS} *` +
-          `{color:rgba(0,0,0,.22)!important}`;
-      }
-      doc.head.appendChild(styleEl);
-    }
+    const spotlightElems = doc.querySelectorAll('.' + SPOTLIGHT_ELEM_CLASS);
+    const isActive = spotlightElems.length > 0;
 
     doc.body.classList.toggle(BODY_ACTIVE_CLASS, isActive);
-    wasActive = isActive;
+
+    // Clear both paths from the previous tick.
+    if (supportsHighlightApi) highlightRegistry!.delete(HIGHLIGHT_KEY);
+    doc.querySelectorAll('.' + SPOTLIT_TEXT_CLASS).forEach((el) => {
+      el.classList.remove(SPOTLIT_TEXT_CLASS);
+    });
+    doc.body.style.removeProperty(TINT_VAR);
+
+    if (!isActive) return;
+
+    spotlightElems.forEach((spotlightElem) => {
+      const cssSelector = spotlightElem.getAttribute('data-css-selector');
+      if (!cssSelector) return;
+
+      let target: Element | null = null;
+      try { target = doc.querySelector(cssSelector); } catch { return; }
+      if (!target) return;
+
+      // Path 1 — CSS Custom Highlight API: sub-element precision.
+      if (supportsHighlightApi) {
+        const textHighlight = spotlightElem.getAttribute('data-text-highlight');
+        const textBefore    = spotlightElem.getAttribute('data-text-before') ?? '';
+        if (textHighlight) {
+          const range = findTextRange(target, textBefore, textHighlight);
+          if (range) {
+            highlightRegistry!.set(HIGHLIGHT_KEY, new HighlightCtor!(range));
+            // Forward the tint colour to ::highlight() via a CSS variable.
+            // Read it from the data-tint attribute set by native — a plain CSS
+            // colour string (e.g. "rgba(253,255,0,0.5)") or "transparent".
+            // Using the attribute is reliable regardless of ReadiumCSS overrides,
+            // whereas getComputedStyle would return the ReadiumCSS-forced
+            // transparent value and lose the native-configured colour.
+            const tint = spotlightElem.getAttribute('data-tint') || 'transparent';
+            doc.body.style.setProperty(TINT_VAR, tint);
+            // Strip the decoration div's own background. The native template
+            // sets `background-color: … !important` as an inline style, which
+            // cannot be overridden by any stylesheet rule (inline !important
+            // beats author !important regardless of specificity). Removing it
+            // directly from the element's style object lets ReadiumCSS keep
+            // the div transparent, leaving ::highlight() as the sole visual
+            // highlight on the precise spoken range.
+            (spotlightElem as HTMLElement).style.removeProperty('background-color');
+            console.debug('[spotlight] Path 1 (Highlight API): precise range registered.');
+            return; // Precise range registered — no class fallback needed.
+          }
+          console.warn('[spotlight] Path 1 failed: text not found in element, falling back to class.', { cssSelector: spotlightElem.getAttribute('data-css-selector'), textHighlight });
+        } else {
+          console.warn('[spotlight] Path 1 skipped: data-text-highlight is empty, falling back to class.');
+        }
+      }
+
+      // Path 2 — class fallback: element-level granularity.
+      console.debug('[spotlight] Path 2 (class fallback): marking element', target);
+      target.classList.add(SPOTLIT_TEXT_CLASS);
+    });
   };
 
   new MutationObserver(update).observe(doc.body, { childList: true, subtree: true });
+}
+
+/**
+ * Walk the text nodes inside `element` and return a Range covering the first
+ * occurrence of `textHighlight`, anchored by `textBefore` to disambiguate when
+ * the same text appears more than once.
+ *
+ * Returns null if the text cannot be located (e.g. whitespace normalisation
+ * differences between the TTS locator and the DOM) — callers should fall back
+ * to the class-based approach in that case.
+ */
+function findTextRange(
+  element: Element,
+  textBefore: string,
+  textHighlight: string,
+): Range | null {
+  if (!textHighlight) return null;
+
+  // Collect all text nodes within the element and build a flat string.
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const nodeOffsets: { node: Text; start: number }[] = [];
+  let fullText = '';
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    nodeOffsets.push({ node: node as Text, start: fullText.length });
+    fullText += (node as Text).textContent ?? '';
+  }
+  if (nodeOffsets.length === 0) return null;
+
+  // Use the tail of textBefore (last 80 chars) to locate the search start.
+  // This avoids mismatches caused by whitespace differences earlier in the text.
+  let searchFrom = 0;
+  if (textBefore) {
+    const beforeTail = textBefore.slice(-80);
+    const contextIdx = fullText.indexOf(beforeTail);
+    if (contextIdx !== -1) searchFrom = contextIdx + beforeTail.length;
+  }
+
+  const hlStart = fullText.indexOf(textHighlight, searchFrom);
+  if (hlStart === -1) return null;
+  const hlEnd = hlStart + textHighlight.length;
+
+  // Map a flat text offset back to (textNode, node-local offset).
+  const resolve = (pos: number): { node: Text; offset: number } | null => {
+    for (let i = nodeOffsets.length - 1; i >= 0; i--) {
+      if (nodeOffsets[i].start <= pos) {
+        return { node: nodeOffsets[i].node, offset: pos - nodeOffsets[i].start };
+      }
+    }
+    return null;
+  };
+
+  const start = resolve(hlStart);
+  const end   = resolve(hlEnd);
+  if (!start || !end) return null;
+
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range;
 }
 
 let hasCapturedReadiumFunctions = false;
