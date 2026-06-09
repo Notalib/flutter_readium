@@ -21,6 +21,10 @@ import {
 import { ReadiumPublication } from "../extensions/ReadiumPublication";
 import { injectDecorationOverrides, injectFlutterReadiumHelperScripts } from "../helpers";
 import { createLogger } from "../logger";
+import {
+  flattenToc,
+  enrichLocatorWithTocHref,
+} from "../helpers/tocHref";
 // import { initializeWebPubNavigatorAndPeripherals } from "../WebPub/webpubNavigator";
 
 const log = createLogger("EpubNav");
@@ -153,7 +157,7 @@ export async function initializeEpubNavigatorAndPeripherals(
     positionChanged: (_locator: Locator): void => {
       window.focus();
       emitTextLocatorDebounced(
-        enrichWithTocHref(
+        enrichLocatorWithTocHref(
           enrichWithTotalProgression(_locator, totalPositions),
           flatToc
         )
@@ -290,67 +294,5 @@ export function enrichWithTotalProgression(
   });
 }
 
-/**
- * Walks the `toc` link tree and returns a flat list of every entry. The shared
- * Links collection doesn't expose a flatten helper, so we recurse manually.
- */
-function flattenToc(items: Link[]): Link[] {
-  const out: Link[] = [];
-  for (const link of items) {
-    out.push(link);
-    // `children` is a `Links` instance (not a plain array); recurse over `.items`.
-    const children = link.children?.items;
-    if (children && children.length > 0) {
-      out.push(...flattenToc(children));
-    }
-  }
-  return out;
-}
-
-/**
- * Adds `tocHref` to `locator.locations.otherLocations` so the Dart-side
- * `Locator.locations.tocHref` getter returns the current chapter's TOC href.
- *
- * Matches by resource href (strips any `#fragment`). If the publication's TOC
- * has multiple entries pointing into the same resource, the first one wins —
- * good enough for the next/previous-chapter use case. A finer-grained match
- * (by fragment / cssSelector) would require the iframe to surface the visible
- * element's id, which the ts-toolkit doesn't expose today.
- */
-function enrichWithTocHref(locator: Locator, flatToc: Link[]): Locator {
-  if (flatToc.length === 0) return locator;
-  const tocHref = findCurrentTocHref(locator.href, flatToc);
-  if (!tocHref) return locator;
-  // Avoid clobbering an existing tocHref (e.g. set by an upstream caller).
-  const existing = locator.locations?.otherLocations ?? new Map<string, any>();
-  if (existing.get("tocHref") === tocHref) return locator;
-  const merged = new Map(existing);
-  merged.set("tocHref", tocHref);
-  return new Locator({
-    href: locator.href,
-    type: locator.type,
-    title: locator.title,
-    text: locator.text,
-    locations: new LocatorLocations({
-      fragments: locator.locations?.fragments,
-      progression: locator.locations?.progression,
-      position: locator.locations?.position,
-      totalProgression: locator.locations?.totalProgression,
-      otherLocations: merged,
-    }),
-  });
-}
-
-function findCurrentTocHref(
-  resourceHref: string,
-  flatToc: Link[]
-): string | undefined {
-  const targetPath = stripFragment(resourceHref);
-  const match = flatToc.find((l) => stripFragment(l.href) === targetPath);
-  return match?.href;
-}
-
-function stripFragment(href: string): string {
-  const i = href.indexOf("#");
-  return i === -1 ? href : href.substring(0, i);
-}
+// flattenToc, enrichLocatorWithTocHref, and their helpers are now in
+// ../helpers/tocHref (imported above). The local copies have been removed.

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
 import '../extensions/text_settings_theme.dart';
+import '../state/publication_bloc.dart';
 import '../state/text_settings_bloc.dart';
 import 'index.dart';
 
@@ -16,6 +17,12 @@ class TextSettingsWidget extends StatelessWidget {
   Widget build(final BuildContext context) {
     final textSettingsBloc = context.watch<TextSettingsBloc>();
     final state = textSettingsBloc.state;
+    // On web, the Paginated/Scroll toggle (and other layout-affecting EPUB
+    // preferences) only works for publications that declare the EPUB profile —
+    // see CLAUDE.md "Gotchas". Use the current publication's conformance to
+    // decide whether to enable the toggle below.
+    final publication = context.watch<PublicationBloc>().state.publication;
+    final scrollToggleDisabled = kIsWeb && !(publication?.conformsToReadiumEbook ?? false);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.8,
@@ -163,20 +170,37 @@ class TextSettingsWidget extends StatelessWidget {
 
             // --- Layout Section ---
             _SectionHeader(title: 'Layout'),
+            // Note (web): this toggle is structurally a no-op for publications
+            // routed to WebPubNavigator — upstream `IWebPubPreferences` has no
+            // `scroll` field, so the web mapper silently drops it. Only
+            // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
+            // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
+            // `flutter_readium/web/_scripts/WebPub/webPubPrefences.ts`
+            // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
+            // non-EPUB publications and surface the reason via a tooltip.
             ListItemWidget(
               label: 'Page Layout',
-              child: SegmentedButton<bool>(
-                key: const ValueKey('scroll_mode_selector'),
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Paginated')),
-                  ButtonSegment(value: true, label: Text('Scroll')),
-                ],
-                selected: {state.scroll},
-                onSelectionChanged: (values) {
-                  if (values.first != state.scroll) {
-                    textSettingsBloc.add(ToggleScrollMode());
-                  }
-                },
+              child: Tooltip(
+                message: scrollToggleDisabled
+                    ? 'Page layout cannot be changed for this publication on web. '
+                          'Only publications that declare the EPUB profile in '
+                          'metadata.conformsTo support paginated/scroll on web.'
+                    : '',
+                child: SegmentedButton<bool>(
+                  key: const ValueKey('scroll_mode_selector'),
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Paginated')),
+                    ButtonSegment(value: true, label: Text('Scroll')),
+                  ],
+                  selected: {state.scroll},
+                  onSelectionChanged: scrollToggleDisabled
+                      ? null
+                      : (values) {
+                          if (values.first != state.scroll) {
+                            textSettingsBloc.add(ToggleScrollMode());
+                          }
+                        },
+                ),
               ),
             ),
             ListItemWidget(
@@ -298,6 +322,17 @@ class TextSettingsWidget extends StatelessWidget {
                 value: state.disableSynchronization,
                 onChanged: (value) {
                   textSettingsBloc.add(ToggleDisableSynchronization());
+                },
+              ),
+            ),
+            ListItemWidget(
+              label: 'Reduce crowding (dyslexia)',
+              isVerticalAlignment: true,
+              child: Switch(
+                key: const ValueKey('reduce_crowding_switch'),
+                value: state.reduceCrowding,
+                onChanged: (value) {
+                  textSettingsBloc.add(ToggleReduceCrowding());
                 },
               ),
             ),

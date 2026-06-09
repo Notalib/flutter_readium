@@ -401,6 +401,7 @@ function Setup() {
     }
 
     initResponsiveTables();
+    startSpotlightObserver(document);
   });
 }
 
@@ -416,6 +417,52 @@ window.gotoComicFrame = (id: string, duration: number) => {
   } else {
     console.warn("gotoComicFrame: Comic book page is not available.");
   }
+}
+
+/**
+ * Watch for `.flutter-readium-spotlight` decoration elements being added or
+ * removed from the document, toggle `body.flutter-readium-spotlight-active`,
+ * and on first activation inject the text-fade CSS rule at the END of <head>.
+ *
+ * The dynamic injection is intentional: `flutterReadiumTools.css` is injected
+ * at document-start, before Readium CSS loads. Readium may inject its own
+ * `!important` text-color rules later (e.g. for user theme colours). Because
+ * equal-specificity `!important` rules are resolved by declaration order (last
+ * wins), our fade must appear AFTER Readium's rules to take effect. By
+ * appending the style element at activation time — after the page is fully
+ * loaded and Readium's CSS is in the head — we guarantee that ordering.
+ */
+function startSpotlightObserver(doc: Document): void {
+  const SPOTLIGHT_ELEM_CLASS = 'flutter-readium-spotlight';
+  const BODY_ACTIVE_CLASS = 'flutter-readium-spotlight-active';
+  const STYLE_ID = 'flutter-readium-spotlight-style';
+
+  let wasActive = false;
+
+  const update = () => {
+    const isActive = !!doc.querySelector('.' + SPOTLIGHT_ELEM_CLASS);
+
+    if (isActive && !wasActive) {
+      // Transitioning to active: (re-)append the style element to the end of
+      // <head> so it is the last stylesheet declared — beating any Readium CSS
+      // rule with the same specificity + !important. appendChild() moves an
+      // already-present element rather than duplicating it.
+      let styleEl = doc.getElementById(STYLE_ID) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.id = STYLE_ID;
+        styleEl.textContent =
+          `body.${BODY_ACTIVE_CLASS},body.${BODY_ACTIVE_CLASS} *` +
+          `{color:rgba(0,0,0,.22)!important}`;
+      }
+      doc.head.appendChild(styleEl);
+    }
+
+    doc.body.classList.toggle(BODY_ACTIVE_CLASS, isActive);
+    wasActive = isActive;
+  };
+
+  new MutationObserver(update).observe(doc.body, { childList: true, subtree: true });
 }
 
 let hasCapturedReadiumFunctions = false;
