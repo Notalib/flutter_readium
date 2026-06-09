@@ -5,7 +5,11 @@ import ReadiumShared
 public protocol TimebasedListener {
   func timebasedNavigator(_: FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState)
   func timebasedNavigator(_: FlutterTimebasedNavigator, encounteredError error: Error, withDescription description: String?)
-  func timebasedNavigator(_: FlutterTimebasedNavigator, reachedLocator locator: Locator, segmentDuration: TimeInterval?)
+  /// - Parameter isWordRange: `true` when this is a fine-grained sub-utterance
+  ///   word-range update (TTS). The reader view skips these while in scroll mode
+  ///   to avoid snap-to-top jitter, but follows them in pagination so an
+  ///   utterance crossing a page boundary turns to the word being spoken.
+  func timebasedNavigator(_: FlutterTimebasedNavigator, reachedLocator locator: Locator, segmentDuration: TimeInterval?, isWordRange: Bool)
   func timebasedNavigator(_: FlutterTimebasedNavigator, requestsHighlightAt locator: Locator?, withWordLocator wordLocator: Locator?)
 }
 

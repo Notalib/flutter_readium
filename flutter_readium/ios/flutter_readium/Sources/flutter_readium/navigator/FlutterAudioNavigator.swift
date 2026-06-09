@@ -400,7 +400,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
        let navigator = self._audioNavigator {
       locator.locations.position = navigator.playbackInfo.resourceIndex + 1
     }
-    self.listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
+    self.listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil, isWordRange: false)
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {

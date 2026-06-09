@@ -450,9 +450,19 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
 
-  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil, isWordRange: Bool = false) async -> Bool {
     if (isJumpingToLocator || preferences?.disableSync == true) {
       Log.reader.debug("syncToLocator: skipped")
+      return false
+    }
+    // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
+    // spoken word re-pins the current paragraph to the top of the viewport
+    // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
+    // and the per-word highlight decoration keep the reader in the right place.
+    // In pagination we DO follow the word range, so an utterance spanning a page
+    // boundary turns the page to the word currently being spoken.
+    if (isWordRange && readiumViewController.presentation.scroll) {
+      Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
       return false
     }
     Log.reader.debug("syncToLocator: \(locator)")
@@ -460,7 +470,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let segmentDurationMs = duration * 1000.0
       await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
     }
-    return await goToLocator(locator, animated: animated)
+    // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
+    // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
+    // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
+    // progression stall: the MainActor Task for the next utterance's syncToLocator runs
+    // while this Task is suspended awaiting the CSS-column page turn, sees
+    // isJumpingToLocator == true, and silently drops the sync. The next utterance then
+    // plays audio but the spotlight decoration and page position never advance.
+    return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
   private func emitOnPageChanged() {
@@ -679,32 +696,49 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   // MARK: – Custom decoration templates
 
-  /// Spotlight: semi-transparent tinted box over the active text range + large
-  /// box-shadow that dims the rest of the viewport.
+  /// Escape a string for use as an HTML attribute value (double-quoted).
+  private static func escapeHtmlAttr(_ s: String) -> String {
+    s.replacingOccurrences(of: "&", with: "&amp;")
+     .replacingOccurrences(of: "\"", with: "&quot;")
+     .replacingOccurrences(of: "<", with: "&lt;")
+     .replacingOccurrences(of: ">", with: "&gt;")
+  }
+
+  /// Spotlight: semi-transparent tinted box over the active text range, one per
+  /// text line.
   ///
-  /// Uses `.bounds` layout (a single element covering the whole range) rather than
-  /// `.boxes` (one element per line). With `.boxes`, a multi-line range produces one
-  /// 9999px box-shadow per line; those shadows overlap and composite additively,
-  /// darkening the whole viewport toward black. A single bounding element casts a
-  /// single shadow, so the dim stays at the intended opacity regardless of how many
-  /// lines the range spans.
+  /// Uses `.boxes` layout (one `<div>` per CSS border box / text line) so that
+  /// utterances spanning CSS columns are represented by per-line boxes each
+  /// contained within their own column. `.bounds` would produce a single rectangle
+  /// spanning the bounding box of the whole range, which overflows across the gutter
+  /// and into the next column when an utterance crosses a column boundary.
   ///
-  /// The fill renders at the decoration's natural stacking level (above the page
-  /// background), so the tint is visible on both light and dark themes. A semi-
-  /// transparent alpha (0.5) lets the text show through. The outward box-shadow
-  /// covers everything outside the element, giving a "dimmed background everywhere
-  /// except the spotlit range" effect.
+  /// The class `flutter-readium-spotlight` is a stable marker that
+  /// `flutterReadiumTools.js` watches via MutationObserver to:
+  ///   1. Toggle `body.flutter-readium-spotlight-active`, which fades all body text
+  ///      to low contrast via an injected CSS rule.
+  ///   2. Read `data-css-selector` and add `.flutter-readium-spotlit-text` to the
+  ///      matching element, so a higher-specificity CSS rule restores its text colour.
   ///
-  /// Limitation: the box-shadow clips at column/page boundaries in paginated
-  /// multi-column EPUB layouts.
+  /// `background-color` MUST be `!important`: Readium CSS forces every element's
+  /// background to transparent when a custom theme is active (see Gotcha in
+  /// CLAUDE.md); without `!important` the fill would be invisible.
+  ///
+  /// `z-index: -1` renders the fill behind the text glyphs (same as the ruler and
+  /// the upstream highlight/underline templates). This keeps the text colour
+  /// visually unaffected by the tint overlay and matches what `::highlight()` does
+  /// on web — the yellow acts purely as a background, not a colour wash.
   private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
     HTMLDecorationTemplate(
-      layout: .bounds,
+      layout: .boxes,
       width: .bounds,
       element: { decoration in
         let config = decoration.style.config as! Decoration.Style.HighlightConfig
-        let tint = config.tint ?? UIColor.yellow
-        return "<div style=\"background-color: \(tint.cssValue(alpha: 0.5)); box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); box-sizing: border-box;\"/>"
+        let bgColor = config.tint.map { "\($0.cssValue(alpha: 0.5))" } ?? "transparent"
+        let sel = Self.escapeHtmlAttr(decoration.locator.locations.cssSelector ?? "")
+        let hl  = Self.escapeHtmlAttr(decoration.locator.text.highlight ?? "")
+        let bef = Self.escapeHtmlAttr(decoration.locator.text.before ?? "")
+        return "<div class=\"flutter-readium-spotlight\" data-css-selector=\"\(sel)\" data-text-highlight=\"\(hl)\" data-text-before=\"\(bef)\" data-tint=\"\(bgColor)\" style=\"z-index: -1; box-sizing: border-box;\"/>"
       }
     )
   }
@@ -719,8 +753,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// whenever a custom theme/background is active (always, in practice), which would
   /// otherwise force this decoration's fill to transparent and make the ruler
   /// invisible. The upstream default highlight template uses `!important` for the
-  /// same reason. Spotlight does not need it because its visible effect comes from
-  /// the (non-overridden) box-shadow, not the fill.
+  /// same reason. Spotlight also uses `!important` for the same reason (see
+  /// spotlightDecorationTemplate).
   ///
   /// `z-index: -1` places the stripe behind the publication text (the same
   /// `experimentalPositioning` technique as the default highlight/underline
@@ -732,8 +766,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       width: .viewport,
       element: { decoration in
         let config = decoration.style.config as! Decoration.Style.HighlightConfig
-        let tint = config.tint ?? UIColor.yellow
-        return "<div style=\"background-color: \(tint.cssValue(alpha: 0.5)) !important; z-index: -1; box-sizing: border-box;\"/>"
+        let bgColor = config.tint.map { "\($0.cssValue(alpha: 0.5))" } ?? "transparent"
+        return "<div style=\"background-color: \(bgColor) !important; z-index: -1; box-sizing: border-box;\"/>"
       }
     )
   }

@@ -1,5 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'package:flutter/material.dart' show Color, Colors;
+import 'package:flutter/material.dart' show Color;
 
 import '../index.dart';
 
@@ -60,10 +60,15 @@ class ReaderDecoration implements JSONable {
 }
 
 class ReaderDecorationStyle implements JSONable {
-  const ReaderDecorationStyle({required this.style, required this.tint, this.isActive = false});
+  const ReaderDecorationStyle({required this.style, this.tint, this.isActive = false});
 
   final DecorationStyle style;
-  final Color tint;
+
+  /// The tint colour used for the decoration fill.
+  ///
+  /// `null` means no background colour — the style's visual effect (e.g. the
+  /// spotlight dim) still applies, but no tinted box is drawn over the range.
+  final Color? tint;
 
   /// When `true`, the decoration is rendered in a visually distinct "active"
   /// state (e.g. brighter highlight) to indicate the currently focused item —
@@ -74,11 +79,15 @@ class ReaderDecorationStyle implements JSONable {
   final bool isActive;
 
   @override
-  Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS(), 'isActive': isActive};
+  Map<String, dynamic> toJson() => {
+    'style': style.name,
+    if (tint != null) 'tint': tint!.toCSS(),
+    'isActive': isActive,
+  };
 
   factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
     style: DecorationStyle.fromString(map['style']),
-    tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
+    tint: map['tint'] != null ? Color(map['tint'] as int) : null,
     isActive: map['isActive'] as bool? ?? false,
   );
 

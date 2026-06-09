@@ -55,8 +55,15 @@ abstract class TimebasedNavigator<P : MediaNavigator.Playback>(
 
         /**
          * Called when there is a time-based location change, this is used to highlight text while reading.
+         *
+         * [isWordRange] is `true` for fine-grained sub-utterance word-range updates (TTS). The
+         * implementation skips these in scroll mode to avoid snap-to-top jitter, but follows them
+         * in pagination so an utterance crossing a page boundary turns to the word being spoken.
          */
-        fun onTimebasedLocationChanged(locator: Locator)
+        fun onTimebasedLocationChanged(
+            locator: Locator,
+            isWordRange: Boolean,
+        )
     }
 
     // Possible states for a time-based navigator.

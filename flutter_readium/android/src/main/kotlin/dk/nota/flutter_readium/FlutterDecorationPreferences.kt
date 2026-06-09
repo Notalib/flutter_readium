@@ -33,9 +33,12 @@ data class FlutterDecorationPreferences(
             uttDecoMap: Map<*, *>?,
             rangeDecoMap: Map<*, *>?,
         ): FlutterDecorationPreferences =
+            // Do NOT fall back to defaults here — a null arg means "clear this
+            // style", not "keep the current one". The defaults in the primary
+            // constructor apply only at initial construction, not on update.
             FlutterDecorationPreferences(
-                decorationStyleFromMap(uttDecoMap) ?: defaultUtteranceStyle,
-                decorationStyleFromMap(rangeDecoMap) ?: defaultCurrentRangeStyle,
+                decorationStyleFromMap(uttDecoMap),
+                decorationStyleFromMap(rangeDecoMap),
             )
     }
 }

@@ -251,13 +251,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "setDecorationStyle":
       let args = call.arguments as! [Any?]
 
-      if let uttDecorationMap = args[0] as? [String: Any] {
-        ttsUtteranceDecorationStyle = try! Decoration.Style(fromMap: uttDecorationMap)
-      }
-
-      if let rangeDecorationMap = args[1] as? [String: Any] {
-        ttsRangeDecorationStyle = try! Decoration.Style(fromMap: rangeDecorationMap)
-      }
+      // Explicitly set to nil when the arg is null — do NOT skip the assignment.
+      // An `if let` guard would leave the previous style in place when null is
+      // passed, which prevents the caller from clearing an active decoration.
+      ttsUtteranceDecorationStyle = (args[0] as? [String: Any]).map { try! Decoration.Style(fromMap: $0) }
+      ttsRangeDecorationStyle = (args[1] as? [String: Any]).map { try! Decoration.Style(fromMap: $0) }
       Task { @MainActor in
         self.timebasedNavigator?.decorationsUpdated()
       }
@@ -541,11 +539,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: description).toJsonString())
   }
 
-  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, segmentDuration: TimeInterval?) {
+  public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, segmentDuration: TimeInterval?, isWordRange: Bool) {
     Log.navigator.debug("TimebasedNavigator reachedLocator: \(locator)")
 
     Task { @MainActor [locator] in
-      await currentReaderView?.syncToLocator(locator, animated: false, segmentDuration: segmentDuration)
+      await currentReaderView?.syncToLocator(locator, animated: false, segmentDuration: segmentDuration, isWordRange: isWordRange)
     }
   }
 

@@ -705,36 +705,55 @@ class EpubReaderFragment :
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
 
         /**
-         * Spotlight: semi-transparent tinted box over the active range + large box-shadow
-         * that dims the rest of the viewport.
+         * Spotlight: semi-transparent tinted box over the active range, one per text line.
          *
-         * Uses BOUNDS layout (a single element covering the whole range) rather than BOXES
-         * (one element per line). With BOXES, a multi-line range produces one 9999px
-         * box-shadow per line; those shadows overlap and composite additively, darkening the
-         * whole viewport toward black. A single bounding element casts a single shadow, so
-         * the dim stays at the intended opacity regardless of how many lines the range spans.
+         * Uses BOXES layout (one element per CSS border box / text line) so that utterances
+         * spanning CSS columns are represented by per-line boxes each contained within their
+         * own column. BOUNDS would produce a single rectangle spanning the bounding box of
+         * the whole range, which overflows across the gutter and into the next column when
+         * an utterance crosses a column boundary.
          *
-         * The fill renders at the decoration's natural stacking level (above the page
-         * background), so the tint is visible on both light and dark themes. A semi-
-         * transparent alpha (0.5) lets the text show through. The outward box-shadow covers
-         * everything outside the element, giving a "dimmed background everywhere except the
-         * spotlit range" effect.
+         * The class `flutter-readium-spotlight` is a stable marker that
+         * `flutterReadiumTools.js` watches via MutationObserver to:
+         *   1. Toggle `body.flutter-readium-spotlight-active`, which fades all body text
+         *      to low contrast via an injected CSS rule.
+         *   2. Read `data-css-selector` and add `.flutter-readium-spotlit-text` to the
+         *      matching element, so a higher-specificity CSS rule restores its text colour.
          *
-         * Limitation: box-shadow clips at column/page boundaries in paginated multi-column
-         * layouts.
+         * `background-color` MUST be `!important`: Readium CSS forces every element's
+         * background to transparent when a custom theme is active (see Gotcha in CLAUDE.md);
+         * without `!important` the fill would be invisible.
+         *
+         * `z-index: -1` renders the fill behind the text glyphs (same as the ruler and the
+         * upstream highlight/underline templates). This keeps the text colour visually
+         * unaffected by the tint overlay and matches what `::highlight()` does on web —
+         * the yellow acts purely as a background, not a colour wash.
          */
         private fun spotlightDecorationTemplate(): HtmlDecorationTemplate =
             HtmlDecorationTemplate(
-                layout = HtmlDecorationTemplate.Layout.BOUNDS,
+                layout = HtmlDecorationTemplate.Layout.BOXES,
                 width = HtmlDecorationTemplate.Width.BOUNDS,
                 element = { decoration ->
-                    val tint =
-                        (decoration.style as? SpotlightStyle)?.tint
-                            ?: android.graphics.Color.YELLOW
-                    val r = android.graphics.Color.red(tint)
-                    val g = android.graphics.Color.green(tint)
-                    val b = android.graphics.Color.blue(tint)
-                    """<div style="background-color: rgba($r,$g,$b,0.5); box-shadow: 0 0 0 9999px rgba(0,0,0,0.45); box-sizing: border-box;"/>"""
+                    val tint = (decoration.style as? SpotlightStyle)?.tint ?: android.graphics.Color.TRANSPARENT
+                    val bgColor =
+                        if (android.graphics.Color.alpha(tint) == 0) {
+                            "transparent"
+                        } else {
+                            val r = android.graphics.Color.red(tint)
+                            val g = android.graphics.Color.green(tint)
+                            val b = android.graphics.Color.blue(tint)
+                            "rgba($r,$g,$b,0.5)"
+                        }
+
+                    fun String.escAttr() =
+                        replace("&", "&amp;")
+                            .replace("\"", "&quot;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;")
+                    val sel = (decoration.locator.locations.cssSelector ?: "").escAttr()
+                    val hl = (decoration.locator.text.highlight ?: "").escAttr()
+                    val bef = (decoration.locator.text.before ?: "").escAttr()
+                    """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
                 },
             )
 
@@ -748,8 +767,7 @@ class EpubReaderFragment :
          * whenever a custom theme/background is active (always, in practice), which would
          * otherwise force this decoration's fill to transparent and make the ruler invisible.
          * The upstream default highlight template uses `!important` for the same reason.
-         * Spotlight does not need it because its visible effect comes from the (non-overridden)
-         * box-shadow, not the fill.
+         * Spotlight also uses `!important` for the same reason (see spotlightDecorationTemplate).
          *
          * `z-index: -1` places the stripe behind the publication text (the same
          * experimentalPositioning technique as the default highlight/underline templates),
@@ -760,13 +778,17 @@ class EpubReaderFragment :
                 layout = HtmlDecorationTemplate.Layout.BOXES,
                 width = HtmlDecorationTemplate.Width.VIEWPORT,
                 element = { decoration ->
-                    val tint =
-                        (decoration.style as? RulerStyle)?.tint
-                            ?: android.graphics.Color.YELLOW
-                    val r = android.graphics.Color.red(tint)
-                    val g = android.graphics.Color.green(tint)
-                    val b = android.graphics.Color.blue(tint)
-                    """<div style="background-color: rgba($r,$g,$b,0.5) !important; z-index: -1; box-sizing: border-box;"/>"""
+                    val tint = (decoration.style as? RulerStyle)?.tint ?: android.graphics.Color.TRANSPARENT
+                    val bgColor =
+                        if (android.graphics.Color.alpha(tint) == 0) {
+                            "transparent"
+                        } else {
+                            val r = android.graphics.Color.red(tint)
+                            val g = android.graphics.Color.green(tint)
+                            val b = android.graphics.Color.blue(tint)
+                            "rgba($r,$g,$b,0.5)"
+                        }
+                    """<div style="background-color: $bgColor !important; z-index: -1; box-sizing: border-box;"/>"""
                 },
             )
     }

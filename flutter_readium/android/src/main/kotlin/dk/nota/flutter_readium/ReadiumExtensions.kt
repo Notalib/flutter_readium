@@ -2,6 +2,7 @@
 
 package dk.nota.flutter_readium
 
+import android.graphics.Color
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
@@ -95,9 +96,11 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
         if (decoMap == null) return null
 
         val styleStr = decoMap["style"] as String
-        val tintColorStr = decoMap["tint"] as String
+        // `tint` is optional — null means no background colour.
+        val tintColorStr = decoMap["tint"] as? String
         val isActive = decoMap["isActive"] as? Boolean ?: false
-        val tint = readiumColorFromCSS(tintColorStr).int
+        // Use TRANSPARENT as the no-tint sentinel; templates check alpha == 0.
+        val tint = tintColorStr?.let { readiumColorFromCSS(it).int } ?: Color.TRANSPARENT
         val style =
             when (styleStr) {
                 "underline" -> Decoration.Style.Underline(tint, isActive)
