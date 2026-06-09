@@ -155,7 +155,6 @@ export async function initializeEpubNavigatorAndPeripherals(
       p.observe(window);
     },
     positionChanged: (_locator: Locator): void => {
-      window.focus();
       emitTextLocatorDebounced(
         enrichLocatorWithTocHref(
           enrichWithTotalProgression(_locator, totalPositions),
