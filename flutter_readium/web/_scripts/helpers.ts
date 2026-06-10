@@ -279,6 +279,15 @@ export function registerPendingDecorationGroup(
  * `.readium-highlight` box sits *behind* dimmed text, so the dim still shows
  * through. Document this for callers.
  */
+/**
+ * Clear all module-level spotlight state. Call on publication close so the
+ * stale set does not re-apply the dim to the next publication's iframes when
+ * `injectDecorationOverrides` fires on them.
+ */
+export function clearSpotlightState(): void {
+  _spotlightGroups.clear();
+}
+
 export function setSpotlightGroupOnIframes(
   iframes: Window[],
   group: string,

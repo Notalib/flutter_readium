@@ -14,6 +14,7 @@ import {
   navIframeWindows,
   registerPendingDecorationGroup,
   setSpotlightGroupOnIframes,
+  clearSpotlightState,
   UNDERLINE_GROUP_SUFFIX,
   SPOTLIGHT_GROUP_SUFFIX,
   dartColorToCss,
@@ -506,6 +507,7 @@ class _ReadiumReader {
     this._lastMediaOverlayLocatorKey = null;
     this._isComicBook = false;
     this._decorationsByGroup.clear();
+    clearSpotlightState();
 
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
