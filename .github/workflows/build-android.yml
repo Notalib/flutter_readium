@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          distribution: temurin
+          distribution: jetbrains
           java-version: '21'
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -40,7 +40,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle', 'flutter_readium/example/android/app/build.gradle') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
