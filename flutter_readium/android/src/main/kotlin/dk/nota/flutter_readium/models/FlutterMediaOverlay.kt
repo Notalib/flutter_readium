@@ -1,8 +1,8 @@
 package dk.nota.flutter_readium.models
 
 import android.os.Parcelable
-import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.PluginLog
+import dk.nota.flutter_readium.getTextId
 import dk.nota.flutter_readium.progression
 import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize

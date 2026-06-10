@@ -43,7 +43,7 @@ public protocol ReadiumReaderView: AnyObject {
   func getFirstVisibleLocator() async -> Locator?
   func goToLocator(_ locator: Locator, animated: Bool) async -> Bool
   func goToProgression(_ progression: Double, animated: Bool) async -> Bool
-  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool
+  func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?, isWordRange: Bool) async -> Bool
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String)
   func onCustomEditingAction() -> Void
 }

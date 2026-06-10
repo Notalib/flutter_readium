@@ -137,7 +137,6 @@ export class FlutterEpubNavigator {
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {
-        window.focus();
         emitTextLocatorDebounced(
           enrichWithTocHref(
             enrichWithTotalProgression(_locator, totalPositions),

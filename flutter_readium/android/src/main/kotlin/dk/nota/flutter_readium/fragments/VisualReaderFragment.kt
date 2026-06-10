@@ -4,9 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.databinding.FragmentReaderBinding
 import dk.nota.flutter_readium.viewLifecycle
-import dk.nota.flutter_readium.PluginLog
 
 private const val TAG = "VisualReaderFragment"
 

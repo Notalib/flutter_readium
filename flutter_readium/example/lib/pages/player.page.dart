@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -21,6 +22,16 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   final _slideDuration = const Duration(milliseconds: 350);
   final _shouldShowControls = ValueNotifier(true);
+
+  Future<void> _deferWebGoToAfterRoutePop() async {
+    if (!kIsWeb) {
+      return;
+    }
+
+    // Let the route pop settle before issuing goToLocator on web.
+    // Navigating before it is ready means the chapter will not render.
+    await Future<void>.delayed(Duration(milliseconds: 1));
+  }
 
   @override
   Widget build(
@@ -142,7 +153,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         if (publication != null && result != null && result is Link) {
           final tocLink = result;
           final locator = publication.locatorFromLink(tocLink);
-          if (locator != null && context.mounted) {
+          if (locator != null) {
+            await _deferWebGoToAfterRoutePop();
             context.read<PlayerControlsBloc>().add(GoToLocator(locator));
           }
         }

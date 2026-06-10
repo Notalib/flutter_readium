@@ -4,15 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
 import '../extensions/text_settings_theme.dart';
+import '../state/publication_bloc.dart';
 import '../state/text_settings_bloc.dart';
 import 'index.dart';
 
-const List<String> _fontFamilies = [
-  'Original',
-  'serif',
-  'sans-serif',
-  'monospace',
-];
+const List<String> _fontFamilies = ['Original', 'serif', 'sans-serif', 'monospace'];
 
 class TextSettingsWidget extends StatelessWidget {
   const TextSettingsWidget({super.key});
@@ -21,6 +17,12 @@ class TextSettingsWidget extends StatelessWidget {
   Widget build(final BuildContext context) {
     final textSettingsBloc = context.watch<TextSettingsBloc>();
     final state = textSettingsBloc.state;
+    // On web, the Paginated/Scroll toggle (and other layout-affecting EPUB
+    // preferences) only works for publications that declare the EPUB profile —
+    // see CLAUDE.md "Gotchas". Use the current publication's conformance to
+    // decide whether to enable the toggle below.
+    final publication = context.watch<PublicationBloc>().state.publication;
+    final scrollToggleDisabled = kIsWeb && !(publication?.conformsToReadiumEbook ?? false);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.8,
@@ -76,27 +78,13 @@ class TextSettingsWidget extends StatelessWidget {
                 key: const ValueKey('text_align_selector'),
                 emptySelectionAllowed: true,
                 segments: const [
-                  ButtonSegment(
-                    value: TextAlign.start,
-                    icon: Icon(Icons.format_align_left),
-                    tooltip: 'Start',
-                  ),
-                  ButtonSegment(
-                    value: TextAlign.right,
-                    icon: Icon(Icons.format_align_right),
-                    tooltip: 'Right',
-                  ),
-                  ButtonSegment(
-                    value: TextAlign.justify,
-                    icon: Icon(Icons.format_align_justify),
-                    tooltip: 'Justify',
-                  ),
+                  ButtonSegment(value: TextAlign.start, icon: Icon(Icons.format_align_left), tooltip: 'Start'),
+                  ButtonSegment(value: TextAlign.right, icon: Icon(Icons.format_align_right), tooltip: 'Right'),
+                  ButtonSegment(value: TextAlign.justify, icon: Icon(Icons.format_align_justify), tooltip: 'Justify'),
                 ],
                 selected: state.textAlign != null ? {state.textAlign!} : {},
                 onSelectionChanged: (values) {
-                  textSettingsBloc.add(
-                    ChangeTextAlign(values.isEmpty ? null : values.first),
-                  );
+                  textSettingsBloc.add(ChangeTextAlign(values.isEmpty ? null : values.first));
                 },
               ),
             ),
@@ -182,20 +170,37 @@ class TextSettingsWidget extends StatelessWidget {
 
             // --- Layout Section ---
             _SectionHeader(title: 'Layout'),
+            // Note (web): this toggle is structurally a no-op for publications
+            // routed to WebPubNavigator — upstream `IWebPubPreferences` has no
+            // `scroll` field, so the web mapper silently drops it. Only
+            // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
+            // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
+            // `flutter_readium/web/src/preferences/FlutterWebPubPreferences.ts`
+            // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
+            // non-EPUB publications and surface the reason via a tooltip.
             ListItemWidget(
               label: 'Page Layout',
-              child: SegmentedButton<bool>(
-                key: const ValueKey('scroll_mode_selector'),
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Paginated')),
-                  ButtonSegment(value: true, label: Text('Scroll')),
-                ],
-                selected: {state.scroll},
-                onSelectionChanged: (values) {
-                  if (values.first != state.scroll) {
-                    textSettingsBloc.add(ToggleScrollMode());
-                  }
-                },
+              child: Tooltip(
+                message: scrollToggleDisabled
+                    ? 'Page layout cannot be changed for this publication on web. '
+                          'Only publications that declare the EPUB profile in '
+                          'metadata.conformsTo support paginated/scroll on web.'
+                    : '',
+                child: SegmentedButton<bool>(
+                  key: const ValueKey('scroll_mode_selector'),
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Paginated')),
+                    ButtonSegment(value: true, label: Text('Scroll')),
+                  ],
+                  selected: {state.scroll},
+                  onSelectionChanged: scrollToggleDisabled
+                      ? null
+                      : (values) {
+                          if (values.first != state.scroll) {
+                            textSettingsBloc.add(ToggleScrollMode());
+                          }
+                        },
+                ),
               ),
             ),
             ListItemWidget(
@@ -203,10 +208,7 @@ class TextSettingsWidget extends StatelessWidget {
               child: SegmentedButton<EpubColumnCount>(
                 key: const ValueKey('column_count_selector'),
                 segments: const [
-                  ButtonSegment(
-                    value: EpubColumnCount.auto,
-                    label: Text('Auto'),
-                  ),
+                  ButtonSegment(value: EpubColumnCount.auto, label: Text('Auto')),
                   ButtonSegment(value: EpubColumnCount.one, label: Text('One')),
                   ButtonSegment(value: EpubColumnCount.two, label: Text('Two')),
                 ],
@@ -225,22 +227,12 @@ class TextSettingsWidget extends StatelessWidget {
                 child: SegmentedButton<EpubReadingProgression>(
                   key: const ValueKey('reading_progression_selector'),
                   segments: const [
-                    ButtonSegment(
-                      value: EpubReadingProgression.ltr,
-                      label: Text('LTR'),
-                    ),
-                    ButtonSegment(
-                      value: EpubReadingProgression.rtl,
-                      label: Text('RTL'),
-                    ),
+                    ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
+                    ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
                   ],
-                  selected: {
-                    state.readingProgression ?? EpubReadingProgression.ltr,
-                  },
+                  selected: {state.readingProgression ?? EpubReadingProgression.ltr},
                   onSelectionChanged: (values) {
-                    textSettingsBloc.add(
-                      ChangeReadingProgression(values.first),
-                    );
+                    textSettingsBloc.add(ChangeReadingProgression(values.first));
                   },
                 ),
               ),
@@ -333,6 +325,17 @@ class TextSettingsWidget extends StatelessWidget {
                 },
               ),
             ),
+            ListItemWidget(
+              label: 'Reduce crowding (dyslexia)',
+              isVerticalAlignment: true,
+              child: Switch(
+                key: const ValueKey('reduce_crowding_switch'),
+                value: state.reduceCrowding,
+                onChanged: (value) {
+                  textSettingsBloc.add(ToggleReduceCrowding());
+                },
+              ),
+            ),
             const Divider(),
 
             // --- Theme Section ---
@@ -347,22 +350,12 @@ class TextSettingsWidget extends StatelessWidget {
                 key: const ValueKey('image_filter_selector'),
                 emptySelectionAllowed: true,
                 segments: const [
-                  ButtonSegment(
-                    value: EpubImageFilter.darken,
-                    label: Text('Darken'),
-                  ),
-                  ButtonSegment(
-                    value: EpubImageFilter.invert,
-                    label: Text('Invert'),
-                  ),
+                  ButtonSegment(value: EpubImageFilter.darken, label: Text('Darken')),
+                  ButtonSegment(value: EpubImageFilter.invert, label: Text('Invert')),
                 ],
-                selected: {
-                  state.imageFilter,
-                }.whereType<EpubImageFilter?>().toSet(),
+                selected: {state.imageFilter}.whereType<EpubImageFilter?>().toSet(),
                 onSelectionChanged: (values) {
-                  textSettingsBloc.add(
-                    ChangeImageFilter(values.isEmpty ? null : values.first),
-                  );
+                  textSettingsBloc.add(ChangeImageFilter(values.isEmpty ? null : values.first));
                 },
               ),
             ),
@@ -380,21 +373,13 @@ class TextSettingsWidget extends StatelessWidget {
                   emptySelectionAllowed: true,
                   segments: const [
                     ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(
-                      value: DecorationStyle.highlight,
-                      label: Text('Fill'),
-                    ),
-                    ButtonSegment(
-                      value: DecorationStyle.underline,
-                      label: Text('Line'),
-                    ),
+                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
+                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
+                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
                   ],
                   selected: {utteranceStyle},
-                  onSelectionChanged: (values) => context.read<TextSettingsBloc>().add(
-                    ChangeUtteranceStyle(
-                      values.isEmpty ? null : values.first,
-                    ),
-                  ),
+                  onSelectionChanged: (values) =>
+                      context.read<TextSettingsBloc>().add(ChangeUtteranceStyle(values.isEmpty ? null : values.first)),
                 ),
               ),
             ),
@@ -407,21 +392,13 @@ class TextSettingsWidget extends StatelessWidget {
                   emptySelectionAllowed: true,
                   segments: const [
                     ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(
-                      value: DecorationStyle.highlight,
-                      label: Text('Fill'),
-                    ),
-                    ButtonSegment(
-                      value: DecorationStyle.underline,
-                      label: Text('Line'),
-                    ),
+                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
+                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
+                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
                   ],
                   selected: {rangeStyle},
-                  onSelectionChanged: (values) => context.read<TextSettingsBloc>().add(
-                    ChangeRangeStyle(
-                      values.isEmpty ? null : values.first,
-                    ),
-                  ),
+                  onSelectionChanged: (values) =>
+                      context.read<TextSettingsBloc>().add(ChangeRangeStyle(values.isEmpty ? null : values.first)),
                 ),
               ),
             ),
@@ -430,13 +407,9 @@ class TextSettingsWidget extends StatelessWidget {
               key: const ValueKey('text_settings_close_button'),
               onPressed: () => Navigator.of(context).pop(),
               style: ButtonStyle(
-                padding: WidgetStateProperty.all<EdgeInsets>(
-                  const EdgeInsets.symmetric(vertical: 16.0),
-                ),
+                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
                 shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0.0),
-                  ),
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
                 ),
               ),
               child: Row(
@@ -467,11 +440,7 @@ class _CollapsibleSection extends StatelessWidget {
       child: ExpansionTile(
         title: Text(
           title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
         initiallyExpanded: false,
         children: children,
@@ -492,11 +461,7 @@ class _SectionHeader extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
       ),
     );

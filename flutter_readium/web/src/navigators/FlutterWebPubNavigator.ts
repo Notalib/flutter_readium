@@ -49,6 +49,19 @@ export class FlutterWebPubNavigator {
     // reading order. Mirror that for `totalProgression`.
     const totalPositions = publication.readingOrder.items.length;
 
+    // Trailing-edge debounce — mirrors the same pattern in FlutterEpubNavigator.
+    // WebPubNavigator is scroll-only, so positionChanged fires at rAF rate
+    // (~60 Hz) during scrolling and would otherwise flood onTextLocatorChanged.
+    const TEXT_LOCATOR_DEBOUNCE_MS = 200;
+    let textLocatorTimer: ReturnType<typeof setTimeout> | undefined;
+    const emitTextLocatorDebounced = (locator: Locator) => {
+      if (textLocatorTimer !== undefined) clearTimeout(textLocatorTimer);
+      textLocatorTimer = setTimeout(() => {
+        textLocatorTimer = undefined;
+        window.updateTextLocator?.(JSON.stringify(locator.serialize()));
+      }, TEXT_LOCATOR_DEBOUNCE_MS);
+    };
+
     const configuration: WebPubNavigatorConfiguration = {
       preferences,
       defaults,
@@ -82,9 +95,7 @@ export class FlutterWebPubNavigator {
         p.observe(window);
       },
       positionChanged: (_locator: Locator): void => {
-        window.focus();
-        const enriched = enrichWithTotalProgression(_locator, totalPositions);
-        window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
+        emitTextLocatorDebounced(enrichWithTotalProgression(_locator, totalPositions));
       },
       tap: function (_e: FrameClickEvent): boolean {
         log.debug("tap event");
