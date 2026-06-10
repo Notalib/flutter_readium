@@ -233,11 +233,15 @@ export class WebTTSEngine {
 
   /**
    * Updates the decoration styles for utterance and range highlighting.
-   * Takes effect on the next utterance; current utterance is not re-decorated.
+   * If there is an active utterance, its decoration is re-applied immediately
+   * so the style change takes effect without waiting for the next cue.
    */
   updateDecorationStyles(utteranceStyle: object | null, rangeStyle: object | null): void {
     this._utteranceStyle = utteranceStyle;
     this._rangeStyle = rangeStyle;
+    if (this._currentElement) {
+      this._applyDecoration("tts_utterance", this._currentElement.locator, this._utteranceStyle);
+    }
   }
 
   // ---------------------------------------------------------------------------
