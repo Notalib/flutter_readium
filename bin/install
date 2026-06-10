@@ -7,6 +7,9 @@ if [ "$(uname)" = "Darwin" ]; then
   ( cd "$REPO_ROOT/flutter_readium/example/ios" && pod update && pod install --repo-update )
 fi
 
+# Make sure web dependencies are installed
+cd "$REPO_ROOT/flutter_readium/web/_scripts" && npm install --ignore-scripts
+
 "$REPO_ROOT/flutter_readium/bin/build_helper_scripts.sh"
 "$REPO_ROOT/bin/build_js"
 "$REPO_ROOT/bin/update_web_example"
