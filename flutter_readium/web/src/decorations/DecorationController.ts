@@ -16,7 +16,7 @@ import {
   registerPendingDecorationGroup,
   setSpotlightGroupOnIframes,
   clearSpotlightState,
-} from "./decorationOverrides";
+} from "./decorationFrameUtils";
 import { dartColorToCss } from "../utils/colors";
 
 export class DecorationController {

@@ -21,7 +21,7 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import {
   injectDecorationOverrides,
-} from "../decorations/decorationOverrides";
+} from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import {

@@ -17,7 +17,7 @@ import {
   initializeWebPubPreferencesFromString,
 } from "../preferences/FlutterWebPubPreferences";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
-import { injectDecorationOverrides } from "../decorations/decorationOverrides";
+import { injectDecorationOverrides } from "../decorations/decorationFrameUtils";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { enrichWithTotalProgression } from "./locatorEnrich";
 import {
