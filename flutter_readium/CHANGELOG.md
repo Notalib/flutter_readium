@@ -9,6 +9,16 @@ Brings the Web platform up to feature parity with iOS / Android (audio,
 Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
 
+### Fixed
+
+- **iOS: early reader events are no longer dropped** — the `text-locator` and
+  `reader-status` event channels now buffer the most-recent event on the native
+  side when Dart has not yet attached a listener.  The buffer is flushed
+  immediately when `onListen` fires, eliminating the race between the EPUB
+  platform-view initialisation and the asynchronous stream-subscription
+  handshake.  Buffers are cleared on `closePublication()` so stale events from
+  a closed publication are never replayed to the next subscriber.
+
 ### Added
 
 - **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
@@ -56,6 +66,10 @@ supporting cross-platform additions.
 - **Web: `onTextLocatorChanged` locators now carry `tocHref`** — the EPUB navigator
   enriches each emitted locator with the current chapter's ToC href, matching the
   iOS / Android contract and unblocking chapter-skip features on the consumer side.
+- **Web: TTS locators now carry `tocHref`** — `Locator.locations.tocHref` is now
+  populated on every locator emitted during TTS playback (utterance-start and
+  word-boundary events), so chapter-aware features work during TTS on web — matching
+  the existing behaviour for visual navigation and audiobook / media-overlay playback.
 - **Web: reading-order item duration propagated to media-overlay items** — the parent
   reading-order link's declared `duration` (when present) is carried on each item and
   used as the authoritative fallback for the synthetic audio Link's duration, replacing
@@ -79,6 +93,24 @@ supporting cross-platform additions.
   these fields; they are silently ignored on Android and web.
 - **`totalProgression` for EPUB and audio navigators (web)** — computed and surfaced for
   the progress slider on web.
+- **`DecorationStyle.spotlight`** — new decoration style that dims everything outside
+  the decorated range and (optionally) renders the tint inside it. Implemented across
+  Dart API, iOS (`box-shadow` + body dim), Android (`box-shadow` + body dim), and web
+  (`body.flutter-readium-spotlight` gates a body-wide dim; a per-group `::highlight()`
+  restore rule keeps the spotlit range readable, and the caller-supplied tint colours
+  the range's fill). Pass a non-transparent tint for "dim outside + tinted fill"; pass
+  a transparent tint for "pure dim outside".
+- **`DecorationStyle.ruler`** — new decoration style that renders a typoscope /
+  reading mask: two full-viewport-width dim bands sit above and below the decorated
+  range, leaving the range itself clear. Best suited to scrolled layouts. Implemented
+  on the Dart API and on web (geometry-driven from the resolved range element, so it
+  works in both the CSS Custom Highlight API path and the DOM-fallback path).
+- **`ReaderDecorationStyle.isActive`** — new `bool` field (default `false`) that
+  renders the decoration in a visually distinct "active" state to mark the
+  currently-focused annotation. Maps to the upstream
+  `Decoration.Style.HighlightConfig.isActive` on iOS and
+  `Decoration.Style.Highlight/Underline.isActive` on Android; surfaces on web for the
+  highlight / underline / spotlight paths.
 
 ### Changed
 
@@ -141,6 +173,16 @@ their net effect is the `Added` entries above.)
   EPUB reader view's native handlers now return a method-channel result on success
   (matching the PDF reader view); previously they never completed, so awaiting these
   methods could hang forever.
+- **Web: `WebPubNavigator` now debounces `onTextLocatorChanged` during scroll** —
+  matches the existing EPUB debounce. The WebPub navigator was emitting
+  position-changed events at rAF rate (~60 Hz), flooding the Dart-side text-locator
+  stream with redundant updates.
+- **Web: spotlight decoration now honours its tint and dims reliably on EPUB-profile
+  publications** — the spotlight CSS no longer strips the caller-supplied tint (it
+  used to force `background-color: transparent !important`, silently dropping any
+  fill colour), and the body-wide dim selector is now specific enough to beat the
+  ReadiumCSS `customColors_pref.css` user-text-colour rule that previously won the
+  cascade on EPUB-profile publications.
 
 ## [0.0.1] - 2025-06-01
 

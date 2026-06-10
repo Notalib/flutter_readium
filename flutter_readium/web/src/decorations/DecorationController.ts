@@ -10,9 +10,12 @@ import { Decoration, Layout, Width } from "@readium/navigator-html-injectables";
 import { Locator } from "@readium/shared";
 import {
   UNDERLINE_GROUP_SUFFIX,
+  SPOTLIGHT_GROUP_SUFFIX,
   sendDecorate,
   navIframeWindows,
   registerPendingDecorationGroup,
+  setSpotlightGroupOnIframes,
+  clearSpotlightState,
 } from "./decorationOverrides";
 import { dartColorToCss } from "../utils/colors";
 
@@ -41,9 +44,10 @@ export class DecorationController {
    */
   applyDecorations(nav: EpubNavigator | WebPubNavigator, group: string, decorationsJson: string): void {
     const underlineGroup = group + UNDERLINE_GROUP_SUFFIX;
+    const spotlightGroup = group + SPOTLIGHT_GROUP_SUFFIX;
 
     // Clear all subgroups for replacement semantics.
-    for (const grp of [group, underlineGroup]) {
+    for (const grp of [group, underlineGroup, spotlightGroup]) {
       sendDecorate(nav, grp, "clear", undefined);
       this._decorationsByGroup.set(grp, new Set());
     }
@@ -88,6 +92,11 @@ export class DecorationController {
       sendDecorate(nav, targetGroup, "add", decoration);
       this._decorationsByGroup.get(targetGroup)!.add(raw.id);
     }
+
+    // Spotlight is driven by decoration presence: activate when the spotlight
+    // subgroup is non-empty, deactivate when empty.
+    const hasSpotlight = (this._decorationsByGroup.get(spotlightGroup)?.size ?? 0) > 0;
+    setSpotlightGroupOnIframes(iframes, spotlightGroup, hasSpotlight);
   }
 
   /**
@@ -111,11 +120,13 @@ export class DecorationController {
   /** Clear all stored decoration group state (call on closePublication). */
   reset(): void {
     this._decorationsByGroup.clear();
+    clearSpotlightState();
   }
 
   private _subgroupFor(group: string, style: string): string {
     switch (style) {
       case "underline": return group + UNDERLINE_GROUP_SUFFIX;
+      case "spotlight": return group + SPOTLIGHT_GROUP_SUFFIX;
       default:          return group; // "highlight" and anything unknown
     }
   }

@@ -2,12 +2,12 @@ package dk.nota.flutter_readium.navigators
 
 import android.os.Bundle
 import dk.nota.flutter_readium.FlutterAudioPreferences
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.ReadiumReader
 import dk.nota.flutter_readium.copyWithTimeFragment
 import dk.nota.flutter_readium.findReadingOrderLink
 import dk.nota.flutter_readium.getReadingOrderItemDuration
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
-import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.progression
 import dk.nota.flutter_readium.timeWithDuration
 import kotlinx.coroutines.ExperimentalCoroutinesApi

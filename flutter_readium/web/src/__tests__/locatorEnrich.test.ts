@@ -1,5 +1,5 @@
 /**
- * Unit tests for Epub/epubNavigator.ts → enrichWithTotalProgression.
+ * Unit tests for navigators/locatorEnrich.ts → enrichWithTotalProgression.
  *
  * Formula: (position - 1 + progression) / totalPositions, clamped to [0, 1].
  * Falls back gracefully when position or progression are absent.

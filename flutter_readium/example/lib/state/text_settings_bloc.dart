@@ -56,6 +56,9 @@ class ToggleBlackAndWhiteComicMode extends TextSettingsEvent {}
 class ToggleDisableSynchronization extends TextSettingsEvent {}
 
 @immutable
+class ToggleReduceCrowding extends TextSettingsEvent {}
+
+@immutable
 class ChangeFontFamily extends TextSettingsEvent {
   ChangeFontFamily(this.value);
   final String value;
@@ -138,6 +141,7 @@ class TextSettingsState {
     this.paragraphSpacing = 1.0,
     this.blackAndWhiteComicMode = false,
     this.disableSynchronization = false,
+    this.reduceCrowding = false,
     this.firstElementTopMargin = 40,
     this.fontFamily = 'Original',
     this.fontWeight = 1.0,
@@ -165,6 +169,9 @@ class TextSettingsState {
   final double? paragraphSpacing;
   final bool blackAndWhiteComicMode;
   final bool disableSynchronization;
+
+  /// Dyslexia crowding-reduction preset: increases letter/word/line spacing.
+  final bool reduceCrowding;
   final int? firstElementTopMargin;
   final String fontFamily;
   final double fontWeight;
@@ -195,6 +202,7 @@ class TextSettingsState {
     final double? paragraphSpacing,
     final bool? blackAndWhiteComicMode,
     final bool? disableSynchronization,
+    final bool? reduceCrowding,
     final int? firstElementTopMargin,
     final String? fontFamily,
     final double? fontWeight,
@@ -222,6 +230,7 @@ class TextSettingsState {
       paragraphSpacing: paragraphSpacing ?? this.paragraphSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
       disableSynchronization: disableSynchronization ?? this.disableSynchronization,
+      reduceCrowding: reduceCrowding ?? this.reduceCrowding,
       firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
       fontFamily: fontFamily ?? this.fontFamily,
       fontWeight: fontWeight ?? this.fontWeight,
@@ -332,7 +341,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
           blackAndWhiteComicMode: false,
           disableSynchronization: false,
           firstElementTopMargin: 40,
-          utteranceStyle: DecorationStyle.highlight,
+          utteranceStyle: DecorationStyle.spotlight,
           rangeStyle: DecorationStyle.underline,
         ),
       ) {
@@ -356,6 +365,21 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
     on<ToggleDisableSynchronization>((final event, final emit) {
       emit(
         state.copyWith(disableSynchronization: !state.disableSynchronization),
+      );
+      submitPreferenceUpdate();
+    });
+
+    on<ToggleReduceCrowding>((final event, final emit) {
+      final enabling = !state.reduceCrowding;
+      // Dyslexia crowding-reduction preset: increase letter/word/line spacing.
+      // Toggling off restores baseline spacing.
+      emit(
+        state.copyWith(
+          reduceCrowding: enabling,
+          letterSpacing: enabling ? 0.12 : 0.0,
+          wordSpacing: enabling ? 0.3 : 0.0,
+          lineHeight: enabling ? 1.8 : 1.2,
+        ),
       );
       submitPreferenceUpdate();
     });

@@ -2,6 +2,7 @@
 
 package dk.nota.flutter_readium
 
+import android.graphics.Color
 import androidx.core.graphics.toColorInt
 import dk.nota.flutter_readium.models.FlutterMediaOverlay
 import dk.nota.flutter_readium.models.FlutterMediaOverlayItem
@@ -60,6 +61,7 @@ fun decorationFromJson(jsonString: String): Decoration? =
                 mapOf(
                     "style" to styleJson.getString("style"),
                     "tint" to styleJson.getString("tint"),
+                    "isActive" to styleJson.optBoolean("isActive", false),
                 ),
             ) ?: throw Exception("Failed to deserialize decoration style")
         Decoration(id, locator, style)
@@ -94,12 +96,16 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
         if (decoMap == null) return null
 
         val styleStr = decoMap["style"] as String
-        val tintColorStr = decoMap["tint"] as String
-        val tint = readiumColorFromCSS(tintColorStr).int
+        // `tint` is optional — null means no background colour.
+        val tintColorStr = decoMap["tint"] as? String
+        val isActive = decoMap["isActive"] as? Boolean ?: false
+        // Use TRANSPARENT as the no-tint sentinel; templates check alpha == 0.
+        val tint = tintColorStr?.let { readiumColorFromCSS(it).int } ?: Color.TRANSPARENT
         val style =
             when (styleStr) {
-                "underline" -> Decoration.Style.Underline(tint)
-                else -> Decoration.Style.Highlight(tint) // "highlight" + unknown
+                "underline" -> Decoration.Style.Underline(tint, isActive)
+                "spotlight" -> SpotlightStyle(tint)
+                else -> Decoration.Style.Highlight(tint, isActive) // "highlight" + unknown
             }
         return style
     } catch (ex: Exception) {

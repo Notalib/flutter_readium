@@ -334,15 +334,18 @@ class _ReadiumReader {
   /**
    * Replace the entire decoration group with the provided list.
    *
-   * Decorations are routed to one of two upstream subgroups based on style:
+   * Decorations are routed to one of three upstream subgroups based on style:
    *   - `highlight` → `<group>` (filled rectangle behind text)
    *   - `underline` → `<group>__underline` (border-bottom via injected CSS)
+   *   - `spotlight` → `<group>__spotlight` (filled rectangle + body-dim CSS)
    *
-   * Both subgroups are cleared on each call for replacement semantics.
+   * All three subgroups are cleared on each call for replacement semantics. Spotlight
+   * CSS is activated/deactivated automatically based on whether the spotlight subgroup
+   * is non-empty after routing.
    *
    * @param group  Unique group identifier (opaque string passed from Dart).
    * @param decorationsJson  JSON-encoded array of ReaderDecoration objects:
-   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline", tint: "#AARRGGBB" } }]
+   *   [{ id, locator: <Locator JSON>, style: { style: "highlight"|"underline"|"spotlight", tint: "#AARRGGBB" } }]
    *   Tints are in Dart's AARRGGBB format and are converted to CSS RRGGBBAA internally.
    */
   public applyDecorations(group: string, decorationsJson: string): void {
