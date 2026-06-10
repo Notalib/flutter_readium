@@ -94,6 +94,7 @@ void main() {
       timeout: const Duration(seconds: 30),
       reason: 'ReadiumReaderWidget never emitted an initial textLocator',
     );
+    await _waitForListStable(tester, locators);
     final initialLocator = locators.last;
 
     // The reader should have emitted ready now that we have received the first Locator.
@@ -111,6 +112,7 @@ void main() {
       timeout: const Duration(seconds: 15),
       reason: 'goForward() did not produce a new textLocator',
     );
+    await _waitForListStable(tester, locators);
     expect(
       locators.last,
       isNot(equals(initialLocator)),
@@ -489,6 +491,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'No initial textLocator emitted',
       );
+      await _waitForListStable(tester, locators);
       final savedLocator = locators.last;
 
       await reader.goForward();
@@ -498,6 +501,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'goForward() did not produce a new locator',
       );
+      await _waitForListStable(tester, locators);
       final afterForward = locators.last;
 
       final ok = await reader.goToLocator(savedLocator);
@@ -509,6 +513,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'goToLocator() did not emit a new textLocator',
       );
+      await _waitForListStable(tester, locators);
       expect(
         locators.last.href,
         equals(savedLocator.href),
@@ -540,13 +545,16 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'No initial locator on first mount',
       );
+      await _waitForListStable(tester, locators);
+      final initialLocator = locators.last;
       await reader.goForward();
       await _waitWithPump(
         tester,
-        () => locators.length >= 2,
+        () => locators.last != initialLocator,
         timeout: const Duration(seconds: 15),
-        reason: 'goForward() did not emit a second locator',
+        reason: 'goForward() did not advance from the initial locator',
       );
+      await _waitForListStable(tester, locators);
       final savedLocator = locators.last;
 
       // Unmount, then remount with initialLocator.
@@ -568,6 +576,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'No textLocator emitted after remount with initialLocator',
       );
+      await _waitForListStable(tester, locators);
 
       expect(
         locators.last.href,

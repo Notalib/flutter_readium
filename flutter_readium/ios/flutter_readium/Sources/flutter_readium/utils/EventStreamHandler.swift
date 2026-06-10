@@ -5,20 +5,31 @@ class EventStreamHandler: NSObject, FlutterStreamHandler {
   private let streamName: String
   private var channel: FlutterEventChannel
   private var eventSink: FlutterEventSink?
+  private var bufferedEvent: Any?
 
   public func sendEvent(_ event: Any?) {
-    eventSink?(event)
+    guard let eventSink else {
+      bufferedEvent = event
+      return
+    }
+
+    eventSink(event)
   }
 
   func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     Log.readium.debug("StreamHandler.onListen: \(self.streamName)")
     eventSink = events
+    if let bufferedEvent {
+      events(bufferedEvent)
+      self.bufferedEvent = nil
+    }
     return nil
   }
 
   func onCancel(withArguments arguments: Any?) -> FlutterError? {
     Log.readium.debug("StreamHandler.onCancel: \(self.streamName)")
     eventSink = nil
+    bufferedEvent = nil
     return nil
   }
 
@@ -27,6 +38,7 @@ class EventStreamHandler: NSObject, FlutterStreamHandler {
     // End stream and clear the event-sink to prevent memory leaks.
     eventSink?(FlutterEndOfEventStream)
     eventSink = nil
+    bufferedEvent = nil
     channel.setStreamHandler(nil)
   }
 

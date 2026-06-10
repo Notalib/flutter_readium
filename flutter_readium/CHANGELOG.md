@@ -9,6 +9,14 @@ Brings the Web platform up to feature parity with iOS / Android (audio,
 Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
 
+### Fixed
+
+- **iOS: early reader events are no longer dropped** — the native event-channel
+  bridge now buffers the latest event until Dart finishes attaching its
+  listener, so mount-time `onTextLocatorChanged` / `onReaderStatusChanged`
+  emissions are delivered reliably even when the platform view starts faster
+  than the stream subscription handshake.
+
 ### Added
 
 - **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
