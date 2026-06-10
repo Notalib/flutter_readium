@@ -30,20 +30,22 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
 
   Stream<Locator>? _onTextLocatorChanged;
-
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
-
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
-
   Stream<ReadiumError>? _onErrorEvent;
 
   /// Fires whenever the Reader's current Locator changes.
+  ///
+  /// The underlying event channel opts in to native-side buffering so the first
+  /// event is never dropped even if it fires before the Dart [onListen]
+  /// handshake completes (a race that can happen when the EPUB platform view
+  /// initialises faster than the asynchronous channel setup).
   @override
   Stream<Locator> get onTextLocatorChanged {
-    _onTextLocatorChanged ??= textLocatorChannel.receiveBroadcastStream().map((dynamic event) {
-      final newLocator = Locator.fromJson(json.decode(event) as Map<String, dynamic>);
-      return newLocator!;
-    }).asBroadcastStream();
+    _onTextLocatorChanged ??= textLocatorChannel
+        .receiveBroadcastStream()
+        .map((dynamic event) => Locator.fromJson(json.decode(event) as Map<String, dynamic>)!)
+        .asBroadcastStream();
     return _onTextLocatorChanged!;
   }
 
@@ -67,6 +69,10 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     return _onTimebasedPlayerStateChanged!;
   }
 
+  /// Fires whenever the reader status changes.
+  ///
+  /// Like [onTextLocatorChanged], the underlying event channel opts in to
+  /// native-side buffering to avoid dropping the first status event.
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged {
     _onReaderStatusChanged ??= readerStatusChannel.receiveBroadcastStream().map((dynamic event) {
@@ -79,7 +85,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
         _log.w('Error parsing reader status event: $e');
         return ReadiumReaderStatus.error;
       }
-    });
+    }).asBroadcastStream();
     return _onReaderStatusChanged!;
   }
 
@@ -123,7 +129,15 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> closePublication() async => await methodChannel.invokeMethod<void>('closePublication');
+  Future<void> closePublication() async {
+    await methodChannel.invokeMethod<void>('closePublication');
+    // Reset the lazy-stream fields so the next getter access creates a fresh
+    // subscription and fires onListen on native before the next book's widget
+    // mounts. The native side clears its event buffers in the same call, so no
+    // stale locator or status from this publication will be replayed.
+    _onTextLocatorChanged = null;
+    _onReaderStatusChanged = null;
+  }
 
   @override
   Future<void> goBackward() async => await currentReaderWidget?.goBackward();
