@@ -28,7 +28,7 @@ import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
-import { navIframeWindows } from "./decorations/decorationOverrides";
+import { navIframeWindows } from "./decorations/decorationFrameUtils";
 
 const log = createLogger("Reader");
 
