@@ -11,11 +11,13 @@ supporting cross-platform additions.
 
 ### Fixed
 
-- **iOS: early reader events are no longer dropped** — the native event-channel
-  bridge now buffers the latest event until Dart finishes attaching its
-  listener, so mount-time `onTextLocatorChanged` / `onReaderStatusChanged`
-  emissions are delivered reliably even when the platform view starts faster
-  than the stream subscription handshake.
+- **iOS: early reader events are no longer dropped** — the `text-locator` and
+  `reader-status` event channels now buffer the most-recent event on the native
+  side when Dart has not yet attached a listener.  The buffer is flushed
+  immediately when `onListen` fires, eliminating the race between the EPUB
+  platform-view initialisation and the asynchronous stream-subscription
+  handshake.  Buffers are cleared on `closePublication()` so stale events from
+  a closed publication are never replayed to the next subscriber.
 
 ### Added
 

@@ -54,8 +54,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let plugin = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(plugin, channel: channel)
     plugin.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
-    plugin.textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger())
-    plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger())
+    // text-locator and reader-status opt in to buffering: the EPUB platform view
+    // can fire its first event before the Dart onListen handshake completes, so
+    // the buffer ensures that event is never silently dropped.
+    plugin.textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger(), bufferLatestEvent: true)
+    plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
     instance = plugin
 
@@ -678,6 +681,10 @@ extension FlutterReadiumPlugin {
     currentPublication = nil
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
+    // Clear the stream buffers so that a subscriber opening the next publication
+    // never receives a stale locator or status from this closed publication.
+    textLocatorStreamHandler?.clearBuffer()
+    readerStatusStreamHandler?.clearBuffer()
   }
 }
 
