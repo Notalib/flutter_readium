@@ -73,7 +73,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
             "setLogLevel" -> {
                 val levelIndex = arguments as? Int ?: return Try.success(null)
                 val level = PluginLogLevel.entries.getOrNull(levelIndex) ?: return Try.success(null)
-                PluginLog.w(TAG, "::setLogLevel = ${level}")
+                PluginLog.w(TAG, "::setLogLevel = $level")
                 PluginLog.level = level
                 return Try.success(null)
             }

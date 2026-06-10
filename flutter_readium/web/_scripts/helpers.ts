@@ -132,22 +132,6 @@ export function setPreferencesFromString(
  */
 export const UNDERLINE_GROUP_SUFFIX = "__underline";
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
-export const RULER_GROUP_SUFFIX = "__ruler";
-
-/**
- * Opacity of the dim applied above/below the ruler "reading window" (typoscope).
- * 0 = no dim, 1 = fully black surroundings. Kept moderate so surrounding text
- * stays legible as context rather than being hidden.
- */
-const RULER_MASK_DIM = 0.55;
-
-const RULER_BAND_ABOVE_ID = "flutter-readium-ruler-above";
-const RULER_BAND_BELOW_ID = "flutter-readium-ruler-below";
-
-// Active ruler ranges keyed by decoration group (e.g. "tts_utterance"), mirrored
-// at module level so a freshly-loaded iframe can re-draw the band. Each group
-// toggles only its own ranges, so clearing one group never wipes another's band.
-const _rulerLocatorsByGroup = new Map<string, Locator[]>();
 
 /**
  * Converts a Dart Color hex string from AARRGGBB to CSS RRGGBBAA format.
@@ -261,104 +245,6 @@ function resolveLocatorElement(
   const fragId = locator.locations?.fragments?.[0]?.replace(/^#/, "");
   if (fragId) return doc.getElementById(fragId);
   return null;
-}
-
-/**
- * Ruler "reading mask" / typoscope. Positions two full-viewport-width dim
- * overlays — one above and one below the vertical band spanned by `locators`
- * (the active read-aloud range) — leaving that band clear. Pass an empty array
- * to clear this group's band.
- *
- * Unlike a decoration box-shadow, this is geometry-driven from the resolved
- * range element, so it works in the CSS Custom Highlight API path (where Readium
- * creates no decoration box) as well as the DOM-fallback path. Best suited to
- * scrolled layouts; in paginated/column layouts the document-coordinate maths
- * does not apply. The band is re-computed on each call (i.e. each utterance), so
- * it follows narration; it does not track manual scroll/resize between updates.
- */
-export function setRulerBandForGroup(
-  nav: EpubNavigator | WebPubNavigator,
-  group: string,
-  locators: Locator[]
-): void {
-  if (locators.length > 0) _rulerLocatorsByGroup.set(group, locators);
-  else _rulerLocatorsByGroup.delete(group);
-  for (const wnd of navIframeWindows(nav)) {
-    applyRulerBandToIframe(wnd);
-  }
-}
-
-function ensureBandEl(doc: Document, id: string): HTMLElement {
-  let el = doc.getElementById(id) as HTMLElement | null;
-  if (!el) {
-    el = doc.createElement("div");
-    el.id = id;
-    el.dataset.readium = "true";
-    el.style.position = "absolute";
-    el.style.left = "0";
-    el.style.width = "100%";
-    el.style.pointerEvents = "none";
-    el.style.zIndex = "2147483646";
-    // ReadiumCSS injects `:root[style*="--USER__backgroundColor"] * {
-    // background-color: transparent !important }` whenever a user theme is
-    // active, so the fill must be `!important` to remain visible.
-    el.style.setProperty(
-      "background-color",
-      `rgba(0, 0, 0, ${RULER_MASK_DIM})`,
-      "important"
-    );
-    doc.body.appendChild(el);
-  }
-  return el;
-}
-
-// Vertical offset of an element from the document origin, summed up the
-// offsetParent chain. This matches the coordinate space of an absolutely-
-// positioned overlay appended to <body>; `getBoundingClientRect().top + scrollY`
-// can diverge from it inside the EPUB iframe's rendering context.
-function offsetDocTop(el: HTMLElement): number {
-  let y = 0;
-  let node: HTMLElement | null = el;
-  while (node) {
-    y += node.offsetTop;
-    node = node.offsetParent as HTMLElement | null;
-  }
-  return y;
-}
-
-function applyRulerBandToIframe(wnd: Window): void {
-  const doc = wnd.document;
-  if (!doc.body) return;
-
-  // Union the vertical extent of every active ruler range (document coords).
-  let top = Infinity;
-  let bottom = -Infinity;
-  for (const locators of _rulerLocatorsByGroup.values()) {
-    for (const loc of locators) {
-      const el = resolveLocatorElement(doc, loc) as HTMLElement | null;
-      if (!el) continue;
-      const elTop = offsetDocTop(el);
-      top = Math.min(top, elTop);
-      bottom = Math.max(bottom, elTop + el.offsetHeight);
-    }
-  }
-
-  const above = doc.getElementById(RULER_BAND_ABOVE_ID);
-  const below = doc.getElementById(RULER_BAND_BELOW_ID);
-  if (!Number.isFinite(top) || !Number.isFinite(bottom)) {
-    // No active/resolvable ruler range — remove the overlays.
-    above?.remove();
-    below?.remove();
-    return;
-  }
-
-  const docHeight = doc.documentElement.scrollHeight;
-  const a = ensureBandEl(doc, RULER_BAND_ABOVE_ID);
-  const b = ensureBandEl(doc, RULER_BAND_BELOW_ID);
-  a.style.top = "0";
-  a.style.height = `${Math.max(0, top)}px`;
-  b.style.top = `${bottom}px`;
-  b.style.height = `${Math.max(0, docHeight - bottom)}px`;
 }
 
 /**
@@ -522,11 +408,6 @@ function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
  *      rule wins by cascade order.
  *   3. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
  *      by {@link setSpotlightGroupOnIframes}.
- *
- * (The `ruler` reading-mask is handled separately by {@link setRulerBandForGroup},
- * which positions dim overlays from the active range's geometry — it works
- * regardless of whether Readium renders via boxes or the CSS Custom Highlight
- * API, where no decoration box exists.)
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
@@ -603,11 +484,6 @@ export function injectDecorationOverrides(wnd: Window): void {
     const state = getIframeState(wnd);
     state.spotlightGroups = new Set(_spotlightGroups);
     applySpotlightToIframe(wnd);
-  }
-
-  // Re-draw the ruler reading-mask band (if any group is active).
-  if (_rulerLocatorsByGroup.size > 0) {
-    applyRulerBandToIframe(wnd);
   }
 }
 

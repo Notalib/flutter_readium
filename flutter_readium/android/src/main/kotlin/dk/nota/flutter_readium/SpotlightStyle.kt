@@ -11,10 +11,3 @@ data class SpotlightStyle(
     @ColorInt override val tint: Int,
 ) : Decoration.Style,
     Decoration.Style.Tinted
-
-/** Ruler: full-viewport-width tinted stripe across each decorated text line. */
-@Parcelize
-data class RulerStyle(
-    @ColorInt override val tint: Int,
-) : Decoration.Style,
-    Decoration.Style.Tinted

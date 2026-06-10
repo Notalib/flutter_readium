@@ -32,31 +32,37 @@ data class FlutterPdfPreferences(
     companion object {
         fun fromMap(map: Map<String, Any>): FlutterPdfPreferences {
             val rpStr = map["readingProgression"] as? String
-            val readingProgression = rpStr?.let {
-                when (it) {
-                    "ltr" -> ReadingProgression.LTR
-                    "rtl" -> ReadingProgression.RTL
-                    else -> null
+            val readingProgression =
+                rpStr?.let {
+                    when (it) {
+                        "ltr" -> ReadingProgression.LTR
+                        "rtl" -> ReadingProgression.RTL
+                        else -> null
+                    }
                 }
-            }
             val layoutStr = map["layout"] as? String
-            val scrollAxis = layoutStr?.let {
-                when (it) {
-                    "paginated", "scrollHorizontal" -> Axis.HORIZONTAL
-                    "scrollVertical" -> Axis.VERTICAL
-                    else -> null
+            val scrollAxis =
+                layoutStr?.let {
+                    when (it) {
+                        "paginated", "scrollHorizontal" -> Axis.HORIZONTAL
+                        "scrollVertical" -> Axis.VERTICAL
+                        else -> null
+                    }
                 }
-            }
             val fitStr = map["fit"] as? String
-            val fit = fitStr?.let {
-                when (it) {
-                    "page", "contain" -> Fit.CONTAIN
-                    "width" -> Fit.WIDTH
-                    // Kotlin toolkit Pdfium supports only CONTAIN and WIDTH.
-                    "auto" -> null
-                    else -> null
+            val fit =
+                fitStr?.let {
+                    when (it) {
+                        "page", "contain" -> Fit.CONTAIN
+
+                        "width" -> Fit.WIDTH
+
+                        // Kotlin toolkit Pdfium supports only CONTAIN and WIDTH.
+                        "auto" -> null
+
+                        else -> null
+                    }
                 }
-            }
             val pageSpacing = (map["pageSpacing"] as? Number)?.toDouble()
             return FlutterPdfPreferences(
                 readingProgression = readingProgression,

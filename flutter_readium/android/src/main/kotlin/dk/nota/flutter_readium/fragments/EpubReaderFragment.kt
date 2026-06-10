@@ -11,7 +11,6 @@ import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
-import dk.nota.flutter_readium.RulerStyle
 import dk.nota.flutter_readium.SpotlightStyle
 import dk.nota.flutter_readium.isFixed
 import dk.nota.flutter_readium.models.EpubReaderViewModel
@@ -33,6 +32,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "EpubReaderFragment"
@@ -576,7 +576,6 @@ class EpubReaderFragment :
                                     experimentalPositioning = true,
                                 ).also { templates ->
                                     templates[SpotlightStyle::class] = spotlightDecorationTemplate()
-                                    templates[RulerStyle::class] = rulerDecorationTemplate()
                                 },
                         // Only register the callback if custom selectionActions are added.
                         selectionActionModeCallback =
@@ -724,8 +723,8 @@ class EpubReaderFragment :
          * background to transparent when a custom theme is active (see Gotcha in CLAUDE.md);
          * without `!important` the fill would be invisible.
          *
-         * `z-index: -1` renders the fill behind the text glyphs (same as the ruler and the
-         * upstream highlight/underline templates). This keeps the text colour visually
+         * `z-index: -1` renders the fill behind the text glyphs (same as the upstream
+         * highlight/underline templates). This keeps the text colour visually
          * unaffected by the tint overlay and matches what `::highlight()` does on web —
          * the yellow acts purely as a background, not a colour wash.
          */
@@ -754,41 +753,6 @@ class EpubReaderFragment :
                     val hl = (decoration.locator.text.highlight ?: "").escAttr()
                     val bef = (decoration.locator.text.before ?: "").escAttr()
                     """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
-                },
-            )
-
-        /**
-         * Ruler: full-viewport-width semi-transparent tinted stripe across each decorated
-         * text line. Layout.BOXES + Width.VIEWPORT produces one element per CSS border box
-         * (text line) stretched to the full viewport width — a reading-ruler accessibility aid.
-         *
-         * The background-color MUST be `!important`. Readium CSS injects
-         * `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
-         * whenever a custom theme/background is active (always, in practice), which would
-         * otherwise force this decoration's fill to transparent and make the ruler invisible.
-         * The upstream default highlight template uses `!important` for the same reason.
-         * Spotlight also uses `!important` for the same reason (see spotlightDecorationTemplate).
-         *
-         * `z-index: -1` places the stripe behind the publication text (the same
-         * experimentalPositioning technique as the default highlight/underline templates),
-         * so the tint sits under the glyphs instead of overlaying and recolouring them.
-         */
-        private fun rulerDecorationTemplate(): HtmlDecorationTemplate =
-            HtmlDecorationTemplate(
-                layout = HtmlDecorationTemplate.Layout.BOXES,
-                width = HtmlDecorationTemplate.Width.VIEWPORT,
-                element = { decoration ->
-                    val tint = (decoration.style as? RulerStyle)?.tint ?: android.graphics.Color.TRANSPARENT
-                    val bgColor =
-                        if (android.graphics.Color.alpha(tint) == 0) {
-                            "transparent"
-                        } else {
-                            val r = android.graphics.Color.red(tint)
-                            val g = android.graphics.Color.green(tint)
-                            val b = android.graphics.Color.blue(tint)
-                            "rgba($r,$g,$b,0.5)"
-                        }
-                    """<div style="background-color: $bgColor !important; z-index: -1; box-sizing: border-box;"/>"""
                 },
             )
     }

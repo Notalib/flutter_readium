@@ -7,14 +7,11 @@ enum DecorationStyle {
   /// Opaque filled rectangle placed **behind** text (`experimentalPositioning: true`, alpha 1.0). Default.
   highlight,
 
-  /// Colored border-bottom under the active text line. No box behind text.
+  /// Colored border-bottom under the active text line.
   underline,
 
   /// Tinted box behind text **and** all surrounding body text is dimmed, drawing the eye to the active range. |
-  spotlight,
-
-  /// Full-viewport-width stripe across the active text line — wide enough to reach page margins, a reading-ruler aid.
-  ruler;
+  spotlight;
 
   static DecorationStyle fromString(String? styleStr) {
     switch (styleStr) {
@@ -22,8 +19,6 @@ enum DecorationStyle {
         return DecorationStyle.underline;
       case 'spotlight':
         return DecorationStyle.spotlight;
-      case 'ruler':
-        return DecorationStyle.ruler;
       case 'highlight':
       default:
         return DecorationStyle.highlight;

@@ -105,7 +105,6 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
             when (styleStr) {
                 "underline" -> Decoration.Style.Underline(tint, isActive)
                 "spotlight" -> SpotlightStyle(tint)
-                "ruler" -> RulerStyle(tint)
                 else -> Decoration.Style.Highlight(tint, isActive) // "highlight" + unknown
             }
         return style

@@ -85,7 +85,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
     var decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
     decorationTemplates[Decoration.Style.Id("spotlight")] = EPUBReaderView.spotlightDecorationTemplate()
-    decorationTemplates[Decoration.Style.Id("ruler")] = EPUBReaderView.rulerDecorationTemplate()
     config.decorationTemplates = decorationTemplates
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
@@ -724,8 +723,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// background to transparent when a custom theme is active (see Gotcha in
   /// CLAUDE.md); without `!important` the fill would be invisible.
   ///
-  /// `z-index: -1` renders the fill behind the text glyphs (same as the ruler and
-  /// the upstream highlight/underline templates). This keeps the text colour
+  /// `z-index: -1` renders the fill behind the text glyphs (same as the upstream
+  /// highlight/underline templates). This keeps the text colour
   /// visually unaffected by the tint overlay and matches what `::highlight()` does
   /// on web — the yellow acts purely as a background, not a colour wash.
   private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
@@ -743,32 +742,4 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     )
   }
 
-  /// Ruler: full-viewport-width semi-transparent tinted stripe across each decorated
-  /// text line. `Layout.boxes + Width.viewport` produces one element per CSS border
-  /// box (text line), stretched to the full viewport width — a reading-ruler
-  /// accessibility aid that marks the active spoken line.
-  ///
-  /// The `background-color` MUST be `!important`. Readium CSS injects
-  /// `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`
-  /// whenever a custom theme/background is active (always, in practice), which would
-  /// otherwise force this decoration's fill to transparent and make the ruler
-  /// invisible. The upstream default highlight template uses `!important` for the
-  /// same reason. Spotlight also uses `!important` for the same reason (see
-  /// spotlightDecorationTemplate).
-  ///
-  /// `z-index: -1` places the stripe behind the publication text (the same
-  /// `experimentalPositioning` technique as the default highlight/underline
-  /// templates), so the tint sits under the glyphs instead of overlaying and
-  /// recolouring them.
-  private static func rulerDecorationTemplate() -> HTMLDecorationTemplate {
-    HTMLDecorationTemplate(
-      layout: .boxes,
-      width: .viewport,
-      element: { decoration in
-        let config = decoration.style.config as! Decoration.Style.HighlightConfig
-        let bgColor = config.tint.map { "\($0.cssValue(alpha: 0.5))" } ?? "transparent"
-        return "<div style=\"background-color: \(bgColor) !important; z-index: -1; box-sizing: border-box;\"/>"
-      }
-    )
-  }
 }
