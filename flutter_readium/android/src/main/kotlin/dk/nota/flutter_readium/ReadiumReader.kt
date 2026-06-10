@@ -463,11 +463,12 @@ object ReadiumReader :
                             is ThrowableError<*> -> "${e.message} | throwable: ${e.throwable}"
                             else -> "${e.message} | cause: ${unwrapCause(e.cause)}"
                         }
-                    val detail = when (err) {
-                        is OpenError.Reading -> "Reading error: ${unwrapCause(err.cause)}"
-                        is OpenError.FormatNotSupported -> "FormatNotSupported: ${unwrapCause(err.cause)}"
-                        else -> err.toString()
-                    }
+                    val detail =
+                        when (err) {
+                            is OpenError.Reading -> "Reading error: ${unwrapCause(err.cause)}"
+                            is OpenError.FormatNotSupported -> "FormatNotSupported: ${unwrapCause(err.cause)}"
+                            else -> err.toString()
+                        }
                     PluginLog.e(TAG, "Error opening publication: $detail")
                     asset.close()
                     return failure(err)
@@ -709,8 +710,22 @@ object ReadiumReader :
             )
     }
 
-    override fun onTimebasedLocationChanged(locator: Locator) {
+    override fun onTimebasedLocationChanged(
+        locator: Locator,
+        isWordRange: Boolean,
+    ) {
         PluginLog.d(TAG, "::onTimebasedLocationChanged $locator")
+
+        // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
+        // spoken word re-pins the current paragraph to the top of the viewport,
+        // causing constant snap-to-top jitter. The utterance-level sync and the
+        // per-word highlight decoration keep the reader in the right place.
+        // In pagination we DO follow the word range, so an utterance spanning a
+        // page boundary turns the page to the word currently being spoken.
+        if (isWordRange && epubNavigator?.preferences?.scroll == true) {
+            PluginLog.d(TAG, "::onTimebasedLocationChanged skipped word-range sync in scroll mode")
+            return
+        }
 
         launch {
             epubSyncToLocator(locator, true)
@@ -850,7 +865,10 @@ object ReadiumReader :
 
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
-                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.PDF) == true
         if (!isPdf) {
             throw Exception("Publication is not a PDF, cannot enable pdf navigator")
         }
@@ -920,8 +938,7 @@ object ReadiumReader :
                     if (!fragment.startsWith("page=")) return@mapNotNull null
                     val tocPage = fragment.removePrefix("page=").toIntOrNull() ?: return@mapNotNull null
                     Pair(tocPage, link)
-                }
-                .filter { it.first <= page }
+                }.filter { it.first <= page }
                 .maxByOrNull { it.first }
                 ?.second ?: return locator
 
@@ -960,7 +977,10 @@ object ReadiumReader :
             currentPublication ?: throw Exception("Publication not opened cannot enable visual navigator")
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
-                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.PDF) == true
         if (isPdf) {
             pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
         } else {
@@ -1186,7 +1206,10 @@ object ReadiumReader :
             )
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
-                pub.readingOrder.firstOrNull()?.mediaType?.matches(MediaType.PDF) == true
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.PDF) == true
         if (isPdf) {
             return failure(
                 Error("PDF search is not supported on Android: kotlin-toolkit does not ship a SearchService for PDF publications."),

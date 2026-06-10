@@ -1,5 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
-import 'package:flutter/material.dart' show Color, Colors;
+import 'package:flutter/material.dart' show Color;
 
 import '../index.dart';
 
@@ -7,13 +7,18 @@ enum DecorationStyle {
   /// Opaque filled rectangle placed **behind** text (`experimentalPositioning: true`, alpha 1.0). Default.
   highlight,
 
-  /// Colored border-bottom under the active text line. No box behind text.
-  underline;
+  /// Colored border-bottom under the active text line.
+  underline,
+
+  /// Tinted box behind text **and** all surrounding body text is dimmed, drawing the eye to the active range. |
+  spotlight;
 
   static DecorationStyle fromString(String? styleStr) {
     switch (styleStr) {
       case 'underline':
         return DecorationStyle.underline;
+      case 'spotlight':
+        return DecorationStyle.spotlight;
       case 'highlight':
       default:
         return DecorationStyle.highlight;
@@ -50,19 +55,40 @@ class ReaderDecoration implements JSONable {
 }
 
 class ReaderDecorationStyle implements JSONable {
-  const ReaderDecorationStyle({required this.style, required this.tint});
+  const ReaderDecorationStyle({required this.style, this.tint, this.isActive = false});
 
   final DecorationStyle style;
-  final Color tint;
+
+  /// The tint colour used for the decoration fill.
+  ///
+  /// `null` means no background colour — the style's visual effect (e.g. the
+  /// spotlight dim) still applies, but no tinted box is drawn over the range.
+  final Color? tint;
+
+  /// When `true`, the decoration is rendered in a visually distinct "active"
+  /// state (e.g. brighter highlight) to indicate the currently focused item —
+  /// for example, the search result being navigated to in a result list.
+  ///
+  /// Supported on iOS and Android. Ignored on web until decorations are
+  /// implemented there.
+  final bool isActive;
 
   @override
-  Map<String, dynamic> toJson() => {'style': style.name, 'tint': tint.toCSS()};
+  Map<String, dynamic> toJson() => {
+    'style': style.name,
+    if (tint != null) 'tint': tint!.toCSS(),
+    'isActive': isActive,
+  };
 
   factory ReaderDecorationStyle.fromJson(final Map<String, dynamic> map) => ReaderDecorationStyle(
     style: DecorationStyle.fromString(map['style']),
-    tint: map['tint'] != null ? Color(map['tint'] as int) : Colors.red,
+    tint: map['tint'] != null ? Color(map['tint'] as int) : null,
+    isActive: map['isActive'] as bool? ?? false,
   );
 
-  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint}) =>
-      ReaderDecorationStyle(style: style ?? this.style, tint: tint ?? this.tint);
+  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint, bool? isActive}) => ReaderDecorationStyle(
+    style: style ?? this.style,
+    tint: tint ?? this.tint,
+    isActive: isActive ?? this.isActive,
+  );
 }

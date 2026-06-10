@@ -9,6 +9,11 @@
       "command": "dart",
       "args": ["run", "marionette_mcp"],
       "cwd": "${workspaceFolder}/flutter_readium/example"
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
     }
   }
 }

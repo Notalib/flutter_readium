@@ -30,13 +30,15 @@ import { createLogger } from "../logger";
 import {
   WebTTSPreferences,
   serializeVoices,
-  ttsPreferencesFromJson,
 } from "./ttsPreferences";
 
 const log = createLogger("TTS");
 
 /** Minimum ms between onboundary state emissions (throttle). */
 const BOUNDARY_THROTTLE_MS = 100;
+// How long to wait for `utterance.onstart` after calling `speak()` before
+// considering the speechSynthesis engine wedged and triggering recovery.
+const WEDGE_WATCHDOG_MS = 1500;
 
 type AnyNavigator = EpubNavigator | WebPubNavigator;
 
@@ -209,6 +211,15 @@ export class WebTTSEngine {
     this._rangeStyle = rangeStyle;
     this._onApplyDecorations = onApplyDecorations;
     this._flatToc = flattenToc(publication.manifest.toc?.items ?? []);
+    // Hard-reset Chrome's speechSynthesis on construction. Leftover state from
+    // a previous publication (or a wedge that survived a page navigation) can
+    // prevent the very first speak() of the new session from dispatching
+    // onstart. Calling cancel() on an idle engine is a no-op.
+    try {
+      speechSynthesis.cancel();
+    } catch {
+      /* ignore — unsupported environment */
+    }
   }
 
   /**
@@ -222,11 +233,15 @@ export class WebTTSEngine {
 
   /**
    * Updates the decoration styles for utterance and range highlighting.
-   * Takes effect on the next utterance; current utterance is not re-decorated.
+   * If there is an active utterance, its decoration is re-applied immediately
+   * so the style change takes effect without waiting for the next cue.
    */
   updateDecorationStyles(utteranceStyle: object | null, rangeStyle: object | null): void {
     this._utteranceStyle = utteranceStyle;
     this._rangeStyle = rangeStyle;
+    if (this._currentElement) {
+      this._applyDecoration("tts_utterance", this._currentElement.locator, this._utteranceStyle);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -246,10 +261,12 @@ export class WebTTSEngine {
     // Chromium silently swallows the first async speak() if the gesture has
     // already expired by the time we call it (after awaiting hasNext()).
     // A zero-length utterance consumes the gesture and wakes the engine.
+    log.debug("Priming speechSynthesis engine");
     speechSynthesis.speak(new SpeechSynthesisUtterance(""));
     // Only cancel if there's something queued — cancel() on an idle engine
     // can leave Chromium in a stalled state.
-    if (speechSynthesis.speaking || speechSynthesis.pending) {
+    const wasActive = speechSynthesis.speaking || speechSynthesis.pending;
+    if (wasActive) {
       speechSynthesis.cancel();
     }
     this._iterator = new PublicationContentIterator(
@@ -260,17 +277,29 @@ export class WebTTSEngine {
           new HTMLResourceContentIterator(resource, locator),
       ]
     );
+    // Give Chromium's TTS state machine a tick to settle after cancel().
+    // Without this, a subsequent speak() can flip `speaking: true` and never
+    // dispatch utterance.onstart — the classic wedge that strikes when play()
+    // is invoked twice in quick succession (e.g. ttsEnable followed by an
+    // immediate play(locator) from the Dart side).
+    if (wasActive) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      if (this._destroyed) return;
+    }
+    log.debug("Initialized - Speaking first element");
     await this._speakNext();
   }
 
   pause(): void {
     if (this._destroyed) return;
+    log.debug("pause");
     speechSynthesis.pause();
     emitState("paused", this._currentElement?.locator ?? null);
   }
 
   resume(): void {
     if (this._destroyed) return;
+    log.debug("resume");
     speechSynthesis.resume();
     emitState("playing", this._currentElement?.locator ?? null);
   }
@@ -425,8 +454,54 @@ export class WebTTSEngine {
       elementLang: lang ?? "(none)",
     });
 
+    // Wedge detector — Chrome occasionally flips `speaking: true` on `speak()`
+    // without ever dispatching `onstart` (a known speechSynthesis bug,
+    // especially after page navigation). If `onstart` hasn't fired within the
+    // watchdog timeout AND the engine claims to be speaking, do one hard reset
+    // and re-speak the same utterance. A single retry — if recovery also
+    // wedges, surface a failure instead of looping forever.
+    let started = false;
+    let recovered = false;
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+    const clearWatchdog = () => {
+      if (watchdog !== null) {
+        clearTimeout(watchdog);
+        watchdog = null;
+      }
+    };
+    const armWatchdog = () => {
+      watchdog = setTimeout(() => {
+        watchdog = null;
+        if (started || this._destroyed) return;
+        if (!speechSynthesis.speaking) return; // engine moved on; nothing to recover
+        if (recovered) {
+          log.warn("speechSynthesis wedge persisted after recovery — aborting utterance");
+          emitState("failure", element.locator);
+          return;
+        }
+        recovered = true;
+        log.warn("speechSynthesis wedge detected — attempting recovery");
+        try { speechSynthesis.cancel(); } catch { /* ignore */ }
+        setTimeout(() => {
+          if (this._destroyed || started) return;
+          try {
+            // Prime, then re-speak. Re-using the utterance is supported —
+            // its event handlers fire for each speak() cycle.
+            speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+            speechSynthesis.speak(utterance);
+            armWatchdog();
+          } catch (e) {
+            log.warn("speechSynthesis recovery failed:", e);
+            emitState("failure", element.locator);
+          }
+        }, 200);
+      }, WEDGE_WATCHDOG_MS);
+    };
+
     utterance.onstart = () => {
       log.debug("utterance.onstart");
+      started = true;
+      clearWatchdog();
       if (this._destroyed) return;
       // Enrich with tocHref so chapter-aware Dart consumers (next/previous chapter,
       // current-chapter display) work during TTS playback. Decoration calls keep the
@@ -451,11 +526,15 @@ export class WebTTSEngine {
 
     utterance.onend = () => {
       log.debug("utterance.onend");
+      clearWatchdog();
       if (this._destroyed) return;
       this._speakNext();
     };
 
     utterance.onerror = (ev) => {
+      // Recovery-induced cancel fires onerror with "canceled" on the original
+      // attempt — keep the watchdog alive so the retry is still monitored.
+      if (!recovered) clearWatchdog();
       if (this._destroyed) return;
       // "interrupted" and "canceled" are expected when stop()/pause()/next() is called.
       if (ev.error === "interrupted" || ev.error === "canceled") {
@@ -501,6 +580,7 @@ export class WebTTSEngine {
       pending: speechSynthesis.pending,
       paused: speechSynthesis.paused,
     });
+    armWatchdog();
   }
 
   /**
@@ -543,7 +623,14 @@ export class WebTTSEngine {
   private _resolveVoiceLang(element: TextElement): string | undefined {
     // `language` getter comes from AttributesHolder (TextElement's grandparent in @readium/shared).
     // Cast is needed because the package's exported types don't surface the inherited getter.
-    return (element as any).language ?? undefined;
+    const elementLang = (element as any).language as string | undefined;
+    if (elementLang) return elementLang;
+    // Fall back to the publication's primary language. EPUBs commonly declare
+    // `lang` only on `<html>`, which upstream's AttributesHolder does not see,
+    // so without this fallback `utterance.lang` stays unset and Chrome routes
+    // the text to its default UI-language voice — which silently wedges
+    // speechSynthesis on short non-English utterances after a `cancel()`.
+    return this._publication.metadata.languages?.[0];
   }
 
   /** Clear both TTS decoration groups. No-op when no callback is registered. */

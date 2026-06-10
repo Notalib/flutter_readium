@@ -133,7 +133,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       let syncKey = textLocator.href.string + (textLocator.locations.cssSelector ?? "")
       if syncKey != lastTextSyncKey {
         lastTextSyncKey = syncKey
-        self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration)
+        self.listener?.timebasedNavigator(self, reachedLocator: textLocator, segmentDuration: mediaOverlayItem.audioDuration, isWordRange: false)
       }
       
       self.listener?.timebasedNavigator(self, requestsHighlightAt: textLocator, withWordLocator: nil)

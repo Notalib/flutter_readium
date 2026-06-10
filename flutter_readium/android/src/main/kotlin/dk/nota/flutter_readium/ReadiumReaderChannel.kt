@@ -25,33 +25,45 @@ internal class ReadiumReaderChannel(
 
     fun onExternalLinkActivated(url: AbsoluteUrl) = launch { invokeMethod("onExternalLinkActivated", url.toString()) }
 
-    fun onTextSelected(locator: Locator, selectedText: String?) =
-        launch {
-            val json = JSONObject().apply {
+    fun onTextSelected(
+        locator: Locator,
+        selectedText: String?,
+    ) = launch {
+        val json =
+            JSONObject().apply {
                 put("locator", locator.toJSON())
                 put("selectedText", selectedText ?: JSONObject.NULL)
             }
-            invokeMethod("onTextSelected", json.toString())
-        }
+        invokeMethod("onTextSelected", json.toString())
+    }
 
-    fun onSelectionAction(actionId: String, locator: Locator, selectedText: String?) =
-        launch {
-            val json = JSONObject().apply {
+    fun onSelectionAction(
+        actionId: String,
+        locator: Locator,
+        selectedText: String?,
+    ) = launch {
+        val json =
+            JSONObject().apply {
                 put("actionId", actionId)
                 put("locator", locator.toJSON())
                 put("selectedText", selectedText ?: JSONObject.NULL)
             }
-            invokeMethod("onSelectionAction", json.toString())
-        }
+        invokeMethod("onSelectionAction", json.toString())
+    }
 
-    fun onDecorationInteraction(decorationId: String, group: String, type: String, locator: Locator?) =
-        launch {
-            val json = JSONObject().apply {
+    fun onDecorationInteraction(
+        decorationId: String,
+        group: String,
+        type: String,
+        locator: Locator?,
+    ) = launch {
+        val json =
+            JSONObject().apply {
                 put("decorationId", decorationId)
                 put("group", group)
                 put("type", type)
                 if (locator != null) put("locator", locator.toJSON()) else put("locator", JSONObject.NULL)
             }
-            invokeMethod("onDecorationInteraction", json.toString())
-        }
+        invokeMethod("onDecorationInteraction", json.toString())
+    }
 }

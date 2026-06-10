@@ -440,10 +440,13 @@ class TTSNavigator(
         // Listen to location changes and turn pages (throttled).
         navigator.location
             .debounce(0.4.seconds)
-            .map { it.tokenLocator ?: it.utteranceLocator }
+            .map { Pair(it.tokenLocator ?: it.utteranceLocator, it.tokenLocator != null) }
             .distinctUntilChanged()
-            .onEach { locator ->
-                ReadiumReader.onTimebasedLocationChanged(locator)
+            .onEach { (locator, isWordRange) ->
+                // isWordRange is true when following a spoken word token vs. an utterance.
+                // The reader skips these in scroll mode (jitter prevention) but follows
+                // them in pagination so a cross-page utterance turns to the spoken word.
+                ReadiumReader.onTimebasedLocationChanged(locator, isWordRange)
             }.launchIn(this)
             .let { jobs.add(it) }
 
