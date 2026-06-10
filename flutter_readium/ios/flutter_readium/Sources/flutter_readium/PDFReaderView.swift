@@ -179,7 +179,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     return await pdfViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
   }
 
-  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool {
+  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?, isWordRange: Bool) async -> Bool {
     // PDF has no media-overlay or pre-recorded-audio sync to honour.
     Log.reader.debug("syncToLocator: ignored for PDF")
     return false

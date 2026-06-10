@@ -78,7 +78,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
 
         self.nowPlayingUpdater.updateChapterNo(chapterNo)
         self.nowPlayingUpdater.updateCommandCenterControls()
-        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
+        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil, isWordRange: false)
       }
       .store(in: &subscriptions)
 
@@ -91,8 +91,12 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
           return
         }
 
+        // Word-range syncs are flagged so the reader view can ignore them in
+        // scroll mode (where they cause snap-to-top jitter) while still
+        // following them in pagination — there an utterance spanning a page
+        // boundary should turn the page to the word currently being spoken.
         Log.navigator.debug("Sync reader-view to new TTS locator")
-        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil)
+        listener?.timebasedNavigator(self, reachedLocator: locator, segmentDuration: nil, isWordRange: true)
       }
       .store(in: &subscriptions)
   }

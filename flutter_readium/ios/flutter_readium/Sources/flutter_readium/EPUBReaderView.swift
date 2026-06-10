@@ -83,7 +83,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     config.debugState = false
 
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.
-    config.decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    var decorationTemplates = HTMLDecorationTemplate.defaultTemplates(alpha: 1.0, experimentalPositioning: true)
+    decorationTemplates[Decoration.Style.Id("spotlight")] = EPUBReaderView.spotlightDecorationTemplate()
+    config.decorationTemplates = decorationTemplates
 
     // TODO: This is a PoC for adding custom editing actions, like user highlights. It should be configurable from Flutter.
     //       See onCustomEditingAction for notes about "catching" this callback on the responder chain.
@@ -447,9 +449,19 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
 
-  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil) async -> Bool {
+  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil, isWordRange: Bool = false) async -> Bool {
     if (isJumpingToLocator || preferences?.disableSync == true) {
       Log.reader.debug("syncToLocator: skipped")
+      return false
+    }
+    // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
+    // spoken word re-pins the current paragraph to the top of the viewport
+    // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
+    // and the per-word highlight decoration keep the reader in the right place.
+    // In pagination we DO follow the word range, so an utterance spanning a page
+    // boundary turns the page to the word currently being spoken.
+    if (isWordRange && readiumViewController.presentation.scroll) {
+      Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
       return false
     }
     Log.reader.debug("syncToLocator: \(locator)")
@@ -457,7 +469,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let segmentDurationMs = duration * 1000.0
       await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
     }
-    return await goToLocator(locator, animated: animated)
+    // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
+    // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
+    // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
+    // progression stall: the MainActor Task for the next utterance's syncToLocator runs
+    // while this Task is suspended awaiting the CSS-column page turn, sees
+    // isJumpingToLocator == true, and silently drops the sync. The next utterance then
+    // plays audio but the spotlight decoration and page position never advance.
+    return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
   private func emitOnPageChanged() {
@@ -673,4 +692,54 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     locator.locations.progression = clamp(nextProgression, minValue: 0.0, maxValue: 1.0)
     return await self.readiumViewController.go(to: locator, options: options)
   }
+
+  // MARK: – Custom decoration templates
+
+  /// Escape a string for use as an HTML attribute value (double-quoted).
+  private static func escapeHtmlAttr(_ s: String) -> String {
+    s.replacingOccurrences(of: "&", with: "&amp;")
+     .replacingOccurrences(of: "\"", with: "&quot;")
+     .replacingOccurrences(of: "<", with: "&lt;")
+     .replacingOccurrences(of: ">", with: "&gt;")
+  }
+
+  /// Spotlight: semi-transparent tinted box over the active text range, one per
+  /// text line.
+  ///
+  /// Uses `.boxes` layout (one `<div>` per CSS border box / text line) so that
+  /// utterances spanning CSS columns are represented by per-line boxes each
+  /// contained within their own column. `.bounds` would produce a single rectangle
+  /// spanning the bounding box of the whole range, which overflows across the gutter
+  /// and into the next column when an utterance crosses a column boundary.
+  ///
+  /// The class `flutter-readium-spotlight` is a stable marker that
+  /// `flutterReadiumTools.js` watches via MutationObserver to:
+  ///   1. Toggle `body.flutter-readium-spotlight-active`, which fades all body text
+  ///      to low contrast via an injected CSS rule.
+  ///   2. Read `data-css-selector` and add `.flutter-readium-spotlit-text` to the
+  ///      matching element, so a higher-specificity CSS rule restores its text colour.
+  ///
+  /// `background-color` MUST be `!important`: Readium CSS forces every element's
+  /// background to transparent when a custom theme is active (see Gotcha in
+  /// CLAUDE.md); without `!important` the fill would be invisible.
+  ///
+  /// `z-index: -1` renders the fill behind the text glyphs (same as the upstream
+  /// highlight/underline templates). This keeps the text colour
+  /// visually unaffected by the tint overlay and matches what `::highlight()` does
+  /// on web — the yellow acts purely as a background, not a colour wash.
+  private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
+    HTMLDecorationTemplate(
+      layout: .boxes,
+      width: .bounds,
+      element: { decoration in
+        let config = decoration.style.config as! Decoration.Style.HighlightConfig
+        let bgColor = config.tint.map { "\($0.cssValue(alpha: 0.5))" } ?? "transparent"
+        let sel = Self.escapeHtmlAttr(decoration.locator.locations.cssSelector ?? "")
+        let hl  = Self.escapeHtmlAttr(decoration.locator.text.highlight ?? "")
+        let bef = Self.escapeHtmlAttr(decoration.locator.text.before ?? "")
+        return "<div class=\"flutter-readium-spotlight\" data-css-selector=\"\(sel)\" data-text-highlight=\"\(hl)\" data-text-before=\"\(bef)\" data-tint=\"\(bgColor)\" style=\"z-index: -1; box-sizing: border-box;\"/>"
+      }
+    )
+  }
+
 }

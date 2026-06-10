@@ -5,10 +5,10 @@ import android.view.ViewGroup
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import dk.nota.flutter_readium.FlutterEpubPreferences
+import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutter_readium.fragments.EpubReaderFragment
 import dk.nota.flutter_readium.models.EpubReaderViewModel
-import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.throttleLatest
 import dk.nota.flutter_readium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -442,23 +442,31 @@ class EpubNavigator :
 
     private val registeredDecorationGroups = mutableSetOf<String>()
 
-    private fun ensureDecorationListener(navigator: EpubReaderFragment, group: String) {
+    private fun ensureDecorationListener(
+        navigator: EpubReaderFragment,
+        group: String,
+    ) {
         if (registeredDecorationGroups.contains(group)) return
         registeredDecorationGroups.add(group)
 
-        navigator.addDecorationListener(group, object : org.readium.r2.navigator.DecorableNavigator.Listener {
-            override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
-                PluginLog.d(TAG, "::onDecorationActivated: ${event.decoration.id} in group ${event.group}")
-                val channel = dk.nota.flutter_readium.ReadiumReader.currentReaderWidget?.channel ?: return false
-                channel.onDecorationInteraction(
-                    decorationId = event.decoration.id,
-                    group = event.group,
-                    type = "tap",
-                    locator = event.decoration.locator,
-                )
-                return true
-            }
-        })
+        navigator.addDecorationListener(
+            group,
+            object : org.readium.r2.navigator.DecorableNavigator.Listener {
+                override fun onDecorationActivated(event: org.readium.r2.navigator.DecorableNavigator.OnActivatedEvent): Boolean {
+                    PluginLog.d(TAG, "::onDecorationActivated: ${event.decoration.id} in group ${event.group}")
+                    val channel =
+                        dk.nota.flutter_readium.ReadiumReader.currentReaderWidget
+                            ?.channel ?: return false
+                    channel.onDecorationInteraction(
+                        decorationId = event.decoration.id,
+                        group = event.group,
+                        type = "tap",
+                        locator = event.decoration.locator,
+                    )
+                    return true
+                }
+            },
+        )
     }
 
     /**

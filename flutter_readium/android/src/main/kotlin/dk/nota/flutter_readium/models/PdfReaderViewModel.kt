@@ -7,7 +7,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 
 @OptIn(ExperimentalReadiumApi::class)
 open class PdfReaderViewModel : ReaderViewModel() {
-  var preferences: PdfiumPreferences? = null
+    var preferences: PdfiumPreferences? = null
 
-  var navigatorFactory: PdfNavigatorFactory<PdfiumSettings, PdfiumPreferences, *>? = null
+    var navigatorFactory: PdfNavigatorFactory<PdfiumSettings, PdfiumPreferences, *>? = null
 }

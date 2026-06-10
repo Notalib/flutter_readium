@@ -3,7 +3,9 @@ package dk.nota.flutter_readium
 import android.util.Log
 
 // Log levels matching the Dart LogLevel enum (index order: none=0, error=1, warn=2, info=3, debug=4)
-internal enum class PluginLogLevel(val value: Int) {
+internal enum class PluginLogLevel(
+    val value: Int,
+) {
     NONE(0),
     ERROR(1),
     WARN(2),

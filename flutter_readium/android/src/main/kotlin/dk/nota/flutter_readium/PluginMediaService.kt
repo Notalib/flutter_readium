@@ -190,11 +190,13 @@ class PluginMediaService :
             // so upstream Readium's playback StateFlow does not emit. Listen on the raw
             // Player and bridge isPlaying changes back to our navigator wrapper.
             onIsPlayingChanged?.let { cb ->
-                player.addListener(object : Player.Listener {
-                    override fun onIsPlayingChanged(isPlaying: Boolean) {
-                        cb(isPlaying)
-                    }
-                })
+                player.addListener(
+                    object : Player.Listener {
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            cb(isPlaying)
+                        }
+                    },
+                )
             }
 
             // Create our SimpleBasePlayer override to override some media-button mapping.

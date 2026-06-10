@@ -11,6 +11,7 @@ import dk.nota.flutter_readium.FlutterEpubPreferences
 import dk.nota.flutter_readium.PluginLog
 import dk.nota.flutter_readium.R
 import dk.nota.flutter_readium.ReadiumReader
+import dk.nota.flutter_readium.SpotlightStyle
 import dk.nota.flutter_readium.isFixed
 import dk.nota.flutter_readium.models.EpubReaderViewModel
 import dk.nota.flutter_readium.models.ViewPortSize
@@ -24,12 +25,14 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.html.HtmlDecorationTemplate
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "EpubReaderFragment"
@@ -567,10 +570,13 @@ class EpubReaderFragment :
                             ),
                         // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
                         decorationTemplates =
-                            HtmlDecorationTemplates.defaultTemplates(
-                                alpha = 1.0,
-                                experimentalPositioning = true,
-                            ),
+                            HtmlDecorationTemplates
+                                .defaultTemplates(
+                                    alpha = 1.0,
+                                    experimentalPositioning = true,
+                                ).also { templates ->
+                                    templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                                },
                         // Only register the callback if custom selectionActions are added.
                         selectionActionModeCallback =
                             if (ReadiumReader.selectionActions.isNotEmpty()) {
@@ -696,5 +702,58 @@ class EpubReaderFragment :
 
     companion object {
         private const val NAVIGATOR_FRAGMENT_TAG = "READIUM_EPUB_READER_FRAGMENT"
+
+        /**
+         * Spotlight: semi-transparent tinted box over the active range, one per text line.
+         *
+         * Uses BOXES layout (one element per CSS border box / text line) so that utterances
+         * spanning CSS columns are represented by per-line boxes each contained within their
+         * own column. BOUNDS would produce a single rectangle spanning the bounding box of
+         * the whole range, which overflows across the gutter and into the next column when
+         * an utterance crosses a column boundary.
+         *
+         * The class `flutter-readium-spotlight` is a stable marker that
+         * `flutterReadiumTools.js` watches via MutationObserver to:
+         *   1. Toggle `body.flutter-readium-spotlight-active`, which fades all body text
+         *      to low contrast via an injected CSS rule.
+         *   2. Read `data-css-selector` and add `.flutter-readium-spotlit-text` to the
+         *      matching element, so a higher-specificity CSS rule restores its text colour.
+         *
+         * `background-color` MUST be `!important`: Readium CSS forces every element's
+         * background to transparent when a custom theme is active (see Gotcha in CLAUDE.md);
+         * without `!important` the fill would be invisible.
+         *
+         * `z-index: -1` renders the fill behind the text glyphs (same as the upstream
+         * highlight/underline templates). This keeps the text colour visually
+         * unaffected by the tint overlay and matches what `::highlight()` does on web —
+         * the yellow acts purely as a background, not a colour wash.
+         */
+        private fun spotlightDecorationTemplate(): HtmlDecorationTemplate =
+            HtmlDecorationTemplate(
+                layout = HtmlDecorationTemplate.Layout.BOXES,
+                width = HtmlDecorationTemplate.Width.BOUNDS,
+                element = { decoration ->
+                    val tint = (decoration.style as? SpotlightStyle)?.tint ?: android.graphics.Color.TRANSPARENT
+                    val bgColor =
+                        if (android.graphics.Color.alpha(tint) == 0) {
+                            "transparent"
+                        } else {
+                            val r = android.graphics.Color.red(tint)
+                            val g = android.graphics.Color.green(tint)
+                            val b = android.graphics.Color.blue(tint)
+                            "rgba($r,$g,$b,0.5)"
+                        }
+
+                    fun String.escAttr() =
+                        replace("&", "&amp;")
+                            .replace("\"", "&quot;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;")
+                    val sel = (decoration.locator.locations.cssSelector ?: "").escAttr()
+                    val hl = (decoration.locator.text.highlight ?: "").escAttr()
+                    val bef = (decoration.locator.text.before ?: "").escAttr()
+                    """<div class="flutter-readium-spotlight" data-css-selector="$sel" data-text-highlight="$hl" data-text-before="$bef" data-tint="$bgColor" style="z-index: -1; box-sizing: border-box;"/>"""
+                },
+            )
     }
 }
