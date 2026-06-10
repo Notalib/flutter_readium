@@ -39,7 +39,6 @@ Run all scripts from the repo root unless noted.
 | `bin/format` | Check Dart formatting across all three packages. Fails on any reformatting needed. |
 | `bin/analyze` | `dart analyze --fatal-infos --fatal-warnings` across all packages. |
 | `bin/update_web_example` | Build TS → JS and copy into `example/web/`. Run after editing TypeScript. |
-| `bin/forAll <cmd>` | Run a command in both pub packages. |
 | `bin/prepare-release <version>` | Bump versions, move Unreleased changelog entries, leave fresh Unreleased header. |
 
 **Run before any PR:** `bin/format && bin/analyze`
@@ -59,7 +58,7 @@ cd flutter_readium && flutter test test/some_test.dart
 # Integration tests (requires booted simulator/emulator)
 cd flutter_readium/example
 flutter test integration_test --device-id=<udid>   # iOS
-flutter test integration_test                       # Android
+flutter test integration_test                      # Android
 ```
 
 ## Key Conventions
@@ -99,8 +98,6 @@ Two MCP servers are configured in `.mcp.json`:
 - `dart-resolve_workspace_symbol` — find symbols by name (fuzzy) across all packages
 - `dart-hover` — type info and docs at a cursor position
 - `dart-pub` — `add`, `remove`, `get`, `upgrade` without leaving the tool interface
-
-**`mnemosyne`** *(optional, user-wide)* — persistent memory layer backed by a local SQLite file. Both Copilot CLI (`store_memory`) and Claude Code (auto memory) have native memory, so mnemosyne's main value here is as a **shared cross-agent store** — facts either agent writes are visible to the other. Available user-wide in Claude Code via `claude mcp add --scope user`.
 
 **`marionette`** — Flutter app remote control (requires a running example app). Use for all smoke testing:
 - `marionette-connect` first (with the VM service URI from `flutter run` output, suffixed with `/ws`)
