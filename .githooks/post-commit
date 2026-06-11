@@ -1,0 +1,4 @@
+#!/bin/sh
+# tokensave: keep the code index fresh after this git operation.
+# Guarded so it is a no-op for anyone without tokensave installed.
+command -v tokensave >/dev/null 2>&1 && tokensave sync >/dev/null 2>&1 || true

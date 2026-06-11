@@ -5,7 +5,9 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    # Pinned to macos-26 to match the integration-test-ios job — divergent
+    # macOS/Xcode between build and integration is a recurring source of bugs.
+    runs-on: macos-26
     timeout-minutes: 30
 
     steps:
@@ -36,9 +38,12 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-deriveddata-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          # Keyed on the runner image, not runner.os ("macOS" is identical
+          # across macos-15/26): DerivedData is Xcode-version-specific, so a
+          # cache from an older image must not be restored onto a newer Xcode.
+          key: xcode-deriveddata-macos26-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
           restore-keys: |
-            xcode-deriveddata-${{ runner.os }}-
+            xcode-deriveddata-macos26-
 
       - name: Install dependencies
         run: flutter pub get
