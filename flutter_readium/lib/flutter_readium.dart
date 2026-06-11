@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
@@ -209,14 +211,22 @@ class FlutterReadium {
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
       _platform.searchInPublication(searchKey);
 
-  // TODO: Check the proper implementation of this.
-  Future<Uint8List> getResourceBytes(String href) async {
-    final result = await _platform.getResourceBytes(href);
-    if (result.isEmpty) {
-      throw ReadiumException('getResourceBytes returned no bytes for href: $href');
-    }
-    return result;
-  }
+  /// Fetches the raw bytes of the publication resource identified by [href].
+  ///
+  /// [href] is the publication-relative href as reported in an [ImageTapEvent]
+  /// (e.g. `images/cover.png`). Returns the resource bytes.
+  ///
+  /// Implemented on iOS and Web. Throws [UnimplementedError] on Android until
+  /// the kotlin-toolkit exposes an equivalent per-resource fetch API.
+  Future<Uint8List> getResourceBytes(String href) => _platform.getResourceBytes(href);
+
+  /// Returns a Flutter [ImageProvider] that lazily loads the EPUB resource at
+  /// [href] via [getResourceBytes].
+  ///
+  /// On Web, prefer loading via [ImageTapEvent.srcUrl] using `Image.network`
+  /// when available — it avoids the byte bridge. Use this provider as a
+  /// fallback or for iOS/Android.
+  ImageProvider imageProvider(String href) => ReadiumResourceImageProvider(href, _platform);
 
   ///////////////////////
   /// Private helpers ///
@@ -248,4 +258,54 @@ class FlutterReadium {
       await goToLocator(locator);
     }
   }
+}
+
+/// An [ImageProvider] that fetches EPUB image resource bytes via the Readium
+/// platform bridge ([FlutterReadiumPlatform.getResourceBytes]).
+///
+/// Usage:
+/// ```dart
+/// Image(image: ReadiumResourceImageProvider('images/cover.png', platform))
+/// ```
+@immutable
+class ReadiumResourceImageProvider extends ImageProvider<ReadiumResourceImageProvider> {
+  const ReadiumResourceImageProvider(this.href, this._platform);
+
+  /// Publication-relative href of the image resource (e.g. `images/cover.png`).
+  final String href;
+
+  final FlutterReadiumPlatform _platform;
+
+  @override
+  Future<ReadiumResourceImageProvider> obtainKey(
+    ImageConfiguration configuration,
+  ) => SynchronousFuture<ReadiumResourceImageProvider>(this);
+
+  @override
+  ImageStreamCompleter loadImage(
+    ReadiumResourceImageProvider key,
+    ImageDecoderCallback decode,
+  ) => MultiFrameImageStreamCompleter(
+    codec: _loadBytes(key, decode),
+    scale: 1.0,
+    debugLabel: 'ReadiumResource($href)',
+  );
+
+  Future<ui.Codec> _loadBytes(
+    ReadiumResourceImageProvider key,
+    ImageDecoderCallback decode,
+  ) async {
+    final bytes = await key._platform.getResourceBytes(key.href);
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    return decode(buffer);
+  }
+
+  @override
+  bool operator ==(Object other) => other is ReadiumResourceImageProvider && other.href == href;
+
+  @override
+  int get hashCode => href.hashCode;
+
+  @override
+  String toString() => 'ReadiumResourceImageProvider("$href")';
 }
