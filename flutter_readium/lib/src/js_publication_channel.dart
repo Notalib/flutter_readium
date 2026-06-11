@@ -1,6 +1,7 @@
 import 'dart:js_interop';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
+import 'js_error.dart';
 
 @JS('ReadiumReader')
 extension type ReadiumReader._(JSObject _) implements JSObject {
@@ -91,7 +92,7 @@ class JsPublicationChannel {
           )
           .toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
+      final errorString = describeJsError(jsError);
       final statusCode = _extractStatusCode(errorString);
       final nativeCode = _convertToNativeCode(statusCode);
       throw PlatformException(
@@ -110,7 +111,7 @@ class JsPublicationChannel {
 
       return publicationString;
     } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
+      final errorString = describeJsError(jsError);
       final statusCode = _extractStatusCode(errorString);
       final nativeCode = _convertToNativeCode(statusCode);
 
@@ -152,7 +153,7 @@ class JsPublicationChannel {
     try {
       await _readiumReader.goTo(locatorJson.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
+      final errorString = describeJsError(jsError);
       final statusCode = _extractStatusCode(errorString);
       final nativeCode = _convertToNativeCode(statusCode);
 
@@ -215,13 +216,39 @@ class JsPublicationChannel {
     _readiumReader.setAudioPreferences(preferencesJson.toJS);
   }
 
-  static Future<String> ttsGetAvailableVoices() async => (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
+  static Future<String> ttsGetAvailableVoices() async {
+    try {
+      return (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
+    } on Object catch (jsError, stackTrace) {
+      final errorString = describeJsError(jsError);
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
+      throw PlatformException(
+        code: nativeCode,
+        message: errorString,
+        details: statusCode,
+        stacktrace: stackTrace.toString(),
+      );
+    }
+  }
 
   static Future<void> ttsEnable(
     String prefsJson, {
     String? fromLocatorJson,
   }) async {
-    await _readiumReader.ttsEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
+    try {
+      await _readiumReader.ttsEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
+    } on Object catch (jsError, stackTrace) {
+      final errorString = describeJsError(jsError);
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
+      throw PlatformException(
+        code: nativeCode,
+        message: errorString,
+        details: statusCode,
+        stacktrace: stackTrace.toString(),
+      );
+    }
   }
 
   static void ttsSetVoice(String identifier, {String? lang}) {
@@ -236,7 +263,19 @@ class JsPublicationChannel {
     String prefsJson, {
     String? fromLocatorJson,
   }) async {
-    await _readiumReader.audioEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
+    try {
+      await _readiumReader.audioEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
+    } on Object catch (jsError, stackTrace) {
+      final errorString = describeJsError(jsError);
+      final statusCode = _extractStatusCode(errorString);
+      final nativeCode = _convertToNativeCode(statusCode);
+      throw PlatformException(
+        code: nativeCode,
+        message: errorString,
+        details: statusCode,
+        stacktrace: stackTrace.toString(),
+      );
+    }
   }
 
   Future<void> setEPUBPreferences(String newPreferencesString) async {
@@ -248,7 +287,7 @@ class JsPublicationChannel {
         _log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
-      final errorString = jsError.toString();
+      final errorString = describeJsError(jsError);
       final statusCode = _extractStatusCode(errorString);
       final nativeCode = _convertToNativeCode(statusCode);
 

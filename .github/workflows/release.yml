@@ -100,6 +100,10 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium
 
+      - name: Build production web bundle
+        run: npm ci && npm run build
+        working-directory: flutter_readium
+
       - name: Materialize self-contained analysis_options (flutter_readium)
         run: |
           gen="$(mktemp)"

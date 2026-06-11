@@ -11,13 +11,12 @@ supporting cross-platform additions.
 
 ### Fixed
 
+- **Web: Improved error-handling** - `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices` failures are
+  now caught and `.stack` is now included in `PlatformException.message`.
 - **iOS: early reader events are no longer dropped** — the `text-locator` and
   `reader-status` event channels now buffer the most-recent event on the native
   side when Dart has not yet attached a listener.  The buffer is flushed
-  immediately when `onListen` fires, eliminating the race between the EPUB
-  platform-view initialisation and the asynchronous stream-subscription
-  handshake.  Buffers are cleared on `closePublication()` so stale events from
-  a closed publication are never replayed to the next subscriber.
+  immediately when `onListen` fires.
 
 ### Added
 
