@@ -93,6 +93,7 @@ void main() {
       () => locators.isNotEmpty,
       timeout: const Duration(seconds: 30),
       reason: 'ReadiumReaderWidget never emitted an initial textLocator',
+      diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
     );
     await _waitForListStable(tester, locators);
     final initialLocator = locators.last;
@@ -244,6 +245,10 @@ void main() {
       final sub = reader.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      addTearDown(readerStatusSub.cancel);
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
@@ -255,6 +260,7 @@ void main() {
         () => locators.isNotEmpty,
         timeout: const Duration(seconds: 30),
         reason: 'No initial textLocator emitted',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
 
       // Paginated layout: iOS uses PDFKit's snap-to-page mode; Android maps
@@ -299,6 +305,10 @@ void main() {
       final sub = reader.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      addTearDown(readerStatusSub.cancel);
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
@@ -310,6 +320,7 @@ void main() {
         () => locators.isNotEmpty,
         timeout: const Duration(seconds: 30),
         reason: 'No initial textLocator emitted',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
 
       // Vertical scroll: viewport scrolls by its own height, which can cover
@@ -479,6 +490,10 @@ void main() {
       final sub = reader.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      addTearDown(readerStatusSub.cancel);
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
@@ -490,6 +505,7 @@ void main() {
         () => locators.isNotEmpty,
         timeout: const Duration(seconds: 30),
         reason: 'No initial textLocator emitted',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
       await _waitForListStable(tester, locators);
       final savedLocator = locators.last;
@@ -1029,17 +1045,32 @@ Future<void> _waitUntil(
 /// async work happening inside a WKWebView (or analogous Android surface) can
 /// stall until something forces a composite. Calling [WidgetTester.pump] on
 /// every poll keeps that pipeline alive.
+///
+/// On timeout the failure message includes how long we actually waited plus,
+/// when supplied, the result of [diagnostics] — a closure that captures live
+/// state (e.g. the latest reader status, how many events have arrived). This is
+/// what distinguishes a genuinely slow webview from one that stalled and never
+/// emitted: "waited 30000ms | readerStatus=loading, events=0" reads very
+/// differently from "readerStatus=ready, events=0". The string is both embedded
+/// in the [fail] reason (shown in the CI error group) and `debugPrint`ed
+/// (timestamped in the test-runner stream).
 Future<void> _waitWithPump(
   WidgetTester tester,
   bool Function() predicate, {
   required Duration timeout,
   String? reason,
+  String Function()? diagnostics,
   Duration pollInterval = const Duration(milliseconds: 100),
 }) async {
-  final deadline = DateTime.now().add(timeout);
+  final start = DateTime.now();
+  final deadline = start.add(timeout);
   while (!predicate()) {
     if (DateTime.now().isAfter(deadline)) {
-      fail(reason ?? 'Condition did not become true within $timeout');
+      final elapsedMs = DateTime.now().difference(start).inMilliseconds;
+      final diag = diagnostics != null ? ' | ${diagnostics()}' : '';
+      final base = reason ?? 'Condition did not become true within $timeout';
+      debugPrint('⏱️ _waitWithPump TIMEOUT after ${elapsedMs}ms: $base$diag');
+      fail('$base (waited ${elapsedMs}ms)$diag');
     }
     await tester.pump(pollInterval);
   }
