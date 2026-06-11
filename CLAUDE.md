@@ -65,7 +65,7 @@ This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensav
 
 ### Android
 
-- **Kotlin formatting**: after writing or editing any Kotlin file, run `ktlint --format` on it. The `standard:package-name` violation (underscores in `dk.nota.flutter_readium`) is pre-existing and cannot be auto-corrected — ignore it. All other violations must be resolved before committing.
+- **Kotlin formatting**: after writing or editing any Kotlin file, run `ktlint --format` on it. All violations must be resolved before committing.
 - **Android log messages**: every `PluginLog.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
 - **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
   ```kotlin

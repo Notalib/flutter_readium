@@ -31,7 +31,7 @@ The flag exists in both upstream toolkits with identical semantics:
 Key files that change:
 - `flutter_readium_platform_interface/lib/src/reader/reader_decoration.dart`
 - `flutter_readium/ios/flutter_readium/Sources/flutter_readium/utils/ReadiumExtensions.swift` (or wherever `Decoration.Style(fromMap:)` is defined)
-- `flutter_readium/android/src/main/kotlin/dk/nota/flutter_readium/ReadiumExtensions.kt` (or equivalent)
+- `flutter_readium/android/src/main/kotlin/dk/nota/flutterreadium/ReadiumExtensions.kt` (or equivalent)
 
 ## Scope boundaries
 
