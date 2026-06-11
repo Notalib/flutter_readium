@@ -6,8 +6,19 @@ on:
 jobs:
   ios:
     name: iOS (Simulator)
-    runs-on: macos-latest
+    # Pinned to macos-26 (Arm64, GA) rather than macos-latest: the latest alias
+    # can lag behind the newest image, and we need the iOS 26 runtime that ships
+    # the pinned SIMULATOR_DEVICE below.
+    runs-on: macos-26
     timeout-minutes: 30
+
+    env:
+      # Pin the simulator model for run-to-run determinism (the WebKit/WKWebView
+      # version that drives EPUB rendering tracks the runtime, and an unpinned
+      # "newest available" device silently changes with every runner-image bump).
+      # Selection falls back to the newest available iPhone if this exact model
+      # isn't present, so an image bump degrades gracefully instead of failing.
+      SIMULATOR_DEVICE: iPhone 17 Pro
 
     steps:
       - uses: actions/checkout@v6
@@ -33,9 +44,12 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
-          key: xcode-deriveddata-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          # Keyed on the runner image, not runner.os ("macOS" is identical
+          # across macos-15/26): DerivedData is Xcode-version-specific, so a
+          # cache from an older image must not be restored onto a newer Xcode.
+          key: xcode-deriveddata-macos26-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
           restore-keys: |
-            xcode-deriveddata-${{ runner.os }}-
+            xcode-deriveddata-macos26-
 
       - name: Install Dart dependencies
         run: flutter pub get
@@ -47,10 +61,38 @@ jobs:
 
       - name: Boot iOS simulator
         run: |
+          set -euo pipefail
           xcrun simctl list devices available
-          UDID=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices | to_entries[] | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS")) | {runtime: .key, devices: [.value[] | select(.name | startswith("iPhone"))]} | select(.devices | length > 0)] | sort_by(.runtime) | last | .devices[0].udid')
-          echo "Booting simulator $UDID"
+
+          # Prefer $SIMULATOR_DEVICE on the newest runtime that offers it;
+          # otherwise fall back to the newest available iPhone of any model.
+          # Tab-delimited so device names containing spaces survive `read`.
+          IFS=$'\t' read -r UDID DEVICE_NAME RUNTIME < <(
+            xcrun simctl list devices available --json \
+              | jq -r --arg want "$SIMULATOR_DEVICE" '
+                  [ .devices | to_entries[]
+                    | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS"))
+                    | .key as $rt | .value[]
+                    | select(.name | startswith("iPhone"))
+                    | {name: .name, udid: .udid, rt: $rt,
+                       ver: ($rt | capture("iOS-(?<a>[0-9]+)-(?<b>[0-9]+)")
+                                 | [(.a | tonumber), (.b | tonumber)])} ] as $all
+                  | ( ( [ $all[] | select(.name == $want) ] | sort_by(.ver) | last )
+                      // ( $all | sort_by(.ver) | last ) )
+                  | "\(.udid)\t\(.name)\t\(.rt)"'
+          )
+
+          if [ -z "${UDID:-}" ]; then
+            echo "::error::No available iPhone simulator found"; exit 1
+          fi
+          if [ "$DEVICE_NAME" != "$SIMULATOR_DEVICE" ]; then
+            echo "::warning::Pinned device '$SIMULATOR_DEVICE' unavailable; fell back to '$DEVICE_NAME'"
+          fi
+          echo "Selected simulator: $DEVICE_NAME ($RUNTIME) -> $UDID"
+
+          # Boot and wait for full boot (SpringBoard up) so the first EPUB open
+          # isn't racing a half-warm simulator — cold first-WKWebView is the
+          # slowest, flakiest case.
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
@@ -58,3 +100,19 @@ jobs:
       - name: Run integration tests
         run: flutter test integration_test --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
+
+      # On failure (typically a WKWebView that never emitted an initial
+      # textLocator), capture the full simulator framebuffer. Unlike Flutter's
+      # in-test screenshot, this reaches native platform views — so it shows
+      # whether the webview rendered blank, errored, or was merely slow.
+      - name: Capture simulator screenshot on failure
+        if: failure()
+        run: xcrun simctl io "$IOS_SIMULATOR_UDID" screenshot /tmp/ios-integration-failure.png || true
+
+      - name: Upload failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-integration-failure-screenshot
+          path: /tmp/ios-integration-failure.png
+          if-no-files-found: ignore
