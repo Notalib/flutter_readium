@@ -79,7 +79,15 @@ class Publication with EquatableMixin implements JSONable {
   );
 
   @override
-  List<Object> get props => [context, metadata, links, readingOrder, resources, tableOfContents, subCollections];
+  List<Object> get props => [
+    context,
+    metadata,
+    links,
+    readingOrder,
+    resources,
+    tableOfContents,
+    subCollections,
+  ];
 
   /// Finds the first [Link] with the given relation in the manifest's links.
   Link? linkWithRel(String rel) =>
@@ -114,14 +122,22 @@ class Publication with EquatableMixin implements JSONable {
   /// If the publication can't be parsed, a warning will be logged.
   /// https://readium.org/webpub-manifest/
   /// https://readium.org/webpub-manifest/schema/publication.schema.json
-  static Publication? fromJson(Map<String, dynamic>? json, {bool packaged = false}) {
+  static Publication? fromJson(
+    Map<String, dynamic>? json, {
+    bool packaged = false,
+  }) {
     if (json == null) {
       return null;
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final context = jsonObject.optStringsFromArrayOrSingle('@context', remove: true);
-    final metadata = Metadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
+    final context = jsonObject.optStringsFromArrayOrSingle(
+      '@context',
+      remove: true,
+    );
+    final metadata = Metadata.fromJson(
+      jsonObject.optNullableMap('metadata', remove: true),
+    );
     if (metadata == null) {
       ReadiumLog.i('[metadata] is required $jsonObject');
       return null;
@@ -139,17 +155,25 @@ class Publication with EquatableMixin implements JSONable {
         )
         .toList();
     // [readingOrder] used to be [spine], so we parse [spine] as a fallback.
-    final readingOrderJSON = jsonObject.safeRemove<List<dynamic>>('readingOrder');
-    final readingOrder = Link.fromJsonArray(readingOrderJSON).where((it) => it.type != null).toList();
+    final readingOrderJSON = jsonObject.safeRemove<List<dynamic>>(
+      'readingOrder',
+    );
+    final readingOrder = Link.fromJsonArray(
+      readingOrderJSON,
+    ).where((it) => it.type != null).toList();
 
     final resources = Link.fromJsonArray(
       jsonObject.safeRemove<List<dynamic>>('resources'),
     ).where((it) => it.type != null).toList();
 
-    final tableOfContents = Link.fromJsonArray(jsonObject.safeRemove<List<dynamic>>('toc'));
+    final tableOfContents = Link.fromJsonArray(
+      jsonObject.safeRemove<List<dynamic>>('toc'),
+    );
 
     // Parses subcollections from the remaining JSON properties.
-    final subcollections = PublicationCollection.collectionsFromJSON(jsonObject);
+    final subcollections = PublicationCollection.collectionsFromJSON(
+      jsonObject,
+    );
 
     return Publication(
       context: context,
@@ -226,14 +250,23 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Whether the publication declares conformance to the Readium Audiobook profile.
   bool get conformsToReadiumAudiobook =>
-      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/audiobook') == true;
+      metadata.conformsTo?.any(
+        (c) => c == 'https://readium.org/webpub-manifest/profiles/audiobook',
+      ) ==
+      true;
 
   /// Whether the publication declares conformance to the Readium EPUB profile.
   bool get conformsToReadiumEbook =>
-      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/epub') == true;
+      metadata.conformsTo?.any(
+        (c) => c == 'https://readium.org/webpub-manifest/profiles/epub',
+      ) ==
+      true;
 
   bool get conformsToReadiumPDF =>
-      metadata.conformsTo?.any((c) => c == 'https://readium.org/webpub-manifest/profiles/pdf') == true;
+      metadata.conformsTo?.any(
+        (c) => c == 'https://readium.org/webpub-manifest/profiles/pdf',
+      ) ==
+      true;
 
   /// Whether any reading-order item carries a media overlay alternate —
   /// either the older `application/vnd.syncnarr+json` or the newer
@@ -252,9 +285,15 @@ class Publication with EquatableMixin implements JSONable {
   /// either as a publication-level link or as per-item alternates in the reading order.
   bool get containsGuidedNavigation =>
       conformsToReadiumEbook &&
-      (links.any((link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type)) ||
+      (links.any(
+            (link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type),
+          ) ||
           readingOrder.any(
-            (link) => link.alternates.any((alt) => MediaType.syncMediaNarrationManifest.matchesFromName(alt.type)),
+            (link) => link.alternates.any(
+              (alt) => MediaType.syncMediaNarrationManifest.matchesFromName(
+                alt.type,
+              ),
+            ),
           ));
 
   /// Whether this publication should be treated as an audiobook — true for the Readium Audiobook

@@ -29,8 +29,10 @@ extension DoubleNullableCheck on double? {
   double? check(double? defaultValue) => (this == _emptyDoubleValue) ? defaultValue : this;
 
   /// Ensure that this double? is within [epsilon] of [defaultValue], otherwise return this double? (or defaultValue if this is null).
-  double roundToIfCloseTo(double defaultValue, {double epsilon = _defaultEpsilon}) =>
-      this?.isCloseTo(defaultValue, epsilon: epsilon) ?? false ? defaultValue : this ?? defaultValue;
+  double roundToIfCloseTo(
+    double defaultValue, {
+    double epsilon = _defaultEpsilon,
+  }) => this?.isCloseTo(defaultValue, epsilon: epsilon) ?? false ? defaultValue : this ?? defaultValue;
 }
 
 const double _defaultEpsilon = 1e-3;
@@ -90,7 +92,9 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       return fromJson(json);
     }
 
-    ReadiumLog.e('Locator.fromJsonDynamic: Unsupported json type: ${json.runtimeType}');
+    ReadiumLog.e(
+      'Locator.fromJsonDynamic: Unsupported json type: ${json.runtimeType}',
+    );
     return null;
   }
 
@@ -99,7 +103,10 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       final Map<String, dynamic> json = JsonCodec().decode(jsonString);
       return Locator.fromJson(json);
     } on Exception catch (ex, st) {
-      ReadiumLog.e('fromJsonString: Failed to parse Locator from json: $jsonString', stackTrace: st);
+      ReadiumLog.e(
+        'fromJsonString: Failed to parse Locator from json: $jsonString',
+        stackTrace: st,
+      );
     }
     return null;
   }
@@ -119,8 +126,12 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
     }
 
     final title = jsonObject.optNullableString('title', remove: true);
-    final locations = Locations.fromJson(jsonObject.optJsonObject('locations', remove: true));
-    final text = LocatorText.fromJson(jsonObject.optJsonObject('text', remove: true));
+    final locations = Locations.fromJson(
+      jsonObject.optJsonObject('locations', remove: true),
+    );
+    final text = LocatorText.fromJson(
+      jsonObject.optJsonObject('text', remove: true),
+    );
 
     return Locator(
       href: href,
@@ -211,7 +222,9 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
       // Makes sure href only contains /path.
       href: hrefPath,
       type: MediaType.html.name,
-      locations: locations?.copyWith(fragments: idFragment == null ? null : [idFragment]),
+      locations: locations?.copyWith(
+        fragments: idFragment == null ? null : [idFragment],
+      ),
     );
   }
 }
@@ -256,8 +269,13 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
         .optPositiveDouble('totalProgression', remove: true)
         ?.let((it) => it.clamp(0.0, 1.0));
 
-    final cssSelector = jsonObject.optNullableString('cssSelector', remove: true);
-    final domRange = DomRange.fromJson(jsonObject.optJsonObject('domRange', remove: true));
+    final cssSelector = jsonObject.optNullableString(
+      'cssSelector',
+      remove: true,
+    );
+    final domRange = DomRange.fromJson(
+      jsonObject.optJsonObject('domRange', remove: true),
+    );
     final partialCfi = jsonObject.optNullableString('partialCfi', remove: true);
 
     return Locations(
@@ -323,7 +341,10 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     if (fragments.isEmpty) {
       return 0;
     }
-    final timeFragment = fragments.firstWhere((e) => e.startsWith('t='), orElse: () => 't=0');
+    final timeFragment = fragments.firstWhere(
+      (e) => e.startsWith('t='),
+      orElse: () => 't=0',
+    );
     return double.parse(timeFragment.replaceFirst('t=', ''));
   }
 
@@ -338,7 +359,14 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
     ..putJSONableIfNotEmpty('domRange', domRange);
 
   @override
-  List<Object?> get props => [position, progression, totalProgression, fragments, additionalProperties, cssSelector];
+  List<Object?> get props => [
+    position,
+    progression,
+    totalProgression,
+    fragments,
+    additionalProperties,
+    cssSelector,
+  ];
 
   @override
   String toString() =>
@@ -416,5 +444,7 @@ extension HTMLLocationsExtension on Locations {
   String? get partialCfi => this['partialCfi'] as String?;
 
   /// An HTML DOM range.
-  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let((it) => DomRange.fromJson(it));
+  DomRange? get domRange => (this['domRange'] as Map<String, dynamic>?)?.let(
+    (it) => DomRange.fromJson(it),
+  );
 }

@@ -87,10 +87,10 @@ In `ReadiumReader._syncVisualToMediaOverlayLocator`:
 - Add a `## Unreleased` `fix(web):` entry to `CHANGELOG.md`.
 
 ## Key files
-- `flutter_readium/web/_scripts/Epub/epubNavigator.ts` — inject helper in `frameLoaded`.
-- `flutter_readium/web/_scripts/helpers.ts` — `injectComicBookHelper` util.
-- `flutter_readium/web/_scripts/ReadiumReader.ts` — comic special-case + duration plumbing.
-- `flutter_readium/web/_scripts/Audio/mediaOverlayNavigator.ts` — pass cue duration to callback (if needed).
+- `flutter_readium/web/src/Epub/epubNavigator.ts` — inject helper in `frameLoaded`.
+- `flutter_readium/web/src/helpers.ts` — `injectComicBookHelper` util.
+- `flutter_readium/web/src/ReadiumReader.ts` — comic special-case + duration plumbing.
+- `flutter_readium/web/src/Audio/mediaOverlayNavigator.ts` — pass cue duration to callback (if needed).
 - `CHANGELOG.md`.
 
 ## Decision (confirmed)

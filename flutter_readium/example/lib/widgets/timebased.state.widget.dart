@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../state/index.dart';
@@ -33,9 +33,13 @@ class _TimebasedStateWidgetState extends State<TimebasedStateWidget> {
               // Text('TotalProgression: ${snapshot.data?.currentLocator?.locations?.totalProgression}'),
               SizedBox(height: 22),
               Text('Chapter progress:'),
-              LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.progression ?? 0.0),
+              LinearProgressIndicator(
+                value: snapshot.data?.currentLocator?.locations?.progression ?? 0.0,
+              ),
               Text('Total book progress:'),
-              LinearProgressIndicator(value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0),
+              LinearProgressIndicator(
+                value: snapshot.data?.currentLocator?.locations?.totalProgression ?? 0,
+              ),
             ],
           );
         } else {

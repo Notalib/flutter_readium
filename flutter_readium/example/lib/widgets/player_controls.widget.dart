@@ -10,7 +10,9 @@ class PlayerControls extends StatelessWidget {
 
   final Publication publication;
   @override
-  Widget build(final BuildContext context) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
+  Widget build(
+    final BuildContext context,
+  ) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
       final isAudioBook = publication.isAudioBook;
       final audioActive = state.audioEnabled;
@@ -24,8 +26,9 @@ class PlayerControls extends StatelessWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
-                onPressed: () =>
-                    context.read<PlayerControlsBloc>().add(SkipToPreviousChapter(publication: publication)),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  SkipToPreviousChapter(publication: publication),
+                ),
                 tooltip: 'Skip to previous chapter',
               ),
               IconButton(
@@ -53,7 +56,9 @@ class PlayerControls extends StatelessWidget {
                         // fakeInitialLocator = pub?.locatorFromLink(fakeInitialLink!);
                         isAudioBook
                             ? playerControls.add(Play(fromLocator: fromLocator))
-                            : playerControls.add(PlayTTS(fromLocator: fromLocator));
+                            : playerControls.add(
+                                PlayTTS(fromLocator: fromLocator),
+                              );
                       },
                 tooltip: state.playing ? 'Pause' : 'Play',
               ),
@@ -73,7 +78,9 @@ class PlayerControls extends StatelessWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.skip_next),
-                onPressed: () => context.read<PlayerControlsBloc>().add(SkipToNextChapter(publication: publication)),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  SkipToNextChapter(publication: publication),
+                ),
                 tooltip: 'Skip to next chapter',
               ),
               if (audioActive) ...[
@@ -92,7 +99,9 @@ class PlayerControls extends StatelessWidget {
               ],
               IconButton(
                 icon: const Icon(Icons.settings_voice),
-                onPressed: () => context.read<PlayerControlsBloc>().add(GetAvailableVoices()),
+                onPressed: () => context.read<PlayerControlsBloc>().add(
+                  GetAvailableVoices(),
+                ),
                 tooltip: 'Change voice',
               ),
             ],

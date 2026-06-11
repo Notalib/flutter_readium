@@ -73,14 +73,18 @@ class FlutterReadium {
   /// Skips to the next chapter in the publication's (flattened) table of contents.
   ///
   /// This is only applicable for publications that have a TOC and may not be supported for all formats.
-  Future<void> skipToNextTOC({required final Publication publication, required final String currentTocHref}) =>
-      _skipToTOCItem(publication, currentTocHref, 1);
+  Future<void> skipToNextTOC({
+    required final Publication publication,
+    required final String currentTocHref,
+  }) => _skipToTOCItem(publication, currentTocHref, 1);
 
   /// Skips to the previous chapter in the publication's (flattened) table of contents.
   ///
   /// This is only applicable for publications that have a TOC and may not be supported for all formats.
-  Future<void> skipToPreviousTOC({required final Publication publication, required final String currentTocHref}) =>
-      _skipToTOCItem(publication, currentTocHref, -1);
+  Future<void> skipToPreviousTOC({
+    required final Publication publication,
+    required final String currentTocHref,
+  }) => _skipToTOCItem(publication, currentTocHref, -1);
 
   /// Sets the EPUB preferences for the currently opened publication.
   ///
@@ -93,8 +97,10 @@ class FlutterReadium {
   /// Applies a list of decorations to the visual reader.
   ///
   /// The decorations will be identified by the given [id], which can be used to update or remove them later by calling this method again with the same [id].
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) =>
-      _platform.applyDecorations(id, decorations);
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) => _platform.applyDecorations(id, decorations);
 
   /// Enables TTS (text-to-speech) for the currently opened publication, optionally applying the given [preferences].
   Future<void> ttsEnable(TTSPreferences? preferences) => _platform.ttsEnable(preferences);
@@ -103,8 +109,10 @@ class FlutterReadium {
   Future<void> ttsSetPreferences(TTSPreferences preferences) => _platform.ttsSetPreferences(preferences);
 
   /// Sets the decoration styles used to highlight the active TTS utterance and the surrounding range.
-  Future<void> setDecorationStyle(ReaderDecorationStyle? utteranceDecoration, ReaderDecorationStyle? rangeDecoration) =>
-      _platform.setDecorationStyle(utteranceDecoration, rangeDecoration);
+  Future<void> setDecorationStyle(
+    ReaderDecorationStyle? utteranceDecoration,
+    ReaderDecorationStyle? rangeDecoration,
+  ) => _platform.setDecorationStyle(utteranceDecoration, rangeDecoration);
 
   /// Returns all TTS voices available on the user's device.
   Future<List<ReaderTTSVoice>> ttsGetAvailableVoices() async {
@@ -163,10 +171,15 @@ class FlutterReadium {
   ///
   /// The lookup is case-insensitive and matched against the publication's page list.
   /// Throws a [ReadiumException] if no matching page link is found.
-  Future<bool> toPhysicalPageIndex(final String index, final Publication pub) async {
+  Future<bool> toPhysicalPageIndex(
+    final String index,
+    final Publication pub,
+  ) async {
     final pageIndex = index.toLowerCase();
     final pageList = pub.pageList;
-    final pageLink = pageList.firstWhereOrNull((final link) => link.title?.toLowerCase() == pageIndex);
+    final pageLink = pageList.firstWhereOrNull(
+      (final link) => link.title?.toLowerCase() == pageIndex,
+    );
     if (pageLink == null) {
       throw const ReadiumException('Page link not found');
     }
@@ -200,7 +213,11 @@ class FlutterReadium {
   ///////////////////////
 
   /// Helper method to skip to the next or previous TOC item based on the given [direction] (1 for next, -1 for previous).
-  Future<void> _skipToTOCItem(Publication publication, String currentTocHref, int direction) async {
+  Future<void> _skipToTOCItem(
+    Publication publication,
+    String currentTocHref,
+    int direction,
+  ) async {
     final toc = publication.tocFlattened;
     if (toc.isEmpty) return;
 

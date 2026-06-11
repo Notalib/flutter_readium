@@ -39,7 +39,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 
   static Publication _pub(String title) => Publication(
     links: [],
-    metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': title})),
+    metadata: Metadata(
+      localizedTitle: LocalizedString.fromStrings({'en': title}),
+    ),
     readingOrder: [],
   );
 
@@ -71,7 +73,10 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setPDFPreferences(PDFPreferences preferences) async {}
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {}
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async {}
 
   @override
   Future<void> play(Locator? fromLocator) async {}
@@ -110,7 +115,10 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   ) async {}
 
   @override
-  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) async {}
+  Future<void> audioEnable({
+    AudioPreferences? prefs,
+    Locator? fromLocator,
+  }) async {}
 
   @override
   Future<void> audioSetPreferences(AudioPreferences prefs) async {}
@@ -178,7 +186,10 @@ void main() {
 
   group('goToLocator', () {
     test('returns true on success', () async {
-      final locator = Locator(href: '/ch1.xhtml', type: 'application/xhtml+xml');
+      final locator = Locator(
+        href: '/ch1.xhtml',
+        type: 'application/xhtml+xml',
+      );
       expect(await reader.goToLocator(locator), isTrue);
     });
   });
@@ -238,7 +249,9 @@ void main() {
     test('throws when current href not in TOC', () async {
       final pub = Publication(
         links: [],
-        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        metadata: Metadata(
+          localizedTitle: LocalizedString.fromStrings({'en': 'Test'}),
+        ),
         readingOrder: [],
         tableOfContents: [
           Link(href: '/ch1.xhtml'),
@@ -246,7 +259,10 @@ void main() {
         ],
       );
       await expectLater(
-        () => reader.skipToNextTOC(publication: pub, currentTocHref: '/unknown.xhtml'),
+        () => reader.skipToNextTOC(
+          publication: pub,
+          currentTocHref: '/unknown.xhtml',
+        ),
         throwsA(isA<ReadiumException>()),
       );
     });
@@ -254,7 +270,9 @@ void main() {
     test('throws when already at last chapter', () async {
       final pub = Publication(
         links: [],
-        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        metadata: Metadata(
+          localizedTitle: LocalizedString.fromStrings({'en': 'Test'}),
+        ),
         readingOrder: [],
         tableOfContents: [
           Link(href: '/ch1.xhtml'),
@@ -262,7 +280,10 @@ void main() {
         ],
       );
       await expectLater(
-        () => reader.skipToNextTOC(publication: pub, currentTocHref: '/ch2.xhtml'),
+        () => reader.skipToNextTOC(
+          publication: pub,
+          currentTocHref: '/ch2.xhtml',
+        ),
         throwsA(isA<ReadiumException>()),
       );
     });
@@ -272,10 +293,15 @@ void main() {
     test('throws when page not found', () async {
       final pub = Publication(
         links: [],
-        metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'Test'})),
+        metadata: Metadata(
+          localizedTitle: LocalizedString.fromStrings({'en': 'Test'}),
+        ),
         readingOrder: [],
       );
-      await expectLater(() => reader.toPhysicalPageIndex('999', pub), throwsA(isA<ReadiumException>()));
+      await expectLater(
+        () => reader.toPhysicalPageIndex('999', pub),
+        throwsA(isA<ReadiumException>()),
+      );
     });
   });
 }

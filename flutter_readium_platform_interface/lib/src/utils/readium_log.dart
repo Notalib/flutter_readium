@@ -118,7 +118,10 @@ abstract class ReadiumLog {
   /// actually be emitted).
   static void debug(final dynamic message) {
     if (kDebugMode) {
-      _logger.log(_levelDebug, message is Function ? message() : message.toString());
+      _logger.log(
+        _levelDebug,
+        message is Function ? message() : message.toString(),
+      );
     }
   }
 
@@ -127,7 +130,11 @@ abstract class ReadiumLog {
   static void warn(final String? message) => _logger.log(_levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
-  static void error(final Object err, {final Object? data, final StackTrace? stackTrace}) {
+  static void error(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) {
     final msg = data != null ? '$err $data' : err.toString();
     _logger.log(_levelError, msg, err, stackTrace);
   }
@@ -146,8 +153,11 @@ abstract class ReadiumLog {
   static void w(final String? message) => warn(message);
 
   /// Alias for [error].
-  static void e(final Object err, {final Object? data, final StackTrace? stackTrace}) =>
-      error(err, data: data, stackTrace: stackTrace);
+  static void e(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) => error(err, data: data, stackTrace: stackTrace);
 }
 
 /// A tagged variant of [ReadiumLog] that routes logs through a child logger
@@ -177,7 +187,10 @@ class TaggedReadiumLog {
   /// zero-argument function (evaluated lazily).
   void debug(final dynamic message) {
     if (kDebugMode) {
-      _logger.log(ReadiumLog._levelDebug, message is Function ? message() : message.toString());
+      _logger.log(
+        ReadiumLog._levelDebug,
+        message is Function ? message() : message.toString(),
+      );
     }
   }
 
@@ -186,7 +199,11 @@ class TaggedReadiumLog {
   void warn(final String? message) => _logger.log(ReadiumLog._levelWarn, message ?? '');
 
   /// Log an error. [error] can be any object; pass [stackTrace] when available.
-  void error(final Object err, {final Object? data, final StackTrace? stackTrace}) {
+  void error(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) {
     final msg = data != null ? '$err $data' : err.toString();
     _logger.log(ReadiumLog._levelError, msg, err, stackTrace);
   }
@@ -205,6 +222,9 @@ class TaggedReadiumLog {
   void w(final String? message) => warn(message);
 
   /// Alias for [error].
-  void e(final Object err, {final Object? data, final StackTrace? stackTrace}) =>
-      error(err, data: data, stackTrace: stackTrace);
+  void e(
+    final Object err, {
+    final Object? data,
+    final StackTrace? stackTrace,
+  }) => error(err, data: data, stackTrace: stackTrace);
 }

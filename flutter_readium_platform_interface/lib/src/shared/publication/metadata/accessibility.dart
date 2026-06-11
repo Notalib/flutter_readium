@@ -22,7 +22,9 @@ class Accessibility with EquatableMixin implements JSONable {
       conformsTo.addAll(conformsToJson.cast<String>());
     }
 
-    final exemption = AccessibilityExemption.fromString(jsonObject.optNullableString('exemption', remove: true));
+    final exemption = AccessibilityExemption.fromString(
+      jsonObject.optNullableString('exemption', remove: true),
+    );
 
     final accessMode = jsonObject
         .optJsonArray('accessMode', remove: true)
@@ -48,7 +50,10 @@ class Accessibility with EquatableMixin implements JSONable {
         .nonNulls
         .toList();
 
-    final certificationJson = jsonObject.optNullableMap('certification', remove: true);
+    final certificationJson = jsonObject.optNullableMap(
+      'certification',
+      remove: true,
+    );
 
     final certification = certificationJson != null ? AccessibilityCertification.fromJson(certificationJson) : null;
 
@@ -106,7 +111,10 @@ class Accessibility with EquatableMixin implements JSONable {
     ..put('conformsTo', conformsTo)
     ..putOpt('exemption', exemption?.name)
     ..putIterableIfNotEmpty('accessMode', accessMode?.map((e) => e.name))
-    ..putIterableIfNotEmpty('accessModeSufficient', accessModeSufficient?.mapNotNull((e) => e.toJson()))
+    ..putIterableIfNotEmpty(
+      'accessModeSufficient',
+      accessModeSufficient?.mapNotNull((e) => e.toJson()),
+    )
     ..putIterableIfNotEmpty('feature', feature?.map((e) => e.name).toList())
     ..putIterableIfNotEmpty('hazard', hazard?.map((e) => e.name).toList())
     ..putJSONableIfNotEmpty('certification', certification)
@@ -138,7 +146,9 @@ enum AccessibilityExemption {
       return null;
     }
 
-    return AccessibilityExemption.values.firstWhereOrNull((e) => e.name.toLowerCase() == name.toLowerCase());
+    return AccessibilityExemption.values.firstWhereOrNull(
+      (e) => e.name.toLowerCase() == name.toLowerCase(),
+    );
   }
 }
 
@@ -164,7 +174,9 @@ enum AccessibilityAccessMode {
       return null;
     }
 
-    return AccessibilityAccessMode.values.firstWhereOrNull((e) => e.name.toLowerCase() == name.toLowerCase());
+    return AccessibilityAccessMode.values.firstWhereOrNull(
+      (e) => e.name.toLowerCase() == name.toLowerCase(),
+    );
   }
 }
 
@@ -230,7 +242,9 @@ enum AccessibilityAccessModeSimple {
   final String name;
 
   static AccessibilityAccessModeSimple? fromString(String? name) =>
-      AccessibilityAccessModeSimple.values.firstWhereOrNull((mode) => mode.name.toLowerCase() == name?.toLowerCase());
+      AccessibilityAccessModeSimple.values.firstWhereOrNull(
+        (mode) => mode.name.toLowerCase() == name?.toLowerCase(),
+      );
 }
 
 enum AccessibilityFeature {
@@ -315,7 +329,9 @@ enum AccessibilityHazard {
       return null;
     }
 
-    return AccessibilityHazard.values.firstWhereOrNull((hazard) => hazard.name.toLowerCase() == name.toLowerCase()) ??
+    return AccessibilityHazard.values.firstWhereOrNull(
+          (hazard) => hazard.name.toLowerCase() == name.toLowerCase(),
+        ) ??
         AccessibilityHazard.unknown;
   }
 }
@@ -332,7 +348,11 @@ class AccessibilityCertification with EquatableMixin implements JSONable {
     );
   }
 
-  const AccessibilityCertification({this.certifiedBy, this.credential, this.report});
+  const AccessibilityCertification({
+    this.certifiedBy,
+    this.credential,
+    this.report,
+  });
 
   final String? certifiedBy;
   final String? credential;

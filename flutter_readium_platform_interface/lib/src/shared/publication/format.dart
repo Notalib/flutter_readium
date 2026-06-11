@@ -23,13 +23,22 @@ class PublicationFormat extends Equatable {
   List<Object> get props => [value];
 
   /// Finds the [PublicationFormat] for the given [mimetype], or fallback on a [fileExtension].
-  static PublicationFormat? fromMIMEType(String mimetype, {String? fileExtension}) {
+  static PublicationFormat? fromMIMEType(
+    String mimetype, {
+    String? fileExtension,
+  }) {
     final mimetypes = <String>[mimetype];
-    return PublicationFormat.fromMIMETypes(mimetypes, fileExtension: fileExtension);
+    return PublicationFormat.fromMIMETypes(
+      mimetypes,
+      fileExtension: fileExtension,
+    );
   }
 
   /// Finds the [PublicationFormat] from a list of possible [mimetypes] or fallback on a [fileExtension].
-  static PublicationFormat? fromMIMETypes(List<String> mimetypes, {String? fileExtension}) {
+  static PublicationFormat? fromMIMETypes(
+    List<String> mimetypes, {
+    String? fileExtension,
+  }) {
     for (final mimetype in mimetypes) {
       // FIXME: video MIME types?
       switch (mimetype) {

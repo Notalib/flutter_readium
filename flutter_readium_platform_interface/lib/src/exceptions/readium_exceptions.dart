@@ -14,7 +14,9 @@ class ReadiumException implements Exception {
   String toString() => 'ReadiumException{$message}';
 
   static ReadiumException fromPlatformException(PlatformException ex) {
-    final type = OpeningReadiumExceptionType.values.firstWhereOrNull((v) => v.name == ex.code);
+    final type = OpeningReadiumExceptionType.values.firstWhereOrNull(
+      (v) => v.name == ex.code,
+    );
     // `ex.details` is `Object?` on the platform channel — for most error paths
     // it's a String, but the iOS HTTPError(.errorResponse) path puts the
     // response headers Map there. Prefer `ex.message` (always a human-readable
@@ -76,7 +78,10 @@ class ReadiumError implements Error {
     final message = jsonObject.optString('message', remove: true);
     final code = jsonObject.optNullableString('code', remove: true);
     final data = jsonObject.opt('data', remove: true);
-    final stackTraceStr = jsonObject.optNullableString('stackTrace', remove: true);
+    final stackTraceStr = jsonObject.optNullableString(
+      'stackTrace',
+      remove: true,
+    );
 
     return ReadiumError(
       message,
@@ -86,8 +91,12 @@ class ReadiumError implements Error {
     );
   }
 
-  ReadiumError(this.message, {this.code, this.data, final StackTrace? stackTrace})
-    : stackTrace = stackTrace ?? StackTrace.current;
+  ReadiumError(
+    this.message, {
+    this.code,
+    this.data,
+    final StackTrace? stackTrace,
+  }) : stackTrace = stackTrace ?? StackTrace.current;
 
   final String message;
   final String? code;

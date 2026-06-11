@@ -28,8 +28,9 @@ extension LinkListExtension on List<Link> {
   List<Link> filterByMediaType(MediaType mediaType) => where((it) => it.mediaType.matches(mediaType)).toList();
 
   /// Finds all the links matching any of the given media types.
-  List<Link> filterByMediaTypes(List<MediaType> mediaTypes) =>
-      where((it) => mediaTypes.any((mediaType) => mediaType.matchesFromName(it.type))).toList();
+  List<Link> filterByMediaTypes(List<MediaType> mediaTypes) => where(
+    (it) => mediaTypes.any((mediaType) => mediaType.matchesFromName(it.type)),
+  ).toList();
 
   /// Returns whether all the resources in the collection are bitmaps.
   bool get allAreBitmap => isNotEmpty && every((it) => it.mediaType.isBitmap);
@@ -48,7 +49,10 @@ extension LinkListExtension on List<Link> {
 
   /// Returns whether all the resources in the collection are matching any of the given media types.
   bool allMatchMediaTypes(List<MediaType> mediaTypes) =>
-      isNotEmpty && every((it) => mediaTypes.any((mediaType) => mediaType.matches(it.mediaType)));
+      isNotEmpty &&
+      every(
+        (it) => mediaTypes.any((mediaType) => mediaType.matches(it.mediaType)),
+      );
 
   Link? deepLinkWithHref(String href) {
     for (final l in this) {

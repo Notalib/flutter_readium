@@ -22,7 +22,10 @@ enum TimebasedState {
 
   /// Returns the [TimebasedState] matching [state] (case-insensitive), defaulting to [none].
   static TimebasedState fromString(final String state) =>
-      TimebasedState.values.firstWhereOrNull((e) => e.name.toLowerCase() == state.toLowerCase()) ?? TimebasedState.none;
+      TimebasedState.values.firstWhereOrNull(
+        (e) => e.name.toLowerCase() == state.toLowerCase(),
+      ) ??
+      TimebasedState.none;
 }
 
 /// Indicates the current reader widget status.
@@ -43,8 +46,9 @@ enum ReadiumReaderStatus {
   error;
 
   /// Returns the [ReadiumReaderStatus] matching [status] (case-insensitive), or `null` if unknown.
-  static ReadiumReaderStatus? optFromString(final String status) =>
-      ReadiumReaderStatus.values.firstWhereOrNull((e) => e.name.toLowerCase() == status.toLowerCase());
+  static ReadiumReaderStatus? optFromString(final String status) => ReadiumReaderStatus.values.firstWhereOrNull(
+    (e) => e.name.toLowerCase() == status.toLowerCase(),
+  );
 
   /// Whether the reader is in the loading state.
   bool get isLoading => this == ReadiumReaderStatus.loading;

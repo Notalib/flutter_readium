@@ -1,4 +1,4 @@
-﻿import 'dart:math' show min, max;
+import 'dart:math' show min, max;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,7 +28,10 @@ class TableOfContentsPage extends StatelessWidget {
                   icon: const Icon(Icons.menu_book),
                   onPressed: () async {
                     // Replace ToC page with Page List page, if page is clicked, pop it back to Player page.
-                    final result = await Navigator.pushNamed(context, '/pagelist');
+                    final result = await Navigator.pushNamed(
+                      context,
+                      '/pagelist',
+                    );
                     if (!context.mounted) return;
                     final publication = context.read<PublicationBloc>().state.publication;
                     if (publication != null && result != null && result is Link) {

@@ -41,7 +41,9 @@ class Availability with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final state = AvailabilityState.optFromString(jsonObject.optNullableString('state', remove: true));
+    final state = AvailabilityState.optFromString(
+      jsonObject.optNullableString('state', remove: true),
+    );
     if (state == null) {
       return null;
     }

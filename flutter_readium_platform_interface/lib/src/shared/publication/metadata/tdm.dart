@@ -27,7 +27,9 @@ class TDM with EquatableMixin implements JSONable {
     }
 
     final jsonObject = Map<String, dynamic>.of(json);
-    final reservation = TDMReservation.fromString(jsonObject.optString('reservation'));
+    final reservation = TDMReservation.fromString(
+      jsonObject.optString('reservation'),
+    );
     final policy = jsonObject.optNullableString('policy', remove: true);
     return TDM(reservation: reservation, policy: policy);
   }

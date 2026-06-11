@@ -7,8 +7,9 @@ import 'base_collection.dart';
 /// See: https://readium.org/webpub-manifest/schema/periodical.schema.json
 @immutable
 class Periodical extends BaseCollection {
-  factory Periodical.fromJsonString(String localizedString) =>
-      Periodical(localizedName: LocalizedString.fromJsonString(localizedString));
+  factory Periodical.fromJsonString(String localizedString) => Periodical(
+    localizedName: LocalizedString.fromJsonString(localizedString),
+  );
   factory Periodical.fromJson(dynamic json) {
     if (json is String) {
       return Periodical.fromJsonString(json);
@@ -23,13 +24,19 @@ class Periodical extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
 
     final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true));
     final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));

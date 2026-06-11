@@ -14,7 +14,9 @@ import 'state/index.dart';
 Future<void> main() async {
   // Initialize Marionette only in debug mode
   if (kDebugMode) {
-    MarionetteBinding.ensureInitialized(MarionetteConfiguration(logCollector: LoggingLogCollector()));
+    MarionetteBinding.ensureInitialized(
+      MarionetteConfiguration(logCollector: LoggingLogCollector()),
+    );
   } else {
     WidgetsFlutterBinding.ensureInitialized();
   }

@@ -49,7 +49,11 @@ class ReadiumReaderChannel extends MethodChannel {
   void Function(DecorationInteractionEvent)? onDecorationInteraction;
 
   /// Go e.g. navigate to a specific locator in the publication.
-  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) {
+  Future<void> go(
+    final Locator locator, {
+    required final bool isAudioBookWithText,
+    final bool animated = false,
+  }) {
     _log.d('$name: $locator, $animated');
 
     return _invokeMethod(_ReaderChannelMethodInvoke.go, [
@@ -73,20 +77,28 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Set EPUB preferences.
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
-    await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
+    await _invokeMethod(
+      _ReaderChannelMethodInvoke.setPreferences,
+      preferences.toJson(),
+    );
   }
 
   /// Set PDF preferences.
   Future<void> setPDFPreferences(PDFPreferences preferences) async {
-    await _invokeMethod(_ReaderChannelMethodInvoke.setPreferences, preferences.toJson());
+    await _invokeMethod(
+      _ReaderChannelMethodInvoke.setPreferences,
+      preferences.toJson(),
+    );
   }
 
   /// Apply decorations to the reader.
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async =>
-      await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [
-        id,
-        decorations.map((d) => json.encode(d.toJson())).toList(),
-      ]);
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async => await _invokeMethod(_ReaderChannelMethodInvoke.applyDecorations, [
+    id,
+    decorations.map((d) => json.encode(d.toJson())).toList(),
+  ]);
 
   /// Configure the native selection context menu actions.
   Future<void> configureSelectionActions(List<SelectionAction> actions) async => await _invokeMethod(
@@ -162,7 +174,10 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   /// Invokes a method on the native platform with optional arguments.
-  Future<T?> _invokeMethod<T>(final _ReaderChannelMethodInvoke method, [final dynamic arguments]) {
+  Future<T?> _invokeMethod<T>(
+    final _ReaderChannelMethodInvoke method, [
+    final dynamic arguments,
+  ]) {
     _log.d(() => arguments == null ? '$method' : '$method: $arguments');
 
     return invokeMethod<T>(method.name, arguments);

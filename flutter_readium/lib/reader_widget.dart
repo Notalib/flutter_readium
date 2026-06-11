@@ -170,10 +170,17 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           height: _scrollMode ? 100 : null,
           right: _scrollMode ? 0 : null,
           bottom: _scrollMode ? null : 0,
-          child: _buildSemanticsPrevNextPage(label: leftUpLabel, toNextPage: false),
+          child: _buildSemanticsPrevNextPage(
+            label: leftUpLabel,
+            toNextPage: false,
+          ),
         ),
         // TODO: This presumes there is only one semantic label, for when the different toggles
-        Positioned.fill(child: _buildSemanticsToggleFullScreen(label: widget.toggleShowControlsSemanticLabel)),
+        Positioned.fill(
+          child: _buildSemanticsToggleFullScreen(
+            label: widget.toggleShowControlsSemanticLabel,
+          ),
+        ),
         Positioned(
           top: _scrollMode ? null : 0,
           right: 0,
@@ -181,7 +188,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           height: _scrollMode ? 100 : null,
           left: _scrollMode ? 0 : null,
           bottom: 0,
-          child: _buildSemanticsPrevNextPage(label: rightDownLabel, toNextPage: true),
+          child: _buildSemanticsPrevNextPage(
+            label: rightDownLabel,
+            toNextPage: true,
+          ),
         ),
         ExcludeSemantics(
           child: Listener(
@@ -227,10 +237,18 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> go(final Locator locator, {required final bool isAudioBookWithText, final bool animated = false}) async {
+  Future<void> go(
+    final Locator locator, {
+    required final bool isAudioBookWithText,
+    final bool animated = false,
+  }) async {
     _log.d(() => 'Go to $locator');
 
-    await _channel?.go(locator, animated: animated, isAudioBookWithText: isAudioBookWithText);
+    await _channel?.go(
+      locator,
+      animated: animated,
+      isAudioBookWithText: isAudioBookWithText,
+    );
 
     _log.d('Go to locator completed');
   }
@@ -254,7 +272,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async {
     await _channel?.applyDecorations(id, decorations);
   }
 
@@ -310,7 +331,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
     return ColoredBox(
       color: const Color(0xffff00ff),
-      child: Center(child: Text('TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.')),
+      child: Center(
+        child: Text(
+          'TODO — Implement ReadiumReaderWidget on ${Platform.operatingSystem}.',
+        ),
+      ),
     );
   }
 
@@ -391,7 +416,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       if (_lastOrientation != null && _currentLocator != null) {
         Future.delayed(const Duration(milliseconds: 500)).then((final value) {
           _log
-            ..d('Orientation changed. Re-navigating to current locator to re-align page.')
+            ..d(
+              'Orientation changed. Re-navigating to current locator to re-align page.',
+            )
             ..d('locator = $_currentLocator');
           _channel?.go(
             _currentLocator!,
@@ -426,7 +453,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
-  Widget _buildSemanticsPrevNextPage({required final String label, required final bool toNextPage}) => Semantics(
+  Widget _buildSemanticsPrevNextPage({
+    required final String label,
+    required final bool toNextPage,
+  }) => Semantics(
     // TODO: this is not necessarily how it should be handled needs to be evaluated more
     sortKey: OrdinalSortKey(toNextPage ? 2.0 : 0.0),
     button: true,

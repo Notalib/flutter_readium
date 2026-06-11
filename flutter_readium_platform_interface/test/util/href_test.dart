@@ -12,14 +12,29 @@ void main() {
 
     expect(Href(href: 'foo/bar.txt', baseHref: '').string, 'foo/bar.txt');
     expect(Href(href: 'foo/bar.txt', baseHref: '/').string, '/foo/bar.txt');
-    expect(Href(href: 'foo/bar.txt', baseHref: '/file.txt').string, '/foo/bar.txt');
-    expect(Href(href: 'foo/bar.txt', baseHref: '/folder').string, '/foo/bar.txt');
-    expect(Href(href: 'foo/bar.txt', baseHref: '/folder/').string, '/folder/foo/bar.txt');
     expect(
-      Href(href: 'foo/bar.txt', baseHref: 'http://example.com/folder/file.txt').string,
+      Href(href: 'foo/bar.txt', baseHref: '/file.txt').string,
+      '/foo/bar.txt',
+    );
+    expect(
+      Href(href: 'foo/bar.txt', baseHref: '/folder').string,
+      '/foo/bar.txt',
+    );
+    expect(
+      Href(href: 'foo/bar.txt', baseHref: '/folder/').string,
+      '/folder/foo/bar.txt',
+    );
+    expect(
+      Href(
+        href: 'foo/bar.txt',
+        baseHref: 'http://example.com/folder/file.txt',
+      ).string,
       'http://example.com/folder/foo/bar.txt',
     );
-    expect(Href(href: 'foo/bar.txt', baseHref: 'http://example.com/folder').string, 'http://example.com/foo/bar.txt');
+    expect(
+      Href(href: 'foo/bar.txt', baseHref: 'http://example.com/folder').string,
+      'http://example.com/foo/bar.txt',
+    );
     expect(
       Href(href: 'foo/bar.txt', baseHref: 'http://example.com/folder/').string,
       'http://example.com/folder/foo/bar.txt',
@@ -27,59 +42,128 @@ void main() {
 
     expect(Href(href: '/foo/bar.txt', baseHref: '').string, '/foo/bar.txt');
     expect(Href(href: '/foo/bar.txt', baseHref: '/').string, '/foo/bar.txt');
-    expect(Href(href: '/foo/bar.txt', baseHref: '/file.txt').string, '/foo/bar.txt');
-    expect(Href(href: '/foo/bar.txt', baseHref: '/folder').string, '/foo/bar.txt');
-    expect(Href(href: '/foo/bar.txt', baseHref: '/folder/').string, '/foo/bar.txt');
     expect(
-      Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder/file.txt').string,
+      Href(href: '/foo/bar.txt', baseHref: '/file.txt').string,
+      '/foo/bar.txt',
+    );
+    expect(
+      Href(href: '/foo/bar.txt', baseHref: '/folder').string,
+      '/foo/bar.txt',
+    );
+    expect(
+      Href(href: '/foo/bar.txt', baseHref: '/folder/').string,
+      '/foo/bar.txt',
+    );
+    expect(
+      Href(
+        href: '/foo/bar.txt',
+        baseHref: 'http://example.com/folder/file.txt',
+      ).string,
       'http://example.com/foo/bar.txt',
     );
-    expect(Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder').string, 'http://example.com/foo/bar.txt');
-    expect(Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder/').string, 'http://example.com/foo/bar.txt');
-
-    expect(Href(href: 'http://absolute.com/foo/bar.txt', baseHref: '/').string, 'http://absolute.com/foo/bar.txt');
     expect(
-      Href(href: 'http://absolute.com/foo/bar.txt', baseHref: 'https://example.com/').string,
+      Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder').string,
+      'http://example.com/foo/bar.txt',
+    );
+    expect(
+      Href(href: '/foo/bar.txt', baseHref: 'http://example.com/folder/').string,
+      'http://example.com/foo/bar.txt',
+    );
+
+    expect(
+      Href(href: 'http://absolute.com/foo/bar.txt', baseHref: '/').string,
+      'http://absolute.com/foo/bar.txt',
+    );
+    expect(
+      Href(
+        href: 'http://absolute.com/foo/bar.txt',
+        baseHref: 'https://example.com/',
+      ).string,
       'http://absolute.com/foo/bar.txt',
     );
 
     // Anchor and query parameters are preserved
-    expect(Href(href: 'foo/bar.txt#anchor', baseHref: '/').string, '/foo/bar.txt#anchor');
-    expect(Href(href: 'foo/bar.txt?query=param#anchor', baseHref: '/').string, '/foo/bar.txt?query=param#anchor');
-    expect(Href(href: '/foo/bar.txt?query=param#anchor', baseHref: '/').string, '/foo/bar.txt?query=param#anchor');
     expect(
-      Href(href: 'http://absolute.com/foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      Href(href: 'foo/bar.txt#anchor', baseHref: '/').string,
+      '/foo/bar.txt#anchor',
+    );
+    expect(
+      Href(href: 'foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      '/foo/bar.txt?query=param#anchor',
+    );
+    expect(
+      Href(href: '/foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      '/foo/bar.txt?query=param#anchor',
+    );
+    expect(
+      Href(
+        href: 'http://absolute.com/foo/bar.txt?query=param#anchor',
+        baseHref: '/',
+      ).string,
       'http://absolute.com/foo/bar.txt?query=param#anchor',
     );
 
-    expect(Href(href: 'foo/bar.txt#anchor', baseHref: '/').string, '/foo/bar.txt#anchor');
-    expect(Href(href: 'foo/bar.txt?query=param#anchor', baseHref: '/').string, '/foo/bar.txt?query=param#anchor');
-    expect(Href(href: '/foo/bar.txt?query=param#anchor', baseHref: '/').string, '/foo/bar.txt?query=param#anchor');
     expect(
-      Href(href: 'http://absolute.com/foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      Href(href: 'foo/bar.txt#anchor', baseHref: '/').string,
+      '/foo/bar.txt#anchor',
+    );
+    expect(
+      Href(href: 'foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      '/foo/bar.txt?query=param#anchor',
+    );
+    expect(
+      Href(href: '/foo/bar.txt?query=param#anchor', baseHref: '/').string,
+      '/foo/bar.txt?query=param#anchor',
+    );
+    expect(
+      Href(
+        href: 'http://absolute.com/foo/bar.txt?query=param#anchor',
+        baseHref: '/',
+      ).string,
       'http://absolute.com/foo/bar.txt?query=param#anchor',
     );
 
     // HREF that is just an anchor
     expect(Href(href: '#anchor', baseHref: '').string, '#anchor');
     expect(Href(href: '#anchor', baseHref: '/').string, '/#anchor');
-    expect(Href(href: '#anchor', baseHref: '/file.txt').string, '/file.txt#anchor');
-    expect(Href(href: '#anchor', baseHref: '/folder').string, '/folder#anchor');
-    expect(Href(href: '#anchor', baseHref: '/folder/').string, '/folder/#anchor');
     expect(
-      Href(href: '#anchor', baseHref: 'http://example.com/folder/file.txt').string,
+      Href(href: '#anchor', baseHref: '/file.txt').string,
+      '/file.txt#anchor',
+    );
+    expect(Href(href: '#anchor', baseHref: '/folder').string, '/folder#anchor');
+    expect(
+      Href(href: '#anchor', baseHref: '/folder/').string,
+      '/folder/#anchor',
+    );
+    expect(
+      Href(
+        href: '#anchor',
+        baseHref: 'http://example.com/folder/file.txt',
+      ).string,
       'http://example.com/folder/file.txt#anchor',
     );
-    expect(Href(href: '#anchor', baseHref: 'http://example.com/folder').string, 'http://example.com/folder#anchor');
-    expect(Href(href: '#anchor', baseHref: 'http://example.com/folder/').string, 'http://example.com/folder/#anchor');
+    expect(
+      Href(href: '#anchor', baseHref: 'http://example.com/folder').string,
+      'http://example.com/folder#anchor',
+    );
+    expect(
+      Href(href: '#anchor', baseHref: 'http://example.com/folder/').string,
+      'http://example.com/folder/#anchor',
+    );
 
     // Percent encoding
     expect(
-      Href(href: 'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500', baseHref: '/').string,
+      Href(
+        href: 'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
+        baseHref: '/',
+      ).string,
       'http://absolute.com/foo bar.txt?query=param#Hello world £500',
     );
     expect(
-      Href(href: 'http://absolute.com/foo bar.txt?query=param#Hello world £500', baseHref: '/').string,
+      Href(
+        href: 'http://absolute.com/foo bar.txt?query=param#Hello world £500',
+        baseHref: '/',
+      ).string,
       'http://absolute.com/foo bar.txt?query=param#Hello world £500',
     );
   });
@@ -94,7 +178,10 @@ void main() {
     );
     expect(
       'http://absolute.com/foo%20bar.txt?query=param#Hello%20world%20%C2%A3500',
-      Href(href: 'http://absolute.com/foo bar.txt?query=param#Hello world £500', baseHref: '/').percentEncodedString,
+      Href(
+        href: 'http://absolute.com/foo bar.txt?query=param#Hello world £500',
+        baseHref: '/',
+      ).percentEncodedString,
     );
   });
 

@@ -13,7 +13,13 @@ import 'guided_navigation_text.dart';
 /// See https://readium.org/guided-navigation/schema/description.schema.json
 @immutable
 class GuidedNavigationDescription with EquatableMixin implements JSONable {
-  const GuidedNavigationDescription({this.audioref, this.imgref, this.textref, this.videoref, this.text});
+  const GuidedNavigationDescription({
+    this.audioref,
+    this.imgref,
+    this.textref,
+    this.videoref,
+    this.text,
+  });
 
   final String? audioref;
   final String? imgref;
@@ -40,10 +46,14 @@ class GuidedNavigationDescription with EquatableMixin implements JSONable {
     final imgref = jsonObject.optNullableString('imgref', remove: true);
     final textref = jsonObject.optNullableString('textref', remove: true);
     final videoref = jsonObject.optNullableString('videoref', remove: true);
-    final text = GuidedNavigationText.fromJson(jsonObject.opt('text', remove: true));
+    final text = GuidedNavigationText.fromJson(
+      jsonObject.opt('text', remove: true),
+    );
 
     if (audioref == null && imgref == null && textref == null && videoref == null && text == null) {
-      ReadiumLog.d('GuidedNavigationDescription: at least one media reference is required');
+      ReadiumLog.d(
+        'GuidedNavigationDescription: at least one media reference is required',
+      );
       return null;
     }
 

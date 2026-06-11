@@ -59,9 +59,14 @@ class Href {
     try {
       final url = Uri.parse(string);
       final uri = url.replace(host: AsciiCodec().decode(url.host.toUtf8()));
-      return String.fromCharCodes(AsciiCodec().encode(uri.toString())).removePrefix('file://');
+      return String.fromCharCodes(
+        AsciiCodec().encode(uri.toString()),
+      ).removePrefix('file://');
     } on Exception catch (e) {
-      ReadiumLog.e('Error parsing percentEncodedString: ${e.toString()}', data: {'string': string});
+      ReadiumLog.e(
+        'Error parsing percentEncodedString: ${e.toString()}',
+        data: {'string': string},
+      );
       return this.string;
     }
   }

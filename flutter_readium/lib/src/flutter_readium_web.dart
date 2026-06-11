@@ -89,7 +89,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<void> setCustomHeaders(Map<String, String> headers) async {
-    _log.w('setCustomHeaders is not supported on web (browser controls HTTP headers)');
+    _log.w(
+      'setCustomHeaders is not supported on web (browser controls HTTP headers)',
+    );
   }
 
   @override
@@ -102,7 +104,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     Publication? publication;
 
     try {
-      final publicationString = await JsPublicationChannel().getPublication(pubUrl);
+      final publicationString = await JsPublicationChannel().getPublication(
+        pubUrl,
+      );
 
       var publicationJson = jsonDecode(publicationString) as Map<String, dynamic>;
 
@@ -129,7 +133,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     return publication;
   }
 
-  static Map<String, dynamic> _transformPublicationJson(final Map<String, dynamic> publicationJson) {
+  static Map<String, dynamic> _transformPublicationJson(
+    final Map<String, dynamic> publicationJson,
+  ) {
     // The upstream ts-toolkit's Manifest.serialize() already produces correct
     // RWPM JSON (flat arrays for links/readingOrder/resources/toc, proper
     // metadata keys, LocalizedString as {lang: value} maps). The only known
@@ -206,7 +212,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
         await JsPublicationChannel().openPublication(
           pubUrl,
           pubId: publication.identifier,
-          initialPreferences: json.encode(defaultPreferences?.toJson() ?? <String, dynamic>{}),
+          initialPreferences: json.encode(
+            defaultPreferences?.toJson() ?? <String, dynamic>{},
+          ),
         );
       } on Exception catch (e) {
         throw ReadiumError('Exception opening audiobook on web: $e');
@@ -235,7 +243,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   @override
   Future<void> setEPUBPreferences(EPUBPreferences preferences) async {
     defaultPreferences = preferences;
-    JsPublicationChannel().setEPUBPreferences(json.encode(preferences.toJson()));
+    JsPublicationChannel().setEPUBPreferences(
+      json.encode(preferences.toJson()),
+    );
   }
 
   @override
@@ -244,7 +254,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
-  Future<void> applyDecorations(String id, List<ReaderDecoration> decorations) async {
+  Future<void> applyDecorations(
+    String id,
+    List<ReaderDecoration> decorations,
+  ) async {
     JsPublicationChannel().applyDecorations(
       id,
       jsonEncode(decorations.map((d) => d.toJson()).toList()),
@@ -345,10 +358,16 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   // AUDIOBOOK API - BEGIN
   @override
-  Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) async {
+  Future<void> audioEnable({
+    AudioPreferences? prefs,
+    Locator? fromLocator,
+  }) async {
     final prefsJson = json.encode(prefs?.toJson() ?? <String, dynamic>{});
     final locatorJson = fromLocator != null ? json.encode(fromLocator) : null;
-    await JsPublicationChannel.audioEnable(prefsJson, fromLocatorJson: locatorJson);
+    await JsPublicationChannel.audioEnable(
+      prefsJson,
+      fromLocatorJson: locatorJson,
+    );
   }
 
   @override

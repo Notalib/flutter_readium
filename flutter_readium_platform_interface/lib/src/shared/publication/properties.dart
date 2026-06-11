@@ -55,7 +55,12 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
   final PresentationSpread? spread;
 
   @override
-  List<Object> get props => [additionalProperties, contains ?? {}, page ?? '', encryption ?? ''];
+  List<Object> get props => [
+    additionalProperties,
+    contains ?? {},
+    page ?? '',
+    encryption ?? '',
+  ];
 
   /// (Nullable) Indicates that a resource is encrypted/obfuscated and provides
   /// relevant information for decryption.
@@ -109,12 +114,25 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final page = PresentationPage.fromString(jsonObject.optNullableString('page', remove: true));
-    final contains = jsonObject.optStringsFromArrayOrSingle('contains', remove: true);
-    final orientation = PresentationOrientation.fromString(jsonObject.optNullableString('orientation', remove: true));
-    final layout = EpubLayout.fromString(jsonObject.optNullableString('layout', remove: true));
-    final overflow = PresentationOverflow.fromString(jsonObject.optNullableString('overflow', remove: true));
-    final spread = PresentationSpread.fromString(jsonObject.optNullableString('spread', remove: true));
+    final page = PresentationPage.fromString(
+      jsonObject.optNullableString('page', remove: true),
+    );
+    final contains = jsonObject.optStringsFromArrayOrSingle(
+      'contains',
+      remove: true,
+    );
+    final orientation = PresentationOrientation.fromString(
+      jsonObject.optNullableString('orientation', remove: true),
+    );
+    final layout = EpubLayout.fromString(
+      jsonObject.optNullableString('layout', remove: true),
+    );
+    final overflow = PresentationOverflow.fromString(
+      jsonObject.optNullableString('overflow', remove: true),
+    );
+    final spread = PresentationSpread.fromString(
+      jsonObject.optNullableString('spread', remove: true),
+    );
 
     final encryptionMap = jsonObject.optNullableMap('encrypted', remove: true);
     final encryption = Encryption.fromJson(encryptionMap);

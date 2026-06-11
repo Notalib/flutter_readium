@@ -34,7 +34,9 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   }
 
   @override
-  Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
+  Widget build(
+    final BuildContext context,
+  ) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
 
@@ -55,7 +57,9 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             backgroundColor: _appBarColor,
             title: Semantics(
               header: true,
-              child: Text(pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown'),
+              child: Text(
+                pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
+              ),
             ),
             actions: _buildActionButtons(),
           ),
@@ -63,11 +67,19 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
             children: [
               Positioned.fill(
                 child: isAudioBook
-                    ? Container(padding: EdgeInsets.all(12.0), child: TimebasedStateWidget())
+                    ? Container(
+                        padding: EdgeInsets.all(12.0),
+                        child: TimebasedStateWidget(),
+                      )
                     : ReaderWidget(shouldShowControls: _shouldShowControls),
               ),
               if (pubState.publication != null)
-                Positioned(left: 0, right: 0, bottom: 0, child: _controls(pubState.publication!)),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _controls(pubState.publication!),
+                ),
             ],
           ),
         ),
@@ -103,8 +115,9 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (final context) =>
-              PointerInterceptor(child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget()),
+          builder: (final context) => PointerInterceptor(
+            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+          ),
         );
       },
       tooltip: 'Open reader settings',
@@ -112,12 +125,17 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     IconButton(
       icon: const Icon(Icons.search),
       onPressed: () async {
-        final tappedSearchResult = await Navigator.pushNamed<dynamic>(context, '/search');
+        final tappedSearchResult = await Navigator.pushNamed<dynamic>(
+          context,
+          '/search',
+        );
         if (!context.mounted) return;
         final publication = context.read<PublicationBloc>().state.publication;
         if (publication != null && tappedSearchResult != null && tappedSearchResult is TextSearchResult) {
           if (context.mounted) {
-            context.read<PlayerControlsBloc>().add(GoToLocator(tappedSearchResult.locator));
+            context.read<PlayerControlsBloc>().add(
+              GoToLocator(tappedSearchResult.locator),
+            );
           }
         }
       },
@@ -152,7 +170,12 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       duration: _slideDuration,
       child: Container(
         color: _playerControlsColor,
-        child: SafeArea(top: false, left: false, right: false, child: PlayerControls(publication: publication)),
+        child: SafeArea(
+          top: false,
+          left: false,
+          right: false,
+          child: PlayerControls(publication: publication),
+        ),
       ),
     );
   }

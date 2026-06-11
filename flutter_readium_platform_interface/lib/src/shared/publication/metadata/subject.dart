@@ -25,8 +25,12 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
 
   factory Subject.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
-    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('sortAs', remove: true),
+    );
     final code = jsonObject.optNullableString('code', remove: true);
     final scheme = jsonObject.optNullableString('scheme', remove: true);
     final links = Link.fromJsonArray(jsonObject.opt('links', remove: true));
@@ -74,7 +78,14 @@ class Subject extends AdditionalProperties with EquatableMixin implements JSONab
   }
 
   @override
-  List<Object?> get props => [localizedName, localizedSortAs, code, scheme, links, additionalProperties];
+  List<Object?> get props => [
+    localizedName,
+    localizedSortAs,
+    code,
+    scheme,
+    links,
+    additionalProperties,
+  ];
 
   @override
   toJson() {

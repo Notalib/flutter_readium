@@ -37,7 +37,17 @@ class GuidedNavigationObject with EquatableMixin implements JSONable {
   final GuidedNavigationDescription? description;
 
   @override
-  List<Object?> get props => [id, audioref, imgref, textref, videoref, text, role, children, description];
+  List<Object?> get props => [
+    id,
+    audioref,
+    imgref,
+    textref,
+    videoref,
+    text,
+    role,
+    children,
+    description,
+  ];
 
   @override
   Map<String, dynamic> toJson() => {}
@@ -60,19 +70,27 @@ class GuidedNavigationObject with EquatableMixin implements JSONable {
     final imgref = jsonObject.optNullableString('imgref', remove: true);
     final textref = jsonObject.optNullableString('textref', remove: true);
     final videoref = jsonObject.optNullableString('videoref', remove: true);
-    final text = GuidedNavigationText.fromJson(jsonObject.opt('text', remove: true));
+    final text = GuidedNavigationText.fromJson(
+      jsonObject.opt('text', remove: true),
+    );
     final role = jsonObject
         .optStringsFromArrayOrSingle('role', remove: true)
         .map(GuidedNavigationRole.optFromString)
         .whereType<GuidedNavigationRole>()
         .toList();
     final children = (jsonObject.optJsonArray('children', remove: true) ?? []).parseObjects(
-      (it) => GuidedNavigationObject.fromJson(it is Map<String, dynamic> ? it : null),
+      (it) => GuidedNavigationObject.fromJson(
+        it is Map<String, dynamic> ? it : null,
+      ),
     );
-    final description = GuidedNavigationDescription.fromJson(jsonObject.optJsonObject('description', remove: true));
+    final description = GuidedNavigationDescription.fromJson(
+      jsonObject.optJsonObject('description', remove: true),
+    );
 
     if (audioref == null && imgref == null && textref == null && videoref == null && text == null && children.isEmpty) {
-      ReadiumLog.d('GuidedNavigationObject: at least one media reference, text, or children is required');
+      ReadiumLog.d(
+        'GuidedNavigationObject: at least one media reference, text, or children is required',
+      );
       return null;
     }
 
@@ -89,6 +107,9 @@ class GuidedNavigationObject with EquatableMixin implements JSONable {
     );
   }
 
-  static List<GuidedNavigationObject> fromJsonArray(List<dynamic>? json) =>
-      (json ?? []).parseObjects((it) => GuidedNavigationObject.fromJson(it is Map<String, dynamic> ? it : null));
+  static List<GuidedNavigationObject> fromJsonArray(List<dynamic>? json) => (json ?? []).parseObjects(
+    (it) => GuidedNavigationObject.fromJson(
+      it is Map<String, dynamic> ? it : null,
+    ),
+  );
 }

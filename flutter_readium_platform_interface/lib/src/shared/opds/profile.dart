@@ -37,7 +37,14 @@ class Profile extends AdditionalProperties implements JSONable {
     );
   }
 
-  const Profile({this.name, this.email, this.links, this.loans, this.holds, super.additionalProperties});
+  const Profile({
+    this.name,
+    this.email,
+    this.links,
+    this.loans,
+    this.holds,
+    super.additionalProperties,
+  });
 
   /// Given name for the user
   final String? name;
