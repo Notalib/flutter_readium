@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
 import '../state/index.dart';
+import 'full_screen_image_view.dart';
 
 class ReaderWidget extends StatelessWidget {
   const ReaderWidget({this.shouldShowControls, super.key});
@@ -79,6 +80,14 @@ class ReaderWidget extends StatelessWidget {
                   ),
                 );
               }
+            },
+            onImageTapped: (event) {
+              debugPrint('[ImageTap] href=${event.href} srcUrl=${event.srcUrl}');
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => FullScreenImageView(event: event),
+                ),
+              );
             },
           ),
         );

@@ -160,6 +160,69 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Image tap API (getResourceBytes)
+  // ---------------------------------------------------------------------------
+
+  group(
+    'EPUB image tap API',
+    // Web: getResourceBytes is implemented on web too, but the fixture
+    // (moby_dick.epub via peterAndWendyEpub key) is a native-bundled asset not
+    // served as a webpub. Covered on iOS/Android only for now.
+    skip: kIsWeb ? 'Native-bundled fixture not available on web' : null,
+    () {
+      test('opens EPUB and reads publication metadata', () async {
+        // peterAndWendyEpub key maps to moby_dick.epub which has a cover PNG.
+        final path = fixturePaths[FixtureKeys.mobyDickEpub];
+        expect(
+          path,
+          isNotNull,
+          reason: 'Fixture moby_dick.epub missing from asset bundle',
+        );
+
+        final pub = await reader.openPublication(path!);
+
+        expect(pub.metadata.title, isNotEmpty);
+        expect(pub.readingOrder, isNotEmpty);
+      });
+
+      test('getResourceBytes returns non-empty bytes for an image resource', () async {
+        final path = fixturePaths[FixtureKeys.mobyDickEpub];
+        expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing');
+
+        final pub = await reader.openPublication(path!);
+
+        // moby_dick.epub has a cover PNG in the manifest resources.
+        final imageLink = pub.resources.firstWhere(
+          (l) =>
+              l.type?.startsWith('image/') == true ||
+              (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
+          orElse: () => throw StateError(
+            'moby_dick.epub has no image resources — cannot test getResourceBytes',
+          ),
+        );
+
+        final bytes = await reader.getResourceBytes(imageLink.href);
+        expect(
+          bytes,
+          isNotEmpty,
+          reason: 'getResourceBytes returned empty bytes for href: ${imageLink.href}',
+        );
+        // Sanity-check that the bytes look like an image by checking for known
+        // magic bytes. JPEG starts with 0xFF 0xD8; PNG with 0x89 0x50 0x4E 0x47.
+        final isJpeg = bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        final isPng = bytes.length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+        expect(
+          isJpeg || isPng,
+          isTrue,
+          reason:
+              'Bytes for ${imageLink.href} do not start with a JPEG or PNG magic header '
+              '(got 0x${bytes.take(4).map((b) => b.toRadixString(16).padLeft(2, "0")).join()})',
+        );
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
   // PDF
   // ---------------------------------------------------------------------------
 

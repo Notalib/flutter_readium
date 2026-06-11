@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -204,4 +205,15 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   Stream<ReadiumError> get onErrorEvent {
     throw UnimplementedError('onErrorEvent stream has not been implemented.');
   }
+
+  /// Reads the raw bytes of a publication resource identified by its [href].
+  ///
+  /// The [href] should match a resource in the current publication's reading
+  /// order or resources manifest (e.g. an image link from [ImageTapEvent.href]).
+  ///
+  /// Throws [PlatformException] if the resource is not found or cannot be read.
+  /// Not implemented on Android — throws [UnimplementedError] on that platform.
+  Future<Uint8List> getResourceBytes(String href) => throw UnimplementedError(
+    'getResourceBytes(href) has not been implemented.',
+  );
 }

@@ -1,6 +1,14 @@
 import { Profile, Publication, MediaType, Link } from "@readium/shared";
 
 export class ReadiumPublication extends Publication {
+  /** All resource links from readingOrder + resources, flattened into a single array. */
+  get allLinks(): Link[] {
+    return [
+      ...this.readingOrder.items,
+      ...(this.resources?.items ?? []),
+    ];
+  }
+
   private conformsToArray = this.manifest.metadata.conformsTo;
 
   public conformsToEpub: boolean =

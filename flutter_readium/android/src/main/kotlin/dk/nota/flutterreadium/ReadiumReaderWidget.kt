@@ -33,7 +33,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "ReadiumReaderView"
-internal const val viewTypeChannelName = "dk.nota.flutter_readium/ReadiumReaderWidget"
+internal const val viewTypeChannelName = "dk.nota.flutterreadium/ReadiumReaderWidget"
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -229,6 +229,12 @@ class ReadiumReaderWidget(
         PluginLog.d(TAG, "::setPreferencesFromMap")
         val newPreferences = FlutterEpubPreferences.fromMap(prefMap)
         updatePreferences(newPreferences)
+        // Push the comic re-sync policy to the injected helper.
+        newPreferences.syncPolicy?.let { policy ->
+            ReadiumReader.epubEvaluateJavascript(
+                "window.flutterReadium && window.flutterReadium.setComicSyncPolicy('$policy');",
+            )
+        }
     }
 
     private suspend fun emitOnPageChanged(

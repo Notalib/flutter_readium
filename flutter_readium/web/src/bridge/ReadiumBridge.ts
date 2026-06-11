@@ -51,4 +51,12 @@ export class ReadiumBridge {
   emitError(message: string, code?: string): void {
     window.onErrorCallback?.(JSON.stringify({ message, ...(code ? { code } : {}) }));
   }
+
+  /**
+   * Emit an image-tap event to Flutter.
+   * @param json JSON-stringified ImageTapEvent payload
+   */
+  emitImageTapped(json: string): void {
+    window.onImageTappedCallback?.(json);
+  }
 }

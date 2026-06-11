@@ -15,6 +15,10 @@ Future<Map<String, String>> loadFixturePaths() => platform.loadFixturePaths();
 /// Fixture keys used across tests. Keeping them here avoids typos.
 abstract final class FixtureKeys {
   static const mobyDickEpub = 'moby_dick.epub';
+
+  /// EPUB used for image-tap and getResourceBytes tests. Contains at least one
+  /// image resource (cover.png) detectable via the manifest resources list.
+  static const peterAndWendyEpub = 'peter_and_wendy.epub';
   static const overlayWebpub = '38533_overlay_preview.webpub';
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';

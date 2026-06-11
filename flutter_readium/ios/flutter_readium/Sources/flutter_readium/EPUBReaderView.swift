@@ -1,4 +1,4 @@
-import ReadiumNavigator
+@_spi(ExperimentalTargetElement) import ReadiumNavigator
 import ReadiumShared
 import Flutter
 import UIKit
@@ -194,6 +194,21 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       self?.onDecorationActivated(event: event)
     }
 
+    // Observe image-tap events via the ExperimentalTargetElement SPI.
+    // When the user taps an <img>, the navigator calls back with an
+    // ActivateEvent whose targetElement is an ImageContentElement.
+    readiumViewController.addObserver(.activate { [weak self] event in
+      guard let self = self else { return false }
+      guard let imageElement = event.targetElement?.content as? ImageContentElement else {
+        return false
+      }
+      self.onImageTapped(
+        image: imageElement,
+        frame: event.targetElement?.frame
+      )
+      return true
+    })
+
     Log.reader.debug("init success")
   }
 
@@ -353,6 +368,19 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       group: event.group,
       type: "tap",
       locator: event.decoration.locator
+    )
+  }
+
+  /// Called when the user taps an image element inside an EPUB resource.
+  /// Forwards the event to the Flutter channel as an `onImageTapped` call.
+  private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
+    Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
+    let href = image.embeddedLink.href
+    let alt = image.caption  // ImageContentElement.caption holds alt/caption text
+    channel.onImageTapped(
+      href: href,
+      alt: alt,
+      frame: frame
     )
   }
 

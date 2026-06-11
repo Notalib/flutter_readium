@@ -49,6 +49,27 @@ class ReadiumReaderChannel: FlutterMethodChannel {
     }
   }
 
+  func onImageTapped(href: String, alt: String?, frame: CGRect?) {
+    var json: [String: Any] = ["href": href]
+    if let alt = alt, !alt.isEmpty {
+      json["alt"] = alt
+    }
+    if let frame = frame {
+      json["rect"] = [
+        "x": frame.origin.x,
+        "y": frame.origin.y,
+        "width": frame.size.width,
+        "height": frame.size.height,
+      ]
+    }
+    if let data = try? JSONSerialization.data(withJSONObject: json),
+       let jsonString = String(data: data, encoding: .utf8) {
+      invokeMethod("onImageTapped", arguments: jsonString)
+    } else {
+      Log.reader.warning("::onImageTapped. Failed to serialise JSON for href: \(href)")
+    }
+  }
+
   func onDecorationInteraction(decorationId: String, group: String, type: String, locator: Locator?) {
     var json: [String: Any] = [
       "decorationId": decorationId,

@@ -31,5 +31,11 @@ declare global {
      * @param errorJson JSON-stringified { message: string, code?: string }
      */
     onErrorCallback?: (errorJson: string) => void;
+
+    /**
+     * Callback for image-tap events.
+     * @param json JSON-stringified ImageTapEvent (matches Dart ImageTapEvent.fromJson)
+     */
+    onImageTappedCallback?: (json: string) => void;
   }
 }

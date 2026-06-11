@@ -273,6 +273,15 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 }
             }
 
+            "getResourceBytes" -> {
+                // Image-tap byte fetch is not implemented on Android.
+                // The kotlin-toolkit does not expose a synchronous per-resource read
+                // through the method channel used by the reader widget.
+                // This is a tracked follow-up item; for now the channel returns
+                // notImplemented so the Dart side throws UnimplementedError cleanly.
+                throw NotImplementedError()
+            }
+
             else -> {
                 throw NotImplementedError()
             }

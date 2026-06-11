@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
@@ -207,6 +208,15 @@ class FlutterReadium {
   /// Searches for [searchKey] in the currently opened publication and returns a list of matching results.
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
       _platform.searchInPublication(searchKey);
+
+  // TODO: Check the proper implementation of this.
+  Future<Uint8List> getResourceBytes(String href) async {
+    final result = await _platform.getResourceBytes(href);
+    if (result.isEmpty) {
+      throw ReadiumException('getResourceBytes returned no bytes for href: $href');
+    }
+    return result;
+  }
 
   ///////////////////////
   /// Private helpers ///

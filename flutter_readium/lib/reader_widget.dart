@@ -24,6 +24,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onTextSelected,
     this.onSelectionAction,
     this.onDecorationInteraction,
+    this.onImageTapped,
     this.selectionActions = const [],
     this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
@@ -59,6 +60,13 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Callback invoked when the user interacts with an existing decoration (e.g. taps a highlight).
   final ValueChanged<DecorationInteractionEvent>? onDecorationInteraction;
+
+  /// Callback invoked when the user taps an image in the EPUB.
+  ///
+  /// Fired on iOS and Android (when supported). On Android the kotlin-toolkit
+  /// does not yet expose a target-element API, so this callback never fires
+  /// there. On iOS it uses swift-toolkit's `ImageContentElement` SPI.
+  final ValueChanged<ImageTapEvent>? onImageTapped;
 
   /// Native context menu actions shown when text is selected.
   final List<SelectionAction> selectionActions;
@@ -387,6 +395,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       onTextSelected: widget.onTextSelected,
       onSelectionAction: widget.onSelectionAction,
       onDecorationInteraction: widget.onDecorationInteraction,
+      onImageTapped: widget.onImageTapped,
     );
 
     if (widget.selectionActions.isNotEmpty) {

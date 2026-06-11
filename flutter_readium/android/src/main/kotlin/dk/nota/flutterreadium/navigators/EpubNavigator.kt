@@ -440,6 +440,11 @@ class EpubNavigator :
         }
     }
 
+    // NOTE: Image-tap (onImageTapped) is NOT implemented on Android.
+    // The kotlin-toolkit's EpubReaderFragment / DecorableNavigator.Listener does not
+    // expose a targetElement equivalent to swift-toolkit's ImageContentElement SPI.
+    // Implementing image-tap on Android is a tracked follow-up item.
+
     private val registeredDecorationGroups = mutableSetOf<String>()
 
     private fun ensureDecorationListener(

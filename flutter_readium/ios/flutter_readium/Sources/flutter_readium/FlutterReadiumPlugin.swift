@@ -503,6 +503,59 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           }
 
+    case "getResourceBytes":
+      guard let publication = getCurrentPublication() else {
+        return result(FlutterError(
+          code: "NoPublication",
+          message: "No publication currently open",
+          details: nil))
+      }
+      guard let args = call.arguments as? [String: Any],
+            let href = args["href"] as? String else {
+        return result(FlutterError(
+          code: "InvalidArgument",
+          message: "getResourceBytes requires a 'href' string argument",
+          details: nil))
+      }
+      Log.reader.debug("::getResourceBytes. href=\(href)")
+      Task.detached(priority: .userInitiated) {
+        guard let relativeURL = RelativeURL(string: href),
+              let link = publication.linkWithHREF(relativeURL) else {
+          Log.reader.warning("::getResourceBytes. No link found for href: \(href)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceNotFound",
+              message: "No resource found for href: \(href)",
+              details: nil))
+          }
+          return
+        }
+        guard let resource = publication.get(link) else {
+          Log.reader.warning("::getResourceBytes. Could not open resource for href: \(href)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceNotFound",
+              message: "Could not open resource for href: \(href)",
+              details: nil))
+          }
+          return
+        }
+        switch await resource.read() {
+        case .success(let bytes):
+          Log.reader.debug("::getResourceBytes. href=\(href) bytes=\(bytes.count)")
+          await MainActor.run {
+            result(FlutterStandardTypedData(bytes: bytes))
+          }
+        case .failure(let error):
+          Log.reader.error("::getResourceBytes. Read failed for href: \(href). \(error.localizedDescription)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceReadError",
+              message: "Failed to read resource bytes for href: \(href). \(error.localizedDescription)",
+              details: nil))
+          }
+        }
+      }
     default:
       result(FlutterMethodNotImplemented)
     }
