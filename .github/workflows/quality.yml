@@ -61,7 +61,7 @@ jobs:
           - flutter_readium
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Read Flutter version
         id: flutter_version
