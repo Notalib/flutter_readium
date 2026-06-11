@@ -43,6 +43,10 @@ Key scripts:
 - `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
 - `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview. Relevant when having touched files in `flutter_readium/assets/_helper_scripts/src`.
 
+## Code search (tokensave)
+
+This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensave) (`.tokensave/`, gitignored). For codebase research — finding symbols, callers/callees, impact — prefer the `tokensave_*` MCP tools over grep/glob/Explore; they answer from the semantic graph at a fraction of the tokens. Fall back to direct reads/grep when tokensave is unavailable or a raw text match is genuinely the better tool (e.g. the built JS bundles, which are excluded from the index). Exclusions live in `.tokensave/config.json`; after pulling source changes, run `tokensave sync` to refresh.
+
 ## Conventions
 
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) with scopes (see `git log`). PR titles follow the same format.
