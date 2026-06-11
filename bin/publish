@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# Publish the publishable packages to pub.dev with a SELF-CONTAINED
+# analysis_options.yaml, so pub.dev's pana scores the real config.
+#
+# Each package's committed analysis_options.yaml shares config via
+# `include: ../analysis_options.base.yaml`. That path is outside the package and
+# is therefore NOT in the published tarball — pub.dev's pana would lose the
+# formatter/linter config and dock the score. This wrapper inlines the effective
+# config (via bin/materialize_analysis_options) for the duration of the publish,
+# then restores the committed file. Always publish through this script, never
+# `dart pub publish` directly.
+#
+# Publishes in dependency order: flutter_readium_platform_interface first
+# (flutter_readium depends on it).
+#
+# Usage:
+#   bin/publish                       # publish both packages (interactive)
+#   bin/publish flutter_readium       # publish one package only
+#   bin/publish --dry-run             # validate without uploading
+#   bin/publish --force               # skip the confirmation prompt
+#
+# Any --flag is passed through to `dart pub publish`; bare names select packages.
+
+# Bootstrap PATH so fvm/dart resolve in non-interactive shells (CI / AI agents),
+# which don't source ~/.zshrc. Sets REPO_ROOT and `set -eo pipefail`.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+PROJECT_ROOT="$REPO_ROOT"
+
+# Pick a dart binary the same way bin/pana_check does: prefer `fvm dart` when the
+# project pins a Flutter version via .fvmrc, else a system `dart` on PATH.
+if [ -f "$PROJECT_ROOT/.fvmrc" ] && command -v fvm >/dev/null 2>&1; then
+  DART=(fvm dart)
+elif command -v dart >/dev/null 2>&1; then
+  DART=(dart)
+else
+  echo -e "\033[31;1mERROR: no \`dart\` on PATH and \`fvm\` is not installed.\033[0m"
+  exit 1
+fi
+
+PACKAGES=(
+  "flutter_readium_platform_interface"
+  "flutter_readium"
+)
+
+PUBLISH_ARGS=()
+TARGETS=()
+for arg in "$@"; do
+  case "$arg" in
+    --*) PUBLISH_ARGS+=("$arg") ;;
+    *)   TARGETS+=("$arg") ;;
+  esac
+done
+
+if [ ${#TARGETS[@]} -gt 0 ]; then
+  PACKAGES=("${TARGETS[@]}")
+fi
+
+# Restore the committed config even if publish fails or is interrupted.
+MATERIALIZED_OPTS=
+MATERIALIZED_BAK=
+restore_opts() {
+  if [ -n "$MATERIALIZED_OPTS" ] && [ -f "$MATERIALIZED_BAK" ]; then
+    mv -f "$MATERIALIZED_BAK" "$MATERIALIZED_OPTS"
+  fi
+  MATERIALIZED_OPTS=
+  MATERIALIZED_BAK=
+}
+trap restore_opts EXIT INT TERM
+
+for pkg in "${PACKAGES[@]}"; do
+  if [ ! -d "$PROJECT_ROOT/$pkg" ]; then
+    echo -e "\033[31;1mUnknown package: $pkg\033[0m"
+    exit 1
+  fi
+
+  echo -e "\033[35;1m=== publish $pkg ===\033[0m"
+
+  # Resolve deps, then inline the effective analysis config for publish.
+  (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub get)
+
+  MATERIALIZED_OPTS="$PROJECT_ROOT/$pkg/analysis_options.yaml"
+  MATERIALIZED_BAK="$(mktemp)"
+  cp "$MATERIALIZED_OPTS" "$MATERIALIZED_BAK"
+  # Generate to a temp file first: materialize reads the package's own
+  # analysis_options.yaml, so writing straight to it would truncate it first.
+  _gen="$(mktemp)"
+  "$PROJECT_ROOT/bin/materialize_analysis_options" "$PROJECT_ROOT/$pkg" > "$_gen"
+  mv "$_gen" "$MATERIALIZED_OPTS"
+
+  (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub publish "${PUBLISH_ARGS[@]}")
+
+  # Restore before the next package so its backup is the committed file.
+  restore_opts
+done
