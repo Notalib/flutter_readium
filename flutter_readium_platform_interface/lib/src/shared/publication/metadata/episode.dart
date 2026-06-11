@@ -31,13 +31,19 @@ class Episode extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
 
     return Episode(
       position: position,

@@ -23,18 +23,30 @@ class Series extends BaseCollection {
     final jsonObject = Map<String, dynamic>.from(json);
 
     final position = jsonObject.optNullableDouble('position', remove: true) ?? 0;
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
     final localizedSortAs = LocalizedString.fromJsonDynamic(
       jsonObject.opt('sortAs', remove: true) ?? jsonObject.opt('sort-as', remove: true),
     );
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
 
-    final chapters = Chapter.listFromJson(jsonObject.opt('chapter', remove: true));
-    final episodes = Episode.listFromJson(jsonObject.opt('episode', remove: true));
+    final chapters = Chapter.listFromJson(
+      jsonObject.opt('chapter', remove: true),
+    );
+    final episodes = Episode.listFromJson(
+      jsonObject.opt('episode', remove: true),
+    );
     final seasons = Season.listFromJson(jsonObject.opt('season', remove: true));
-    final storyArcs = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true));
+    final storyArcs = StoryArc.listFromJson(
+      jsonObject.opt('storyArc', remove: true),
+    );
     final volumes = Volume.listFromJson(jsonObject.opt('volume', remove: true));
     final issues = Issue.listFromJson(jsonObject.opt('issue', remove: true));
 

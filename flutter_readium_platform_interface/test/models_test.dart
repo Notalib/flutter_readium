@@ -12,8 +12,17 @@ void main() {
       href: '/OEBPS/chapter1.xhtml',
       type: 'application/xhtml+xml',
       title: 'Chapter 1',
-      locations: Locations(progression: 0.42, totalProgression: 0.07, position: 14, cssSelector: '#p42'),
-      text: LocatorText(before: 'before', highlight: 'highlight', after: 'after'),
+      locations: Locations(
+        progression: 0.42,
+        totalProgression: 0.07,
+        position: 14,
+        cssSelector: '#p42',
+      ),
+      text: LocatorText(
+        before: 'before',
+        highlight: 'highlight',
+        after: 'after',
+      ),
     );
 
     test('round-trips through toJson / fromJson', () {
@@ -93,12 +102,18 @@ void main() {
 
   group('OpeningReadiumException', () {
     test('type is preserved', () {
-      const e = OpeningReadiumException('not found', type: OpeningReadiumExceptionType.notFound);
+      const e = OpeningReadiumException(
+        'not found',
+        type: OpeningReadiumExceptionType.notFound,
+      );
       expect(e.type, OpeningReadiumExceptionType.notFound);
     });
 
     test('toString includes type and message', () {
-      const e = OpeningReadiumException('msg', type: OpeningReadiumExceptionType.forbidden);
+      const e = OpeningReadiumException(
+        'msg',
+        type: OpeningReadiumExceptionType.forbidden,
+      );
       expect(e.toString(), contains('forbidden'));
       expect(e.toString(), contains('msg'));
     });
@@ -144,13 +159,25 @@ void main() {
   // ---------------------------------------------------------------------------
   group('ReadiumReaderStatus', () {
     test('fromString returns matching value', () {
-      expect(ReadiumReaderStatus.optFromString('ready'), ReadiumReaderStatus.ready);
-      expect(ReadiumReaderStatus.optFromString('loading'), ReadiumReaderStatus.loading);
-      expect(ReadiumReaderStatus.optFromString('error'), ReadiumReaderStatus.error);
+      expect(
+        ReadiumReaderStatus.optFromString('ready'),
+        ReadiumReaderStatus.ready,
+      );
+      expect(
+        ReadiumReaderStatus.optFromString('loading'),
+        ReadiumReaderStatus.loading,
+      );
+      expect(
+        ReadiumReaderStatus.optFromString('error'),
+        ReadiumReaderStatus.error,
+      );
     });
 
     test('fromString is case-insensitive', () {
-      expect(ReadiumReaderStatus.optFromString('READY'), ReadiumReaderStatus.ready);
+      expect(
+        ReadiumReaderStatus.optFromString('READY'),
+        ReadiumReaderStatus.ready,
+      );
     });
 
     test('fromString returns null for unknown values', () {
@@ -165,7 +192,10 @@ void main() {
       expect(ReadiumReaderStatus.closed.isClosed, isTrue);
       expect(ReadiumReaderStatus.error.isError, isTrue);
       expect(ReadiumReaderStatus.ready.hasReachedEndOfPublication, isFalse);
-      expect(ReadiumReaderStatus.reachedEndOfPublication.hasReachedEndOfPublication, isTrue);
+      expect(
+        ReadiumReaderStatus.reachedEndOfPublication.hasReachedEndOfPublication,
+        isTrue,
+      );
 
       expect(ReadiumReaderStatus.ready.isLoading, isFalse);
       expect(ReadiumReaderStatus.ready.isError, isFalse);
@@ -214,7 +244,9 @@ void main() {
   group('Publication', () {
     final pub = Publication(
       links: [],
-      metadata: Metadata(localizedTitle: LocalizedString.fromStrings({'en': 'My Book'})),
+      metadata: Metadata(
+        localizedTitle: LocalizedString.fromStrings({'en': 'My Book'}),
+      ),
       readingOrder: [Link(href: '/ch1.xhtml', type: 'application/xhtml+xml')],
       tableOfContents: [
         Link(href: '/ch1.xhtml', title: 'Chapter 1'),

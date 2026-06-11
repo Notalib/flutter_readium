@@ -51,11 +51,21 @@ class Presentation with EquatableMixin implements JSONable {
     return Presentation(
       clipped: jsonObject.optNullableBoolean('clipped', remove: true),
       continuous: jsonObject.optNullableBoolean('continuous', remove: true),
-      fit: PresentationFit.fromString(jsonObject.optString('fit', remove: true)),
-      orientation: PresentationOrientation.fromString(jsonObject.optString('orientation', remove: true)),
-      overflow: PresentationOverflow.fromString(jsonObject.optString('overflow', remove: true)),
-      spread: PresentationSpread.fromString(jsonObject.optString('spread', remove: true)),
-      layout: EpubLayout.fromString(jsonObject.optString('layout', remove: true)),
+      fit: PresentationFit.fromString(
+        jsonObject.optString('fit', remove: true),
+      ),
+      orientation: PresentationOrientation.fromString(
+        jsonObject.optString('orientation', remove: true),
+      ),
+      overflow: PresentationOverflow.fromString(
+        jsonObject.optString('overflow', remove: true),
+      ),
+      spread: PresentationSpread.fromString(
+        jsonObject.optString('spread', remove: true),
+      ),
+      layout: EpubLayout.fromString(
+        jsonObject.optString('layout', remove: true),
+      ),
     );
   }
 
@@ -76,7 +86,15 @@ class Presentation with EquatableMixin implements JSONable {
   final bool? continuous;
 
   @override
-  List<Object?> get props => [layout, orientation, overflow, spread, fit, clipped, continuous];
+  List<Object?> get props => [
+    layout,
+    orientation,
+    overflow,
+    spread,
+    fit,
+    clipped,
+    continuous,
+  ];
 
   /// Determines the layout of the given resource in this publication.
   /// The default layout is reflowable.
@@ -125,8 +143,9 @@ enum PresentationOrientation {
   landscape,
   portrait;
 
-  static PresentationOrientation? fromString(String? value) =>
-      PresentationOrientation.values.firstWhereOrNull((element) => element.name == value?.toLowerCase());
+  static PresentationOrientation? fromString(String? value) => PresentationOrientation.values.firstWhereOrNull(
+    (element) => element.name == value?.toLowerCase(),
+  );
 }
 
 /// Suggested method for handling overflow while displaying the linked resource.

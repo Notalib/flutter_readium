@@ -2,11 +2,19 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 # Format all Dart code across all packages in the repo.
+# pub get must run first so the formatter can resolve analysis_options.yaml
+# (which includes flutter_lints/flutter.yaml for the page_width: 120 setting).
+# Without it, the formatter falls back to 80-char page width and produces
+# different output than CI (which always runs pub get before dart format).
+
 echo "Formatting flutter_readium_platform_interface..."
+flutter pub get --directory "$REPO_ROOT/flutter_readium_platform_interface" > /dev/null
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
 
 echo "Formatting flutter_readium..."
+flutter pub get --directory "$REPO_ROOT/flutter_readium" > /dev/null
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium"
 
 echo "Formatting example app..."
+flutter pub get --directory "$REPO_ROOT/flutter_readium/example" > /dev/null
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"

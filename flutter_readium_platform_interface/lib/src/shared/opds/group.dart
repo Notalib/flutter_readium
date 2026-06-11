@@ -13,7 +13,12 @@ import '../publication/link.dart';
 
 @immutable
 class Group with EquatableMixin implements JSONable {
-  const Group({required this.metadata, required this.links, this.publications = const [], this.navigation = const []});
+  const Group({
+    required this.metadata,
+    required this.links,
+    this.publications = const [],
+    this.navigation = const [],
+  });
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -57,15 +62,28 @@ class Group with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final metadata = OpdsMetadata.fromJson(jsonObject.optNullableMap('metadata', remove: true));
+    final metadata = OpdsMetadata.fromJson(
+      jsonObject.optNullableMap('metadata', remove: true),
+    );
     if (metadata == null) {
       return null;
     }
 
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
-    final publications = OpdsPublication.fromJsonArray(jsonObject.optJsonArray('publications', remove: true));
-    final navigation = Link.fromJsonArray(jsonObject.optJsonArray('navigation', remove: true));
-    return Group(metadata: metadata, links: links, publications: publications, navigation: navigation);
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
+    final publications = OpdsPublication.fromJsonArray(
+      jsonObject.optJsonArray('publications', remove: true),
+    );
+    final navigation = Link.fromJsonArray(
+      jsonObject.optJsonArray('navigation', remove: true),
+    );
+    return Group(
+      metadata: metadata,
+      links: links,
+      publications: publications,
+      navigation: navigation,
+    );
   }
 
   static List<Group> fromJsonArray(List<dynamic>? jsonArray) {

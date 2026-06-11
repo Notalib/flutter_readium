@@ -27,10 +27,16 @@ class Article extends BaseCollection {
   factory Article.fromJsonMap(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final localizedName = LocalizedString.fromJsonDynamic(jsonObject.opt('name', remove: true));
+    final localizedName = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('name', remove: true),
+    );
     final identifier = jsonObject.optNullableString('identifier', remove: true);
-    final altIdentifiers = AltIdentifier.listFromJson(jsonObject.opt('altIdentifier', remove: true));
-    final localizedSortAs = LocalizedString.fromJsonDynamic(jsonObject.opt('sortAs', remove: true));
+    final altIdentifiers = AltIdentifier.listFromJson(
+      jsonObject.opt('altIdentifier', remove: true),
+    );
+    final localizedSortAs = LocalizedString.fromJsonDynamic(
+      jsonObject.opt('sortAs', remove: true),
+    );
     final author = jsonObject
         .optJsonArray('author', remove: true)
         ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
@@ -61,10 +67,18 @@ class Article extends BaseCollection {
         ?.map((e) => Contributor.fromJson(e as Map<String, dynamic>))
         .nonNulls
         .toList();
-    final description = jsonObject.optNullableString('description', remove: true);
-    final numberOfPages = jsonObject.optNullableInt('numberOfPages', remove: true);
+    final description = jsonObject.optNullableString(
+      'description',
+      remove: true,
+    );
+    final numberOfPages = jsonObject.optNullableInt(
+      'numberOfPages',
+      remove: true,
+    );
     final position = jsonObject.optNullableDouble('position', remove: true);
-    final links = Link.fromJsonArray(jsonObject.optJsonArray('links', remove: true));
+    final links = Link.fromJsonArray(
+      jsonObject.optJsonArray('links', remove: true),
+    );
 
     jsonObject
         .optJsonArray('links', remove: true)

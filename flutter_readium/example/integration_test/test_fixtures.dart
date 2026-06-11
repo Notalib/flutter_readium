@@ -30,7 +30,14 @@ abstract final class FixtureKeys {
   static const comic = 'comic.webpub';
 
   /// All fixture keys that should be available on web.
-  static const web = {mobyDickEpub, overlayWebpub, audiobook, fixedLayout, guidedNav, comic};
+  static const web = {
+    mobyDickEpub,
+    overlayWebpub,
+    audiobook,
+    fixedLayout,
+    guidedNav,
+    comic,
+  };
 
   /// True when [key] is not expected to be available on web.
   static bool isUnavailableOnWeb(String key) => kIsWeb && !web.contains(key);

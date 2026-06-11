@@ -34,10 +34,16 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external JSBoolean goToProgression(JSNumber progression);
   external void setAudioPreferences(JSString preferencesJson);
   external JSPromise<JSString> ttsGetAvailableVoices();
-  external JSPromise<JSAny?> ttsEnable(JSString prefsJson, JSString? fromLocatorJson);
+  external JSPromise<JSAny?> ttsEnable(
+    JSString prefsJson,
+    JSString? fromLocatorJson,
+  );
   external void ttsSetVoice(JSString identifier, JSString? lang);
   external void ttsSetPreferences(JSString prefsJson);
-  external JSPromise<JSAny?> audioEnable(JSString prefsJson, JSString? fromLocatorJson);
+  external JSPromise<JSAny?> audioEnable(
+    JSString prefsJson,
+    JSString? fromLocatorJson,
+  );
 }
 
 @JS()
@@ -77,7 +83,12 @@ class JsPublicationChannel {
   }) async {
     try {
       await _readiumReader
-          .openPublication(publicationURL.toJS, pubId.toJS, initialPositionJson?.toJS, initialPreferences.toJS)
+          .openPublication(
+            publicationURL.toJS,
+            pubId.toJS,
+            initialPositionJson?.toJS,
+            initialPreferences.toJS,
+          )
           .toDart;
     } on Object catch (jsError, stackTrace) {
       final errorString = jsError.toString();
@@ -206,7 +217,10 @@ class JsPublicationChannel {
 
   static Future<String> ttsGetAvailableVoices() async => (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
 
-  static Future<void> ttsEnable(String prefsJson, {String? fromLocatorJson}) async {
+  static Future<void> ttsEnable(
+    String prefsJson, {
+    String? fromLocatorJson,
+  }) async {
     await _readiumReader.ttsEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
   }
 
@@ -218,7 +232,10 @@ class JsPublicationChannel {
     _readiumReader.ttsSetPreferences(prefsJson.toJS);
   }
 
-  static Future<void> audioEnable(String prefsJson, {String? fromLocatorJson}) async {
+  static Future<void> audioEnable(
+    String prefsJson, {
+    String? fromLocatorJson,
+  }) async {
     await _readiumReader.audioEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
   }
 

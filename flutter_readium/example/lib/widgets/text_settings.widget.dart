@@ -175,7 +175,7 @@ class TextSettingsWidget extends StatelessWidget {
             // `scroll` field, so the web mapper silently drops it. Only
             // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
             // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
-            // `flutter_readium/web/_scripts/WebPub/webPubPrefences.ts`
+            // `flutter_readium/web/src/preferences/FlutterWebPubPreferences.ts`
             // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
             // non-EPUB publications and surface the reason via a tooltip.
             ListItemWidget(

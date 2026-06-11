@@ -10,7 +10,9 @@ class ReaderWidget extends StatelessWidget {
   final ValueNotifier<bool>? shouldShowControls;
 
   @override
-  Widget build(final BuildContext context) => BlocBuilder<PublicationBloc, PublicationState>(
+  Widget build(
+    final BuildContext context,
+  ) => BlocBuilder<PublicationBloc, PublicationState>(
     buildWhen: (prev, next) => prev.hasNonHighlightChanges(next),
     builder: (final context, final state) {
       if (state.isLoading) {
@@ -24,7 +26,10 @@ class ReaderWidget extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Loading publication failed.', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Loading publication failed.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 10),
                   Text(state.errorDebugDescription()),
                 ],
@@ -53,7 +58,9 @@ class ReaderWidget extends StatelessWidget {
               debugPrint('[Selection] text="${event.selectedText}"');
             },
             onSelectionAction: (event) {
-              debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
+              debugPrint(
+                '[SelectionAction] action=${event.actionId} text="${event.selectedText}"',
+              );
               if (event.actionId == 'highlight') {
                 _applyHighlight(context, event);
               } else if (event.actionId == 'note') {
@@ -61,7 +68,9 @@ class ReaderWidget extends StatelessWidget {
               }
             },
             onDecorationInteraction: (event) {
-              debugPrint('[DecorationInteraction] id=${event.decorationId} group=${event.group}');
+              debugPrint(
+                '[DecorationInteraction] id=${event.decorationId} group=${event.group}',
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Tapped highlight: ${event.decorationId}'),
@@ -84,7 +93,10 @@ class ReaderWidget extends StatelessWidget {
     final decoration = ReaderDecoration(
       id: 'highlight_${DateTime.now().millisecondsSinceEpoch}',
       locator: event.locator,
-      style: const ReaderDecorationStyle(style: DecorationStyle.highlight, tint: Color(0x80FFFF00)),
+      style: const ReaderDecorationStyle(
+        style: DecorationStyle.highlight,
+        tint: Color(0x80FFFF00),
+      ),
     );
     context.read<PublicationBloc>().add(AddHighlight(decoration));
     debugPrint('[Highlight] Applied highlight decoration');
@@ -97,7 +109,10 @@ class ReaderWidget extends StatelessWidget {
         title: const Text('Add Note'),
         content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);

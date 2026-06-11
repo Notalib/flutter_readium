@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show FlutterReadium, TextSearchResult;
 import 'package:flutter_readium_example/state/index.dart';
@@ -70,7 +70,9 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void doSearchInPublication(final String searchQuery) async {
-    final searchResults = await FlutterReadium().searchInPublication(searchQuery);
+    final searchResults = await FlutterReadium().searchInPublication(
+      searchQuery,
+    );
     setState(() {
       results.clear();
       results.addAll(searchResults);

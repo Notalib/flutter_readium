@@ -28,7 +28,10 @@ extension LocationExtension on Locations {
   }
 
   Locations copyWithPage(final int? index) {
-    final newFragments = [...fragments.where((final e) => !e.startsWith('page=')), if (index != null) 'page=$index'];
+    final newFragments = [
+      ...fragments.where((final e) => !e.startsWith('page=')),
+      if (index != null) 'page=$index',
+    ];
 
     return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
   }
@@ -46,15 +49,19 @@ extension LocationExtension on Locations {
 
   String? get physicalPage => fragments.firstWhereOrNull((final f) => f.startsWith('physicalPage='))?.split('=').last;
 
-  int? get page => int.tryParse(fragments.firstWhereOrNull((final f) => f.startsWith('page='))?.split('=').last ?? '');
+  int? get page => int.tryParse(
+    fragments.firstWhereOrNull((final f) => f.startsWith('page='))?.split('=').last ?? '',
+  );
 
-  int? get totalPages =>
-      int.tryParse(fragments.firstWhereOrNull((final f) => f.startsWith('totalPages='))?.split('=').last ?? '');
+  int? get totalPages => int.tryParse(
+    fragments.firstWhereOrNull((final f) => f.startsWith('totalPages='))?.split('=').last ?? '',
+  );
 
   String? get tocFragment => fragments.firstWhereOrNull((final f) => f.startsWith('toc='))?.split('=').last;
 
-  int? get durationFragment =>
-      int.tryParse(fragments.firstWhereOrNull((final f) => f.startsWith('duration='))?.split('=').last ?? '');
+  int? get durationFragment => int.tryParse(
+    fragments.firstWhereOrNull((final f) => f.startsWith('duration='))?.split('=').last ?? '',
+  );
 }
 
 class TimeFragment {

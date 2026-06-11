@@ -27,7 +27,11 @@ sealed class GuidedNavigationText implements JSONable {
       final ssml = jsonObject.optNullableString('ssml', remove: true);
       final language = jsonObject.optNullableString('language', remove: true);
       if (plain == null && ssml == null) return null;
-      return GuidedNavigationTextObject(plain: plain, ssml: ssml, language: language);
+      return GuidedNavigationTextObject(
+        plain: plain,
+        ssml: ssml,
+        language: language,
+      );
     }
     return null;
   }

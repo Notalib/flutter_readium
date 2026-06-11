@@ -28,7 +28,9 @@ class LocatorCollection with EquatableMixin implements JSONable {
 
     final jsonObject = Map<String, dynamic>.of(json);
 
-    final metadata = LocatorCollectionMetadata.fromJson(jsonObject['metadata'] as Map<String, dynamic>?);
+    final metadata = LocatorCollectionMetadata.fromJson(
+      jsonObject['metadata'] as Map<String, dynamic>?,
+    );
 
     final linksJson = jsonObject['links'] as List<dynamic>?;
     final links = linksJson?.map((e) => Link.fromJson(e as Map<String, dynamic>?)).whereType<Link>().toList() ?? [];
@@ -37,7 +39,11 @@ class LocatorCollection with EquatableMixin implements JSONable {
     final locators =
         locatorsJson?.map((e) => Locator.fromJson(e as Map<String, dynamic>?)).whereType<Locator>().toList() ?? [];
 
-    return LocatorCollection(metadata: metadata, links: links, locators: locators);
+    return LocatorCollection(
+      metadata: metadata,
+      links: links,
+      locators: locators,
+    );
   }
 
   @override
@@ -58,12 +64,15 @@ class LocatorCollection with EquatableMixin implements JSONable {
     return json;
   }
 
-  LocatorCollection copyWith({LocatorCollectionMetadata? metadata, List<Link>? links, List<Locator>? locators}) =>
-      LocatorCollection(
-        metadata: metadata ?? this.metadata,
-        links: links ?? this.links,
-        locators: locators ?? this.locators,
-      );
+  LocatorCollection copyWith({
+    LocatorCollectionMetadata? metadata,
+    List<Link>? links,
+    List<Locator>? locators,
+  }) => LocatorCollection(
+    metadata: metadata ?? this.metadata,
+    links: links ?? this.links,
+    locators: locators ?? this.locators,
+  );
 
   @override
   List<Object?> get props => [metadata, links, locators];
@@ -75,7 +84,11 @@ class LocatorCollection with EquatableMixin implements JSONable {
 /// Holds the metadata of a [LocatorCollection].
 @immutable
 class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
-  const LocatorCollectionMetadata({this.localizedTitle, this.numberOfItems, super.additionalProperties});
+  const LocatorCollectionMetadata({
+    this.localizedTitle,
+    this.numberOfItems,
+    super.additionalProperties,
+  });
 
   /// The localized title. Can be a simple string or a map of language codes to strings.
   final dynamic localizedTitle;
@@ -110,7 +123,10 @@ class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin
     final jsonObject = Map<String, dynamic>.of(json);
 
     final localizedTitle = jsonObject.remove('title');
-    final numberOfItems = jsonObject.optNullableInt('numberOfItems', remove: true);
+    final numberOfItems = jsonObject.optNullableInt(
+      'numberOfItems',
+      remove: true,
+    );
 
     // Validate numberOfItems is positive
     final validNumberOfItems = (numberOfItems != null && numberOfItems >= 0) ? numberOfItems : null;
@@ -148,7 +164,11 @@ class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin
   );
 
   @override
-  List<Object?> get props => [localizedTitle, numberOfItems, additionalProperties];
+  List<Object?> get props => [
+    localizedTitle,
+    numberOfItems,
+    additionalProperties,
+  ];
 
   @override
   String toString() =>

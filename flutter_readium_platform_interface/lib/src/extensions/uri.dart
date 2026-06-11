@@ -13,7 +13,9 @@ extension UriExtension on Uri {
     if (lastPathComponent == null) {
       return this;
     }
-    return Uri.parse(toString().removeSuffix('/').removeSuffix(lastPathComponent));
+    return Uri.parse(
+      toString().removeSuffix('/').removeSuffix(lastPathComponent),
+    );
   }
 
   String get extension => p.extension(path);

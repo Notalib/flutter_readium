@@ -36,7 +36,11 @@ class MediaType {
     this.parameters = const {},
   });
 
-  factory MediaType._create(String string, {String? name, String? fileExtension}) {
+  factory MediaType._create(
+    String string, {
+    String? name,
+    String? fileExtension,
+  }) {
     if (string.isEmpty) {
       throw ArgumentError('Invalid media type: $string');
     }
@@ -57,7 +61,10 @@ class MediaType {
         .sublist(1)
         .map((it) => it.split('='))
         .where((it) => it.length == 2)
-        .fold(<String, String>{}, (previousValue, it) => previousValue..[it[0].toLowerCase()] = it[1]);
+        .fold(
+          <String, String>{},
+          (previousValue, it) => previousValue..[it[0].toLowerCase()] = it[1],
+        );
 
     // For now, we only support case-insensitive `charset`.
     //
@@ -69,9 +76,17 @@ class MediaType {
     // > of US-ASCII.  However, no distinction is made between use of upper and lower case
     // > letters.
     // > https://www.iana.org/assignments/character-sets/character-sets.xhtml
-    parameters['charset']?.let((it) => parameters['charset'] = Charset.forName(it)?.name ?? it.toUpperCase());
+    parameters['charset']?.let(
+      (it) => parameters['charset'] = Charset.forName(it)?.name ?? it.toUpperCase(),
+    );
 
-    return MediaType(name: name, fileExtension: fileExtension, type: type, subtype: subtype, parameters: parameters);
+    return MediaType(
+      name: name,
+      fileExtension: fileExtension,
+      type: type,
+      subtype: subtype,
+      parameters: parameters,
+    );
   }
   final String? name;
   final String? fileExtension;
@@ -85,26 +100,57 @@ class MediaType {
   /// The parameters in the media type, such as `charset=utf-8`.
   final Map<String, String> parameters;
 
-  static const MediaType aac = MediaType(type: 'audio', subtype: 'aac', fileExtension: 'aac');
-  static const MediaType v3g2 = MediaType(type: 'video', subtype: '3g2', fileExtension: '3g2');
-  static const MediaType v3gp = MediaType(type: 'video', subtype: '3gp', fileExtension: '3gp');
+  static const MediaType aac = MediaType(
+    type: 'audio',
+    subtype: 'aac',
+    fileExtension: 'aac',
+  );
+  static const MediaType v3g2 = MediaType(
+    type: 'video',
+    subtype: '3g2',
+    fileExtension: '3g2',
+  );
+  static const MediaType v3gp = MediaType(
+    type: 'video',
+    subtype: '3gp',
+    fileExtension: '3gp',
+  );
   static const MediaType acsm = MediaType(
     type: 'application',
     subtype: 'vnd.adobe.adept+xml',
     name: 'Adobe Content Server Message',
     fileExtension: 'acsm',
   );
-  static const MediaType aiff = MediaType(type: 'audio', subtype: 'aiff', fileExtension: 'aiff');
-  static const MediaType avi = MediaType(type: 'video', subtype: 'x-msvideo', fileExtension: 'avi');
-  static const MediaType binary = MediaType(type: 'application', subtype: 'octet-stream');
-  static const MediaType bmp = MediaType(type: 'image', subtype: 'bmp', fileExtension: 'bmp');
+  static const MediaType aiff = MediaType(
+    type: 'audio',
+    subtype: 'aiff',
+    fileExtension: 'aiff',
+  );
+  static const MediaType avi = MediaType(
+    type: 'video',
+    subtype: 'x-msvideo',
+    fileExtension: 'avi',
+  );
+  static const MediaType binary = MediaType(
+    type: 'application',
+    subtype: 'octet-stream',
+  );
+  static const MediaType bmp = MediaType(
+    type: 'image',
+    subtype: 'bmp',
+    fileExtension: 'bmp',
+  );
   static const MediaType cbz = MediaType(
     type: 'application',
     subtype: 'vnd.comicbook+zip',
     name: 'Comic Book Archive',
     fileExtension: 'cbz',
   );
-  static const MediaType css = MediaType(type: 'text', subtype: 'css', fileExtension: 'css');
+  static const MediaType css = MediaType(
+    type: 'text',
+    subtype: 'css',
+    fileExtension: 'css',
+  );
   static const MediaType divina = MediaType(
     type: 'application',
     subtype: 'divina+zip',
@@ -117,7 +163,11 @@ class MediaType {
     name: 'Digital Visual Narratives',
     fileExtension: 'json',
   );
-  static const MediaType doc = MediaType(type: 'application', subtype: 'msword', fileExtension: 'doc');
+  static const MediaType doc = MediaType(
+    type: 'application',
+    subtype: 'msword',
+    fileExtension: 'doc',
+  );
   static const MediaType docx = MediaType(
     type: 'application',
     subtype: 'vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -129,11 +179,31 @@ class MediaType {
     name: 'EPUB',
     fileExtension: 'epub',
   );
-  static const MediaType gif = MediaType(type: 'image', subtype: 'gif', fileExtension: 'gif');
-  static const MediaType gz = MediaType(type: 'application', subtype: 'gzip', fileExtension: 'gz');
-  static const MediaType html = MediaType(type: 'text', subtype: 'html', fileExtension: 'html');
-  static const MediaType javascript = MediaType(type: 'text', subtype: 'javascript', fileExtension: 'js');
-  static const MediaType jpeg = MediaType(type: 'image', subtype: 'jpeg', fileExtension: 'jpeg');
+  static const MediaType gif = MediaType(
+    type: 'image',
+    subtype: 'gif',
+    fileExtension: 'gif',
+  );
+  static const MediaType gz = MediaType(
+    type: 'application',
+    subtype: 'gzip',
+    fileExtension: 'gz',
+  );
+  static const MediaType html = MediaType(
+    type: 'text',
+    subtype: 'html',
+    fileExtension: 'html',
+  );
+  static const MediaType javascript = MediaType(
+    type: 'text',
+    subtype: 'javascript',
+    fileExtension: 'js',
+  );
+  static const MediaType jpeg = MediaType(
+    type: 'image',
+    subtype: 'jpeg',
+    fileExtension: 'jpeg',
+  );
   static const MediaType json = MediaType(type: 'application', subtype: 'json');
   static const MediaType lcpLicenseDocument = MediaType(
     type: 'application',
@@ -157,19 +227,67 @@ class MediaType {
     type: 'application',
     subtype: 'vnd.readium.license.status.v1.0+json',
   );
-  static const MediaType lpf = MediaType(type: 'application', subtype: 'lpf+zip', fileExtension: 'lpf');
-  static const MediaType mp3 = MediaType(type: 'audio', subtype: 'mpeg', fileExtension: 'mp3');
+  static const MediaType lpf = MediaType(
+    type: 'application',
+    subtype: 'lpf+zip',
+    fileExtension: 'lpf',
+  );
+  static const MediaType mp3 = MediaType(
+    type: 'audio',
+    subtype: 'mpeg',
+    fileExtension: 'mp3',
+  );
 
-  static const MediaType mp4 = MediaType(type: 'video', subtype: 'mp4', fileExtension: 'mp4');
-  static const MediaType mp4a = MediaType(type: 'video', subtype: 'mp4', fileExtension: 'm4a');
-  static const MediaType mpeg = MediaType(type: 'video', subtype: 'mpeg', fileExtension: 'mpeg');
-  static const MediaType mpg = MediaType(type: 'video', subtype: 'mpg', fileExtension: 'mpg');
-  static const MediaType mkv = MediaType(type: 'video', subtype: 'mkv', fileExtension: 'mkv');
-  static const MediaType mov = MediaType(type: 'video', subtype: 'mov', fileExtension: 'mov');
-  static const MediaType ncx = MediaType(type: 'application', subtype: 'x-dtbncx+xml', fileExtension: 'ncx');
-  static const MediaType oga = MediaType(type: 'application', subtype: 'ogg', fileExtension: 'oga');
-  static const MediaType ogg = MediaType(type: 'application', subtype: 'ogg', fileExtension: 'ogg');
-  static const MediaType ogv = MediaType(type: 'video', subtype: 'ogg', fileExtension: 'ogv');
+  static const MediaType mp4 = MediaType(
+    type: 'video',
+    subtype: 'mp4',
+    fileExtension: 'mp4',
+  );
+  static const MediaType mp4a = MediaType(
+    type: 'video',
+    subtype: 'mp4',
+    fileExtension: 'm4a',
+  );
+  static const MediaType mpeg = MediaType(
+    type: 'video',
+    subtype: 'mpeg',
+    fileExtension: 'mpeg',
+  );
+  static const MediaType mpg = MediaType(
+    type: 'video',
+    subtype: 'mpg',
+    fileExtension: 'mpg',
+  );
+  static const MediaType mkv = MediaType(
+    type: 'video',
+    subtype: 'mkv',
+    fileExtension: 'mkv',
+  );
+  static const MediaType mov = MediaType(
+    type: 'video',
+    subtype: 'mov',
+    fileExtension: 'mov',
+  );
+  static const MediaType ncx = MediaType(
+    type: 'application',
+    subtype: 'x-dtbncx+xml',
+    fileExtension: 'ncx',
+  );
+  static const MediaType oga = MediaType(
+    type: 'application',
+    subtype: 'ogg',
+    fileExtension: 'oga',
+  );
+  static const MediaType ogg = MediaType(
+    type: 'application',
+    subtype: 'ogg',
+    fileExtension: 'ogg',
+  );
+  static const MediaType ogv = MediaType(
+    type: 'video',
+    subtype: 'ogg',
+    fileExtension: 'ogv',
+  );
   static const MediaType opds1 = MediaType(
     type: 'application',
     subtype: 'atom+xml',
@@ -180,13 +298,39 @@ class MediaType {
     subtype: 'atom+xml',
     parameters: {'type': 'entry', 'profile': 'opds-catalog'},
   );
-  static const MediaType opds2 = MediaType(type: 'application', subtype: 'opds+json');
-  static const MediaType opds2Publication = MediaType(type: 'application', subtype: 'opds-publication+json');
-  static const MediaType opdsAuthentication = MediaType(type: 'application', subtype: 'opds-authentication+json');
-  static const MediaType opus = MediaType(type: 'audio', subtype: 'opus', fileExtension: 'opus');
-  static const MediaType otf = MediaType(type: 'font', subtype: 'otf', fileExtension: 'otf');
-  static const MediaType pdf = MediaType(type: 'application', subtype: 'pdf', name: 'PDF', fileExtension: 'pdf');
-  static const MediaType png = MediaType(type: 'image', subtype: 'png', fileExtension: 'png');
+  static const MediaType opds2 = MediaType(
+    type: 'application',
+    subtype: 'opds+json',
+  );
+  static const MediaType opds2Publication = MediaType(
+    type: 'application',
+    subtype: 'opds-publication+json',
+  );
+  static const MediaType opdsAuthentication = MediaType(
+    type: 'application',
+    subtype: 'opds-authentication+json',
+  );
+  static const MediaType opus = MediaType(
+    type: 'audio',
+    subtype: 'opus',
+    fileExtension: 'opus',
+  );
+  static const MediaType otf = MediaType(
+    type: 'font',
+    subtype: 'otf',
+    fileExtension: 'otf',
+  );
+  static const MediaType pdf = MediaType(
+    type: 'application',
+    subtype: 'pdf',
+    name: 'PDF',
+    fileExtension: 'pdf',
+  );
+  static const MediaType png = MediaType(
+    type: 'image',
+    subtype: 'png',
+    fileExtension: 'png',
+  );
   static const MediaType readiumAudiobook = MediaType(
     type: 'application',
     subtype: 'audiobook+zip',
@@ -211,42 +355,114 @@ class MediaType {
     name: 'Readium Web Publication',
     fileExtension: 'json',
   );
-  static const MediaType smil = MediaType(type: 'application', subtype: 'smil+xml', fileExtension: 'smil');
-  static const MediaType svg = MediaType(type: 'image', subtype: 'svg+xml', fileExtension: 'svg');
-  static const MediaType text = MediaType(type: 'text', subtype: 'plain', fileExtension: 'txt');
-  static const MediaType tiff = MediaType(type: 'image', subtype: 'tiff', fileExtension: 'tiff');
-  static const MediaType ttf = MediaType(type: 'font', subtype: 'ttf', fileExtension: 'ttf');
+  static const MediaType smil = MediaType(
+    type: 'application',
+    subtype: 'smil+xml',
+    fileExtension: 'smil',
+  );
+  static const MediaType svg = MediaType(
+    type: 'image',
+    subtype: 'svg+xml',
+    fileExtension: 'svg',
+  );
+  static const MediaType text = MediaType(
+    type: 'text',
+    subtype: 'plain',
+    fileExtension: 'txt',
+  );
+  static const MediaType tiff = MediaType(
+    type: 'image',
+    subtype: 'tiff',
+    fileExtension: 'tiff',
+  );
+  static const MediaType ttf = MediaType(
+    type: 'font',
+    subtype: 'ttf',
+    fileExtension: 'ttf',
+  );
   static const MediaType w3cWpubManifest = MediaType(
     type: 'application',
     subtype: 'x.readium.w3c.wpub+json',
     name: 'Web Publication',
     fileExtension: 'json',
   ); // non-existent
-  static const MediaType wav = MediaType(type: 'audio', subtype: 'wav', fileExtension: 'wav');
-  static const MediaType webmAudio = MediaType(type: 'audio', subtype: 'webm', fileExtension: 'weba');
-  static const MediaType webmVideo = MediaType(type: 'video', subtype: 'webm', fileExtension: 'webm');
-  static const MediaType webp = MediaType(type: 'image', subtype: 'webp', fileExtension: 'webp');
-  static const MediaType woff = MediaType(type: 'font', subtype: 'woff', fileExtension: 'woff');
-  static const MediaType woff2 = MediaType(type: 'font', subtype: 'woff2', fileExtension: 'woff2');
-  static const MediaType xhtml = MediaType(type: 'application', subtype: 'xhtml+xml', fileExtension: 'xhtml');
-  static const MediaType xaiff = MediaType(type: 'audio', subtype: 'xaiff', fileExtension: 'aif');
-  static const MediaType xaiffc = MediaType(type: 'audio', subtype: 'xaiff', fileExtension: 'aifc');
+  static const MediaType wav = MediaType(
+    type: 'audio',
+    subtype: 'wav',
+    fileExtension: 'wav',
+  );
+  static const MediaType webmAudio = MediaType(
+    type: 'audio',
+    subtype: 'webm',
+    fileExtension: 'weba',
+  );
+  static const MediaType webmVideo = MediaType(
+    type: 'video',
+    subtype: 'webm',
+    fileExtension: 'webm',
+  );
+  static const MediaType webp = MediaType(
+    type: 'image',
+    subtype: 'webp',
+    fileExtension: 'webp',
+  );
+  static const MediaType woff = MediaType(
+    type: 'font',
+    subtype: 'woff',
+    fileExtension: 'woff',
+  );
+  static const MediaType woff2 = MediaType(
+    type: 'font',
+    subtype: 'woff2',
+    fileExtension: 'woff2',
+  );
+  static const MediaType xhtml = MediaType(
+    type: 'application',
+    subtype: 'xhtml+xml',
+    fileExtension: 'xhtml',
+  );
+  static const MediaType xaiff = MediaType(
+    type: 'audio',
+    subtype: 'xaiff',
+    fileExtension: 'aif',
+  );
+  static const MediaType xaiffc = MediaType(
+    type: 'audio',
+    subtype: 'xaiff',
+    fileExtension: 'aifc',
+  );
   static const MediaType xlsx = MediaType(
     type: 'application',
     subtype: 'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     fileExtension: 'xlsx',
   );
-  static const MediaType xls = MediaType(type: 'application', subtype: 'vnd.ms-excel', fileExtension: 'xls');
+  static const MediaType xls = MediaType(
+    type: 'application',
+    subtype: 'vnd.ms-excel',
+    fileExtension: 'xls',
+  );
 
   static const MediaType pptx = MediaType(
     type: 'application',
     subtype: 'vnd.openxmlformats-officedocument.presentationml.presentation',
     fileExtension: 'pptx',
   );
-  static const MediaType ppt = MediaType(type: 'application', subtype: 'vnd.ms-powerpoint', fileExtension: 'ppt');
+  static const MediaType ppt = MediaType(
+    type: 'application',
+    subtype: 'vnd.ms-powerpoint',
+    fileExtension: 'ppt',
+  );
 
-  static const MediaType xml = MediaType(type: 'application', subtype: 'xml', fileExtension: 'xml');
-  static const MediaType xmpegurl = MediaType(type: 'audio', subtype: 'mpeg', fileExtension: 'm3u');
+  static const MediaType xml = MediaType(
+    type: 'application',
+    subtype: 'xml',
+    fileExtension: 'xml',
+  );
+  static const MediaType xmpegurl = MediaType(
+    type: 'audio',
+    subtype: 'mpeg',
+    fileExtension: 'm3u',
+  );
 
   static const MediaType zab = MediaType(
     type: 'application',
@@ -254,9 +470,17 @@ class MediaType {
     name: 'Zipped Audio Book',
     fileExtension: 'zab',
   ); // non-existent
-  static const MediaType zip = MediaType(type: 'application', subtype: 'zip', fileExtension: 'zip');
+  static const MediaType zip = MediaType(
+    type: 'application',
+    subtype: 'zip',
+    fileExtension: 'zip',
+  );
 
-  static const MediaType waveform = MediaType(type: 'image', subtype: 'png', fileExtension: 'wave');
+  static const MediaType waveform = MediaType(
+    type: 'image',
+    subtype: 'png',
+    fileExtension: 'wave',
+  );
 
   static const MediaType syncMediaNarration = MediaType(
     type: 'application',
@@ -354,9 +578,17 @@ class MediaType {
   ];
 
   /// Creates a [MediaType] from its string representation.
-  static MediaType? parse(String string, {String? name, String? fileExtension}) {
+  static MediaType? parse(
+    String string, {
+    String? name,
+    String? fileExtension,
+  }) {
     try {
-      return MediaType._create(string, name: name, fileExtension: fileExtension);
+      return MediaType._create(
+        string,
+        name: name,
+        fileExtension: fileExtension,
+      );
     } on Error catch (e, stacktrace) {
       ReadiumLog.e('MediaType._create ERROR', stackTrace: stacktrace);
       return null;
@@ -451,7 +683,13 @@ class MediaType {
   bool get isJson => matches(json) || structuredSyntaxSuffix == '+json';
 
   /// Returns whether this media type is of an OPDS feed.
-  bool get isOpds => matchesAny([opds1, opds1Entry, opds2, opds2Publication, opdsAuthentication]);
+  bool get isOpds => matchesAny([
+    opds1,
+    opds1Entry,
+    opds2,
+    opds2Publication,
+    opdsAuthentication,
+  ]);
 
   /// Returns whether this media type is of an HTML document.
   bool get isHtml => matchesAny([html, xhtml]);
@@ -466,7 +704,11 @@ class MediaType {
   bool get isVideo => type == 'video';
 
   /// Returns whether this media type is of a Readium Web Publication Manifest.
-  bool get isRwpm => matchesAny([readiumAudiobookManifest, divinaManifest, readiumWebpubManifest]);
+  bool get isRwpm => matchesAny([
+    readiumAudiobookManifest,
+    divinaManifest,
+    readiumWebpubManifest,
+  ]);
 
   /// Returns whether this media type is of a publication file.
   bool get isPublication => matchesAny([

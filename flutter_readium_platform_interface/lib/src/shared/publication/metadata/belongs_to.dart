@@ -23,14 +23,26 @@ class BelongsTo extends AdditionalProperties with EquatableMixin implements JSON
   });
   factory BelongsTo.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.from(json);
-    final collection = Collection.listFromJson(jsonObject.opt('collection', remove: true));
-    final journal = Periodical.listFromJson(jsonObject.opt('journal', remove: true));
-    final magazine = Periodical.listFromJson(jsonObject.opt('magazine', remove: true));
-    final newspaper = Periodical.listFromJson(jsonObject.opt('newspaper', remove: true));
-    final periodical = Periodical.listFromJson(jsonObject.opt('periodical', remove: true));
+    final collection = Collection.listFromJson(
+      jsonObject.opt('collection', remove: true),
+    );
+    final journal = Periodical.listFromJson(
+      jsonObject.opt('journal', remove: true),
+    );
+    final magazine = Periodical.listFromJson(
+      jsonObject.opt('magazine', remove: true),
+    );
+    final newspaper = Periodical.listFromJson(
+      jsonObject.opt('newspaper', remove: true),
+    );
+    final periodical = Periodical.listFromJson(
+      jsonObject.opt('periodical', remove: true),
+    );
     final season = Season.listFromJson(jsonObject.opt('season', remove: true));
     final series = Series.listFromJson(jsonObject.opt('series', remove: true));
-    final storyArc = StoryArc.listFromJson(jsonObject.opt('storyArc', remove: true));
+    final storyArc = StoryArc.listFromJson(
+      jsonObject.opt('storyArc', remove: true),
+    );
     final volume = Volume.listFromJson(jsonObject.opt('volume', remove: true));
 
     return BelongsTo(

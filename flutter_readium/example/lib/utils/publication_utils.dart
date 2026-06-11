@@ -11,7 +11,9 @@ final _log = Logger('PublicationUtils');
 class PublicationUtils {
   static Future<Iterable<String>> getAssetPubFiles() async {
     final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final assets = assetManifest.listAssets().where((asset) => asset.startsWith('assets/pubs/'));
+    final assets = assetManifest.listAssets().where(
+      (asset) => asset.startsWith('assets/pubs/'),
+    );
     return assets;
   }
 
@@ -27,7 +29,14 @@ class PublicationUtils {
     final pubAssets = await getAssetPubFiles();
     final pubs = <String>[];
 
-    final allowedExts = ['.webpub', '.epub', '.audiobook', '.pdf', '.zip', '.json'];
+    final allowedExts = [
+      '.webpub',
+      '.epub',
+      '.audiobook',
+      '.pdf',
+      '.zip',
+      '.json',
+    ];
 
     // Loop through the filtered assets
     for (final assetPath in pubAssets) {
@@ -44,7 +53,10 @@ class PublicationUtils {
 
       if (!exists) {
         final data = await rootBundle.load(assetPath);
-        final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+        final bytes = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
         await file.writeAsBytes(bytes);
         _log.info('saved ${file.path} size=${await file.length()}');
       } else {
@@ -64,11 +76,15 @@ class PublicationUtils {
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
     String newPath = path.join(publicationsDirPath, file.uri.path);
     await file.copy(newPath);
-    _log.info('copied file ${file.path} size=${await file.length()} to=$newPath');
+    _log.info(
+      'copied file ${file.path} size=${await file.length()} to=$newPath',
+    );
     return newPath;
   }
 
-  static Future<void> removePublicationFromReadiumStorage(String pubPath) async {
+  static Future<void> removePublicationFromReadiumStorage(
+    String pubPath,
+  ) async {
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
     final publicationPath = path.join(publicationsDirPath, pubPath);
     await File(publicationPath).delete();

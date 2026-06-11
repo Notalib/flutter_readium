@@ -22,7 +22,9 @@ extension OpdsPropertiesExtension on Properties {
   /// additional steps.
   List<Acquisition> get indirectAcquisitions =>
       (this['indirectAcquisition'] as List?)
-          ?.mapNotNull((it) => it is Map<String, dynamic> ? Acquisition.fromJson(it) : null)
+          ?.mapNotNull(
+            (it) => it is Map<String, dynamic> ? Acquisition.fromJson(it) : null,
+          )
           .toList() ??
       [];
 
@@ -30,11 +32,14 @@ extension OpdsPropertiesExtension on Properties {
   Holds? get holds => (this['holds'] as Map<String, dynamic>?)?.let((it) => Holds.fromJson(it));
 
   /// Library-specific feature that contains information about the copies that a library has acquired.
-  Copies? get copies => (this['copies'] as Map<String, dynamic>?)?.let((it) => Copies.fromJson(it));
+  Copies? get copies => (this['copies'] as Map<String, dynamic>?)?.let(
+    (it) => Copies.fromJson(it),
+  );
 
   /// Indicated the availability of a given resource.
-  Availability? get availability =>
-      (this['availability'] as Map<String, dynamic>?)?.let((it) => Availability.fromJson(it));
+  Availability? get availability => (this['availability'] as Map<String, dynamic>?)?.let(
+    (it) => Availability.fromJson(it),
+  );
 
   Properties setNumberOfItems(final int? value) => copyWith(additionalProperties: {_numberOfItemsKey: value});
 }

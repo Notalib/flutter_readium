@@ -16,7 +16,11 @@ import '../../../flutter_readium_platform_interface.dart';
 ///     inherent with Double and the JSON parsing.
 @immutable
 class Price extends AdditionalProperties with EquatableMixin implements JSONable {
-  const Price({required this.currency, required this.value, super.additionalProperties});
+  const Price({
+    required this.currency,
+    required this.value,
+    super.additionalProperties,
+  });
   final String currency;
   final double value;
 
@@ -25,7 +29,11 @@ class Price extends AdditionalProperties with EquatableMixin implements JSONable
 
   /// Serializes an [Price] to its JSON representation.
   @override
-  Map<String, dynamic> toJson() => {...additionalProperties, 'currency': currency, 'value': value};
+  Map<String, dynamic> toJson() => {
+    ...additionalProperties,
+    'currency': currency,
+    'value': value,
+  };
 
   /// Creates an [Price] from its JSON representation.
   /// If the price can't be parsed, a warning will be logged.
@@ -42,6 +50,10 @@ class Price extends AdditionalProperties with EquatableMixin implements JSONable
       return null;
     }
 
-    return Price(currency: currency, value: value, additionalProperties: jsonObject);
+    return Price(
+      currency: currency,
+      value: value,
+      additionalProperties: jsonObject,
+    );
   }
 }

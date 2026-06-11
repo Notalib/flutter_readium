@@ -21,8 +21,9 @@ class UriTemplate {
   /// List of URI template parameter keys, if the [Link] is templated.
   // Escaping the last } is somehow required, otherwise the regex can't be parsed on a Pixel
   // 3a. However, without it works with the unit tests.
-  Iterable<String> get parameters =>
-      RegExp('\\{\\??([^}]+)\\}').allMatches(uri).toList().expand((it) => it.group(1)!.split(',')).toSet();
+  Iterable<String> get parameters => RegExp(
+    '\\{\\??([^}]+)\\}',
+  ).allMatches(uri).toList().expand((it) => it.group(1)!.split(',')).toSet();
 
   /// Expands the HREF by replacing URI template variables by the given parameters.
   String expand(Map<String, String> parameters) {
@@ -30,7 +31,9 @@ class UriTemplate {
     // This is an issue for ISO 8601 date for example.
     // As a workaround, we encode manually this character. We don't do it in the full URI,
     // because it could contain some legitimate +-as-space characters.
-    final params = parameters.map((key, value) => MapEntry(key, value.replaceFirst('+', '~~+~~')));
+    final params = parameters.map(
+      (key, value) => MapEntry(key, value.replaceFirst('+', '~~+~~')),
+    );
 
     // Escaping the last } is somehow required, otherwise the regex can't be parsed on a Pixel
     // 3a. However, without it works with the unit tests.

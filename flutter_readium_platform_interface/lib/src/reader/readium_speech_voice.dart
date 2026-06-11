@@ -14,9 +14,15 @@ class ReadiumSpeechVoice with EquatableMixin implements JSONable {
     final gender = jsonObject.optString('gender', remove: true);
     final quality = (jsonObject.optJsonArray('quality', remove: true)?.cast<String>()) ?? [];
     final rate = jsonObject.optNullableDouble('rate', remove: true);
-    final localizedName = jsonObject.optNullableString('localizedName', remove: true);
+    final localizedName = jsonObject.optNullableString(
+      'localizedName',
+      remove: true,
+    );
     final pitch = jsonObject.optNullableDouble('pitch', remove: true);
-    final pitchControl = jsonObject.optNullableBoolean('pitchControl', remove: true);
+    final pitchControl = jsonObject.optNullableBoolean(
+      'pitchControl',
+      remove: true,
+    );
     final browser = jsonObject.optJsonArray('browser', remove: true)?.cast<String>();
     final os = jsonObject.optJsonArray('os', remove: true)?.cast<String>().map((os) => os.toLowerCase()).toList();
     final preloaded = jsonObject.optNullableBoolean('preloaded', remove: true);

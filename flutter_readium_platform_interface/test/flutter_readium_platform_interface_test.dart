@@ -23,7 +23,9 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
         methodChannelReadium.methodChannel,
-        (methodCall) async {
+        (
+          methodCall,
+        ) async {
           log.add(methodCall);
           switch (methodCall.method) {
             case 'openPublication':
@@ -61,9 +63,12 @@ void main() {
       );
     });
 
-    test('onTextLocatorChanged emits the locator sent from the platform', () async {
-      final result = await methodChannelReadium.onTextLocatorChanged.first;
-      expect(result, testTextLocator);
-    });
+    test(
+      'onTextLocatorChanged emits the locator sent from the platform',
+      () async {
+        final result = await methodChannelReadium.onTextLocatorChanged.first;
+        expect(result, testTextLocator);
+      },
+    );
   });
 }

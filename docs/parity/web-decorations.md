@@ -10,7 +10,7 @@
 
 `applyDecorations` is the primary way consumers persist user highlights and annotations across a session. On iOS and Android, calling `applyDecorations(id, decorations)` renders coloured highlight / underline overlays on the text and fires `onDecorationInteraction` when the user taps one. On Web, the method is a no-op — decorations are silently dropped. A consumer writing a cross-platform app cannot restore saved highlights on the web reader without this, which is a user-visible regression whenever the web target is used.
 
-The ts-toolkit EpubNavigator internally uses a `decorate` message via its frame-comms protocol (visible in `flutter_readium/web/_scripts/helpers.ts` at `highlightSelection()`) — so the underlying machinery exists in the npm package; it just isn't wired to the Dart `applyDecorations` call.
+The ts-toolkit EpubNavigator internally uses a `decorate` message via its frame-comms protocol (visible in `flutter_readium/web/src/helpers.ts` at `highlightSelection()`) — so the underlying machinery exists in the npm package; it just isn't wired to the Dart `applyDecorations` call.
 
 ## Current state
 
@@ -21,7 +21,7 @@ The ts-toolkit EpubNavigator internally uses a `decorate` message via its frame-
 
 ## Proposed approach
 
-1. **JS side** (`flutter_readium/web/_scripts/ReadiumReader.ts`): Add a public `applyDecorations(groupId: string, decorationsJson: string): void` method that deserialises the array and calls the navigator's frame-comms `decorate` message (following the pattern already used in `helpers.ts`'s `highlightSelection()`). Add a matching method to the `ReadiumReader` JS interop extension type in `js_publication_channel.dart`.
+1. **JS side** (`flutter_readium/web/src/ReadiumReader.ts`): Add a public `applyDecorations(groupId: string, decorationsJson: string): void` method that deserialises the array and calls the navigator's frame-comms `decorate` message (following the pattern already used in `helpers.ts`'s `highlightSelection()`). Add a matching method to the `ReadiumReader` JS interop extension type in `js_publication_channel.dart`.
 2. **Decoration interactions**: Wire the navigator's `decorationActivated` (or equivalent listener) to call back into Dart via `onDecorationInteractionCallback`. The `onDecorationInteractionCallback` setter and `onDecorationInteractionHandler` are already plumbed in `readium_webview.dart`.
 3. **Dart web plugin** (`flutter_readium_web.dart`): Replace the no-op with a real call to the new `JsPublicationChannel.applyDecorations(id, encodedList)`.
 4. **Widget** (`reader_widget_web.dart`): Replace the no-op similarly.

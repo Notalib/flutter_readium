@@ -17,8 +17,13 @@ class AnimatedSlideOutWidget extends AnimatedWidget {
   ValueListenable<bool> get visible => listenable as ValueListenable<bool>;
 
   @override
-  Widget build(final BuildContext context) =>
-      _AnimatedSlideOut(visible: visible.value, hiddenOffset: hiddenOffset, duration: duration, key: key, child: child);
+  Widget build(final BuildContext context) => _AnimatedSlideOut(
+    visible: visible.value,
+    hiddenOffset: hiddenOffset,
+    duration: duration,
+    key: key,
+    child: child,
+  );
 }
 
 class _AnimatedSlideOut extends StatefulWidget {
@@ -40,9 +45,19 @@ class _AnimatedSlideOut extends StatefulWidget {
 }
 
 class _AnimatedSlideOutState extends State<_AnimatedSlideOut> with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(value: widget.visible ? 0 : 1, duration: widget.duration, vsync: this);
-  late final _easeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-  late final _offset = Tween<Offset>(begin: Offset.zero, end: widget.hiddenOffset);
+  late final _controller = AnimationController(
+    value: widget.visible ? 0 : 1,
+    duration: widget.duration,
+    vsync: this,
+  );
+  late final _easeIn = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeIn,
+  );
+  late final _offset = Tween<Offset>(
+    begin: Offset.zero,
+    end: widget.hiddenOffset,
+  );
 
   @override
   void initState() {
@@ -73,5 +88,8 @@ class _AnimatedSlideOutState extends State<_AnimatedSlideOut> with SingleTickerP
   @override
   Widget build(final BuildContext context) => _controller.value == 1
       ? const SizedBox.shrink()
-      : FractionalTranslation(translation: _offset.evaluate(_easeIn), child: widget.child);
+      : FractionalTranslation(
+          translation: _offset.evaluate(_easeIn),
+          child: widget.child,
+        );
 }
