@@ -82,6 +82,16 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium_platform_interface
 
+      # The committed analysis_options.yaml shares config via a cross-package
+      # `include: ../analysis_options.base.yaml`. That path is NOT in the
+      # published tarball, so pub.dev's pana would lose the formatter/linter
+      # config and dock the score. Inline the effective config before publishing.
+      - name: Materialize self-contained analysis_options (platform interface)
+        run: |
+          gen="$(mktemp)"
+          bin/materialize_analysis_options flutter_readium_platform_interface > "$gen"
+          mv "$gen" flutter_readium_platform_interface/analysis_options.yaml
+
       - name: Dry-run publish platform interface
         run: dart pub publish --dry-run
         working-directory: flutter_readium_platform_interface
@@ -89,6 +99,12 @@ jobs:
       - name: Install dependencies (flutter_readium)
         run: flutter pub get
         working-directory: flutter_readium
+
+      - name: Materialize self-contained analysis_options (flutter_readium)
+        run: |
+          gen="$(mktemp)"
+          bin/materialize_analysis_options flutter_readium > "$gen"
+          mv "$gen" flutter_readium/analysis_options.yaml
 
       - name: Dry-run publish flutter_readium
         run: dart pub publish --dry-run
