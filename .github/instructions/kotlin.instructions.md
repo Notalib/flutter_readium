@@ -7,7 +7,7 @@ applyTo: 'flutter_readium/android/**/*.kt'
 
 ## Formatting
 
-After writing or editing any Kotlin file, run `ktlint --format` on it (or `./gradlew ktlintFormat` from `flutter_readium/android/`). The `standard:package-name` violation for `dk.nota.flutter_readium` is pre-existing and cannot be auto-corrected — ignore it. Fix all other violations.
+After writing or editing any Kotlin file, run `ktlint --format` on it (or `./gradlew ktlintFormat` from `flutter_readium/android/`). Fix all violations.
 
 ## Log messages
 

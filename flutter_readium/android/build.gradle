@@ -17,7 +17,7 @@ plugins {
   id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.21'
 }
 
-group 'dk.nota.flutter_readium'
+group 'dk.nota.flutterreadium'
 version '1.0-SNAPSHOT'
 
 rootProject.allprojects {
@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 android {
   if (project.android.hasProperty('namespace')) {
-    namespace 'dk.nota.flutter_readium'
+    namespace 'dk.nota.flutterreadium'
   }
 
   compileOptions {

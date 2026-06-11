@@ -36,8 +36,8 @@ Key files that change:
 - `flutter_readium_platform_interface/lib/flutter_readium_platform_interface.dart`
 - `flutter_readium_platform_interface/lib/method_channel_flutter_readium.dart`
 - `flutter_readium/ios/flutter_readium/Sources/flutter_readium/FlutterReadiumPlugin.swift`
-- `flutter_readium/android/src/main/kotlin/dk/nota/flutter_readium/PublicationChannel.kt`
-- `flutter_readium/android/src/main/kotlin/dk/nota/flutter_readium/ReadiumReader.kt`
+- `flutter_readium/android/src/main/kotlin/dk/nota/flutterreadium/PublicationChannel.kt`
+- `flutter_readium/android/src/main/kotlin/dk/nota/flutterreadium/ReadiumReader.kt`
 
 ## Scope boundaries
 
