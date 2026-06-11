@@ -9,7 +9,8 @@
     "**/*.code-search": true,
     "**/ios/.symlinks/**": true,
     "**/*/*.js": true,
-    "**/*/*.css": true
+    "**/*/*.css": true,
+    ".claude/worktrees": true
   },
   "files.readonlyInclude": {
     "**/*.g.dart": true,
@@ -27,10 +28,10 @@
   "[dart]": {
     "editor.rulers": [
       120
-    ],
+    ]
   },
   "cSpell.enabledFileTypes": {
-    "dart": true,
+    "dart": true
   },
   "cSpell.ignorePaths": [
     "**/.pub-cache/**",
@@ -94,5 +95,6 @@
     "videoref"
   ],
   "java.configuration.updateBuildConfiguration": "interactive",
-  "dart.mcpServer": true
+  "dart.mcpServer": true,
+  "dart.flutterSdkPath": ".fvm/versions/3.41.9"
 }

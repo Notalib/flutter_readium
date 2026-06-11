@@ -91,3 +91,4 @@ assets/_scripts/dist
 flutter_readium/example/devtools_options.yaml
 tmp
 .chromedriver/
+.tokensave

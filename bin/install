@@ -13,3 +13,18 @@ cd "$REPO_ROOT/flutter_readium/web/_scripts" && npm install --ignore-scripts
 "$REPO_ROOT/flutter_readium/bin/build_helper_scripts.sh"
 "$REPO_ROOT/bin/build_js"
 "$REPO_ROOT/bin/update_web_example"
+
+# Optional: AI code-search index (tokensave, https://github.com/aovestdipaperino/tokensave).
+# Entirely no-op for anyone who doesn't have the tokensave CLI installed.
+# Install with: brew install aovestdipaperino/tap/tokensave
+if command -v tokensave >/dev/null 2>&1; then
+  echo "tokensave detected — configuring code index + refresh hooks"
+  # Build the index DB on a fresh checkout (init also writes a default config we override next).
+  [ -f "$REPO_ROOT/.tokensave/tokensave.db" ] || ( cd "$REPO_ROOT" && tokensave init </dev/null )
+  # Apply the repo's curated, portable config (root_dir ".", build/Pods/vendored excluded).
+  cp "$REPO_ROOT/.githooks/tokensave.config.json" "$REPO_ROOT/.tokensave/config.json"
+  # Activate the shared refresh hooks (post-commit / merge / checkout / rewrite).
+  git -C "$REPO_ROOT" config core.hooksPath .githooks
+  # Reindex honoring the curated excludes.
+  ( cd "$REPO_ROOT" && tokensave sync --force )
+fi
