@@ -9,7 +9,8 @@
     "**/*.code-search": true,
     "**/ios/.symlinks/**": true,
     "**/*/*.js": true,
-    "**/*/*.css": true
+    "**/*/*.css": true,
+    ".claude/worktrees": true
   },
   "files.readonlyInclude": {
     "**/*.g.dart": true,
@@ -94,6 +95,5 @@
     "videoref"
   ],
   "java.configuration.updateBuildConfiguration": "interactive",
-  "dart.mcpServer": true,
-  "dart.flutterSdkPath": ".fvm/versions/3.41.9"
+  "dart.mcpServer": true
 }
