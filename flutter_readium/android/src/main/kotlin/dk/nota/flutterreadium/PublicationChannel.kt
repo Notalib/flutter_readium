@@ -14,6 +14,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Try
+import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.getOrElse
 
 private const val TAG = "PublicationChannel"
@@ -274,12 +275,35 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
             }
 
             "getResourceBytes" -> {
-                // Image-tap byte fetch is not implemented on Android.
-                // The kotlin-toolkit does not expose a synchronous per-resource read
-                // through the method channel used by the reader widget.
-                // This is a tracked follow-up item; for now the channel returns
-                // notImplemented so the Dart side throws UnimplementedError cleanly.
-                throw NotImplementedError()
+                @Suppress("UNCHECKED_CAST")
+                val args = arguments as? Map<String, Any?>
+                val href =
+                    args?.get("href") as? String
+                        ?: return Try.failure(
+                            PublicationError.Unknown("::getResourceBytes requires a 'href' string argument"),
+                        )
+                val publication =
+                    ReadiumReader.currentPublication
+                        ?: return Try.failure(
+                            PublicationError.Unavailable("::getResourceBytes No publication open"),
+                        )
+                val url =
+                    Url(href)
+                        ?: return Try.failure(
+                            PublicationError.Unknown("::getResourceBytes Invalid href: $href"),
+                        )
+                val resource =
+                    publication.get(url)
+                        ?: return Try.failure(
+                            PublicationError.InvalidPublicationUrl("::getResourceBytes No resource for href: $href"),
+                        )
+                val bytes =
+                    resource.read().getOrElse { readError ->
+                        PluginLog.w(TAG, "::getResourceBytes. Read failed for href: $href. ${readError.message}")
+                        return Try.failure(PublicationError.Reading(readError))
+                    }
+                PluginLog.d(TAG, "::getResourceBytes. href=$href bytes=${bytes.size}")
+                return Try.success(bytes)
             }
 
             else -> {

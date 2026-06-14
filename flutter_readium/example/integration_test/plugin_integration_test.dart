@@ -165,18 +165,17 @@ void main() {
 
   group(
     'EPUB image tap API',
-    // Web: getResourceBytes is implemented on web too, but the fixture
-    // (moby_dick.epub via peterAndWendyEpub key) is a native-bundled asset not
-    // served as a webpub. Covered on iOS/Android only for now.
+    // The illustrated fixture is a native-bundled asset; the web integration
+    // suite serves a different (webpub) fixture set, so this group runs on
+    // iOS/Android only. getResourceBytes itself is implemented on web too.
     skip: kIsWeb ? 'Native-bundled fixture not available on web' : null,
     () {
       test('opens EPUB and reads publication metadata', () async {
-        // peterAndWendyEpub key maps to moby_dick.epub which has a cover PNG.
-        final path = fixturePaths[FixtureKeys.mobyDickEpub];
+        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
         expect(
           path,
           isNotNull,
-          reason: 'Fixture moby_dick.epub missing from asset bundle',
+          reason: 'Fixture peter_rabbit.epub missing from asset bundle',
         );
 
         final pub = await reader.openPublication(path!);
@@ -186,18 +185,18 @@ void main() {
       });
 
       test('getResourceBytes returns non-empty bytes for an image resource', () async {
-        final path = fixturePaths[FixtureKeys.mobyDickEpub];
-        expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing');
+        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
+        expect(path, isNotNull, reason: 'Fixture peter_rabbit.epub missing');
 
         final pub = await reader.openPublication(path!);
 
-        // moby_dick.epub has a cover PNG in the manifest resources.
+        // peter_rabbit.epub has many image resources (cover + interior plates).
         final imageLink = pub.resources.firstWhere(
           (l) =>
               l.type?.startsWith('image/') == true ||
               (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
           orElse: () => throw StateError(
-            'moby_dick.epub has no image resources — cannot test getResourceBytes',
+            'peter_rabbit.epub has no image resources — cannot test getResourceBytes',
           ),
         );
 

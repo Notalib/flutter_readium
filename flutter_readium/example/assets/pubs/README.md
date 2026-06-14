@@ -9,6 +9,7 @@ Some ones prefixed with a number are self-produced by Nota.
 | File                      | Media-type        | Contents                      |
 | ------------------------- | ----------------- | ----------------------------- |
 | moby_dick.epub            | epub              | Ebook                         |
+| peter_rabbit.epub         | epub              | Illustrated ebook (29 images) |
 | 712199_ebook.epub         | epub              | Ebook                         |
 | 712199_ebook.webpub       | webpub/ebook      | Ebook                         |
 | 41654_overlay.epub        | epub              | Ebook /w MediaOverlays        |
@@ -38,6 +39,20 @@ Gutenberg no longer offers PDF as a native download format, hence the HTML →
 Chrome round-trip. The result is a real text-based PDF (selectable text,
 embedded fonts) suitable for exercising `PDFPositionsService` and the PDFium
 adapter.
+
+## Illustrated EPUB fixture
+
+`peter_rabbit.epub` is Beatrix Potter's *The Tale of Peter Rabbit* (public
+domain), fetched verbatim from Project Gutenberg #14838:
+
+```sh
+curl -fsSL -o peter_rabbit.epub \
+  "https://www.gutenberg.org/ebooks/14838.epub3.images"
+```
+
+It embeds ~29 images (cover + interior colour plates) and is used by the
+`EPUB image tap API` integration tests to exercise image-tap detection and
+`getResourceBytes`.
 
 ## Web integration-test fixtures (`example/web/`)
 

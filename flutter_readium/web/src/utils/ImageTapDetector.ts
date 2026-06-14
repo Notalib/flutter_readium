@@ -47,10 +47,26 @@ export function tryBuildImageTapPayload(
       return null;
     }
 
-    // Use elementFromPoint at the tap coordinates to find the element.
-    const el = targetWnd.document.elementFromPoint(e.x, e.y);
+    // Resolve the tapped element. Prefer the upstream-provided cssSelector — it
+    // references the exact clicked element computed *inside* the content frame.
+    // The (e.x, e.y) coordinates are NOT usable with elementFromPoint: upstream
+    // Peripherals multiplies them by devicePixelRatio, so on any HiDPI/Retina
+    // display (dpr > 1) they overshoot and hit the wrong element or nothing.
+    // elementFromPoint is kept only as a dpr-corrected last resort.
+    let el: Element | null = null;
+    if (e.cssSelector) {
+      try {
+        el = targetWnd.document.querySelector(e.cssSelector);
+      } catch (selErr) {
+        log.debug("querySelector failed for cssSelector:", e.cssSelector, selErr);
+      }
+    }
     if (!el) {
-      log.debug("elementFromPoint returned null at", e.x, e.y);
+      const dpr = targetWnd.devicePixelRatio || 1;
+      el = targetWnd.document.elementFromPoint(e.x / dpr, e.y / dpr);
+    }
+    if (!el) {
+      log.debug("Could not resolve tapped element (cssSelector + elementFromPoint)");
       return null;
     }
 
