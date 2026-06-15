@@ -697,8 +697,8 @@ extension FlutterReadiumPlugin {
     }
 
     /// If we already have a ToC ID from the viewer, use that for lookup.
-    if let tocId = locator.locations.otherLocations["tocHref"] {
-      let tocHref = "\(locator.href)#\(tocId)"
+    if let tocId = locator.locations.otherLocations["tocId"]?.string {
+      let tocHref = "\(locator.href.string)#\(tocId)"
       let tocLink = publication.getFlattenedToC().first(where: { $0.href == tocHref })
       return tocLink
     }
