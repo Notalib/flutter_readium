@@ -178,11 +178,10 @@ struct FlutterMediaOverlayItem {
   var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
-    // TODO: Ensure the start is integer, currently seems Readium component expects this.
     return Locator(
       href: href,
       mediaType: audioMediaType,
-      locations: .init(fragments: ["t=\(Int(start))"])
+      locations: .init(fragments: ["t=\(start))"])
     )
   }
   
