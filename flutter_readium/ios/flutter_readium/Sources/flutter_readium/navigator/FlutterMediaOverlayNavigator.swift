@@ -80,26 +80,32 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   public override func seek(toLocator: Locator) async -> Bool {
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
+      Log.navigator.warn("seekToLocator - Could not map to an Audio Locator for: \(toLocator)")
       return false
     }
-    // Found a matching Audio Locator from given Text-based Locator.
+    let wasPlaying = navigator.state == .playing || navigator.state == .loading
     let navigated = await navigator.go(to: audioLocator)
     // Go will sometimes result in a pause, if buffering was necessary.
-    // So we actively ensure we resume playing.
-    navigator.play()
+    // So we actively ensure we resume playing (if we were before).
+    if (wasPlaying) {
+      navigator.play()
+    }
     return navigated
   }
   
   public override func seek(toProgression: Double) async -> Bool {
     guard let navigator = _audioNavigator,
           let locator = audioLocator?.copyWithProgressionLocations(progression: toProgression) else {
-      Log.navigator.warn("Could not modify Locator when seeking to progression: \(toProgression)")
+      Log.navigator.warn("seekToProgression - Could not setup locator with progression: \(toProgression)")
       return false
     }
+    let wasPlaying = navigator.state == .playing || navigator.state == .loading
     let navigated = await navigator.go(to: locator)
     // Go will sometimes result in a pause, if buffering was necessary.
-    // So we actively ensure we resume playing.
-    navigator.play()
+    // So we actively ensure we resume playing (if we were before).
+    if (wasPlaying) {
+      navigator.play()
+    }
     return navigated
   }
   
@@ -119,6 +125,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
        let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  audioLocator.href.string) }) {
       return mediaOverlay
     } else {
+      Log.navigator.warn("Could not find MediaOverlay from Audio Locator: \(audioLocator)")
       return nil
     }
   }
