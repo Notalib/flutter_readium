@@ -11,6 +11,12 @@ supporting cross-platform additions.
 
 ### Fixed
 
+- **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
+  crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
+  spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
+  to the `@Published playingUtterance` property (raw locator, then position mutation), which defeated
+  `removeDuplicates()` and fired the page-sync on every word update instead of only on utterance
+  changes.
 - **Web: Improved error-handling** - `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices` failures are
   now caught and `.stack` is now included in `PlatformException.message`.
 - **iOS: early reader events are no longer dropped** — the `text-locator` and
