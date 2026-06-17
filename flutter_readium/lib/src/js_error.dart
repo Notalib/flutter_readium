@@ -16,12 +16,17 @@ import 'dart:js_interop_unsafe';
 /// non-JS-object throwables (e.g. Dart-native exceptions re-thrown through
 /// the same catch block).
 String describeJsError(Object e) {
-  if (e is js_interop.JSObject) {
-    final msg = (e.getProperty<js_interop.JSAny?>('message'.toJS) as js_interop.JSString?)?.toDart;
-    final stack = (e.getProperty<js_interop.JSAny?>('stack'.toJS) as js_interop.JSString?)?.toDart;
+  try {
+    // On web, rejected JS promises arrive as JSObject. Avoid `is JSObject`
+    // (invalid_runtime_check_with_js_interop_types); use a try-cast instead.
+    final jsObj = e as js_interop.JSObject;
+    final msg = (jsObj.getProperty<js_interop.JSAny?>('message'.toJS) as js_interop.JSString?)?.toDart;
+    final stack = (jsObj.getProperty<js_interop.JSAny?>('stack'.toJS) as js_interop.JSString?)?.toDart;
     if (msg != null || stack != null) {
-      return [if (msg != null) msg, if (stack != null) stack].join('\n');
+      return [?msg, ?stack].join('\n');
     }
+  } on Object {
+    // Not a JS interop object; fall through to toString.
   }
   return e.toString();
 }
