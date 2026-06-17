@@ -48,10 +48,27 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.publicationIdentifier = publication.metadata.identifier
 
     let preferencesMap = creationParams["preferences"] as? Dictionary<String, Any>?
-    self.preferences = preferencesMap == nil ? FlutterEPUBPreferences.init() : FlutterEPUBPreferences.init(fromMap: preferencesMap!!)
+    if let preferencesMap {
+      self.preferences = preferencesMap != nil ? FlutterEPUBPreferences.init(fromMap: preferencesMap!) : FlutterEPUBPreferences.init()
+    } else {
+      Log.reader.debug("No initial preferences map provided")
+    }
 
     let locatorStr = creationParams["initialLocator"] as? String
-    let locator = locatorStr == nil ? nil : try! Locator(legacyJSONString: locatorStr!)
+    // Promote a `#id` css anchor into `fragments.first`: swift-toolkit's reflowable
+    // navigator ignores `cssSelector` for initial positioning (unlike kotlin/ts), so a
+    // media-overlay locator (DOM anchor in `cssSelector`, audio `t=…` in `fragments`)
+    // would otherwise resume at the top of the chapter. See
+    // docs/parity/locator-field-priority.md.
+    // Parse with `try?` (not `try!`): a malformed / schema-incompatible persisted locator
+    // degrades to opening at the start of the publication rather than crashing the reader.
+    let locator = locatorStr.flatMap { str -> Locator? in
+      guard let parsed = try? Locator(legacyJSONString: str) else {
+        Log.reader.warn("Failed to parse initialLocator; opening at start of publication")
+        return nil
+      }
+      return parsed.promotingTextAnchorForVisualNav()
+    }
     let preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as? Int ?? 2
     let preloadNextPositionCount = creationParams["preloadNextPositionCount"] as? Int ?? 6
     Log.reader.debug("publication = \(publication)")
@@ -436,7 +453,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
     isJumpingToLocator = true
 
-    return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+    // Promote a `#id` css anchor to `fragments.first` so swift-toolkit positions correctly
+    // when jumping to a media-overlay / cssSelector-only locator (e.g. a saved position or
+    // bookmark). See docs/parity/locator-field-priority.md.
+    let target = locator.promotingTextAnchorForVisualNav()
+    return await readiumViewController.go(to: target, options: NavigatorGoOptions(animated: animated))
   }
 
   public func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
@@ -492,9 +513,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("onMethodCall: \(call.method)")
     switch call.method {
     case "go":
-      let args = call.arguments as! [Any?]
-      let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
-      let animated = args[1] as! Bool
+      let args = call.arguments as? [Any?]
+      guard let locatorStr = args?[0] as? String,
+            let locator = try? Locator(legacyJSONString: locatorStr, warnings: readiumBugLogger) else {
+        Log.reader.warn("go: failed to parse locator argument; ignoring navigation request")
+        result(false)
+        break
+      }
+      let animated = args?[1] as? Bool ?? false
 
       Task.detached(priority: .high) {
         let success = await self.goToLocator(locator, animated: animated)
@@ -504,7 +530,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
       break
     case "goBackward":
-      let animated = call.arguments as! Bool
+      let animated = call.arguments as? Bool ?? false
       let navOptions = NavigatorGoOptions(animated: animated)
       let readiumViewController = self.readiumViewController
       let scrollMode = self.readiumViewController.presentation.scroll
@@ -523,7 +549,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
       break
     case "goForward":
-      let animated = call.arguments as! Bool
+      let animated = call.arguments as? Bool ?? false
       let navOptions = NavigatorGoOptions(animated: animated)
       let readiumViewController = self.readiumViewController
       let scrollMode = self.readiumViewController.presentation.scroll
