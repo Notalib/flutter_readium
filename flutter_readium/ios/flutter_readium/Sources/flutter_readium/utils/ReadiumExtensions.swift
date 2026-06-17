@@ -20,6 +20,31 @@ extension Locator {
     return cssFragment?.removingPrefix("#")
   }
 
+  /// Promote a simple `#id` css anchor into `fragments.first` for the swift visual navigator.
+  ///
+  /// The reflowable navigators across the toolkits prioritise locator fields differently:
+  /// kotlin/ts resolve `cssSelector` first, but swift-toolkit's
+  /// `EPUBReflowableSpreadView.go(to:)` only uses `text.highlight`, then `fragments.first`
+  /// (interpreted as a DOM tag id), then `progression` — it *ignores* `cssSelector`.
+  ///
+  /// Media-overlay / combined locators keep their DOM anchor only in `cssSelector` while
+  /// `fragments` holds an audio `t=…` fragment, so on iOS the navigator can't find the
+  /// element and lands at the top of the resource. Promoting the css anchor to
+  /// `fragments.first` lets `scroll(toTagID:)` position correctly. See
+  /// docs/parity/locator-field-priority.md.
+  ///
+  /// Only a bare `#id` is promoted — complex selectors and locators without a `#id` anchor
+  /// are returned unchanged, preserving the navigator's `progression` fallback.
+  func promotingTextAnchorForVisualNav() -> Locator {
+    guard let css = locations.cssSelector, css.hasPrefix("#") else { return self }
+    let id = String(css.dropFirst())
+    guard !id.isEmpty, !id.contains(where: { " >.#[]:,".contains($0) }) else { return self }
+    if locations.fragments.first == id { return self }
+    return copy(locations: { locs in
+      locs.fragments = [id] + locs.fragments.filter { $0 != id }
+    })
+  }
+
   /// Prepares the Locator data to be sent over the Flutter bridge to clients.
   /// Some fields are better off rounded before being passed over the bridge.
   func toClientFriendlyLocator() -> Locator {
@@ -31,7 +56,8 @@ extension Locator {
     }
 
     return copy(locations: { locs in
-      locs.fragments = offset != nil ? [String(format: "t=%.2f", offset!)] : []
+      locs.fragments.removeAll(where: { $0.starts(with: "t=") })
+      locs.fragments.append(String(format: "t=%.2f", offset!))
       locs.totalProgression = totalProgress
     })
   }

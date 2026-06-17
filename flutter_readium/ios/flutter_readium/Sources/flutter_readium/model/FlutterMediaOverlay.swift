@@ -192,8 +192,15 @@ struct FlutterMediaOverlayItem {
     // Combine the text-locator with given audio-locator's locations.
     // We keep the otherLocations("cssSelector") from text-locator.
     // We get the position from they MediaOverlay.position
+    //
+    // Keep the text DOM-id fragment ahead of the audio `t=…` fragment so the combined
+    // locator stays self-sufficient for swift-toolkit's reflowable navigator, which
+    // positions via `fragments.first` and ignores `cssSelector` (unlike kotlin/ts).
+    // `Locator.timeOffset` still finds the `t=` fragment by prefix regardless of order, so
+    // audio mapping is unaffected. See docs/parity/locator-field-priority.md.
+    let textFragments = textLocator.locations.fragments
     textLocator.locations = Locator.Locations(
-      fragments: audioLocator.locations.fragments,
+      fragments: textFragments + audioLocator.locations.fragments,
       progression: audioLocator.locations.progression,
       totalProgression: audioLocator.locations.totalProgression,
       position: self.position + 1,

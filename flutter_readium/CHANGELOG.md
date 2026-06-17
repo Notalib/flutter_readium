@@ -11,6 +11,12 @@ supporting cross-platform additions.
 
 ### Fixed
 
+- **iOS: media-overlay books now resume at the saved in-chapter position** — reopening a
+  sync-narration book restored the *top of the chapter* instead of where you left off (it only
+  snapped to the right place once playback started). swift-toolkit's reflowable navigator positions
+  via `fragments.first` and ignores `cssSelector`, where the media-overlay locator's DOM anchor was
+  stored; the locator's DOM anchor is now promoted into `fragments.first` for the iOS visual
+  navigator. See `docs/parity/locator-field-priority.md`.
 - **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
   crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
   spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
