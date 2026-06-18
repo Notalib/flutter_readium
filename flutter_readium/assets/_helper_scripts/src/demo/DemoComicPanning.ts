@@ -149,11 +149,16 @@ export class DemoComicPanning extends LitElement {
   };
 
   readonly #selectBookEvent = async (e: MouseEvent) => {
+    const newBook = (e.target as HTMLButtonElement).dataset.book;
+    if (newBook === this.selectedBook) {
+      return;
+    }
+
     this.#iframeLoaded = false;
     this.mediaOverlay = undefined;
     this.navIndex = 0;
 
-    this.selectedBook = (e.target as HTMLButtonElement).dataset.book;
+    this.selectedBook = newBook;
 
     this.requestUpdate();
 

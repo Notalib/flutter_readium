@@ -41,9 +41,8 @@ export default defineConfig({
       inlineSources: isDev,
       compilerOptions: { outDir: outDir },
     }),
-    ...(isProd ? [terser()] : []),
     ...(isDev
-      ? [serve({ contentBase: [outDir, 'public'], port: 4200, open: true }), livereload(outDir)]
-      : []),
+      ? [serve({ contentBase: [outDir, 'public', 'node_modules/readium-css/css/dist'], port: 4200, open: true }), livereload(outDir)]
+      : [terser()]),
   ],
 });
