@@ -1,9 +1,8 @@
-import { type AnimeAnimParams } from 'animejs';
-import { ViewSize, type ComicPageSize, type ComicPanel } from './types';
+import { ViewSize, type ComicKeyframe, type ComicPageSize, type ComicPanel } from './types';
 
 // At which factor should we pane over a frame?
-const panningFactor = 1.75;
-const focusDuration = 500;
+const panningFactor = 1.76;
+const focusDuration = 250;
 const MAX_ZOOM_VALUE = 3;
 const framePadding = 15;
 
@@ -36,10 +35,11 @@ export class ComicBookCalc {
     availableWidth: number,
     availableHeight: number,
     duration: number,
-  ): AnimeAnimParams[] {
-    const keyframes: AnimeAnimParams[] = [
+  ): ComicKeyframe[] {
+    const focusKeyframe = this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight);
+    const keyframes: ComicKeyframe[] = [
       {
-        ...this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight),
+        ...focusKeyframe,
         duration: Math.max(0, Math.min(focusDuration, duration)),
         opacity: 1, // fixes odd jump at first render of the new image.
       },
@@ -48,6 +48,9 @@ export class ComicBookCalc {
     if (!duration || duration <= focusDuration) {
       return keyframes;
     }
+
+    const holdBeforePanningDuration = focusDuration;
+    const panningDuration = holdBeforePanningDuration + focusDuration * 2;
 
     let panFramePosition: ComicPanel | undefined;
     let finalFramePosition: ComicPanel | undefined;
@@ -71,20 +74,23 @@ export class ComicBookCalc {
       return keyframes;
     }
 
-    if (duration <= focusDuration * 2) {
+    if (duration <= panningDuration) {
       console.warn("ComicBookCalc.MakeKeyFrames() -> duration is too short for panning, skipping pan animation. duration: " + duration);
       return keyframes;
     }
 
+    // After zooming to the frame, hold briefly so the reader can orient before panning starts.
+    keyframes[0].holdDuration = holdBeforePanningDuration;
+
     keyframes.push(
       {
         ...this.calcFramePositionAndSize(panFramePosition, canvasSize, availableWidth, availableHeight),
-        duration: 0,
+        duration: focusDuration / 2,
       },
       {
         ...this.calcFramePositionAndSize(finalFramePosition, canvasSize, availableWidth, availableHeight),
         // duration here is segment duration minus the 2x focusDuration from the first two steps of animation
-        duration: Math.max(0, (duration ?? 0) - 2 * focusDuration),
+        duration: Math.max(0, duration - panningDuration),
       },
     );
 

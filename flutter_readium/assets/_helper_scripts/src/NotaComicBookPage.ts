@@ -1,5 +1,4 @@
-import animejs, { type AnimeInstance } from 'animejs';
-import { type ComicPageSize, type ComicPanel, figureQuerySelector } from './types';
+import { type ComicKeyframe, type ComicPageSize, type ComicPanel, figureQuerySelector } from './types';
 import { ComicBookCalc } from './ComicBookCalc';
 import './NotaComicBookPage.scss';
 
@@ -93,7 +92,42 @@ export class NotaComicBook {
   #onResize = (): void => this.scrollToId(this.#lastElementId ?? '');
 }
 
-const animationEasing = 'cubicBezier(0.455, 0.030, 0.515, 0.955)';
+const animationEasing = 'cubic-bezier(0.455, 0.030, 0.515, 0.955)';
+
+/**
+ * Convert ComicKeyframe array to Web Animation API compatible Keyframes.
+ * @param keyframes
+ * @returns
+ */
+function convertToWebAnimationKeyframes(keyframes: ComicKeyframe[]): Keyframe[] {
+  const totalDuration = keyframes.reduce((sum, kf) => sum + kf.duration + (kf.holdDuration ?? 0), 0);
+  const result: Keyframe[] = [];
+  let elapsed = 0;
+  for (const kf of keyframes) {
+    elapsed += kf.duration;
+    const props: Keyframe = {
+      top: `${kf.top}px`,
+      left: `${kf.left}px`,
+      width: `${kf.width}px`,
+      height: `${kf.height}px`,
+      offset: totalDuration > 0 ? Math.min(1, elapsed / totalDuration) : 1,
+      // Apply easing per-segment so each transition gets the full curve,
+      // rather than the global easing warping the entire multi-keyframe animation.
+      easing: animationEasing,
+    };
+    if (kf.opacity !== undefined) {
+      props.opacity = `${kf.opacity}`;
+    }
+    result.push(props);
+    if (kf.holdDuration) {
+      elapsed += kf.holdDuration;
+      result.push({ ...props, offset: Math.min(1, elapsed / totalDuration) });
+    }
+  }
+
+  console.debug("Converted keyframes for Web Animation API:", { input: keyframes, output: result });
+  return result;
+}
 
 export class NotaComicBookPage {
   constructor(figureElement: HTMLElement, container: HTMLDivElement) {
@@ -162,7 +196,7 @@ export class NotaComicBookPage {
     return Object.freeze({ ...this.#comicAreas.get(sanitizedId)! });
   }
 
-  #animeInstance?: AnimeInstance;
+  #animation?: Animation;
 
   public segmentDuration: number = 1000;
 
@@ -200,7 +234,7 @@ export class NotaComicBookPage {
   /**
    * Render the comic book frame
    */
-  #renderCurrentComicFrame(): void {
+  async #renderCurrentComicFrame(): Promise<void> {
     const canvasSize = this.#canvasSize;
     const currentFrame = this.#currentFrame;
     const currentDuration = this.#duration;
@@ -216,7 +250,8 @@ export class NotaComicBookPage {
     if (img && img.id !== cloneId) {
       // If there's an existing image in the container that isn't the clone of the desired images, remove it before rendering the new frame.
       // This usually happens when switch page.
-      animejs.remove(img);
+      this.#animation?.cancel();
+      this.#animation = undefined;
       this.#container.removeChild(img);
       img = null;
     }
@@ -241,21 +276,61 @@ export class NotaComicBookPage {
     }
 
     // Remove old animation
-    this.#animeInstance?.pause();
-    animejs.remove(target);
+    const oldAnimation = this.#animation;
+    if (oldAnimation) {
+      // Cancel the old animation to avoid jank from multiple overlapping animations,
+      // but we need to wait for the cancellation to take effect before starting a new animation on the same element,
+      // otherwise the new animation may be ignored or behave erratically.
+      await new Promise((resolve) => {
+        try {
+          oldAnimation.addEventListener('finish', resolve);
+          oldAnimation.addEventListener('cancel', resolve);
+          oldAnimation.cancel();
+        } catch {
+          // Element may have been detached from the DOM, in which case we can just proceed with the new animation.
+          resolve(null);
+        }
+      });
+
+      this.#animation = undefined;
+    }
 
     const keyframes = ComicBookCalc.makeKeyFrames(currentFrame, canvasSize, this.availableWidth, this.availableHeight, currentDuration);
+    if (keyframes.length === 0) {
+      console.error('No keyframes generated for comic frame animation, cannot render frame.', { canvasSize, currentFrame, currentDuration });
+      return;
+    }
 
-    this.#animeInstance = animejs({
-      targets: target,
-      keyframes,
-      easing: animationEasing,
-      complete: () => {
-        console.debug("Animation complete for frame:", currentFrame, "keyframes:", keyframes);
+    // Fallback for browsers without Web Animations API support: jump directly to the
+    // focus frame (first keyframe) via inline styles with no animation.
+    if (typeof target.animate !== 'function') {
+      const focusFrame = keyframes[0];
+      target.style.top = `${focusFrame.top}px`;
+      target.style.left = `${focusFrame.left}px`;
+      target.style.width = `${focusFrame.width}px`;
+      target.style.height = `${focusFrame.height}px`;
+      return;
+    }
 
-        this.#animeInstance = undefined;
-      }
+    const totalDuration = keyframes.reduce((sum, kf) => sum + kf.duration + (kf.holdDuration ?? 0), 0);
+    const animation = target.animate(convertToWebAnimationKeyframes(keyframes), {
+      duration: totalDuration,
+      easing: 'linear',
+      fill: 'auto',
     });
+
+    animation.addEventListener('finish', () => {
+      console.debug("Animation complete for frame:", currentFrame, "keyframes:", keyframes);
+      try {
+        animation.commitStyles();
+        animation.cancel();
+      } catch {
+        // Element may have been detached from the DOM.
+      }
+      this.#animation = undefined;
+    });
+
+    this.#animation = animation;
   }
 
   /**
@@ -275,7 +350,7 @@ export class NotaComicBookPage {
   public renderCurrentFrame(id: string, duration: number): void {
     this.setCurrentFrame(id, duration);
 
-    this.#renderCurrentComicFrame();
+    void this.#renderCurrentComicFrame();
   }
 
   public gotoComicFrame(id: string, duration: number) {

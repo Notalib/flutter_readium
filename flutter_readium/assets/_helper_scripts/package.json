@@ -41,7 +41,6 @@
     "start": "cross-env NODE_ENV=development rollup -c rollup.config.ts --configPlugin typescript --watch"
   },
   "dependencies": {
-    "animejs": "^3.2.2",
     "css-selector-generator": "^3.9.1",
     "lit": "~3.3.2",
     "readium-css": "github:readium/readium-css"
