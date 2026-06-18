@@ -214,6 +214,8 @@ export class NotaComicBookPage {
     const frameId = this.#comicImg.id;
     const cloneId = `${frameId}-clone`;
     if (img && img.id !== cloneId) {
+      // If there's an existing image in the container that isn't the clone of the desired images, remove it before rendering the new frame.
+      // This usually happens when switch page.
       animejs.remove(img);
       this.#container.removeChild(img);
       img = null;
