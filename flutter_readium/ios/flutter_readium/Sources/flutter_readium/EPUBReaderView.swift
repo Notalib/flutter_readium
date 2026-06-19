@@ -395,12 +395,29 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
     let cssVariables = preferences.toCustomCssVariables()
-    if cssVariables.isEmpty == false,
-       let jsonData = try? jsonEncoder.encode(cssVariables),
-       let jsonString = String(data: jsonData, encoding: .utf8) {
-      Task.detached(priority: .high) { [jsonString] in
-        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
-        Log.reader.info("updated custom preferences: \(result)")
+    guard cssVariables.isEmpty == false,
+          let jsonData = try? jsonEncoder.encode(cssVariables),
+          let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+
+    Task.detached(priority: .high) { [jsonString] in
+      let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
+      Log.reader.info("updated custom preferences: \(result)")
+    }
+
+    // For CBZ/DiViNa FXL publications, also propagate CSS vars to the inner
+    // iframe. The FXL wrapper (fxl-spread-one.html) exposes window.spread.eval("", code)
+    // which runs JS in the iframe's context. This ensures dynamic preference
+    // updates (e.g. toggling B&W mode mid-read) reach the image iframe.
+    if publication.conforms(to: Publication.Profile.divina) {
+      let innerScript = cssVariables.map { k, v in
+        if let v { "document.documentElement.style.setProperty('\(k)','\(v)','important');" }
+        else { "document.documentElement.style.removeProperty('\(k)');" }
+      }.joined()
+      if let scriptData = try? jsonEncoder.encode(innerScript),
+         let scriptJson = String(data: scriptData, encoding: .utf8) {
+        Task.detached(priority: .high) { [scriptJson] in
+          await self.readiumViewController.evaluateJavaScript("window.spread?.eval?.('',\(scriptJson));")
+        }
       }
     }
   }

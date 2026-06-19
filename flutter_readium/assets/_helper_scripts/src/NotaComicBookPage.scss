@@ -63,4 +63,16 @@ figure.nota-comicbook-page {
       mix-blend-mode: multiply;
     }
   }
+
+  /**
+   * CBZ / DiViNa fixed-layout pages: the FXL wrapper loads each image in a
+   * blob-URL iframe whose body contains a single <img>. The Setup() function
+   * in FlutterReadiumTools.ts copies --FLUTTER_READIUM-* variables from the
+   * cascade to the iframe root's inline style, so this [style*=...] selector
+   * matches and applies the grayscale filter.
+   */
+  body > img {
+    filter: grayscale(1) contrast(255) brightness(1) !important;
+    mix-blend-mode: multiply;
+  }
 }

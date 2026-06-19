@@ -33,6 +33,8 @@ class PublicationUtils {
       '.webpub',
       '.epub',
       '.audiobook',
+      '.cbz',
+      '.divina',
       '.pdf',
       '.zip',
       '.json',

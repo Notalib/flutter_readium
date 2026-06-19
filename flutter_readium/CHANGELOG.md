@@ -9,6 +9,22 @@ Brings the Web platform up to feature parity with iOS / Android (audio,
 Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
 
+### Added
+
+- **iOS: CBZ comic support** — CBZ archives (Comic Book ZIP) now open and render on iOS.
+  Pages are displayed one at a time via the EPUB navigator's fixed-layout path; swipe/tap
+  navigates between pages and `goToLocator` restores saved positions. The existing
+  `blackAndWhiteComicMode` preference in `ReaderEpubPreferences` applies the grayscale
+  filter to CBZ pages as well. Android and Web support are pending.
+- **iOS: DiViNa narrated-comic support** — DiViNa publications (`profiles/divina`) that carry a
+  Guided Navigation document now open as comics with audio narration. Page images render via the
+  fixed-layout path, and `audioEnable` / `play` drive page-synced audio from the
+  guided-navigation document: the existing media-overlay narration pipeline now also recognises
+  DiViNa (previously EPUB-only), so a comic's `audioref` / `textref` segments build the audio
+  reading order and emit text locators as narration advances. Panel-level zoom is not yet
+  implemented (the segments' `imgref` regions are carried in the asset for that follow-up).
+  Android and Web support are pending.
+
 ### Fixed
 
 - **iOS: media-overlay books now resume at the saved in-chapter position** — reopening a
