@@ -9,27 +9,6 @@ Brings the Web platform up to feature parity with iOS / Android (audio,
 Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
 
-### Fixed
-
-- **iOS: media-overlay books now resume at the saved in-chapter position** — reopening a
-  sync-narration book restored the *top of the chapter* instead of where you left off (it only
-  snapped to the right place once playback started). swift-toolkit's reflowable navigator positions
-  via `fragments.first` and ignores `cssSelector`, where the media-overlay locator's DOM anchor was
-  stored; the locator's DOM anchor is now promoted into `fragments.first` for the iOS visual
-  navigator. See `docs/parity/locator-field-priority.md`.
-- **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
-  crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
-  spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
-  to the `@Published playingUtterance` property (raw locator, then position mutation), which defeated
-  `removeDuplicates()` and fired the page-sync on every word update instead of only on utterance
-  changes.
-- **Web: Improved error-handling** - `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices` failures are
-  now caught and `.stack` is now included in `PlatformException.message`.
-- **iOS: early reader events are no longer dropped** — the `text-locator` and
-  `reader-status` event channels now buffer the most-recent event on the native
-  side when Dart has not yet attached a listener.  The buffer is flushed
-  immediately when `onListen` fires.
-
 ### Added
 
 - **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
@@ -91,9 +70,6 @@ supporting cross-platform additions.
   logger (`[Readium/<Module>] LEVEL: message`) with runtime level control. `setLogLevel`
   now propagates to the JS bundle so web logging verbosity is controlled from Dart
   alongside the native platforms.
-- **Web: parser unit tests** — a Jest suite for the Guided Navigation parser (JSON-layer
-  parsing + sliding-window ToC enrichment). Run with `npm test` from the
-  `flutter_readium` package.
 - **Dart: tagged logging (`TaggedReadiumLog`)** — new `ReadiumLog.tag('Name')` factory
   creates child loggers named `flutter_readium.<Name>`, surfacing the source / area in
   log records (e.g. `[INFO] flutter_readium.WebPlugin: ...`).
@@ -158,11 +134,29 @@ supporting cross-platform additions.
 
 ### Fixed
 
-These are fixes to behaviour that shipped in `0.0.1` — chiefly the existing web EPUB
-visual reader and cross-platform serialization. (Bugs introduced and resolved while
-building the new web audio / TTS / Media Overlay features are not listed separately;
-their net effect is the `Added` entries above.)
+These are fixes to behaviour that shipped in `0.0.1` — chiefly iOS playback / locator
+positioning, the existing web EPUB visual reader, and cross-platform serialization. (Bugs
+introduced and resolved while building the new web audio / TTS / Media Overlay features are
+not listed separately; their net effect is the `Added` entries above.)
 
+- **iOS: media-overlay books now resume at the saved in-chapter position** — reopening a
+  sync-narration book restored the *top of the chapter* instead of where you left off (it only
+  snapped to the right place once playback started). swift-toolkit's reflowable navigator positions
+  via `fragments.first` and ignores `cssSelector`, where the media-overlay locator's DOM anchor was
+  stored; the locator's DOM anchor is now promoted into `fragments.first` for the iOS visual
+  navigator. See `docs/parity/locator-field-priority.md`.
+- **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
+  crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
+  spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
+  to the `@Published playingUtterance` property (raw locator, then position mutation), which defeated
+  `removeDuplicates()` and fired the page-sync on every word update instead of only on utterance
+  changes.
+- **iOS: early reader events are no longer dropped** — the `text-locator` and
+  `reader-status` event channels now buffer the most-recent event on the native
+  side when Dart has not yet attached a listener.  The buffer is flushed
+  immediately when `onListen` fires.
+- **Web: improved error-handling** — `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices`
+  failures are now caught and `.stack` is now included in `PlatformException.message`.
 - **Web: `setEPUBPreferences` no longer wipes existing preferences** — the converter now
   emits only fields the Dart caller explicitly set, leaving prior preferences untouched
   on merge. Previously every unset field was sent as `null`, which the navigator's
@@ -195,7 +189,7 @@ their net effect is the `Added` entries above.)
   ReadiumCSS `customColors_pref.css` user-text-colour rule that previously won the
   cascade on EPUB-profile publications.
 
-## [0.0.1] - 2025-06-01
+## [0.0.1] - 2026-06-01
 
 ### Added
 
