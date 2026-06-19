@@ -28,10 +28,11 @@ Emits a `ReadiumTimebasedState` during TTS and audio playback.
 ```dart
 reader.onTimebasedPlayerStateChanged.listen((state) {
   final playing = state.state == TimebasedState.playing;
-  final elapsed = state.currentTime;      // Duration
-  final total   = state.duration;         // Duration
-  final buffered = state.currentBuffered; // Duration
-  final locator  = state.currentLocator;  // Locator?
+  final elapsed = state.currentOffset;          // Duration?
+  final total = state.currentDuration;          // Duration?
+  final publicationElapsed = state.totalProgressDuration; // Duration?
+  final buffered = state.currentBuffered;       // Duration?
+  final locator = state.currentLocator;         // Locator?
 });
 ```
 

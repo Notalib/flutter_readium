@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- `ReadiumTimebasedState.totalProgressDuration` — nullable `Duration` for the
+  publication-level playback offset derived from
+  `currentLocator.locations.totalProgression * publicationDuration`.
+- `ReadiumTimebasedState.totalDuration` — nullable `Duration` for the total
+  publication duration (sum of all reading-order link durations); `null` when any
+  reading-order link is missing a duration.
 - `PDFSpread` — enum (`auto` / `never` / `always`) for synthetic dual-page spread on
   PDF publications. iOS only; Android `PdfiumPreferences` does not expose spread.
 - `PDFPreferences` — three new iOS-only fields: `offsetFirstPage: bool?`,

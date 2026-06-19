@@ -183,6 +183,8 @@ object ReadiumReader :
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
+    private var currentTimebasedPublicationDurationMs: Double? = null
+
     /** Current audio preferences (defaults if audio hasn't been enabled yet). */
     val audioPreferences: FlutterAudioPreferences
         get() = _audioPreferences
@@ -344,6 +346,7 @@ object ReadiumReader :
                             initNavigator()
                             PluginLog.d(TAG, "::storeState - audioNavigator restored")
                         }
+                    currentTimebasedPublicationDurationMs = computePublicationDurationMs(pub.readingOrder.map { it.duration })
                 }
             } else if (bundle.getBoolean(syncAudioEnabledKey)) {
                 // Restore Sync Audio navigator
@@ -362,6 +365,7 @@ object ReadiumReader :
                                     initNavigator()
                                     PluginLog.d(TAG, "::storeState - syncAudioNavigator restored")
                                 }
+                        currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
                     }
                 } else {
                     PluginLog.e(TAG, "::storeState - no media overlays for sync audio navigator")
@@ -669,6 +673,7 @@ object ReadiumReader :
         syncAudiobookNavigator = null
 
         _audioPreferences = FlutterAudioPreferences()
+        currentTimebasedPublicationDurationMs = null
 
         currentReadiumTimebasedState.value = ReadiumTimebasedState()
         currentTextLocator.value = null
@@ -706,6 +711,12 @@ object ReadiumReader :
             currentReadiumTimebasedState.value.copyWith(
                 currentOffset = timeOffset?.inWholeMilliseconds?.toDouble(),
                 currentDuration = duration?.let { it * 1000 },
+                totalProgressDuration =
+                    computeTotalProgressDurationMs(
+                        locator.locations.totalProgression,
+                        currentTimebasedPublicationDurationMs,
+                    ),
+                totalDuration = currentTimebasedPublicationDurationMs,
                 currentLocator = locator,
             )
     }
@@ -1034,6 +1045,7 @@ object ReadiumReader :
                     initNavigator()
                 }
         } ?: throw Exception("Publication not opened cannot enable tts")
+        currentTimebasedPublicationDurationMs = null
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
@@ -1276,6 +1288,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
+            currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
         } else {
             PluginLog.d(TAG, "::audioEnable - media-overlay book")
             val ail = initialLocator ?: epubNavigator?.currentLocator?.value
@@ -1289,6 +1302,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
+            currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
         }
     }
 

@@ -2,8 +2,8 @@ package dk.nota.flutterreadium
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import org.mockito.Mockito
-import kotlin.test.Test
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 /*
  * This demonstrates a simple unit test of the Kotlin portion of this plugin's implementation.
@@ -14,14 +14,36 @@ import kotlin.test.Test
  */
 
 internal class FlutterReadiumPluginTest {
+    private class CapturingResult : MethodChannel.Result {
+        var successValue: Any? = null
+        var errorCode: String? = null
+        var notImplementedCalled: Boolean = false
+
+        override fun success(result: Any?) {
+            successValue = result
+        }
+
+        override fun error(
+            errorCode: String,
+            errorMessage: String?,
+            errorDetails: Any?,
+        ) {
+            this.errorCode = errorCode
+        }
+
+        override fun notImplemented() {
+            notImplementedCalled = true
+        }
+    }
+
     @Test
-    fun onMethodCall_getPlatformVersion_returnsExpectedValue() {
+    fun onMethodCall_returnsNotImplemented() {
         val plugin = FlutterReadiumPlugin()
 
         val call = MethodCall("getPlatformVersion", null)
-        val mockResult: MethodChannel.Result = Mockito.mock(MethodChannel.Result::class.java)
-        plugin.onMethodCall(call, mockResult)
+        val result = CapturingResult()
+        plugin.onMethodCall(call, result)
 
-        Mockito.verify(mockResult).success("Android " + android.os.Build.VERSION.RELEASE)
+        assertTrue(result.notImplementedCalled)
     }
 }
