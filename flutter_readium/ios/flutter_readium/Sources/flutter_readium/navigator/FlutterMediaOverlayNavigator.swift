@@ -120,8 +120,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
   
   private func mediaOverlayItemFromAudioLocator(_ audioLocator: Locator) -> FlutterMediaOverlayItem? {
-    if let timeOffsetStr = audioLocator.locations.fragments.first(where: { $0.starts(with: "t=") })?.dropFirst(2),
-       let timeOffset = Double(timeOffsetStr),
+    if let timeOffset = MediaTimeFragment.seconds(from: audioLocator.locations.fragments),
        let mediaOverlay = mediaOverlays.first(where: { $0.itemInRangeOfTime(timeOffset, inHref:  audioLocator.href.string) }) {
       return mediaOverlay
     } else {

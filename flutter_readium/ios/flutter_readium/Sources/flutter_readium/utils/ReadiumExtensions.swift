@@ -6,13 +6,7 @@ import ReadiumInternal
 
 extension Locator {
   var timeOffset: TimeInterval? {
-    // Get time offset
-    let fragment: String? = locations.fragments.first(where: { $0.hasPrefix("t=") })
-    if let offsetStr = fragment?.removingPrefix("t=").removingPrefix("npt:") {
-      return TimeInterval(offsetStr)
-    } else {
-      return nil
-    }
+    MediaTimeFragment.seconds(from: locations.fragments)
   }
 
   var textId: String? {
@@ -46,7 +40,8 @@ extension Locator {
   }
 
   /// Prepares the Locator data to be sent over the Flutter bridge to clients.
-  /// Some fields are better off rounded before being passed over the bridge.
+  /// `totalProgression` is rounded for the bridge; the `t=` time fragment is
+  /// re-emitted at full precision (and only when an offset is actually present).
   func toClientFriendlyLocator() -> Locator {
     let offset = timeOffset
     var totalProgress = locations.totalProgression
@@ -57,14 +52,18 @@ extension Locator {
 
     return copy(locations: { locs in
       locs.fragments.removeAll(where: { $0.starts(with: "t=") })
-      locs.fragments.append(String(format: "t=%.2f", offset!))
+      // Only (re)emit a time fragment when the locator actually carries one;
+      // a non-audio or offset-less locator must not force-unwrap a nil offset.
+      if let offset {
+        locs.fragments.append(MediaTimeFragment.string(offset))
+      }
       locs.totalProgression = totalProgress
     })
   }
 
   /// Gets a Locator copy overriding fragments with a Readium compatible time fragment.
   func copyWithOffset(_ offset: Double) -> Locator {
-    return copy(locations: { locs in locs.fragments = ["t=\(offset)"] })
+    return copy(locations: { locs in locs.fragments = [MediaTimeFragment.string(offset)] })
   }
 
   func copyWithProgressionLocations(progression: Double) -> Locator {
