@@ -124,6 +124,13 @@ jobs:
         id: flutter_version
         run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
 
+      # Provisions the pub.dev OIDC token (requires the job's id-token: write).
+      # `dart pub publish` does NOT fetch the token itself — without this step it
+      # falls back to interactive OAuth and hangs in CI. Runs BEFORE flutter-action
+      # so flutter's `dart` ends up first on PATH for the publish, while the token
+      # configured here is still used (mirrors dart-lang's reusable publish.yml).
+      - uses: dart-lang/setup-dart@v1
+
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
