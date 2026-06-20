@@ -376,7 +376,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
     Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
     let href = image.embeddedLink.href
-    let alt = image.caption  // ImageContentElement.caption holds alt/caption text
+    // accessibilityLabel carries the HTML alt="" attribute (stored in attributes
+    // under ContentAttributeKey.accessibilityLabel by the HTML content iterator).
+    // image.caption is the <figcaption> text — always nil in the current
+    // swift-toolkit (see TODO in HTMLResourceContentIterator).
+    let alt = image.accessibilityLabel
     channel.onImageTapped(
       href: href,
       alt: alt,

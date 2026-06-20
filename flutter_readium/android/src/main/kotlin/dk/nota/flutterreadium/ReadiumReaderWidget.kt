@@ -33,7 +33,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "ReadiumReaderView"
-internal const val viewTypeChannelName = "dk.nota.flutterreadium/ReadiumReaderWidget"
+internal const val VIEW_TYPE_CHANNEL_NAME = "dk.nota.flutter_readium/ReadiumReaderWidget"
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -127,7 +127,7 @@ class ReadiumReaderWidget(
 
         ReadiumReader.currentReaderWidget = this
 
-        channel = ReadiumReaderChannel(messenger, "$viewTypeChannelName:$id")
+        channel = ReadiumReaderChannel(messenger, "$VIEW_TYPE_CHANNEL_NAME:$id")
         channel.setMethodCallHandler(this)
 
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Loading)
@@ -232,7 +232,7 @@ class ReadiumReaderWidget(
         // Push the comic re-sync policy to the injected helper.
         newPreferences.syncPolicy?.let { policy ->
             ReadiumReader.epubEvaluateJavascript(
-                "window.flutterReadium && window.flutterReadium.setComicSyncPolicy('$policy');",
+                "window.flutterReadium && window.flutterReadium.setComicSyncPolicy(${JSONObject.quote(policy)});",
             )
         }
     }

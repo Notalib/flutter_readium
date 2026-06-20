@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show Rect;
 
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -280,7 +281,7 @@ void main() {
       final event = ImageTapEvent(
         href: 'images/wendy.jpg',
         caption: 'Wendy and the boys',
-        rect: {'x': 10.0, 'y': 20.0, 'width': 300.0, 'height': 200.0},
+        rect: const Rect.fromLTWH(10.0, 20.0, 300.0, 200.0),
         pixelWidth: 600,
         pixelHeight: 400,
       );
@@ -289,8 +290,8 @@ void main() {
       expect(restored.href, event.href);
       expect(restored.caption, event.caption);
       expect(restored.alt, isNull);
-      expect(restored.rect!['x'], closeTo(10.0, 1e-9));
-      expect(restored.rect!['height'], closeTo(200.0, 1e-9));
+      expect(restored.rect!.left, closeTo(10.0, 1e-9));
+      expect(restored.rect!.height, closeTo(200.0, 1e-9));
       expect(restored.pixelWidth, 600);
       expect(restored.pixelHeight, 400);
       expect(restored.srcUrl, isNull);
@@ -300,7 +301,7 @@ void main() {
       final event = ImageTapEvent(
         href: 'images/tinker_bell.png',
         alt: 'Tinker Bell',
-        rect: {'x': 0.0, 'y': 0.0, 'width': 500.0, 'height': 350.0},
+        rect: const Rect.fromLTWH(0.0, 0.0, 500.0, 350.0),
         pixelWidth: 1000,
         pixelHeight: 700,
         srcUrl: 'http://localhost:8080/EPUB/images/tinker_bell.png',
@@ -341,9 +342,9 @@ void main() {
       };
 
       final event = ImageTapEvent.fromJson(raw);
-      expect(event.rect!['x'], 5.0);
-      expect(event.rect!['y'], closeTo(10.5, 1e-9));
-      expect(event.rect!['width'], 200.0);
+      expect(event.rect!.left, 5.0);
+      expect(event.rect!.top, closeTo(10.5, 1e-9));
+      expect(event.rect!.width, 200.0);
     });
 
     test('fromJson throws ArgumentError when href is missing', () {

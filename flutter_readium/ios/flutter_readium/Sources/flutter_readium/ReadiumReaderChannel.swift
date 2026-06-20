@@ -66,7 +66,7 @@ class ReadiumReaderChannel: FlutterMethodChannel {
        let jsonString = String(data: data, encoding: .utf8) {
       invokeMethod("onImageTapped", arguments: jsonString)
     } else {
-      Log.reader.warning("::onImageTapped. Failed to serialise JSON for href: \(href)")
+      Log.reader.warn("::onImageTapped. Failed to serialise JSON for href: \(href)")
     }
   }
 

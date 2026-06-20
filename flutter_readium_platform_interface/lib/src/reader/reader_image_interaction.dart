@@ -1,3 +1,5 @@
+import 'dart:ui' show Rect;
+
 import '../index.dart';
 
 /// Fired when the user taps an image inside an EPUB.
@@ -38,12 +40,12 @@ class ImageTapEvent implements JSONable {
       caption: map.optNullableString('caption'),
       alt: map.optNullableString('alt'),
       rect: rectMap != null
-          ? {
-              'x': (rectMap['x'] as num?)?.toDouble() ?? 0.0,
-              'y': (rectMap['y'] as num?)?.toDouble() ?? 0.0,
-              'width': (rectMap['width'] as num?)?.toDouble() ?? 0.0,
-              'height': (rectMap['height'] as num?)?.toDouble() ?? 0.0,
-            }
+          ? Rect.fromLTWH(
+              (rectMap['x'] as num?)?.toDouble() ?? 0.0,
+              (rectMap['y'] as num?)?.toDouble() ?? 0.0,
+              (rectMap['width'] as num?)?.toDouble() ?? 0.0,
+              (rectMap['height'] as num?)?.toDouble() ?? 0.0,
+            )
           : null,
       pixelWidth: map.optNullableInt('pixelWidth'),
       pixelHeight: map.optNullableInt('pixelHeight'),
@@ -60,9 +62,10 @@ class ImageTapEvent implements JSONable {
   /// Optional alt text from the `<img>` element.
   final String? alt;
 
-  /// On-screen bounding rectangle (`x`, `y`, `width`, `height`) in the content
-  /// frame's coordinate space, if known.
-  final Map<String, double>? rect;
+  /// On-screen bounding rectangle in the content frame's coordinate space,
+  /// if known. [Rect.left]/[Rect.top] are the x/y origin; use
+  /// [Rect.width]/[Rect.height] for dimensions.
+  final Rect? rect;
 
   /// Natural pixel width of the image, if known.
   final int? pixelWidth;
@@ -79,7 +82,13 @@ class ImageTapEvent implements JSONable {
     'href': href,
     if (caption != null) 'caption': caption,
     if (alt != null) 'alt': alt,
-    if (rect != null) 'rect': rect,
+    if (rect != null)
+      'rect': {
+        'x': rect!.left,
+        'y': rect!.top,
+        'width': rect!.width,
+        'height': rect!.height,
+      },
     if (pixelWidth != null) 'pixelWidth': pixelWidth,
     if (pixelHeight != null) 'pixelHeight': pixelHeight,
     if (srcUrl != null) 'srcUrl': srcUrl,

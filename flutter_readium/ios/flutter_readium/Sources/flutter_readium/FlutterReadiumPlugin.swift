@@ -518,10 +518,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Log.reader.debug("::getResourceBytes. href=\(href)")
-      Task.detached(priority: .high) {
+      Task.detached(priority: .userInitiated) {
         guard let relativeURL = RelativeURL(string: href),
               let link = publication.linkWithHREF(relativeURL) else {
-          Log.reader.warning("::getResourceBytes. No link found for href: \(href)")
+          Log.reader.warn("::getResourceBytes. No link found for href: \(href)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceNotFound",
@@ -531,7 +531,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
         guard let resource = publication.get(link) else {
-          Log.reader.warning("::getResourceBytes. Could not open resource for href: \(href)")
+          Log.reader.warn("::getResourceBytes. Could not open resource for href: \(href)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceNotFound",
