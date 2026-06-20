@@ -46,4 +46,7 @@ public protocol ReadiumReaderView: AnyObject {
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?, isWordRange: Bool) async -> Bool
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String)
   func onCustomEditingAction() -> Void
+  /// Inject or remove a CSS rule that prevents paragraphs from splitting across
+  /// CSS columns. Enabled when media-overlay playback starts, cleared when it stops.
+  func setPreventColumnBreaks(_ prevent: Bool)
 }
