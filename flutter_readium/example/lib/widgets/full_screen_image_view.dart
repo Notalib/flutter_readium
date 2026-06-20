@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
@@ -8,8 +6,7 @@ import 'package:flutter_readium/flutter_readium.dart';
 ///
 /// On Web, the image is loaded directly via `Image.network` using
 /// [ImageTapEvent.srcUrl] (no byte-bridge round-trip). On iOS (and future
-/// Android), the bytes are fetched via [FlutterReadium.getResourceBytes] and
-/// displayed with `Image.memory`.
+/// Android), bytes are fetched lazily via [ReadiumResourceImageProvider].
 ///
 /// Dismiss by tapping the background or pressing the system back button.
 class FullScreenImageView extends StatelessWidget {
@@ -66,23 +63,16 @@ class FullScreenImageView extends StatelessWidget {
       );
     }
 
-    // iOS / Android: fetch bytes via the resource bridge.
-    return FutureBuilder<List<int>>(
-      future: FlutterReadium().getResourceBytes(event.href).then((b) => b),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return _loadingSpinner();
-        }
-        if (snapshot.hasError || snapshot.data == null) {
-          return _errorWidget(snapshot.error);
-        }
-        final bytes = snapshot.data!;
-        return Image.memory(
-          key: const ValueKey<String>('full_screen_image_memory'),
-          Uint8List.fromList(bytes),
-          errorBuilder: (context, error, stackTrace) => _errorWidget(error),
-        );
+    // iOS / Android: fetch bytes lazily via the resource bridge.
+    // ReadiumResourceImageProvider handles caching and avoids re-fetching on rebuild.
+    return Image(
+      key: const ValueKey<String>('full_screen_image_memory'),
+      image: FlutterReadium().imageProvider(event.href),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _loadingSpinner();
       },
+      errorBuilder: (context, error, stackTrace) => _errorWidget(error),
     );
   }
 

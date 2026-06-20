@@ -71,15 +71,7 @@ export function tryBuildImageTapPayload(
     }
 
     // Walk up the DOM to find an <img> at or near the tap point.
-    let imgEl: HTMLImageElement | null = null;
-    let current: Element | null = el;
-    while (current && current.tagName.toLowerCase() !== "body") {
-      if (current.tagName.toLowerCase() === "img") {
-        imgEl = current as HTMLImageElement;
-        break;
-      }
-      current = current.parentElement;
-    }
+    const imgEl = el.closest("img") as HTMLImageElement | null;
     if (!imgEl) return null;
 
     // Resolved absolute src and natural dimensions.

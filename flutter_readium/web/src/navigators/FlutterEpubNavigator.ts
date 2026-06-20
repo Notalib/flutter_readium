@@ -117,6 +117,17 @@ export class FlutterEpubNavigator {
       },
     });
 
+    const handleImageTapEvent = function (e: FrameClickEvent): boolean {
+      if (emitImageTapped) {
+        const payload = tryBuildImageTapPayload(e, nav, publication);
+        if (payload !== null) {
+          emitImageTapped(payload);
+          return true;
+        }
+      }
+      return false;
+    };
+
     const listeners: EpubNavigatorListeners = {
       scroll: function (_amount: number): void {},
       frameLoaded: function (_wnd: Window): void {
@@ -146,26 +157,8 @@ export class FlutterEpubNavigator {
           )
         );
       },
-      tap: function (e: FrameClickEvent): boolean {
-        if (emitImageTapped) {
-          const payload = tryBuildImageTapPayload(e, nav, publication);
-          if (payload !== null) {
-            emitImageTapped(payload);
-            return true;
-          }
-        }
-        return false;
-      },
-      click: function (e: FrameClickEvent): boolean {
-        if (emitImageTapped) {
-          const payload = tryBuildImageTapPayload(e, nav, publication);
-          if (payload !== null) {
-            emitImageTapped(payload);
-            return true;
-          }
-        }
-        return false;
-      },
+      tap: handleImageTapEvent,
+      click: handleImageTapEvent,
       zoom: function (_scale: number): void {},
       miscPointer: function (_amount: number): void {},
       customEvent: function (_key: string, _data: unknown): void {},

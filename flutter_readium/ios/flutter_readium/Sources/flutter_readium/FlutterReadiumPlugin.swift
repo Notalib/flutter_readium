@@ -518,7 +518,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Log.reader.debug("::getResourceBytes. href=\(href)")
-      Task.detached(priority: .userInitiated) {
+      Task.detached(priority: .high) {
         guard let relativeURL = RelativeURL(string: href),
               let link = publication.linkWithHREF(relativeURL) else {
           Log.reader.warning("::getResourceBytes. No link found for href: \(href)")
