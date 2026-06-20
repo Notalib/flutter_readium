@@ -85,8 +85,7 @@ struct FlutterMediaOverlayItem {
   let audioFile: String
   let audioMediaType: MediaType
   private let audioFragment: String
-  private let audioTime: String?
-  
+
   let audioStart: Double?
   let audioEnd: Double?
   
@@ -110,7 +109,6 @@ struct FlutterMediaOverlayItem {
     self.readingOrderDuration = readingOrderDuration
     self.audioFile = audio.split(separator: "#", maxSplits: 1).first.map(String.init) ?? audio
     self.audioFragment = audio.split(separator: "#", maxSplits: 1).getOrNil(1).map(String.init) ?? ""
-    self.audioTime = audioFragment.hasPrefix("t=") ? String(audioFragment.dropFirst(2)) : nil
     self.textFile = text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
     self.textId = text.split(separator: "#", maxSplits: 1).getOrNil(1).map(String.init) ?? ""
     self.audioMediaType = switch (audioFile.split(separator: ".").last) {
@@ -120,10 +118,9 @@ struct FlutterMediaOverlayItem {
         MediaType.mpegAudio
     }
     
-    if let t = self.audioTime {
-      let parts = t.split(separator: ",", maxSplits: 1).map(String.init)
-      self.audioStart = Double(parts.first ?? "")
-      self.audioEnd = parts.count > 1 ? Double(parts[1]) : nil
+    if let range = MediaTimeFragment.range(from: audioFragment) {
+      self.audioStart = range.start
+      self.audioEnd = range.end
     } else {
       self.audioStart = nil
       self.audioEnd = nil
@@ -181,7 +178,7 @@ struct FlutterMediaOverlayItem {
     return Locator(
       href: href,
       mediaType: audioMediaType,
-      locations: .init(fragments: ["t=\(start))"])
+      locations: .init(fragments: [MediaTimeFragment.string(start)])
     )
   }
   

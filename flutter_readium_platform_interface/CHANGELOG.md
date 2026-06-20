@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.1.0] - 2026-06-20
+
 ### Added
 
 - `Publication.conformsToReadiumDivina` — convenience getter mirroring the existing
@@ -31,7 +33,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   registers itself rather than being assigned directly. Use `setDefaultPreferences` to
   update default preferences.
 
-## [0.0.1] - 2025-06-01
+## [0.0.1] - 2026-06-01
 
 ### Added
 
