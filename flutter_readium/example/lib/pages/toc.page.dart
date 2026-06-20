@@ -1,6 +1,7 @@
 import 'dart:math' show min, max;
 
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart' show Link, PublicationLists;
 import 'package:flutter_readium_example/state/index.dart';
@@ -65,7 +66,7 @@ class TableOfContentsPage extends StatelessWidget {
   }
 
   Widget _buildLinkTile(BuildContext context, Link link, {int level = 1}) {
-    final title = link.title ?? "[NO_TITLE]";
+    final title = link.title?.isNotEmpty == true ? link.title! : p.basenameWithoutExtension(link.href);
     if ((link.children.length) > 1) {
       final children = link.children;
       return ExpansionTile(
