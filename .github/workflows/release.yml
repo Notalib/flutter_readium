@@ -7,13 +7,19 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
   workflow_dispatch:
 
-# The publish gate is GitHub-Environment-based (job-level), so the pipeline is
-# split in two:
-#   verify  — validations + dry-runs. NO id-token, NO environment: it is
-#             structurally incapable of publishing. Always runs.
+# Two-stage gate:
+#   verify  — validations + advisory dry-runs. NO id-token, NO environment: it is
+#             structurally incapable of publishing. Always runs on a tag.
 #   publish — runs only after `verify` succeeds AND a required reviewer approves
-#             the `pub.dev` environment. Only here does the OIDC token carry the
-#             `environment: pub.dev` claim that pub.dev now requires.
+#             the `pub.dev` environment (which is also what puts the `environment`
+#             claim pub.dev requires into the OIDC token).
+#
+# `verify` runs strict `--dry-run` gates on a clean tree (no materialize), so a
+# real packaging error fails before approval. `publish` uses `dart pub publish
+# --force` because its publish-time mutations — materializing analysis_options
+# (for pana) and removing the local dependency override — leave a dirty tree
+# that `--dry-run` would reject (exit 65) but `--force` tolerates (no errors,
+# only the dirty-tree warning).
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -84,39 +90,18 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium_platform_interface
 
-      # The committed analysis_options.yaml shares config via a cross-package
-      # `include: ../analysis_options.base.yaml`. That path is NOT in the
-      # published tarball, so pub.dev's pana would lose the formatter/linter
-      # config and dock the score. Inline the effective config before publishing.
-      - name: Materialize self-contained analysis_options (platform interface)
-        run: |
-          gen="$(mktemp)"
-          bin/materialize_analysis_options flutter_readium_platform_interface > "$gen"
-          mv "$gen" flutter_readium_platform_interface/analysis_options.yaml
-
-      - name: Dry-run publish platform interface
-        run: dart pub publish --dry-run
-        working-directory: flutter_readium_platform_interface
-
       - name: Install dependencies (flutter_readium)
         run: flutter pub get
         working-directory: flutter_readium
 
-      - name: Build production web bundle
-        run: npm ci && npm run build
-        working-directory: flutter_readium
+      # Strict gate: packaging errors fail here, before the approval step. Runs on
+      # the clean committed tree (no materialize), so the only non-error note is
+      # the plugin's dependency-override hint, which does not fail a dry-run.
+      - name: Dry-run publish platform interface
+        run: dart pub publish --dry-run
+        working-directory: flutter_readium_platform_interface
 
-      - name: Materialize self-contained analysis_options (flutter_readium)
-        run: |
-          gen="$(mktemp)"
-          bin/materialize_analysis_options flutter_readium > "$gen"
-          mv "$gen" flutter_readium/analysis_options.yaml
-
-      # Smoke dry-run only. The interface version isn't published yet, so this
-      # resolves it via the committed pubspec_overrides.yaml (local path) — it
-      # validates packaging/analysis, not the published `^X.Y.Z` constraint.
-      # The faithful published-resolution dry-run runs in the publish job.
-      - name: Dry-run publish flutter_readium (against local interface)
+      - name: Dry-run publish flutter_readium
         run: dart pub publish --dry-run
         working-directory: flutter_readium
 
@@ -161,17 +146,19 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium_platform_interface
 
+      # The committed analysis_options.yaml shares config via a cross-package
+      # `include: ../analysis_options.base.yaml`. That path is NOT in the published
+      # tarball, so pub.dev's pana would lose the formatter/linter config and dock
+      # the score. Inline the effective config just before publishing. This leaves
+      # a dirty tree, which `--force` (below) tolerates.
       - name: Materialize self-contained analysis_options (platform interface)
         run: |
           gen="$(mktemp)"
           bin/materialize_analysis_options flutter_readium_platform_interface > "$gen"
           mv "$gen" flutter_readium_platform_interface/analysis_options.yaml
 
-      - name: Dry-run publish platform interface
-        run: dart pub publish --dry-run
-        working-directory: flutter_readium_platform_interface
-
       # Authenticated via the job's OIDC token (id-token: write + environment).
+      # --force does full error-checking but tolerates known warnings.
       - name: Publish platform interface
         run: dart pub publish --force
         working-directory: flutter_readium_platform_interface
@@ -193,12 +180,12 @@ jobs:
           echo "ERROR: platform interface $VERSION did not appear on pub.dev in time"
           exit 1
 
-      # Validate (and publish) the plugin against the REAL published interface,
-      # exactly as consumers resolve it. The committed pubspec_overrides.yaml
-      # points the interface at the in-repo path — great for local dev, but if
-      # left in place here CI would never exercise the published `^X.Y.Z`
-      # constraint, so a wrong constraint would pass CI and break only consumers.
-      # This is why the propagation wait above must succeed first.
+      # Publish the plugin against the REAL published interface, exactly as
+      # consumers resolve it. The committed pubspec_overrides.yaml points the
+      # interface at the in-repo path — great for local dev, but if left here the
+      # publish would resolve locally and never exercise the published `^X.Y.Z`
+      # constraint. Removing it (and `--force` resolving from pub.dev) is what
+      # makes the propagation wait above necessary.
       - name: Remove local dependency override (resolve interface from pub.dev)
         run: rm -f pubspec_overrides.yaml
         working-directory: flutter_readium
@@ -216,10 +203,6 @@ jobs:
           gen="$(mktemp)"
           bin/materialize_analysis_options flutter_readium > "$gen"
           mv "$gen" flutter_readium/analysis_options.yaml
-
-      - name: Dry-run publish flutter_readium
-        run: dart pub publish --dry-run
-        working-directory: flutter_readium
 
       - name: Publish flutter_readium
         run: dart pub publish --force
