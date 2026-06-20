@@ -12,6 +12,7 @@ import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.SpotlightStyle
+import dk.nota.flutterreadium.effectiveForLayout
 import dk.nota.flutterreadium.isFixed
 import dk.nota.flutterreadium.models.EpubReaderViewModel
 import dk.nota.flutterreadium.models.ViewPortSize
@@ -206,7 +207,7 @@ class EpubReaderFragment :
             }
 
         val cssVariables =
-            model.preferences?.toCustomCssVariables() ?: run {
+            model.preferences?.effectiveForLayout(layoutMode)?.toCustomCssVariables() ?: run {
                 PluginLog.d(TAG, "::applyCustomCssVariables - no css variables")
                 return
             }

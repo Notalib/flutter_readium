@@ -205,7 +205,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
 
     /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
-    if let preferencesStylesheet = self.preferences?.toInjectableStyleSheet() {
+    if let preferencesStylesheet = self.preferences.map(effectivePreferences)?.toInjectableStyleSheet() {
       let source = """
         (function() {
         var parent = document.getElementsByTagName('head').item(0);
@@ -393,8 +393,21 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.updateCustomPreferences(preferences)
   }
 
+  /// Resolves preferences against the publication's layout. The first-element top
+  /// margin is a reflowable-text affordance, so it's dropped for every non-reflowable
+  /// publication — FXL EPUBs and paginated DiViNa report `.fixed`, scrolled DiViNa
+  /// reports `.scrolled`, and image publications (CBZ via ImageParser) report no
+  /// layout at all — where it would otherwise shift the full-page content down.
+  private func effectivePreferences(_ preferences: FlutterEPUBPreferences) -> FlutterEPUBPreferences {
+    guard publication.metadata.layout != .reflowable else { return preferences }
+    var resolved = preferences
+    resolved.firstElementTopMargin = nil
+    return resolved
+  }
+
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
-    let cssVariables = preferences.toCustomCssVariables()
+    let cssVariables = effectivePreferences(preferences).toCustomCssVariables()
+
     guard cssVariables.isEmpty == false,
           let jsonData = try? jsonEncoder.encode(cssVariables),
           let jsonString = String(data: jsonData, encoding: .utf8) else { return }

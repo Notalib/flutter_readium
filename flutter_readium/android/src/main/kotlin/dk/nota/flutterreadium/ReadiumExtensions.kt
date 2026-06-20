@@ -117,7 +117,7 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
 private const val READIUM_FLUTTER_PATH_PREFIX =
     "https://readium_assets/flutter_assets/packages/flutter_readium"
 
-// Helper for injecting extra files into an epub
+// Helper for injecting extra files into an epub.
 fun Resource.injectScriptsAndStyles(
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
@@ -658,6 +658,13 @@ fun Locator.addPageNumber(
         "totalPages" to totalPages,
     ),
 )
+
+// Resolves preferences against the publication's layout. The first-element top margin
+// is a reflowable-text affordance, so it's dropped for every non-reflowable publication
+// (fixed/scrolled layouts and image publications, which report no layout) where it would
+// otherwise shift the full-page content down.
+fun FlutterEpubPreferences.effectiveForLayout(layout: Layout?): FlutterEpubPreferences =
+    if (layout?.isReflowable == true) this else copy(firstElementTopMargin = null)
 
 val Layout.isFixed: Boolean
     get() = this == Layout.FIXED

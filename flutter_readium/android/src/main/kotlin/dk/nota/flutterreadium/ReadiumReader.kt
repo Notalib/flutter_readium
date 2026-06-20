@@ -586,7 +586,8 @@ object ReadiumReader :
                         publication.tableOfContents
                             .flattenChildren()
                             .mapNotNull { it.href.resolve().fragment }
-                    val epubPreferences = navigator.preferences
+                    val epubPreferences =
+                        navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(tocIds, epubPreferences)
                     } else {
