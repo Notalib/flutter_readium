@@ -127,6 +127,13 @@ data class FlutterMediaOverlay(
             return findItemInRange(href, timeOffset)
         }
 
+        // DiViNa comic page: the page locator's only anchor is a generic "img" css selector
+        // (which getTextId() would otherwise pick up), not a media-overlay text id. Match the
+        // page's first narrated item by href — the textref is the image itself.
+        if (locator.mediaType.isBitmap) {
+            return items.firstOrNull { item -> item.textFile == href.path }
+        }
+
         locator.getTextId()?.let { textId ->
             return findItemFromTextId(href, textId)
         }
@@ -139,10 +146,10 @@ data class FlutterMediaOverlay(
         }
 
         if (locator.locations.fragments.isEmpty() && locator.mediaType.isHtml) {
-            // If there is no fragment, and it is a HTML locator, we return the first item for the href
+            // No fragment on a text document → first item of the resource.
             PluginLog.d(
                 TAG,
-                "::findItemFromLocator - no fragment in locator of type HTML, returning first item for href=${href.path}",
+                "::findItemFromLocator - no fragment in html locator, returning first item for href=${href.path}",
             )
             return items.firstOrNull { item ->
                 item.textFile == href.path

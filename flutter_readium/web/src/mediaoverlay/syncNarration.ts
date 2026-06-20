@@ -227,7 +227,12 @@ export function textLocatorToAudioLocator(
     match = hrefMatches[0];
   }
 
-  if (!match || match.audioStart === null) return undefined;
+  if (!match || match.audioStart === null) {
+    log.warn(
+      `textLocatorToAudioLocator: no audio match for href="${targetHrefNormalized}" (targetId="${targetId}"); returning undefined`
+    );
+    return undefined;
+  }
 
   // Priority 1: t= fragment already in the incoming locator.
   const tFragment = (textLocator.locations as any)?.fragments?.find(
@@ -248,6 +253,9 @@ export function textLocatorToAudioLocator(
   }
   // Priority 3: fallback to audioStart (already set as default above).
 
+  log.debug(
+    `textLocatorToAudioLocator: mapped "${targetHref}" -> audio "${match.audioHref}" t=${timeOffset}`
+  );
   return new Locator({
     href: match.audioHref,
     type: "audio/mpeg",
