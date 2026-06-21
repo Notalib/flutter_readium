@@ -4,9 +4,9 @@ import '../index.dart';
 
 /// Fired when the user taps an image inside an EPUB.
 ///
-/// Emitted on iOS (via swift-toolkit's `ImageContentElement` target element)
-/// and on Web (via DOM hit-testing). It never fires on Android — the
-/// kotlin-toolkit has no equivalent image-tap API yet (tracked follow-up).
+/// Emitted on iOS (via swift-toolkit's `ImageContentElement` target element),
+/// on Android (via a `@JavascriptInterface` bridge injected into each resource
+/// WebView), and on Web (via DOM hit-testing).
 ///
 /// The event carries only the publication-relative [href] (plus lightweight
 /// metadata); the image bytes are fetched lazily on demand via

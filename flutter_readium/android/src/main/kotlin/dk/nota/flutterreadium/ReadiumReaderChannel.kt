@@ -51,6 +51,8 @@ internal class ReadiumReaderChannel(
         invokeMethod("onSelectionAction", json.toString())
     }
 
+    fun onImageTapped(json: String) = launch { invokeMethod("onImageTapped", json) }
+
     fun onDecorationInteraction(
         decorationId: String,
         group: String,
