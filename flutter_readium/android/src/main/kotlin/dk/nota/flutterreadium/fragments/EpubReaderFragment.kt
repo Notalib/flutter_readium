@@ -206,6 +206,8 @@ class EpubReaderFragment :
                 return
             }
 
+        PluginLog.d(TAG, "::applyCustomCssVariables - layoutMode:$layoutMode")
+
         val cssVariables =
             model.preferences?.effectiveForLayout(layoutMode)?.toCustomCssVariables() ?: run {
                 PluginLog.d(TAG, "::applyCustomCssVariables - no css variables")

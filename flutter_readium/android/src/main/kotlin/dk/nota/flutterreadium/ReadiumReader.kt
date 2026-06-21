@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
@@ -16,6 +17,7 @@ import dk.nota.flutterreadium.events.TextLocatorEventChannel
 import dk.nota.flutterreadium.events.TimedBasedStateEventChannel
 import dk.nota.flutterreadium.models.ReadiumTimebasedState
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
+import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
 import dk.nota.flutterreadium.navigators.FlutterVisualNavigator
 import dk.nota.flutterreadium.navigators.PdfNavigator
@@ -83,6 +85,7 @@ private const val syncAudioEnabledKey = "syncAudioEnabled"
 
 private const val epubEnabledKey = "epubEnabled"
 private const val pdfEnabledKey = "pdfEnabled"
+private const val comicEnabledKey = "comicEnabled"
 private const val ttsNavigatorStateKey = "ttsState"
 private const val audioNavigatorStateKey = "audioState"
 private const val syncAudioNavigatorStateKey = "syncAudioState"
@@ -98,6 +101,16 @@ object ReadiumReader :
     EpubNavigator.VisualListener,
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private var appRef: WeakReference<Application>? = null
+
+    private var activityRef: WeakReference<Activity>? = null
+
+    /**
+     * The host [FragmentActivity], if available. Sourced from the plugin's ActivityAware
+     * binding rather than a PlatformView's view context, which is only the Activity under
+     * Texture-Layer Hybrid Composition — under Hybrid Composition it is a non-Activity context.
+     */
+    val fragmentActivity: FragmentActivity?
+        get() = activityRef?.get() as? FragmentActivity
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
 
@@ -173,6 +186,10 @@ object ReadiumReader :
     val isPdf: Boolean
         get() = visualNavigator is PdfNavigator
 
+    /** True when the current visual navigator is a comic (CBZ / DiViNa) navigator. */
+    val isComic: Boolean
+        get() = visualNavigator is ComicNavigator
+
     /** Typed accessor for EPUB-specific operations. */
     private val epubNavigator: EpubNavigator?
         get() = visualNavigator as? EpubNavigator
@@ -180,6 +197,10 @@ object ReadiumReader :
     /** Typed accessor for PDF-specific operations. */
     private val pdfNavigator: PdfNavigator?
         get() = visualNavigator as? PdfNavigator
+
+    /** Typed accessor for comic (CBZ / DiViNa) navigator. */
+    private val comicNavigator: ComicNavigator?
+        get() = visualNavigator as? ComicNavigator
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
@@ -214,6 +235,7 @@ object ReadiumReader :
         messenger: BinaryMessenger,
     ) {
         unwrapToApplication(activity)?.let { appRef = WeakReference(it) }
+        activityRef = WeakReference(activity)
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
@@ -267,6 +289,9 @@ object ReadiumReader :
             // its onResume). We record the boolean for symmetry but skip the
             // serialised state bundle — the widget reopens fresh on restore.
             putBoolean(pdfEnabledKey, pdfNavigator != null)
+            // ImageNavigatorFragment also throws RestorationNotSupportedException on
+            // process-death restore — same treatment as PDF: record the flag only.
+            putBoolean(comicEnabledKey, comicNavigator != null)
             putBoolean(ttsEnabledKey, ttsNavigator != null)
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
             putBoolean(audioEnabledKey, audiobookNavigator != null)
@@ -323,6 +348,13 @@ object ReadiumReader :
                 PluginLog.d(TAG, ":storeState - PDF was active; skipping restore (unsupported by PdfNavigatorFragment)")
             }
 
+            // ImageNavigatorFragment also throws RestorationNotSupportedException on
+            // process-death restore — same treatment as PDF: skip and let the widget
+            // re-enable on next attach.
+            if (bundle.getBoolean(comicEnabledKey)) {
+                PluginLog.d(TAG, "::storeState - comic was active; skipping restore (unsupported by ImageNavigatorFragment)")
+            }
+
             if (bundle.getBoolean(ttsEnabledKey)) {
                 // Restore TTS navigator
                 PluginLog.d(TAG, "::storeState - restore tts navigator")
@@ -377,6 +409,9 @@ object ReadiumReader :
 
         appRef?.clear()
         appRef = null
+
+        activityRef?.clear()
+        activityRef = null
 
         savedStateRef?.clear()
         savedStateRef = null
@@ -948,6 +983,69 @@ object ReadiumReader :
             .copyWithTocHref(tocEntry)
     }
 
+    @OptIn(InternalReadiumApi::class)
+    suspend fun comicEnable(
+        initialLocator: Locator?,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget,
+    ) {
+        val pub = currentPublication ?: throw Exception("Publication not opened cannot enable comic")
+
+        currentReaderWidget = readerWidget
+
+        val isComic =
+            pub.conformsTo(Publication.Profile.DIVINA) ||
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.CBZ) == true
+
+        if (!isComic) {
+            throw Exception("Publication is not a comic (CBZ/DiViNa), cannot enable comic navigator")
+        }
+
+        withMainContext {
+            comicNavigator?.let {
+                attachComicNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+
+            ComicNavigator(pub, initialLocator, this@ReadiumReader).apply {
+                initNavigator()
+                visualNavigator = this
+                attachComicNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+        }
+    }
+
+    suspend fun attachComicNavigator(
+        fragmentManager: FragmentManager?,
+        viewGroup: ViewGroup?,
+    ) {
+        if (fragmentManager == null || viewGroup == null) {
+            PluginLog.d(TAG, "::attachComicNavigator: Missing fragmentManager or viewGroup")
+            return
+        }
+
+        val navigator =
+            comicNavigator ?: run {
+                PluginLog.d(TAG, "::attachComicNavigator: Tried to attach a non-existing comic navigator?")
+                return
+            }
+
+        withMainContext {
+            navigator.attachNavigator(fragmentManager, viewGroup)
+        }
+    }
+
+    fun comicClose() {
+        currentReaderWidget = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
     fun epubClose() {
         currentReaderWidget = null
         visualNavigator?.dispose()
@@ -976,16 +1074,28 @@ object ReadiumReader :
     ) {
         val pub =
             currentPublication ?: throw Exception("Publication not opened cannot enable visual navigator")
+
+        // Route to the appropriate navigator. Comic check comes first: CBZ publications may
+        // lack the EPUB profile even though the streamer parsed them successfully, so we must
+        // not let them fall through to epubEnable (which throws for non-EPUB).
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
                 pub.readingOrder
                     .firstOrNull()
                     ?.mediaType
                     ?.matches(MediaType.PDF) == true
-        if (isPdf) {
-            pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-        } else {
-            epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+
+        val isComic =
+            pub.conformsTo(Publication.Profile.DIVINA) ||
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.CBZ) == true
+
+        when {
+            isPdf -> pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            isComic -> comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            else -> epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
         }
     }
 
