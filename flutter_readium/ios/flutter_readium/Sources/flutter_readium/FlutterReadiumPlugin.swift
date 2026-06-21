@@ -307,10 +307,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     case "stop":
       Task { @MainActor in
         if self.timebasedNavigator != nil {
+          let wasMO = self.timebasedNavigator is FlutterMediaOverlayNavigator
           self.timebasedNavigator?.dispose()
           self.timebasedNavigator = nil
           self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
           self.updateReaderViewTimebasedDecorations([])
+          if wasMO {
+            self.currentReaderView?.setMOActive(false)
+          }
         }
       }
       result(nil)
@@ -435,6 +439,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
         self.timebasedNavigator?.listener = self
         await self.timebasedNavigator?.initNavigator()
+
+        if self.timebasedNavigator is FlutterMediaOverlayNavigator {
+          await MainActor.run {
+            self.currentReaderView?.setMOActive(true)
+          }
+        }
 
         await MainActor.run {
           result(nil)

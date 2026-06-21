@@ -3,6 +3,7 @@ import ReadiumNavigator
 let blackAndWhiteComicModeKey: String = "blackAndWhiteComicMode";
 let disableSynchronizationKey: String = "disableSynchronization";
 let firstElementTopMarginKey: String = "firstElementTopMargin";
+let preventMOColumnBreaksKey: String = "preventMOColumnBreaks";
 
 let topMarginCssVariable = "--FLUTTER_READIUM-first-element-top-margin"
 let blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode";
@@ -18,6 +19,9 @@ public struct FlutterEPUBPreferences {
   /// Top margin to the first element in the content.
   /// This is used to create space for UI elements like a toolbar without overlapping the content.
   public var firstElementTopMargin: Int?
+  /// When true (default), prevents paragraph elements from splitting across CSS columns during
+  /// media-overlay playback. Nil means the Dart-side default (true) applies.
+  public var preventMOColumnBreaks: Bool?
   
   init() {
     readium = EPUBPreferences.init();
@@ -38,7 +42,11 @@ public struct FlutterEPUBPreferences {
       self.firstElementTopMargin = firstElementTopMargin
       mutableMap.removeValue(forKey: firstElementTopMarginKey);
     }
-    
+    if let preventMOColumnBreaks = jsonMap[preventMOColumnBreaksKey] as? Bool {
+      self.preventMOColumnBreaks = preventMOColumnBreaks
+      mutableMap.removeValue(forKey: preventMOColumnBreaksKey);
+    }
+
     readium = EPUBPreferences.init(fromMap: mutableMap)
   }
   

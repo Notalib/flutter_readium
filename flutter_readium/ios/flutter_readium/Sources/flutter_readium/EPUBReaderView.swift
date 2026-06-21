@@ -15,6 +15,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var hasSentReady = false
   private var isJumpingToLocator = false
   private var lastHrefLocation: String?
+  private var isMOActive = false
+  private var shouldPreventColumnBreaks: Bool { isMOActive && (preferences?.preventMOColumnBreaks ?? true) }
   private var preferences: FlutterEPUBPreferences?
   private var lastSyncLocator: Locator?
   private var lastSyncSegmentDuration: TimeInterval?
@@ -267,6 +269,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       if let preferences = self.preferences {
         updateCustomPreferences(preferences)
       }
+      if shouldPreventColumnBreaks {
+        injectColumnBreakCSS()
+      }
     }
     emitOnPageChanged(locator: locator)
   }
@@ -391,8 +396,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
+    self.preferences = preferences
     self.readiumViewController.submitPreferences(preferences.readium)
     self.updateCustomPreferences(preferences)
+    applyColumnBreakPrevention()
   }
 
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
@@ -404,6 +411,46 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
         Log.reader.info("updated custom preferences: \(result)")
       }
+    }
+  }
+
+  public func setMOActive(_ active: Bool) {
+    isMOActive = active
+    applyColumnBreakPrevention()
+  }
+
+  private func applyColumnBreakPrevention() {
+    if shouldPreventColumnBreaks {
+      injectColumnBreakCSS()
+    } else {
+      removeColumnBreakCSS()
+    }
+  }
+
+  private func injectColumnBreakCSS() {
+    Task.detached(priority: .high) {
+      let js = """
+        (function(){
+          if (document.getElementById('flutter-readium-mo-breaks')) return;
+          var s = document.createElement('style');
+          s.id = 'flutter-readium-mo-breaks';
+          s.textContent = 'p { break-inside: avoid !important; }';
+          document.head && document.head.appendChild(s);
+        })();
+        """
+      await self.readiumViewController.evaluateJavaScript(js)
+    }
+  }
+
+  private func removeColumnBreakCSS() {
+    Task.detached(priority: .high) {
+      let js = """
+        (function(){
+          var s = document.getElementById('flutter-readium-mo-breaks');
+          if (s) s.parentNode.removeChild(s);
+        })();
+        """
+      await self.readiumViewController.evaluateJavaScript(js)
     }
   }
 
