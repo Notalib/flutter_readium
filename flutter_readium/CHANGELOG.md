@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
+  with an `ImageTapEvent` carrying the publication-relative `href`, optional
+  `alt` / `caption`, on-screen `rect`, and a `srcUrl` on Web. Detection runs on
+  iOS, Android, and Web. The event fires for every tapped image; deciding
+  whether to act on a tap — e.g. ignoring it inside a Nota comic book — is the
+  consumer's responsibility.
+- **`getResourceBytes(href)`** — new API on `FlutterReadium` and the underlying
+  platform interface that returns the raw bytes of any manifest resource, plus a
+  companion `FlutterReadium.imageProvider(href)` that plugs into Flutter's image
+  pipeline for lazy display. Implemented on iOS, Android, and Web.
+
 ## [0.1.0] - 2026-06-20
 
 Brings the Web platform up to feature parity with iOS / Android (audio,
@@ -12,17 +25,6 @@ Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
 
 ### Added
-
-- **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
-  with an `ImageTapEvent` carrying the publication-relative `href`, optional
-  `alt` / `caption`, on-screen `rect`, and a `srcUrl` on Web. Detection runs on
-  iOS and Web (Android follow-up tracked). The event fires for every tapped
-  image; deciding whether to act on a tap — e.g. ignoring it inside a Nota
-  comic book — is the consumer's responsibility.
-- **`getResourceBytes(href)`** — new API on `FlutterReadium` and the underlying
-  platform interface that returns the raw bytes of any manifest resource, plus a
-  companion `FlutterReadium.imageProvider(href)` that plugs into Flutter's image
-  pipeline for lazy display. Implemented on iOS, Android, and Web.
 
 - **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
   `play`, `pause`, `resume`, `stop`, `next`, `previous`, `audioSetPreferences` are all
