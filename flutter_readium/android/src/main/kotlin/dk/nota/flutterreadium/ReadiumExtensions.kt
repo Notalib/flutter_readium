@@ -3,6 +3,7 @@
 package dk.nota.flutterreadium
 
 import android.graphics.Color
+import android.util.Xml
 import androidx.core.graphics.toColorInt
 import dk.nota.flutterreadium.models.FlutterMediaOverlay
 import dk.nota.flutterreadium.models.FlutterMediaOverlayItem
@@ -35,6 +36,8 @@ import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
 import org.readium.r2.shared.util.resource.filename
+import org.xmlpull.v1.XmlPullParser
+import java.io.StringReader
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -680,3 +683,74 @@ val Layout.isScrolled: Boolean
  */
 val Duration.toSeconds: Double
     get() = toDouble(DurationUnit.SECONDS)
+
+/**
+ * Metadata read from a CBZ/DiViNa `ComicInfo.xml`. Only the fields this plugin surfaces.
+ */
+data class ComicInfoMetadata(
+    val title: String?,
+    val authors: List<String>,
+)
+
+/**
+ * Reads `ComicInfo.xml` (the ComicRack metadata standard) from an image-based publication.
+ *
+ * WORKAROUND for a kotlin-toolkit gap: swift-toolkit's `ImageParser` parses `ComicInfo.xml`
+ * into the publication [org.readium.r2.shared.publication.Metadata] (title, authors, …), but
+ * kotlin-toolkit (≤ 3.3.0 / main) does not — its `ImageParser` emits only
+ * `Metadata(conformsTo = [DIVINA])`, so CBZ titles come back blank on Android. This reads the
+ * standard fields we display so Android matches iOS.
+ *
+ * TODO(upstream): remove once kotlin-toolkit's ImageParser parses ComicInfo.xml.
+ *   Tracking issue: https://github.com/readium/kotlin-toolkit/issues/<TBD>
+ */
+suspend fun Publication.readComicInfoMetadata(): ComicInfoMetadata? {
+    val link = Link(href = Url("ComicInfo.xml") ?: return null)
+    val xml =
+        get(link)?.read()?.getOrNull()?.let { String(it) } ?: return null
+    return parseComicInfo(xml)
+}
+
+private fun parseComicInfo(xml: String): ComicInfoMetadata? =
+    try {
+        val parser = Xml.newPullParser()
+        parser.setInput(StringReader(xml))
+        var title: String? = null
+        val authors = mutableListOf<String>()
+        var currentTag: String? = null
+        var event = parser.eventType
+        while (event != XmlPullParser.END_DOCUMENT) {
+            when (event) {
+                XmlPullParser.START_TAG -> {
+                    currentTag = parser.name
+                }
+
+                XmlPullParser.END_TAG -> {
+                    currentTag = null
+                }
+
+                XmlPullParser.TEXT -> {
+                    val text = parser.text?.trim().orEmpty()
+                    if (text.isNotEmpty()) {
+                        when (currentTag) {
+                            // ComicInfo <Writer> is a comma-separated author list, matching
+                            // swift-toolkit's `writers.map { Contributor(name: $0) }`.
+                            "Title" -> {
+                                title = text
+                            }
+
+                            "Writer" -> {
+                                authors +=
+                                    text.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                            }
+                        }
+                    }
+                }
+            }
+            event = parser.next()
+        }
+        ComicInfoMetadata(title, authors)
+    } catch (e: Exception) {
+        PluginLog.w(TAG, "::parseComicInfo - failed to parse ComicInfo.xml: ${e.message}")
+        null
+    }
