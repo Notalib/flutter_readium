@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `ImageTapEvent` — model for an EPUB image tap, carrying the publication-relative
+  `href`, optional `caption` / `alt`, an on-screen `rect` (`dart:ui` `Rect`),
+  natural `pixelWidth` / `pixelHeight`, and a Web-only absolute `srcUrl`, with
+  hand-written `toJson` / `fromJson`.
+- `getResourceBytes(String href)` — reads the raw bytes of any publication
+  resource (e.g. an image link from `ImageTapEvent.href`) over the method channel.
+  Throws `PlatformException` when the resource is missing or unreadable.
+
 ## [0.1.0] - 2026-06-20
 
 ### Added

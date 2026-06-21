@@ -212,7 +212,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// order or resources manifest (e.g. an image link from [ImageTapEvent.href]).
   ///
   /// Throws [PlatformException] if the resource is not found or cannot be read.
-  /// Not implemented on Android — throws [UnimplementedError] on that platform.
+  /// Implemented on iOS, Android, and Web.
   Future<Uint8List> getResourceBytes(String href) => throw UnimplementedError(
     'getResourceBytes(href) has not been implemented.',
   );
