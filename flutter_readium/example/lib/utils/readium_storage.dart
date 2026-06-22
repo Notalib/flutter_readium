@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -11,6 +12,10 @@ abstract class ReadiumStorage {
   static const _pubCachedDirName = 'cached';
 
   static final Future<Directory> rootDir = () async {
+    if (kIsWeb) {
+      throw UnsupportedError('ReadiumStorage is not supported on web');
+    }
+
     final appDir = await getApplicationSupportDirectory();
     return Directory(join(appDir.path, _rootDirName)).create();
   }();
