@@ -96,5 +96,14 @@
     "videoref"
   ],
   "java.configuration.updateBuildConfiguration": "interactive",
-  "dart.mcpServer": true
+  "dart.mcpServer": true,
+  "chat.tools.terminal.autoApprove": {
+    "flutter": true,
+    "dart": true,
+    "./gradlew": true,
+    "command": true,
+    "ktlint": true,
+    "npm run build:flutter": true,
+    "bin/analyze": true
+  }
 }

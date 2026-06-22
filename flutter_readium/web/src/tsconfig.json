@@ -1,14 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "lib": ["ESNext", "DOM"],
     "module": "ESNext",
-    "downlevelIteration": false,
+    "moduleResolution": "Bundler",
+    "target": "es2017",
+    "lib": ["ESNext", "DOM"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "Node",
     "removeComments": true
   },
   "include": ["**/*.ts"],
