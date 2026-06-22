@@ -40,9 +40,17 @@ class AudioPreferences with EquatableMixin implements JSONable {
     final controlPanelInfoType = controlPanelInfoTypeStr?.let(
       (it) => ControlPanelInfoType.fromOptString(it),
     );
-    final controlPanelTimebase = controlPanelTimebaseStr?.let(
-      (it) => ControlPanelTimebase.fromOptString(it),
-    );
+    ControlPanelTimebase? controlPanelTimebase;
+    if (controlPanelTimebaseStr != null) {
+      controlPanelTimebase = ControlPanelTimebase.fromOptString(
+        controlPanelTimebaseStr,
+      );
+      if (controlPanelTimebase == null) {
+        ReadiumLog.w(
+          'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',
+        );
+      }
+    }
     return AudioPreferences(
       volume: volume,
       speed: speed,
@@ -52,7 +60,8 @@ class AudioPreferences with EquatableMixin implements JSONable {
       allowExternalSeeking: allowExternalSeeking,
       updateIntervalSecs: updateIntervalSecs,
       controlPanelInfoType: controlPanelInfoType,
-      controlPanelTimebase: controlPanelTimebase,
+      controlPanelTimebase:
+          controlPanelTimebase ?? (controlPanelTimebaseStr != null ? ControlPanelTimebase.chapter : null),
     );
   }
 
@@ -163,7 +172,11 @@ enum ControlPanelTimebase {
   chapter,
   fullBook;
 
-  static ControlPanelTimebase? fromOptString(final String type) => ControlPanelTimebase.values.firstWhereOrNull(
-    (e) => e.toString().split('.').last == type,
-  );
+  static ControlPanelTimebase? fromOptString(final String type) {
+    final normalized = type.replaceAll('_', '').toLowerCase();
+    return ControlPanelTimebase.values.firstWhereOrNull((e) {
+      final enumName = e.toString().split('.').last;
+      return enumName.toLowerCase() == normalized;
+    });
+  }
 }

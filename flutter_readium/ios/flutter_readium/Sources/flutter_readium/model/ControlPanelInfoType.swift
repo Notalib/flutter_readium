@@ -22,8 +22,8 @@ public enum ControlPanelTimebase {
   case fullBook
 
   init(from string: String?) {
-    switch string {
-    case "fullBook": self = .fullBook
+    switch string?.lowercased() {
+    case "fullbook", "full_book": self = .fullBook
     default: self = .chapter
     }
   }

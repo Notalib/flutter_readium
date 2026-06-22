@@ -9,7 +9,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.optNullableString
 import org.readium.r2.shared.util.Language
 
-private const val DEFAULT_CONTENT_PANEL_TIMEBASE_STRING = "fullBook"
+private const val DEFAULT_CONTENT_PANEL_TIMEBASE_STRING = "chapter"
 
 /**
  * TTS preferences used in the Flutter Readium plugin.
@@ -21,7 +21,7 @@ data class FlutterTtsPreferences(
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
-    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.FULL_BOOK,
+    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.CHAPTER,
 ) {
     /**
      * Convert to AndroidTtsPreferences.

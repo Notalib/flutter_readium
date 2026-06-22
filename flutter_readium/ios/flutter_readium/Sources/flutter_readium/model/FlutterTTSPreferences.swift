@@ -47,8 +47,8 @@ public struct TTSPreferences {
 
     let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
     let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
-  let controlPanelTimebaseStr = map["controlPanelTimebase"] as? String
-  let mapControlPanelTimebase = ControlPanelTimebase(from: controlPanelTimebaseStr)
+    let controlPanelTimebaseStr = map["controlPanelTimebase"] as? String
+    let mapControlPanelTimebase = ControlPanelTimebase(from: controlPanelTimebaseStr)
     /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
     /// Rate is also clamped between allowed values.
     let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,

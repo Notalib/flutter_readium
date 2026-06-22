@@ -5,7 +5,7 @@ import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.r2.navigator.preferences.Configurable
 
-private const val DEFAULT_CONTROL_PANEL_TIMEBASE_STRING = "fullBook"
+private const val DEFAULT_CONTROL_PANEL_TIMEBASE_STRING = "chapter"
 
 /**
  * Audio preferences for Flutter Readium with extra properties.
@@ -18,7 +18,7 @@ data class FlutterAudioPreferences(
     val seekInterval: Double = 30.0,
     val allowExternalSeeking: Boolean = true,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
-    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.FULL_BOOK,
+    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.CHAPTER,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
     override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
         FlutterAudioPreferences(

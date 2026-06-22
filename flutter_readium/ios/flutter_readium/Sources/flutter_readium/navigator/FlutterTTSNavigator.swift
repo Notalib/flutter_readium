@@ -47,7 +47,8 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.preferences = preferences
     self.nowPlayingUpdater = .init(
       withPublication: publication,
-      infoType: preferences.controlPanelInfoType ?? .standard
+      infoType: preferences.controlPanelInfoType ?? .standard,
+      timebase: preferences.controlPanelTimebase ?? .chapter
     )
   }
 
@@ -197,6 +198,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     preferences.pitch = prefs.pitch
     preferences.voiceIdentifier = prefs.voiceIdentifier
     preferences.overrideLanguage = prefs.overrideLanguage
+    preferences.controlPanelInfoType = prefs.controlPanelInfoType
+    preferences.controlPanelTimebase = prefs.controlPanelTimebase
+    nowPlayingUpdater.infoType = prefs.controlPanelInfoType ?? .standard
+    nowPlayingUpdater.timebase = prefs.controlPanelTimebase ?? .chapter
     self.synthesizer?.config.voiceIdentifier = preferences.voiceIdentifier
     self.synthesizer?.config.defaultLanguage = preferences.overrideLanguage
   }
