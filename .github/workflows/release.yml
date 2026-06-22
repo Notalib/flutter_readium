@@ -3,15 +3,29 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      # Numeric semver tags only (a trailing suffix like -beta is allowed).
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
   workflow_dispatch:
 
+# Two-stage gate:
+#   verify  — validations + advisory dry-runs. NO id-token, NO environment: it is
+#             structurally incapable of publishing. Always runs on a tag.
+#   publish — runs only after `verify` succeeds AND a required reviewer approves
+#             the `pub.dev` environment (which is also what puts the `environment`
+#             claim pub.dev requires into the OIDC token).
+#
+# `verify` runs strict `--dry-run` gates on a clean tree (no materialize), so a
+# real packaging error fails before approval. `publish` uses `dart pub publish
+# --force` because its publish-time mutations — materializing analysis_options
+# (for pana) and removing the local dependency override — leave a dirty tree
+# that `--dry-run` would reject (exit 65) but `--force` tolerates (no errors,
+# only the dirty-tree warning).
 jobs:
-  validate-and-release:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v6
@@ -32,20 +46,14 @@ jobs:
         id: tag
         run: |
           if [[ "$GITHUB_REF_NAME" == v* ]]; then
-            # Tag-triggered: extract version from tag
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-            echo "tag_name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           else
-            # Manual dispatch: read version from pubspec
             VERSION=$(grep '^version:' flutter_readium/pubspec.yaml | awk '{print $2}')
-            TAG="v$VERSION"
-            # Verify the tag exists
-            if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-              echo "ERROR: Tag $TAG does not exist. Push the tag before running the release workflow manually."
+            if ! git rev-parse "refs/tags/v$VERSION" >/dev/null 2>&1; then
+              echo "ERROR: Tag v$VERSION does not exist. Push the tag before running the release workflow manually."
               exit 1
             fi
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "tag_name=$TAG" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify tag matches flutter_readium pubspec version
@@ -82,16 +90,133 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium_platform_interface
 
-      - name: Dry-run publish platform interface
-        run: dart pub publish --dry-run
-        working-directory: flutter_readium_platform_interface
-
       - name: Install dependencies (flutter_readium)
         run: flutter pub get
         working-directory: flutter_readium
 
+      # Strict gate: packaging errors fail here, before the approval step. Runs on
+      # the clean committed tree (no materialize), so the only non-error note is
+      # the plugin's dependency-override hint, which does not fail a dry-run.
+      - name: Dry-run publish platform interface
+        run: dart pub publish --dry-run
+        working-directory: flutter_readium_platform_interface
+
       - name: Dry-run publish flutter_readium
         run: dart pub publish --dry-run
+        working-directory: flutter_readium
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Required-reviewer gate + the OIDC `environment` claim pub.dev requires.
+    environment: pub.dev
+    permissions:
+      contents: write
+      id-token: write # OIDC token for pub.dev automated publishing
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Read Flutter version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
+
+      # Provisions the pub.dev OIDC token (requires the job's id-token: write).
+      # `dart pub publish` does NOT fetch the token itself — without this step it
+      # falls back to interactive OAuth and hangs in CI. Runs BEFORE flutter-action
+      # so flutter's `dart` ends up first on PATH for the publish, while the token
+      # configured here is still used (mirrors dart-lang's reusable publish.yml).
+      - uses: dart-lang/setup-dart@v1
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          cache: true
+          pub-cache: true
+
+      - name: Determine release version
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "tag_name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            VERSION=$(grep '^version:' flutter_readium/pubspec.yaml | awk '{print $2}')
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag_name=v$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies (platform interface)
+        run: flutter pub get
+        working-directory: flutter_readium_platform_interface
+
+      # The committed analysis_options.yaml shares config via a cross-package
+      # `include: ../analysis_options.base.yaml`. That path is NOT in the published
+      # tarball, so pub.dev's pana would lose the formatter/linter config and dock
+      # the score. Inline the effective config just before publishing. This leaves
+      # a dirty tree, which `--force` (below) tolerates.
+      - name: Materialize self-contained analysis_options (platform interface)
+        run: |
+          gen="$(mktemp)"
+          bin/materialize_analysis_options flutter_readium_platform_interface > "$gen"
+          mv "$gen" flutter_readium_platform_interface/analysis_options.yaml
+
+      # Authenticated via the job's OIDC token (id-token: write + environment).
+      # Idempotent: skip if this version is already on pub.dev, so a re-run after
+      # a partial failure (e.g. the plugin step) doesn't error on "already exists".
+      - name: Publish platform interface
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          if curl -sf "https://pub.dev/api/packages/flutter_readium_platform_interface" | grep -q "\"version\":\"$VERSION\""; then
+            echo "platform interface $VERSION already published — skipping"
+          else
+            dart pub publish --force
+          fi
+        working-directory: flutter_readium_platform_interface
+
+      # Publish the plugin against the REAL published interface, exactly as
+      # consumers resolve it. The committed pubspec_overrides.yaml points the
+      # interface at the in-repo path — great for local dev, but if left here the
+      # publish would resolve locally and never exercise the published `^X.Y.Z`
+      # constraint.
+      - name: Remove local dependency override (resolve interface from pub.dev)
+        run: rm -f pubspec_overrides.yaml
+        working-directory: flutter_readium
+
+      # The just-published interface version can lag in pub's RESOLVER even after
+      # it appears in the package API, so retry `pub get` until it resolves.
+      - name: Install dependencies (flutter_readium, retry until interface resolves)
+        run: |
+          for i in $(seq 1 20); do
+            if flutter pub get; then exit 0; fi
+            echo "pub get failed — interface ${{ steps.tag.outputs.version }} not resolvable yet; retry $i…"
+            sleep 15
+          done
+          echo "ERROR: could not resolve flutter_readium_platform_interface after retries"
+          exit 1
+        working-directory: flutter_readium
+
+      - name: Build production web bundle
+        run: npm ci && npm run build
+        working-directory: flutter_readium
+
+      - name: Materialize self-contained analysis_options (flutter_readium)
+        run: |
+          gen="$(mktemp)"
+          bin/materialize_analysis_options flutter_readium > "$gen"
+          mv "$gen" flutter_readium/analysis_options.yaml
+
+      - name: Publish flutter_readium
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          if curl -sf "https://pub.dev/api/packages/flutter_readium" | grep -q "\"version\":\"$VERSION\""; then
+            echo "flutter_readium $VERSION already published — skipping"
+          else
+            dart pub publish --force
+          fi
         working-directory: flutter_readium
 
       - name: Extract changelog section for this release

@@ -309,7 +309,7 @@ extension MapExtension on Map<String, dynamic>? {
     return _toDateTime(object);
   }
 
-  /// Returns the value mapped by [name] if it exists and is a Map<String, dynamic>, or `null` if no
+  /// Returns the value mapped by [name] if it exists and is a `Map<String, dynamic>`, or `null` if no
   /// such mapping exists.
   /// If [remove] is true, then the mapping will be removed from the [Map].
   Map<String, dynamic>? optNullableMap(String name, {bool remove = false}) {

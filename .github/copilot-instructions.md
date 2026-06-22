@@ -1,5 +1,7 @@
 # flutter_readium
 
+> This file is derived from `CLAUDE.md` and intentionally condensed for Copilot. Keep behavior/tooling guidance in sync with `CLAUDE.md`.
+
 A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. macOS registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit.
 
 ## Architecture
@@ -87,9 +89,13 @@ PDF position lives in `Locator.locations.position` as a **1-based page number**.
 
 > Platform-specific conventions (Android log format, navigator null guard, TypeScript locator serialization) are in the scoped instruction files under `.github/instructions/`.
 
+## Code search (tokensave)
+
+This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensave) (`.tokensave/`, gitignored). For codebase research — finding symbols, callers/callees, impact — prefer the `tokensave_*` MCP tools (`tokensave_context`, `tokensave_search`, `tokensave_callers`, `tokensave_callees`, `tokensave_impact`, `tokensave_node`, `tokensave_files`, `tokensave_affected`) over grep/glob/Explore; they answer from the semantic graph at a fraction of the tokens. Fall back to direct reads/grep when tokensave is unavailable or a raw text match is genuinely the better tool (e.g. the built JS bundles, which are excluded from the index). Exclusions live in `.tokensave/config.json`; after pulling source changes, run `tokensave sync` to refresh.
+
 ## MCP Servers
 
-Two MCP servers are configured in `.mcp.json`:
+MCP servers are configured in `.mcp.json`:
 
 **`dart`** — Dart tooling daemon. Prefer its tools over raw bash for Dart/Flutter work:
 - `dart-run_tests` instead of `flutter test` in bash — structured pass/fail output, supports filtering by name
@@ -106,6 +112,8 @@ Two MCP servers are configured in `.mcp.json`:
 - `marionette-tap` / `marionette-enter_text` — interact with UI elements
 - `marionette-get_logs` — read Flutter logs from the running app
 - `marionette-hot_reload` / `marionette-hot_restart` — apply code changes without restarting
+
+**`context7`** — docs retrieval for library/framework/API references. Use it proactively when work depends on Readium/Flutter APIs or examples.
 
 ## Smoke Testing (marionette)
 

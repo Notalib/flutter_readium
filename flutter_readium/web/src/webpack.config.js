@@ -1,10 +1,11 @@
 const path = require("path");
 const TerserPlugin = require("terser-webpack-plugin");
 
-module.exports = (argv) => {
+module.exports = (env, argv) => {
   const isDev = argv.mode === "development";
   return {
     mode: argv.mode || "production",
+    devtool: isDev ? "inline-source-map" : false,
     entry: path.resolve(__dirname, "index.ts"), // Entry point relative to 'src'
     output: {
       // TODO: differentiate dev and prod output filenames when ready

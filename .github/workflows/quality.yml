@@ -80,6 +80,15 @@ jobs:
       - name: Activate pana
         run: dart pub global activate pana
 
+      # Inline the shared config: pana copies only the package dir, where the
+      # `include: ../analysis_options.base.yaml` is dead. Without this the score
+      # here would not match the published package (see release.yml).
+      - name: Materialize self-contained analysis_options (${{ matrix.package }})
+        run: |
+          gen="$(mktemp)"
+          bin/materialize_analysis_options "${{ matrix.package }}" > "$gen"
+          mv "$gen" "${{ matrix.package }}/analysis_options.yaml"
+
       - name: Run pana (${{ matrix.package }})
         run: dart pub global run pana --no-warning .
         working-directory: ${{ matrix.package }}

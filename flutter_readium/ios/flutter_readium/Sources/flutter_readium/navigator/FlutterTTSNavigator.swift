@@ -225,27 +225,21 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     switch state {
     case let .playing(utt, wordRange):
       Log.navigator.info("TTS state: playing")
-      /// utterance is a full sentence/paragraph, while range is the currently spoken part.
-      playingUtterance = utt.locator
+      let enrichedLocator = utteranceLocatorWithPosition(utt.locator)
+      playingUtterance = enrichedLocator
       if let wordRange = wordRange {
         playingWordRange = wordRange
       }
-      self.listener?.timebasedNavigator(self, requestsHighlightAt: utt.locator, withWordLocator: wordRange)
+      self.listener?.timebasedNavigator(self, requestsHighlightAt: enrichedLocator, withWordLocator: wordRange)
     case let .paused(utt):
       Log.navigator.info("TTS paused at utterance: \(utt.text)")
-      playingUtterance = utt.locator
+      playingUtterance = utteranceLocatorWithPosition(utt.locator)
     case .stopped:
       playingUtterance = nil
       Log.navigator.info("TTS state: stopped")
       self.listener?.timebasedNavigator(self, requestsHighlightAt: nil, withWordLocator: nil)
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
-    }
-
-    /// Enrich with reading-order position
-    if let locator = playingUtterance,
-       let readingOrderIndex = publication.readingOrder.firstIndexWithHREF(locator.href) {
-      playingUtterance?.locations.position = readingOrderIndex + 1
     }
 
     let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
@@ -276,6 +270,20 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       return locator
     }
     return await findLocatorFromProgression(progression, inHref: locator.href) ?? locator
+  }
+
+  // Builds the utterance locator with a reading-order position attached in one step,
+  // so the @Published subscriber fires exactly once per utterance — not once per word.
+  // Doing two separate assignments (raw locator, then mutate position) defeats
+  // removeDuplicates(): every word-range state change would reset position to nil and
+  // re-trigger the subscriber, snapping the view back to the utterance's start page.
+  private func utteranceLocatorWithPosition(_ locator: Locator) -> Locator {
+    guard let idx = publication.readingOrder.firstIndexWithHREF(locator.href) else {
+      return locator
+    }
+    var enriched = locator
+    enriched.locations.position = idx + 1
+    return enriched
   }
 
   private func findLocatorFromProgression(_ progression: Double, inHref href: AnyURL) async -> Locator? {

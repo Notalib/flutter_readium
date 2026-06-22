@@ -1,6 +1,1 @@
 include: ../analysis_options.base.yaml
-
-analyzer:
-  errors:
-    # This is too much of a bother
-    unintended_html_in_doc_comment: ignore
