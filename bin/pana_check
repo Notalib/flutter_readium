@@ -11,6 +11,13 @@
 # Options:
 #   -v, --verbose  show full pana output including pub's verbose log dumps
 #   --no-warning   passed through to pana (matches CI)
+#
+# Slow to run? pana copies the surrounding git tree into a temp dir before
+# analyzing, so a bloated working tree makes it crawl. Shrink it with:
+#   flutter clean          # in flutter_readium/example (drops build/, .dart_tool/)
+#   git worktree prune     # drop stale .claude/worktrees entries
+# (node_modules/, ios Pods/, and SwiftPM .build/ are not removed by those — nuke
+# them manually if pana is still slow.)
 
 set -e
 
@@ -53,11 +60,41 @@ if ! "${DART[@]}" pub global list 2>/dev/null | grep -q '^pana '; then
   "${DART[@]}" pub global activate pana
 fi
 
+# pana copies just the package dir into its temp folder before analyzing —
+# exactly like the published tarball. There the committed
+# `include: ../analysis_options.base.yaml` escapes the package and dies, so the
+# real formatter/linter config never loads and the score is wrong. Materialize a
+# self-contained analysis_options.yaml into the package for the duration of the
+# run (then restore it), so the local score matches what pub.dev will see once
+# the publish flow (bin/publish, release.yml) does the same.
+MATERIALIZED_OPTS=
+MATERIALIZED_BAK=
+restore_opts() {
+  if [ -n "$MATERIALIZED_OPTS" ] && [ -f "$MATERIALIZED_BAK" ]; then
+    mv -f "$MATERIALIZED_BAK" "$MATERIALIZED_OPTS"
+  fi
+  MATERIALIZED_OPTS=
+  MATERIALIZED_BAK=
+}
+trap restore_opts EXIT INT TERM
+
 for pkg in "${PACKAGES[@]}"; do
   if [ ! -d "$PROJECT_ROOT/$pkg" ]; then
     echo -e "\033[31;1mUnknown package: $pkg\033[0m"
     exit 1
   fi
+
+  # Back up, then overwrite the package config with the self-contained form.
+  # The trap restores it even if pana fails or the run is interrupted.
+  MATERIALIZED_OPTS="$PROJECT_ROOT/$pkg/analysis_options.yaml"
+  MATERIALIZED_BAK="$(mktemp)"
+  cp "$MATERIALIZED_OPTS" "$MATERIALIZED_BAK"
+  # Generate to a temp file first: materialize reads the package's own
+  # analysis_options.yaml, so writing straight to it (truncate-on-open) would
+  # drop the package overrides before they're read.
+  _gen="$(mktemp)"
+  "$PROJECT_ROOT/bin/materialize_analysis_options" "$PROJECT_ROOT/$pkg" > "$_gen"
+  mv "$_gen" "$MATERIALIZED_OPTS"
 
   echo -e "\033[35;1m=== pana $pkg ===\033[0m"
   if [ -n "$VERBOSE" ]; then
@@ -73,4 +110,7 @@ for pkg in "${PACKAGES[@]}"; do
         { print }
       '
   fi
+
+  # Restore this package's committed config before moving to the next one.
+  restore_opts
 done

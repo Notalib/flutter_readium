@@ -93,7 +93,7 @@ class _ReadiumReader {
       log.error("Failed to get publication:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       this._bridge.emitError("Failed to get publication: " + errorMessage);
-      throw new Error("Error getting publication: " + error);
+      throw error;
     }
   }
 
@@ -309,7 +309,7 @@ class _ReadiumReader {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this._bridge.emitError("Failed to open publication: " + errorMessage);
       this.closePublication(error);
-      throw new Error("Error opening publication: " + error);
+      throw error;
     }
   }
 

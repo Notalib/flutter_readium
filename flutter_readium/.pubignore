@@ -7,12 +7,26 @@ assets/_helper_scripts/
 # Large binary publication files used only by the example smoke-test
 example/assets/pubs/
 
+# Example app: keep the Dart source (example/lib, README, pubspec) for the
+# pub.dev "Example" tab and pana, but exclude per-platform runner scaffolding.
+example/android/
+example/ios/
+example/macos/
+example/linux/
+example/windows/
+example/integration_test/
+example/test/
+example/test_driver/
+
 # Development and CI configuration
 .github/
 .vscode/
 .dart_tool/
 build/
 docs/
+
+# npm patch-package artifacts — only consumed when building the web JS from source
+patches/
 
 # Root-level development files
 CONTRIBUTING.md
