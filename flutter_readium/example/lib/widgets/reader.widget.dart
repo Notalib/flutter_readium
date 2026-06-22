@@ -71,12 +71,14 @@ class ReaderWidget extends StatelessWidget {
               debugPrint(
                 '[DecorationInteraction] id=${event.decorationId} group=${event.group}',
               );
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Tapped highlight: ${event.decorationId}'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              if (event.decorationId.startsWith('highlight')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Tapped highlight: ${event.decorationId}'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              }
             },
           ),
         );

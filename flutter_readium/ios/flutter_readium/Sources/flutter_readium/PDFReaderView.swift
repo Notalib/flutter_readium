@@ -248,7 +248,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     case "go":
       let args = call.arguments as! [Any?]
       let locator = try! Locator(legacyJSONString: args[0] as! String, warnings: readiumBugLogger)!
-      let animated = args[1] as! Bool
+      let animated = args[1] as? Bool ?? false
 
       Task.detached(priority: .high) {
         let success = await self.goToLocator(locator, animated: animated)
@@ -257,7 +257,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
         }
       }
     case "goBackward":
-      let animated = call.arguments as! Bool
+      let animated = call.arguments as? Bool ?? false
       let navOptions = NavigatorGoOptions(animated: animated)
       let pdfViewController = self.pdfViewController
 
@@ -268,7 +268,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
         }
       }
     case "goForward":
-      let animated = call.arguments as! Bool
+      let animated = call.arguments as? Bool ?? false
       let navOptions = NavigatorGoOptions(animated: animated)
       let pdfViewController = self.pdfViewController
 

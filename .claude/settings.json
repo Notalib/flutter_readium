@@ -8,10 +8,18 @@
       "Bash(pod *)",
       "Bash(xcodebuild *)",
       "Bash(xcrun *)",
+      "Bash(bin/analyze)",
+      "Bash(bin/format)",
       "Bash(bin/build_js)",
-      "Bash(bin/forAll *)",
+      "Bash(bin/typecheck)",
+      "Bash(bin/update_web_example)",
+      "mcp__dart__list_running_apps",
+      "mcp__dart__list_devices",
+      "mcp__marionette__connect",
+      "mcp__marionette__take_screenshots",
+      "mcp__marionette__get_logs",
+      "mcp__marionette__get_interactive_elements",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:readium.org)"
     ]
   }

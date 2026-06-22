@@ -34,7 +34,9 @@ build/
 
 **/node_modules/*
 **/ios/.symlinks
-example/macos/
+# NOTE: example/macos/ is intentionally NOT ignored — its scaffolding is already
+# checked in, and ignoring a tracked path makes `dart pub publish` warn. The
+# macOS files are kept out of the published tarball via .pubignore instead.
 
 # FVM Version Cache
 .fvm/

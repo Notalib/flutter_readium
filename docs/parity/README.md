@@ -20,6 +20,8 @@ These plans have been implemented on the `feat/web-feature-parity` branch and ar
 
 - **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — Web `goToLocator` now passes the full serialised `Locator` (cssSelector / progression / text) instead of href-only. *(Cross-platform parity / M)*
 
+- **[locator-field-priority.md](locator-field-priority.md)** — swift-toolkit's reflowable navigator positions via `fragments.first` and ignores `cssSelector` (unlike kotlin/ts), so media-overlay books resumed at the chapter top on iOS. The plugin now promotes the DOM anchor into `fragments.first` for the swift visual navigator. *(Cross-platform parity / S)*
+
 - **[web-error-event.md](web-error-event.md)** — `onErrorEvent` on web is now a real broadcast stream rather than throwing `UnimplementedError`. *(Cross-platform parity / S)*
 
 - **[web-comic-support-plan.md](web-comic-support-plan.md)** — Nota comic-book media-overlay EPUBs now pan/zoom panels on web (helper bundle injected into the navigator iframe), with the spurious yellow highlight suppressed. *(Cross-platform parity / M)*

@@ -85,8 +85,7 @@ struct FlutterMediaOverlayItem {
   let audioFile: String
   let audioMediaType: MediaType
   private let audioFragment: String
-  private let audioTime: String?
-  
+
   let audioStart: Double?
   let audioEnd: Double?
   
@@ -110,7 +109,6 @@ struct FlutterMediaOverlayItem {
     self.readingOrderDuration = readingOrderDuration
     self.audioFile = audio.split(separator: "#", maxSplits: 1).first.map(String.init) ?? audio
     self.audioFragment = audio.split(separator: "#", maxSplits: 1).getOrNil(1).map(String.init) ?? ""
-    self.audioTime = audioFragment.hasPrefix("t=") ? String(audioFragment.dropFirst(2)) : nil
     self.textFile = text.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
     self.textId = text.split(separator: "#", maxSplits: 1).getOrNil(1).map(String.init) ?? ""
     self.audioMediaType = switch (audioFile.split(separator: ".").last) {
@@ -120,10 +118,9 @@ struct FlutterMediaOverlayItem {
         MediaType.mpegAudio
     }
     
-    if let t = self.audioTime {
-      let parts = t.split(separator: ",", maxSplits: 1).map(String.init)
-      self.audioStart = Double(parts.first ?? "")
-      self.audioEnd = parts.count > 1 ? Double(parts[1]) : nil
+    if let range = MediaTimeFragment.range(from: audioFragment) {
+      self.audioStart = range.start
+      self.audioEnd = range.end
     } else {
       self.audioStart = nil
       self.audioEnd = nil
@@ -178,11 +175,10 @@ struct FlutterMediaOverlayItem {
   var asAudioLocator: Locator? {
     guard let href = URL(string: audioFile) else { return nil }
     let start = audioStart ?? 0.0
-    // TODO: Ensure the start is integer, currently seems Readium component expects this.
     return Locator(
       href: href,
       mediaType: audioMediaType,
-      locations: .init(fragments: ["t=\(Int(start))"])
+      locations: .init(fragments: [MediaTimeFragment.string(start)])
     )
   }
   
@@ -193,8 +189,15 @@ struct FlutterMediaOverlayItem {
     // Combine the text-locator with given audio-locator's locations.
     // We keep the otherLocations("cssSelector") from text-locator.
     // We get the position from they MediaOverlay.position
+    //
+    // Keep the text DOM-id fragment ahead of the audio `t=…` fragment so the combined
+    // locator stays self-sufficient for swift-toolkit's reflowable navigator, which
+    // positions via `fragments.first` and ignores `cssSelector` (unlike kotlin/ts).
+    // `Locator.timeOffset` still finds the `t=` fragment by prefix regardless of order, so
+    // audio mapping is unaffected. See docs/parity/locator-field-priority.md.
+    let textFragments = textLocator.locations.fragments
     textLocator.locations = Locator.Locations(
-      fragments: audioLocator.locations.fragments,
+      fragments: textFragments + audioLocator.locations.fragments,
       progression: audioLocator.locations.progression,
       totalProgression: audioLocator.locations.totalProgression,
       position: self.position + 1,
