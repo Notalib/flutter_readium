@@ -5,6 +5,8 @@ import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerPreferences
 import org.readium.r2.navigator.preferences.Configurable
 
+private const val DEFAULT_CONTROL_PANEL_TIMEBASE_STRING = "fullBook"
+
 /**
  * Audio preferences for Flutter Readium with extra properties.
  */
@@ -16,6 +18,7 @@ data class FlutterAudioPreferences(
     val seekInterval: Double = 30.0,
     val allowExternalSeeking: Boolean = true,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
+    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.FULL_BOOK,
 ) : Configurable.Preferences<FlutterAudioPreferences> {
     override fun plus(other: FlutterAudioPreferences): FlutterAudioPreferences =
         FlutterAudioPreferences(
@@ -25,6 +28,7 @@ data class FlutterAudioPreferences(
             seekInterval = other.seekInterval,
             allowExternalSeeking = other.allowExternalSeeking,
             controlPanelInfoType = other.controlPanelInfoType,
+            controlPanelTimebase = other.controlPanelTimebase,
         )
 
     /**
@@ -53,6 +57,10 @@ data class FlutterAudioPreferences(
                 seekInterval = jsonObject.getDouble("seekInterval"),
                 allowExternalSeeking = jsonObject.getBoolean("allowExternalSeeking"),
                 controlPanelInfoType = ControlPanelInfoType.fromString(jsonObject.getString("controlPanelInfoType")),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(
+                        jsonObject.optString("controlPanelTimebase", DEFAULT_CONTROL_PANEL_TIMEBASE_STRING),
+                    ),
             )
 
         /**
@@ -66,6 +74,7 @@ data class FlutterAudioPreferences(
             jsonObject.put("seekInterval", preferences.seekInterval)
             jsonObject.put("allowExternalSeeking", preferences.allowExternalSeeking)
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
+            jsonObject.put("controlPanelTimebase", preferences.controlPanelTimebase?.let(ControlPanelTimebase::toString))
             return jsonObject
         }
 
@@ -81,6 +90,8 @@ data class FlutterAudioPreferences(
                 allowExternalSeeking = prefs["allowExternalSeeking"] as? Boolean ?: true,
                 // TODO: Not sure if this is correct
                 controlPanelInfoType = ControlPanelInfoType.fromString(prefs["controlPanelInfoType"] as? String ?: "standard"),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(prefs["controlPanelTimebase"] as? String ?: DEFAULT_CONTROL_PANEL_TIMEBASE_STRING),
             )
     }
 }

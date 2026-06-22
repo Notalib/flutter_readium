@@ -42,7 +42,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._preferences = preferences
     self._nowPlayingUpdater = NowPlayingInfoUpdater(
       withPublication: publication,
-      infoType: preferences.controlPanelInfoType
+      infoType: preferences.controlPanelInfoType,
+      timebase: preferences.controlPanelTimebase
     )
     self._initialLocator = resolveLocator(initialLocator)
   }
@@ -167,6 +168,24 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       _audioNavigator?.play()
     }
     return true
+  }
+
+  @MainActor
+  public func seek(toPublicationOffset: Double) async -> Bool {
+    guard let currentLocator = _audioNavigator?.currentLocation,
+          let target = resolvePublicationOffsetTarget(toPublicationOffset) else {
+      return false
+    }
+
+    if target.readingOrderIndex == playback.resourceIndex {
+      return await seek(toOffset: target.offsetSeconds)
+    }
+
+    guard let targetLocator = makeAudioLocator(from: currentLocator, target: target) else {
+      return false
+    }
+
+    return await seek(toLocator: targetLocator)
   }
 
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
@@ -353,6 +372,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   @MainActor
   func setAudioPreferences(_ preferences: FlutterAudioPreferences) {
     self._preferences = preferences
+    self._nowPlayingUpdater.infoType = preferences.controlPanelInfoType
+    self._nowPlayingUpdater.timebase = preferences.controlPanelTimebase
     /// Update the Audio Navigator.
     self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
     /// Update the CommandCenter controls.
@@ -477,6 +498,35 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   private func makePublicationDuration() -> TimeInterval? {
     computePublicationDuration(publication.readingOrder.map { $0.duration })
+  }
+
+  private func resolvePublicationOffsetTarget(_ offsetSeconds: TimeInterval) -> AudioSeekPolicy.Target? {
+    let durations = publication.readingOrder.map { $0.duration }
+    let validDurations = durations.compactMap { duration -> TimeInterval? in
+      guard let duration, duration.isFinite, duration > 0 else {
+        return nil
+      }
+      return duration
+    }
+
+    guard validDurations.count == durations.count, !validDurations.isEmpty else {
+      return nil
+    }
+
+    let publicationDuration = validDurations.reduce(0, +)
+    var remaining = min(max(0, offsetSeconds), publicationDuration)
+
+    for (index, duration) in validDurations.enumerated() {
+      if remaining <= duration || index == validDurations.indices.last {
+        return AudioSeekPolicy.Target(
+          readingOrderIndex: index,
+          offsetSeconds: min(remaining, duration),
+        )
+      }
+      remaining -= duration
+    }
+
+    return nil
   }
 
   private func makeTotalProgressDuration(_ locator: Locator?) -> TimeInterval? {

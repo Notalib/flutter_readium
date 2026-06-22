@@ -7,9 +7,10 @@ enum class ControlPanelTimebase {
 
     companion object {
         fun fromString(value: String): ControlPanelTimebase =
-            when (value) {
+            when (value.lowercase()) {
                 "chapter" -> CHAPTER
-                "fullBook" -> FULL_BOOK
+                "fullbook" -> FULL_BOOK
+                "full_book" -> FULL_BOOK
                 else -> CHAPTER
             }
 

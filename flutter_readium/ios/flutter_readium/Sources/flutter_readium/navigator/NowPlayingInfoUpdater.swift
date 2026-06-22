@@ -12,6 +12,7 @@ import ReadiumNavigator
 public class NowPlayingInfoUpdater {
 
   public var infoType: ControlPanelInfoType
+  public var timebase: ControlPanelTimebase
   internal var publication: Publication
   internal var lastReportedChapterNo: Int?
   private var coverSub: Set<AnyCancellable> = []
@@ -33,10 +34,12 @@ public class NowPlayingInfoUpdater {
 
   init(
     withPublication publication: Publication,
-    infoType: ControlPanelInfoType = .standard
+    infoType: ControlPanelInfoType = .standard,
+    timebase: ControlPanelTimebase = .chapter
   ) {
     self.publication = publication
     self.infoType = infoType
+    self.timebase = timebase
 
     Task {
       // TODO: Should we limit cover size here?
@@ -66,10 +69,11 @@ public class NowPlayingInfoUpdater {
     let speed = info.state == .playing ? speed ?? 1.0 : 0.0
 
     updateChapterNo(info.resourceIndex)
+    let playback = makePlaybackState(from: info, speed: speed)
     NowPlayingInfo.shared.playback = NowPlayingInfo.Playback(
-      duration: info.duration,
-      elapsedTime: info.time,
-      rate: speed,
+      duration: playback.duration,
+      elapsedTime: playback.elapsedTime,
+      rate: playback.rate,
     )
   }
 
@@ -84,6 +88,28 @@ public class NowPlayingInfoUpdater {
   public func clearNowPlaying() {
     NowPlayingInfo.shared.clear()
     coverSub.forEach { $0.cancel() }
+  }
+
+  private func makePlaybackState(from info: MediaPlaybackInfo, speed: Double) -> (duration: Double?, elapsedTime: Double?, rate: Double) {
+    guard timebase == .fullBook else {
+      return (info.duration, info.time, speed)
+    }
+
+    guard let publicationDuration = computePublicationDuration(publication.readingOrder.map { $0.duration }) else {
+      return (info.duration, info.time, speed)
+    }
+
+    var elapsedTime = info.time
+    for index in 0..<min(info.resourceIndex, publication.readingOrder.count) {
+      guard let duration = publication.readingOrder[index].duration,
+            duration.isFinite,
+            duration > 0 else {
+        return (info.duration, info.time, speed)
+      }
+      elapsedTime += duration
+    }
+
+    return (publicationDuration, elapsedTime, speed)
   }
 
   public func updateChapterNo(_ chapterNo: Int?) {
@@ -222,7 +248,12 @@ public class NowPlayingInfoUpdater {
           return
         }
         Task {
-          await navigator.seek(toOffset: event.positionTime)
+          if self.timebase == .fullBook,
+             let audioNavigator = navigator as? FlutterAudioNavigator {
+            await audioNavigator.seek(toPublicationOffset: event.positionTime)
+          } else {
+            await navigator.seek(toOffset: event.positionTime)
+          }
         }
       }
     }

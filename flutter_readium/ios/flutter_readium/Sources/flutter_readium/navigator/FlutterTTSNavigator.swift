@@ -45,7 +45,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self._publication = publication
     self._initialLocator = initialLocator
     self.preferences = preferences
-    self.nowPlayingUpdater = .init(withPublication: publication)
+    self.nowPlayingUpdater = .init(
+      withPublication: publication,
+      infoType: preferences.controlPanelInfoType ?? .standard
+    )
   }
 
   public func initNavigator() -> Void {
@@ -156,7 +159,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.synthesizer?.start(from: toLocator)
     return true
   }
-  
+
   public func seek(toProgression: Double) async -> Bool {
     guard let currentHref = (currentLocator ?? initialLocator)?.href else {
       return false
@@ -177,7 +180,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     // Cannot be implemented for TTS
     return false
   }
-  
+
   public func decorationsUpdated() -> Void {
     if let currentUtterance = playingUtterance {
       let currentWordRange = playingWordRange
@@ -238,13 +241,13 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
-    
+
     /// Enrich with reading-order position
     if let locator = playingUtterance,
        let readingOrderIndex = publication.readingOrder.firstIndexWithHREF(locator.href) {
       playingUtterance?.locations.position = readingOrderIndex + 1
     }
-    
+
     let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
     self.listener?.timebasedNavigator(self, didChangeState: state)
   }
@@ -264,7 +267,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     utterance.rate = preferences.rate ?? AVSpeechUtteranceDefaultSpeechRate
     utterance.pitchMultiplier = preferences.pitch ?? 1.0
   }
-  
+
   // MARK: From progression
 
   private func resolveLocatorWithProgression(_ locator: Locator) async -> Locator? {
