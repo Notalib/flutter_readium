@@ -259,13 +259,26 @@ open class AudiobookNavigator(
 
         return withMainContext {
             val navigator = ensureNavigator()
+            val player = navigator.asMedia3Player()
 
-            val duration = navigator.asMedia3Player().duration.milliseconds
-            val timeOffset = duration.inWholeSeconds * progression
+            val currentLocator = navigator.currentLocator.value
+
+            // Find duration of the current item.
+            // First try to get it from the player, because it is more precise, if that fails, get it from the navigator's reading order.
+            val duration = player.duration.milliseconds.inWholeSeconds.takeIf {
+                // player.duration is -9223372036854775 when the duration is unknown, so we check if it's a positive number before using
+                it > 0
+            }
+                ?: navigator.readingOrder.items.firstOrNull { it.href == currentLocator.href }?.duration?.inWholeSeconds
+                ?: 0
+
+            PluginLog.w(TAG, "::seekToProgression - couldn't find duration of current item, defaulting to 0")
+
+            val timeOffset = duration * progression
 
             val locator =
                 publication
-                    .normalizeLocator(navigator.currentLocator.value)
+                    .normalizeLocator(currentLocator)
                     .copyWithTimeFragment(timeOffset)
 
             PluginLog.d(
