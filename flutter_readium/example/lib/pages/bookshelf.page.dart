@@ -255,7 +255,7 @@ class BookshelfPageState extends State<BookshelfPage> {
                 ],
               ),
               // remove the if when books loaded from asset can be deleted
-              if (!_identifiersFromAsset.contains(publication.identifier))
+              if (!kIsWeb && !_identifiersFromAsset.contains(publication.identifier))
                 IconButton(
                   icon: Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {

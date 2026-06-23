@@ -112,8 +112,8 @@ class EpubNavigator :
     /**
      * Current EPUB preferences.
      */
-    var preferences: FlutterEpubPreferences?
-        get() = state[epubPreferencesKey] as? FlutterEpubPreferences
+    var preferences: FlutterEpubPreferences
+        get() = state[epubPreferencesKey] as? FlutterEpubPreferences ?: FlutterEpubPreferences()
         set(value) {
             state[epubPreferencesKey] = value
         }
@@ -208,6 +208,7 @@ class EpubNavigator :
     suspend fun updatePreferences(flutterEpubPreferences: FlutterEpubPreferences) {
         PluginLog.d(TAG, "::updatePreferences")
 
+        val oldPreferences = preferences
         val navigator =
             epubNavigator ?: run {
                 PluginLog.d(TAG, "::updatePreferences - tried to update without a navigator")
@@ -219,6 +220,16 @@ class EpubNavigator :
             navigator.updatePreferences(flutterEpubPreferences)
 
             preferences = flutterEpubPreferences
+            if (oldPreferences.disableSynchronization == true && flutterEpubPreferences.disableSynchronization == false) {
+                // If synchronization is re-enabled, we sync to the last locator that was attempted to be synced to while synchronization was disabled.
+                lastSyncLocator?.let { locator ->
+                    goToLocator(
+                        locator,
+                        animated = false,
+                        lastSyncSegmentDuration,
+                    )
+                }
+            }
         } catch (ex: Exception) {
             PluginLog.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
         }
@@ -266,12 +277,10 @@ class EpubNavigator :
                 putBundle(currentDecorationListKey, decorationBundle)
             }
 
-            preferences?.let { prefs ->
-                putString(
-                    epubPreferencesKey,
-                    Json.encodeToString(FlutterEpubPreferences.serializer(), prefs),
-                )
-            }
+            putString(
+                epubPreferencesKey,
+                Json.encodeToString(FlutterEpubPreferences.serializer(), preferences),
+            )
         }
 
     override fun onPageLoaded() {
@@ -480,6 +489,29 @@ class EpubNavigator :
         withMainContext {
             go(locator, animated, segmentDuration)
         }
+    }
+
+    /**
+     * When synchronization is disabled, we store the last locator that was attempted to be synced to, so that we can sync to it when synchronization is re-enabled.
+     */
+    private var lastSyncLocator: Locator? = null
+
+    /**
+     * When synchronization is disabled, we store the last segment duration that was attempted to be synced to, so that we can sync to it when synchronization is re-enabled.
+     */
+    private var lastSyncSegmentDuration: Double? = null
+
+    suspend fun syncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double?) {
+        if (preferences.disableSynchronization == true) {
+            lastSyncLocator = locator
+            lastSyncSegmentDuration = segmentDuration
+            return
+        }
+
+        lastSyncLocator = null
+        lastSyncSegmentDuration = null
+
+        goToLocator(locator, animated, segmentDuration)
     }
 
     companion object {

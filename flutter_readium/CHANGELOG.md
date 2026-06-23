@@ -7,21 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **iOS: CBZ comic support** — CBZ archives (Comic Book ZIP) now open and render on iOS.
+- **iOS + Android: CBZ comic support** — CBZ archives (Comic Book ZIP) now open and render on iOS.
   Pages are displayed one at a time via the EPUB navigator's fixed-layout path; swipe/tap
   navigates between pages and `goToLocator` restores saved positions. The existing
   `blackAndWhiteComicMode` preference in `ReaderEpubPreferences` applies the grayscale
-  filter to CBZ pages as well. Android and Web support are pending.
-- **iOS: DiViNa narrated-comic support** — DiViNa publications (`profiles/divina`) that carry a
+  filter to CBZ pages as well. Web support is pending.
+- **iOS + Android: DiViNa narrated-comic support** — DiViNa publications (`profiles/divina`) that carry a
   Guided Navigation document now open as comics with audio narration. Page images render via the
   fixed-layout path, and `audioEnable` / `play` drive page-synced audio from the
-  guided-navigation document: the existing media-overlay narration pipeline now also recognises
-  DiViNa (previously EPUB-only), so a comic's `audioref` / `textref` segments build the audio
-  reading order and emit text locators as narration advances. Panel-level zoom is not yet
-  implemented (the segments' `imgref` regions are carried in the asset for that follow-up).
-  Android and Web support are pending.
+  guided-navigation document. Panel-level zoom is not yet implemented (the segments' `imgref` regions
+  are carried in the asset for that follow-up). Web support is pending.
+
+### Fixed
+
+- **iOS + Web: synchronization catch-up after re-enable** — when
+  `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
+  the visual EPUB navigator now jumps to the last sync locator that was reached
+  while synchronization was disabled, matching Android behavior.
 
 ---
+
 ## [0.1.0] - 2026-06-20
 
 Brings the Web platform up to feature parity with iOS / Android (audio,

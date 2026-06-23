@@ -1551,11 +1551,7 @@ object ReadiumReader :
     ) {
         val navigator = epubNavigator ?: return
         withMainContext {
-            if (navigator.preferences?.disableSynchronization == true) {
-                return@withMainContext
-            }
-
-            navigator.goToLocator(locator, animated, segmentDuration)
+            navigator.syncToLocator(locator, animated, segmentDuration)
         }
     }
 

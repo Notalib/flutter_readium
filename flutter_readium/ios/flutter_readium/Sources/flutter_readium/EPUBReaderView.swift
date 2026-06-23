@@ -16,6 +16,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var isJumpingToLocator = false
   private var lastHrefLocation: String?
   private var preferences: FlutterEPUBPreferences?
+  private var lastSyncLocator: Locator?
+  private var lastSyncSegmentDuration: TimeInterval?
   private let publication: Publication
   private var lastViewport: NavigatorViewport?
 
@@ -501,10 +503,18 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
 
   public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil, isWordRange: Bool = false) async -> Bool {
-    if (isJumpingToLocator || preferences?.disableSync == true) {
+    if isJumpingToLocator {
       Log.reader.debug("syncToLocator: skipped")
       return false
     }
+    if preferences?.disableSync == true {
+      lastSyncLocator = locator
+      lastSyncSegmentDuration = segmentDuration
+      Log.reader.debug("syncToLocator: deferred while synchronization is disabled")
+      return false
+    }
+    lastSyncLocator = nil
+    lastSyncSegmentDuration = nil
     // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
     // spoken word re-pins the current paragraph to the top of the viewport
     // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
@@ -515,6 +525,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
       return false
     }
+    return await performSyncNavigation(locator, animated: animated, segmentDuration: segmentDuration)
+  }
+
+  private func performSyncNavigation(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool {
     Log.reader.debug("syncToLocator: \(locator)")
     if let duration = segmentDuration {
       let segmentDurationMs = duration * 1000.0
@@ -600,9 +614,23 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     case "setPreferences":
       let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
+      let wasSyncDisabled = self.preferences?.disableSync == true
       let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       self.preferences = preferences
+      if wasSyncDisabled,
+         preferences.disableSync == false,
+         let deferredLocator = self.lastSyncLocator {
+        let deferredSegmentDuration = self.lastSyncSegmentDuration
+        self.lastSyncLocator = nil
+        self.lastSyncSegmentDuration = nil
+        Task.detached(priority: .high) {
+          _ = await self.performSyncNavigation(
+            deferredLocator,
+            animated: false,
+            segmentDuration: deferredSegmentDuration)
+        }
+      }
       result(nil)
       break
     case "applyDecorations":
