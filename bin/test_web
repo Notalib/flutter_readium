@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Run the flutter_readium web unit tests (Jest, web/src/__tests__). Extra args
+# are forwarded to Jest, e.g. `bin/test_web FlutterAudioNavigator` or
+# `bin/test_web -t resolveLocator`.
+echo "Running flutter_readium web unit tests"
+cd "$REPO_ROOT/flutter_readium"
+
+# Match bin/build_js / bin/typecheck: only install when node_modules is absent,
+# so a repeat run isn't a slow reinstall that reads as a hang in agent sandboxes.
+if [ ! -d node_modules ]; then
+  npm ci
+fi
+
+npm test -- "$@"

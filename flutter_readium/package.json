@@ -26,7 +26,7 @@
     "build_dev:stats": "cross-env NODE_ENV=development STATS=1 rollup -c rollup.config.mjs",
     "build": "cross-env NODE_ENV=production rollup -c rollup.config.mjs",
     "build:stats": "cross-env NODE_ENV=production STATS=1 rollup -c rollup.config.mjs",
-    "typecheck": "tsc --noEmit -p web/src/tsconfig.json",
+    "typecheck": "tsc --noEmit -p web/src/tsconfig.test.json",
     "test": "jest --config web/src/jest.config.js"
   }
 }
