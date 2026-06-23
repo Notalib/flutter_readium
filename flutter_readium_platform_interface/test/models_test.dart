@@ -208,19 +208,15 @@ void main() {
   group('ControlPanelTimebase', () {
     test('fromOptString accepts canonical value', () {
       expect(
-        ControlPanelTimebase.fromOptString('fullBook'),
-        ControlPanelTimebase.fullBook,
+        ControlPanelTimebase.fromOptString('wholeBook'),
+        ControlPanelTimebase.wholeBook,
       );
     });
 
-    test('fromOptString accepts snake_case and case variants', () {
+    test('fromOptString accepts canonical and snake_case variants', () {
       expect(
-        ControlPanelTimebase.fromOptString('full_book'),
-        ControlPanelTimebase.fullBook,
-      );
-      expect(
-        ControlPanelTimebase.fromOptString('FULL_BOOK'),
-        ControlPanelTimebase.fullBook,
+        ControlPanelTimebase.fromOptString('whole_book'),
+        ControlPanelTimebase.wholeBook,
       );
       expect(
         ControlPanelTimebase.fromOptString('CHAPTER'),

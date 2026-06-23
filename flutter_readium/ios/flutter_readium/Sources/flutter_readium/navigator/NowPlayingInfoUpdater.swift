@@ -91,7 +91,7 @@ public class NowPlayingInfoUpdater {
   }
 
   private func makePlaybackState(from info: MediaPlaybackInfo, speed: Double) -> (duration: Double?, elapsedTime: Double?, rate: Double) {
-    guard timebase == .fullBook else {
+    guard timebase == .wholeBook else {
       return (info.duration, info.time, speed)
     }
 
@@ -248,7 +248,7 @@ public class NowPlayingInfoUpdater {
           return
         }
         Task {
-          if self.timebase == .fullBook,
+          if self.timebase == .wholeBook,
              let audioNavigator = navigator as? FlutterAudioNavigator {
             await audioNavigator.seek(toPublicationOffset: event.positionTime)
           } else {

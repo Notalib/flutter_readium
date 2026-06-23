@@ -412,7 +412,7 @@ class PluginSimpleBasePlayer(
         val positionMs: Long,
     )
 
-    private fun usesFullBookTimebase(): Boolean = preferences.controlPanelTimebase == ControlPanelTimebase.FULL_BOOK
+    private fun usesWholeBookTimebase(): Boolean = preferences.controlPanelTimebase == ControlPanelTimebase.WHOLE_BOOK
 
     /**
      * Returns chapter durations in ms, preferring manifest values over the live Media3 timeline
@@ -446,10 +446,10 @@ class PluginSimpleBasePlayer(
 
     /**
      * A synthetic single-window [Timeline] that wraps the multi-chapter real timeline but exposes
-     * the total publication duration as one seekable window. Used in full-book mode so the
+     * the total publication duration as one seekable window. Used in whole-book mode so the
      * system control-panel slider max shows the total book length instead of the current chapter.
      */
-    private inner class FullBookTimeline(
+    private inner class WholeBookTimeline(
         private val originalTimeline: Timeline,
         private val totalDurationMs: Long,
     ) : Timeline() {
@@ -502,7 +502,7 @@ class PluginSimpleBasePlayer(
     }
 
     private fun publicationMediaMetadata(): MediaMetadata? {
-        if (!usesFullBookTimebase()) {
+        if (!usesWholeBookTimebase()) {
             return if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
         }
 
@@ -570,7 +570,7 @@ class PluginSimpleBasePlayer(
             return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_BACK)
         }
 
-        if (usesFullBookTimebase() &&
+        if (usesWholeBookTimebase() &&
             seekCommand != COMMAND_SEEK_FORWARD &&
             seekCommand != COMMAND_SEEK_BACK
         ) {
@@ -592,9 +592,9 @@ class PluginSimpleBasePlayer(
         // which Readium TTSPlayer sometimes provides during active states.
         // See https://github.com/readium/kotlin-toolkit/pull/716
 
-        // In full-book mode we report a single synthetic window, so the item index must be 0.
+        // In whole-book mode we report a single synthetic window, so the item index must be 0.
         // Compute once here so it can be used both for setCurrentMediaItemIndex and setPlaylist.
-        val fullBookTotalMs = if (usesFullBookTimebase()) publicationDurationMs() else null
+        val wholeBookTotalMs = if (usesWholeBookTimebase()) publicationDurationMs() else null
 
         // Ordered alphabetically by State.Builder setters.
         val state = State.Builder()
@@ -618,12 +618,12 @@ class PluginSimpleBasePlayer(
             TAG,
             "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM? - ${player.isCommandAvailable(
                 COMMAND_GET_CURRENT_MEDIA_ITEM,
-            )} - full book? ${usesFullBookTimebase()}",
+            )} - whole book? ${usesWholeBookTimebase()}",
         )
 
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
-            PluginLog.d(TAG, "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM - full book? ${usesFullBookTimebase()}")
-            if (usesFullBookTimebase()) {
+            PluginLog.d(TAG, "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM - whole book? ${usesWholeBookTimebase()}")
+            if (usesWholeBookTimebase()) {
                 state.setContentPositionMs {
                     publicationPositionMs() ?: player.contentPosition
                 }
@@ -641,8 +641,8 @@ class PluginSimpleBasePlayer(
             state.setCurrentCues(player.currentCues)
         }
         // if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
-        // In full-book mode we report a single synthetic window, so the item index must be 0.
-        state.setCurrentMediaItemIndex(if (fullBookTotalMs != null) 0 else player.currentMediaItemIndex)
+        // In whole-book mode we report a single synthetic window, so the item index must be 0.
+        state.setCurrentMediaItemIndex(if (wholeBookTotalMs != null) 0 else player.currentMediaItemIndex)
         // }
         if (player.isCommandAvailable(COMMAND_GET_DEVICE_VOLUME)) {
             state.setDeviceVolume(player.deviceVolume)
@@ -663,8 +663,8 @@ class PluginSimpleBasePlayer(
             }
         val mediaMetadata = publicationMediaMetadata()
         val timeline =
-            if (fullBookTotalMs != null) {
-                FullBookTimeline(player.currentTimeline, fullBookTotalMs)
+            if (wholeBookTotalMs != null) {
+                WholeBookTimeline(player.currentTimeline, wholeBookTotalMs)
             } else {
                 player.currentTimeline
             }

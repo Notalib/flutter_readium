@@ -135,6 +135,6 @@ Determines whether the system media controls (lock screen, notifications, CarPla
 | Value | Description |
 |-------|-------------|
 | `chapter` | Use chapter-relative timeline values. |
-| `fullBook` | Use full-publication timeline values. |
+| `wholeBook` | Use full-publication timeline values. |
 
-When parsing serialized values, aliases such as `full_book` (any case) are accepted.
+When parsing serialized values, aliases such as `whole_book` are accepted.

@@ -49,6 +49,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
         ReadiumLog.w(
           'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',
         );
+        controlPanelTimebase = ControlPanelTimebase.chapter;
       }
     }
     return AudioPreferences(
@@ -60,8 +61,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
       allowExternalSeeking: allowExternalSeeking,
       updateIntervalSecs: updateIntervalSecs,
       controlPanelInfoType: controlPanelInfoType,
-      controlPanelTimebase:
-          controlPanelTimebase ?? (controlPanelTimebaseStr != null ? ControlPanelTimebase.chapter : null),
+      controlPanelTimebase: controlPanelTimebase,
     );
   }
 
@@ -170,13 +170,18 @@ enum ControlPanelInfoType {
 
 enum ControlPanelTimebase {
   chapter,
-  fullBook;
+  wholeBook;
 
   static ControlPanelTimebase? fromOptString(final String type) {
-    final normalized = type.replaceAll('_', '').toLowerCase();
-    return ControlPanelTimebase.values.firstWhereOrNull((e) {
-      final enumName = e.toString().split('.').last;
-      return enumName.toLowerCase() == normalized;
-    });
+    final lower = type.toLowerCase();
+    switch (lower) {
+      case 'chapter':
+        return ControlPanelTimebase.chapter;
+      case 'wholebook':
+      case 'whole_book':
+        return ControlPanelTimebase.wholeBook;
+      default:
+        return null;
+    }
   }
 }

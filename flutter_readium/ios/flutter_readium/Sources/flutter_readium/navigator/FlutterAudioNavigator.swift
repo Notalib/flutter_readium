@@ -374,6 +374,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._preferences = preferences
     self._nowPlayingUpdater.infoType = preferences.controlPanelInfoType
     self._nowPlayingUpdater.timebase = preferences.controlPanelTimebase
+
+    if let info = self._audioNavigator?.playbackInfo {
+      self._nowPlayingUpdater.updatePlaybackFromInfo(
+        info,
+        withSpeedSetting: self._audioNavigator?.settings.speed
+      )
+    }
+
     /// Update the Audio Navigator.
     self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
     /// Update the CommandCenter controls.
