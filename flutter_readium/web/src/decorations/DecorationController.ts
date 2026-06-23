@@ -79,14 +79,20 @@ export class DecorationController {
     }
 
     for (const raw of decorationsRaw) {
+      const usesBoundsLayout = raw.style.style === "underline";
       const targetGroup = this._subgroupFor(group, raw.style.style);
+
       const decoration: Decoration = {
         id: raw.id,
         locator: Locator.deserialize(raw.locator)!,
         style: {
           tint: raw.style.tint,
-          layout: DecorationLayout.Bounds,
           width: DecorationWidth.Wrap,
+          // Underline decorations use bounds layout to avoid clipping the underline at the edges of the text.
+          ...(usesBoundsLayout ? { layout: DecorationLayout.Bounds } : {}),
+          // Keep plugin-selected decoration tints faithful on web instead of
+          // letting Readium adjust them to satisfy its contrast heuristic.
+          enforceContrast: false,
         },
       };
       sendDecorate(nav, targetGroup, "add", decoration);
