@@ -109,7 +109,7 @@ public class NowPlayingInfoUpdater {
     NowPlayingInfo.shared.media?.artist = authors
 
     if (infoType == .standardWCh && chapterNo != nil) {
-      let currentChapter = publication.readingOrder[chapterNo!].title ?? "\(generatedFallbackChapterTitle) \(chapterNo! + 1)"
+      let currentChapter = (publication.readingOrder.indices.contains(chapterNo!) ? publication.readingOrder[chapterNo!].title : nil) ?? "\(generatedFallbackChapterTitle) \(chapterNo! + 1)"
       title += " - \(currentChapter)"
 
       NowPlayingInfo.shared.media?.title = title
@@ -119,7 +119,7 @@ public class NowPlayingInfoUpdater {
   }
 
   private func nonStandardNowPlayingInfo(chapterNo: Int) {
-    var currentChapter = publication.readingOrder[chapterNo].title
+    var currentChapter = publication.readingOrder.indices.contains(chapterNo) ? publication.readingOrder[chapterNo].title : nil
     let title = publication.metadata.title ?? ""
 
     if (infoType == .chapterTitleAuthor || infoType == .chapterTitle) {

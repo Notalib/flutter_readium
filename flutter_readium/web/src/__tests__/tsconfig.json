@@ -1,0 +1,12 @@
+{
+  // Editor-only: the parent web/src/tsconfig.json excludes __tests__, so VSCode's
+  // tsserver would otherwise put these files in a bare inferred project without
+  // the jest globals. This config (a name tsserver auto-discovers) makes the
+  // editor apply the same jest/node types ts-jest uses at test time.
+  "extends": "../tsconfig.test.json",
+  "include": ["**/*.ts"],
+  // Override the inherited exclude (which lists "__tests__") so these files are
+  // actually part of this project — otherwise tsserver gives them an empty
+  // project and the jest globals appear unresolved.
+  "exclude": ["node_modules"]
+}
