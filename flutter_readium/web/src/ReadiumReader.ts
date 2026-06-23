@@ -29,6 +29,8 @@ import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } fro
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
+// Iframe injection utilities
+import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
 
 const log = createLogger("Reader");
 
@@ -297,8 +299,10 @@ class _ReadiumReader {
             (positions) => { this._positions = positions; },
             (wnd) => {
               // Re-inject MO column-break CSS into freshly-loaded frames when MO is active.
+              // Use direct DOM manipulation — window.flutterReadium is deferred by rAF
+              // inside the helper script and may not exist yet at frameLoaded time.
               if (this._audioNav && this._preventMOColumnBreaks) {
-                (wnd as any).flutterReadium?.injectMOBreakCSS?.();
+                injectMOBreakCSSIntoWindow(wnd);
               }
             }
           );
@@ -522,19 +526,19 @@ class _ReadiumReader {
     }
   }
 
-  /** Inject MO column-break CSS into all loaded EPUB iframes via the helper script. */
+  /** Inject MO column-break CSS into all loaded EPUB iframes directly via the DOM. */
   private _injectMOBreakCSSOnIframes(): void {
     if (!this._nav) return;
     for (const wnd of navIframeWindows(this._nav)) {
-      (wnd as any).flutterReadium?.injectMOBreakCSS?.();
+      injectMOBreakCSSIntoWindow(wnd);
     }
   }
 
-  /** Remove MO column-break CSS from all loaded EPUB iframes via the helper script. */
+  /** Remove MO column-break CSS from all loaded EPUB iframes directly via the DOM. */
   private _removeMOBreakCSSOnIframes(): void {
     if (!this._nav) return;
     for (const wnd of navIframeWindows(this._nav)) {
-      (wnd as any).flutterReadium?.removeMOBreakCSS?.();
+      wnd.document.getElementById("flutter-readium-mo-breaks")?.remove();
     }
   }
 
