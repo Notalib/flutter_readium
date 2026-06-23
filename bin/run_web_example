@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Serve the example app on a headless web-server device for browser-based
+# inspection (CDP tools / preview MCP). Unlike `-d chrome`, this does NOT spawn
+# its own Chrome — an external browser (or an agent's CDP-driven Chrome) attaches
+# to the served port instead.
+#
+# Usage: bin/run_web_example [port]   (default 8080)
+
+PORT="${1:-8080}"
+
+# Build + copy the readium JS bundle into example/web/ first (same prerequisite
+# as the `build_web` VS Code preLaunchTask).
+"$REPO_ROOT/bin/update_web_example"
+
+cd "$REPO_ROOT/flutter_readium/example"
+exec flutter run -d web-server --web-port "$PORT" --web-hostname localhost

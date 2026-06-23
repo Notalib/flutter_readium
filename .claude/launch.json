@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flutter-web-example",
+      "runtimeExecutable": "bin/run_web_example",
+      "runtimeArgs": ["8080"],
+      "port": 8080
+    }
+  ]
+}
