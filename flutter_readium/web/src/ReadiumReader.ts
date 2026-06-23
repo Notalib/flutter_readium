@@ -21,7 +21,7 @@ import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } f
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
-import { setEpubPreferencesFromString } from "./preferences/FlutterEpubPreferences";
+import { setEpubPreferencesFromString, pluginPrefsFromJson } from "./preferences/FlutterEpubPreferences";
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
 import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 // Sync narration
@@ -64,6 +64,12 @@ class _ReadiumReader {
    * preference surface. Passed to the TTS engine on enable and on every change.
    */
   private _disableSynchronization = false;
+  /** Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`. */
+  private _preventMOColumnBreaks = true;
+  /** Last visual sync locator deferred while synchronization was disabled. */
+  private _lastDeferredSyncLocator: Locator | null = null;
+  /** Segment duration paired with `_lastDeferredSyncLocator` when available. */
+  private _lastDeferredSyncDurationMs: number | undefined;
 
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
@@ -288,7 +294,13 @@ class _ReadiumReader {
               this._nav = nav;
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
-            (positions) => { this._positions = positions; }
+            (positions) => { this._positions = positions; },
+            (wnd) => {
+              // Re-inject MO column-break CSS into freshly-loaded frames when MO is active.
+              if (this._audioNav && this._preventMOColumnBreaks) {
+                (wnd as any).flutterReadium?.injectMOBreakCSS?.();
+              }
+            }
           );
         } else {
           log.info("Publication conforms to WebPub profile");
@@ -322,9 +334,28 @@ class _ReadiumReader {
     // Track the plugin-side `disableSynchronization` flag separately from the
     // navigator's preferences (the web navigator doesn't expose this toggle).
     try {
+      const wasSyncDisabled = this._disableSynchronization;
       const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
       this._disableSynchronization = parsed.disableSynchronization === true;
       this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
+      if (wasSyncDisabled && !this._disableSynchronization && this._lastDeferredSyncLocator) {
+        const deferredLocator = this._lastDeferredSyncLocator;
+        const deferredDurationMs = this._lastDeferredSyncDurationMs;
+        this._lastDeferredSyncLocator = null;
+        this._lastDeferredSyncDurationMs = undefined;
+        // Clear dedup key so replaying the same cue still performs a visual sync.
+        this._lastMediaOverlayLocatorKey = null;
+        this._syncVisualToMediaOverlayLocator(deferredLocator, "MediaOverlay (resume sync)", deferredDurationMs);
+      }
+      const { preventMOColumnBreaks } = pluginPrefsFromJson(parsed);
+      if (preventMOColumnBreaks !== this._preventMOColumnBreaks && this._audioNav) {
+        if (preventMOColumnBreaks) {
+          this._injectMOBreakCSSOnIframes();
+        } else {
+          this._removeMOBreakCSSOnIframes();
+        }
+      }
+      this._preventMOColumnBreaks = preventMOColumnBreaks;
     } catch (_) {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
     }
@@ -481,11 +512,29 @@ class _ReadiumReader {
   public stop(): void {
     log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
+    const wasMO = this._hasSyncNarration || this._hasGuidedNavigation;
     this._audioNav?.stop();
     // Clear Media Overlay / Guided Navigation utterance decoration when narration stops.
-    if ((this._hasSyncNarration || this._hasGuidedNavigation) && this._nav) {
+    if (wasMO && this._nav) {
       this._lastMediaOverlayLocatorKey = null;
       this.applyDecorations("media_overlay_utterance", "[]");
+      this._removeMOBreakCSSOnIframes();
+    }
+  }
+
+  /** Inject MO column-break CSS into all loaded EPUB iframes via the helper script. */
+  private _injectMOBreakCSSOnIframes(): void {
+    if (!this._nav) return;
+    for (const wnd of navIframeWindows(this._nav)) {
+      (wnd as any).flutterReadium?.injectMOBreakCSS?.();
+    }
+  }
+
+  /** Remove MO column-break CSS from all loaded EPUB iframes via the helper script. */
+  private _removeMOBreakCSSOnIframes(): void {
+    if (!this._nav) return;
+    for (const wnd of navIframeWindows(this._nav)) {
+      (wnd as any).flutterReadium?.removeMOBreakCSS?.();
     }
   }
 
@@ -806,6 +855,7 @@ class _ReadiumReader {
         (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
       );
       (this._audioNav as AudioNavigator | undefined)?.play();
+      if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
       return;
     }
 
@@ -820,6 +870,7 @@ class _ReadiumReader {
         (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
       );
       (this._audioNav as AudioNavigator | undefined)?.play();
+      if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
       return;
     }
 

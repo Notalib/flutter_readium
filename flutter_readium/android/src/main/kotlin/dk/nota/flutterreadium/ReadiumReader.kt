@@ -164,6 +164,16 @@ object ReadiumReader :
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
+    /**
+     * Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`.
+     * Consumer can opt out via preferences.
+     */
+    private var _preventMOColumnBreaks: Boolean = true
+
+    /** True when a Media Overlay (sync-narration) navigator is active. */
+    val isMOActive: Boolean
+        get() = syncAudiobookNavigator != null
+
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
 
@@ -1130,11 +1140,15 @@ object ReadiumReader :
             audiobookNavigator = null
         }
 
+        val wasMOActive = isMOActive
         syncAudiobookNavigator?.apply {
             pause()
             dispose()
 
             syncAudiobookNavigator = null
+        }
+        if (wasMOActive) {
+            epubEvaluateJavascript("window.flutterReadium.removeMOBreakCSS()")
         }
 
         ttsNavigator?.apply {
@@ -1289,6 +1303,9 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
+            if (_preventMOColumnBreaks) {
+                epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
+            }
         }
     }
 
@@ -1366,6 +1383,16 @@ object ReadiumReader :
                 PluginLog.d(TAG, "::epubUpdatePreferences called without a epubNavigator")
                 return
             }
+
+        val newPreventBreaks = preferences.preventMOColumnBreaks ?: true
+        if (isMOActive && newPreventBreaks != _preventMOColumnBreaks) {
+            if (newPreventBreaks) {
+                epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
+            } else {
+                epubEvaluateJavascript("window.flutterReadium.removeMOBreakCSS()")
+            }
+        }
+        _preventMOColumnBreaks = newPreventBreaks
 
         navigator.updatePreferences(preferences)
     }
