@@ -51,9 +51,17 @@ private const val TTS_DECORATION_ID_UTTERANCE = "tts-utterance"
 
 private const val TTS_DECORATION_ID_CURRENT_RANGE = "tts-range"
 
-private const val currentTimebasedLocatorKey = "currentTimebasedLocator"
+private const val CURRENT_TIMEBASED_LOCATOR_KEY = "currentTimebasedLocator"
 
-private const val ttsPreferencesKey = "ttsPreferences"
+private const val TTS_PREFERENCES_KEY = "ttsPreferences"
+
+private typealias AndroidTtsNavigator =
+    TtsNavigator<
+        AndroidTtsSettings,
+        AndroidTtsPreferences,
+        AndroidTtsEngine.Error,
+        AndroidTtsEngine.Voice,
+    >
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -65,8 +73,7 @@ class TTSNavigator(
 ) : TimebasedNavigator<TtsNavigator.Playback>(publication, timebaseListener, initialLocator) {
     val decorationGroup = "tts"
 
-    private var ttsNavigator: TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice>? =
-        null
+    private var ttsNavigator: AndroidTtsNavigator? = null
 
     private var mediaServiceFacade: PluginMediaServiceFacade? = null
 
@@ -457,7 +464,7 @@ class TTSNavigator(
                 val emittingLocator =
                     ReadiumReader.epubEnrichLocatorWithTocHref(locator)
                 onCurrentLocatorChanges(emittingLocator)
-                state[currentTimebasedLocatorKey] = emittingLocator
+                state[CURRENT_TIMEBASED_LOCATOR_KEY] = emittingLocator
                 initialLocator = emittingLocator
             }.launchIn(this)
             .let { jobs.add(it) }
@@ -511,22 +518,22 @@ class TTSNavigator(
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentTimebasedLocatorKey,
-                (state[currentTimebasedLocatorKey] as? Locator)?.toJSON()?.toString(),
+                CURRENT_TIMEBASED_LOCATOR_KEY,
+                (state[CURRENT_TIMEBASED_LOCATOR_KEY] as? Locator)?.toJSON()?.toString(),
             )
 
             putString(
-                ttsPreferencesKey,
+                TTS_PREFERENCES_KEY,
                 FlutterTtsPreferences.toJSON(preferences).toString(),
             )
         }
 
-    private suspend fun ensureNavigator(): TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice> {
+    private suspend fun ensureNavigator(): AndroidTtsNavigator {
         if (ttsNavigator == null) initNavigator()
         return ttsNavigator!!
     }
 
-    private suspend fun ensureNavigatorWithOpenMediaSession(): TtsNavigator<AndroidTtsSettings, AndroidTtsPreferences, AndroidTtsEngine.Error, AndroidTtsEngine.Voice> {
+    private suspend fun ensureNavigatorWithOpenMediaSession(): AndroidTtsNavigator {
         val navigator = ensureNavigator()
         try {
             val mediaSession = mediaServiceFacade!!
@@ -601,11 +608,11 @@ class TTSNavigator(
         ): TTSNavigator {
             val locator =
                 state
-                    .getString(currentTimebasedLocatorKey)
+                    .getString(CURRENT_TIMEBASED_LOCATOR_KEY)
                     ?.let { Locator.fromJSON(JSONObject(it)) }
             val preferences =
                 state
-                    .getString(ttsPreferencesKey)
+                    .getString(TTS_PREFERENCES_KEY)
                     ?.let { FlutterTtsPreferences.fromJSON(it) }
                     ?: FlutterTtsPreferences()
 

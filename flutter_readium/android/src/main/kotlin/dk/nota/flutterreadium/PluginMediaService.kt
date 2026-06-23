@@ -4,9 +4,7 @@ package dk.nota.flutterreadium
  * Modified version of kotlin-toolkit's example app MediaService.
  * See https://github.com/search?q=repo%3Areadium%2Fkotlin-toolkit%20mediaServiceFacade&type=code
  * and https://github.com/readium/kotlin-toolkit/blob/develop/docs/guides/navigator/media-navigator.md
- */
-
-/*
+ *
  * Copyright 2022 Readium Foundation. All rights reserved.
  * Use of this source code is governed by the BSD-style license
  * available in the top-level LICENSE file of the project.
@@ -302,6 +300,7 @@ class PluginMediaService :
         // App and service can be started again from a stale notification using
         // PendingIntent.getForegroundService, so we need to call startForeground and then stop
         // the service.
+
         /* val readerRepository = (application as org.readium.r2.testapp.Application).readerRepository
         if (readerRepository.isEmpty()) {
             val notification =
