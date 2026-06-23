@@ -124,6 +124,13 @@ jobs:
         id: flutter_version
         run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
 
+      # Provisions the pub.dev OIDC token (requires the job's id-token: write).
+      # `dart pub publish` does NOT fetch the token itself — without this step it
+      # falls back to interactive OAuth and hangs in CI. Runs BEFORE flutter-action
+      # so flutter's `dart` ends up first on PATH for the publish, while the token
+      # configured here is still used (mirrors dart-lang's reusable publish.yml).
+      - uses: dart-lang/setup-dart@v1
+
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
@@ -158,40 +165,38 @@ jobs:
           mv "$gen" flutter_readium_platform_interface/analysis_options.yaml
 
       # Authenticated via the job's OIDC token (id-token: write + environment).
-      # --force does full error-checking but tolerates known warnings.
+      # Idempotent: skip if this version is already on pub.dev, so a re-run after
+      # a partial failure (e.g. the plugin step) doesn't error on "already exists".
       - name: Publish platform interface
-        run: dart pub publish --force
-        working-directory: flutter_readium_platform_interface
-
-      # flutter_readium depends on the interface by version, so the new version
-      # must be resolvable on pub.dev before we `pub get` / publish the plugin.
-      - name: Wait for platform interface to propagate on pub.dev
         run: |
           VERSION="${{ steps.tag.outputs.version }}"
-          for i in $(seq 1 30); do
-            if curl -sf "https://pub.dev/api/packages/flutter_readium_platform_interface" \
-                 | grep -q "\"version\":\"$VERSION\""; then
-              echo "platform interface $VERSION is live on pub.dev"
-              exit 0
-            fi
-            echo "waiting for platform interface $VERSION to appear (attempt $i)…"
-            sleep 10
-          done
-          echo "ERROR: platform interface $VERSION did not appear on pub.dev in time"
-          exit 1
+          if curl -sf "https://pub.dev/api/packages/flutter_readium_platform_interface" | grep -q "\"version\":\"$VERSION\""; then
+            echo "platform interface $VERSION already published — skipping"
+          else
+            dart pub publish --force
+          fi
+        working-directory: flutter_readium_platform_interface
 
       # Publish the plugin against the REAL published interface, exactly as
       # consumers resolve it. The committed pubspec_overrides.yaml points the
       # interface at the in-repo path — great for local dev, but if left here the
       # publish would resolve locally and never exercise the published `^X.Y.Z`
-      # constraint. Removing it (and `--force` resolving from pub.dev) is what
-      # makes the propagation wait above necessary.
+      # constraint.
       - name: Remove local dependency override (resolve interface from pub.dev)
         run: rm -f pubspec_overrides.yaml
         working-directory: flutter_readium
 
-      - name: Install dependencies (flutter_readium)
-        run: flutter pub get
+      # The just-published interface version can lag in pub's RESOLVER even after
+      # it appears in the package API, so retry `pub get` until it resolves.
+      - name: Install dependencies (flutter_readium, retry until interface resolves)
+        run: |
+          for i in $(seq 1 20); do
+            if flutter pub get; then exit 0; fi
+            echo "pub get failed — interface ${{ steps.tag.outputs.version }} not resolvable yet; retry $i…"
+            sleep 15
+          done
+          echo "ERROR: could not resolve flutter_readium_platform_interface after retries"
+          exit 1
         working-directory: flutter_readium
 
       - name: Build production web bundle
@@ -205,7 +210,13 @@ jobs:
           mv "$gen" flutter_readium/analysis_options.yaml
 
       - name: Publish flutter_readium
-        run: dart pub publish --force
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          if curl -sf "https://pub.dev/api/packages/flutter_readium" | grep -q "\"version\":\"$VERSION\""; then
+            echo "flutter_readium $VERSION already published — skipping"
+          else
+            dart pub publish --force
+          fi
         working-directory: flutter_readium
 
       - name: Extract changelog section for this release
@@ -222,7 +233,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           draft: true
           tag_name: ${{ steps.tag.outputs.tag_name }}

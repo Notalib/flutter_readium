@@ -22,6 +22,23 @@ npm start
 npm run build
 ```
 
+### Build Flutter helper scripts
+
+```bash
+npm run build:flutter
+```
+
+### Build with dependency size reports
+
+```bash
+npm run build:flutter:stats
+```
+
+This generates bundle analysis reports in `../helpers/`:
+
+- `stats.html` (interactive treemap)
+- `stats.json` (raw data)
+
 ### Run unit tests
 
 ```bash

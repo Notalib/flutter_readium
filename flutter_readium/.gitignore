@@ -31,6 +31,10 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
+build/rollup-stats.html
+build/rollup-stats.json
+assets/helpers/stats.html
+assets/helpers/stats.json
 
 **/node_modules/*
 **/ios/.symlinks
