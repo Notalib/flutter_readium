@@ -203,6 +203,11 @@ class ReadiumReaderWidget(
             }
 
             emitOnPageChanged(pageIndex, totalPages, locator)
+
+            // Re-inject MO column-break CSS for each freshly-loaded spine item.
+            if (ReadiumReader.isMOActive) {
+                ReadiumReader.epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
+            }
         }
     }
 

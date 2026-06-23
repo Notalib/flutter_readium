@@ -56,7 +56,8 @@ export class FlutterEpubNavigator {
     initialPosition: Locator | undefined,
     preferencesJsonString: string,
     setNav: (nav: EpubNavigator | WebPubNavigator) => void,
-    setPositions?: (positions: Locator[]) => void
+    setPositions?: (positions: Locator[]) => void,
+    onFrameLoaded?: (wnd: Window) => void,
   ): Promise<FlutterEpubNavigator> {
     log.info("Initializing EpubNavigator");
     let positions = await publication.positionsFromManifest();
@@ -131,6 +132,7 @@ export class FlutterEpubNavigator {
                 })
                 .filter((id) => id.length > 0);
               injectFlutterReadiumHelperScripts(frameManager.window, tocFragmentIds);
+              onFrameLoaded?.(frameManager.window);
             }
           }
         );
