@@ -29,7 +29,7 @@ jobs:
         working-directory: flutter_readium/example
 
       - name: Install ChromeDriver
-        uses: nanasess/setup-chromedriver@c75c3d53d445b96d41dbf2355797b470953c6c30 # v2.4.0
+        uses: nanasess/setup-chromedriver@e913548694400f275b4070efcd90f47dbbc8914c # v3.0.0
 
       - name: Start ChromeDriver
         run: |
