@@ -163,10 +163,7 @@ class TTSNavigator(
 
     override suspend fun pause() {
         val navigator =
-            ttsNavigator ?: run {
-                PluginLog.e(TAG, "::pause - navigator is null")
-                return
-            }
+            ensureNavigatorWithOpenMediaSession()
 
         withMainContext {
             try {

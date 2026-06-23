@@ -124,6 +124,8 @@ export class FlutterTTSNavigator {
   private _utteranceStyle: object | null;
   /** Decoration style for the active word/boundary span (null = no range decoration). */
   private _rangeStyle: object | null;
+  /** Last utterance locator deferred while sync is disabled. */
+  private _lastDeferredSyncLocator: Locator | null = null;
   /**
    * Callback invoked to apply a decoration group. Receives the group name and a
    * JSON-encoded array of ReaderDecoration objects (same shape as the Dart
@@ -165,7 +167,17 @@ export class FlutterTTSNavigator {
    * session — see ReadiumReader.setEPUBPreferences.
    */
   setSyncEnabled(enabled: boolean): void {
+    const wasEnabled = this._syncEnabled;
     this._syncEnabled = enabled;
+    if (!wasEnabled && enabled && this._lastDeferredSyncLocator) {
+      const deferredLocator = this._lastDeferredSyncLocator;
+      this._lastDeferredSyncLocator = null;
+      try {
+        this._nav.go(deferredLocator, false, () => {});
+      } catch (navError) {
+        log.warn("TTS deferred sync replay failed:", navError);
+      }
+    }
   }
 
   /**
@@ -187,6 +199,7 @@ export class FlutterTTSNavigator {
 
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
+    this._lastDeferredSyncLocator = null;
     log.info("play", fromLocator ? "(from locator)" : "", {
       speaking: speechSynthesis.speaking,
       pending: speechSynthesis.pending,
@@ -244,6 +257,7 @@ export class FlutterTTSNavigator {
   stop(): void {
     if (this._destroyed) return;
     log.info("stop");
+    this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
@@ -286,6 +300,7 @@ export class FlutterTTSNavigator {
   destroy(): void {
     log.info("destroy");
     this._destroyed = true;
+    this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
@@ -455,9 +470,12 @@ export class FlutterTTSNavigator {
         try {
           // Cross-resource transitions use animated=true; same-resource use false.
           this._nav.go(element.locator, false, () => {});
+          this._lastDeferredSyncLocator = null;
         } catch (navError) {
             log.warn("TTS navigator sync failed:", navError);
           }
+      } else {
+        this._lastDeferredSyncLocator = element.locator;
       }
     };
 

@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Link, Locator } from "@readium/shared";
+import { Locator } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -810,9 +810,14 @@ class _ReadiumReader {
     };
 
     if (this._disableSynchronization) {
+      this._lastDeferredSyncLocator = textLocator;
+      this._lastDeferredSyncDurationMs = durationMs;
       applyUtteranceDecoration();
       return;
     }
+
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
 
     nav.go(textLocator, false, (ok) => {
       if (!ok) {

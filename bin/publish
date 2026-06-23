@@ -89,6 +89,14 @@ for pkg in "${PACKAGES[@]}"; do
   "$PROJECT_ROOT/bin/materialize_analysis_options" "$PROJECT_ROOT/$pkg" > "$_gen"
   mv "$_gen" "$MATERIALIZED_OPTS"
 
+  # Stats reports are local build artifacts and must not be published.
+  if [ "$pkg" = "flutter_readium" ]; then
+    rm -f "$PROJECT_ROOT/flutter_readium/assets/helpers/stats.html"
+    rm -f "$PROJECT_ROOT/flutter_readium/assets/helpers/stats.json"
+    rm -f "$PROJECT_ROOT/flutter_readium/build/rollup-stats.html"
+    rm -f "$PROJECT_ROOT/flutter_readium/build/rollup-stats.json"
+  fi
+
   (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub publish "${PUBLISH_ARGS[@]}")
 
   # Restore before the next package so its backup is the committed file.
