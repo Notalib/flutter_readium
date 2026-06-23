@@ -29,6 +29,7 @@
     "rollup-plugin-livereload": "^2.0.5",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-serve": "^3.0.0",
+    "rollup-plugin-visualizer": "^7.0.1",
     "sass": "^1.99.0",
     "tslib": "^2.8.0",
     "typescript": "^6.0.0"
@@ -36,7 +37,9 @@
   "scripts": {
     "build": "cross-env NODE_ENV=production rollup -c rollup.config.ts --configPlugin typescript",
     "build:flutter": "cross-env NODE_ENV=production IS_FLUTTER=1 rollup -c rollup.config.ts --configPlugin typescript",
+    "build:flutter:stats": "cross-env NODE_ENV=production IS_FLUTTER=1 STATS=1 rollup -c rollup.config.ts --configPlugin typescript",
     "build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.ts --configPlugin typescript",
+    "build:dev:stats": "cross-env NODE_ENV=development STATS=1 rollup -c rollup.config.ts --configPlugin typescript",
     "watch": "cross-env NODE_ENV=production IS_FLUTTER=1 rollup -c rollup.config.ts --configPlugin typescript --watch",
     "start": "cross-env NODE_ENV=development rollup -c rollup.config.ts --configPlugin typescript --watch"
   },
