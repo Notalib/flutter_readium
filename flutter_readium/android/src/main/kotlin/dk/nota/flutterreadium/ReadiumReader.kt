@@ -657,10 +657,6 @@ object ReadiumReader :
     }
 
     fun closePublication() {
-        _currentPublication?.close()
-        _currentPublication = null
-        currentPublicationCssSelectorMap = null
-
         ttsNavigator?.dispose()
         ttsNavigator = null
         audiobookNavigator?.dispose()
@@ -672,6 +668,10 @@ object ReadiumReader :
 
         currentReadiumTimebasedState.value = ReadiumTimebasedState()
         currentTextLocator.value = null
+
+        _currentPublication?.close()
+        _currentPublication = null
+        currentPublicationCssSelectorMap = null
 
         state.clear()
     }
