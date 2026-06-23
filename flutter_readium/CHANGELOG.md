@@ -18,6 +18,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   so each paragraph stays whole on one page, keeping audio and visible text in sync.
   Controlled by `EPUBPreferences.preventMOColumnBreaks` (default `true`; set to
   `false` to opt out and restore the original layout).
+- **Android + Web: Media Overlay clips that span a CSS column boundary no longer desync** — same fix
+  as iOS above, now applied to Android and Web via the shared `flutterReadium` helper-script bundle.
 - **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
   crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
   spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
