@@ -31,6 +31,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
+    this.onInteraction,
     super.key,
   });
 
@@ -93,6 +94,10 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// Number of resource positions to preload after the current one. Default `6`.
   /// See [preloadPreviousPositionCount] for tradeoffs and platform support.
   final int preloadNextPositionCount;
+
+  /// Optional function for when user swipes or taps the sides of the reader
+  /// Could for example be used for desync of audio and reader
+  final VoidCallback? onInteraction;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -450,6 +455,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     if (widget.shouldShowControls?.value == true) {
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
+    }
+    if (widget.onInteraction != null) {
+      widget.onInteraction?.call();
     }
   }
 
