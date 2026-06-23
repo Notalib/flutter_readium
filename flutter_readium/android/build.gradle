@@ -29,7 +29,6 @@ rootProject.allprojects {
 }
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget

@@ -15,7 +15,7 @@ topics:
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
-  flutter: '>=3.32.0'
+  flutter: '>=3.44.0'
 
 flutter:
   plugin:
@@ -40,7 +40,7 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   flutter_readium_platform_interface: ^0.1.0
-  wakelock_plus: ^1.4.0
+  wakelock_plus: ^1.6.0
   web: ^1.1.1
   collection: ^1.19.1
 

@@ -78,7 +78,7 @@ This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensav
 
 ## Build / toolchain facts
 
-- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.32.0`.
+- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.44.0`.
 - Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
 - iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
 - Web: webpack 5, TypeScript 5.7+.
