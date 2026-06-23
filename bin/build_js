@@ -12,6 +12,6 @@ if [ ! -d node_modules ]; then
   npm ci
 fi
 
-npm run build_dev
+#npm run build_dev
 ### this is for when production build is ready
-# npm run build
+npm run build

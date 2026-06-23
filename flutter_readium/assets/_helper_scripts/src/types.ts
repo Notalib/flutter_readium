@@ -15,6 +15,21 @@ export interface ComicPanel extends ComicPageSize {
 }
 
 /**
+ * A single keyframe produced by ComicBookCalc, describing the destination
+ * position/size and how long (ms) it takes to reach it from the previous keyframe.
+ *
+ * `holdDuration`, if set, causes the animation to pause at this position for the
+ * given number of milliseconds before transitioning to the next keyframe. In WAAPI
+ * terms this emits a second adjacent keyframe with identical values at a later offset.
+ */
+export interface ComicKeyframe extends ComicPanel {
+  // Duration in ms to transition from the previous keyframe to this keyframe.
+  duration: number;
+  holdDuration?: number;
+  opacity?: number;
+}
+
+/**
  * The size of the viewport that the comic book page is being displayed in.
  */
 export interface ViewSize {
