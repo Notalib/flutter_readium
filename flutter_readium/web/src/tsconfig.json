@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "rootDir": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "target": "es2017",

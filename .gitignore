@@ -92,3 +92,5 @@ flutter_readium/example/devtools_options.yaml
 tmp
 .chromedriver/
 .tokensave
+*.js
+*.css
