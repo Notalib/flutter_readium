@@ -6,12 +6,46 @@ import terser from '@rollup/plugin-terser';
 import postcss from 'rollup-plugin-postcss';
 import serve from 'rollup-plugin-serve';
 import livereload from 'rollup-plugin-livereload';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'rollup';
 import path from 'path';
 
 const isFlutter = process.env.IS_FLUTTER === '1';
 const isDev = process.env.NODE_ENV === 'development';
+const writeStats = process.env.STATS === '1';
 const outDir = isFlutter ? '../helpers' : 'dist';
+const postcssSassOptions = {
+  // rollup-plugin-postcss still uses Sass's legacy render API internally.
+  // Silence that known deprecation until the plugin migrates upstream.
+  use: {
+    sass: {
+      silenceDeprecations: ['legacy-js-api'],
+    },
+  },
+};
+
+function statsPlugins() {
+  if (!writeStats) {
+    return [];
+  }
+
+  return [
+    visualizer({
+      filename: path.resolve(outDir, 'stats.html'),
+      template: 'treemap',
+      gzipSize: true,
+      brotliSize: true,
+      projectRoot: process.cwd(),
+    }),
+    visualizer({
+      filename: path.resolve(outDir, 'stats.json'),
+      template: 'raw-data',
+      gzipSize: true,
+      brotliSize: true,
+      projectRoot: process.cwd(),
+    }),
+  ];
+}
 
 function sharedPlugins(sourcemap) {
   return [
@@ -46,9 +80,10 @@ export default defineConfig(
           },
           plugins: [
             ...sharedPlugins(true),
-            postcss({ extract: false }),
+            postcss({ extract: false, ...postcssSassOptions }),
             serve({ contentBase: [outDir, 'public', 'node_modules/readium-css/css/dist'], port: 4200, open: true }),
             livereload(outDir),
+            ...statsPlugins(),
           ],
         },
         // 2. Flutter helper script (FlutterReadiumTools.ts → dist/flutterReadiumTools.js)
@@ -65,7 +100,8 @@ export default defineConfig(
           },
           plugins: [
             ...sharedPlugins(true),
-            postcss({ extract: path.resolve(outDir, 'flutterReadiumTools.css'), minimize: false }),
+            postcss({ extract: path.resolve(outDir, 'flutterReadiumTools.css'), minimize: false, ...postcssSassOptions }),
+            ...statsPlugins(),
           ],
         },
       ]
@@ -81,8 +117,9 @@ export default defineConfig(
         },
         plugins: [
           ...sharedPlugins(false),
-          postcss({ extract: path.resolve(outDir, 'flutterReadiumTools.css'), minimize: true }),
+          postcss({ extract: path.resolve(outDir, 'flutterReadiumTools.css'), minimize: true, ...postcssSassOptions }),
           terser(),
+          ...statsPlugins(),
         ],
       },
 );

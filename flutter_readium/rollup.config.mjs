@@ -4,8 +4,33 @@ import commonjs from '@rollup/plugin-commonjs';
 import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import postcss from 'rollup-plugin-postcss';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const isDev = process.env.NODE_ENV === 'development';
+const writeStats = process.env.STATS === '1';
+
+function statsPlugins() {
+  if (!writeStats) {
+    return [];
+  }
+
+  return [
+    visualizer({
+      filename: 'build/rollup-stats.html',
+      template: 'treemap',
+      gzipSize: true,
+      brotliSize: true,
+      projectRoot: process.cwd(),
+    }),
+    visualizer({
+      filename: 'build/rollup-stats.json',
+      template: 'raw-data',
+      gzipSize: true,
+      brotliSize: true,
+      projectRoot: process.cwd(),
+    }),
+  ];
+}
 
 export default {
   input: 'web/src/index.ts',
@@ -43,5 +68,6 @@ export default {
             },
           }),
         ]),
+    ...statsPlugins(),
   ],
 };
