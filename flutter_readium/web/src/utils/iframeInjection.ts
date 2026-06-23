@@ -38,6 +38,19 @@ async function _fetchHelperAssets(): Promise<{ js: string; css: string } | null>
 }
 
 /**
+ * Inject the MO column-break style tag directly into an iframe window's DOM.
+ * Idempotent — does nothing if the tag is already present.
+ */
+export function injectMOBreakCSSIntoWindow(wnd: Window): void {
+  const doc = wnd.document;
+  if (doc.getElementById("flutter-readium-mo-breaks")) return;
+  const style = doc.createElement("style");
+  style.id = "flutter-readium-mo-breaks";
+  style.textContent = "p { break-inside: avoid !important }";
+  doc.head.appendChild(style);
+}
+
+/**
  * Injects the Flutter Readium helper bundle (JS + CSS) and a bootstrap script
  * into a freshly-loaded EPUB iframe, mirroring what native iOS / Android do via
  * `WKUserScript` / `TransformingResource`.
