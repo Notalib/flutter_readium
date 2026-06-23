@@ -6,7 +6,7 @@
  */
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Decoration, Layout, Width } from "@readium/navigator-html-injectables";
+import { Decoration, DecorationLayout, DecorationWidth } from "@readium/navigator-html-injectables";
 import { Locator } from "@readium/shared";
 import {
   UNDERLINE_GROUP_SUFFIX,
@@ -85,8 +85,8 @@ export class DecorationController {
         locator: Locator.deserialize(raw.locator)!,
         style: {
           tint: raw.style.tint,
-          layout: Layout.Bounds,
-          width: Width.Wrap,
+          layout: DecorationLayout.Bounds,
+          width: DecorationWidth.Wrap,
         },
       };
       sendDecorate(nav, targetGroup, "add", decoration);

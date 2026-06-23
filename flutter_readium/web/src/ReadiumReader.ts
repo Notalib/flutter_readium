@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Link, Locator } from "@readium/shared";
+import { Locator } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";

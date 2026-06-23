@@ -16,7 +16,7 @@ for arg in "$@"; do
   fi
 done
 
-cd $READIUM_SCRIPTS_FOLDER
+cd "$READIUM_SCRIPTS_FOLDER"
 
 npm i
 
