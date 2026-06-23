@@ -64,6 +64,10 @@ class _ReadiumReader {
    * preference surface. Passed to the TTS engine on enable and on every change.
    */
   private _disableSynchronization = false;
+  /** Last visual sync locator deferred while synchronization was disabled. */
+  private _lastDeferredSyncLocator: Locator | null = null;
+  /** Segment duration paired with `_lastDeferredSyncLocator` when available. */
+  private _lastDeferredSyncDurationMs: number | undefined;
 
   // Deduplication key for Media Overlay decoration: "<href><fragment>".
   // Avoids redundant applyDecorations calls when the poll fires during the same cue.
@@ -322,9 +326,19 @@ class _ReadiumReader {
     // Track the plugin-side `disableSynchronization` flag separately from the
     // navigator's preferences (the web navigator doesn't expose this toggle).
     try {
+      const wasSyncDisabled = this._disableSynchronization;
       const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
       this._disableSynchronization = parsed.disableSynchronization === true;
       this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
+      if (wasSyncDisabled && !this._disableSynchronization && this._lastDeferredSyncLocator) {
+        const deferredLocator = this._lastDeferredSyncLocator;
+        const deferredDurationMs = this._lastDeferredSyncDurationMs;
+        this._lastDeferredSyncLocator = null;
+        this._lastDeferredSyncDurationMs = undefined;
+        // Clear dedup key so replaying the same cue still performs a visual sync.
+        this._lastMediaOverlayLocatorKey = null;
+        this._syncVisualToMediaOverlayLocator(deferredLocator, "MediaOverlay (resume sync)", deferredDurationMs);
+      }
     } catch (_) {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
     }
@@ -757,9 +771,14 @@ class _ReadiumReader {
     };
 
     if (this._disableSynchronization) {
+      this._lastDeferredSyncLocator = textLocator;
+      this._lastDeferredSyncDurationMs = durationMs;
       applyUtteranceDecoration();
       return;
     }
+
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
 
     nav.go(textLocator, false, (ok) => {
       if (!ok) {
