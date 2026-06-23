@@ -2,7 +2,23 @@ import { ViewSize, type ComicKeyframe, type ComicPageSize, type ComicPanel } fro
 
 // At which factor should we pane over a frame?
 const panningFactor = 1.76;
-const focusDuration = 250;
+
+// Phase durations for a panel that needs an intra-panel pan. Each is independent
+// so tuning one doesn't steal time from another; together with the pan they sum
+// to exactly `duration` (the audio-synced narration clip) — see makeKeyFrames.
+
+// extra time to navigate to and settle on a big panel with intra-panel animations.
+const extraFocusDuration = 100;
+// duration of a plain panel-to-panel move (a panel that needs no intra-panel pan)
+const panelToPanelDuration = 350;
+// The first zoom from the full page into a panel (or the first panel after a page
+// switch) covers a much larger scale change than adjacent panel-to-panel moves, so
+// it's given more time to avoid feeling sudden. Only used when isInitialZoom is set.
+const initialFocusDuration = 500;
+// beat on the full panel before panning starts
+const holdBeforePanningDuration = 500;
+// zoom from full-panel view into the first half
+const zoomIntoPanStartDuration = 300;
 const MAX_ZOOM_VALUE = 3;
 const framePadding = 15;
 
@@ -27,6 +43,8 @@ export class ComicBookCalc {
    * @param availableWidth
    * @param availableHeight
    * @param duration
+   * @param isInitialZoom - true when zooming in from the full page view (first
+   *   render on a page or after a page switch); uses a longer focus duration.
    * @returns
    */
   public static makeKeyFrames(
@@ -35,23 +53,11 @@ export class ComicBookCalc {
     availableWidth: number,
     availableHeight: number,
     duration: number,
+    isInitialZoom = false,
   ): ComicKeyframe[] {
-    const focusKeyframe = this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight);
-    const keyframes: ComicKeyframe[] = [
-      {
-        ...focusKeyframe,
-        duration: Math.max(0, Math.min(focusDuration, duration)),
-        opacity: 1, // fixes odd jump at first render of the new image.
-      },
-    ];
-
-    if (!duration || duration <= focusDuration) {
-      return keyframes;
-    }
-
-    const holdBeforePanningDuration = focusDuration;
-    const panningDuration = holdBeforePanningDuration + focusDuration * 2;
-
+    console.debug(`ComicBookCalc.makeKeyFrames() -> currentFrame: ${JSON.stringify(currentFrame)}, canvasSize: ${JSON.stringify(canvasSize)}, availableWidth: ${availableWidth}, availableHeight: ${availableHeight}, duration: ${duration}, isInitialZoom: ${isInitialZoom}`);
+    // Determine whether this panel needs an intra-panel pan first, since that
+    // decides how long the initial focus keyframe should last (see `focus` below).
     let panFramePosition: ComicPanel | undefined;
     let finalFramePosition: ComicPanel | undefined;
     if (this.shouldDoVerticalPanning(currentFrame, availableHeight)) {
@@ -69,12 +75,36 @@ export class ComicBookCalc {
       // This means top/left x coordinate end up being frame's width - height.
       finalFramePosition = makeRightHalfComicFrame(currentFrame);
     }
+    const willPan = !!panFramePosition && !!finalFramePosition;
 
-    if (!panFramePosition || !finalFramePosition) {
+    // Duration of the first keyframe — the move/zoom onto the target panel:
+    //  - initial zoom from the full page view -> initialFocusDuration (largest move)
+    //  - a panel that will pan -> focusDuration (settle on it before panning)
+    //  - a plain panel-to-panel move -> panelToPanelDuration
+    const focus = isInitialZoom
+      ? initialFocusDuration
+      : willPan ? extraFocusDuration : panelToPanelDuration;
+
+    const focusKeyframe = this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight);
+    const keyframes: ComicKeyframe[] = [
+      {
+        ...focusKeyframe,
+        duration: Math.max(0, Math.min(focus, duration)),
+        opacity: 1, // fixes odd jump at first render of the new image.
+      },
+    ];
+
+    // Plain move (no panning) or no time budget: just the single focus keyframe.
+    if (!panFramePosition || !finalFramePosition || !duration) {
       return keyframes;
     }
 
-    if (duration <= panningDuration) {
+    // Everything before the actual pan: focus zoom + hold + zoom into the first
+    // half. The pan itself fills whatever narration time is left, so the whole
+    // sequence lands exactly on `duration` and the pan is never truncated.
+    const prePanDuration = focus + holdBeforePanningDuration + zoomIntoPanStartDuration;
+
+    if (duration <= prePanDuration) {
       console.warn("ComicBookCalc.MakeKeyFrames() -> duration is too short for panning, skipping pan animation. duration: " + duration);
       return keyframes;
     }
@@ -85,12 +115,12 @@ export class ComicBookCalc {
     keyframes.push(
       {
         ...this.calcFramePositionAndSize(panFramePosition, canvasSize, availableWidth, availableHeight),
-        duration: focusDuration / 2,
+        duration: zoomIntoPanStartDuration,
       },
       {
         ...this.calcFramePositionAndSize(finalFramePosition, canvasSize, availableWidth, availableHeight),
-        // duration here is segment duration minus the 2x focusDuration from the first two steps of animation
-        duration: Math.max(0, duration - panningDuration),
+        // The pan fills the remaining narration time, so focus + hold + zoom + pan == duration.
+        duration: duration - prePanDuration,
       },
     );
 

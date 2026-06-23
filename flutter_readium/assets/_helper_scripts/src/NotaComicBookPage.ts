@@ -218,7 +218,22 @@ export class NotaComicBookPage {
 
   #duration!: number;
 
+  // Track whether the current/previous frame is the zoomed-out full page, so we
+  // can detect the initial zoom *into* a panel (full page -> panel). The clone is
+  // created at the full-page position on the "show full page" render, which is a
+  // separate (earlier) render than the first panel zoom, so clone existence alone
+  // can't distinguish them. Initialised true: every page opens on the full page.
+  #currentFrameIsFullPage = true;
+
+  #previousFrameWasFullPage = true;
+
   readonly #canvasSize!: ComicPageSize;
+
+  #isFullPageFrame(frame: ComicPanel): boolean {
+    return frame.top === 0 && frame.left === 0
+      && frame.width === this.#canvasSize.width
+      && frame.height === this.#canvasSize.height;
+  }
 
   /**
    * Full page comic book frame
@@ -258,6 +273,10 @@ export class NotaComicBookPage {
 
     this.#container.classList.add(activeComicPageContainerClass);
 
+    // The initial zoom is the move *from* the full page view *into* a panel — a
+    // much larger scale change than panel-to-panel, so it gets more time. The
+    // "show full page" render itself (full page -> full page) is excluded.
+    const isInitialZoom = this.#previousFrameWasFullPage && !this.#currentFrameIsFullPage;
     if (!img) {
       img = this.#comicImg.cloneNode(false) as HTMLImageElement;
       img.id = cloneId;
@@ -295,7 +314,7 @@ export class NotaComicBookPage {
       this.#animation = undefined;
     }
 
-    const keyframes = ComicBookCalc.makeKeyFrames(currentFrame, canvasSize, this.availableWidth, this.availableHeight, currentDuration);
+    const keyframes = ComicBookCalc.makeKeyFrames(currentFrame, canvasSize, this.availableWidth, this.availableHeight, currentDuration, isInitialZoom);
     if (keyframes.length === 0) {
       console.error('No keyframes generated for comic frame animation, cannot render frame.', { canvasSize, currentFrame, currentDuration });
       return;
@@ -315,7 +334,11 @@ export class NotaComicBookPage {
     const totalDuration = keyframes.reduce((sum, kf) => sum + kf.duration + (kf.holdDuration ?? 0), 0);
     const animation = target.animate(convertToWebAnimationKeyframes(keyframes), {
       duration: totalDuration,
-      easing: 'linear',
+      // Apply the easing curve at the effect level so single-keyframe moves
+      // (cue-to-cue navigation to a normal panel) are eased too.
+      // These rely on an implicit offset-0 start keyframe, whose interval is governed by this
+      // option-level easing rather than the per-keyframe easing in convertToWebAnimationKeyframes().
+      easing: animationEasing,
       fill: 'auto',
     });
 
@@ -343,7 +366,9 @@ export class NotaComicBookPage {
       return;
     }
 
+    this.#previousFrameWasFullPage = this.#currentFrameIsFullPage;
     this.#currentFrame = comicFrame;
+    this.#currentFrameIsFullPage = this.#isFullPageFrame(comicFrame);
     this.#duration = duration;
   }
 
