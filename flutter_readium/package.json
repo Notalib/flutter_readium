@@ -22,10 +22,13 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "build_dev": "cross-env NODE_ENV=development rollup -c rollup.config.mjs",
-    "build_dev:stats": "cross-env NODE_ENV=development STATS=1 rollup -c rollup.config.mjs",
+    "copy_example_js": "cd example && dart run flutter_readium:copy_js_file web dev",
+    "build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.mjs && npm run copy_example_js",
+    "build:dev:stats": "STATS=1 npm run build:dev",
     "build": "cross-env NODE_ENV=production rollup -c rollup.config.mjs",
-    "build:stats": "cross-env NODE_ENV=production STATS=1 rollup -c rollup.config.mjs",
+    "build:stats": "STATS=1 npm run build:dev",
+    "build:helpers": "cd assets/_helper_scripts && npm run build:flutter",
+    "build:helpers:stats": "cd assets/_helper_scripts && npm run build:flutter:stats",
     "typecheck": "tsc --noEmit -p web/src/tsconfig.test.json",
     "test": "jest --config web/src/jest.config.js"
   }
