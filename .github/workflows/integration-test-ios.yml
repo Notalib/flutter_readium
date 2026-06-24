@@ -110,18 +110,19 @@ jobs:
         run: flutter test integration_test --reporter expanded --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
 
-      # On failure (typically a WKWebView that never emitted an initial
-      # textLocator), capture the full simulator framebuffer. Unlike Flutter's
-      # in-test screenshot, this reaches native platform views — so it shows
-      # whether the webview rendered blank, errored, or was merely slow.
-      - name: Capture simulator screenshot on failure
+      - name: Collect iOS crash & simulator diagnostics on failure
         if: failure()
-        run: xcrun simctl io "$IOS_SIMULATOR_UDID" screenshot /tmp/ios-integration-failure.png || true
+        run: |
+          mkdir -p /tmp/ios-diags
+          # Runner.app / WebContent (WKWebView) crash reports (.ips)
+          cp -R ~/Library/Logs/DiagnosticReports/. /tmp/ios-diags/ 2>/dev/null || true
+          xcrun simctl spawn "$IOS_SIMULATOR_UDID" log collect --output /tmp/ios-diags/sim.logarchive 2>/dev/null || true
+          ls -lR /tmp/ios-diags || true
 
-      - name: Upload failure screenshot
+      - name: Upload iOS diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: ios-integration-failure-screenshot
-          path: /tmp/ios-integration-failure.png
+          name: ios-integration-diagnostics
+          path: /tmp/ios-diags
           if-no-files-found: ignore
