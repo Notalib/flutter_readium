@@ -15,6 +15,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **`EPUBPreferences.columnCount` (`one`/`two`) not applied** — the serialized value diverged
+  from Readium's canonical `ColumnCount` (`auto`/`1`/`2`), so Android threw a
+  `PlatformException` and iOS silently ignored the setting when starting playback. The shared
+  Dart serialization now matches the native toolkits; column count is applied on all platforms.
 - **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
   media-overlay books and comics, caused by an unchecked reading-order index in
   locator resolution. Out-of-range positions now degrade gracefully instead of trapping.
