@@ -118,6 +118,13 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium/example
 
+      # gradlew + gradle-wrapper.jar are gitignored (Flutter default) and absent on a
+      # fresh checkout. flutter pub get does NOT inject them — only Flutter's Android
+      # build configuration does. --config-only runs that step without a full build.
+      - name: Generate Gradle wrapper
+        run: flutter build apk --config-only
+        working-directory: flutter_readium/example
+
       - name: Run Android unit tests
         run: ./gradlew :flutter_readium:testDebugUnitTest
         working-directory: flutter_readium/example/android
