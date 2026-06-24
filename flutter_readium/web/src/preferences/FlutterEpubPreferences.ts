@@ -146,13 +146,8 @@ export function epubPreferencesFromJson(
     out.invertFilter = invertFilter;
   }
 
-  /**
-   * Font size — Dart treats this as a percentage `int` (e.g. `120` = 120%). The
-   * web navigator expects a ratio in `[0.7, 4]`, so divide by 100 to match the
-   * iOS plugin (which performs the same conversion before handing off to
-   * swift-toolkit). Out-of-range values are clamped downstream.
-   */
-  if (typeof prefs.fontSize === "number") out.fontSize = prefs.fontSize / 100;
+  // Font size — Dart sends a ratio (1.0 = default, 1.5 = 150%); forward unchanged.
+  if (typeof prefs.fontSize === "number") out.fontSize = prefs.fontSize;
 
   /**
    * Text alignment. Dart's `TextAlign` (left/right/center/justify/start/end) ->

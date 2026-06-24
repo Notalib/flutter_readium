@@ -463,7 +463,7 @@ extension EPUBPreferences {
         }
       case "fontSize":
         if let fontSizeValue = value as? Double {
-          fontSize = Double(fontSizeValue / 100.0)
+          fontSize = fontSizeValue
         }
       case "fontWeight":
         if let fontWeightValue = value as? Double {

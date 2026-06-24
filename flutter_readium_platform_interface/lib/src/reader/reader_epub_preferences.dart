@@ -47,8 +47,9 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Font family for text content.
   final String? fontFamily;
 
-  /// Font size for text content.
-  final int? fontSize;
+  /// Font-size scale relative to the publisher default (`1.0` = 100%, `1.5` = 150%).
+  /// Forwarded to Readium unchanged on every platform.
+  final double? fontSize;
 
   /// Font weight for text content.
   final double? fontWeight;
@@ -137,7 +138,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     );
     final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
-    final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
+    final fontSize = jsonObject.optNullableDouble('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
     final hyphens = jsonObject.optNullableBoolean('hyphens', remove: true);
     final imageFilterStr = jsonObject.optNullableString(
@@ -278,7 +279,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     Color? backgroundColor,
     EpubColumnCount? columnCount,
     String? fontFamily,
-    int? fontSize,
+    double? fontSize,
     double? fontWeight,
     bool? hyphens,
     EpubImageFilter? imageFilter,
