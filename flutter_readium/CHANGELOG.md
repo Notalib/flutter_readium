@@ -7,16 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **iOS + Android: CBZ comic support** — CBZ archives (Comic Book ZIP) now open and render on iOS.
-  Pages are displayed one at a time via the EPUB navigator's fixed-layout path; swipe/tap
-  navigates between pages and `goToLocator` restores saved positions. The existing
-  `blackAndWhiteComicMode` preference in `ReaderEpubPreferences` applies the grayscale
-  filter to CBZ pages as well. Web support is pending.
-- **iOS + Android: DiViNa narrated-comic support** — DiViNa publications (`profiles/divina`) that carry a
-  Guided Navigation document now open as comics with audio narration. Page images render via the
-  fixed-layout path, and `audioEnable` / `play` drive page-synced audio from the
-  guided-navigation document. Panel-level zoom is not yet implemented (the segments' `imgref` regions
-  are carried in the asset for that follow-up). Web support is pending.
+- **CBZ comic support (iOS, Android, Web)** — CBZ archives (Comic Book ZIP) now open and render.
+  Pages are displayed one at a time; swipe/tap navigates between pages and `goToLocator` restores
+  saved positions. On iOS/Android the existing `blackAndWhiteComicMode` preference in
+  `ReaderEpubPreferences` applies the grayscale filter to CBZ pages as well.
+- **DiViNa narrated-comic support (iOS, Android, Web)** — DiViNa publications (`profiles/divina`)
+  that carry a Guided Navigation document open as comics with page-synced audio narration. Page
+  images render (via the fixed-layout path on iOS/Android; via a plugin-side image navigator on Web,
+  since ts-toolkit ships no DiViNa navigator), and `audioEnable` / `play` drive page-synced audio
+  from the guided-navigation document. Panel-level zoom is not yet implemented on any platform (the
+  segments' `xywh` / `imgref` regions are carried in the asset for that follow-up).
+- **Web comic navigation** — DiViNa/CBZ publications page one image at a time, emit page locators
+  (`onPageChanged`), and support `goToLocator` / `goToProgression`.
 
 ### Fixed
 

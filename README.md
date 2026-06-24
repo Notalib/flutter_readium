@@ -33,14 +33,22 @@ The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`
 | WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
 | Audiobook |      —       |  —  |   ✓   |           -            |
 | PDF       |      ✓       |  —  |   —   |           -            |
+| CBZ       |      ✓       |  —  |   —   |           -            |
+| DiViNa    |      ✓       |  —  |  ✓²   | ✓² (Guided Navigation) |
 
-CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
+² DiViNa audio narration is driven by a Guided Navigation document and synchronises at the page
+level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
+plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
+any platform.
+
+LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
 ## Platform support
 
 | Feature                  | Android | iOS | Web        |
 | ------------------------ | :-----: | :-: | :--------: |
 | EPUB visual reading      |    ✓    |  ✓  |     ✓      |
+| Comics (CBZ / DiViNa)    |    ✓    |  ✓  |     ✓      |
 | PDF reading              |    ✓    |  ✓  |     —      |
 | Audiobook playback       |    ✓    |  ✓  |     ✓      |
 | Media Overlays           |    ✓    |  ✓  |     —      |
