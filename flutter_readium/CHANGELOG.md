@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed (breaking)
+
+- **`EPUBPreferences.fontSize` is now a `double` ratio** (`1.0` = default, `1.5` = 150%)
+  instead of a percentage `int`. Divide existing values by 100 to migrate
+  (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
+  visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
+  the API with Readium's own `EpubPreferences.fontSize`.
+
 ### Fixed
 
 - **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
