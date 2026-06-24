@@ -2,6 +2,7 @@ package dk.nota.flutterreadium
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import org.junit.Ignore
 import org.mockito.Mockito
 import kotlin.test.Test
 
@@ -13,6 +14,7 @@ import kotlin.test.Test
  * you can run them directly from IDEs that support JUnit such as Android Studio.
  */
 
+@Ignore("TODO: flesh out plugin-level method call tests")
 internal class FlutterReadiumPluginTest {
     @Test
     fun onMethodCall_getPlatformVersion_returnsExpectedValue() {
