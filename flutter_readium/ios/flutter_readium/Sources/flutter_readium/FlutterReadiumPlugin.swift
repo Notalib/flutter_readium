@@ -209,9 +209,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
-            Task {
-              await self.timebasedNavigator?.initNavigator()
-            }
+            await self.timebasedNavigator?.initNavigator()
             result(nil)
           }
         } catch {
