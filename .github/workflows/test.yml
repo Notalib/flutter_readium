@@ -110,7 +110,11 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Install dependencies
+      - name: Install dependencies (flutter_readium)
+        run: flutter pub get
+        working-directory: flutter_readium
+
+      - name: Install dependencies (example)
         run: flutter pub get
         working-directory: flutter_readium/example
 
