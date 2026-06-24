@@ -42,9 +42,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     );
     ControlPanelTimebase? controlPanelTimebase;
     if (controlPanelTimebaseStr != null) {
-      controlPanelTimebase = ControlPanelTimebase.fromOptString(
-        controlPanelTimebaseStr,
-      );
+      controlPanelTimebase = ControlPanelTimebase.fromOptString(controlPanelTimebaseStr);
       if (controlPanelTimebase == null) {
         ReadiumLog.w(
           'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',

@@ -100,18 +100,14 @@ class PlayerControls extends StatelessWidget {
                 ),
               ],
               if (isAudioBook)
-                TextButton.icon(
+                IconButton(
                   key: const ValueKey('toggle_control_panel_timebase'),
                   icon: Icon(
-                    state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook
-                        ? Icons.menu_book
-                        : Icons.list_alt,
+                    state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook ? Icons.watch : Icons.pageview,
                   ),
-                  label: Text(
-                    state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook
-                        ? 'Timebase: Whole book'
-                        : 'Timebase: chapter',
-                  ),
+                  tooltip: state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook
+                      ? 'Timebase: Whole book'
+                      : 'Timebase: Chapter',
                   onPressed: () => context.read<PlayerControlsBloc>().add(
                     ToggleAudioControlPanelTimebase(),
                   ),
