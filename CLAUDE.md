@@ -25,11 +25,17 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
 - **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
 - **After editing web TS (`flutter_readium/web/`):** `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
-- Code research: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
+- **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
+- **When finishing** a fix or feature branch:
+  - Make sure all relevant changes are committed.
+  - Rename worktree-branch to a descriptive CC-like name (`fix/`, `feat/`, `chore/`, etc.)
+  - Push to developer's personal fork: find it by running `gh api user --jq '.login'` (username == fork-remote)
+  - Open a PR from `<fork-remote>:<branch>` → `Notalib/flutter_readium:main`
+  - Confirm with the user before pushing.
 
 ## Conventions
 
-- **Commits / PR titles**: Conventional Commits with scopes (see `git log`).
+- **Commits / PR titles**: Conventional Commits with scopes (see `git log`). Include fixed issues in commit desc, e.g. "Fixes #123"
 - **Branching**: GitHub flow off `main`; `main` is the only relevant branch.
 - **Changelog**: update `CHANGELOG.md` under Unreleased for consumer-visible changes only — exclude intra-PR fixes and example-app changes ("would someone upgrading notice this?").
 - **Verification honesty**: don't claim verification you didn't do. If a change can't be exercised in the example app (native-only, behind a flag, platform edge case), say so explicitly.
