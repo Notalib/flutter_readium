@@ -3,21 +3,13 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "noImplicitAny": true,
-    "inlineSourceMap": true,
-    "module": "commonjs",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "target": "es2017",
     "allowJs": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "src/*"
-      ]
-    },
-    "ignoreDeprecations": "6.0"
+    "rootDir": "src"
   },
   "include": [
-    "src/**/*",
-    "custom.d.ts"
+    "src/**/*"
   ]
 }

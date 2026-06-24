@@ -454,7 +454,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     /// Fix href if not in readingOrder, by using position.
     let readingOrderContainsHref = publication.readingOrder.contains(where: { $0.href == locator.href.string.removingPrefix("/") })
     if readingOrderContainsHref == false,
-       let position = locator.locations.position {
+       let position = locator.locations.position,
+       publication.readingOrder.indices.contains(position - 1) {
       resolvedLocator = locator.copy(href: publication.readingOrder[position - 1].url())
     }
     /// Set time offset fragment from progression

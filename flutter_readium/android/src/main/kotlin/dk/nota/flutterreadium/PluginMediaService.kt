@@ -171,7 +171,6 @@ class PluginMediaService :
             session.value?.let { session ->
                 session.mediaSession.release()
                 session.coroutineScope.cancel()
-                session.navigator.close()
                 sessionMutable.value = null
             }
         }

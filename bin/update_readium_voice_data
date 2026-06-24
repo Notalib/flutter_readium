@@ -32,4 +32,6 @@ for file in "$TMP_DIR/speech-main/json/"*.json; do
   jq -cS --arg lang "$lang_code" '{($lang): .}' "$file"
 done | jq -s 'add' > "$TARGET_DIR/voices.json"
 
-rm -rfv "$TMP_DIR"
+echo
+echo "Voice data updated successfully in: $TARGET_DIR/voices.json"
+rm -rf "$TMP_DIR"

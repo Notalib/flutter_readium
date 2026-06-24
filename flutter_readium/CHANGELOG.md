@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
+  media-overlay books and comics, caused by an unchecked reading-order index in
+  locator resolution. Out-of-range positions now degrade gracefully instead of trapping.
+- **iOS + Web: synchronization catch-up after re-enable** — when
+  `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
+  the visual EPUB navigator now jumps to the last sync locator that was reached
+  while synchronization was disabled, matching Android behavior.
+
 ## [0.1.0] - 2026-06-20
 
 Brings the Web platform up to feature parity with iOS / Android (audio,

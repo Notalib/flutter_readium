@@ -68,6 +68,16 @@ final loc = pub.locatorFromLink(tocLink);
 | `domRange` | `String?` | DOM range (precise sub-element position) |
 | `fragments` | `List<String>` | Additional URI fragments |
 
+## PDF locators
+
+PDFs are represented as a single-resource publication. The canonical position lives in `Locator.locations.position` as a **1-based page number** — this matches the upstream `PDFPositionsService` (swift-toolkit) and `Locator.locations.position` from `PdfNavigatorFragment.currentLocator` (kotlin-toolkit).
+
+- The PDF resource `href` is always the single reading-order entry.
+- On iOS the locator's `fragments` carry `"page=N"` (where the upstream parser produces it).
+- Consumers should read `locations.position` for page navigation and round-trip via `goToLocator`.
+
+**Don't duplicate upstream models.** If upstream Readium already models something (locator position, decoration style, …), use that representation rather than inventing a plugin-side parallel — alternatives create two sources of truth that diverge over time.
+
 ## Our additions to otherLocations
 
 We try to enrich the Locator's `otherLocations` with the following data,

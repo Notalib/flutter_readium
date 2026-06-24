@@ -60,3 +60,20 @@ Common causes:
 ## Getting debug logs
 
 See the [Logging section of the Error Handling guide](guides/error-handling.md#logging) for the full setup — `setLogLevel`, the Dart-side fimber tree, and native log filtering on Android / iOS.
+
+## Decorations render invisibly (fills must be `!important`)
+
+When a custom theme/background is active (the reader effectively always sets one), Readium CSS injects:
+
+```css
+:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }
+```
+
+This forces **every** element's background to transparent. Any decoration whose visible effect is its fill (e.g. `highlight`, `ruler`) must declare `background-color: … !important`, or it renders invisibly — this is why the upstream default highlight template uses `!important`.
+
+How each platform satisfies this:
+
+- **iOS / Android** — emit the `!important` directly in the decoration template HTML.
+- **Web** — the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`.
+
+Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
