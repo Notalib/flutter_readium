@@ -374,8 +374,12 @@ enum EpubColumnCount {
     switch (value) {
       case 'auto':
         return EpubColumnCount.auto;
+      // '1'/'2' are the canonical Readium serial values; 'one'/'two' are
+      // accepted for backward tolerance with any legacy persisted values.
+      case '1':
       case 'one':
         return EpubColumnCount.one;
+      case '2':
       case 'two':
         return EpubColumnCount.two;
       default:
@@ -383,14 +387,16 @@ enum EpubColumnCount {
     }
   }
 
+  /// Serializes to Readium's canonical `ColumnCount` values (`auto`/`1`/`2`),
+  /// matching the native swift- and kotlin-toolkit enums.
   String toJson() {
     switch (this) {
       case EpubColumnCount.auto:
         return 'auto';
       case EpubColumnCount.one:
-        return 'one';
+        return '1';
       case EpubColumnCount.two:
-        return 'two';
+        return '2';
     }
   }
 }

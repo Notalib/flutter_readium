@@ -227,11 +227,15 @@ function mapFontSize(value: unknown): number | null {
   return null;
 }
 
-/** Maps Dart's `EpubColumnCount` enum (auto/one/two) to the web's `number | null`. */
+/** Maps Dart's `EpubColumnCount` enum (canonical `auto`/`1`/`2`) to the web's `number | null`. */
 function mapColumnCount(value: unknown): number | null {
   switch (value) {
+    // "1"/"2" are the canonical Readium values; "one"/"two" are kept for
+    // backward tolerance with any legacy senders.
+    case "1":
     case "one":
       return 1;
+    case "2":
     case "two":
       return 2;
     case "auto":
