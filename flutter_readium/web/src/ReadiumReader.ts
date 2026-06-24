@@ -326,8 +326,9 @@ class _ReadiumReader {
           );
         } else if (this._publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
+          this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
+          if (this._hasGuidedNavigation) log.info("DiViNa: Guided Navigation detected");
           // ts-toolkit has no DiViNa/image navigator; render images ourselves.
-          // Render-only — no guided-navigation audio on web (iOS/Android only).
           await FlutterDivinaNavigator.create(
             container,
             this._publication,
@@ -543,10 +544,10 @@ class _ReadiumReader {
     log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
     this._audioNav?.stop();
-    // Clear Media Overlay / Guided Navigation utterance decoration when narration stops.
-    if ((this._hasSyncNarration || this._hasGuidedNavigation) && this._nav) {
+    // Clear Media Overlay / Guided Navigation state when narration stops.
+    if (this._hasSyncNarration || this._hasGuidedNavigation) {
       this._lastMediaOverlayLocatorKey = null;
-      this.applyDecorations("media_overlay_utterance", "[]");
+      if (this._nav) this.applyDecorations("media_overlay_utterance", "[]");
     }
   }
 
@@ -701,6 +702,26 @@ class _ReadiumReader {
     wnd.requestAnimationFrame(() =>
       this._callGotoComicFrame(wnd, fragmentId, durationMs, retriesLeft - 1)
     );
+  }
+
+  /**
+   * Synchronises the DiViNa image navigator to the active Guided Navigation cue.
+   * Navigates to the page identified by `textLocator.href`; panel-level
+   * fragments (xywh) are present in the locator but not acted on (no zoom yet).
+   */
+  private _syncDivinaToMediaOverlayLocator(textLocator: Locator): void {
+    const nav = this._comicNav;
+    if (!nav) return;
+    // Deduplicate: DiViNa cues on the same page share the same href.
+    const key = textLocator.href;
+    if (key === this._lastMediaOverlayLocatorKey) return;
+    this._lastMediaOverlayLocatorKey = key;
+    log.debug(`GuidedNavigation(DiViNa): sync to page "${textLocator.href}"`);
+    nav.go(textLocator, false, (ok) => {
+      if (!ok) {
+        log.warn(`GuidedNavigation(DiViNa): failed to navigate to "${textLocator.href}"`);
+      }
+    });
   }
 
   /**
@@ -864,13 +885,25 @@ class _ReadiumReader {
     if (this._hasGuidedNavigation && this._publication) {
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
-      await initializeGuidedNavigationNavigator(
-        this._publication,
-        fromLocator,
-        prefsJson,
-        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
-      );
+      if (this._comicNav) {
+        // DiViNa: page-level sync only — no iframe, no decoration.
+        await initializeGuidedNavigationNavigator(
+          this._publication,
+          fromLocator,
+          prefsJson,
+          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+          (textLocator, _durationMs) => this._syncDivinaToMediaOverlayLocator(textLocator)
+        );
+      } else {
+        // EPUB: full sync with visual decoration.
+        await initializeGuidedNavigationNavigator(
+          this._publication,
+          fromLocator,
+          prefsJson,
+          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+          (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
+        );
+      }
       (this._audioNav as AudioNavigator | undefined)?.play();
       return;
     }
