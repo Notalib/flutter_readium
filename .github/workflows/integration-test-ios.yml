@@ -101,7 +101,13 @@ jobs:
           echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
 
       - name: Run integration tests
-        run: flutter test integration_test --device-id="$IOS_SIMULATOR_UDID"
+        # Force the `expanded` reporter. In CI, package:test auto-selects its
+        # GitHub reporter (GITHUB_ACTIONS=true), which under the slow cold-build
+        # runner races the iOS result delivery: it mis-tallies passes ("2 tests
+        # passed" when 22 did) and the run exits 1 despite zero test failures.
+        # The same suite passes with `expanded` on an identical local iOS 26.5 /
+        # Flutter 3.41.9 setup. See flutter/flutter#153588.
+        run: flutter test integration_test --reporter expanded --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
 
       # On failure (typically a WKWebView that never emitted an initial
