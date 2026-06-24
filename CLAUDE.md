@@ -26,12 +26,11 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
 - **After editing web TS (`flutter_readium/web/`):** `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
 - **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
-- **When finishing** a fix or feature branch:
-  - Make sure all relevant changes are committed.
-  - Rename worktree-branch to a descriptive CC-like name (`fix/`, `feat/`, `chore/`, etc.)
-  - Push to developer's personal fork: find it by running `gh api user --jq '.login'` (username == fork-remote)
-  - Open a PR from `<fork-remote>:<branch>` → `Notalib/flutter_readium:main`
-  - Confirm with the user before pushing.
+- **Branching workflow** — never commit to `main`, and never let a branch track `Notalib/flutter_readium`:
+  - Worktree branches created by agents often track upstream `main` — rename and re-track before committing: `git branch -m fix/short-slug && git push -u <fork> HEAD`.
+  - Branch names must use a CC prefix: `fix/`, `feat/`, `chore/`, `docs/`, `refactor/`, `test/`.
+  - Find the fork remote: `gh api user --jq '.login'` → username matches fork remote name.
+  - When done: confirm all changes committed, then open a PR `<fork>:<branch>` → `Notalib/flutter_readium:main`. Confirm with user before pushing.
 
 ## Conventions
 
