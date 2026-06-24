@@ -1,0 +1,105 @@
+{
+ "@context": "https://readium.org/webpub-manifest/context.jsonld",
+ "metadata": {
+  "conformsTo": "https://readium.org/webpub-manifest/profiles/divina",
+  "identifier": "dk-nota-50272",
+  "title": "Når tegneserien bliver digital",
+  "language": "da",
+  "layout": "fixed",
+  "@type": "http://schema.org/Book",
+  "modified": "2026-03-19T13:25:25Z",
+  "duration": 295
+ },
+ "links": [
+  {
+   "href": "manifest.json",
+   "rel": "self",
+   "type": "application/divina+json"
+  },
+  {
+   "href": "guided-navigation.json",
+   "type": "application/guided-navigation+json"
+  }
+ ],
+ "readingOrder": [
+  {
+   "href": "cover.jpg",
+   "type": "image/jpeg",
+   "title": "Når tegneserien bliver digital",
+   "width": 140,
+   "height": 200,
+   "duration": 3.808
+  },
+  {
+   "href": "image0001.jpg",
+   "type": "image/jpeg",
+   "title": "Side 1",
+   "width": 1240,
+   "height": 1747,
+   "duration": 61.757
+  },
+  {
+   "href": "image0002.jpg",
+   "type": "image/jpeg",
+   "title": "Side 2",
+   "width": 1240,
+   "height": 1747,
+   "duration": 51.814
+  },
+  {
+   "href": "image0003.jpg",
+   "type": "image/jpeg",
+   "title": "Side 3",
+   "width": 1240,
+   "height": 1732,
+   "duration": 177.796
+  }
+ ],
+ "resources": [
+  {
+   "href": "guided-navigation.json",
+   "type": "application/guided-navigation+json"
+  },
+  {
+   "href": "cover.jpg",
+   "rel": [
+    "cover"
+   ],
+   "type": "image/jpeg"
+  },
+  {
+   "href": "01_N_r_tegneserien_bliver_digital.mp3",
+   "type": "audio/mpeg"
+  },
+  {
+   "href": "02_Side_1.mp3",
+   "type": "audio/mpeg"
+  },
+  {
+   "href": "03_Side_2.mp3",
+   "type": "audio/mpeg"
+  },
+  {
+   "href": "04_Side_3.mp3",
+   "type": "audio/mpeg"
+  }
+ ],
+ "toc": [
+  {
+   "href": "cover.jpg",
+   "title": "Når tegneserien bliver digital"
+  },
+  {
+   "href": "image0001.jpg",
+   "title": "Side 1"
+  },
+  {
+   "href": "image0002.jpg",
+   "title": "Side 2"
+  },
+  {
+   "href": "image0003.jpg",
+   "title": "Side 3"
+  }
+ ]
+}

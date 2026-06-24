@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Locator } from "@readium/shared";
+import { Link, Locator, Publication } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -17,6 +17,7 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 // Navigators
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
+import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
@@ -31,6 +32,24 @@ import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 
 const log = createLogger("Reader");
+
+/**
+ * The subset of the upstream `VisualNavigator` surface that ReadiumReader drives.
+ * Structurally satisfied by the EPUB, WebPub and DiViNa navigators alike, so the
+ * reader can treat whichever is active uniformly for navigation. EPUB-only
+ * concerns (preferences, decorations) stay on the concrete `_nav` field instead.
+ */
+interface VisualNavigatorLike {
+  readonly publication: Publication;
+  readonly currentLocator: Locator;
+  goRight(animated: boolean, cb: (ok: boolean) => void): void;
+  goLeft(animated: boolean, cb: (ok: boolean) => void): void;
+  goForward(animated: boolean, cb: (ok: boolean) => void): void;
+  goBackward(animated: boolean, cb: (ok: boolean) => void): void;
+  go(locator: Locator, animated: boolean, cb: (ok: boolean) => void): void;
+  goLink(link: Link, animated: boolean, cb: (ok: boolean) => void): void;
+  destroy(): Promise<void>;
+}
 
 class _ReadiumReader {
   public constructor() {
@@ -49,6 +68,12 @@ class _ReadiumReader {
 
   private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
+  /**
+   * Render-only navigator for the DiViNa / CBZ profile (image comics). Kept
+   * separate from `_nav` because it is not an EPUB/WebPub navigator and does not
+   * support preferences or decorations. Navigation routes through `_visualNav`.
+   */
+  private _comicNav: FlutterDivinaNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
   private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
@@ -82,8 +107,13 @@ class _ReadiumReader {
   private readonly _pubManager = new PublicationManager();
   private readonly _decorations = new DecorationController();
 
+  /** The active visual navigator (EPUB, WebPub or DiViNa), for navigation calls. */
+  private get _visualNav(): VisualNavigatorLike | undefined {
+    return this._nav ?? this._comicNav;
+  }
+
   public get isNavigatorReady(): boolean {
-    return !!this._nav;
+    return !!this._visualNav;
   }
 
   public async getPublication(publicationURL: string) {
@@ -103,12 +133,12 @@ class _ReadiumReader {
 
   public goRight() {
     log.debug("goRight");
-    this._nav?.goRight(true, () => {});
+    this._visualNav?.goRight(true, () => {});
   }
 
   public goLeft() {
     log.debug("goLeft");
-    this._nav?.goLeft(true, () => {});
+    this._visualNav?.goLeft(true, () => {});
   }
 
   /**
@@ -118,12 +148,12 @@ class _ReadiumReader {
    */
   public goForward() {
     log.debug("goForward");
-    this._nav?.goForward(true, () => {});
+    this._visualNav?.goForward(true, () => {});
   }
 
   public goBackward() {
     log.debug("goBackward");
-    this._nav?.goBackward(true, () => {});
+    this._visualNav?.goBackward(true, () => {});
   }
 
   public async goTo(locatorJson: string): Promise<void> {
@@ -170,14 +200,14 @@ class _ReadiumReader {
         log.warn("goTo: MediaOverlay — no SyncNarrationItem found for", locator.href, "; falling through to visual navigation");
       }
       // Always update the visual navigator so the page scrolls to the bookmarked paragraph.
-      const visualPub = this._nav?.publication;
+      const visualPub = this._visualNav?.publication;
       const visualLinks = [
         ...(visualPub?.readingOrder?.items ?? []),
         ...(visualPub?.resources?.items ?? []),
       ];
       const visualLink = findLinkByHref(visualLinks, locator.href);
       if (visualLink) {
-        this._nav?.goLink(visualLink, true, (ok) => {
+        this._visualNav?.goLink(visualLink, true, (ok) => {
           if (!ok) log.warn("goTo: MediaOverlay — visual navigation failed for", locator.href);
         });
       }
@@ -208,8 +238,8 @@ class _ReadiumReader {
       return;
     }
 
-    // EPUB / WebPub with no audio active: visual-only navigation.
-    const pub = this._nav?.publication;
+    // EPUB / WebPub / DiViNa with no audio active: visual-only navigation.
+    const pub = this._visualNav?.publication;
     const allLinks = [
       ...(pub?.readingOrder?.items ?? []),
       ...(pub?.resources?.items ?? []),
@@ -219,7 +249,7 @@ class _ReadiumReader {
       log.error("goTo: link not found:", locator.href);
       throw new Error("Link not found " + locator.href);
     }
-    this._nav?.goLink(link, true, (ok) => {
+    this._visualNav?.goLink(link, true, (ok) => {
       if (!ok) {
         log.error("goTo: failed to navigate to link:", locator.href);
         throw new Error("Failed to navigate to link " + locator.href);
@@ -290,6 +320,22 @@ class _ReadiumReader {
             preferencesJsonString,
             (nav) => {
               this._nav = nav;
+              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
+            },
+            (positions) => { this._positions = positions; }
+          );
+        } else if (this._publication.conformsToDivina) {
+          log.info("Publication conforms to DiViNa profile (comic)");
+          // ts-toolkit has no DiViNa/image navigator; render images ourselves.
+          // Render-only — no guided-navigation audio on web (iOS/Android only).
+          await FlutterDivinaNavigator.create(
+            container,
+            this._publication,
+            publicationURL,
+            initialPosition,
+            preferencesJsonString,
+            (nav) => {
+              this._comicNav = nav;
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
             (positions) => { this._positions = positions; }
@@ -417,8 +463,9 @@ class _ReadiumReader {
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
     // even while the async destroy() below is still settling.
-    const nav = this._nav;
+    const nav: VisualNavigatorLike | undefined = this._nav ?? this._comicNav;
     this._nav = undefined;
+    this._comicNav = undefined;
 
     const container = document.getElementById("container");
     if (container) {
@@ -543,13 +590,13 @@ class _ReadiumReader {
       return true;
     }
 
-    if (this._nav && this._positions.length > 0) {
+    if (this._visualNav && this._positions.length > 0) {
       const index = Math.min(
         Math.floor(progression * this._positions.length),
         this._positions.length - 1
       );
       const locator = this._positions[index];
-      this._nav.go(locator, true, (ok) => {
+      this._visualNav.go(locator, true, (ok) => {
         if (!ok) {
           log.warn("goToProgression: navigation failed for position", index);
         }
@@ -799,7 +846,7 @@ class _ReadiumReader {
     log.info("audioEnable");
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
-      : this._nav?.currentLocator;
+      : this._visualNav?.currentLocator;
 
     if (this._audioNav) {
       if (resolvedFromLocator) {
