@@ -73,6 +73,36 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                       )
                     : ReaderWidget(shouldShowControls: _shouldShowControls),
               ),
+              if (!isAudioBook)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: SafeArea(
+                    minimum: const EdgeInsets.only(right: 8, bottom: 8),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _shouldShowControls,
+                      builder: (context, controlsVisible, _) {
+                        final extraBottom = controlsVisible ? 108.0 : 0.0;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: extraBottom),
+                          child: BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
+                            buildWhen: (prev, next) => prev.narrationSyncEnabled != next.narrationSyncEnabled,
+                            builder: (context, playerState) {
+                              if (playerState.narrationSyncEnabled != false) {
+                                return const SizedBox.shrink();
+                              }
+                              return FilledButton.icon(
+                                onPressed: () => FlutterReadium().setComicAutoPan(true),
+                                icon: const Icon(Icons.sync),
+                                label: const Text('Re-sync'),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               if (pubState.publication != null)
                 Positioned(
                   left: 0,

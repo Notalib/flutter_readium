@@ -134,7 +134,19 @@ export function buildStatePayload(
 export type AudioLocatorMapper = (
   nav: AudioNavigator,
   audioLocator: Locator
-) => { stateLocator: Locator; textLocator?: Locator };
+) => {
+  stateLocator: Locator;
+  /**
+   * High-fidelity text locator for internal sync callbacks
+   * (e.g. comic panel auto-pan on Guided Navigation cues).
+   */
+  textLocator?: Locator;
+  /**
+   * Coarse text locator for the public bridge event (`updateTextLocator`).
+   * Falls back to `textLocator` when omitted.
+   */
+  publicTextLocator?: Locator;
+};
 
 /**
  * Narrow structural view of the parts of `AudioNavigator` that
@@ -263,7 +275,7 @@ function _emitState(
   if (!_emissionsEnabled) return;
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
-    const { stateLocator, textLocator } = mapper(nav, locator);
+    const { stateLocator, textLocator, publicTextLocator } = mapper(nav, locator);
     // Compute publication-wide totalProgression from the AUDIO locator, not the
     // mapped state locator. The mapper rewrites the locator to the text href
     // (so the player highlights the right element), but computeTotalProgression
@@ -277,9 +289,12 @@ function _emitState(
     window.updateTimebasedPlayerState?.(
       buildStatePayload(state, nav, enrichedStateLocator)
     );
-    if (textLocator) {
+    const emittedPublicLocator = publicTextLocator ?? textLocator;
+    if (emittedPublicLocator) {
       // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
-      window.updateTextLocator?.(JSON.stringify(textLocator.serialize()));
+      window.updateTextLocator?.(JSON.stringify(emittedPublicLocator.serialize()));
+    }
+    if (textLocator) {
       onTextLocatorChanged?.(textLocator, undefined);
     }
   } else {

@@ -83,22 +83,6 @@ class ReaderWidget extends StatelessWidget {
                   }
                 },
               ),
-              BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
-                buildWhen: (prev, next) =>
-                    prev.narrationSyncEnabled != next.narrationSyncEnabled,
-                builder: (context, playerState) {
-                  if (playerState.narrationSyncEnabled != false) return const SizedBox.shrink();
-                  return Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: FilledButton.icon(
-                      onPressed: () => FlutterReadium().setComicAutoPan(true),
-                      icon: const Icon(Icons.sync),
-                      label: const Text('Re-sync'),
-                    ),
-                  );
-                },
-              ),
             ],
           ),
         );
