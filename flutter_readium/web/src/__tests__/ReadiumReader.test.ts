@@ -67,3 +67,41 @@ describe("closePublication teardown", () => {
     });
   });
 });
+
+describe("audio stop lifecycle", () => {
+  it("destroys Media Overlay audio so re-enable recreates a fresh navigator", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const audioNav = { stop: jest.fn(), destroy: jest.fn() };
+      (reader as any)._audioNav = audioNav;
+      (reader as any)._hasGuidedNavigation = true;
+      (reader as any)._syncItems = [{ audioHref: "chap.mp3" }];
+      (reader as any)._lastMediaOverlayLocatorKey = "image0002.jpg";
+
+      reader.stop();
+
+      expect(audioNav.stop).toHaveBeenCalledTimes(1);
+      expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+      expect(audioNav.stop.mock.invocationCallOrder[0]).toBeLessThan(
+        audioNav.destroy.mock.invocationCallOrder[0]
+      );
+      expect((reader as any)._audioNav).toBeUndefined();
+      expect((reader as any)._syncItems).toEqual([]);
+      expect((reader as any)._lastMediaOverlayLocatorKey).toBeNull();
+    });
+  });
+
+  it("keeps plain audiobook stop non-destructive", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const audioNav = { stop: jest.fn(), destroy: jest.fn() };
+      (reader as any)._audioNav = audioNav;
+
+      reader.stop();
+
+      expect(audioNav.stop).toHaveBeenCalledTimes(1);
+      expect(audioNav.destroy).not.toHaveBeenCalled();
+      expect((reader as any)._audioNav).toBe(audioNav);
+    });
+  });
+});

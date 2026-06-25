@@ -112,7 +112,10 @@ export class FlutterDivinaNavigator {
     setNav: (nav: FlutterDivinaNavigator) => void,
     setPositions?: (positions: Locator[]) => void
   ): Promise<FlutterDivinaNavigator> {
-    log.info("Initializing DivinaNavigator");
+    log.info(
+      "Initializing DivinaNavigator",
+      initialPosition ? `from ${initialPosition.href}` : "(no initial position)"
+    );
 
     let positions = await publication.positionsFromManifest();
     if (positions.length === 0) {
@@ -146,7 +149,7 @@ export class FlutterDivinaNavigator {
     setPositions?.(positions);
     nav._emitCurrentLocator();
 
-    log.info(`DivinaNavigator loaded (${nav._items.length} pages)`);
+    log.info(`DivinaNavigator loaded (${nav._items.length} pages, ${positions.length} positions)`);
     return nav;
   }
 
@@ -185,6 +188,7 @@ export class FlutterDivinaNavigator {
       cb(false);
       return;
     }
+    log.debug(`go: ${locator.href} -> page ${index + 1}`);
     cb(this._setIndex(index));
   }
 
@@ -199,6 +203,7 @@ export class FlutterDivinaNavigator {
   }
 
   async destroy(): Promise<void> {
+    log.info("Destroying DivinaNavigator");
     this._stopMomentum();
     if (this._emitTimer !== undefined) clearTimeout(this._emitTimer);
     this._emitTimer = undefined;
@@ -236,9 +241,21 @@ export class FlutterDivinaNavigator {
       autoPanEnabled: this._autoPanEnabled,
       manuallyOverridden: this._manuallyOverridden,
     })) {
+      log.debug(
+        "panToRegion skipped",
+        this._autoPanEnabled ? "manual override active" : "auto-pan disabled"
+      );
       return;
     }
-    if (this._natW === 0 || this._natH === 0) return; // image not yet measured
+    if (this._natW === 0 || this._natH === 0) {
+      log.debug("panToRegion deferred: image not measured yet");
+      return;
+    }
+    log.debug(
+      region
+        ? `panToRegion x=${region.x} y=${region.y} w=${region.w} h=${region.h}`
+        : "panToRegion full page"
+    );
     const { vw, vh } = this._viewport();
     const target = regionToTransform(this._natW, this._natH, region, vw, vh);
     this._applyTransform(target, true);
@@ -298,6 +315,7 @@ export class FlutterDivinaNavigator {
     // Reset measured size; the load handler re-measures and re-lays out.
     this._natW = 0;
     this._natH = 0;
+    log.debug(`render page ${this._index + 1}/${this._items.length}: ${link.href}`);
     this._img.src = url;
   }
 
@@ -557,6 +575,7 @@ export class FlutterDivinaNavigator {
     if (index < 0 || index >= this._items.length) return false;
     if (index === this._index) return true;
     this._index = index;
+    log.debug(`page changed to ${index + 1}/${this._items.length}: ${this._items[index]?.href ?? "(unknown)"}`);
     // New page → drop manual override so auto-pan re-engages, reset zoom.
     this._stopMomentum();
     this._panAnchor = null;

@@ -229,6 +229,7 @@ export function seekAudioAndResume(
   // value, fire no "seeked", and hang upstream go(). Restart playback directly
   // so the DOM "play" event re-fires and position polling resumes.
   if (isAlreadyAtPosition(nav, audioLocator)) {
+    log.debug("seekAudioAndResume: already at target", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "");
     if (resumePlaying) {
       if (nav.isPlaying) nav.pause(); // force a paused→playing transition
       nav.play();
@@ -238,12 +239,14 @@ export function seekAudioAndResume(
 
   // Pausing here (when playing) guarantees the post-seek play() restarts the
   // upstream position poll; go() alone would leave it stopped.
+  log.debug("seekAudioAndResume: seeking", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "", resumePlaying ? "and resuming" : "without resume");
   if (nav.isPlaying) nav.pause();
   return nav.go(audioLocator, false, (ok) => {
     if (!ok) {
       log.warn("seekAudioAndResume: audio seek failed for", audioLocator.href);
       return;
     }
+    log.debug("seekAudioAndResume: seek completed", audioLocator.href);
     if (resumePlaying) nav.play();
   });
 }
@@ -259,6 +262,7 @@ let _emissionsEnabled = true;
 
 /** Enable/disable audio navigator emissions (text/state/visual sync). */
 export function setAudioEmissionsEnabled(enabled: boolean): void {
+  log.debug(`Audio emissions ${enabled ? "enabled" : "disabled"}`);
   _emissionsEnabled = enabled;
 }
 
@@ -272,7 +276,14 @@ function _emitState(
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   getTocHref?: () => string | undefined
 ): void {
-  if (!_emissionsEnabled) return;
+  if (!_emissionsEnabled) {
+    log.debug(
+      "emitState suppressed because audio emissions are disabled",
+      state,
+      rawLocator?.href ?? nav.currentLocator.href
+    );
+    return;
+  }
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
     const { stateLocator, textLocator, publicTextLocator } = mapper(nav, locator);
@@ -376,6 +387,7 @@ export class FlutterAudioNavigator {
     // nav is used inside the closure before assignment; TypeScript is fine with
     // this because the listeners are only called after `nav` is assigned below.
     let nav: AudioNavigator;
+    let lastPositionLogKey = "";
 
     // Local emit shorthand — captures the 5 context args so each listener
     // only names the state, locator, and alsoText flag it actually varies.
@@ -411,6 +423,12 @@ export class FlutterAudioNavigator {
           }
         },
         positionChanged: (locator) => {
+          const time = locator.locations?.time?.() ?? nav.currentTime;
+          const key = `${locator.href}#${Math.floor(time)}`;
+          if (key !== lastPositionLogKey) {
+            lastPositionLogKey = key;
+            log.debug("positionChanged", locator.href, `t=${time.toFixed(2)}`, nav.isPlaying ? "playing" : "paused");
+          }
           emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
         },
         timelineItemChanged: (item) => {

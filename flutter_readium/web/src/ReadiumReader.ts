@@ -26,7 +26,14 @@ import { setEpubPreferencesFromString } from "./preferences/FlutterEpubPreferenc
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
 import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 // Sync narration
-import { ComicRegion, SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
+import {
+  ComicRegion,
+  SyncNarrationItem,
+  detectSyncNarration,
+  findItemByAudioTime,
+  textLocatorForItem,
+  textLocatorToAudioLocator,
+} from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
@@ -400,6 +407,10 @@ class _ReadiumReader {
   public setComicAutoPan(enabled: boolean): void {
     log.debug("setComicAutoPan", enabled);
     this._comicNav?.setAutoPan(enabled);
+    if (enabled) {
+      const synced = this._resyncDivinaToCurrentAudioCue();
+      log.debug(`setComicAutoPan: explicit DiViNa re-sync ${synced ? "applied" : "had no active cue"}`);
+    }
   }
 
   /**
@@ -553,12 +564,27 @@ class _ReadiumReader {
   public stop(): void {
     log.debug("stop");
     if (this._ttsEngine) { this._ttsEngine.stop(); return; }
-    this._audioNav?.stop();
     // Clear Media Overlay / Guided Navigation state when narration stops.
     if (this._hasSyncNarration || this._hasGuidedNavigation) {
+      // Upstream AudioNavigator stop() does not reliably restart listener/poll
+      // state after re-enable. Media Overlay / Guided Navigation audio is lazy,
+      // so match the other navigator lifecycles: destroy now, recreate fresh on
+      // the next audioEnable() from the current visual locator.
+      setAudioEmissionsEnabled(false);
+      const audioNav = this._audioNav;
+      log.info(
+        "stop: destroying Media Overlay / Guided Navigation audio navigator",
+        audioNav ? "(active navigator)" : "(no active navigator)"
+      );
+      this._audioNav = undefined;
+      audioNav?.stop();
+      audioNav?.destroy();
+      this._syncItems = [];
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) this.applyDecorations("media_overlay_utterance", "[]");
+      return;
     }
+    this._audioNav?.stop();
   }
 
   public next(): void {
@@ -741,6 +767,23 @@ class _ReadiumReader {
   }
 
   /**
+   * Re-sync the DiViNa view to the currently active audio cue (page + panel).
+    * Used by the explicit re-sync action; normal playback should rely on fresh
+    * AudioNavigator cue emissions so listener/polling failures remain visible.
+   */
+  private _resyncDivinaToCurrentAudioCue(): boolean {
+    if (!this._comicNav || !this._audioNav || this._syncItems.length === 0) return false;
+    const audioLocator = this._audioNav.currentLocator;
+    const resolvedTime = audioLocator.locations?.time() ?? this._audioNav.currentTime;
+    const item = findItemByAudioTime(this._syncItems, audioLocator.href, resolvedTime);
+    if (!item) return false;
+    // Force page sync even when the cue key equals the last emitted one.
+    this._lastMediaOverlayLocatorKey = null;
+    this._syncDivinaToMediaOverlayLocator(textLocatorForItem(item));
+    return true;
+  }
+
+  /**
    * Synchronises the visual EPUB navigator to the active Media Overlay / Guided
    * Navigation cue.
    */
@@ -894,7 +937,9 @@ class _ReadiumReader {
         this._seekAudioAndResume(locator, true);
         return;
       }
-      this._audioNav.play();
+      // Use the safe restart path so polling resumes even when we're already at
+      // the current cue/position (upstream same-position seek quirk).
+      this._seekAudioAndResume(this._audioNav.currentLocator, true);
       return;
     }
 
@@ -920,7 +965,13 @@ class _ReadiumReader {
           (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
         );
       }
-      (this._audioNav as AudioNavigator | undefined)?.play();
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        const mappedStart = fromLocator
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          : undefined;
+        await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
+      }
       return;
     }
 
@@ -934,7 +985,13 @@ class _ReadiumReader {
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
         (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
       );
-      (this._audioNav as AudioNavigator | undefined)?.play();
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        const mappedStart = fromLocator
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          : undefined;
+        await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
+      }
       return;
     }
 

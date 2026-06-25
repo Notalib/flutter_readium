@@ -58,6 +58,20 @@ _sub = reader.onTimebasedPlayerStateChanged
 });
 ```
 
+## Comics (DiViNa): persist both locator types
+
+For comic playback, persist **both** streams:
+
+1. `onTextLocatorChanged` for visual/page resume (`image0007.jpg`)
+2. `onTimebasedPlayerStateChanged.currentLocator` for narration/audio resume (`chapter01.mp3#t=...`)
+
+At restore time:
+
+1. Opening the reader (no autoplay): use the saved **text locator** as `initialLocator`
+2. Starting/resuming narration: use the saved **timebased locator** for `play(fromLocator:)` / `audioEnable(fromLocator:)`
+
+This avoids ambiguity: text locators are page-oriented, while timebased locators are playback-oriented.
+
 ## Prefer enriched locators
 
 When available, keep locators that include `cssSelector` or `domRange` in `locations`. These give Readium more precision on restoration, especially across re-flows from font size changes.
