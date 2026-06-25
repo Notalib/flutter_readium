@@ -12,6 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
   visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
   the API with Readium's own `EpubPreferences.fontSize`.
+- **Web `stop()` now tears down the active audio/TTS navigator**, matching iOS and Android.
+  Call `audioEnable()` or `ttsEnable()` again before resuming audiobook, Media Overlay,
+  Guided Navigation, or TTS playback after `stop()`.
 
 ### Added
 

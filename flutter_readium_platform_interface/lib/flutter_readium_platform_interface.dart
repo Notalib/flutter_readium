@@ -120,7 +120,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Play the publication from the given locator, or resume if null.
   Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');
 
-  /// Stop playback.
+  /// Stop playback and tear down the active time-based navigator.
+  ///
+  /// Call `audioEnable` or `ttsEnable` again before resuming audio/TTS playback.
   Future<void> stop() => throw UnimplementedError('stop() has not been implemented');
 
   /// Pause playback.
@@ -164,8 +166,7 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Enable/disable audio-driven panel auto-pan for comics (DiViNa). When on,
   /// narration cues zoom/pan the page to the panel being read; a manual gesture
   /// suspends it until the next page turn. No-op for non-comic publications.
-  Future<void> setComicAutoPan(bool enabled) =>
-      throw UnimplementedError('setComicAutoPan() has not been implemented');
+  Future<void> setComicAutoPan(bool enabled) => throw UnimplementedError('setComicAutoPan() has not been implemented');
 
   // AUDIOBOOK API - BEGIN
   /// Enable audiobook playback with optional preferences and starting from an optional locator.

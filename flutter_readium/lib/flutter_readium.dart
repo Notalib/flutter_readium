@@ -130,7 +130,9 @@ class FlutterReadium {
   /// Starts playback from the given [fromLocator], or from the current position if `null`.
   Future<void> play(Locator? fromLocator) => _platform.play(fromLocator);
 
-  /// Stops playback and resets the playback position.
+  /// Stops playback and tears down the active time-based navigator.
+  ///
+  /// Call [audioEnable] or [ttsEnable] again before resuming audio/TTS playback.
   Future<void> stop() => _platform.stop();
 
   /// Pauses playback at the current position.

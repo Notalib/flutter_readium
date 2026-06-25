@@ -82,6 +82,8 @@ class _ReadiumReader {
    */
   private _comicNav: FlutterDivinaNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
+  /** Last audiobook locator selected while audio is stopped/destructed. */
+  private _stoppedAudioLocator: Locator | undefined;
   private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
   private _positions: Locator[] = [];
@@ -223,11 +225,10 @@ class _ReadiumReader {
 
     // Pure audiobook (no sync narration): build an audio locator from the
     // incoming locator, preserving any t= time fragment it already carries.
-    if (this._audioNav) {
-      const pub = this._publication;
+    if (this._audioNav || this._publication?.conformsToAudiobook) {
       const allLinks = [
-        ...(pub?.readingOrder?.items ?? []),
-        ...(pub?.resources?.items ?? []),
+        ...(this._publication?.readingOrder?.items ?? []),
+        ...(this._publication?.resources?.items ?? []),
       ];
       const link = findLinkByHref(allLinks, locator.href);
       if (!link) {
@@ -240,6 +241,19 @@ class _ReadiumReader {
         type: link.type ?? "audio/mpeg",
         locations: locator.locations,
       });
+      if (!this._audioNav) {
+        log.info("goTo: stopped audiobook — storing pending audio locator", audioLocator.href, audioLocator.locations?.fragments);
+        this._stoppedAudioLocator = audioLocator;
+        window.updateTimebasedPlayerState?.(
+          JSON.stringify({
+            state: "none",
+            currentOffset: null,
+            currentDuration: null,
+            currentLocator: audioLocator.serialize(),
+          })
+        );
+        return;
+      }
       const wasPlaying = this._audioNav.isPlaying;
       await this._seekAudioAndResume(audioLocator, wasPlaying);
       return;
@@ -287,6 +301,7 @@ class _ReadiumReader {
     this._hasGuidedNavigation = false;
     this._syncItems = [];
     this._positions = [];
+    this._stoppedAudioLocator = undefined;
 
     try {
       // TODO: match native
@@ -472,6 +487,7 @@ class _ReadiumReader {
     this._audioNav?.stop();
     this._audioNav?.destroy();
     this._audioNav = undefined;
+    this._stoppedAudioLocator = undefined;
 
     this._hasSyncNarration = false;
     this._hasGuidedNavigation = false;
@@ -563,28 +579,44 @@ class _ReadiumReader {
 
   public stop(): void {
     log.debug("stop");
-    if (this._ttsEngine) { this._ttsEngine.stop(); return; }
+    if (this._ttsEngine) {
+      const ttsEngine = this._ttsEngine;
+      this._ttsEngine = undefined;
+      ttsEngine.stop();
+      ttsEngine.destroy();
+      return;
+    }
+    const audioNav = this._audioNav;
+    if (!audioNav) return;
+
+    // Keep the plugin-level stop contract aligned with native: stop tears down
+    // the active timebased navigator. Clients must call audioEnable() again.
+    setAudioEmissionsEnabled(false);
+    this._stoppedAudioLocator = audioNav.currentLocator;
+    log.info(
+      "stop: destroying audio navigator",
+      this._hasSyncNarration || this._hasGuidedNavigation
+        ? "(Media Overlay / Guided Navigation)"
+        : "(plain audiobook)"
+    );
+    this._audioNav = undefined;
+    audioNav.stop();
+    audioNav.destroy();
+    window.updateTimebasedPlayerState?.(
+      JSON.stringify({
+        state: "none",
+        currentOffset: null,
+        currentDuration: null,
+        currentLocator: null,
+      })
+    );
+
     // Clear Media Overlay / Guided Navigation state when narration stops.
     if (this._hasSyncNarration || this._hasGuidedNavigation) {
-      // Upstream AudioNavigator stop() does not reliably restart listener/poll
-      // state after re-enable. Media Overlay / Guided Navigation audio is lazy,
-      // so match the other navigator lifecycles: destroy now, recreate fresh on
-      // the next audioEnable() from the current visual locator.
-      setAudioEmissionsEnabled(false);
-      const audioNav = this._audioNav;
-      log.info(
-        "stop: destroying Media Overlay / Guided Navigation audio navigator",
-        audioNav ? "(active navigator)" : "(no active navigator)"
-      );
-      this._audioNav = undefined;
-      audioNav?.stop();
-      audioNav?.destroy();
       this._syncItems = [];
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) this.applyDecorations("media_overlay_utterance", "[]");
-      return;
     }
-    this._audioNav?.stop();
   }
 
   public next(): void {
@@ -991,6 +1023,23 @@ class _ReadiumReader {
           ? textLocatorToAudioLocator(this._syncItems, fromLocator)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
+      }
+      return;
+    }
+
+    if (this._publication?.conformsToAudiobook) {
+      const fromLocator = resolvedFromLocator ?? this._stoppedAudioLocator;
+      log.info("audioEnable: recreating plain audiobook navigator");
+      await FlutterAudioNavigator.create(
+        this._publication,
+        fromLocator,
+        prefsJson,
+        (nav) => { this._audioNav = nav; }
+      );
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        this._stoppedAudioLocator = undefined;
+        await this._seekAudioAndResume(fromLocator ?? nav.currentLocator, true);
       }
       return;
     }
