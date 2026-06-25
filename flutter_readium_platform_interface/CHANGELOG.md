@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- `EpubColumnCount` now serializes to Readium's canonical values (`auto`/`1`/`2`) instead of
+  `auto`/`one`/`two`, fixing column count not being applied natively. `fromJson` still accepts
+  the legacy `one`/`two` strings.
+
 ## [0.1.0] - 2026-06-20
 
 ### Added

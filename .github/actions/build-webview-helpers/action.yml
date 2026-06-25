@@ -1,0 +1,21 @@
+name: Build webview helper assets
+description: >
+  Build the webview helper assets
+  flutter_readium/assets/helpers/flutterReadiumTools.{js,css}, which the native
+  iOS and Android readers inject into their WebView (see EPUBReaderView.swift /
+  ReadiumExtensions.kt). They are gitignored build artifacts compiled from
+  assets/_helper_scripts/src and are absent on a fresh checkout, so every job
+  that builds the native app must generate them first — otherwise the bundle
+  ships without them (iOS force-unwrap crash; Android degrades silently).
+  Requires the repository to already be checked out. Web does not use these
+  assets (its JS comes from the lib/helpers navigator bundle).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Build webview helper assets
+      shell: bash
+      run: npm ci --ignore-scripts && npm run build:flutter
+      working-directory: flutter_readium/assets/_helper_scripts

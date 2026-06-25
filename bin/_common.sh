@@ -32,8 +32,11 @@ _prepend_path() {
 _prepend_path "/opt/homebrew/bin"        # Homebrew (Apple Silicon)
 _prepend_path "/usr/local/bin"           # Homebrew (Intel) / common installs
 _prepend_path "$HOME/.pub-cache/bin"     # globally-activated Dart tools
-# node/npm via nvm, newest installed version, if nvm is used.
-if [ -d "$HOME/.nvm/versions/node" ]; then
+# node/npm via nvm, newest installed version, if nvm is used — but only when npm
+# isn't already resolvable. This avoids overriding a newer system/Homebrew npm
+# with an older nvm-bundled one (npm <11.15.0 rejects min-release-age + --before
+# together; fixed in npm 11.15.0 via https://github.com/npm/cli/pull/9339).
+if ! command -v npm >/dev/null 2>&1 && [ -d "$HOME/.nvm/versions/node" ]; then
   _nvm_bin="$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)"
   [ -n "${_nvm_bin:-}" ] && _prepend_path "$_nvm_bin"
 fi

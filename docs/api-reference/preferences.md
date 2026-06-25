@@ -9,7 +9,7 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 | Field | Type | Description |
 |-------|------|-------------|
 | `fontFamily` | `String?` | Font family name. |
-| `fontSize` | `int?` | Font size as a percentage of the base size (100 = default). |
+| `fontSize` | `double?` | Font-size scale relative to the publisher default (`1.0` = 100%, `1.5` = 150%). |
 | `fontWeight` | `double?` | Font weight (400 = normal, 700 = bold). |
 | `lineHeight` | `double?` | Line height multiplier. |
 | `letterSpacing` | `double?` | Additional letter spacing (em units). |
@@ -53,7 +53,7 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 
 ```dart
 await reader.setEPUBPreferences(EPUBPreferences(
-  fontSize: 130,
+  fontSize: 1.3,
   fontFamily: 'Georgia',
   scroll: false,
 ));
