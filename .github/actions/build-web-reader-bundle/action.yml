@@ -1,0 +1,21 @@
+name: Build web reader bundle
+description: >
+  Build the web navigator bundle lib/helpers/readiumReader.js (rollup) and copy
+  it into the example web app as /readiumReader.js, which example/web/index.html
+  loads to register the reader's custom element. It is a gitignored build
+  artifact, absent on a fresh checkout, so the web jobs must generate it or the
+  reader never initializes in the browser. Distinct from the native
+  build-webview-helpers action (web does not use assets/helpers/). Requires the
+  repo checked out, the Flutter SDK on PATH, and the example's `flutter pub get`
+  already run (the copy step is `dart run flutter_readium:copy_js_file`, resolved
+  from the example package).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+    - name: Build & copy web reader bundle
+      shell: bash
+      run: npm ci --ignore-scripts && npm run build:dev
+      working-directory: flutter_readium
