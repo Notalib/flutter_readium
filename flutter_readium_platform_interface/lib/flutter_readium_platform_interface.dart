@@ -161,6 +161,12 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END
 
+  /// Enable/disable audio-driven panel auto-pan for comics (DiViNa). When on,
+  /// narration cues zoom/pan the page to the panel being read; a manual gesture
+  /// suspends it until the next page turn. No-op for non-comic publications.
+  Future<void> setComicAutoPan(bool enabled) =>
+      throw UnimplementedError('setComicAutoPan() has not been implemented');
+
   // AUDIOBOOK API - BEGIN
   /// Enable audiobook playback with optional preferences and starting from an optional locator.
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
@@ -191,6 +197,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     throw UnimplementedError(
       'onTextLocatorChanged stream has not been implemented.',
     );
+  }
+
+  /// Stream emitting narration↔visual sync state changes.
+  /// `true` = in sync (hide re-sync UI); `false` = user took manual control (show re-sync UI).
+  /// Currently fired by comic (DiViNa) navigators; future: Media Overlay.
+  Stream<bool> get onNarrationSyncChanged {
+    throw UnimplementedError('onNarrationSyncChanged stream has not been implemented.');
   }
 
   /// Stream emitting the current timebased playback state during TTS or audio playback.

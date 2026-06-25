@@ -218,6 +218,12 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('ttsSetPreferences', preferences.toJson());
 
   @override
+  // TODO(native): add iOS/Android native handler for setComicAutoPan; until
+  // then calling this on non-web will throw MissingPluginException.
+  Future<void> setComicAutoPan(bool enabled) =>
+      methodChannel.invokeMethod('setComicAutoPan', enabled);
+
+  @override
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
       methodChannel.invokeMethod('audioEnable', [prefs?.toJson(), fromLocator?.toJson()]);
 

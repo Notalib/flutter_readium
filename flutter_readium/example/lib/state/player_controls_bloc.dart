@@ -1,4 +1,4 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
+// ignore_for_file: prefer_if_null_operators, public_member_api_docs, sort_constructors_first
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -96,6 +96,13 @@ class UpdateCurrentTocHref extends PlayerControlsEvent {
 }
 
 @immutable
+class SetSyncNarrationEnabled extends PlayerControlsEvent {
+  SetSyncNarrationEnabled(this.enabled);
+
+  final bool enabled;
+}
+
+@immutable
 class PlayerClosed extends PlayerControlsEvent {}
 
 class PlayerControlsState {
@@ -103,23 +110,27 @@ class PlayerControlsState {
     required this.playing,
     required this.ttsEnabled,
     required this.audioEnabled,
+    this.narrationSyncEnabled,
     this.currentTocHref,
   });
 
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
+  final bool? narrationSyncEnabled;
   final String? currentTocHref;
 
   PlayerControlsState copyWith({
     bool? playing,
     bool? ttsEnabled,
     bool? audioEnabled,
+    bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
     playing: playing ?? this.playing,
-    ttsEnabled: ttsEnabled ?? this.ttsEnabled,
-    audioEnabled: audioEnabled ?? this.audioEnabled,
+    ttsEnabled: ttsEnabled != null ? ttsEnabled : this.ttsEnabled,
+    audioEnabled: audioEnabled != null ? audioEnabled : this.audioEnabled,
+    narrationSyncEnabled: narrationSyncEnabled != null ? narrationSyncEnabled : this.narrationSyncEnabled,
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
 
@@ -177,6 +188,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       ]).listen((val) {
         currentLocator = val;
         _currentLocatorSubject.add(val);
+      }),
+    );
+
+    subscriptions.add(
+      instance.onNarrationSyncChanged.listen((syncEnabled) {
+        _log.fine('onNarrationSyncChanged: $syncEnabled');
+        add(SetSyncNarrationEnabled(syncEnabled));
       }),
     );
 
@@ -340,6 +358,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       ),
     );
 
+    on<UpdateCurrentTocHref>((event, emit) async {
+      emit(state.setTocHref(event.tocHref));
+    });
+
+    on<SetSyncNarrationEnabled>((event, emit) async {
+      emit(state.copyWith(narrationSyncEnabled: event.enabled));
+    });
+
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
 
@@ -363,10 +389,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       if (daVoice != null) {
         await instance.ttsSetVoice(daVoice.identifier, daVoice.language);
       }
-    });
-
-    on<UpdateCurrentTocHref>((event, emit) async {
-      emit(state.setTocHref(event.tocHref));
     });
   }
 

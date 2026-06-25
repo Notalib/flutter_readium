@@ -70,5 +70,21 @@ void main() {
         expect(result, testTextLocator);
       },
     );
+
+    test('setComicAutoPan invokes the channel with the bool argument', () async {
+      await methodChannelReadium.setComicAutoPan(true);
+      await methodChannelReadium.setComicAutoPan(false);
+      expect(
+        log,
+        containsAllInOrder(<Matcher>[
+          isA<MethodCall>()
+              .having((c) => c.method, 'method', 'setComicAutoPan')
+              .having((c) => c.arguments, 'arguments', true),
+          isA<MethodCall>()
+              .having((c) => c.method, 'method', 'setComicAutoPan')
+              .having((c) => c.arguments, 'arguments', false),
+        ]),
+      );
+    });
   });
 }
