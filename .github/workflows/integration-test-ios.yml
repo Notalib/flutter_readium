@@ -50,9 +50,26 @@ jobs:
           # Keyed on the runner image, not runner.os ("macOS" is identical
           # across macos-15/26): DerivedData is Xcode-version-specific, so a
           # cache from an older image must not be restored onto a newer Xcode.
-          key: xcode-deriveddata-macos26-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          # Also hash anything embedded into the built app — the Flutter pin,
+          # example deps, and the webview helper sources — so a restored
+          # DerivedData can't serve a Runner.app whose flutter_assets are stale.
+          key: xcode-deriveddata-macos26-${{ hashFiles('.flutter-version', 'flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
           restore-keys: |
             xcode-deriveddata-macos26-
+
+      # The iOS reader injects webview helper assets
+      # (assets/helpers/flutterReadiumTools.{js,css}) into the WKWebView. These
+      # are gitignored build artifacts compiled from assets/_helper_scripts/src;
+      # `bin/install` generates them locally but CI did not, so the app bundle
+      # shipped without them and EPUBReaderView crashed on a force-unwrapped nil
+      # asset the instant the first reader view mounted. Build them before the
+      # Xcode build runs (inside `flutter test`). See docs/troubleshooting.md.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build webview helper assets
+        run: npm ci --ignore-scripts && npm run build:flutter
+        working-directory: flutter_readium/assets/_helper_scripts
 
       - name: Install Dart dependencies
         run: flutter pub get
@@ -102,11 +119,11 @@ jobs:
 
       - name: Run integration tests
         # Force the `expanded` reporter. In CI, package:test auto-selects its
-        # GitHub reporter (GITHUB_ACTIONS=true), which under the slow cold-build
-        # runner races the iOS result delivery: it mis-tallies passes ("2 tests
-        # passed" when 22 did) and the run exits 1 despite zero test failures.
-        # The same suite passes with `expanded` on an identical local iOS 26.5 /
-        # Flutter 3.41.9 setup. See flutter/flutter#153588.
+        # GitHub Actions reporter (GITHUB_ACTIONS=true), which rendered a real
+        # native crash as a misleading "2 tests passed" tally + exit 1 with no
+        # visible failure. `expanded` reports per-test status honestly (incl.
+        # "did not complete"), which is how the EPUBReaderView asset crash was
+        # found — keep it so future native crashes stay legible in CI logs.
         run: flutter test integration_test --reporter expanded --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
 
