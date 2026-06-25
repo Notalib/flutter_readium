@@ -334,4 +334,32 @@ void main() {
       expect(locator!.href, contains('ch1'));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // EPUBPreferences — fontSize is a double ratio, no per-platform conversion
+  // ---------------------------------------------------------------------------
+  group('EPUBPreferences.fontSize', () {
+    test('round-trips as double ratio through toJson / fromJson', () {
+      const prefs = EPUBPreferences(fontSize: 1.5);
+      final json = prefs.toJson();
+      expect(json['fontSize'], isA<double>());
+      expect(json['fontSize'], closeTo(1.5, 1e-9));
+      final restored = EPUBPreferences.fromJson(json);
+      expect(restored.fontSize, closeTo(1.5, 1e-9));
+    });
+
+    test('null fontSize round-trips as absent', () {
+      const prefs = EPUBPreferences();
+      final json = prefs.toJson();
+      expect(json.containsKey('fontSize'), isFalse);
+      final restored = EPUBPreferences.fromJson(json);
+      expect(restored.fontSize, isNull);
+    });
+
+    test('default ratio (1.0) is preserved', () {
+      const prefs = EPUBPreferences(fontSize: 1.0);
+      final restored = EPUBPreferences.fromJson(prefs.toJson());
+      expect(restored.fontSize, closeTo(1.0, 1e-9));
+    });
+  });
 }

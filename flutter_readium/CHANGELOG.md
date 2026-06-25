@@ -5,8 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed (breaking)
+
+- **`EPUBPreferences.fontSize` is now a `double` ratio** (`1.0` = default, `1.5` = 150%)
+  instead of a percentage `int`. Divide existing values by 100 to migrate
+  (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
+  visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
+  the API with Readium's own `EpubPreferences.fontSize`.
+
 ### Fixed
 
+- **`EPUBPreferences.columnCount` (`one`/`two`) not applied** — the serialized value diverged
+  from Readium's canonical `ColumnCount` (`auto`/`1`/`2`), so Android threw a
+  `PlatformException` and iOS silently ignored the setting when starting playback. The shared
+  Dart serialization now matches the native toolkits; column count is applied on all platforms.
 - **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
   media-overlay books and comics, caused by an unchecked reading-order index in
   locator resolution. Out-of-range positions now degrade gracefully instead of trapping.

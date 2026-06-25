@@ -77,3 +77,30 @@ How each platform satisfies this:
 - **Web** — the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`.
 
 Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
+
+## Integration tests pass locally but fail in CI
+
+A real failure can hide behind confusing output. Work through it in this order — it's how the `EPUBReaderView` asset crash (below) was found.
+
+1. **Don't trust the CI summary — change the reporter.** In CI, `flutter test` auto-selects package:test's GitHub Actions reporter (`GITHUB_ACTIONS=true`), which can render a crash as a misleading tally (e.g. `🎉 2 tests passed` + exit 1 with no failure shown). Force a faithful reporter to see the truth:
+
+   ```bash
+   flutter test integration_test --reporter expanded -d <udid>
+   ```
+
+   `… did not complete [E]` cascading from one test onward (incl. `(tearDownAll)`) means the app/VM-service connection dropped — i.e. the app **crashed**. It is *not* a slow-timeout hang; those hit the per-test `_waitWithPump` 30s deadline and print a diagnostic message.
+
+2. **Reproduce CI conditions locally.** Match the pinned runtime (`.flutter-version`, and `SIMULATOR_DEVICE` in `.github/workflows/integration-test-ios.yml`) and set `GITHUB_ACTIONS=true`. If it still passes locally, the differentiator is the *runner environment* (cold build, freshly-booted sim, un-generated build artifacts) — not the test logic.
+
+3. **Get the native crash.** On failure the iOS job uploads an `ios-integration-*` artifact (crash `.ips` + `sim.logarchive`). Read the archive with `log`, not `flutter`:
+
+   ```bash
+   /usr/bin/log show sim.logarchive --style syslog --info --debug \
+     --predicate 'process == "Runner" OR eventMessage CONTAINS[c] "crash" OR eventMessage CONTAINS[c] "WebContent"'
+   ```
+
+   The app process is `Runner`; its last lines before it stops logging are the crash (e.g. a Swift `Fatal error: Unexpectedly found nil …` with `file:line`).
+
+### Case study: the `EPUBReaderView` asset crash (2026-06)
+
+iOS integration tests passed locally but deterministically failed in CI; only the two pre-reader tests passed and the rest `did not complete`. Cause: the WKWebView helper assets `assets/helpers/flutterReadiumTools.{js,css}` are **gitignored build artifacts** (compiled from `assets/_helper_scripts/src` by `npm run build:flutter`, run via `bin/install`). CI never built them, so the app bundle shipped without them and `EPUBReaderView.initUserScripts` force-unwrapped a nil `Bundle.main.path(...)` the instant the first reader view mounted. Fix: build the helpers in the workflow before the app build, and load assets without force-unwrapping so a missing artifact degrades + logs instead of trapping. Every native app-building job (iOS/Android, build + integration) runs the build via the shared `build-webview-helpers` composite action (`.github/actions/build-webview-helpers`). Web does **not** use these assets: its reader loads the `lib/helpers/readiumReader.js` navigator bundle (which `index.html` serves as `/readiumReader.js`), a separate gitignored artifact built by `npm run build:dev`. The web jobs build + copy it via the `build-web-reader-bundle` action (`.github/actions/build-web-reader-bundle`) — without it the reader's custom element never registers in the browser.

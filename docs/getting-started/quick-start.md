@@ -87,7 +87,7 @@ void initState() {
 ```dart
 await _reader.setEPUBPreferences(
   EPUBPreferences(
-    fontSize: 120,          // 120% of default
+    fontSize: 1.2,          // 120% of default
     fontFamily: 'Georgia',
     scroll: false,          // paginated mode
   ),
