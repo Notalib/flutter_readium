@@ -26,7 +26,7 @@ import { setEpubPreferencesFromString } from "./preferences/FlutterEpubPreferenc
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
 import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 // Sync narration
-import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
+import { ComicRegion, SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
@@ -393,6 +393,16 @@ class _ReadiumReader {
   }
 
   /**
+   * Enable/disable audio-driven panel auto-pan for comics (DiViNa). When on,
+   * narration cues zoom/pan the page to the panel being read; a manual gesture
+   * suspends it until the next page turn. No-op for non-comic publications.
+   */
+  public setComicAutoPan(enabled: boolean): void {
+    log.debug("setComicAutoPan", enabled);
+    this._comicNav?.setAutoPan(enabled);
+  }
+
+  /**
    * Replace the entire decoration group with the provided list.
    *
    * Decorations are routed to one of three upstream subgroups based on style:
@@ -705,23 +715,29 @@ class _ReadiumReader {
   }
 
   /**
-   * Synchronises the DiViNa image navigator to the active Guided Navigation cue.
-   * Navigates to the page identified by `textLocator.href`; panel-level
-   * fragments (xywh) are present in the locator but not acted on (no zoom yet).
+   * Synchronises the DiViNa image navigator to the active Guided Navigation cue:
+   * turns to the cue's page (only when it changes) and pans/zooms to the cue's
+   * panel region (`xywh`, every cue). The pan is gated inside the navigator
+   * (auto-pan toggle + manual-override). A cue with no region re-frames the
+   * whole page.
    */
   private _syncDivinaToMediaOverlayLocator(textLocator: Locator): void {
     const nav = this._comicNav;
     if (!nav) return;
-    // Deduplicate: DiViNa cues on the same page share the same href.
-    const key = textLocator.href;
-    if (key === this._lastMediaOverlayLocatorKey) return;
-    this._lastMediaOverlayLocatorKey = key;
-    log.debug(`GuidedNavigation(DiViNa): sync to page "${textLocator.href}"`);
-    nav.go(textLocator, false, (ok) => {
-      if (!ok) {
-        log.warn(`GuidedNavigation(DiViNa): failed to navigate to "${textLocator.href}"`);
-      }
-    });
+    // Turn the page only when the href changes (cues on one page share it).
+    if (textLocator.href !== this._lastMediaOverlayLocatorKey) {
+      this._lastMediaOverlayLocatorKey = textLocator.href;
+      log.debug(`GuidedNavigation(DiViNa): sync to page "${textLocator.href}"`);
+      nav.go(textLocator, false, (ok) => {
+        if (!ok) {
+          log.warn(`GuidedNavigation(DiViNa): failed to navigate to "${textLocator.href}"`);
+        }
+      });
+    }
+    // Pan to the panel on every cue (region rides on the locator's otherLocations).
+    const region = (textLocator.locations?.otherLocations?.get("comicRegion") ??
+      null) as ComicRegion | null;
+    nav.panToRegion(region);
   }
 
   /**
