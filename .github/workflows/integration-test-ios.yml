@@ -57,19 +57,11 @@ jobs:
           restore-keys: |
             xcode-deriveddata-macos26-
 
-      # The iOS reader injects webview helper assets
-      # (assets/helpers/flutterReadiumTools.{js,css}) into the WKWebView. These
-      # are gitignored build artifacts compiled from assets/_helper_scripts/src;
-      # `bin/install` generates them locally but CI did not, so the app bundle
-      # shipped without them and EPUBReaderView crashed on a force-unwrapped nil
-      # asset the instant the first reader view mounted. Build them before the
-      # Xcode build runs (inside `flutter test`). See docs/troubleshooting.md.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      # Build the gitignored webview helper assets before the Xcode build (inside
+      # `flutter test`); without them EPUBReaderView crashes on the first reader
+      # mount. See docs/troubleshooting.md.
       - name: Build webview helper assets
-        run: npm ci --ignore-scripts && npm run build:flutter
-        working-directory: flutter_readium/assets/_helper_scripts
+        uses: ./.github/actions/build-webview-helpers
 
       - name: Install Dart dependencies
         run: flutter pub get
