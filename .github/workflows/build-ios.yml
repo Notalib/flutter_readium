@@ -48,6 +48,11 @@ jobs:
           restore-keys: |
             xcode-deriveddata-macos26-
 
+      # Build the gitignored webview helper assets so the built app bundles them
+      # (see docs/troubleshooting.md).
+      - name: Build webview helper assets
+        uses: ./.github/actions/build-webview-helpers
+
       - name: Install dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
