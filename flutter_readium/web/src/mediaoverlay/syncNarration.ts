@@ -24,6 +24,18 @@ const log = createLogger("SyncNarration");
 /** MIME type used by Readium to identify Sync Narration JSON alternates. */
 const NARRATION_MEDIA_TYPE = "application/vnd.readium.narration+json";
 
+/**
+ * A rectangular panel region within a comic page image, in **source-image
+ * pixels** (the units used by the Guided Navigation `imgref` `#xywh=pixel:...`
+ * fragment). Consumed by the comic navigators to drive panel-level zoom/pan.
+ */
+export interface ComicRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface SyncNarrationItem {
   /** Original "audio" field, e.g. "chapter1.mp3#t=12.34,15.67" */
   audio: string;
@@ -56,6 +68,12 @@ export interface SyncNarrationItem {
    * When set, it is forwarded as `Locator.text.highlight` in the text locator.
    */
   highlight?: string;
+  /**
+   * Panel region (source-image pixels) for this cue, parsed from the Guided
+   * Navigation `imgref` `#xywh=pixel:...` fragment. Absent for page-level cues.
+   * Drives audio-synced panel zoom/pan in the comic navigators.
+   */
+  region?: ComicRegion;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +140,10 @@ export function textLocatorForItem(item: SyncNarrationItem): Locator {
   const otherLocationEntries: [string, any][] = [];
   if (item.textId) otherLocationEntries.push(["cssSelector", `#${item.textId}`]);
   if (item.tocHref) otherLocationEntries.push(["tocHref", item.tocHref]);
+  // Carry the comic panel region (DiViNa) so the comic navigator can pan to it.
+  // Comic cues share an empty textId, so the region can't be re-derived
+  // downstream — it must ride along on the locator.
+  if (item.region) otherLocationEntries.push(["comicRegion", item.region]);
   const otherLocations =
     otherLocationEntries.length > 0 ? new Map<string, any>(otherLocationEntries) : undefined;
   return new Locator({
@@ -388,6 +410,28 @@ export function parseAudioField(audio: string): {
   }
 
   return { audioHref, audioStart, audioEnd };
+}
+
+/**
+ * Parses a Guided Navigation `imgref`, e.g.
+ * "image0001.jpg#xywh=pixel:44,113,757,226", into its href and panel region.
+ * `percent:` is not supported. The `pixel:` prefix is optional — bare `xywh=`
+ * is treated as pixels per the W3C Media Fragments spec. A missing/malformed/
+ * percent/zero-sized fragment yields `region: null` (page-level cue).
+ */
+export function parseImgField(img: string): {
+  imgHref: string;
+  region: ComicRegion | null;
+} {
+  const hashIdx = img.indexOf("#");
+  if (hashIdx === -1) return { imgHref: img, region: null };
+  const imgHref = img.slice(0, hashIdx);
+  const fragment = img.slice(hashIdx + 1); // "xywh=pixel:44,113,757,226"
+  const match = fragment.match(/^xywh=(?:pixel:)?(\d+),(\d+),(\d+),(\d+)$/);
+  if (!match) return { imgHref, region: null };
+  const [x, y, w, h] = match.slice(1, 5).map((n) => parseInt(n, 10));
+  if (w <= 0 || h <= 0) return { imgHref, region: null };
+  return { imgHref, region: { x, y, w, h } };
 }
 
 /** Parses "chapter.html#p001" into href and fragment id. */
