@@ -367,19 +367,19 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     }
 
     // Strategy 2: per-item alternates in reading order.
-    val hasGuidedNav =
-        readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
-    if (!hasGuidedNav) return null
+    // Deduplicate: several readingOrder items may reference the same guided-navigation document.
+    val guidedLinks =
+        readingOrder
+            .mapNotNull { roLink -> roLink.alternates.find { it.mediaType == guidedNavigationMediaType } }
+            .distinctBy { it.href }
+    if (guidedLinks.isEmpty()) return null
 
     val parsed: List<List<FlutterMediaOverlay>?> =
         coroutineScope {
             val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
-            readingOrder
-                .mapIndexed { index, roLink ->
+            guidedLinks
+                .map { guidedLink ->
                     async(Dispatchers.IO) {
-                        val guidedLink =
-                            roLink.alternates.find { it.mediaType == guidedNavigationMediaType }
-                                ?: return@async null
                         gate.withPermit {
                             val jsonString =
                                 get(guidedLink)?.read()?.getOrNull()?.let { String(it) }
@@ -393,10 +393,27 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                             val document =
                                 GuidedNavigationDocument.fromJSON(jsonString)
                                     ?: return@withPermit null
-                            document.toMediaOverlays(
-                                position = index + 1,
-                                readiumOrderItemDuration = roLink.duration ?: 0.0,
-                            )
+                            document.toMediaOverlays().mapNotNull { overlay ->
+                                val textFile =
+                                    overlay.items.firstOrNull()?.textFile
+                                        ?: return@mapNotNull null
+                                val roEntry =
+                                    readingOrder.withIndex().firstOrNull { (_, link) ->
+                                        Url
+                                            .invoke(textFile)
+                                            ?.let { link.href.resolve().isEquivalent(it) } == true
+                                    }
+                                val position = (roEntry?.index ?: -1) + 1
+                                val duration = roEntry?.value?.duration ?: 0.0
+                                FlutterMediaOverlay(
+                                    overlay.items.map { item ->
+                                        item.copy(
+                                            position = position,
+                                            readingOrderItemDuration = duration,
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }.awaitAll()

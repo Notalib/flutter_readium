@@ -179,14 +179,31 @@ extension Publication {
     // Strategy 2: per-item alternates in reading order.
     var hasAny = false
     var allOverlays: [FlutterMediaOverlay] = []
-    for (idx, roLink) in readingOrder.enumerated() {
+    var seenHrefs = Set<String>()
+    for (_, roLink) in readingOrder.enumerated() {
       guard let gnLink = roLink.alternates.filterByMediaType(guidedNavMediaType).first else { continue }
       hasAny = true
+      guard !seenHrefs.contains(gnLink.href) else { continue }
+      seenHrefs.insert(gnLink.href)
       guard
         let json = try? await get(gnLink)?.read().asJSONObject().get(),
         let document = GuidedNavigationDocument.fromJson(json)
       else { continue }
-      allOverlays += document.toMediaOverlays(atPosition: idx + 1, readingOrderDuration: roLink.duration)
+      let rawOverlays = document.toMediaOverlays()
+      let positionedOverlays = rawOverlays.compactMap { overlay -> FlutterMediaOverlay? in
+        guard let textFile = overlay.textFile else { return nil }
+        let roEntry = readingOrder.enumerated().first {
+          $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
+        }
+        let position = (roEntry?.offset ?? -1) + 1
+        let duration = roEntry?.element.duration
+        let items = overlay.items.map { item in
+          FlutterMediaOverlayItem(
+            audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
+        }
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+      }
+      allOverlays += positionedOverlays
     }
     guard hasAny else { return nil }
     return enrichOverlaysWithToc(allOverlays)
