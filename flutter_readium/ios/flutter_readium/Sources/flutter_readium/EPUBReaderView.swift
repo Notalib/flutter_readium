@@ -642,23 +642,40 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  /// Loads a bundled Flutter asset's bytes, returning nil (and logging) instead of
+  /// trapping when the asset is absent. The webview helper assets
+  /// `assets/helpers/flutterReadiumTools.{js,css}` are gitignored build artifacts
+  /// (compiled from assets/_helper_scripts/src via `npm run build:flutter` /
+  /// `bin/install`); when an app is built without generating them, the reader now
+  /// degrades — no helper injection — rather than crashing. See docs/troubleshooting.md.
+  private func loadBundledAsset(_ assetKey: String) -> Data? {
+    guard let path = Bundle.main.path(forResource: assetKey, ofType: nil) else {
+      Log.reader.error("Missing bundled asset '\(assetKey)' — were the webview helpers built? (npm run build:flutter / bin/install)")
+      return nil
+    }
+    guard let data = FileManager().contents(atPath: path) else {
+      Log.reader.error("Bundled asset '\(assetKey)' could not be read at \(path)")
+      return nil
+    }
+    return data
+  }
+
   func initUserScripts(registrar: FlutterPluginRegistrar) {
     let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
     let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-    let jsScripts = [flutterReadiumJsKey].map { sourceFile -> String in
-      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-      let data = FileManager().contents(atPath: path)!
-      return String(data: data, encoding: .utf8)!
+    let jsScripts = [flutterReadiumJsKey].compactMap { assetKey -> String? in
+      guard let data = loadBundledAsset(assetKey) else { return nil }
+      return String(data: data, encoding: .utf8)
     }
-    let addCssScripts = [flutterReadiumCssKey].map { sourceFile -> String in
-      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-      let data = FileManager().contents(atPath: path)!.base64EncodedString()
+    let addCssScripts = [flutterReadiumCssKey].compactMap { assetKey -> String? in
+      guard let data = loadBundledAsset(assetKey) else { return nil }
+      let base64Css = data.base64EncodedString()
       return """
         (function() {
         var parent = document.getElementsByTagName('head').item(0);
         var style = document.createElement('style');
         style.type = 'text/css';
-        style.innerHTML = window.atob('\(data)');
+        style.innerHTML = window.atob('\(base64Css)');
         parent.appendChild(style)})();
       """
     }
