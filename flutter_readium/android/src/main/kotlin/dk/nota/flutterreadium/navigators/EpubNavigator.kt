@@ -501,7 +501,11 @@ class EpubNavigator :
      */
     private var lastSyncSegmentDuration: Double? = null
 
-    suspend fun syncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double?) {
+    suspend fun syncToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double?,
+    ) {
         if (preferences.disableSynchronization == true) {
             lastSyncLocator = locator
             lastSyncSegmentDuration = segmentDuration

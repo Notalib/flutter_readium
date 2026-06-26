@@ -18,6 +18,7 @@ import dk.nota.flutterreadium.models.ReadiumTimebasedState
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
 import dk.nota.flutterreadium.navigators.FlutterVisualNavigator
+import dk.nota.flutterreadium.navigators.PageBreakSkippingContentIteratorFactory
 import dk.nota.flutterreadium.navigators.PdfNavigator
 import dk.nota.flutterreadium.navigators.SyncAudiobookNavigator
 import dk.nota.flutterreadium.navigators.TTSNavigator
@@ -47,6 +48,9 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.DefaultContentService
+import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.publication.services.content.contentServiceFactory
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -455,6 +459,12 @@ object ReadiumReader :
             publicationOpener
                 .open(asset, allowUserInteraction = true, onCreatePublication = {
                     container = transformingContainerFactory?.let { it(container) } ?: container
+                    if (manifest.conformsTo(Publication.Profile.EPUB)) {
+                        servicesBuilder.contentServiceFactory =
+                            DefaultContentService.createFactory(
+                                listOf(PageBreakSkippingContentIteratorFactory()),
+                            )
+                    }
                 })
                 .getOrElse { err: OpenError ->
                     fun unwrapCause(e: org.readium.r2.shared.util.Error?): String =
