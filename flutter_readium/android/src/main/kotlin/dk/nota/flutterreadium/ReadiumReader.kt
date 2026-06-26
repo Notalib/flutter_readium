@@ -165,6 +165,8 @@ object ReadiumReader :
 
     private var ttsNavigator: TTSNavigator? = null
 
+    private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
+
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
@@ -460,9 +462,11 @@ object ReadiumReader :
                 .open(asset, allowUserInteraction = true, onCreatePublication = {
                     container = transformingContainerFactory?.let { it(container) } ?: container
                     if (manifest.conformsTo(Publication.Profile.EPUB)) {
+                        val factory = PageBreakSkippingContentIteratorFactory()
+                        pageBreakIteratorFactory = factory
                         servicesBuilder.contentServiceFactory =
                             DefaultContentService.createFactory(
-                                listOf(PageBreakSkippingContentIteratorFactory()),
+                                listOf(factory),
                             )
                     }
                 })
@@ -681,6 +685,7 @@ object ReadiumReader :
 
         _currentPublication?.close()
         _currentPublication = null
+        pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
 
         state.clear()
@@ -1039,6 +1044,7 @@ object ReadiumReader :
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
+            pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?: true
             ttsNavigator =
                 TTSNavigator(it, this@ReadiumReader, currentTextLocator.value, ttsPrefs).apply {
                     initNavigator()
@@ -1047,6 +1053,7 @@ object ReadiumReader :
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
+        pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?: true
         ttsNavigator?.updatePreferences(ttsPrefs)
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }
