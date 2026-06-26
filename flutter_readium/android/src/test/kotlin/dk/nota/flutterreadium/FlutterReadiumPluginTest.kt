@@ -5,6 +5,7 @@ import io.flutter.plugin.common.MethodChannel
 import org.junit.Ignore
 import org.mockito.Mockito
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /*
  * This demonstrates a simple unit test of the Kotlin portion of this plugin's implementation.
