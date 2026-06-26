@@ -16,3 +16,15 @@
     }
   }
 }
+
+public enum ControlPanelTimebase {
+  case chapter
+  case wholeBook
+
+  init(from string: String?) {
+    switch string?.lowercased() {
+    case "wholebook", "whole_book": self = .wholeBook
+    default: self = .chapter
+    }
+  }
+}

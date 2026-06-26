@@ -39,7 +39,7 @@ class FlutterReadiumPlugin :
 
         // Register reader view factory
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
-            viewTypeChannelName,
+            VIEW_TYPE_CHANNEL_NAME,
             ReadiumReaderViewFactory(binaryMessenger),
         )
 
