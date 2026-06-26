@@ -9,7 +9,7 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 | Field | Type | Description |
 |-------|------|-------------|
 | `fontFamily` | `String?` | Font family name. |
-| `fontSize` | `int?` | Font size as a percentage of the base size (100 = default). |
+| `fontSize` | `double?` | Font-size scale relative to the publisher default (`1.0` = 100%, `1.5` = 150%). |
 | `fontWeight` | `double?` | Font weight (400 = normal, 700 = bold). |
 | `lineHeight` | `double?` | Line height multiplier. |
 | `letterSpacing` | `double?` | Additional letter spacing (em units). |
@@ -53,7 +53,7 @@ Controls the visual appearance of the EPUB reader. All fields are optional unles
 
 ```dart
 await reader.setEPUBPreferences(EPUBPreferences(
-  fontSize: 130,
+  fontSize: 1.3,
   fontFamily: 'Georgia',
   scroll: false,
 ));
@@ -91,6 +91,7 @@ await reader.setPDFPreferences(const PDFPreferences(
 | `voices` | `Map<String, String>` | Per-language voice identifiers, keyed by BCP 47 language tag. Used on Android to pick a voice when the publication switches language. Defaults to `{}`. |
 | `languageOverride` | `String?` | Force a language for TTS, ignoring the publication's declared language. BCP 47 tag. |
 | `controlPanelInfoType` | `ControlPanelInfoType?` | What metadata to display in the system control panel during TTS playback. See [ControlPanelInfoType](#controlpanelinfotype). |
+| `controlPanelTimebase` | `ControlPanelTimebase?` | Timeline basis used by system media controls. See [ControlPanelTimebase](#controlpaneltimebase). Defaults to `chapter` when omitted or unknown during deserialization. |
 
 ```dart
 await reader.ttsSetPreferences(TTSPreferences(speed: 1.3));
@@ -107,6 +108,7 @@ await reader.ttsSetPreferences(TTSPreferences(speed: 1.3));
 | `allowExternalSeeking` | `bool?` | Allow seeking from the system's media controls (iOS Control Center / lock screen, Android notification). When `false`, the seek bar in those surfaces is read-only. |
 | `updateIntervalSecs` | `double?` | How often (in seconds) the plugin should emit playback position updates. |
 | `controlPanelInfoType` | `ControlPanelInfoType?` | What metadata to display in the system control panel. See [ControlPanelInfoType](#controlpanelinfotype). |
+| `controlPanelTimebase` | `ControlPanelTimebase?` | Timeline basis used by system media controls. See [ControlPanelTimebase](#controlpaneltimebase). If an unknown serialized value is parsed, it falls back to `chapter`. |
 
 ```dart
 await reader.audioSetPreferences(AudioPreferences(speed: 1.5, seekInterval: 30));
@@ -125,3 +127,14 @@ Determines what metadata is shown in the system media controls (lock screen, not
 | `titleChapter` | Publication title as the primary line, current chapter as the secondary line. |
 
 The exact mapping to "title" vs. "artist" fields is platform-specific (iOS `MPNowPlayingInfoCenter` vs. Android `MediaMetadata`) and may render slightly differently on each system.
+
+### ControlPanelTimebase
+
+Determines whether the system media controls (lock screen, notifications, CarPlay / Android Auto, etc.) use chapter-relative or publication-relative timeline values.
+
+| Value | Description |
+|-------|-------------|
+| `chapter` | Use chapter-relative timeline values. |
+| `wholeBook` | Use full-publication timeline values. |
+
+When parsing serialized values, aliases such as `whole_book` are accepted.

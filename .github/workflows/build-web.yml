@@ -25,6 +25,11 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium/example
 
+      # Build the gitignored web navigator bundle (/readiumReader.js) so the web
+      # reader's custom element registers; see docs/troubleshooting.md.
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
+
       - name: Build web
         run: flutter build web
         working-directory: flutter_readium/example

@@ -6,7 +6,7 @@ This guide covers all of the preferences APIs: EPUB display, TTS, and audio. As 
 
 ```dart
 await reader.setEPUBPreferences(EPUBPreferences(
-  fontSize: 130,           // percentage: 50–200
+  fontSize: 1.3,           // ratio: 0.5–2.0 (1.0 = default)
   fontFamily: 'Georgia',
   scroll: false,           // false = paginated, true = continuous scroll
   publisherStyles: true,
@@ -56,7 +56,7 @@ if (json != null) {
 Applied to all future publications, overridden per-session by `setEPUBPreferences`:
 
 ```dart
-FlutterReadium().setDefaultPreferences(EPUBPreferences(fontSize: 110));
+FlutterReadium().setDefaultPreferences(EPUBPreferences(fontSize: 1.1));
 ```
 
 ## TTS preferences

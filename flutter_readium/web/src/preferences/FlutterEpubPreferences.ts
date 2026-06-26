@@ -146,13 +146,8 @@ export function epubPreferencesFromJson(
     out.invertFilter = invertFilter;
   }
 
-  /**
-   * Font size — Dart treats this as a percentage `int` (e.g. `120` = 120%). The
-   * web navigator expects a ratio in `[0.7, 4]`, so divide by 100 to match the
-   * iOS plugin (which performs the same conversion before handing off to
-   * swift-toolkit). Out-of-range values are clamped downstream.
-   */
-  if (typeof prefs.fontSize === "number") out.fontSize = prefs.fontSize / 100;
+  // Font size — Dart sends a ratio (1.0 = default, 1.5 = 150%); forward unchanged.
+  if (typeof prefs.fontSize === "number") out.fontSize = prefs.fontSize;
 
   /**
    * Text alignment. Dart's `TextAlign` (left/right/center/justify/start/end) ->
@@ -232,11 +227,15 @@ function mapFontSize(value: unknown): number | null {
   return null;
 }
 
-/** Maps Dart's `EpubColumnCount` enum (auto/one/two) to the web's `number | null`. */
+/** Maps Dart's `EpubColumnCount` enum (canonical `auto`/`1`/`2`) to the web's `number | null`. */
 function mapColumnCount(value: unknown): number | null {
   switch (value) {
+    // "1"/"2" are the canonical Readium values; "one"/"two" are kept for
+    // backward tolerance with any legacy senders.
+    case "1":
     case "one":
       return 1;
+    case "2":
     case "two":
       return 2;
     case "auto":

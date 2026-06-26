@@ -9,6 +9,8 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.optNullableString
 import org.readium.r2.shared.util.Language
 
+private const val DEFAULT_CONTENT_PANEL_TIMEBASE_STRING = "chapter"
+
 /**
  * TTS preferences used in the Flutter Readium plugin.
  */
@@ -19,6 +21,7 @@ data class FlutterTtsPreferences(
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
+    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.CHAPTER,
 ) {
     /**
      * Convert to AndroidTtsPreferences.
@@ -48,6 +51,7 @@ data class FlutterTtsPreferences(
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
             controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType,
+            controlPanelTimebase = other.controlPanelTimebase ?: controlPanelTimebase,
         )
 
     companion object {
@@ -80,6 +84,13 @@ data class FlutterTtsPreferences(
                             "standard",
                         ),
                     ),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(
+                        jsonObject.optString(
+                            "controlPanelTimebase",
+                            DEFAULT_CONTENT_PANEL_TIMEBASE_STRING,
+                        ),
+                    ),
             )
         }
 
@@ -97,6 +108,7 @@ data class FlutterTtsPreferences(
                 jsonObject.put("voices", voicesJson)
             }
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
+            jsonObject.put("controlPanelTimebase", preferences.controlPanelTimebase?.let(ControlPanelTimebase::toString))
             return jsonObject
         }
 
@@ -137,6 +149,10 @@ data class FlutterTtsPreferences(
                 controlPanelInfoType =
                     ControlPanelInfoType.fromString(
                         ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard",
+                    ),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(
+                        ttsPrefs?.get("controlPanelTimebase") as? String ?: DEFAULT_CONTENT_PANEL_TIMEBASE_STRING,
                     ),
             )
         }

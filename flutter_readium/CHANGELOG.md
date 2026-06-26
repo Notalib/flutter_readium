@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.1.1] - 2026-06-26
+
+### Changed (breaking)
+
+- **`EPUBPreferences.fontSize` is now a `double` ratio** (`1.0` = default, `1.5` = 150%)
+  instead of a percentage `int`. Divide existing values by 100 to migrate
+  (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
+  visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
+  the API with Readium's own `EpubPreferences.fontSize`.
+
+### Fixed
+
+- **`EPUBPreferences.columnCount` (`one`/`two`) not applied** — the serialized value diverged
+  from Readium's canonical `ColumnCount` (`auto`/`1`/`2`), so Android threw a
+  `PlatformException` and iOS silently ignored the setting when starting playback. The shared
+  Dart serialization now matches the native toolkits; column count is applied on all platforms.
+- **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
+  media-overlay books and comics, caused by an unchecked reading-order index in
+  locator resolution. Out-of-range positions now degrade gracefully instead of trapping.
+- **iOS + Web: synchronization catch-up after re-enable** — when
+  `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
+  the visual EPUB navigator now jumps to the last sync locator that was reached
+  while synchronization was disabled, matching Android behavior.
+
 ## [0.1.0] - 2026-06-20
 
 Brings the Web platform up to feature parity with iOS / Android (audio,
@@ -82,6 +106,12 @@ supporting cross-platform additions.
   these fields; they are silently ignored on Android and web.
 - **`totalProgression` for EPUB and audio navigators (web)** — computed and surfaced for
   the progress slider on web.
+- **`totalProgressDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes a publication-level elapsed duration (`ReadiumTimebasedState.totalProgressDuration`)
+  computed from `currentLocator.locations.totalProgression` and publication duration when available.
+- **`totalDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes the total publication duration (`ReadiumTimebasedState.totalDuration`),
+  the sum of all reading-order link durations; `null` when any link is missing a duration.
 - **`DecorationStyle.spotlight`** — new decoration style that dims everything outside
   the decorated range and (optionally) renders the tint inside it. Implemented across
   Dart API, iOS (`box-shadow` + body dim), Android (`box-shadow` + body dim), and web

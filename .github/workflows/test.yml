@@ -50,7 +50,7 @@ jobs:
         working-directory: flutter_readium
 
       - name: Upload coverage
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: |
             flutter_readium_platform_interface/coverage/lcov.info
@@ -77,3 +77,54 @@ jobs:
       - name: Run web unit tests
         run: npm test
         working-directory: flutter_readium
+
+  android-unit-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Read Flutter version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          cache: true
+          pub-cache: true
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Install dependencies (flutter_readium)
+        run: flutter pub get
+        working-directory: flutter_readium
+
+      - name: Install dependencies (example)
+        run: flutter pub get
+        working-directory: flutter_readium/example
+
+      # gradlew + gradle-wrapper.jar are gitignored (Flutter default) and absent on a
+      # fresh checkout. flutter pub get does NOT inject them — only Flutter's Android
+      # build configuration does. --config-only runs that step without a full build.
+      - name: Generate Gradle wrapper
+        run: flutter build apk --config-only
+        working-directory: flutter_readium/example
+
+      - name: Run Android unit tests
+        run: ./gradlew :flutter_readium:testDebugUnitTest
+        working-directory: flutter_readium/example/android

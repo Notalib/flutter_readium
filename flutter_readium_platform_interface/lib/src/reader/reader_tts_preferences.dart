@@ -30,7 +30,12 @@ class TTSPreferences with EquatableMixin implements JSONable {
       'controlPanelInfoType',
       remove: true,
     );
+    final controlPanelTimebaseStr = jsonObject.optNullableString(
+      'controlPanelTimebase',
+      remove: true,
+    );
     ControlPanelInfoType? controlPanelInfoType;
+    ControlPanelTimebase? controlPanelTimebase;
 
     if (controlPanelInfoTypeStr != null) {
       controlPanelInfoType = ControlPanelInfoType.fromOptString(
@@ -43,6 +48,17 @@ class TTSPreferences with EquatableMixin implements JSONable {
       }
     }
 
+    if (controlPanelTimebaseStr != null) {
+      controlPanelTimebase = ControlPanelTimebase.fromOptString(
+        controlPanelTimebaseStr,
+      );
+      if (controlPanelTimebase == null) {
+        ReadiumLog.w(
+          'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',
+        );
+      }
+    }
+
     return TTSPreferences(
       speed: speed,
       pitch: pitch,
@@ -50,6 +66,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voices: voices,
       languageOverride: languageOverride,
       controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
+      controlPanelTimebase: controlPanelTimebase ?? ControlPanelTimebase.chapter,
     );
   }
 
@@ -60,6 +77,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     this.voices = const {},
     this.languageOverride,
     this.controlPanelInfoType,
+    this.controlPanelTimebase,
   });
 
   /// The speech rate (speed) for text-to-speech. A value of 1.0 is the normal speed, less than 1.0 is slower, and greater than 1.0 is faster.
@@ -80,6 +98,9 @@ class TTSPreferences with EquatableMixin implements JSONable {
   /// Control panel info type to determine what information is sent to the control panel during TTS playback.
   final ControlPanelInfoType? controlPanelInfoType;
 
+  /// Whether the system control panel timeline should use chapter or publication time.
+  final ControlPanelTimebase? controlPanelTimebase;
+
   @override
   Map<String, dynamic> toJson() => {}
     ..putOpt('speed', speed)
@@ -90,6 +111,10 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putOpt(
       'controlPanelInfoType',
       controlPanelInfoType?.toString().split('.').last,
+    )
+    ..putOpt(
+      'controlPanelTimebase',
+      controlPanelTimebase?.toString().split('.').last,
     );
 
   @override
@@ -100,5 +125,6 @@ class TTSPreferences with EquatableMixin implements JSONable {
     voices,
     languageOverride,
     controlPanelInfoType,
+    controlPanelTimebase,
   ];
 }
