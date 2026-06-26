@@ -34,6 +34,22 @@ Position updates travel the reverse direction via the text locator event channel
 
 All models in `flutter_readium_platform_interface` define hand-written `toJson` / `fromJson` methods (via the `JSONable` mixin) for cross-platform serialisation, persistence, and debugging. The package does not use `json_serializable` or `freezed` code generation.
 
+## Bridge serialization
+
+Two encodings cross the method channel, chosen by who owns the schema:
+
+- **Readium-owned objects** (`Locator`, `Decoration`, …) → **JSON strings** via `json.encode`. The upstream toolkits already own the schema and provide the deserializers, so encoding as a string avoids lossy `[String: Any]` / `Map<String, dynamic>` round-trips on the native sides.
+- **Plugin-owned flat structures** (preferences, action configs) → **Maps / Dictionaries**, where the shape is simple and fully controlled by this plugin.
+
+### Web TS: Locator → JSON always via `.serialize()`
+
+`@readium/shared` Locators store extra location fields (e.g. `cssSelector`, `tocHref`) in `locations.otherLocations` as a `Map<string, any>`. `JSON.stringify(locator)` **silently drops all Map entries.** Rules:
+
+- Emitting a Locator to Dart: `JSON.stringify(locator.serialize())`.
+- Embedding a locator inside a larger object before stringifying: call `locator.serialize()` first.
+- Deep-cloning: `JSON.parse(JSON.stringify(locator.serialize()))`, never `JSON.parse(JSON.stringify(locator))`.
+- Reading `otherLocations` entries needs the Map API: `locator.locations?.otherLocations?.get('cssSelector')`, not `(locator.locations as any)?.cssSelector`.
+
 ## Singleton pattern
 
 `FlutterReadium` is a singleton — there is one reader active at a time. The global publication lifecycle (open/close) is managed centrally. Do not introduce per-instance state without reviewing the existing lifecycle.

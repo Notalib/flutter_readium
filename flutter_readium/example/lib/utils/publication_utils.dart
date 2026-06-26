@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
@@ -18,6 +19,11 @@ class PublicationUtils {
   }
 
   static Future<List<String>> moveAssetPublicationsToReadiumStorage() async {
+    if (kIsWeb) {
+      _log.warning('moveAssetPublicationsToReadiumStorage is not supported on web');
+      return <String>[];
+    }
+
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
 
     // Create the local directory if it doesn't exist
@@ -68,6 +74,10 @@ class PublicationUtils {
   }
 
   static Future<String> copyFileToReadiumPubStorage(File file) async {
+    if (kIsWeb) {
+      throw UnsupportedError('copyFileToReadiumPubStorage is not supported on web');
+    }
+
     final exists = await file.exists();
     if (!exists) {
       _log.warning('Could not copy file from ${file.path}, does not exist');
@@ -85,6 +95,11 @@ class PublicationUtils {
   static Future<void> removePublicationFromReadiumStorage(
     String pubPath,
   ) async {
+    if (kIsWeb) {
+      _log.warning('removePublicationFromReadiumStorage is not supported on web');
+      return;
+    }
+
     final publicationsDirPath = await ReadiumStorage.publicationsDirPath;
     final publicationPath = path.join(publicationsDirPath, pubPath);
     await File(publicationPath).delete();

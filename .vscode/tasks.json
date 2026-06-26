@@ -3,20 +3,19 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "build:flutter",
-			"path": "flutter_readium/assets/_helper_scripts",
+			"script": "build:helpers",
+			"path": "flutter_readium",
 			"group": "build",
 			"problemMatcher": [],
-			"label": "build_helper_scripts",
-			"detail": "cross-env NODE_ENV=production IS_FLUTTER=1 webpack"
+			"label": "build_helper_scripts"
 		},
 		{
 			"label": "build_web",
-			"type": "shell",
-			"command": "${workspaceFolder}/bin/update_web_example",
+			"type": "npm",
+			"script": "build:dev",
+			"path": "flutter_readium",
 			"group": "build",
 			"problemMatcher": [],
-			"detail": "Build TypeScript bundle and copy readiumReader.js to example/web/"
 		}
 	]
 }

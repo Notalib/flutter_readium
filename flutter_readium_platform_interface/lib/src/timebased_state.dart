@@ -11,6 +11,8 @@ class ReadiumTimebasedState implements JSONable {
     this.currentOffset,
     this.currentBuffered,
     this.currentDuration,
+    this.totalProgressDuration,
+    this.totalDuration,
     this.currentLocator,
   });
 
@@ -31,6 +33,14 @@ class ReadiumTimebasedState implements JSONable {
     );
     final currentDuration = jsonObject.optNullableInt(
       'currentDuration',
+      remove: true,
+    );
+    final totalProgressDuration = jsonObject.optNullableInt(
+      'totalProgressDuration',
+      remove: true,
+    );
+    final totalDuration = jsonObject.optNullableInt(
+      'totalDuration',
       remove: true,
     );
 
@@ -58,6 +68,8 @@ class ReadiumTimebasedState implements JSONable {
       currentOffset: currentOffset != null ? Duration(milliseconds: currentOffset) : null,
       currentBuffered: currentBuffered != null ? Duration(milliseconds: currentBuffered) : null,
       currentDuration: currentDuration != null ? Duration(milliseconds: currentDuration) : null,
+      totalProgressDuration: totalProgressDuration != null ? Duration(milliseconds: totalProgressDuration) : null,
+      totalDuration: totalDuration != null ? Duration(milliseconds: totalDuration) : null,
       currentLocator: currentLocator,
     );
   }
@@ -65,6 +77,7 @@ class ReadiumTimebasedState implements JSONable {
   @override
   String toString() =>
       'ReadiumTimebasedState($state,offset=$currentOffset,duration=$currentDuration,buffered=$currentBuffered,'
+      'totalProgressDuration=$totalProgressDuration,totalDuration=$totalDuration,'
       'href=${currentLocator?.href},'
       'progression=${currentLocator?.locations?.progression},'
       'totalProgression=${currentLocator?.locations?.totalProgression}),'
@@ -83,6 +96,12 @@ class ReadiumTimebasedState implements JSONable {
   /// Total duration of the current file.
   final Duration? currentDuration;
 
+  /// Playback offset in the full publication, derived from total progression.
+  final Duration? totalProgressDuration;
+
+  /// Total duration of the full publication.
+  final Duration? totalDuration;
+
   /// Current Locator in the publication being played.
   final Locator? currentLocator;
 
@@ -92,6 +111,8 @@ class ReadiumTimebasedState implements JSONable {
     ..putOpt('currentOffset', currentOffset?.inMilliseconds)
     ..putOpt('currentBuffered', currentBuffered?.inMilliseconds)
     ..putOpt('currentDuration', currentDuration?.inMilliseconds)
+    ..putOpt('totalProgressDuration', totalProgressDuration?.inMilliseconds)
+    ..putOpt('totalDuration', totalDuration?.inMilliseconds)
     ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
@@ -99,12 +120,16 @@ class ReadiumTimebasedState implements JSONable {
     Duration? currentOffset,
     Duration? currentBuffered,
     Duration? currentDuration,
+    Duration? totalProgressDuration,
+    Duration? totalDuration,
     Locator? currentLocator,
   }) => ReadiumTimebasedState(
     state: state ?? this.state,
     currentOffset: currentOffset ?? this.currentOffset,
     currentBuffered: currentBuffered ?? this.currentBuffered,
     currentDuration: currentDuration ?? this.currentDuration,
+    totalProgressDuration: totalProgressDuration ?? this.totalProgressDuration,
+    totalDuration: totalDuration ?? this.totalDuration,
     currentLocator: currentLocator ?? this.currentLocator,
   );
 }
