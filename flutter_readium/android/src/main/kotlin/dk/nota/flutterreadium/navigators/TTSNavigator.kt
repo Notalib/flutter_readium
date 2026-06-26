@@ -55,6 +55,7 @@ private const val CURRENT_TIMEBASED_LOCATOR_KEY = "currentTimebasedLocator"
 
 private const val TTS_PREFERENCES_KEY = "ttsPreferences"
 
+@OptIn(ExperimentalReadiumApi::class)
 private typealias AndroidTtsNavigator =
     TtsNavigator<
         AndroidTtsSettings,
