@@ -26,6 +26,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       'languageOverride',
       remove: true,
     );
+    final skipPageBreaks = jsonObject.remove('skipPageBreaks') as bool?;
     final controlPanelInfoTypeStr = jsonObject.optNullableString(
       'controlPanelInfoType',
       remove: true,
@@ -50,6 +51,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voices: voices,
       languageOverride: languageOverride,
       controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
+      skipPageBreaks: skipPageBreaks,
     );
   }
 
@@ -60,6 +62,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     this.voices = const {},
     this.languageOverride,
     this.controlPanelInfoType,
+    this.skipPageBreaks,
   });
 
   /// The speech rate (speed) for text-to-speech. A value of 1.0 is the normal speed, less than 1.0 is slower, and greater than 1.0 is faster.
@@ -80,6 +83,10 @@ class TTSPreferences with EquatableMixin implements JSONable {
   /// Control panel info type to determine what information is sent to the control panel during TTS playback.
   final ControlPanelInfoType? controlPanelInfoType;
 
+  /// Whether to skip page-break elements during TTS playback. When false, page numbers are read
+  /// aloud with a localized prefix (e.g. "Page 42"). Defaults to true (skip).
+  final bool? skipPageBreaks;
+
   @override
   Map<String, dynamic> toJson() => {}
     ..putOpt('speed', speed)
@@ -87,10 +94,8 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putOpt('voiceIdentifier', voiceIdentifier)
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
-    ..putOpt(
-      'controlPanelInfoType',
-      controlPanelInfoType?.toString().split('.').last,
-    );
+    ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last)
+    ..putOpt('skipPageBreaks', skipPageBreaks);
 
   @override
   List<Object?> get props => [
@@ -100,5 +105,6 @@ class TTSPreferences with EquatableMixin implements JSONable {
     voices,
     languageOverride,
     controlPanelInfoType,
+    skipPageBreaks,
   ];
 }
