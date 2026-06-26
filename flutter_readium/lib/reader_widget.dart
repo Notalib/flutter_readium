@@ -31,7 +31,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
-    this.onInteraction,
+    this.onUserNavigation,
     super.key,
   });
 
@@ -97,7 +97,7 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Optional function for when user swipes or taps the sides of the reader
   /// Could for example be used for desync of audio and reader
-  final VoidCallback? onInteraction;
+  final VoidCallback? onUserNavigation;
 
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
@@ -456,8 +456,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
     }
-    if (widget.onInteraction != null) {
-      widget.onInteraction?.call();
+    if (widget.onUserNavigation != null) {
+      widget.onUserNavigation?.call();
     }
   }
 

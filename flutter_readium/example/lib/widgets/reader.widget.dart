@@ -45,6 +45,7 @@ class ReaderWidget extends StatelessWidget {
             publication: state.publication!,
             initialLocator: state.initialLocator,
             shouldShowControls: shouldShowControls,
+            onUserNavigation: () {},
             allowedDefaultActions: const {
               DefaultSelectionAction.copy,
               DefaultSelectionAction.share,
