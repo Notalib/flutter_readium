@@ -104,6 +104,12 @@ supporting cross-platform additions.
   these fields; they are silently ignored on Android and web.
 - **`totalProgression` for EPUB and audio navigators (web)** — computed and surfaced for
   the progress slider on web.
+- **`totalProgressDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes a publication-level elapsed duration (`ReadiumTimebasedState.totalProgressDuration`)
+  computed from `currentLocator.locations.totalProgression` and publication duration when available.
+- **`totalDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes the total publication duration (`ReadiumTimebasedState.totalDuration`),
+  the sum of all reading-order link durations; `null` when any link is missing a duration.
 - **`DecorationStyle.spotlight`** — new decoration style that dims everything outside
   the decorated range and (optionally) renders the tint inside it. Implemented across
   Dart API, iOS (`box-shadow` + body dim), Android (`box-shadow` + body dim), and web

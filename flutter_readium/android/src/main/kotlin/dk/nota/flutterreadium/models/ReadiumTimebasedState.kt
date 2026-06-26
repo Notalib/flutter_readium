@@ -29,6 +29,14 @@ data class ReadiumTimebasedState(
      *  Current duration in milliseconds
      */
     val currentDuration: Double? = null,
+    /**
+     *  Current offset in publication timeline, in milliseconds.
+     */
+    val totalProgressDuration: Double? = null,
+    /**
+     *  Total duration of the publication, in milliseconds.
+     */
+    val totalDuration: Double? = null,
 ) : JSONable {
     fun copyWith(
         state: TimebasedNavigator.TimebasedState = this.state,
@@ -36,10 +44,14 @@ data class ReadiumTimebasedState(
         currentOffset: Double? = this.currentOffset,
         currentBuffered: Long? = this.currentBuffered,
         currentDuration: Double? = this.currentDuration,
+        totalProgressDuration: Double? = this.totalProgressDuration,
+        totalDuration: Double? = this.totalDuration,
     ): ReadiumTimebasedState {
         if (state == this.state && currentLocator == this.currentLocator && currentOffset == this.currentOffset &&
             currentBuffered == this.currentBuffered &&
-            currentDuration == this.currentDuration
+            currentDuration == this.currentDuration &&
+            totalProgressDuration == this.totalProgressDuration &&
+            totalDuration == this.totalDuration
         ) {
             // No changes, return this to avoid StateFlow triggering updates.
             return this
@@ -51,6 +63,8 @@ data class ReadiumTimebasedState(
             currentOffset,
             currentBuffered,
             currentDuration,
+            totalProgressDuration,
+            totalDuration,
         )
     }
 
@@ -64,6 +78,8 @@ data class ReadiumTimebasedState(
             putOpt("currentOffset", currentOffset)
             putOpt("currentBuffered", currentBuffered)
             putOpt("currentDuration", currentDuration)
+            putOpt("totalProgressDuration", totalProgressDuration)
+            putOpt("totalDuration", totalDuration)
         }
 
     companion object {

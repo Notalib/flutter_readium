@@ -16,6 +16,8 @@ public class ReadiumTimebasedState : Equatable {
   var currentOffset: TimeInterval?
   var currentBuffered: TimeInterval?
   var currentDuration: TimeInterval?
+  var totalProgressDuration: TimeInterval?
+  var totalDuration: TimeInterval?
   var currentLocator: Locator?
 
   init(
@@ -23,12 +25,16 @@ public class ReadiumTimebasedState : Equatable {
     currentOffset: TimeInterval? = nil,
     currentBuffered: TimeInterval? = nil,
     currentDuration: TimeInterval? = nil,
+    totalProgressDuration: TimeInterval? = nil,
+    totalDuration: TimeInterval? = nil,
     currentLocator: Locator? = nil
   ) {
     self.state = state
     self.currentOffset = currentOffset
     self.currentBuffered = currentBuffered
     self.currentDuration = currentDuration
+    self.totalProgressDuration = totalProgressDuration
+    self.totalDuration = totalDuration
     self.currentLocator = currentLocator
   }
 
@@ -45,6 +51,12 @@ public class ReadiumTimebasedState : Equatable {
     }
     if let currentDuration = currentDuration {
       map["currentDuration"] = Int(currentDuration * 1000)
+    }
+    if let totalProgressDuration = totalProgressDuration {
+      map["totalProgressDuration"] = Int(totalProgressDuration * 1000)
+    }
+    if let totalDuration = totalDuration {
+      map["totalDuration"] = Int(totalDuration * 1000)
     }
     if let locator = currentLocator {
       map["currentLocator"] = try? locator.jsonString()
@@ -64,6 +76,8 @@ public class ReadiumTimebasedState : Equatable {
     lhs.currentOffset == rhs.currentOffset &&
     lhs.currentBuffered == rhs.currentBuffered &&
     lhs.currentDuration == rhs.currentDuration &&
+    lhs.totalProgressDuration == rhs.totalProgressDuration &&
+    lhs.totalDuration == rhs.totalDuration &&
     lhs.currentLocator == rhs.currentLocator
   }
 }

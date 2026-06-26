@@ -45,9 +45,9 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
 
-const val currentTimebaseLocatorKey = "currentTimebaseLocator"
+const val CURRENT_TIMEBASE_LOCATOR_KEY = "currentTimebaseLocator"
 
-const val audioPreferencesKey = "audioPreferencesKey"
+const val AUDIO_PREFERENCES_KEY = "audioPreferencesKey"
 
 /**
  * Navigator for pure Audiobook publications using Readium's AudioNavigator.
@@ -87,7 +87,7 @@ open class AudiobookNavigator(
         if (publication.readingOrder.any { it.duration == 0.0 }) {
             PluginLog.e(
                 TAG,
-                "::initNavigator - has at least one readium order item with duration = 0"
+                "::initNavigator - has at least one readium order item with duration = 0",
             )
             throw Exception("Publication has at least one readium order item with duration = 0")
         }
@@ -144,7 +144,7 @@ open class AudiobookNavigator(
                             is AudioNavigator.State.Ended -> {
                                 PluginLog.d(
                                     TAG,
-                                    "::initNavigator - playback ended, stopping navigator."
+                                    "::initNavigator - playback ended, stopping navigator.",
                                 )
                                 stopMediaServiceFacade()
                             }
@@ -156,7 +156,6 @@ open class AudiobookNavigator(
                         }
                     }.launchIn(this@AudiobookNavigator)
             }
-
     }
 
     override suspend fun play(fromLocator: Locator?) {
@@ -221,7 +220,7 @@ open class AudiobookNavigator(
             if (itemIndex == null) {
                 PluginLog.e(
                     TAG,
-                    "::goToLocator - ${locator.href} not found in navigator's readingOrder"
+                    "::goToLocator - ${locator.href} not found in navigator's readingOrder",
                 )
                 return@withMainContext
             }
@@ -231,7 +230,7 @@ open class AudiobookNavigator(
             if (timeOffset == null) {
                 PluginLog.w(
                     TAG,
-                    "::goToLocator - couldn't find timeOffset from starting file over."
+                    "::goToLocator - couldn't find timeOffset from starting file over.",
                 )
             }
             navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
@@ -252,7 +251,7 @@ open class AudiobookNavigator(
         if (progression !in 0.0..1.0) {
             PluginLog.d(
                 TAG,
-                "::seekToProgression - progression $progression is not between 0.0 and 1.0"
+                "::seekToProgression - progression $progression is not between 0.0 and 1.0",
             )
             return false
         }
@@ -265,12 +264,16 @@ open class AudiobookNavigator(
 
             // Find duration of the current item.
             // First try to get it from the player, because it is more precise, if that fails, get it from the navigator's reading order.
-            val duration = player.duration.milliseconds.inWholeSeconds.takeIf {
-                // player.duration is -9223372036854775 when the duration is unknown, so we check if it's a positive number before using
-                it > 0
-            }
-                ?: navigator.readingOrder.items.firstOrNull { it.href == currentLocator.href }?.duration?.inWholeSeconds
-                ?: 0
+            val duration =
+                player.duration.milliseconds.inWholeSeconds.takeIf {
+                    // player.duration is -9223372036854775 when the duration is unknown, so we check if it's a positive number before using
+                    it > 0
+                }
+                    ?: navigator.readingOrder.items
+                        .firstOrNull { it.href == currentLocator.href }
+                        ?.duration
+                        ?.inWholeSeconds
+                    ?: 0
 
             PluginLog.w(TAG, "::seekToProgression - couldn't find duration of current item, defaulting to 0")
 
@@ -316,7 +319,7 @@ open class AudiobookNavigator(
             } catch (e: Exception) {
                 PluginLog.e(
                     TAG,
-                    "::navigatorWithOpenMediaSession - failed to open MediaSession: $e"
+                    "::navigatorWithOpenMediaSession - failed to open MediaSession: $e",
                 )
             }
 
@@ -397,7 +400,7 @@ open class AudiobookNavigator(
             .distinctUntilChanged()
             .onEach { locator ->
                 onCurrentLocatorChanges(locator)
-                state[currentTimebaseLocatorKey] = locator
+                state[CURRENT_TIMEBASE_LOCATOR_KEY] = locator
             }.launchIn(this)
             .let { jobs.add(it) }
 
@@ -462,12 +465,12 @@ open class AudiobookNavigator(
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentTimebaseLocatorKey,
-                (state[currentTimebaseLocatorKey] as? Locator)?.toJSON()?.toString(),
+                CURRENT_TIMEBASE_LOCATOR_KEY,
+                (state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator)?.toJSON()?.toString(),
             )
 
             putString(
-                audioPreferencesKey,
+                AUDIO_PREFERENCES_KEY,
                 FlutterAudioPreferences.toJSON(preferences).toString(),
             )
         }
@@ -488,11 +491,11 @@ open class AudiobookNavigator(
         ): AudiobookNavigator {
             val locator =
                 state
-                    .getString(currentTimebaseLocatorKey)
+                    .getString(CURRENT_TIMEBASE_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences =
                 state
-                    .getString(audioPreferencesKey)
+                    .getString(AUDIO_PREFERENCES_KEY)
                     ?.let { json -> FlutterAudioPreferences.fromJSON(json) }
                     ?: FlutterAudioPreferences()
 

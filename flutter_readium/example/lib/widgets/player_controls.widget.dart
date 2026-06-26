@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_readium/flutter_readium.dart' show Locator, Publication;
+import 'package:flutter_readium/flutter_readium.dart' show ControlPanelTimebase, Locator, Publication;
 import 'package:flutter_readium_example/state/index.dart';
 
 import 'progression_slider.widget.dart';
@@ -15,14 +15,16 @@ class PlayerControls extends StatelessWidget {
   ) => BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
     builder: (final context, final state) {
       final isAudioBook = publication.isAudioBook;
-      final audioActive = state.audioEnabled;
 
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const ProgressionSlider(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 4,
+            runSpacing: 4,
             children: [
               IconButton(
                 icon: const Icon(Icons.skip_previous),
@@ -83,7 +85,7 @@ class PlayerControls extends StatelessWidget {
                 ),
                 tooltip: 'Skip to next chapter',
               ),
-              if (audioActive) ...[
+              if (state.audioEnabled) ...[
                 IconButton(
                   key: const ValueKey('seek_back_10s'),
                   icon: const Icon(Icons.replay_10),
@@ -97,6 +99,19 @@ class PlayerControls extends StatelessWidget {
                   tooltip: 'Seek forward 10 s',
                 ),
               ],
+              if (isAudioBook)
+                IconButton(
+                  key: const ValueKey('toggle_control_panel_timebase'),
+                  icon: Icon(
+                    state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook ? Icons.watch : Icons.pageview,
+                  ),
+                  tooltip: state.audioControlPanelTimebase == ControlPanelTimebase.wholeBook
+                      ? 'Timebase: Whole book'
+                      : 'Timebase: Chapter',
+                  onPressed: () => context.read<PlayerControlsBloc>().add(
+                    ToggleAudioControlPanelTimebase(),
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.settings_voice),
                 onPressed: () => context.read<PlayerControlsBloc>().add(
