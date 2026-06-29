@@ -396,10 +396,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       }
     });
 
-    on<UpdateCurrentTocHref>((event, emit) async {
-      emit(state.setTocHref(event.tocHref));
-    });
-
     on<ToggleAudioControlPanelTimebase>((event, emit) async {
       final nextTimebase = state.audioControlPanelTimebase == ControlPanelTimebase.chapter
           ? ControlPanelTimebase.wholeBook
