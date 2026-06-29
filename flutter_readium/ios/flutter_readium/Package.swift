@@ -32,6 +32,10 @@ let package = Package(
             resources: [
                 .process("PrivacyInfo.xcprivacy"),
             ]
+        ),
+        .testTarget(
+            name: "flutter_readiumTests",
+            dependencies: ["flutter_readium"]
         )
     ]
 )

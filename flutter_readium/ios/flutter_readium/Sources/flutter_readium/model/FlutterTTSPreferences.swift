@@ -21,13 +21,16 @@ public struct TTSPreferences {
 
   public var pageBreakBehavior: PageBreakBehavior?
 
+  public var controlPanelTimebase: ControlPanelTimebase?
+
   public init(
     rate: Float? = nil,
     pitch: Float? = nil,
     overrideLanguage: Language? = nil,
     voiceIdentifier: String? = nil,
     controlPanelInfoType: ControlPanelInfoType = .standard,
-    pageBreakBehavior: PageBreakBehavior? = nil
+    pageBreakBehavior: PageBreakBehavior? = nil,
+    controlPanelTimebase: ControlPanelTimebase = .chapter
   ) {
     self.rate = rate
     self.pitch = pitch
@@ -35,6 +38,7 @@ public struct TTSPreferences {
     self.voiceIdentifier = voiceIdentifier
     self.controlPanelInfoType = controlPanelInfoType
     self.pageBreakBehavior = pageBreakBehavior
+    self.controlPanelTimebase = controlPanelTimebase
   }
 
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
@@ -48,6 +52,8 @@ public struct TTSPreferences {
     let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
     let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
     let pageBreakBehavior = PageBreakBehavior(from: map["pageBreakBehavior"] as? String)
+    let controlPanelTimebaseStr = map["controlPanelTimebase"] as? String
+    let mapControlPanelTimebase = ControlPanelTimebase(from: controlPanelTimebaseStr)
     /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
     /// Rate is also clamped between allowed values.
     let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,
@@ -57,6 +63,6 @@ public struct TTSPreferences {
     let avPitch = clamp(Float(pitch),
                         minValue: 0.5,
                         maxValue: 2.0)
-    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType, pageBreakBehavior: pageBreakBehavior)
+    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType, pageBreakBehavior: pageBreakBehavior, controlPanelTimebase: mapControlPanelTimebase)
   }
 }

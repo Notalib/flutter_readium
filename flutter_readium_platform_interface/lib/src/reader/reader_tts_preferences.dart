@@ -49,7 +49,12 @@ class TTSPreferences with EquatableMixin implements JSONable {
       'controlPanelInfoType',
       remove: true,
     );
+    final controlPanelTimebaseStr = jsonObject.optNullableString(
+      'controlPanelTimebase',
+      remove: true,
+    );
     ControlPanelInfoType? controlPanelInfoType;
+    ControlPanelTimebase? controlPanelTimebase;
 
     if (controlPanelInfoTypeStr != null) {
       controlPanelInfoType = ControlPanelInfoType.fromOptString(
@@ -62,6 +67,17 @@ class TTSPreferences with EquatableMixin implements JSONable {
       }
     }
 
+    if (controlPanelTimebaseStr != null) {
+      controlPanelTimebase = ControlPanelTimebase.fromOptString(
+        controlPanelTimebaseStr,
+      );
+      if (controlPanelTimebase == null) {
+        ReadiumLog.w(
+          'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',
+        );
+      }
+    }
+
     return TTSPreferences(
       speed: speed,
       pitch: pitch,
@@ -70,6 +86,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       languageOverride: languageOverride,
       controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
       pageBreakBehavior: pageBreakBehavior,
+      controlPanelTimebase: controlPanelTimebase ?? ControlPanelTimebase.chapter,
     );
   }
 
@@ -81,6 +98,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     this.languageOverride,
     this.controlPanelInfoType,
     this.pageBreakBehavior,
+    this.controlPanelTimebase,
   });
 
   /// The speech rate (speed) for text-to-speech. A value of 1.0 is the normal speed, less than 1.0 is slower, and greater than 1.0 is faster.
@@ -105,6 +123,9 @@ class TTSPreferences with EquatableMixin implements JSONable {
   /// When null, defaults to [PageBreakBehavior.readAsIs].
   final PageBreakBehavior? pageBreakBehavior;
 
+  /// Whether the system control panel timeline should use chapter or publication time.
+  final ControlPanelTimebase? controlPanelTimebase;
+
   @override
   Map<String, dynamic> toJson() => {}
     ..putOpt('speed', speed)
@@ -113,6 +134,10 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
     ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last)
+    ..putOpt(
+      'controlPanelTimebase',
+      controlPanelTimebase?.toString().split('.').last,
+    )
     ..putOpt('pageBreakBehavior', pageBreakBehavior?.name);
 
   @override
@@ -124,5 +149,6 @@ class TTSPreferences with EquatableMixin implements JSONable {
     languageOverride,
     controlPanelInfoType,
     pageBreakBehavior,
+    controlPanelTimebase,
   ];
 }

@@ -1,2 +1,19 @@
+# New fixtures must be added explicitly with `git add -f`.
+# Committed fixtures are negated individually so dart pub publish does not warn
+# about tracked-but-gitignored files (.pubignore keeps them out of the published package).
 pubs/*
 !pubs/README.md
+!pubs/38533.audiobook
+!pubs/38533_guided_navigation_preview.webpub
+!pubs/38533_overlay_preview.webpub
+!pubs/41654_overlay_preview.webpub
+!pubs/50272-nota-comics.webpub
+!pubs/712199_ebook.epub
+!pubs/712199_ebook.webpub
+!pubs/alice.pdf
+!pubs/auth_audiobook.json
+!pubs/flatland_remote.audiobook
+!pubs/free_audiobook.json
+!pubs/moby_dick.epub
+!pubs/pdf_test.pdf
+!pubs/time_machine.pdf

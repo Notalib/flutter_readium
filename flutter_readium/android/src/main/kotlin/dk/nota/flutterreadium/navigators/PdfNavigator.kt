@@ -30,7 +30,7 @@ import org.readium.r2.shared.util.mediatype.MediaType
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "PdfNavigator"
-private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
+private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualCurrentLocator"
 
 /**
  * Wraps the Readium [PdfNavigatorFragment] (Pdfium-backed) inside the same
@@ -59,9 +59,9 @@ class PdfNavigator :
     val visualListener: EpubNavigator.VisualListener
 
     private var currentVisualLocator: Locator?
-        get() = state[currentVisualLocatorKey] as? Locator
+        get() = state[CURRENT_VISUAL_LOCATOR_KEY] as? Locator
         set(value) {
-            state[currentVisualLocatorKey] = value
+            state[CURRENT_VISUAL_LOCATOR_KEY] = value
         }
 
     private var pdfNavigator: PdfReaderFragment? = null
@@ -217,7 +217,7 @@ class PdfNavigator :
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentVisualLocatorKey,
+                CURRENT_VISUAL_LOCATOR_KEY,
                 currentVisualLocator?.toJSON()?.toString(),
             )
         }
@@ -276,7 +276,7 @@ class PdfNavigator :
         ): PdfNavigator {
             val locator =
                 state
-                    .getString(currentVisualLocatorKey)
+                    .getString(CURRENT_VISUAL_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             Log.d(TAG, "::restoreState - locator: $locator")
             return PdfNavigator(publication, locator, listener)

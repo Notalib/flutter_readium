@@ -12,7 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
   localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
   Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
-  Replaces the previous `skipPageBreaks` bool. Supported on Android, iOS and web.
+  Replaces the previous `skipPageBreaks` bool.
+
+## [0.1.1] - 2026-06-26
 
 ### Changed (breaking)
 
@@ -113,6 +115,12 @@ supporting cross-platform additions.
   these fields; they are silently ignored on Android and web.
 - **`totalProgression` for EPUB and audio navigators (web)** — computed and surfaced for
   the progress slider on web.
+- **`totalProgressDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes a publication-level elapsed duration (`ReadiumTimebasedState.totalProgressDuration`)
+  computed from `currentLocator.locations.totalProgression` and publication duration when available.
+- **`totalDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes the total publication duration (`ReadiumTimebasedState.totalDuration`),
+  the sum of all reading-order link durations; `null` when any link is missing a duration.
 - **`DecorationStyle.spotlight`** — new decoration style that dims everything outside
   the decorated range and (optionally) renders the tint inside it. Implemented across
   Dart API, iOS (`box-shadow` + body dim), Android (`box-shadow` + body dim), and web
