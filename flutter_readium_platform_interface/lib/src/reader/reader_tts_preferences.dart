@@ -1,9 +1,25 @@
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../utils/jsonable.dart';
 import '../utils/readium_log.dart';
 import 'reader_audio_preferences.dart';
+
+enum PageBreakBehavior {
+  /// Pass page-break elements through unchanged — the raw label text is spoken.
+  readAsIs,
+
+  /// Rewrite the label with a localized prefix, e.g. "Page 42" or "side 42".
+  prefixLabel,
+
+  /// Filter page-break elements out of the iterator entirely.
+  skip;
+
+  static PageBreakBehavior? optFromString(final String? value) => PageBreakBehavior.values.firstWhereOrNull(
+    (e) => e.name.toLowerCase() == value?.toLowerCase(),
+  );
+}
 
 @immutable
 class TTSPreferences with EquatableMixin implements JSONable {
@@ -26,7 +42,9 @@ class TTSPreferences with EquatableMixin implements JSONable {
       'languageOverride',
       remove: true,
     );
-    final skipPageBreaks = jsonObject.remove('skipPageBreaks') as bool?;
+    final pageBreakBehavior = PageBreakBehavior.optFromString(
+      jsonObject.remove('pageBreakBehavior') as String?,
+    );
     final controlPanelInfoTypeStr = jsonObject.optNullableString(
       'controlPanelInfoType',
       remove: true,
@@ -51,7 +69,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voices: voices,
       languageOverride: languageOverride,
       controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
-      skipPageBreaks: skipPageBreaks,
+      pageBreakBehavior: pageBreakBehavior,
     );
   }
 
@@ -62,7 +80,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     this.voices = const {},
     this.languageOverride,
     this.controlPanelInfoType,
-    this.skipPageBreaks,
+    this.pageBreakBehavior,
   });
 
   /// The speech rate (speed) for text-to-speech. A value of 1.0 is the normal speed, less than 1.0 is slower, and greater than 1.0 is faster.
@@ -83,9 +101,9 @@ class TTSPreferences with EquatableMixin implements JSONable {
   /// Control panel info type to determine what information is sent to the control panel during TTS playback.
   final ControlPanelInfoType? controlPanelInfoType;
 
-  /// Whether to skip page-break elements during TTS playback. When false, page numbers are read
-  /// aloud with a localized prefix (e.g. "Page 42"). Defaults to true (skip).
-  final bool? skipPageBreaks;
+  /// How page-break elements are handled during TTS playback.
+  /// When null, defaults to [PageBreakBehavior.readAsIs].
+  final PageBreakBehavior? pageBreakBehavior;
 
   @override
   Map<String, dynamic> toJson() => {}
@@ -95,7 +113,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
     ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last)
-    ..putOpt('skipPageBreaks', skipPageBreaks);
+    ..putOpt('pageBreakBehavior', pageBreakBehavior?.name);
 
   @override
   List<Object?> get props => [
@@ -105,6 +123,6 @@ class TTSPreferences with EquatableMixin implements JSONable {
     voices,
     languageOverride,
     controlPanelInfoType,
-    skipPageBreaks,
+    pageBreakBehavior,
   ];
 }

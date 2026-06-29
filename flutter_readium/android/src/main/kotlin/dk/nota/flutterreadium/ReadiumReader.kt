@@ -1044,7 +1044,7 @@ object ReadiumReader :
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
-            pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?: true
+            pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
             ttsNavigator =
                 TTSNavigator(it, this@ReadiumReader, currentTextLocator.value, ttsPrefs).apply {
                     initNavigator()
@@ -1053,7 +1053,7 @@ object ReadiumReader :
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
-        pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?: true
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
         ttsNavigator?.updatePreferences(ttsPrefs)
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }

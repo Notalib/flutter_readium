@@ -207,7 +207,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
           Task { @MainActor in
             // Start TTS from the reader's current location
-            self.pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?? true
+            self.pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
@@ -274,7 +274,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       do {
         let ttsPrefs = try TTSPreferences(fromMap: args!)
-        pageBreakIteratorFactory?.skipPageBreaks = ttsPrefs.skipPageBreaks ?? true
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
         ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {

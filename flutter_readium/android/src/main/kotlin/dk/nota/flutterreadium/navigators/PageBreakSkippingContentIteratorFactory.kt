@@ -1,5 +1,6 @@
 package dk.nota.flutterreadium.navigators
 
+import dk.nota.flutterreadium.PageBreakBehavior
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.LocalizedString
 import org.readium.r2.shared.publication.Locator
@@ -21,15 +22,18 @@ import org.readium.r2.shared.util.resource.Resource
  * the match is exact. Inline spans inside a paragraph are not filtered (their text is merged
  * into the parent block's element and not individually addressable at this level).
  *
- * When [skipPageBreaks] is `true` (default), page-break elements are removed from the iterator.
- * When `false`, they are kept but the label text from the original element is rewritten to a
- * localized string (e.g. "Page 42" or "side 42"), derived from the publication's declared
- * language. [skipPageBreaks] can be changed at any time; the change takes effect on the next
+ * [pageBreakBehavior] controls how page-break elements are handled:
+ * - [PageBreakBehavior.READ_AS_IS] (default) — element passes through unchanged.
+ * - [PageBreakBehavior.PREFIX_LABEL] — label text is rewritten to a localized string
+ *   (e.g. "Page 42"), derived from the publication's declared language.
+ * - [PageBreakBehavior.SKIP] — element is removed from the iterator.
+ *
+ * [pageBreakBehavior] can be changed at any time; the change takes effect on the next
  * [Content.Iterator.hasNext] / [Content.Iterator.hasPrevious] call.
  */
 @OptIn(ExperimentalReadiumApi::class)
 class PageBreakSkippingContentIteratorFactory(
-    var skipPageBreaks: Boolean = true,
+    var pageBreakBehavior: PageBreakBehavior = PageBreakBehavior.READ_AS_IS,
     private val delegate: ResourceContentIteratorFactory = HtmlResourceContentIterator.Factory(),
 ) : ResourceContentIteratorFactory {
     override suspend fun create(
@@ -46,7 +50,7 @@ class PageBreakSkippingContentIteratorFactory(
 
         val pageBreakIds = manifest.pageBreakIds()
         if (pageBreakIds.isEmpty()) return inner
-        return PageBreakHandlingIterator(inner, pageBreakIds, ::skipPageBreaks, manifest.pageLabel())
+        return PageBreakHandlingIterator(inner, pageBreakIds, ::pageBreakBehavior, manifest.pageLabel())
     }
 
     private fun Manifest.pageBreakIds(): Set<String> =
@@ -85,7 +89,7 @@ class PageBreakSkippingContentIteratorFactory(
 private class PageBreakHandlingIterator(
     private val delegate: Content.Iterator,
     private val pageBreakIds: Set<String>,
-    private val shouldPageElementsSkip: () -> Boolean,
+    private val pageBreakBehavior: () -> PageBreakBehavior,
     private val pageLabel: ((String) -> String)?,
 ) : Content.Iterator {
     private data class Pending(
@@ -100,7 +104,7 @@ private class PageBreakHandlingIterator(
         pending = null
         while (delegate.hasNext()) {
             val element = delegate.next()
-            if (!shouldPageElementsSkip() || !element.isPageBreak()) {
+            if (pageBreakBehavior() != PageBreakBehavior.SKIP || !element.isPageBreak()) {
                 pending = Pending(element, forward = true)
                 return true
             }
@@ -123,7 +127,7 @@ private class PageBreakHandlingIterator(
         pending = null
         while (delegate.hasPrevious()) {
             val element = delegate.previous()
-            if (!shouldPageElementsSkip() || !element.isPageBreak()) {
+            if (pageBreakBehavior() != PageBreakBehavior.SKIP || !element.isPageBreak()) {
                 pending = Pending(element, forward = false)
                 return true
             }
@@ -142,7 +146,8 @@ private class PageBreakHandlingIterator(
             )
 
     private fun Content.Element.transform(): Content.Element {
-        if (shouldPageElementsSkip() || !isPageBreak()) return this
+        if (!isPageBreak()) return this
+        if (pageBreakBehavior() != PageBreakBehavior.PREFIX_LABEL) return this
         val textElement = this as Content.TextElement
         val rawLabel = textElement.segments.joinToString("") { it.text }.trim()
         if (rawLabel.isEmpty()) return this

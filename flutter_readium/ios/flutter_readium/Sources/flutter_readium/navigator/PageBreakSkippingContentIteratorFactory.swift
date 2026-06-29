@@ -1,16 +1,35 @@
 import Foundation
 import ReadiumShared
 
+public enum PageBreakBehavior {
+    /// Pass page-break elements through unchanged — the raw label text is spoken.
+    case readAsIs
+    /// Rewrite the label with a localized prefix, e.g. "Page 42" or "side 42".
+    case prefixLabel
+    /// Filter page-break elements out of the iterator entirely.
+    case skip
+
+    public init(from string: String?) {
+        switch string?.lowercased() {
+        case "readasis": self = .readAsIs
+        case "prefixlabel": self = .prefixLabel
+        case "skip": self = .skip
+        default: self = .readAsIs
+        }
+    }
+}
+
 /// Wraps `HTMLResourceContentIterator.Factory` and handles EPUB page-break elements for TTS.
 ///
-/// When `skipPageBreaks` is `true` (default), page-break elements are silently skipped.
-/// When `false`, the raw label text from the element is rewritten to a localized string
-/// (e.g. "Page 42" / "side 42"), derived from the publication's declared language.
+/// `pageBreakBehavior` controls how page-break elements are handled:
+/// - `.readAsIs` (default) — element passes through unchanged.
+/// - `.prefixLabel` — label text is rewritten to a localized string (e.g. "Page 42").
+/// - `.skip` — element is filtered out entirely.
 ///
 /// Page-break elements are identified by matching the element's CSS selector against
 /// the fragment IDs declared in the publication's pageList nav.
 final class PageBreakSkippingContentIteratorFactory: ResourceContentIteratorFactory {
-    var skipPageBreaks: Bool = true
+    var pageBreakBehavior: PageBreakBehavior = .readAsIs
 
     private let delegate: ResourceContentIteratorFactory
 
@@ -37,7 +56,7 @@ final class PageBreakSkippingContentIteratorFactory: ResourceContentIteratorFact
         return PageBreakHandlingIterator(
             delegate: inner,
             pageBreakIds: pageBreakIds,
-            shouldSkip: { [weak self] in self?.skipPageBreaks ?? true },
+            pageBreakBehavior: { [weak self] in self?.pageBreakBehavior ?? .readAsIs },
             pageLabel: publication.manifest.pageLabel()
         )
     }
@@ -74,24 +93,24 @@ private extension Manifest {
 private final class PageBreakHandlingIterator: ContentIterator {
     private let delegate: ContentIterator
     private let pageBreakIds: Set<String>
-    private let shouldSkip: () -> Bool
+    private let pageBreakBehavior: () -> PageBreakBehavior
     private let pageLabel: ((String) -> String)?
 
     init(
         delegate: ContentIterator,
         pageBreakIds: Set<String>,
-        shouldSkip: @escaping () -> Bool,
+        pageBreakBehavior: @escaping () -> PageBreakBehavior,
         pageLabel: ((String) -> String)?
     ) {
         self.delegate = delegate
         self.pageBreakIds = pageBreakIds
-        self.shouldSkip = shouldSkip
+        self.pageBreakBehavior = pageBreakBehavior
         self.pageLabel = pageLabel
     }
 
     func next() async throws -> ContentElement? {
         while let element = try await delegate.next() {
-            if shouldSkip() && isPageBreak(element) { continue }
+            if pageBreakBehavior() == .skip && isPageBreak(element) { continue }
             return transform(element)
         }
         return nil
@@ -99,15 +118,15 @@ private final class PageBreakHandlingIterator: ContentIterator {
 
     func previous() async throws -> ContentElement? {
         while let element = try await delegate.previous() {
-            if shouldSkip() && isPageBreak(element) { continue }
+            if pageBreakBehavior() == .skip && isPageBreak(element) { continue }
             return transform(element)
         }
         return nil
     }
 
     private func transform(_ element: ContentElement) -> ContentElement {
-        guard !shouldSkip(), let textElement = element as? TextContentElement else { return element }
-        guard isPageBreak(element) else { return element }
+        guard isPageBreak(element), pageBreakBehavior() == .prefixLabel,
+              let textElement = element as? TextContentElement else { return element }
         guard let rawLabel = textElement.text?.trimmingCharacters(in: .whitespaces),
               !rawLabel.isEmpty else { return element }
         let label = pageLabel?(rawLabel) ?? rawLabel
