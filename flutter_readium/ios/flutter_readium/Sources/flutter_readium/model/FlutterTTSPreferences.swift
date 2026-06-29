@@ -19,18 +19,23 @@ public struct TTSPreferences {
 
   public var controlPanelInfoType: ControlPanelInfoType?
 
+  /// Whether to skip page-break elements during TTS. When nil, defaults to true (skip).
+  public var skipPageBreaks: Bool?
+
   public init(
     rate: Float? = nil,
     pitch: Float? = nil,
     overrideLanguage: Language? = nil,
     voiceIdentifier: String? = nil,
-    controlPanelInfoType: ControlPanelInfoType = .standard
+    controlPanelInfoType: ControlPanelInfoType = .standard,
+    skipPageBreaks: Bool? = nil
   ) {
     self.rate = rate
     self.pitch = pitch
     self.overrideLanguage = overrideLanguage
     self.voiceIdentifier = voiceIdentifier
     self.controlPanelInfoType = controlPanelInfoType
+    self.skipPageBreaks = skipPageBreaks
   }
 
   init(fromMap jsonMap: Dictionary<String, Any>) throws {
@@ -43,6 +48,7 @@ public struct TTSPreferences {
 
     let controlPanelInfoTypeStr = map["controlPanelInfoType"] as? String
     let mapControlPanelInfoType = ControlPanelInfoType(from: controlPanelInfoTypeStr)
+    let skipPageBreaks = map["skipPageBreaks"] as? Bool
     /// Rate is normalized on iOS, since AVSpeechUtterance has a default rate of 0.5 (see AVSpeechUtteranceDefaultSpeechRate)
     /// Rate is also clamped between allowed values.
     let avRate = clamp(Float(rate) * AVSpeechUtteranceDefaultSpeechRate,
@@ -52,6 +58,6 @@ public struct TTSPreferences {
     let avPitch = clamp(Float(pitch),
                         minValue: 0.5,
                         maxValue: 2.0)
-    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType)
+    self.init(rate: avRate, pitch: avPitch, overrideLanguage: overrideLanguage, voiceIdentifier: voiceIdentifier, controlPanelInfoType: mapControlPanelInfoType, skipPageBreaks: skipPageBreaks)
   }
 }

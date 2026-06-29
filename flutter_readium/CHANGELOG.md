@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **`TTSPreferences.skipPageBreaks`** — controls whether EPUB page-break elements (DAISY/Nordic
+  EPUB3 `epub:type="pagebreak"`) are read aloud during TTS. When `true` (default), page-break
+  elements are silently skipped. When `false`, page numbers are read with a localized prefix
+  (e.g. "Page 42" / "side 42"), derived from the publication's declared language (supports
+  English, Danish, Swedish, Norwegian, Icelandic; falls back to the raw label otherwise).
+  Supported on Android and iOS.
+
 ### Changed (breaking)
 
 - **`EPUBPreferences.fontSize` is now a `double` ratio** (`1.0` = default, `1.5` = 150%)
