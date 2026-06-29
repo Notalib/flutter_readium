@@ -37,6 +37,15 @@ export class NotaComicBook {
 
     this.#comicBookPages = figureElements.map((figureElement) => new NotaComicBookPage(figureElement, this.#container));
 
+    // Auto-mount the first comic page in full-page mode. Without this the user sees the
+    // raw EPUB rendering (page heading + figure) and pinch-zoom has no clone to act on.
+    // Instant render (duration 0) — no entry animation on book open.
+    const firstPage = this.#comicBookPages[0];
+    if (firstPage) {
+      this.#lastElementId = firstPage.comicImgId;
+      firstPage.showFullPage(0);
+    }
+
     if (typeof window.readium !== 'undefined') {
       // We need to capture scrollToId calls to handle scrolling to comic frames, but we want to preserve the original functionality for non-comic content. So we override scrollToId to route through our custom function, and keep a reference to the original function for non-comic use.
       window.readium.scrollToId = (id: string) => {
@@ -56,6 +65,12 @@ export class NotaComicBook {
 
   #container!: HTMLDivElement;
 
+  /**
+   * True while narration is actively driving the comic (set by the first narration cue,
+   * cleared by exitNarrationMode). When false, scrollToId shows the full page so the
+   * user can explore freely before pressing play.
+   */
+  #narrationActive = false;
   /** True once a pinch gesture has been detected; remains true until clearManualOverride(). */
   #manualOverrideActive = false;
   /** True only while fingers are actively pinching (cleared on touchend). */
@@ -89,8 +104,17 @@ export class NotaComicBook {
     const lcId = sanitizeId(id);
     const page = this.#getComicBookPageByFrameId(lcId);
     if (!page) {
-      // Not a comic book page, so we need to use the original scrollToId function to scroll to the element,
-      // and remove the active comic page container class to reset any comic page specific styling or behavior.
+      // Id doesn't match a known comic frame on this page. Two cases:
+      // 1. We're on a comic spine doc but Readium is scrolling to an unrelated anchor
+      //    (e.g. the EPUB's heading "side2"). In explore mode the comic overlay is the
+      //    canonical view — ignore the anchor and keep the overlay mounted.
+      //    During narration this branch shouldn't fire (cues always target comic frames),
+      //    but stay safe and also ignore it then.
+      // 2. We're on a non-comic spine doc. #comicBookPages is empty, so fall through
+      //    to native scroll behaviour and ensure the overlay (empty) is reset.
+      if (this.#comicBookPages.length > 0) {
+        return;
+      }
       this.#container.classList.remove(activeComicPageContainerClass);
       for (let child of this.#container.childNodes) {
         this.#container.removeChild(child);
@@ -100,11 +124,42 @@ export class NotaComicBook {
       return;
     }
 
+    if (!this.#narrationActive) {
+      page.showFullPage();
+      return;
+    }
     page.gotoComicFrame(lcId, duration ?? this.segmentDuration ?? 1000);
   }
 
   public gotoComicFrame(id: string, duration?: number) {
     this.scrollToId(id, duration);
+  }
+
+  /**
+   * Called by native when narration stops. Clears the zoom layout and navigates back
+   * to the full-page view so the user can browse freely. Does NOT replay any deferred
+   * locator — that is Re-sync's job.
+   */
+  public exitNarrationMode(): void {
+    this.#narrationActive = false;
+    this.clearManualOverride();
+    if (this.#lastElementId) {
+      this.#getComicBookPageByFrameId(this.#lastElementId)?.showFullPage(0);
+    }
+  }
+
+  /**
+   * Called by native at the start of each narration cue (before scrollToId). Transitions
+   * the comic from explore mode into narration-driven mode on the first cue. Any pre-play
+   * manual zoom is cleared so narration can take over cleanly.
+   */
+  public onNarrationCue(): void {
+    if (!this.#narrationActive) {
+      this.#narrationActive = true;
+      if (this.#manualOverrideActive) {
+        this.clearManualOverride();
+      }
+    }
   }
 
   /**
@@ -207,7 +262,9 @@ export class NotaComicBook {
     }
 
     this.#manualOverrideActive = true;
-    window.updateNarrationSync?.(false);
+    if (this.#narrationActive) {
+      window.updateNarrationSync?.(false);
+    }
     this.#startPinch(e);
   }
 
@@ -556,6 +613,19 @@ export class NotaComicBookPage {
       if (cs?.opacity) img.style.opacity = cs.opacity;
     }
     return frame;
+  }
+
+  /** Id of this page's comic image. Used by NotaComicBook to seed #lastElementId on auto-mount. */
+  public get comicImgId(): string {
+    return this.#comicImg.id;
+  }
+
+  /**
+   * Renders the clone at the full-page view. Default duration animates smoothly for
+   * narration→full transitions; pass 0 for an instant snap (initial mount, stop).
+   */
+  public showFullPage(duration: number = 400): void {
+    this.renderCurrentFrame(this.#comicImg.id, duration);
   }
 
   public gotoComicFrame(id: string, duration: number) {

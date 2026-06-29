@@ -21,6 +21,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   web behaviour. A manual pinch-zoom in the EPUB webview enters the same manual mode as a page
   swipe, emitting `onNarrationSyncChanged(false)`; `setNarrationSyncEnabled(true)` re-pans to the
   current narrated panel.
+- **Comic explore mode** — Nota MO comics now open directly to the comic page view (no EPUB
+  chrome) and accept pinch-zoom for free exploration before narration is started. When
+  narration begins, the view transitions automatically to panel-by-panel mode — no Re-sync
+  action needed. Stopping narration snaps the comic back to the full-page view instantly.
 
 ### Changed
 

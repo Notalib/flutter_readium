@@ -181,6 +181,10 @@ class EpubNavigator :
                 navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
             }
 
+            // Signal the comic helper that narration is active so it exits explore mode on the
+            // first cue and navigates to the panel normally. No-op on non-comic pages.
+            navigator.evaluateJavascript("window.comicBookPage?.onNarrationCue?.();")
+
             if (!navigator.go(locator, animated)) {
                 PluginLog.w(TAG, "::go -  FAILED!")
                 return@withMainContext false
@@ -527,6 +531,18 @@ class EpubNavigator :
     ) {
         lastSyncLocator = locator
         lastSyncSegmentDuration = segmentDuration
+    }
+
+    /**
+     * Called when narration stops (not paused). Clears any deferred-sync state and tells
+     * the comic overlay to animate back to the full-page view so the user can browse freely.
+     * Distinct from [resyncAfterManualMode] which replays the last cue.
+     */
+    suspend fun exitNarrationMode() {
+        PluginLog.d(TAG, "::exitNarrationMode")
+        lastSyncLocator = null
+        lastSyncSegmentDuration = null
+        evaluateJavascript("window.comicBookPage?.exitNarrationMode?.();")
     }
 
     /**

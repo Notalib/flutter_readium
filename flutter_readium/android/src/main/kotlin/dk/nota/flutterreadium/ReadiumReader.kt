@@ -1288,6 +1288,21 @@ object ReadiumReader :
         }
 
         currentReadiumTimebasedState.value = ReadiumTimebasedState.none()
+        exitNarrationMode()
+    }
+
+    /**
+     * Resets narration-sync state and returns the comic overlay to its full-page view.
+     * Called on stop (not pause). Distinct from [setNarrationSyncEnabled] which re-pans
+     * to the last narrated panel.
+     */
+    fun exitNarrationMode() {
+        PluginLog.d(TAG, "::exitNarrationMode")
+        narrationSyncEnabled = true
+        emitNarrationSyncChanged(true)
+        launch {
+            epubNavigator?.exitNarrationMode()
+        }
     }
 
     /**

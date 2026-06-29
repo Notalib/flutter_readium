@@ -596,6 +596,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // NotaComicBook helper intercepts and animates (using the segment duration set
     // above). No explicit gotoComicFrame call is needed here.
     //
+    // Signal the comic helper that narration is now active so it exits explore mode on
+    // the first cue and can navigate to the panel normally. No-op on non-comic pages.
+    await readiumViewController.evaluateJavaScript("window.comicBookPage?.onNarrationCue?.();")
+
     // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
     // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
     // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
@@ -636,6 +640,21 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
           animated: false,
           segmentDuration: deferredSegmentDuration)
       }
+    }
+  }
+
+  /// Called when narration stops (not paused — fully stopped). Resets the
+  /// runtime sync flag and deferred-locator state, then tells the comic overlay
+  /// to animate back to the full-page view so the user can browse freely.
+  /// Distinct from setNarrationSyncEnabled(true) which replays the last cue.
+  @MainActor
+  public func resetForNarrationStop() {
+    narrationSyncEnabled = true
+    lastSyncLocator = nil
+    lastSyncSegmentDuration = nil
+    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(true)
+    Task.detached(priority: .high) {
+      await self.evaluateJavascript("window.comicBookPage?.exitNarrationMode?.();")
     }
   }
 

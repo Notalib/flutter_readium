@@ -316,6 +316,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
           self.updateReaderViewTimebasedDecorations([])
         }
+        // Reset narration sync state and return comic to full-page view.
+        self.currentReaderView?.resetForNarrationStop()
       }
       result(nil)
     case "pause":
