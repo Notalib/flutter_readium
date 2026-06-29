@@ -126,6 +126,7 @@ class PlayerControlsState {
     bool? playing,
     bool? ttsEnabled,
     bool? audioEnabled,
+    ControlPanelTimebase? audioControlPanelTimebase,
     bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
