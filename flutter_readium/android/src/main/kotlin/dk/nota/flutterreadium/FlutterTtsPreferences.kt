@@ -9,6 +9,8 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.extensions.optNullableString
 import org.readium.r2.shared.util.Language
 
+private const val DEFAULT_CONTENT_PANEL_TIMEBASE_STRING = "chapter"
+
 /**
  * TTS preferences used in the Flutter Readium plugin.
  */
@@ -20,6 +22,7 @@ data class FlutterTtsPreferences(
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
     val pageBreakBehavior: PageBreakBehavior? = null,
+    val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.CHAPTER,
 ) {
     /**
      * Convert to AndroidTtsPreferences.
@@ -50,6 +53,7 @@ data class FlutterTtsPreferences(
             voices = other.voices ?: voices,
             controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType,
             pageBreakBehavior = other.pageBreakBehavior ?: pageBreakBehavior,
+            controlPanelTimebase = other.controlPanelTimebase ?: controlPanelTimebase,
         )
 
     companion object {
@@ -83,6 +87,13 @@ data class FlutterTtsPreferences(
                         ),
                     ),
                 pageBreakBehavior = PageBreakBehavior.fromString(jsonObject.optString("pageBreakBehavior").ifEmpty { null }),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(
+                        jsonObject.optString(
+                            "controlPanelTimebase",
+                            DEFAULT_CONTENT_PANEL_TIMEBASE_STRING,
+                        ),
+                    ),
             )
         }
 
@@ -101,6 +112,7 @@ data class FlutterTtsPreferences(
             }
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
             preferences.pageBreakBehavior?.let { jsonObject.put("pageBreakBehavior", PageBreakBehavior.toString(it)) }
+            jsonObject.put("controlPanelTimebase", preferences.controlPanelTimebase?.let(ControlPanelTimebase::toString))
             return jsonObject
         }
 
@@ -143,6 +155,10 @@ data class FlutterTtsPreferences(
                         ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard",
                     ),
                 pageBreakBehavior = PageBreakBehavior.fromString(ttsPrefs?.get("pageBreakBehavior") as? String),
+                controlPanelTimebase =
+                    ControlPanelTimebase.fromString(
+                        ttsPrefs?.get("controlPanelTimebase") as? String ?: DEFAULT_CONTENT_PANEL_TIMEBASE_STRING,
+                    ),
             )
         }
     }

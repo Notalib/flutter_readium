@@ -203,6 +203,70 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // ControlPanelTimebase enum
+  // ---------------------------------------------------------------------------
+  group('ControlPanelTimebase', () {
+    test('fromOptString accepts canonical value', () {
+      expect(
+        ControlPanelTimebase.fromOptString('wholeBook'),
+        ControlPanelTimebase.wholeBook,
+      );
+    });
+
+    test('fromOptString accepts canonical and snake_case variants', () {
+      expect(
+        ControlPanelTimebase.fromOptString('whole_book'),
+        ControlPanelTimebase.wholeBook,
+      );
+      expect(
+        ControlPanelTimebase.fromOptString('CHAPTER'),
+        ControlPanelTimebase.chapter,
+      );
+    });
+
+    test('fromOptString returns null for unknown values', () {
+      expect(ControlPanelTimebase.fromOptString('unknown_xyz'), isNull);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Preferences fallback behavior
+  // ---------------------------------------------------------------------------
+  group('Preferences controlPanelTimebase fallback', () {
+    test('AudioPreferences.fromJson keeps null when missing', () {
+      final prefs = AudioPreferences.fromJson({
+        'speed': 1.0,
+      });
+
+      expect(prefs.controlPanelTimebase, isNull);
+    });
+
+    test('AudioPreferences.fromJson defaults invalid value to chapter', () {
+      final prefs = AudioPreferences.fromJson({
+        'controlPanelTimebase': 'invalid_value',
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+
+    test('TTSPreferences.fromJson defaults missing value to chapter', () {
+      final prefs = TTSPreferences.fromJson({
+        'speed': 1.0,
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+
+    test('TTSPreferences.fromJson defaults invalid value to chapter', () {
+      final prefs = TTSPreferences.fromJson({
+        'controlPanelTimebase': 'invalid_value',
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // TTSVoiceGender enum
   // ---------------------------------------------------------------------------
   group('TTSVoiceGender', () {

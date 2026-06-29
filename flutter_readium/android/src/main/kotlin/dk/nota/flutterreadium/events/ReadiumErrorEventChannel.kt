@@ -32,7 +32,7 @@ data class ReadiumError(
         operator fun invoke(error: PublicationError): ReadiumError =
             ReadiumError(
                 message = error.message,
-                code = error.errorCode.name,
+                code = error.errorCode.wireValue,
                 data = error.cause?.message,
             )
 

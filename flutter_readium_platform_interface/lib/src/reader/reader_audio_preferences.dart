@@ -33,9 +33,23 @@ class AudioPreferences with EquatableMixin implements JSONable {
       'controlPanelInfoType',
       remove: true,
     );
+    final controlPanelTimebaseStr = jsonObject.optNullableString(
+      'controlPanelTimebase',
+      remove: true,
+    );
     final controlPanelInfoType = controlPanelInfoTypeStr?.let(
       (it) => ControlPanelInfoType.fromOptString(it),
     );
+    ControlPanelTimebase? controlPanelTimebase;
+    if (controlPanelTimebaseStr != null) {
+      controlPanelTimebase = ControlPanelTimebase.fromOptString(controlPanelTimebaseStr);
+      if (controlPanelTimebase == null) {
+        ReadiumLog.w(
+          'Unknown ControlPanelTimebase value: $controlPanelTimebaseStr, defaulting to ControlPanelTimebase.chapter.',
+        );
+        controlPanelTimebase = ControlPanelTimebase.chapter;
+      }
+    }
     return AudioPreferences(
       volume: volume,
       speed: speed,
@@ -45,6 +59,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
       allowExternalSeeking: allowExternalSeeking,
       updateIntervalSecs: updateIntervalSecs,
       controlPanelInfoType: controlPanelInfoType,
+      controlPanelTimebase: controlPanelTimebase,
     );
   }
 
@@ -56,6 +71,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     this.continuousSeeking,
     this.allowExternalSeeking,
     this.controlPanelInfoType,
+    this.controlPanelTimebase,
     this.updateIntervalSecs,
   });
 
@@ -86,6 +102,9 @@ class AudioPreferences with EquatableMixin implements JSONable {
   /// The type of information to display on the control panel during audio playback.
   final ControlPanelInfoType? controlPanelInfoType;
 
+  /// Whether the system control panel timeline should use chapter or publication time.
+  final ControlPanelTimebase? controlPanelTimebase;
+
   @override
   Map<String, dynamic> toJson() => {
     'volume': volume,
@@ -96,6 +115,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     'allowExternalSeeking': allowExternalSeeking,
     'updateIntervalSecs': updateIntervalSecs,
     'controlPanelInfoType': controlPanelInfoType?.toString().split('.').last,
+    'controlPanelTimebase': controlPanelTimebase?.toString().split('.').last,
   };
 
   @override
@@ -108,6 +128,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     allowExternalSeeking,
     updateIntervalSecs,
     controlPanelInfoType,
+    controlPanelTimebase,
   ];
 
   AudioPreferences copyWith({
@@ -119,6 +140,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     bool? allowExternalSeeking,
     double? updateIntervalSecs,
     ControlPanelInfoType? controlPanelInfoType,
+    ControlPanelTimebase? controlPanelTimebase,
   }) => AudioPreferences(
     volume: volume ?? this.volume,
     speed: speed ?? this.speed,
@@ -128,6 +150,7 @@ class AudioPreferences with EquatableMixin implements JSONable {
     allowExternalSeeking: allowExternalSeeking ?? this.allowExternalSeeking,
     updateIntervalSecs: updateIntervalSecs ?? this.updateIntervalSecs,
     controlPanelInfoType: controlPanelInfoType ?? this.controlPanelInfoType,
+    controlPanelTimebase: controlPanelTimebase ?? this.controlPanelTimebase,
   );
 }
 
@@ -141,4 +164,22 @@ enum ControlPanelInfoType {
   static ControlPanelInfoType? fromOptString(final String type) => ControlPanelInfoType.values.firstWhereOrNull(
     (e) => e.toString().split('.').last == type,
   );
+}
+
+enum ControlPanelTimebase {
+  chapter,
+  wholeBook;
+
+  static ControlPanelTimebase? fromOptString(final String type) {
+    final lower = type.toLowerCase();
+    switch (lower) {
+      case 'chapter':
+        return ControlPanelTimebase.chapter;
+      case 'wholebook':
+      case 'whole_book':
+        return ControlPanelTimebase.wholeBook;
+      default:
+        return null;
+    }
+  }
 }
