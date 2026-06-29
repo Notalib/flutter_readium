@@ -194,6 +194,9 @@ class BookshelfPageState extends State<BookshelfPage> {
 
   String _bookFormatFromConformsTo(Publication pub) {
     if (pub.conformsToReadiumEbook) {
+      if (pub.isAudioBook) {
+        return 'Narrated Ebook';
+      }
       return 'Ebook';
     } else if (pub.conformsToReadiumAudiobook) {
       return 'Audiobook';
