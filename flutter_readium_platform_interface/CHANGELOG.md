@@ -10,7 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`TTSPreferences.pageBreakBehavior`** (`PageBreakBehavior?`) — controls how EPUB page-break
   elements are handled during TTS playback. Values: `readAsIs` (default — raw label spoken as-is),
   `prefixLabel` (label rewritten with a localized prefix, e.g. "Page 42"), `skip` (element
-  filtered out entirely). Replaces the previous `skipPageBreaks` bool.
+  filtered out entirely).
 
 ### Fixed
 

@@ -12,7 +12,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
   localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
   Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
-  Replaces the previous `skipPageBreaks` bool. Supported on Android and iOS.
+  Replaces the previous `skipPageBreaks` bool. Supported on Android, iOS and web.
 
 ### Changed (breaking)
 
