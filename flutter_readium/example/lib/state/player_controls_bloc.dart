@@ -110,6 +110,7 @@ class PlayerControlsState {
     required this.playing,
     required this.ttsEnabled,
     required this.audioEnabled,
+    required this.audioControlPanelTimebase,
     this.narrationSyncEnabled,
     this.currentTocHref,
   });
@@ -117,6 +118,7 @@ class PlayerControlsState {
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
+  final ControlPanelTimebase audioControlPanelTimebase;
   final bool? narrationSyncEnabled;
   final String? currentTocHref;
 
@@ -127,9 +129,10 @@ class PlayerControlsState {
     bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
-    playing: playing ?? this.playing,
+    playing: playing != null ? playing : this.playing,
     ttsEnabled: ttsEnabled != null ? ttsEnabled : this.ttsEnabled,
     audioEnabled: audioEnabled != null ? audioEnabled : this.audioEnabled,
+    audioControlPanelTimebase: audioControlPanelTimebase ?? this.audioControlPanelTimebase,
     narrationSyncEnabled: narrationSyncEnabled != null ? narrationSyncEnabled : this.narrationSyncEnabled,
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
@@ -160,9 +163,13 @@ class PlayerControlsState {
     playing: false,
     ttsEnabled: false,
     audioEnabled: false,
+    audioControlPanelTimebase: audioControlPanelTimebase,
     currentTocHref: null,
   );
 }
+
+@immutable
+class ToggleAudioControlPanelTimebase extends PlayerControlsEvent {}
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   List<StreamSubscription> subscriptions = [];
@@ -179,6 +186,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           playing: false,
           ttsEnabled: false,
           audioEnabled: false,
+          audioControlPanelTimebase: ControlPanelTimebase.chapter,
         ),
       ) {
     subscriptions.add(
@@ -273,11 +281,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-          prefs: AudioPreferences(
-            speed: 1.5,
-            seekInterval: 10,
-            continuousSeeking: true,
-          ),
+          prefs: _buildAudioPreferences(state.audioControlPanelTimebase),
           fromLocator: event.fromLocator,
         );
         await instance.play(event.fromLocator);
@@ -390,7 +394,30 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.ttsSetVoice(daVoice.identifier, daVoice.language);
       }
     });
+
+    on<UpdateCurrentTocHref>((event, emit) async {
+      emit(state.setTocHref(event.tocHref));
+    });
+
+    on<ToggleAudioControlPanelTimebase>((event, emit) async {
+      final nextTimebase = state.audioControlPanelTimebase == ControlPanelTimebase.chapter
+          ? ControlPanelTimebase.wholeBook
+          : ControlPanelTimebase.chapter;
+
+      emit(state.copyWith(audioControlPanelTimebase: nextTimebase));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(nextTimebase));
+      }
+    });
   }
+
+  AudioPreferences _buildAudioPreferences(ControlPanelTimebase timebase) => AudioPreferences(
+    speed: 1.5,
+    seekInterval: 10,
+    continuousSeeking: true,
+    controlPanelTimebase: timebase,
+  );
 
   @override
   Future<void> close() async {

@@ -76,21 +76,21 @@ import kotlin.time.Duration
 
 private const val TAG = "ReadiumReader"
 
-private const val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
+private val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
 
-private const val currentPublicationUrlKey = "currentPublicationUrl"
-private const val ttsEnabledKey = "ttsEnabled"
-private const val audioEnabledKey = "audioEnabled"
-private const val syncAudioEnabledKey = "syncAudioEnabled"
+private val currentPublicationUrlKey = "currentPublicationUrl"
+private val ttsEnabledKey = "ttsEnabled"
+private val audioEnabledKey = "audioEnabled"
+private val syncAudioEnabledKey = "syncAudioEnabled"
 
-private const val epubEnabledKey = "epubEnabled"
-private const val pdfEnabledKey = "pdfEnabled"
-private const val comicEnabledKey = "comicEnabled"
-private const val ttsNavigatorStateKey = "ttsState"
-private const val audioNavigatorStateKey = "audioState"
-private const val syncAudioNavigatorStateKey = "syncAudioState"
-private const val epubNavigatorStateKey = "epubState"
-private const val decorationStyleKey = "decorationStyle"
+private val epubEnabledKey = "epubEnabled"
+private val pdfEnabledKey = "pdfEnabled"
+private val comicEnabledKey = "comicEnabled"
+private val ttsNavigatorStateKey = "ttsState"
+private val audioNavigatorStateKey = "audioState"
+private val syncAudioNavigatorStateKey = "syncAudioState"
+private val epubNavigatorStateKey = "epubState"
+private val decorationStyleKey = "decorationStyle"
 
 // TODO: Support custom headers and authentication header for content files.
 
@@ -159,18 +159,18 @@ object ReadiumReader :
         )
     }
 
-    private var _assetRetriever: AssetRetriever? = null
+    private var assetRetrieverCache: AssetRetriever? = null
 
     private val assetRetriever: AssetRetriever
         get() {
-            if (_assetRetriever == null) {
-                _assetRetriever = AssetRetriever(context.contentResolver, httpClient)
+            if (assetRetrieverCache == null) {
+                assetRetrieverCache = AssetRetriever(context.contentResolver, httpClient)
             }
 
-            return _assetRetriever!!
+            return assetRetrieverCache!!
         }
 
-    private var _publicationOpener: PublicationOpener? = null
+    private var publicationOpenerCache: PublicationOpener? = null
 
     private var ttsNavigator: TTSNavigator? = null
 
@@ -204,6 +204,8 @@ object ReadiumReader :
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
+    private var currentTimebasedPublicationDurationMs: Double? = null
+
     /** Current audio preferences (defaults if audio hasn't been enabled yet). */
     val audioPreferences: FlutterAudioPreferences
         get() = _audioPreferences
@@ -213,8 +215,8 @@ object ReadiumReader :
      */
     private val publicationOpener: PublicationOpener
         get() {
-            if (_publicationOpener == null) {
-                _publicationOpener =
+            if (publicationOpenerCache == null) {
+                publicationOpenerCache =
                     PublicationOpener(
                         publicationParser =
                             DefaultPublicationParser(
@@ -226,7 +228,7 @@ object ReadiumReader :
                     )
             }
 
-            return _publicationOpener!!
+            return publicationOpenerCache!!
         }
 
     // Initialize from plugin or anywhere you have an Application or Context.
@@ -376,6 +378,7 @@ object ReadiumReader :
                             initNavigator()
                             PluginLog.d(TAG, "::storeState - audioNavigator restored")
                         }
+                    currentTimebasedPublicationDurationMs = computePublicationDurationMs(pub.readingOrder.map { it.duration })
                 }
             } else if (bundle.getBoolean(syncAudioEnabledKey)) {
                 // Restore Sync Audio navigator
@@ -394,6 +397,7 @@ object ReadiumReader :
                                     initNavigator()
                                     PluginLog.d(TAG, "::storeState - syncAudioNavigator restored")
                                 }
+                        currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
                     }
                 } else {
                     PluginLog.e(TAG, "::storeState - no media overlays for sync audio navigator")
@@ -416,8 +420,8 @@ object ReadiumReader :
         savedStateRef?.clear()
         savedStateRef = null
 
-        _assetRetriever = null
-        _publicationOpener = null
+        assetRetrieverCache = null
+        publicationOpenerCache = null
 
         readerViewRef?.clear()
         readerViewRef = null
@@ -701,6 +705,7 @@ object ReadiumReader :
         syncAudiobookNavigator = null
 
         _audioPreferences = FlutterAudioPreferences()
+        currentTimebasedPublicationDurationMs = null
 
         currentReadiumTimebasedState.value = ReadiumTimebasedState()
         currentTextLocator.value = null
@@ -742,6 +747,12 @@ object ReadiumReader :
             currentReadiumTimebasedState.value.copyWith(
                 currentOffset = timeOffset?.inWholeMilliseconds?.toDouble(),
                 currentDuration = duration?.let { it * 1000 },
+                totalProgressDuration =
+                    computeTotalProgressDurationMs(
+                        locator.locations.totalProgression,
+                        currentTimebasedPublicationDurationMs,
+                    ),
+                totalDuration = currentTimebasedPublicationDurationMs,
                 currentLocator = locator,
             )
     }
@@ -1145,6 +1156,7 @@ object ReadiumReader :
                     initNavigator()
                 }
         } ?: throw Exception("Publication not opened cannot enable tts")
+        currentTimebasedPublicationDurationMs = null
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
@@ -1387,6 +1399,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
+            currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
         } else {
             PluginLog.d(TAG, "::audioEnable - media-overlay book")
             val ail = initialLocator ?: epubNavigator?.currentLocator?.value
@@ -1400,6 +1413,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
+            currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
         }
     }
 

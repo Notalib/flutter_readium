@@ -4,9 +4,7 @@ package dk.nota.flutterreadium
  * Modified version of kotlin-toolkit's example app MediaService.
  * See https://github.com/search?q=repo%3Areadium%2Fkotlin-toolkit%20mediaServiceFacade&type=code
  * and https://github.com/readium/kotlin-toolkit/blob/develop/docs/guides/navigator/media-navigator.md
- */
-
-/*
+ *
  * Copyright 2022 Readium Foundation. All rights reserved.
  * Use of this source code is governed by the BSD-style license
  * available in the top-level LICENSE file of the project.
@@ -22,8 +20,11 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import androidx.media3.common.C
 import androidx.media3.common.ForwardingSimpleBasePlayer
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
@@ -199,7 +200,18 @@ class PluginMediaService :
             }
 
             // Create our SimpleBasePlayer override to override some media-button mapping.
-            val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences)
+            // Extract publication reading-order durations now (manifest values, always available)
+            // so PluginSimpleBasePlayer does not have to rely on the Media3 timeline (which may
+            // still be C.TIME_UNSET for unloaded tracks).
+            val publicationChapterDurationsMs: List<Long>? =
+                ReadiumReader.currentPublication
+                    ?.readingOrder
+                    ?.mapNotNull { link ->
+                        val secs = link.duration
+                        if (secs != null && secs.isFinite() && secs > 0) (secs * 1000L).toLong() else null
+                    }?.takeIf { it.size == (ReadiumReader.currentPublication?.readingOrder?.size ?: 0) }
+
+            val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences, publicationChapterDurationsMs)
 
             val mediaSession =
                 MediaSession
@@ -287,6 +299,7 @@ class PluginMediaService :
         // App and service can be started again from a stale notification using
         // PendingIntent.getForegroundService, so we need to call startForeground and then stop
         // the service.
+
         /* val readerRepository = (application as org.readium.r2.testapp.Application).readerRepository
         if (readerRepository.isEmpty()) {
             val notification =
@@ -389,7 +402,160 @@ class PluginMediaService :
 class PluginSimpleBasePlayer(
     player: Player,
     val preferences: FlutterAudioPreferences,
+    /** Chapter durations from the publication manifest (seconds → ms). Null = chapter mode or durations unavailable. */
+    private val manifestChapterDurationsMs: List<Long>? = null,
 ) : ForwardingSimpleBasePlayer(player) {
+    private data class PublicationSeekTarget(
+        val mediaItemIndex: Int,
+        val positionMs: Long,
+    )
+
+    private fun usesWholeBookTimebase(): Boolean = preferences.controlPanelTimebase == ControlPanelTimebase.WHOLE_BOOK
+
+    /**
+     * Returns chapter durations in ms, preferring manifest values over the live Media3 timeline
+     * (which may still be C.TIME_UNSET for tracks that haven't loaded yet).
+     */
+    private fun timelineDurationsMs(): List<Long>? {
+        // Use manifest durations if available — they are always present and correct.
+        if (manifestChapterDurationsMs != null) {
+            return manifestChapterDurationsMs
+        }
+
+        // Fallback: try the live Media3 timeline.
+        val timeline = player.currentTimeline
+        if (timeline.windowCount == 0) {
+            return null
+        }
+
+        val window = Timeline.Window()
+        return buildList(timeline.windowCount) {
+            for (index in 0 until timeline.windowCount) {
+                val durationMs = timeline.getWindow(index, window).durationMs
+                if (durationMs == C.TIME_UNSET || durationMs <= 0) {
+                    return null
+                }
+                add(durationMs)
+            }
+        }
+    }
+
+    private fun publicationDurationMs(): Long? = timelineDurationsMs()?.sum()
+
+    /**
+     * A synthetic single-window [Timeline] that wraps the multi-chapter real timeline but exposes
+     * the total publication duration as one seekable window. Used in whole-book mode so the
+     * system control-panel slider max shows the total book length instead of the current chapter.
+     */
+    private inner class WholeBookTimeline(
+        private val originalTimeline: Timeline,
+        private val totalDurationMs: Long,
+    ) : Timeline() {
+        private val periodUid = Any()
+
+        override fun getWindowCount(): Int = 1
+
+        override fun getWindow(
+            windowIndex: Int,
+            window: Window,
+            defaultPositionProjectionUs: Long,
+        ): Window {
+            if (originalTimeline.windowCount > 0) {
+                originalTimeline.getWindow(0, window, defaultPositionProjectionUs)
+            } else {
+                window.isSeekable = true
+                window.isDynamic = false
+                window.isPlaceholder = false
+                window.liveConfiguration = null
+            }
+            window.uid = Window.SINGLE_WINDOW_UID
+            window.durationUs = totalDurationMs * 1000L
+            window.defaultPositionUs = 0L
+            window.firstPeriodIndex = 0
+            window.lastPeriodIndex = 0
+            window.positionInFirstPeriodUs = 0L
+            return window
+        }
+
+        override fun getPeriodCount(): Int = 1
+
+        override fun getPeriod(
+            periodIndex: Int,
+            period: Period,
+            setIds: Boolean,
+        ): Period {
+            period.windowIndex = 0
+            period.durationUs = totalDurationMs * 1000L
+            period.positionInWindowUs = 0L
+            if (setIds) {
+                period.id = periodUid
+                period.uid = periodUid
+            }
+            return period
+        }
+
+        override fun getIndexOfPeriod(uid: Any): Int = if (uid === periodUid) 0 else C.INDEX_UNSET
+
+        override fun getUidOfPeriod(periodIndex: Int): Any = periodUid
+    }
+
+    private fun publicationMediaMetadata(): MediaMetadata? {
+        if (!usesWholeBookTimebase()) {
+            return if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
+        }
+
+        val publicationDurationMs =
+            publicationDurationMs() ?: return if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
+
+        val mediaMetadata =
+            if (player.isCommandAvailable(COMMAND_GET_METADATA)) {
+                player.mediaMetadata
+            } else {
+                MediaMetadata.EMPTY
+            }
+
+        return mediaMetadata.buildUpon().setDurationMs(publicationDurationMs).build()
+    }
+
+    private fun publicationPositionMs(): Long? {
+        val durations = timelineDurationsMs() ?: return null
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex !in durations.indices) {
+            return null
+        }
+
+        return durations.take(currentIndex).sum() + player.contentPosition
+    }
+
+    private fun publicationBufferedPositionMs(): Long? {
+        val durations = timelineDurationsMs() ?: return null
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex !in durations.indices) {
+            return null
+        }
+
+        return durations.take(currentIndex).sum() + player.contentBufferedPosition
+    }
+
+    private fun resolvePublicationSeekTarget(positionMs: Long): PublicationSeekTarget? {
+        val durations = timelineDurationsMs() ?: return null
+        if (durations.isEmpty()) {
+            return null
+        }
+
+        val publicationDuration = durations.sum()
+        var remaining = positionMs.coerceIn(0L, publicationDuration)
+
+        durations.forEachIndexed { index, durationMs ->
+            if (remaining <= durationMs || index == durations.lastIndex) {
+                return PublicationSeekTarget(index, remaining.coerceAtMost(durationMs))
+            }
+            remaining -= durationMs
+        }
+
+        return null
+    }
+
     override fun handleSeek(
         mediaItemIndex: Int,
         positionMs: Long,
@@ -401,6 +567,20 @@ class PluginSimpleBasePlayer(
         } else if (seekCommand == COMMAND_SEEK_TO_PREVIOUS) {
             return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_BACK)
         }
+
+        if (usesWholeBookTimebase() &&
+            seekCommand != COMMAND_SEEK_FORWARD &&
+            seekCommand != COMMAND_SEEK_BACK
+        ) {
+            resolvePublicationSeekTarget(positionMs)?.let { target ->
+                return super.handleSeek(
+                    target.mediaItemIndex,
+                    target.positionMs,
+                    COMMAND_SEEK_TO_MEDIA_ITEM,
+                )
+            }
+        }
+
         return super.handleSeek(mediaItemIndex, positionMs, seekCommand)
     }
 
@@ -409,6 +589,10 @@ class PluginSimpleBasePlayer(
         // This is a copy & override of the super implementation, due to assert on empty playlist,
         // which Readium TTSPlayer sometimes provides during active states.
         // See https://github.com/readium/kotlin-toolkit/pull/716
+
+        // In whole-book mode we report a single synthetic window, so the item index must be 0.
+        // Compute once here so it can be used both for setCurrentMediaItemIndex and setPlaylist.
+        val wholeBookTotalMs = if (usesWholeBookTimebase()) publicationDurationMs() else null
 
         // Ordered alphabetically by State.Builder setters.
         val state = State.Builder()
@@ -428,9 +612,26 @@ class PluginSimpleBasePlayer(
             state.setAvailableCommands(commandsWithoutSeeking)
         }
 
+        PluginLog.d(
+            TAG,
+            "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM? - ${player.isCommandAvailable(
+                COMMAND_GET_CURRENT_MEDIA_ITEM,
+            )} - whole book? ${usesWholeBookTimebase()}",
+        )
+
         if (player.isCommandAvailable(COMMAND_GET_CURRENT_MEDIA_ITEM)) {
-            state.setContentPositionMs { player.contentPosition }
-            state.setContentBufferedPositionMs { player.contentBufferedPosition }
+            PluginLog.d(TAG, "Command available: $COMMAND_GET_CURRENT_MEDIA_ITEM - whole book? ${usesWholeBookTimebase()}")
+            if (usesWholeBookTimebase()) {
+                state.setContentPositionMs {
+                    publicationPositionMs() ?: player.contentPosition
+                }
+                state.setContentBufferedPositionMs {
+                    publicationBufferedPositionMs() ?: player.contentBufferedPosition
+                }
+            } else {
+                state.setContentPositionMs { player.contentPosition }
+                state.setContentBufferedPositionMs { player.contentBufferedPosition }
+            }
 //          state.setContentBufferedPositionMs(positionSuppliers.contentBufferedPositionSupplier)
 //          state.setContentPositionMs(positionSuppliers.contentPositionSupplier)
         }
@@ -438,9 +639,9 @@ class PluginSimpleBasePlayer(
             state.setCurrentCues(player.currentCues)
         }
         // if (player.isCommandAvailable(COMMAND_GET_TIMELINE)) {
-        state.setCurrentMediaItemIndex(player.currentMediaItemIndex)
+        // In whole-book mode we report a single synthetic window, so the item index must be 0.
+        state.setCurrentMediaItemIndex(if (wholeBookTotalMs != null) 0 else player.currentMediaItemIndex)
         // }
-        state.setDeviceInfo(player.getDeviceInfo())
         if (player.isCommandAvailable(COMMAND_GET_DEVICE_VOLUME)) {
             state.setDeviceVolume(player.deviceVolume)
             state.setIsDeviceMuted(player.isDeviceMuted)
@@ -458,9 +659,14 @@ class PluginSimpleBasePlayer(
             } else {
                 Tracks.EMPTY
             }
-        val mediaMetadata =
-            if (player.isCommandAvailable(COMMAND_GET_METADATA)) player.mediaMetadata else null
-        state.setPlaylist(player.currentTimeline, tracks, mediaMetadata)
+        val mediaMetadata = publicationMediaMetadata()
+        val timeline =
+            if (wholeBookTotalMs != null) {
+                WholeBookTimeline(player.currentTimeline, wholeBookTotalMs)
+            } else {
+                player.currentTimeline
+            }
+        state.setPlaylist(timeline, tracks, mediaMetadata)
         // }
         if (player.isCommandAvailable(COMMAND_GET_METADATA)) {
             state.setPlaylistMetadata(player.playlistMetadata)

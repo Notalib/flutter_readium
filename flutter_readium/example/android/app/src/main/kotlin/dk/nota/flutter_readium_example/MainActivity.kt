@@ -1,13 +1,9 @@
 package com.example.flutter_readium_example
 
-import android.content.Context
 import android.os.Bundle
 import android.os.PersistableBundle
-import android.util.AttributeSet
 import android.util.Log
-import android.view.View
 import io.flutter.embedding.android.FlutterFragmentActivity
-import io.flutter.embedding.engine.FlutterEngine
 
 private const val TAG = "MainActivity"
 

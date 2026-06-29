@@ -29,11 +29,11 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EpubNavigator"
-private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
+private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualCurrentLocator"
 
-private const val epubPreferencesKey = "epubPreferences"
+private const val EPUB_PREFERENCES_KEY = "epubPreferences"
 
-private const val currentDecorationListKey = "currentDecorationsList"
+private const val CURRENT_DECORATION_LIST_KEY = "currentDecorationsList"
 
 /**
  * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
@@ -63,9 +63,9 @@ class EpubNavigator :
     val visualListener: VisualListener
 
     private var currentVisualLocator: Locator?
-        get() = state[currentVisualLocatorKey] as? Locator
+        get() = state[CURRENT_VISUAL_LOCATOR_KEY] as? Locator
         set(value) {
-            state[currentVisualLocatorKey] = value
+            state[CURRENT_VISUAL_LOCATOR_KEY] = value
         }
 
     /**
@@ -113,9 +113,9 @@ class EpubNavigator :
      * Current EPUB preferences.
      */
     var preferences: FlutterEpubPreferences
-        get() = state[epubPreferencesKey] as? FlutterEpubPreferences ?: FlutterEpubPreferences()
+        get() = state[EPUB_PREFERENCES_KEY] as? FlutterEpubPreferences ?: FlutterEpubPreferences()
         set(value) {
-            state[epubPreferencesKey] = value
+            state[EPUB_PREFERENCES_KEY] = value
         }
 
     /**
@@ -260,7 +260,7 @@ class EpubNavigator :
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentVisualLocatorKey,
+                CURRENT_VISUAL_LOCATOR_KEY,
                 currentVisualLocator?.toJSON()?.toString(),
             )
 
@@ -274,11 +274,11 @@ class EpubNavigator :
                     )
                 }
 
-                putBundle(currentDecorationListKey, decorationBundle)
+                putBundle(CURRENT_DECORATION_LIST_KEY, decorationBundle)
             }
 
             putString(
-                epubPreferencesKey,
+                EPUB_PREFERENCES_KEY,
                 Json.encodeToString(FlutterEpubPreferences.serializer(), preferences),
             )
         }
@@ -501,7 +501,11 @@ class EpubNavigator :
      */
     private var lastSyncSegmentDuration: Double? = null
 
-    suspend fun syncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double?) {
+    suspend fun syncToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double?,
+    ) {
         if (preferences.disableSynchronization == true) {
             lastSyncLocator = locator
             lastSyncSegmentDuration = segmentDuration
@@ -522,16 +526,16 @@ class EpubNavigator :
         ): EpubNavigator {
             val locator =
                 state
-                    .getString(currentVisualLocatorKey)
+                    .getString(CURRENT_VISUAL_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences =
                 state
-                    .getString(epubPreferencesKey)
+                    .getString(EPUB_PREFERENCES_KEY)
                     ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
                     ?: FlutterEpubPreferences()
 
             val currentDecorations = mutableMapOf<String, List<Decoration>>()
-            state.getBundle(currentDecorationListKey)?.let { bundle ->
+            state.getBundle(CURRENT_DECORATION_LIST_KEY)?.let { bundle ->
                 for (key in bundle.keySet()) {
                     val list: ArrayList<Decoration>? = bundle.getParcelableArrayList(key)
                     if (list != null) currentDecorations[key] = list

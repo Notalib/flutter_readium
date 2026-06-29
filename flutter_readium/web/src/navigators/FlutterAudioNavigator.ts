@@ -106,17 +106,44 @@ export function withTocHref(locator: Locator, tocHref: string | undefined): Loca
 export function buildStatePayload(
   state: string,
   nav: AudioNavigator,
-  locator?: Locator
+  locator?: Locator,
+  totalProgressDuration?: number,
+  totalDuration?: number
 ): string {
   const currentLocator = locator ?? nav.currentLocator;
   return JSON.stringify({
     state,
     currentOffset: Math.round(nav.currentTime * 1000),
     currentDuration: nav.duration > 0 ? Math.round(nav.duration * 1000) : null,
+    totalProgressDuration: totalProgressDuration ?? null,
+    totalDuration: totalDuration ?? null,
     // Use serialize() so otherLocations Map entries are inlined into locations.
     // Plain JSON.stringify drops Map entries silently.
     currentLocator: currentLocator?.serialize(),
   });
+}
+
+function makePublicationTotalDurationMs(
+  publication: ReadiumPublication
+): number | undefined {
+  const items = publication.readingOrder.items;
+  if (items.length === 0) return undefined;
+  const missing = items.some((i) => i.duration === undefined || i.duration <= 0);
+  if (missing) return undefined;
+  const totalSeconds = items.reduce((sum, item) => sum + item.duration!, 0);
+  if (totalSeconds <= 0) return undefined;
+  return Math.round(totalSeconds * 1000);
+}
+
+function makeTotalProgressDurationMs(
+  locator: Locator,
+  publicationTotalDurationMs: number | undefined
+): number | undefined {
+  if (publicationTotalDurationMs === undefined) return undefined;
+  const totalProgression = locator.locations?.totalProgression;
+  if (totalProgression === undefined) return undefined;
+  const clamped = Math.min(1, Math.max(0, totalProgression));
+  return Math.round(clamped * publicationTotalDurationMs);
 }
 
 
@@ -273,6 +300,7 @@ function _emitState(
   mapper: AudioLocatorMapper | undefined,
   alsoText: boolean,
   computeTotalProgression: (locator: Locator) => number | undefined,
+  publicationTotalDurationMs: number | undefined,
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   getTocHref?: () => string | undefined
 ): void {
@@ -297,8 +325,12 @@ function _emitState(
       stateLocator,
       computeTotalProgression(locator)
     );
+    const totalProgressDuration = makeTotalProgressDurationMs(
+      enrichedStateLocator,
+      publicationTotalDurationMs
+    );
     window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enrichedStateLocator)
+      buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
     );
     const emittedPublicLocator = publicTextLocator ?? textLocator;
     if (emittedPublicLocator) {
@@ -313,8 +345,12 @@ function _emitState(
       withTotalProgression(locator, computeTotalProgression(locator)),
       getTocHref?.()
     );
+    const totalProgressDuration = makeTotalProgressDurationMs(
+      enriched,
+      publicationTotalDurationMs
+    );
     window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enriched)
+      buildStatePayload(state, nav, enriched, totalProgressDuration, publicationTotalDurationMs)
     );
     if (alsoText) {
       window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
@@ -375,6 +411,7 @@ export class FlutterAudioNavigator {
     };
 
     const computeTotalProgression = makeAudioTotalProgressionFn(publication);
+    const publicationTotalDurationMs = makePublicationTotalDurationMs(publication);
 
     // Build the publication timeline so we can extract the current ToC chapter
     // href from `timelineItemChanged` events. Only used on the plain audiobook
@@ -403,6 +440,7 @@ export class FlutterAudioNavigator {
         locatorMapper,
         alsoText,
         computeTotalProgression,
+        publicationTotalDurationMs,
         onTextLocatorChanged,
         getTocHref
       );

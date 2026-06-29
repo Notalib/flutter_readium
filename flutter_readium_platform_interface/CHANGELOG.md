@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `Publication.conformsToReadiumDivina` — convenience getter mirroring the existing
+  `conformsToReadiumPDF/Ebook/Audiobook` helpers; returns `true` for CBZ comics and other
+  image-based publications whose `metadata.conformsTo` includes the DiViNa profile URI.
+
+### Changed
+
+- `Publication.containsGuidedNavigation` — and therefore `isAudioBook` — now also returns
+  `true` for DiViNa comics that carry a guided-navigation document, not only EPUBs. Guided
+  navigation is profile-agnostic; this lets DiViNa narrated comics drive the audio /
+  media-overlay path the same way narrated EPUBs do.
+
+## [0.1.1] - 2026-06-26
+
 ### Fixed
 
 - `EpubColumnCount` now serializes to Readium's canonical values (`auto`/`1`/`2`) instead of
@@ -15,9 +30,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- `Publication.conformsToReadiumDivina` — convenience getter mirroring the existing
-  `conformsToReadiumPDF/Ebook/Audiobook` helpers; returns `true` for CBZ comics and other
-  image-based publications whose `metadata.conformsTo` includes the DiViNa profile URI.
+- `ReadiumTimebasedState.totalProgressDuration` — nullable `Duration` for the
+  publication-level playback offset derived from
+  `currentLocator.locations.totalProgression * publicationDuration`.
+- `ReadiumTimebasedState.totalDuration` — nullable `Duration` for the total
+  publication duration (sum of all reading-order link durations); `null` when any
+  reading-order link is missing a duration.
 - `PDFSpread` — enum (`auto` / `never` / `always`) for synthetic dual-page spread on
   PDF publications. iOS only; Android `PdfiumPreferences` does not expose spread.
 - `PDFPreferences` — three new iOS-only fields: `offsetFirstPage: bool?`,
@@ -30,10 +48,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- `Publication.containsGuidedNavigation` — and therefore `isAudioBook` — now also returns
-  `true` for DiViNa comics that carry a guided-navigation document, not only EPUBs. Guided
-  navigation is profile-agnostic; this lets DiViNa narrated comics drive the audio /
-  media-overlay path the same way narrated EPUBs do.
 - `FlutterReadiumPlatform.currentReaderWidget` and `defaultPreferences` are now
   read-only getters for consumers, with `@protected` setters — the active reader widget
   registers itself rather than being assigned directly. Use `setDefaultPreferences` to

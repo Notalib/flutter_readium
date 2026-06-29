@@ -20,7 +20,7 @@ import org.readium.r2.shared.util.getOrElse
 
 private const val TAG = "PublicationChannel"
 
-internal const val publicationChannelName = "dk.nota.flutter_readium/main"
+internal val publicationChannelName = "dk.nota.flutter_readium/main"
 
 @ExperimentalCoroutinesApi
 internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
@@ -431,7 +431,7 @@ fun MethodChannel.Result.publicationError(
     )
 
     this.error(
-        error.errorCode.name,
+        error.errorCode.wireValue,
         error.message,
         error.cause,
     )

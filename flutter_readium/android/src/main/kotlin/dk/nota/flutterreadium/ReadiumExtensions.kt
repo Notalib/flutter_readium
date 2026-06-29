@@ -619,7 +619,7 @@ fun List<Link>.flattenChildren(): List<Link> {
     return flatMap { it.flattenChildren() }
 }
 
-private const val tocHrefLocationKey = "tocHref"
+private val tocHrefLocationKey = "tocHref"
 
 /**
  * A CSS Selector.
