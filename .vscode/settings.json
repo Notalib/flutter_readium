@@ -67,6 +67,7 @@
     "fimber",
     "Fimber",
     "flutterreadium",
+    "gradlew",
     "imgref",
     "jsonable",
     "kotlin",
@@ -75,6 +76,7 @@
     "Mantano",
     "mediatype",
     "microenterprise",
+    "Notalib",
     "NYPL",
     "opds",
     "Opds",
@@ -92,8 +94,10 @@
     "subcollections",
     "syncnarr",
     "textref",
+    "tokensave",
     "Transformability",
-    "videoref"
+    "videoref",
+    "Worktree"
   ],
   "java.configuration.updateBuildConfiguration": "interactive",
   "dart.mcpServer": true,

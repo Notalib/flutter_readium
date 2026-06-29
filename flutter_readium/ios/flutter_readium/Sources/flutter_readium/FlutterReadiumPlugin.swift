@@ -633,17 +633,19 @@ extension FlutterReadiumPlugin {
         asset = try await sharedReadium.assetRetriever!.retrieve(url: url).get()
       }
 
-      let factory = PageBreakSkippingContentIteratorFactory()
-      self.pageBreakIteratorFactory = factory
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
-        onCreatePublication: { _, _, services in
-          services.setContentServiceFactory(
-            DefaultContentService.makeFactory(
-              resourceContentIteratorFactories: [factory]
+        onCreatePublication: { manifest, _, services in
+          if manifest.conforms(to: .epub) {
+            let factory = PageBreakSkippingContentIteratorFactory()
+            self.pageBreakIteratorFactory = factory
+            services.setContentServiceFactory(
+              DefaultContentService.makeFactory(
+                resourceContentIteratorFactories: [factory]
+              )
             )
-          )
+          }
         },
         sender: sender
       ).get()
