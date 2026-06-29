@@ -44,6 +44,9 @@ assets/helpers/stats.json
 #   example/macos/  — platform runner scaffolding
 #   assets/_helper_scripts/.eslintrc.js  — TS toolchain config (root *.js rule)
 !assets/_helper_scripts/.eslintrc.js
+!web/src/jest.config.js
+!web/src/__tests__/style.stub.js
+!web/src/style.css
 
 # FVM Version Cache
 .fvm/
