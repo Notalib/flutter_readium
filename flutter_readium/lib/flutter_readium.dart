@@ -157,12 +157,16 @@ class FlutterReadium {
   /// Returns `true` if navigation succeeded, `false` otherwise.
   Future<bool> goToProgression(double progression) => _platform.goToProgression(progression);
 
-  /// Enable/disable audio-driven panel auto-pan for comics (DiViNa). When on,
-  /// narration cues zoom/pan the page to the panel being read; a manual gesture
-  /// suspends it until the next page turn. Calling with `true` also acts as a
-  /// "Re-sync" — it clears any manual override and immediately re-pans to the
-  /// last narration region. No-op for non-comic publications.
-  Future<void> setComicAutoPan(bool enabled) => _platform.setComicAutoPan(enabled);
+  /// Toggles narration↔visual sync for the current publication.
+  ///
+  /// `true` = follow narration / re-sync now (clears any manual override and
+  /// immediately re-pans / re-positions to the last narration region).
+  /// `false` = manual mode (the reader no longer auto-follows narration cues).
+  ///
+  /// For comic (DiViNa) publications this controls audio-driven panel auto-pan;
+  /// future implementations will also cover Media Overlay. No-op for publication
+  /// types that have no narration track.
+  Future<void> setNarrationSyncEnabled(bool enabled) => _platform.setNarrationSyncEnabled(enabled);
 
   /// Stream emitting narration↔visual sync state changes.
   /// `true` = in sync; `false` = user took manual control (show re-sync UI).

@@ -216,7 +216,7 @@ export class FlutterDivinaNavigator {
   // ---------------------------------------------------------------------------
 
   /**
-   * Enable/disable audio-driven panel auto-pan (the `setComicAutoPan` toggle).
+   * Enable/disable audio-driven panel auto-pan (the `setNarrationSyncEnabled` toggle).
    * Calling with `true` also clears any manual override and immediately re-pans
    * to the last narration region — so this doubles as the "Re-sync" action.
    */

@@ -92,7 +92,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                                 return const SizedBox.shrink();
                               }
                               return FilledButton.icon(
-                                onPressed: () => FlutterReadium().setComicAutoPan(true),
+                                onPressed: () => FlutterReadium().setNarrationSyncEnabled(true),
                                 icon: const Icon(Icons.sync),
                                 label: const Text('Re-sync'),
                               );

@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Narration sync state & manual mode (iOS, Android, Web)** — a new
+  `FlutterReadium.onNarrationSyncChanged` stream (`Stream<bool>`: `true` = following narration,
+  `false` = manual mode) and `FlutterReadium.setNarrationSyncEnabled(bool)`. While Media Overlay or
+  TTS narration is driving the reader, manually turning the page (swipe, edge-tap, or
+  next/previous) now enters **manual mode**: audio keeps playing while the reader stops
+  auto-following cues, and `onNarrationSyncChanged` emits `false` (e.g. to show a "Re-sync"
+  control). Call `setNarrationSyncEnabled(true)` to snap the reader back to the current narration
+  position. An explicit jump (`goToLocator` to a TOC entry, bookmark, or search result) instead
+  re-seeks narration to the new location, keeping audio and reader together.
+
+### Changed
+
+- **`EPUBPreferences.disableSynchronization` is deprecated** in favour of the runtime
+  `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
+  works and now seeds the unified narration-sync state when a publication is opened.
+
 ## [0.1.1] - 2026-06-26
 
 ### Changed (breaking)

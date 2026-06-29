@@ -9,6 +9,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutterreadium.events.NarrationSyncEventChannel
 import dk.nota.flutterreadium.events.ReadiumError
 import dk.nota.flutterreadium.events.ReadiumErrorEventChannel
 import dk.nota.flutterreadium.events.ReadiumReaderStatus
@@ -119,6 +120,15 @@ object ReadiumReader :
     private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
 
     private var errorChannel: ReadiumErrorEventChannel? = null
+
+    private var narrationSyncEventChannel: NarrationSyncEventChannel? = null
+
+    /**
+     * Runtime narration-sync flag. `true` means the visual reader follows the audio cue
+     * automatically; `false` means the user has entered manual mode (visual stays, audio plays).
+     * Seeded from [FlutterEpubPreferences.disableSynchronization]: enabled == !disableSynchronization.
+     */
+    private var narrationSyncEnabled: Boolean = true
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
@@ -250,6 +260,9 @@ object ReadiumReader :
 
         errorChannel?.dispose()
         errorChannel = ReadiumErrorEventChannel(messenger)
+
+        narrationSyncEventChannel?.dispose()
+        narrationSyncEventChannel = NarrationSyncEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -437,6 +450,9 @@ object ReadiumReader :
 
         errorChannel?.dispose()
         errorChannel = null
+
+        narrationSyncEventChannel?.dispose()
+        narrationSyncEventChannel = null
 
         coroutineContext.cancelChildren()
     }
@@ -775,7 +791,7 @@ object ReadiumReader :
         }
 
         launch {
-            epubSyncToLocator(locator, true)
+            syncVisualToLocator(locator, true)
         }
     }
 
@@ -859,6 +875,10 @@ object ReadiumReader :
         if (!isEpub) {
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
+
+        // Seed the runtime sync flag from the initial preference. If the preference
+        // already disables synchronization, start in manual mode.
+        narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
         withMainContext {
             epubNavigator?.let {
@@ -1305,6 +1325,10 @@ object ReadiumReader :
             return
         }
 
+        // An explicit locator jump (TOC / bookmark / search) during active narration is
+        // handled by the timebasedNavigator.goToLocator branch above (narration follows the
+        // jump). This branch is only reached when narration is NOT active, so a jump must not
+        // enter manual mode. Page-turns (epubGoForward/epubGoBackward) do enter manual mode.
         epubGoToLocator(toLocator, true)
     }
 
@@ -1505,6 +1529,7 @@ object ReadiumReader :
                 return
             }
 
+        enterManualModeIfNarrating("epubGoBackward")
         navigator.goBackward(animated)
     }
 
@@ -1518,6 +1543,7 @@ object ReadiumReader :
                 return
             }
 
+        enterManualModeIfNarrating("epubGoForward")
         navigator.goForward(animated)
     }
 
@@ -1556,16 +1582,61 @@ object ReadiumReader :
     }
 
     /**
-     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator]
+     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator].
+     * Delegates to [syncVisualToLocator] for EPUB; kept for call-site compatibility.
      */
     suspend fun epubSyncToLocator(
         locator: Locator,
         animated: Boolean,
         segmentDuration: Double? = null,
     ) {
-        val navigator = epubNavigator ?: return
-        withMainContext {
-            navigator.syncToLocator(locator, animated, segmentDuration)
+        syncVisualToLocator(locator, animated, segmentDuration)
+    }
+
+    /**
+     * Routes an audio-cue sync to the active visual navigator, respecting the manual-mode gate.
+     *
+     * For EPUB: delegates to [EpubNavigator.syncToLocator] which also tracks [lastSyncLocator]
+     * so re-enabling sync can catch up immediately.
+     * For comic (CBZ / DiViNa): calls [ComicNavigator.goToLocator] directly since comics have
+     * no per-word scroll logic. Highlight decorations are applied regardless of the sync flag
+     * (matching the existing [disableSynchronization] behaviour for EPUB).
+     *
+     * Note: this only fires when the comic publication actually carries narration cues mapped
+     * through [mediaOverlays]. DiViNa guided-navigation cues are parsed on Android only when
+     * [Publication.hasGuidedNavigationMediaOverlays] is true and [makeSyncAudiobook] succeeds;
+     * if that prerequisite is not met the [SyncAudiobookNavigator] will not be active and this
+     * path is never reached.
+     */
+    private suspend fun syncVisualToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double? = null,
+    ) {
+        val epub = epubNavigator
+        if (epub != null) {
+            if (!narrationSyncEnabled) {
+                // Manual mode: remember the cue so a later Re-sync can catch up, but don't
+                // move the view. (Highlight decorations are still applied by the caller.)
+                PluginLog.d(TAG, "::syncVisualToLocator - manual mode: deferring epub sync")
+                epub.recordDeferredSync(locator, segmentDuration)
+                return
+            }
+            withMainContext {
+                epub.syncToLocator(locator, animated, segmentDuration)
+            }
+            return
+        }
+
+        val comic = comicNavigator
+        if (comic != null) {
+            if (!narrationSyncEnabled) {
+                PluginLog.d(TAG, "::syncVisualToLocator - skipping comic nav: narration sync disabled (manual mode)")
+                return
+            }
+            withMainContext {
+                comic.goToLocator(locator, animated, segmentDuration)
+            }
         }
     }
 
@@ -1606,5 +1677,72 @@ object ReadiumReader :
         textLocatorEventChannel?.sendEvent(locator)
 
         currentTextLocator.value = locator
+    }
+
+    /**
+     * Emit narration-sync state change to the Flutter layer.
+     */
+    fun emitNarrationSyncChanged(enabled: Boolean) {
+        narrationSyncEventChannel?.sendEvent(enabled)
+    }
+
+    /**
+     * Returns `true` when a timed-based (narrating) navigator is active and playing.
+     * Used to decide whether explicit user navigation should trigger manual mode.
+     */
+    private fun isNarrationActive(): Boolean = timebasedNavigator != null
+
+    /**
+     * If narration is active, enters manual mode and emits the state change.
+     *
+     * Called from explicit page navigation (`goForward`/`goBackward`) and from in-reader user
+     * gestures: the Flutter `reader_widget.dart` `Listener` detects a swipe / edge-tap and calls
+     * the reader-view channel `"notifyUserNavigation"`, which routes here. Those pointer events
+     * fire only for genuine user interaction (audio-driven page turns are programmatic and never
+     * reach the Listener), so they are a clean "user took control" signal.
+     */
+    fun enterManualModeIfNarrating(callSite: String) {
+        if (!isNarrationActive()) return
+        if (!narrationSyncEnabled) return
+        PluginLog.d(TAG, "::$callSite - user navigation detected while narrating; entering manual mode")
+        narrationSyncEnabled = false
+        emitNarrationSyncChanged(false)
+    }
+
+    /**
+     * Enable or disable narration sync at runtime.
+     *
+     * When `true`: clears manual mode and immediately re-positions the visual reader to
+     * the current audio cue (catch-up). When `false`: enters manual mode — the visual
+     * reader stops following audio cues, but audio keeps playing.
+     *
+     * This is the single unified runtime sync gate. [FlutterEpubPreferences.disableSynchronization]
+     * only seeds it at [epubEnable] and flips it on a preference transition (see
+     * [EpubNavigator.updatePreferences]); all gating for both EPUB and comic cue sync goes through
+     * [narrationSyncEnabled] in [syncVisualToLocator].
+     */
+    fun setNarrationSyncEnabled(enabled: Boolean) {
+        PluginLog.d(TAG, "::setNarrationSyncEnabled enabled=$enabled")
+        narrationSyncEnabled = enabled
+        if (enabled) {
+            // Re-sync to the last known audio cue immediately.
+            launch {
+                val epub = epubNavigator
+                if (epub != null) {
+                    epub.resyncAfterManualMode()
+                    return@launch
+                }
+                val comic = comicNavigator
+                if (comic != null) {
+                    // For comics, re-sync to the last cue by re-running the current locator
+                    // through SyncAudiobookNavigator's decoration path. The navigator will
+                    // emit the current text locator on next locator-changed event; there is
+                    // no stored catch-up locator on the comic path, so a full re-sync
+                    // requires the next audio-cue event to fire naturally.
+                    PluginLog.d(TAG, "::setNarrationSyncEnabled - comic re-sync deferred to next audio cue")
+                }
+            }
+        }
+        emitNarrationSyncChanged(enabled)
     }
 }

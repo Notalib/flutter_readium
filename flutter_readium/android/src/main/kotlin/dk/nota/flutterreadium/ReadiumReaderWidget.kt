@@ -396,6 +396,14 @@ class ReadiumReaderWidget(
                     result.success(null)
                 }
 
+                "notifyUserNavigation" -> {
+                    // User swiped or edge-tapped the reader (detected by the Flutter Listener
+                    // above the platform view). Enter narration manual mode if narration is
+                    // currently driving the reader; otherwise a no-op.
+                    ReadiumReader.enterManualModeIfNarrating("notifyUserNavigation")
+                    result.success(null)
+                }
+
                 "dispose" -> {
                     dispose()
                     result.success(null)

@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.PluginLog
+import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutterreadium.fragments.EpubReaderFragment
 import dk.nota.flutterreadium.models.EpubReaderViewModel
@@ -220,15 +221,12 @@ class EpubNavigator :
             navigator.updatePreferences(flutterEpubPreferences)
 
             preferences = flutterEpubPreferences
-            if (oldPreferences.disableSynchronization == true && flutterEpubPreferences.disableSynchronization == false) {
-                // If synchronization is re-enabled, we sync to the last locator that was attempted to be synced to while synchronization was disabled.
-                lastSyncLocator?.let { locator ->
-                    goToLocator(
-                        locator,
-                        animated = false,
-                        lastSyncSegmentDuration,
-                    )
-                }
+            // `disableSynchronization` now seeds the unified runtime narration-sync flag.
+            // Only act on an actual transition so an unrelated preference push (e.g. font
+            // change) does not clobber a manual-mode override set via setNarrationSyncEnabled.
+            // Re-enabling triggers the catch-up to the last cue via resyncAfterManualMode().
+            if (oldPreferences.disableSynchronization != flutterEpubPreferences.disableSynchronization) {
+                ReadiumReader.setNarrationSyncEnabled(flutterEpubPreferences.disableSynchronization != true)
             }
         } catch (ex: Exception) {
             PluginLog.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
@@ -506,16 +504,38 @@ class EpubNavigator :
         animated: Boolean,
         segmentDuration: Double?,
     ) {
-        if (preferences.disableSynchronization == true) {
-            lastSyncLocator = locator
-            lastSyncSegmentDuration = segmentDuration
-            return
-        }
-
-        lastSyncLocator = null
-        lastSyncSegmentDuration = null
+        // Manual-mode gating is centralized on [ReadiumReader.narrationSyncEnabled] in
+        // [ReadiumReader.syncVisualToLocator]; this method only runs when sync is enabled.
+        lastSyncLocator = locator
+        lastSyncSegmentDuration = segmentDuration
 
         goToLocator(locator, animated, segmentDuration)
+    }
+
+    /**
+     * Records the latest audio-cue locator without navigating, so that a later catch-up
+     * ([resyncAfterManualMode]) can jump to the current cue. Called while in manual mode.
+     */
+    fun recordDeferredSync(
+        locator: Locator,
+        segmentDuration: Double?,
+    ) {
+        lastSyncLocator = locator
+        lastSyncSegmentDuration = segmentDuration
+    }
+
+    /**
+     * Re-positions the visual reader to the last known audio-cue locator after exiting manual mode.
+     * Called by [ReadiumReader.setNarrationSyncEnabled] when re-enabling sync.
+     */
+    suspend fun resyncAfterManualMode() {
+        val locator =
+            lastSyncLocator ?: run {
+                PluginLog.d(TAG, "::resyncAfterManualMode - no lastSyncLocator stored")
+                return
+            }
+        PluginLog.d(TAG, "::resyncAfterManualMode - catching up to $locator")
+        goToLocator(locator, false, lastSyncSegmentDuration)
     }
 
     companion object {

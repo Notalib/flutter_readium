@@ -93,11 +93,24 @@ class _ReadiumReader {
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
   /**
-   * Latest value of `EPUBPreferences.disableSynchronization` from the Dart side.
-   * Held here because it is plugin-side state, not part of the navigator's
-   * preference surface. Passed to the TTS engine on enable and on every change.
+   * Unified runtime narration-sync flag. When true (default), audio-driven
+   * visual sync is active: MediaOverlay cues scroll the EPUB navigator, and TTS
+   * utterances do the same. When false (manual mode), sync cues are deferred and
+   * the view stays where the user left it.
+   *
+   * This is the single source of truth for both the MO and TTS sync paths,
+   * replacing the old separate `_disableSynchronization` boolean. It is:
+   *   - Seeded from `EPUBPreferences.disableSynchronization` transitions
+   *     (only when the preference value actually changes).
+   *   - Flipped to false when the user explicitly navigates during active
+   *     narration (goRight / goLeft / goForward / goBackward / goTo).
+   *   - Flipped by explicit `setNarrationSyncEnabled()` calls from Dart.
+   *
+   * The DiViNa/comic auto-pan flag is separate; `setNarrationSyncEnabled` also
+   * forwards to `_comicNav.setAutoPan()` so the comic path remains the authority
+   * for panel-level state.
    */
-  private _disableSynchronization = false;
+  private _narrationSyncEnabled = true;
   /** Last visual sync locator deferred while synchronization was disabled. */
   private _lastDeferredSyncLocator: Locator | null = null;
   /** Segment duration paired with `_lastDeferredSyncLocator` when available. */
@@ -142,11 +155,13 @@ class _ReadiumReader {
 
   public goRight() {
     log.debug("goRight");
+    this._enterManualModeIfNarrating("goRight");
     this._visualNav?.goRight(true, () => {});
   }
 
   public goLeft() {
     log.debug("goLeft");
+    this._enterManualModeIfNarrating("goLeft");
     this._visualNav?.goLeft(true, () => {});
   }
 
@@ -157,11 +172,13 @@ class _ReadiumReader {
    */
   public goForward() {
     log.debug("goForward");
+    this._enterManualModeIfNarrating("goForward");
     this._visualNav?.goForward(true, () => {});
   }
 
   public goBackward() {
     log.debug("goBackward");
+    this._enterManualModeIfNarrating("goBackward");
     this._visualNav?.goBackward(true, () => {});
   }
 
@@ -302,6 +319,9 @@ class _ReadiumReader {
     this._syncItems = [];
     this._positions = [];
     this._stoppedAudioLocator = undefined;
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
+    this._narrationSyncEnabled = true;
 
     try {
       // TODO: match native
@@ -392,21 +412,16 @@ class _ReadiumReader {
       throw new Error("Navigator is not initialized");
     }
     log.debug("setEPUBPreferences");
-    // Track the plugin-side `disableSynchronization` flag separately from the
-    // navigator's preferences (the web navigator doesn't expose this toggle).
+    // Track the plugin-side `disableSynchronization` preference separately from
+    // the visual navigator's preferences (it is not part of the EpubNavigator
+    // preference surface). Route changes through _setNarrationSyncEnabled so the
+    // unified flag, TTS engine, and deferred-replay logic stay consistent.
+    // Only act on an actual value transition to avoid spurious re-sync flips.
     try {
-      const wasSyncDisabled = this._disableSynchronization;
       const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
-      this._disableSynchronization = parsed.disableSynchronization === true;
-      this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
-      if (wasSyncDisabled && !this._disableSynchronization && this._lastDeferredSyncLocator) {
-        const deferredLocator = this._lastDeferredSyncLocator;
-        const deferredDurationMs = this._lastDeferredSyncDurationMs;
-        this._lastDeferredSyncLocator = null;
-        this._lastDeferredSyncDurationMs = undefined;
-        // Clear dedup key so replaying the same cue still performs a visual sync.
-        this._lastMediaOverlayLocatorKey = null;
-        this._syncVisualToMediaOverlayLocator(deferredLocator, "MediaOverlay (resume sync)", deferredDurationMs);
+      const prefSyncEnabled = parsed.disableSynchronization !== true;
+      if (prefSyncEnabled !== this._narrationSyncEnabled) {
+        this._setNarrationSyncEnabled(prefSyncEnabled, "EPUBPreferences.disableSynchronization");
       }
     } catch (_) {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
@@ -415,17 +430,83 @@ class _ReadiumReader {
   }
 
   /**
-   * Enable/disable audio-driven panel auto-pan for comics (DiViNa). When on,
-   * narration cues zoom/pan the page to the panel being read; a manual gesture
-   * suspends it until the next page turn. No-op for non-comic publications.
+   * Enable/disable the unified narration-sync flag from the Dart side.
+   *
+   * When `enabled`:
+   *   - Clears manual mode and resumes audio→visual synchronization.
+   *   - Replays any deferred sync locator (MO or TTS) so the view catches up to
+   *     the current cue.
+   *   - For comics (DiViNa), also re-enables auto-pan and re-frames the current panel.
+   *   - Emits `window.updateNarrationSync(true)`.
+   *
+   * When `disabled`:
+   *   - Enters manual mode; subsequent MO/TTS sync cues are deferred.
+   *   - Emits `window.updateNarrationSync(false)`.
+   *
+   * The DiViNa `setAutoPan` call is always forwarded so the comic panel state
+   * remains authoritative in `FlutterDivinaNavigator`.
    */
-  public setComicAutoPan(enabled: boolean): void {
-    log.debug("setComicAutoPan", enabled);
+  public setNarrationSyncEnabled(enabled: boolean): void {
+    log.debug("setNarrationSyncEnabled", enabled);
+    this._setNarrationSyncEnabled(enabled, "setNarrationSyncEnabled");
+    // Forward to DiViNa auto-pan unconditionally so the comic navigator stays
+    // the authority for panel-level state. The general _narrationSyncEnabled
+    // flag governs MO/TTS page sync; the comic path manages its own manual override.
     this._comicNav?.setAutoPan(enabled);
     if (enabled) {
       const synced = this._resyncDivinaToCurrentAudioCue();
-      log.debug(`setComicAutoPan: explicit DiViNa re-sync ${synced ? "applied" : "had no active cue"}`);
+      log.debug(`setNarrationSyncEnabled: DiViNa re-sync ${synced ? "applied" : "had no active cue"}`);
     }
+  }
+
+  /**
+   * Internal implementation of the narration-sync flag transition. Shared by
+   * `setNarrationSyncEnabled` (explicit Dart call) and `setEPUBPreferences`
+   * (preference transition) and `_enterManualModeIfNarrating` (user navigation).
+   *
+   * Does NOT forward to `_comicNav.setAutoPan` — the public `setNarrationSyncEnabled`
+   * handles that so the comic navigator remains the authority for panel state.
+   */
+  private _setNarrationSyncEnabled(enabled: boolean, reason: string): void {
+    const wasEnabled = this._narrationSyncEnabled;
+    this._narrationSyncEnabled = enabled;
+    log.debug(`_setNarrationSyncEnabled(${enabled}) via ${reason}`);
+
+    // Keep TTS engine in sync with the unified flag.
+    this._ttsEngine?.setSyncEnabled(enabled);
+
+    if (!wasEnabled && enabled) {
+      // Transitioning into sync: replay any deferred locator.
+      if (this._lastDeferredSyncLocator) {
+        const deferredLocator = this._lastDeferredSyncLocator;
+        const deferredDurationMs = this._lastDeferredSyncDurationMs;
+        this._lastDeferredSyncLocator = null;
+        this._lastDeferredSyncDurationMs = undefined;
+        // Clear dedup key so replaying the same cue still performs a visual sync.
+        this._lastMediaOverlayLocatorKey = null;
+        this._syncVisualToMediaOverlayLocator(deferredLocator, `MediaOverlay (resume sync via ${reason})`, deferredDurationMs);
+      }
+      window.updateNarrationSync?.(true);
+    } else if (wasEnabled && !enabled) {
+      window.updateNarrationSync?.(false);
+    }
+    // No emission when the value is unchanged (idempotent calls are silent).
+  }
+
+  /**
+   * Enters manual mode (sync disabled) when narration is actively playing.
+   * Called by the explicit navigation methods (goRight/goLeft/goForward/goBackward).
+   *
+   * Gesture-driven page turns inside the EPUB iframe are intentionally NOT
+   * detected here — that requires cross-platform JS injection into the iframe
+   * and is deferred to a later wave (matching the native limitation described in
+   * the platform-interface spec).
+   */
+  private _enterManualModeIfNarrating(source: string): void {
+    const narrationActive = !!this._audioNav || !!this._ttsEngine;
+    if (!narrationActive || !this._narrationSyncEnabled) return;
+    log.debug(`Manual navigation during narration (${source}): entering manual mode`);
+    this._setNarrationSyncEnabled(false, source);
   }
 
   /**
@@ -495,6 +576,9 @@ class _ReadiumReader {
     this._positions = [];
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
+    this._narrationSyncEnabled = true;
     this._isComicBook = false;
     this._decorations.reset();
 
@@ -698,7 +782,7 @@ class _ReadiumReader {
       this._nav,
       this._publication,
       prefs,
-      !this._disableSynchronization,
+      this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
       (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
@@ -929,15 +1013,17 @@ class _ReadiumReader {
       }
     };
 
-    if (this._disableSynchronization) {
-      this._lastDeferredSyncLocator = textLocator;
-      this._lastDeferredSyncDurationMs = durationMs;
+    // Track the most recent cue unconditionally so a Re-sync
+    // (setNarrationSyncEnabled(true)) can snap to the CURRENT cue immediately, even
+    // when triggered mid-cue. Previously this was cleared on the enabled path, so a
+    // mid-cue Re-sync had no locator to replay and only corrected on the next cue.
+    this._lastDeferredSyncLocator = textLocator;
+    this._lastDeferredSyncDurationMs = durationMs;
+
+    if (!this._narrationSyncEnabled) {
       applyUtteranceDecoration();
       return;
     }
-
-    this._lastDeferredSyncLocator = null;
-    this._lastDeferredSyncDurationMs = undefined;
 
     nav.go(textLocator, false, (ok) => {
       if (!ok) {

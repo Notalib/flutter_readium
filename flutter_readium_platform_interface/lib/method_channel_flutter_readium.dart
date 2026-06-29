@@ -29,10 +29,14 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   @visibleForTesting
   EventChannel readerStatusChannel = const EventChannel('dk.nota.flutter_readium/reader-status');
 
+  @visibleForTesting
+  EventChannel narrationSyncChannel = const EventChannel('dk.nota.flutter_readium/narration-sync');
+
   Stream<Locator>? _onTextLocatorChanged;
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
   Stream<ReadiumError>? _onErrorEvent;
+  Stream<bool>? _onNarrationSyncChanged;
 
   /// Fires whenever the Reader's current Locator changes.
   ///
@@ -100,6 +104,20 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Stream<bool> get onNarrationSyncChanged {
+    _onNarrationSyncChanged ??= narrationSyncChannel.receiveBroadcastStream().map((dynamic event) {
+      if (event is bool) return event;
+      try {
+        return (json.decode(event as String) as bool?) ?? false;
+      } on Exception catch (e) {
+        _log.w('Error parsing narration sync event: $e');
+        return false;
+      }
+    }).asBroadcastStream();
+    return _onNarrationSyncChanged!;
+  }
+
+  @override
   Future<Publication> loadPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('loadPublication', [pubUrl])
@@ -137,6 +155,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     // stale locator or status from this publication will be replayed.
     _onTextLocatorChanged = null;
     _onReaderStatusChanged = null;
+    _onNarrationSyncChanged = null;
   }
 
   @override
@@ -218,9 +237,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
       methodChannel.invokeMethod('ttsSetPreferences', preferences.toJson());
 
   @override
-  // TODO(native): add iOS/Android native handler for setComicAutoPan; until
-  // then calling this on non-web will throw MissingPluginException.
-  Future<void> setComicAutoPan(bool enabled) => methodChannel.invokeMethod('setComicAutoPan', enabled);
+  Future<void> setNarrationSyncEnabled(bool enabled) => methodChannel.invokeMethod('setNarrationSyncEnabled', enabled);
 
   @override
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>

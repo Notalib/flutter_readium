@@ -8,7 +8,7 @@
  * rule is unit tested once and ported verbatim to iOS/Android.
  */
 export interface ComicAutoPanState {
-  /** From the `setComicAutoPan` toggle. */
+  /** From the `setNarrationSyncEnabled` toggle. */
   autoPanEnabled: boolean;
   /** Set by any manual gesture; cleared on page change. */
   manuallyOverridden: boolean;

@@ -118,8 +118,16 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Note: ImageFilter is not supported when this mode is enabled.
   final bool blackAndWhiteComicMode;
 
-  /// Disabled position synchronization between the TTS / SyncAudio navigators and the EPUB navigator.
-  /// Highlight decorations will still be applied, but it won't scroll it into view or switch current chapter/file.
+  /// Seeds the initial narration-sync state for TTS / SyncAudio navigators.
+  /// When `true`, decorations are applied but the EPUB navigator will not scroll
+  /// into view or switch chapter/file to follow narration.
+  ///
+  /// Retained for back-compat. Runtime sync toggling is now handled by
+  /// [FlutterReadium.setNarrationSyncEnabled]; the live sync state is exposed
+  /// via [FlutterReadium.onNarrationSyncChanged].
+  @Deprecated(
+    'Use FlutterReadium.setNarrationSyncEnabled — sync state is now runtime, unified with onNarrationSyncChanged',
+  )
   final bool disableSynchronization;
 
   /// Margin applied to the top of the first element in the content.
@@ -240,6 +248,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
       verticalText: verticalText,
       wordSpacing: wordSpacing,
       blackAndWhiteComicMode: blackAndWhiteComicMode,
+      // ignore: deprecated_member_use_from_same_package
       disableSynchronization: disableSynchronization,
       firstElementTopMargin: firstElementTopMargin,
     );
@@ -272,6 +281,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('verticalText', verticalText)
     ..putOpt('wordSpacing', wordSpacing)
     ..put('blackAndWhiteComicMode', blackAndWhiteComicMode)
+    // ignore: deprecated_member_use_from_same_package
     ..put('disableSynchronization', disableSynchronization)
     ..putOpt('firstElementTopMargin', firstElementTopMargin);
 
@@ -329,6 +339,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     verticalText: verticalText ?? this.verticalText,
     wordSpacing: wordSpacing ?? this.wordSpacing,
     blackAndWhiteComicMode: blackAndWhiteComicMode ?? this.blackAndWhiteComicMode,
+    // ignore: deprecated_member_use_from_same_package
     disableSynchronization: disableSynchronization ?? this.disableSynchronization,
     firstElementTopMargin: firstElementTopMargin ?? this.firstElementTopMargin,
   );
@@ -360,6 +371,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     verticalText,
     wordSpacing,
     blackAndWhiteComicMode,
+    // ignore: deprecated_member_use_from_same_package
     disableSynchronization,
     firstElementTopMargin,
   ];

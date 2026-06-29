@@ -21,6 +21,24 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private let publication: Publication
   private var lastViewport: NavigatorViewport?
 
+  /// Runtime narration-sync flag: true = reader follows audio cues (default),
+  /// false = manual mode (user took control; audio keeps playing, visual stays put).
+  ///
+  /// Unified source of truth for sync gating — replaces the direct use of
+  /// `preferences?.disableSync` in `syncToLocator`. The flag is initialised from
+  /// `preferences.disableSync` when preferences arrive and updated live via
+  /// `setNarrationSyncEnabled(_:)` (the method-channel handler) and from manual-mode
+  /// detection on page navigation (`goForward`/`goBackward`).
+  ///
+  /// In-reader user gestures (swipe / edge-tap) are detected in Dart by the
+  /// `reader_widget.dart` `Listener` above the platform view, which calls the
+  /// reader-view channel `"notifyUserNavigation"` → `enterManualModeIfNarrationPlaying()`.
+  /// Those pointer events fire only for genuine user interaction (audio-driven page
+  /// turns are programmatic `go(to:)` calls that never reach the Flutter Listener), so
+  /// they are a clean "user took control" signal — avoiding the swift-toolkit delegate's
+  /// inability to distinguish a finger-swipe from an audio-driven `syncToLocator`.
+  private var narrationSyncEnabled: Bool = true
+
   var publicationIdentifier: String?
 
   public func view() -> UIView {
@@ -157,6 +175,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
     self.containerView = containerView
     super.init()
+
+    // Initialise runtime sync flag from initial preferences so that
+    // disableSync:true passed at construction is honoured immediately.
+    if let disableSync = self.preferences?.disableSync {
+      narrationSyncEnabled = !disableSync
+    }
 
     containerView.readerView = self
     channel.setMethodCallHandler(onMethodCall)
@@ -483,6 +507,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
 
+    // NOTE: an explicit locator jump (TOC / bookmark / search) during active narration is
+    // handled upstream in FlutterReadiumPlugin's "goToLocator" by seeking the timebased
+    // navigator (narration follows the jump) — this method is only reached when narration is
+    // NOT active, so a jump must not enter manual mode here. Page-turns (goForward/goBackward)
+    // do enter manual mode; see those methods.
     isJumpingToLocator = true
 
     // Promote a `#id` css anchor to `fragments.first` so swift-toolkit positions correctly
@@ -507,14 +536,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.debug("syncToLocator: skipped")
       return false
     }
-    if preferences?.disableSync == true {
+    if !narrationSyncEnabled {
       lastSyncLocator = locator
       lastSyncSegmentDuration = segmentDuration
-      Log.reader.debug("syncToLocator: deferred while synchronization is disabled")
+      Log.reader.debug("syncToLocator: deferred while narration sync is disabled")
       return false
     }
-    lastSyncLocator = nil
-    lastSyncSegmentDuration = nil
     // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
     // spoken word re-pins the current paragraph to the top of the viewport
     // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
@@ -525,6 +552,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
       return false
     }
+    // Track the most recent navigated cue so a Re-sync (setNarrationSyncEnabled(true))
+    // can snap to the CURRENT cue immediately, even when triggered mid-cue. Previously
+    // this was cleared here, so a mid-cue Re-sync had no locator to replay and only
+    // corrected once the next cue arrived.
+    lastSyncLocator = locator
+    lastSyncSegmentDuration = segmentDuration
     return await performSyncNavigation(locator, animated: animated, segmentDuration: segmentDuration)
   }
 
@@ -542,6 +575,52 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // isJumpingToLocator == true, and silently drops the sync. The next utterance then
     // plays audio but the spotlight decoration and page position never advance.
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+  }
+
+  /// Sets the runtime narration-sync flag and emits the new state on the
+  /// `narration-sync` event channel.
+  ///
+  /// When enabling sync (true), any deferred sync locator that was held while sync
+  /// was disabled is replayed immediately so the visual reader jumps to the current
+  /// audio cue.
+  ///
+  /// Must be called on the MainActor (property access and stream emission are not
+  /// thread-safe).
+  @MainActor
+  internal func setNarrationSyncEnabled(_ enabled: Bool) {
+    let wasEnabled = narrationSyncEnabled
+    narrationSyncEnabled = enabled
+    Log.reader.debug("setNarrationSyncEnabled: \(enabled)")
+    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(enabled)
+    // Replay deferred sync locator when re-enabling, matching the existing
+    // wasSyncDisabled catch-up logic that was previously in setPreferences.
+    if enabled, !wasEnabled, let deferredLocator = lastSyncLocator {
+      let deferredSegmentDuration = lastSyncSegmentDuration
+      lastSyncLocator = nil
+      lastSyncSegmentDuration = nil
+      Task.detached(priority: .high) {
+        _ = await self.performSyncNavigation(
+          deferredLocator,
+          animated: false,
+          segmentDuration: deferredSegmentDuration)
+      }
+    }
+  }
+
+  /// Enters manual mode (disables narration sync) if narration is actively
+  /// playing. Called from explicit user/app navigation entry points.
+  ///
+  /// Only transitions when sync is currently enabled and a timebased navigator
+  /// is present and playing, so normal reading without narration is unaffected.
+  @MainActor
+  private func enterManualModeIfNarrationPlaying() {
+    guard narrationSyncEnabled,
+          FlutterReadiumPlugin.instance?.timebasedNavigator != nil,
+          FlutterReadiumPlugin.instance?.lastTimebasedPlayerState?.state == .playing else {
+      return
+    }
+    Log.reader.debug("enterManualModeIfNarrationPlaying: entering manual mode")
+    setNarrationSyncEnabled(false)
   }
 
   private func emitOnPageChanged() {
@@ -580,6 +659,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
+        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -599,6 +679,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
+        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -611,25 +692,29 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         }
       }
       break
+    case "notifyUserNavigation":
+      // The user swiped or edge-tapped the reader (detected by the Flutter
+      // Listener above the platform view). Enter narration manual mode if
+      // narration is currently driving the reader; otherwise a no-op.
+      Task { @MainActor in
+        enterManualModeIfNarrationPlaying()
+        result(nil)
+      }
+      break
     case "setPreferences":
       let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
-      let wasSyncDisabled = self.preferences?.disableSync == true
+      let oldDisableSync = self.preferences?.disableSync
       let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       self.preferences = preferences
-      if wasSyncDisabled,
-         preferences.disableSync == false,
-         let deferredLocator = self.lastSyncLocator {
-        let deferredSegmentDuration = self.lastSyncSegmentDuration
-        self.lastSyncLocator = nil
-        self.lastSyncSegmentDuration = nil
-        Task.detached(priority: .high) {
-          _ = await self.performSyncNavigation(
-            deferredLocator,
-            animated: false,
-            segmentDuration: deferredSegmentDuration)
-        }
+      // Flip the runtime sync flag only on an actual `disableSync` transition.
+      // `disableSynchronization` is serialized on every preferences push (non-null on
+      // the Dart side), so reacting unconditionally would clobber a manual-mode override
+      // set via setNarrationSyncEnabled whenever any unrelated preference (font, theme, …)
+      // changes mid-playback.
+      if let disableSync = preferences.disableSync, disableSync != oldDisableSync {
+        setNarrationSyncEnabled(!disableSync)
       }
       result(nil)
       break

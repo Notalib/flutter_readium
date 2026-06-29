@@ -10,6 +10,7 @@ enum _ReaderChannelMethodInvoke {
   go,
   goBackward,
   goForward,
+  notifyUserNavigation,
   dispose,
   setPreferences,
 }
@@ -73,6 +74,14 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<void> goForward({final bool animated = true}) {
     _log.d('$name: $animated');
     return _invokeMethod(_ReaderChannelMethodInvoke.goForward, animated);
+  }
+
+  /// Signals that the user manually interacted with the reader (a swipe or
+  /// edge-tap page navigation). The native side enters narration "manual mode"
+  /// if narration is currently driving the reader; otherwise it is a no-op.
+  Future<void> notifyUserNavigation() {
+    _log.d(name);
+    return _invokeMethod(_ReaderChannelMethodInvoke.notifyUserNavigation);
   }
 
   /// Set EPUB preferences.

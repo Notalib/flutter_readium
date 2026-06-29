@@ -1,5 +1,14 @@
 # Native DiViNa Narration Sync Handoff
 
+> **Status:** Phase 1 (narration sync state + manual mode) is implemented and verified
+> (compile/analyze/unit-test) on Dart, iOS, Android, and Web. The feature was generalized from
+> comic-only auto-pan into a unified **narration manual-mode** for Media Overlay + TTS:
+> `FlutterReadium.setNarrationSyncEnabled(bool)` + `onNarrationSyncChanged`, with
+> `EPUBPreferences.disableSynchronization` folded in (deprecated). Comic **panel pan/zoom** and the
+> JS→native gesture bridge are deferred to Phase 2 — see
+> [`native-comic-panel-pan-handoff.md`](native-comic-panel-pan-handoff.md). This document is the
+> original brief, retained for reference.
+
 Goal: implement the Web DiViNa comic re-sync behavior for iOS and Android when a DiViNa comic has Sync Narration or Guided Navigation.
 
 This is a handoff for the next agent. Web is the reference implementation and is now considered satisfactory.

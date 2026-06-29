@@ -325,7 +325,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Future<bool> goToProgression(double progression) async => JsPublicationChannel.goToProgression(progression);
 
   @override
-  Future<void> setComicAutoPan(bool enabled) async => JsPublicationChannel.setComicAutoPan(enabled);
+  Future<void> setNarrationSyncEnabled(bool enabled) async => JsPublicationChannel.setNarrationSyncEnabled(enabled);
 
   // COMMON PLAYBACK API - END
 

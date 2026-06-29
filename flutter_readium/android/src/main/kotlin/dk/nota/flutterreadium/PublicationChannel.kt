@@ -275,6 +275,12 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 }
             }
 
+            "setNarrationSyncEnabled" -> {
+                val enabled = arguments as? Boolean ?: return Try.success(null)
+                ReadiumReader.setNarrationSyncEnabled(enabled)
+                return Try.success(null)
+            }
+
             else -> {
                 throw NotImplementedError()
             }

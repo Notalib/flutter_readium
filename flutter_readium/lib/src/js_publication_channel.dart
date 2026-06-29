@@ -33,7 +33,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void previous();
   external void seekBy(JSNumber seconds);
   external JSBoolean goToProgression(JSNumber progression);
-  external void setComicAutoPan(JSBoolean enabled);
+  external void setNarrationSyncEnabled(JSBoolean enabled);
   external void setAudioPreferences(JSString preferencesJson);
   external JSPromise<JSString> ttsGetAvailableVoices();
   external JSPromise<JSAny?> ttsEnable(
@@ -216,8 +216,8 @@ class JsPublicationChannel {
 
   static bool goToProgression(double progression) => _readiumReader.goToProgression(progression.toJS).toDart;
 
-  static void setComicAutoPan(bool enabled) {
-    _readiumReader.setComicAutoPan(enabled.toJS);
+  static void setNarrationSyncEnabled(bool enabled) {
+    _readiumReader.setNarrationSyncEnabled(enabled.toJS);
   }
 
   static void setAudioPreferences(String preferencesJson) {

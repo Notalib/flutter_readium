@@ -37,7 +37,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Stream<bool> get onNarrationSyncChanged => _narrationSyncController.stream;
 
   @override
-  Future<void> setComicAutoPan(bool enabled) async {}
+  Future<void> setNarrationSyncEnabled(bool enabled) async {}
 
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {
