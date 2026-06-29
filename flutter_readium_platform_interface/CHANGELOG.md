@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.1.1] - 2026-06-26
+
 ### Fixed
 
 - `EpubColumnCount` now serializes to Readium's canonical values (`auto`/`1`/`2`) instead of
