@@ -509,6 +509,11 @@ class EpubNavigator :
         lastSyncLocator = locator
         lastSyncSegmentDuration = segmentDuration
 
+        // For Nota comics (EPUB + MediaOverlay) the panel pan is driven by goToLocator:
+        // the locator carries the panel element id as its fragment/cssSelector, so the
+        // toolkit emits `readium.scrollToId(...)`, which the NotaComicBook helper
+        // intercepts and animates using the segment duration set in [go]. No explicit
+        // gotoComicFrame call is needed here.
         goToLocator(locator, animated, segmentDuration)
     }
 
@@ -535,7 +540,10 @@ class EpubNavigator :
                 return
             }
         PluginLog.d(TAG, "::resyncAfterManualMode - catching up to $locator")
-        goToLocator(locator, false, lastSyncSegmentDuration)
+        // Clear the JS-side manual-override flag so the next pinch re-enters manual
+        // mode. No-op (optional chaining) on non-comic pages.
+        evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
+        syncToLocator(locator, false, lastSyncSegmentDuration)
     }
 
     companion object {

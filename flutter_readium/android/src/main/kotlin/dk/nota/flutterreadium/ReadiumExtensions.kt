@@ -175,6 +175,11 @@ fun Resource.injectScriptsAndStyles(
                 const isAndroid = true;
                 const isIos = false;
                 window.readiumTocIDs = ${jsonEncode(tocIds)};
+                window.updateNarrationSync = function(v) {
+                    if (window.narrationSync) {
+                        window.narrationSync.onNarrationSyncChanged(v === true);
+                    }
+                };
             </script>
             $injectStyle
             """,

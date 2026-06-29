@@ -8,6 +8,7 @@ import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.FlutterEpubPreferences
+import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
 import dk.nota.flutterreadium.ReadiumReader
@@ -616,6 +617,13 @@ class EpubReaderFragment :
 
         navigator = epubNavigator
         PluginLog.d(TAG, "::attachNavigator() - $instance - got navigator = $navigator")
+
+        // Register JS→native bridge for window.updateNarrationSync(bool).
+        // The bootstrap shim in ReadiumExtensions defines window.updateNarrationSync to call
+        // window.narrationSync.onNarrationSyncChanged(v), which forwards here.
+        epubNavigator.registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ ->
+            NarrationSyncInterface(ReadiumReader)
+        }
 
         started.value = true
     }

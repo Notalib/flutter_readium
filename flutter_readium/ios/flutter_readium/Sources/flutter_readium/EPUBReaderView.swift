@@ -7,6 +7,15 @@ import WebKit
 private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
+/// Breaks the `WKUserContentController → message-handler → EPUBReaderView` retain cycle.
+private final class WeakScriptHandler: NSObject, WKScriptMessageHandler {
+  private weak var parent: EPUBReaderView?
+  init(_ parent: EPUBReaderView) { self.parent = parent }
+  func userContentController(_ ctrl: WKUserContentController, didReceive message: WKScriptMessage) {
+    parent?.handleScriptMessage(message)
+  }
+}
+
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
@@ -229,6 +238,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     for script in userScripts {
       userContentController.addUserScript(script)
     }
+    // Register handler so `window.updateNarrationSync(bool)` in the helper script can reach native.
+    // WeakScriptHandler breaks the retain cycle WKUserContentController → handler → EPUBReaderView.
+    userContentController.add(WeakScriptHandler(self), name: "narrationSync")
 
     /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
     if let preferencesStylesheet = self.preferences.map(effectivePreferences)?.toInjectableStyleSheet() {
@@ -414,6 +426,16 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  /// Receives messages from the `window.updateNarrationSync(bool)` bridge injected
+  /// by the iOS platform shim (bootstrap script in `initUserScripts`).
+  func handleScriptMessage(_ message: WKScriptMessage) {
+    guard message.name == "narrationSync", let enabled = message.body as? Bool else { return }
+    Log.reader.debug("handleScriptMessage: narrationSync=\(enabled)")
+    Task { @MainActor in
+      setNarrationSyncEnabled(enabled)
+    }
+  }
+
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
     self.readiumViewController.submitPreferences(preferences.readium)
     self.updateCustomPreferences(preferences)
@@ -567,6 +589,13 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let segmentDurationMs = duration * 1000.0
       await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
     }
+
+    // For Nota comics (EPUB + MediaOverlay) the panel pan is driven entirely by the
+    // navigator's go(to:) below: the locator carries the panel element id as its
+    // fragment/cssSelector, so the toolkit emits `readium.scrollToId(...)`, which the
+    // NotaComicBook helper intercepts and animates (using the segment duration set
+    // above). No explicit gotoComicFrame call is needed here.
+    //
     // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
     // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
     // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
@@ -599,6 +628,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       lastSyncLocator = nil
       lastSyncSegmentDuration = nil
       Task.detached(priority: .high) {
+        // Clear the JS-side manual-override flag so the next pinch re-enters manual
+        // mode. No-op (optional chaining) on non-comic pages.
+        await self.evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
         _ = await self.performSyncNavigation(
           deferredLocator,
           animated: false,
@@ -801,8 +833,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     for jsScript in jsScripts {
       userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     }
-    /// Add simple script used by our JS to detect OS
-    userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
+    /// Platform shim: OS flags + window.updateNarrationSync bridge.
+    /// Posting to the "narrationSync" WKScriptMessageHandler delivers the bool to native.
+    userScripts.append(WKUserScript(source: """
+      const isAndroid=false,isIos=true;
+      window.updateNarrationSync=function(v){webkit.messageHandlers.narrationSync.postMessage(v===true);};
+      """, injectionTime: .atDocumentStart, forMainFrameOnly: false))
 
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {

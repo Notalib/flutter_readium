@@ -16,6 +16,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   control). Call `setNarrationSyncEnabled(true)` to snap the reader back to the current narration
   position. An explicit jump (`goToLocator` to a TOC entry, bookmark, or search result) instead
   re-seeks narration to the new location, keeping audio and reader together.
+- **Comic panel pan/zoom during narration (iOS, Android)** — Nota EPUB+MediaOverlay comics now
+  pan and zoom to the active panel as narration plays on native platforms, matching the existing
+  web behaviour. A manual pinch-zoom in the EPUB webview enters the same manual mode as a page
+  swipe, emitting `onNarrationSyncChanged(false)`; `setNarrationSyncEnabled(true)` re-pans to the
+  current narrated panel.
 
 ### Changed
 

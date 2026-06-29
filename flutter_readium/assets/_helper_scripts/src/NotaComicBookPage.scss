@@ -30,6 +30,16 @@ div.nota-comicbook-page-container {
     display: block;
   }
 
+  &.nota-comic-manual {
+    overflow: auto;
+    // Momentum scrolling on iOS WebKit.
+    -webkit-overflow-scrolling: touch;
+    // Don't chain scroll to the Flutter pager when the image edge is reached.
+    overscroll-behavior: contain;
+    // Allow single-finger native pan; pinch is handled in JS.
+    touch-action: pan-x pan-y;
+  }
+
   img {
     position: absolute;
     opacity: 0; // Allows the image to be faded in.
