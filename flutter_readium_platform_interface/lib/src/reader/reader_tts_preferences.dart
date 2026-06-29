@@ -19,6 +19,8 @@ enum PageBreakBehavior {
   static PageBreakBehavior? optFromString(final String? value) => PageBreakBehavior.values.firstWhereOrNull(
     (e) => e.name.toLowerCase() == value?.toLowerCase(),
   );
+
+  static PageBreakBehavior fromString(final String value) => optFromString(value) ?? readAsIs;
 }
 
 @immutable
