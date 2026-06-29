@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **`TTSPreferences.skipPageBreaks`** (`bool?`) — opt in/out of reading EPUB page-break elements
+  aloud during TTS playback.
+
 ### Fixed
 
 - `EpubColumnCount` now serializes to Readium's canonical values (`auto`/`1`/`2`) instead of
