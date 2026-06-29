@@ -19,7 +19,7 @@ data class FlutterTtsPreferences(
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
-    val skipPageBreaks: Boolean? = null,
+    val pageBreakBehavior: PageBreakBehavior? = null,
 ) {
     /**
      * Convert to AndroidTtsPreferences.
@@ -49,7 +49,7 @@ data class FlutterTtsPreferences(
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
             controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType,
-            skipPageBreaks = other.skipPageBreaks ?: skipPageBreaks,
+            pageBreakBehavior = other.pageBreakBehavior ?: pageBreakBehavior,
         )
 
     companion object {
@@ -82,7 +82,7 @@ data class FlutterTtsPreferences(
                             "standard",
                         ),
                     ),
-                skipPageBreaks = if (jsonObject.has("skipPageBreaks")) jsonObject.getBoolean("skipPageBreaks") else null,
+                pageBreakBehavior = PageBreakBehavior.fromString(jsonObject.optString("pageBreakBehavior").ifEmpty { null }),
             )
         }
 
@@ -100,7 +100,7 @@ data class FlutterTtsPreferences(
                 jsonObject.put("voices", voicesJson)
             }
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
-            preferences.skipPageBreaks?.let { jsonObject.put("skipPageBreaks", it) }
+            preferences.pageBreakBehavior?.let { jsonObject.put("pageBreakBehavior", PageBreakBehavior.toString(it)) }
             return jsonObject
         }
 
@@ -142,7 +142,7 @@ data class FlutterTtsPreferences(
                     ControlPanelInfoType.fromString(
                         ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard",
                     ),
-                skipPageBreaks = ttsPrefs?.get("skipPageBreaks") as? Boolean,
+                pageBreakBehavior = PageBreakBehavior.fromString(ttsPrefs?.get("pageBreakBehavior") as? String),
             )
         }
     }

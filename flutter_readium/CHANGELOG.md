@@ -7,12 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **`TTSPreferences.skipPageBreaks`** — controls whether EPUB page-break elements (DAISY/Nordic
-  EPUB3 `epub:type="pagebreak"`) are read aloud during TTS. When `true` (default), page-break
-  elements are silently skipped. When `false`, page numbers are read with a localized prefix
-  (e.g. "Page 42" / "side 42"), derived from the publication's declared language (supports
-  English, Danish, Swedish, Norwegian, Icelandic; falls back to the raw label otherwise).
-  Supported on Android and iOS.
+- **`TTSPreferences.pageBreakBehavior`** — controls how EPUB page-break elements (DAISY/Nordic
+  EPUB3 `epub:type="pagebreak"`) are handled during TTS. Accepts a `PageBreakBehavior` enum:
+  `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
+  localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
+  Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
+  Replaces the previous `skipPageBreaks` bool. Supported on Android and iOS.
 
 ### Changed (breaking)
 
