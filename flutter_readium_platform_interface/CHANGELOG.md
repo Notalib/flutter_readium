@@ -17,6 +17,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `true` for DiViNa comics that carry a guided-navigation document, not only EPUBs. Guided
   navigation is profile-agnostic; this lets DiViNa narrated comics drive the audio /
   media-overlay path the same way narrated EPUBs do.
+- `EPUBPreferences.fontSize` is now clamped to Readium's supported ratio range
+  `[0.1, 5.0]` on serialization, logging a warning when an out-of-range value is passed.
+
 
 ## [0.1.1] - 2026-06-26
 
