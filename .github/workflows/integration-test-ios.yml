@@ -13,12 +13,13 @@ jobs:
     timeout-minutes: 30
 
     env:
-      # Pin the simulator model for run-to-run determinism (the WebKit/WKWebView
-      # version that drives EPUB rendering tracks the runtime, and an unpinned
-      # "newest available" device silently changes with every runner-image bump).
-      # Selection falls back to the newest available iPhone if this exact model
-      # isn't present, so an image bump degrades gracefully instead of failing.
-      SIMULATOR_DEVICE: iPhone 17 Pro
+      # Pin the simulator model/runtime for run-to-run determinism and faster
+      # hosted-runner boots. The macos-26-arm64 image includes iPhone 16e only on
+      # the iOS 26.2 runtime, which is the smallest/newest-enough iPhone target
+      # listed in the runner image README. Selection still falls back to the
+      # newest available iPhone if this exact pairing disappears.
+      SIMULATOR_DEVICE: iPhone 16e
+      SIMULATOR_RUNTIME_VERSION: '26.2'
 
     steps:
       - uses: actions/checkout@v7
@@ -76,12 +77,12 @@ jobs:
           set -euo pipefail
           xcrun simctl list devices available
 
-          # Prefer $SIMULATOR_DEVICE on the newest runtime that offers it;
-          # otherwise fall back to the newest available iPhone of any model.
+          # Prefer $SIMULATOR_DEVICE on $SIMULATOR_RUNTIME_VERSION; otherwise
+          # fall back to the newest available iPhone of any model.
           # Tab-delimited so device names containing spaces survive `read`.
           IFS=$'\t' read -r UDID DEVICE_NAME RUNTIME < <(
             xcrun simctl list devices available --json \
-              | jq -r --arg want "$SIMULATOR_DEVICE" '
+              | jq -r --arg want "$SIMULATOR_DEVICE" --arg wantVersion "$SIMULATOR_RUNTIME_VERSION" '
                   [ .devices | to_entries[]
                     | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS"))
                     | .key as $rt | .value[]
@@ -89,7 +90,7 @@ jobs:
                     | {name: .name, udid: .udid, rt: $rt,
                        ver: ($rt | capture("iOS-(?<a>[0-9]+)-(?<b>[0-9]+)")
                                  | [(.a | tonumber), (.b | tonumber)])} ] as $all
-                  | ( ( [ $all[] | select(.name == $want) ] | sort_by(.ver) | last )
+                  | ( ( [ $all[] | select(.name == $want and (.ver | join(".") == $wantVersion)) ] | first )
                       // ( $all | sort_by(.ver) | last ) )
                   | "\(.udid)\t\(.name)\t\(.rt)"'
           )
@@ -97,8 +98,8 @@ jobs:
           if [ -z "${UDID:-}" ]; then
             echo "::error::No available iPhone simulator found"; exit 1
           fi
-          if [ "$DEVICE_NAME" != "$SIMULATOR_DEVICE" ]; then
-            echo "::warning::Pinned device '$SIMULATOR_DEVICE' unavailable; fell back to '$DEVICE_NAME'"
+          if [ "$DEVICE_NAME" != "$SIMULATOR_DEVICE" ] || [[ "$RUNTIME" != *"iOS-${SIMULATOR_RUNTIME_VERSION/./-}" ]]; then
+            echo "::warning::Pinned simulator '$SIMULATOR_DEVICE' on iOS $SIMULATOR_RUNTIME_VERSION unavailable; fell back to '$DEVICE_NAME' ($RUNTIME)"
           fi
           echo "Selected simulator: $DEVICE_NAME ($RUNTIME) -> $UDID"
 

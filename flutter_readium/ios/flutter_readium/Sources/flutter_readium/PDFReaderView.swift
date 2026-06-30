@@ -195,6 +195,10 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     Log.reader.debug("onCustomEditingAction: not supported for PDF")
   }
 
+  public func setMOActive(_ active: Bool) {
+    // PDF has no CSS column layout — no-op.
+  }
+
   // MARK: - Locator emission
 
   private func emitOnPageChanged(locator: Locator) -> Void {
