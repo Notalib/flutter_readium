@@ -67,6 +67,9 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium/example
 
+      - name: Fetch test resources
+        uses: ./.github/actions/fetch-test-resources
+
       - name: Install CocoaPods dependencies
         run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
         working-directory: flutter_readium/example/ios

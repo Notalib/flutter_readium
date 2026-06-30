@@ -21,6 +21,13 @@ fi
 # Make sure web dependencies are installed (package.json lives at the plugin root)
 (cd "$REPO_ROOT/flutter_readium" && (npm ci --ignore-scripts && npm run build:dev))
 
+# Fetch test publications from the external test-resources repo.
+echo "Fetching test publications from readium-test-resources…"
+_tmp_res="$(mktemp -d)"
+git clone --depth=1 git@github.com:Notalib/readium-test-resources.git "$_tmp_res"
+bash "$_tmp_res/bin/build-publications.sh" build "$REPO_ROOT/flutter_readium/example/assets/pubs"
+rm -rf "$_tmp_res"
+
 # Optional: AI code-search index (tokensave, https://github.com/aovestdipaperino/tokensave).
 # Entirely no-op for anyone who doesn't have the tokensave CLI installed.
 # Install with: brew install aovestdipaperino/tap/tokensave
