@@ -25,10 +25,16 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.indexOfFirstWithHref
+import java.lang.reflect.Proxy
+import java.util.WeakHashMap
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ComicNavigator"
 private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualLocator"
+
+// At/below this PhotoView scale the page is considered "fit" (not zoomed), so horizontal
+// swipes turn the page; above it, pan is locked into the viewer. See [configurePhotoViewPanLock].
+private const val PAN_LOCK_FIT_SCALE = 1.05f
 
 /**
  * Wraps the Readium [ImageNavigatorFragment] for bitmap-based publications (CBZ / DiViNa)
@@ -73,6 +79,10 @@ class ComicNavigator :
 
     private var imageNavigator: ImageNavigatorFragment? = null
     private var pagerInsetsListenerInstalled = false
+
+    // PhotoViews already wired with the zoom-gated pan lock. WeakHashMap so ViewPager-recycled
+    // page views don't pin and we don't reinstall the listener on every inset re-apply.
+    private val panLockConfigured = WeakHashMap<View, Boolean>()
 
     override val currentLocator: StateFlow<Locator?>?
         get() = imageNavigator?.currentLocator
@@ -185,14 +195,15 @@ class ComicNavigator :
     private fun clearComicInsets(view: View?) {
         if (view == null) return
 
-        if (view.javaClass.simpleName == "PhotoView" && (
-                view.paddingTop != 0 ||
-                    view.paddingBottom != 0 ||
-                    view.paddingLeft != 0 ||
-                    view.paddingRight != 0
-            )
-        ) {
-            view.setPadding(0, 0, 0, 0)
+        if (view.javaClass.simpleName == "PhotoView") {
+            configurePhotoViewPanLock(view)
+            if (view.paddingTop != 0 ||
+                view.paddingBottom != 0 ||
+                view.paddingLeft != 0 ||
+                view.paddingRight != 0
+            ) {
+                view.setPadding(0, 0, 0, 0)
+            }
         }
 
         if (view is ViewGroup) {
@@ -207,6 +218,80 @@ class ComicNavigator :
             for (i in 0 until view.childCount) {
                 clearComicInsets(view.getChildAt(i))
             }
+        }
+    }
+
+    /**
+     * Locks manual pan inside a zoomed comic page so it isn't interpreted as a page swipe.
+     *
+     * WORKAROUND: [ImageNavigatorFragment] renders each page in a chrisbanes PhotoView inside an
+     * R2ViewPager. With PhotoView's default `allowParentInterceptOnEdge = true`, panning a zoomed
+     * page to its horizontal edge hands the gesture to the ViewPager and turns the page — so a
+     * fast pan reads as a swipe. We gate that flag by zoom level via an OnMatrixChangeListener:
+     * swipes still turn the page at fit ([PAN_LOCK_FIT_SCALE]), but are suppressed while zoomed so
+     * the pan stays captured. The listener fires inside PhotoView's own drag handling before the
+     * edge hand-off is evaluated, so the flag is current for each drag.
+     *
+     * PhotoView is a non-transitive (bundled-JAR) dependency of kotlin-toolkit, so there is no
+     * compile-time type for it here — driven reflectively, like [clearComicInsets] above.
+     * Best-effort: any reflection failure (e.g. upstream swaps the image view) is logged and
+     * leaves the default paging behaviour intact.
+     *
+     * TODO(upstream): replace with a real flag once kotlin-toolkit exposes paging/zoom gesture
+     *   coordination for ImageNavigatorFragment.
+     */
+    private fun configurePhotoViewPanLock(photoView: View) {
+        if (panLockConfigured.containsKey(photoView)) return
+        try {
+            val cls = photoView.javaClass
+            val getScale = cls.getMethod("getScale")
+            val setAllowParentInterceptOnEdge =
+                cls.getMethod("setAllowParentInterceptOnEdge", Boolean::class.javaPrimitiveType)
+            val listenerCls =
+                photoView.javaClass.classLoader
+                    ?.loadClass("com.github.chrisbanes.photoview.OnMatrixChangedListener")
+                    ?: return
+            val setOnMatrixChangeListener = cls.getMethod("setOnMatrixChangeListener", listenerCls)
+
+            val applyGate = {
+                val scale = (getScale.invoke(photoView) as? Float) ?: 1f
+                setAllowParentInterceptOnEdge.invoke(photoView, scale <= PAN_LOCK_FIT_SCALE)
+            }
+
+            val listener =
+                Proxy.newProxyInstance(listenerCls.classLoader, arrayOf(listenerCls)) { proxy, method, args ->
+                    when (method.name) {
+                        "onMatrixChanged" -> {
+                            applyGate()
+                            null
+                        }
+
+                        "equals" -> {
+                            proxy === args?.getOrNull(0)
+                        }
+
+                        "hashCode" -> {
+                            System.identityHashCode(proxy)
+                        }
+
+                        "toString" -> {
+                            "PhotoViewPanLockListener"
+                        }
+
+                        else -> {
+                            null
+                        }
+                    }
+                }
+            setOnMatrixChangeListener.invoke(photoView, listener)
+            applyGate() // Seed initial state (fit → paging enabled).
+            panLockConfigured[photoView] = true
+            PluginLog.d(TAG, "::configurePhotoViewPanLock - installed zoom-gated pan lock")
+        } catch (e: Exception) {
+            PluginLog.w(
+                TAG,
+                "::configurePhotoViewPanLock - failed (${e.message}); leaving default paging behaviour",
+            )
         }
     }
 
@@ -249,6 +334,59 @@ class ComicNavigator :
         return withMainContext {
             navigator.go(locator, animated)
         }
+    }
+
+    // --- Narration-sync catch-up (page-level) --------------------------------
+    // Mirrors EpubNavigator's deferred-sync mechanism so a Re-sync after manual mode
+    // jumps to the audio cue's PAGE immediately, matching iOS/Web. Panel-level framing
+    // is Phase 2 — there is no panel pan/zoom API on Android yet (see
+    // docs/parity/native-divina-sync-handoff.md). Segment duration is irrelevant to
+    // comics (no per-word scroll), so unlike EpubNavigator only the locator is tracked.
+
+    private var lastSyncLocator: Locator? = null
+
+    /**
+     * Navigates to an audio-cue locator and records it for catch-up. Only invoked when
+     * narration sync is enabled — gating lives in [dk.nota.flutterreadium.ReadiumReader.syncVisualToLocator].
+     */
+    suspend fun syncToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double?,
+    ) {
+        lastSyncLocator = locator
+        goToLocator(locator, animated, segmentDuration)
+    }
+
+    /**
+     * Records the latest audio-cue locator without navigating, so a later
+     * [resyncAfterManualMode] can jump to the current cue's page. Called while in manual mode.
+     */
+    fun recordDeferredSync(locator: Locator) {
+        lastSyncLocator = locator
+    }
+
+    /**
+     * Re-positions the comic to the last known audio-cue page after exiting manual mode.
+     * Called by [dk.nota.flutterreadium.ReadiumReader.setNarrationSyncEnabled] when re-enabling sync.
+     */
+    suspend fun resyncAfterManualMode() {
+        val locator =
+            lastSyncLocator ?: run {
+                PluginLog.d(TAG, "::resyncAfterManualMode - no lastSyncLocator stored")
+                return
+            }
+        PluginLog.d(TAG, "::resyncAfterManualMode - catching up to page ${locator.href}")
+        goToLocator(locator, animated = false, segmentDuration = null)
+    }
+
+    /**
+     * Clears deferred-sync state when narration stops (not paused). Distinct from
+     * [resyncAfterManualMode], which replays the last cue.
+     */
+    fun exitNarrationMode() {
+        PluginLog.d(TAG, "::exitNarrationMode")
+        lastSyncLocator = null
     }
 
     override suspend fun goForward(animated: Boolean) {

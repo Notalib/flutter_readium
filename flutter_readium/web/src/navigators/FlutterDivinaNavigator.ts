@@ -65,6 +65,11 @@ export class FlutterDivinaNavigator {
   private _autoPanEnabled = true;
   private _manuallyOverridden = false;
   private _lastRegion: ComicRegion | null = null;
+  // Set when a region pan was requested before the page image was measured
+  // (natW/natH still 0). The <img> `load` handler applies the pan to _lastRegion
+  // once natural dimensions are known, so the first cue on a freshly-loaded page
+  // isn't dropped (it would otherwise wait for the next cue to re-frame).
+  private _pendingRegionPan = false;
 
   // Gesture tracking (Pointer Events).
   private readonly _pointers = new Map<number, { x: number; y: number }>();
@@ -248,9 +253,11 @@ export class FlutterDivinaNavigator {
       return;
     }
     if (this._natW === 0 || this._natH === 0) {
+      this._pendingRegionPan = true;
       log.debug("panToRegion deferred: image not measured yet");
       return;
     }
+    this._pendingRegionPan = false;
     log.debug(
       region
         ? `panToRegion x=${region.x} y=${region.y} w=${region.w} h=${region.h}`
@@ -293,8 +300,14 @@ export class FlutterDivinaNavigator {
     img.addEventListener("load", () => {
       this._natW = img.naturalWidth;
       this._natH = img.naturalHeight;
-      // Re-apply current zoom (identity on a fresh page) now that we know the size.
-      this._applyTransform(this._transform, false);
+      if (this._pendingRegionPan) {
+        // A narration cue requested a panel pan before the image was measured;
+        // apply it now that natural dimensions are known (panToRegion clears the flag).
+        this.panToRegion(this._lastRegion);
+      } else {
+        // Re-apply current zoom (identity on a fresh page) now that we know the size.
+        this._applyTransform(this._transform, false);
+      }
     });
     container.appendChild(img);
 
@@ -584,6 +597,8 @@ export class FlutterDivinaNavigator {
       window.updateNarrationSync?.(true);
     }
     this._transform = IDENTITY;
+    // A pan deferred for the previous page's image is stale now.
+    this._pendingRegionPan = false;
     this._render();
     this._emitCurrentLocator();
     return true;

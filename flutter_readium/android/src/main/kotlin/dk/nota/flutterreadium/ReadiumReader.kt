@@ -1302,6 +1302,7 @@ object ReadiumReader :
         emitNarrationSyncChanged(true)
         launch {
             epubNavigator?.exitNarrationMode()
+            comicNavigator?.exitNarrationMode()
         }
     }
 
@@ -1646,11 +1647,14 @@ object ReadiumReader :
         val comic = comicNavigator
         if (comic != null) {
             if (!narrationSyncEnabled) {
-                PluginLog.d(TAG, "::syncVisualToLocator - skipping comic nav: narration sync disabled (manual mode)")
+                // Manual mode: record the cue so a later Re-sync can catch up to the
+                // current page, but don't move the view.
+                PluginLog.d(TAG, "::syncVisualToLocator - manual mode: deferring comic sync")
+                comic.recordDeferredSync(locator)
                 return
             }
             withMainContext {
-                comic.goToLocator(locator, animated, segmentDuration)
+                comic.syncToLocator(locator, animated, segmentDuration)
             }
         }
     }
@@ -1749,12 +1753,11 @@ object ReadiumReader :
                 }
                 val comic = comicNavigator
                 if (comic != null) {
-                    // For comics, re-sync to the last cue by re-running the current locator
-                    // through SyncAudiobookNavigator's decoration path. The navigator will
-                    // emit the current text locator on next locator-changed event; there is
-                    // no stored catch-up locator on the comic path, so a full re-sync
-                    // requires the next audio-cue event to fire naturally.
-                    PluginLog.d(TAG, "::setNarrationSyncEnabled - comic re-sync deferred to next audio cue")
+                    // Page-level catch-up: jump to the last audio-cue page immediately.
+                    // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
+                    // see docs/parity/native-divina-sync-handoff.md).
+                    comic.resyncAfterManualMode()
+                    return@launch
                 }
             }
         }
