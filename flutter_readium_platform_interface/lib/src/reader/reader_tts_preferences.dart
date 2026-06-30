@@ -1,9 +1,27 @@
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../utils/jsonable.dart';
 import '../utils/readium_log.dart';
 import 'reader_audio_preferences.dart';
+
+enum PageBreakBehavior {
+  /// Pass page-break elements through unchanged — the raw label text is spoken.
+  readAsIs,
+
+  /// Rewrite the label with a localized prefix, e.g. "Page 42" or "side 42".
+  prefixLabel,
+
+  /// Filter page-break elements out of the iterator entirely.
+  skip;
+
+  static PageBreakBehavior? optFromString(final String? value) => PageBreakBehavior.values.firstWhereOrNull(
+    (e) => e.name.toLowerCase() == value?.toLowerCase(),
+  );
+
+  static PageBreakBehavior fromString(final String value) => optFromString(value) ?? readAsIs;
+}
 
 @immutable
 class TTSPreferences with EquatableMixin implements JSONable {
@@ -25,6 +43,9 @@ class TTSPreferences with EquatableMixin implements JSONable {
     final languageOverride = jsonObject.optNullableString(
       'languageOverride',
       remove: true,
+    );
+    final pageBreakBehavior = PageBreakBehavior.optFromString(
+      jsonObject.remove('pageBreakBehavior') as String?,
     );
     final controlPanelInfoTypeStr = jsonObject.optNullableString(
       'controlPanelInfoType',
@@ -66,6 +87,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
       voices: voices,
       languageOverride: languageOverride,
       controlPanelInfoType: controlPanelInfoType ?? ControlPanelInfoType.standard,
+      pageBreakBehavior: pageBreakBehavior,
       controlPanelTimebase: controlPanelTimebase ?? ControlPanelTimebase.chapter,
     );
   }
@@ -77,6 +99,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     this.voices = const {},
     this.languageOverride,
     this.controlPanelInfoType,
+    this.pageBreakBehavior,
     this.controlPanelTimebase,
   });
 
@@ -98,6 +121,10 @@ class TTSPreferences with EquatableMixin implements JSONable {
   /// Control panel info type to determine what information is sent to the control panel during TTS playback.
   final ControlPanelInfoType? controlPanelInfoType;
 
+  /// How page-break elements are handled during TTS playback.
+  /// When null, defaults to [PageBreakBehavior.readAsIs].
+  final PageBreakBehavior? pageBreakBehavior;
+
   /// Whether the system control panel timeline should use chapter or publication time.
   final ControlPanelTimebase? controlPanelTimebase;
 
@@ -108,14 +135,12 @@ class TTSPreferences with EquatableMixin implements JSONable {
     ..putOpt('voiceIdentifier', voiceIdentifier)
     ..putMapIfNotEmpty('voices', voices)
     ..putOpt('languageOverride', languageOverride)
-    ..putOpt(
-      'controlPanelInfoType',
-      controlPanelInfoType?.toString().split('.').last,
-    )
+    ..putOpt('controlPanelInfoType', controlPanelInfoType?.toString().split('.').last)
     ..putOpt(
       'controlPanelTimebase',
       controlPanelTimebase?.toString().split('.').last,
-    );
+    )
+    ..putOpt('pageBreakBehavior', pageBreakBehavior?.name);
 
   @override
   List<Object?> get props => [
@@ -125,6 +150,7 @@ class TTSPreferences with EquatableMixin implements JSONable {
     voices,
     languageOverride,
     controlPanelInfoType,
+    pageBreakBehavior,
     controlPanelTimebase,
   ];
 }
