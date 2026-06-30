@@ -11,6 +11,7 @@ import { __testing__ } from "../mediaoverlay/guidedNavigation";
 import {
   enrichItemsWithToc,
   parseAudioField,
+  parseImgField,
   parseTextField,
   SyncNarrationItem,
 } from "../mediaoverlay/syncNarration";
@@ -97,6 +98,64 @@ describe("parseTextField", () => {
       textHref: "chap.html",
       textId: "",
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseImgField
+// ---------------------------------------------------------------------------
+
+describe("parseImgField", () => {
+  it("parses href + pixel region", () => {
+    expect(parseImgField("image0001.jpg#xywh=pixel:44,113,757,226")).toEqual({
+      imgHref: "image0001.jpg",
+      region: { x: 44, y: 113, w: 757, h: 226 },
+    });
+  });
+
+  it("accepts xywh without the pixel: prefix", () => {
+    expect(parseImgField("p.jpg#xywh=1,2,3,4")).toEqual({
+      imgHref: "p.jpg",
+      region: { x: 1, y: 2, w: 3, h: 4 },
+    });
+  });
+
+  it("returns null region when no fragment is present (page-level cue)", () => {
+    expect(parseImgField("image0001.jpg")).toEqual({
+      imgHref: "image0001.jpg",
+      region: null,
+    });
+  });
+
+  it("returns null region for a malformed or non-xywh fragment", () => {
+    expect(parseImgField("p.jpg#xywh=pixel:1,2,3").region).toBeNull();
+    expect(parseImgField("p.jpg#frag").region).toBeNull();
+    expect(parseImgField("p.jpg#xywh=percent:0,0,50,50").region).toBeNull();
+  });
+
+  it("returns null region for a zero-sized region", () => {
+    expect(parseImgField("p.jpg#xywh=pixel:10,10,0,5").region).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseObject — imgref capture
+// ---------------------------------------------------------------------------
+
+describe("parseObject imgref", () => {
+  it("captures imgref alongside audioref/textref", () => {
+    const obj = parseObject({
+      audioref: "a.mp3#t=0,1",
+      textref: "a.jpg",
+      imgref: "a.jpg#xywh=pixel:1,2,3,4",
+    });
+    expect(obj).not.toBeNull();
+    expect(obj!.imgref).toBe("a.jpg#xywh=pixel:1,2,3,4");
+  });
+
+  it("leaves imgref undefined when absent", () => {
+    const obj = parseObject({ audioref: "a.mp3#t=0,1", textref: "a.jpg" });
+    expect(obj!.imgref).toBeUndefined();
   });
 });
 

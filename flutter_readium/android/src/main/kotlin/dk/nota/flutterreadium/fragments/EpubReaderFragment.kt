@@ -8,10 +8,12 @@ import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.FlutterEpubPreferences
+import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.SpotlightStyle
+import dk.nota.flutterreadium.effectiveForLayout
 import dk.nota.flutterreadium.isFixed
 import dk.nota.flutterreadium.models.EpubReaderViewModel
 import dk.nota.flutterreadium.models.ViewPortSize
@@ -205,8 +207,10 @@ class EpubReaderFragment :
                 return
             }
 
+        PluginLog.d(TAG, "::applyCustomCssVariables - layoutMode:$layoutMode")
+
         val cssVariables =
-            model.preferences?.toCustomCssVariables() ?: run {
+            model.preferences?.effectiveForLayout(layoutMode)?.toCustomCssVariables() ?: run {
                 PluginLog.d(TAG, "::applyCustomCssVariables - no css variables")
                 return
             }
@@ -558,33 +562,41 @@ class EpubReaderFragment :
         val fragmentFactory =
             navigatorFactory.createFragmentFactory(
                 configuration =
-                    EpubNavigatorFragment.Configuration(
-                        // Padding should be added on Flutter side
-                        shouldApplyInsetsPadding = false,
-                        // Extra served asssets will be relative to your app's src/main/assets/ folder.
-                        // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
-                        // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
-                        servedAssets =
-                            listOf(
-                                "flutter_assets/packages/flutter_readium/assets/.*",
-                            ),
-                        // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
-                        decorationTemplates =
-                            HtmlDecorationTemplates
-                                .defaultTemplates(
-                                    alpha = 1.0,
-                                    experimentalPositioning = true,
-                                ).also { templates ->
-                                    templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                    EpubNavigatorFragment
+                        .Configuration(
+                            // Padding should be added on Flutter side
+                            shouldApplyInsetsPadding = false,
+                            // Extra served asssets will be relative to your app's src/main/assets/ folder.
+                            // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
+                            // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
+                            servedAssets =
+                                listOf(
+                                    "flutter_assets/packages/flutter_readium/assets/.*",
+                                ),
+                            // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
+                            decorationTemplates =
+                                HtmlDecorationTemplates
+                                    .defaultTemplates(
+                                        alpha = 1.0,
+                                        experimentalPositioning = true,
+                                    ).also { templates ->
+                                        templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                                    },
+                            // Only register the callback if custom selectionActions are added.
+                            selectionActionModeCallback =
+                                if (ReadiumReader.selectionActions.isNotEmpty()) {
+                                    createSelectionActionModeCallback()
+                                } else {
+                                    null
                                 },
-                        // Only register the callback if custom selectionActions are added.
-                        selectionActionModeCallback =
-                            if (ReadiumReader.selectionActions.isNotEmpty()) {
-                                createSelectionActionModeCallback()
-                            } else {
-                                null
-                            },
-                    ),
+                        ).apply {
+                            // Register JS→native bridge for window.updateNarrationSync(bool).
+                            // The bootstrap shim in ReadiumExtensions defines window.updateNarrationSync to call
+                            // window.narrationSync.onNarrationSyncChanged(v), which forwards here.
+                            registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ ->
+                                NarrationSyncInterface(ReadiumReader)
+                            }
+                        },
                 initialLocator = model.locator,
                 listener = this,
                 paginationListener = this,
