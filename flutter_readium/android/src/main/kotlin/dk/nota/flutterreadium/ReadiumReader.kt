@@ -89,6 +89,11 @@ private const val syncAudioNavigatorStateKey = "syncAudioState"
 private const val epubNavigatorStateKey = "epubState"
 private const val decorationStyleKey = "decorationStyle"
 
+internal fun shouldInjectMOColumnBreakCss(
+    isMOActive: Boolean,
+    preventMOColumnBreaks: Boolean,
+): Boolean = isMOActive && preventMOColumnBreaks
+
 // TODO: Support custom headers and authentication header for content files.
 
 @ExperimentalCoroutinesApi
@@ -173,6 +178,10 @@ object ReadiumReader :
     /** True when a Media Overlay (sync-narration) navigator is active. */
     val isMOActive: Boolean
         get() = syncAudiobookNavigator != null
+
+    /** Whether MO page-change reinjection should run for the current reader state. */
+    internal val shouldInjectMOColumnBreakCssOnPageChange: Boolean
+        get() = shouldInjectMOColumnBreakCss(isMOActive, _preventMOColumnBreaks)
 
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
