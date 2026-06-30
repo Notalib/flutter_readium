@@ -8,6 +8,8 @@
  * can leak stale locators into the next opened publication (observed via the
  * singleton reader's broadcast stream during web integration tests).
  */
+import { Locator, LocatorLocations } from "@readium/shared";
+import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
 import { __testing__ } from "../ReadiumReader";
 
 const { ReadiumReader } = __testing__;
@@ -64,6 +66,176 @@ describe("closePublication teardown", () => {
     withDomGlobals(() => {
       const reader = new ReadiumReader();
       expect(() => reader.closePublication()).not.toThrow();
+    });
+  });
+});
+
+describe("audio stop lifecycle", () => {
+  it("destroys TTS so clients must re-enable it", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const ttsEngine = { stop: jest.fn(), destroy: jest.fn() };
+      (reader as any)._ttsEngine = ttsEngine;
+
+      reader.stop();
+
+      expect(ttsEngine.stop).toHaveBeenCalledTimes(1);
+      expect(ttsEngine.destroy).toHaveBeenCalledTimes(1);
+      expect(ttsEngine.stop.mock.invocationCallOrder[0]).toBeLessThan(
+        ttsEngine.destroy.mock.invocationCallOrder[0]
+      );
+      expect((reader as any)._ttsEngine).toBeUndefined();
+    });
+  });
+
+  describe("audioEnable lifecycle", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("recreates a plain audiobook navigator after destructive stop", async () => {
+      const savedWindow = (globalThis as any).window;
+      (globalThis as any).window = { updateTimebasedPlayerState: jest.fn() };
+      const reader = new ReadiumReader();
+      const locator = new Locator({
+        href: "track.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=0"] }),
+      });
+      const stoppedAudioNav = {
+        stop: jest.fn(),
+        destroy: jest.fn(),
+      };
+      const audioNav = {
+        currentLocator: locator,
+        currentTime: 0,
+        isPlaying: false,
+        play: jest.fn(),
+        pause: jest.fn(),
+        go: jest.fn(async (_locator, _animated, cb) => cb(true)),
+      };
+      const create = jest
+        .spyOn(FlutterAudioNavigator, "create")
+        .mockImplementation(async (_publication, _initial, _prefs, setNav) => {
+          setNav(audioNav as any);
+        });
+
+      (reader as any)._publication = { conformsToAudiobook: true };
+      (reader as any)._audioNav = stoppedAudioNav;
+
+      try {
+        reader.stop();
+        await reader.audioEnable("{}", undefined);
+
+        expect(stoppedAudioNav.stop).toHaveBeenCalledTimes(1);
+        expect(stoppedAudioNav.destroy).toHaveBeenCalledTimes(1);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect((reader as any)._audioNav).toBe(audioNav);
+        expect(audioNav.play).toHaveBeenCalledTimes(1);
+      } finally {
+        if (savedWindow === undefined) delete (globalThis as any).window;
+        else (globalThis as any).window = savedWindow;
+      }
+    });
+
+    it("stores ToC audio locators after stop and restarts from them", async () => {
+      const savedWindow = (globalThis as any).window;
+      (globalThis as any).window = { updateTimebasedPlayerState: jest.fn() };
+      const reader = new ReadiumReader();
+      const stoppedLocator = new Locator({
+        href: "track-01.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=4"] }),
+      });
+      const tocLocator = new Locator({
+        href: "track-02.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=0"] }),
+      });
+      const audioNav = {
+        currentLocator: tocLocator,
+        currentTime: 0,
+        isPlaying: false,
+        play: jest.fn(),
+        pause: jest.fn(),
+        go: jest.fn(async (_locator, _animated, cb) => cb(true)),
+      };
+      const create = jest
+        .spyOn(FlutterAudioNavigator, "create")
+        .mockImplementation(async (_publication, initial, _prefs, setNav) => {
+          expect(initial?.serialize()).toEqual(tocLocator.serialize());
+          setNav(audioNav as any);
+        });
+
+      (reader as any)._publication = {
+        conformsToAudiobook: true,
+        readingOrder: { items: [{ href: "track-02.mp3", type: "audio/mpeg" }] },
+        resources: { items: [] },
+      };
+      (reader as any)._audioNav = {
+        currentLocator: stoppedLocator,
+        stop: jest.fn(),
+        destroy: jest.fn(),
+      };
+
+      try {
+        reader.stop();
+        await reader.goTo(JSON.stringify(tocLocator.serialize()));
+        await reader.audioEnable("{}", undefined);
+
+        expect(create).toHaveBeenCalledTimes(1);
+        expect((reader as any)._audioNav).toBe(audioNav);
+        expect((reader as any)._stoppedAudioLocator).toBeUndefined();
+        expect(audioNav.play).toHaveBeenCalledTimes(1);
+      } finally {
+        if (savedWindow === undefined) delete (globalThis as any).window;
+        else (globalThis as any).window = savedWindow;
+      }
+    });
+  });
+
+  it("destroys Media Overlay audio so re-enable recreates a fresh navigator", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const audioNav = { stop: jest.fn(), destroy: jest.fn() };
+      (reader as any)._audioNav = audioNav;
+      (reader as any)._hasGuidedNavigation = true;
+      (reader as any)._syncItems = [{ audioHref: "chap.mp3" }];
+      (reader as any)._lastMediaOverlayLocatorKey = "image0002.jpg";
+
+      reader.stop();
+
+      expect(audioNav.stop).toHaveBeenCalledTimes(1);
+      expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+      expect(audioNav.stop.mock.invocationCallOrder[0]).toBeLessThan(
+        audioNav.destroy.mock.invocationCallOrder[0]
+      );
+      expect((reader as any)._audioNav).toBeUndefined();
+      expect((reader as any)._syncItems).toEqual([]);
+      expect((reader as any)._lastMediaOverlayLocatorKey).toBeNull();
+    });
+  });
+
+  it("destroys plain audiobook audio so clients must re-enable it", () => {
+    withDomGlobals(() => {
+      const reader = new ReadiumReader();
+      const locator = new Locator({
+        href: "track.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=12"] }),
+      });
+      const audioNav = { currentLocator: locator, stop: jest.fn(), destroy: jest.fn() };
+      (reader as any)._audioNav = audioNav;
+
+      reader.stop();
+
+      expect(audioNav.stop).toHaveBeenCalledTimes(1);
+      expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+      expect(audioNav.stop.mock.invocationCallOrder[0]).toBeLessThan(
+        audioNav.destroy.mock.invocationCallOrder[0]
+      );
+      expect((reader as any)._audioNav).toBeUndefined();
+      expect((reader as any)._stoppedAudioLocator).toBe(locator);
     });
   });
 });

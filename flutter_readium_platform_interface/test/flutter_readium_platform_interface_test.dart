@@ -70,5 +70,21 @@ void main() {
         expect(result, testTextLocator);
       },
     );
+
+    test('setNarrationSyncEnabled invokes the channel with the bool argument', () async {
+      await methodChannelReadium.setNarrationSyncEnabled(true);
+      await methodChannelReadium.setNarrationSyncEnabled(false);
+      expect(
+        log,
+        containsAllInOrder(<Matcher>[
+          isA<MethodCall>()
+              .having((c) => c.method, 'method', 'setNarrationSyncEnabled')
+              .having((c) => c.arguments, 'arguments', true),
+          isA<MethodCall>()
+              .having((c) => c.method, 'method', 'setNarrationSyncEnabled')
+              .having((c) => c.arguments, 'arguments', false),
+        ]),
+      );
+    });
   });
 }

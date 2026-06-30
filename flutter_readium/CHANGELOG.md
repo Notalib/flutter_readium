@@ -17,12 +17,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   platform interface that returns the raw bytes of any manifest resource, plus a
   companion `FlutterReadium.imageProvider(href)` that plugs into Flutter's image
   pipeline for lazy display. Implemented on iOS, Android, and Web.
+- **Narration sync state & manual mode (iOS, Android, Web)** — a new
+  `FlutterReadium.onNarrationSyncChanged` stream (`Stream<bool>`: `true` = following narration,
+  `false` = manual mode) and `FlutterReadium.setNarrationSyncEnabled(bool)`. While Media Overlay or
+  TTS narration is driving the reader, manually turning the page (swipe, edge-tap, or
+  next/previous) now enters **manual mode**: audio keeps playing while the reader stops
+  auto-following cues, and `onNarrationSyncChanged` emits `false` (e.g. to show a "Re-sync"
+  control). Call `setNarrationSyncEnabled(true)` to snap the reader back to the current narration
+  position. An explicit jump (`goToLocator` to a TOC entry, bookmark, or search result) instead
+  re-seeks narration to the new location, keeping audio and reader together.
+- **Comic panel pan/zoom during narration (iOS, Android)** — Nota EPUB+MediaOverlay comics now
+  pan and zoom to the active panel as narration plays on native platforms, matching the existing
+  web behaviour. A manual pinch-zoom in the EPUB webview enters the same manual mode as a page
+  swipe, emitting `onNarrationSyncChanged(false)`; `setNarrationSyncEnabled(true)` re-pans to the
+  current narrated panel.
+- **Comic explore mode** — Nota MO comics now open directly to the comic page view (no EPUB
+  chrome) and accept pinch-zoom for free exploration before narration is started. When
+  narration begins, the view transitions automatically to panel-by-panel mode — no Re-sync
+  action needed. Stopping narration snaps the comic back to the full-page view instantly.
+
+### Changed
+
 - **`TTSPreferences.pageBreakBehavior`** — controls how EPUB page-break elements (DAISY/Nordic
   EPUB3 `epub:type="pagebreak"`) are handled during TTS. Accepts a `PageBreakBehavior` enum:
   `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
   localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
   Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
   Replaces the previous `skipPageBreaks` bool.
+- **`EPUBPreferences.disableSynchronization` is deprecated** in favour of the runtime
+  `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
+  works and now seeds the unified narration-sync state when a publication is opened.
 
 ## [0.1.1] - 2026-06-26
 
@@ -33,6 +57,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
   visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
   the API with Readium's own `EpubPreferences.fontSize`.
+- **Web `stop()` now tears down the active audio/TTS navigator**, matching iOS and Android.
+  Call `audioEnable()` or `ttsEnable()` again before resuming audiobook, Media Overlay,
+  Guided Navigation, or TTS playback after `stop()`.
+
+### Added
+
+- **CBZ comic support (iOS, Android, Web)** — CBZ archives (Comic Book ZIP) now open and render.
+  Pages are displayed one at a time; swipe/tap navigates between pages and `goToLocator` restores
+  saved positions. On iOS/Android the existing `blackAndWhiteComicMode` preference in
+  `ReaderEpubPreferences` applies the grayscale filter to CBZ pages as well.
+- **DiViNa narrated-comic support (iOS, Android, Web)** — DiViNa publications (`profiles/divina`)
+  that carry a Guided Navigation document open as comics with page-synced audio narration. Page
+  images render (via the fixed-layout path on iOS/Android; via a plugin-side image navigator on Web,
+  since ts-toolkit ships no DiViNa navigator), and `audioEnable` / `play` drive page-synced audio
+  from the guided-navigation document. Panel-level zoom is not yet implemented on any platform (the
+  segments' `xywh` / `imgref` regions are carried in the asset for that follow-up).
+- **Web comic navigation** — DiViNa/CBZ publications page one image at a time, emit page locators
+  (`onPageChanged`), and support `goToLocator` / `goToProgression`.
 
 ### Fixed
 
@@ -47,6 +89,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
   the visual EPUB navigator now jumps to the last sync locator that was reached
   while synchronization was disabled, matching Android behavior.
+
+---
 
 ## [0.1.0] - 2026-06-20
 
@@ -240,6 +284,7 @@ not listed separately; their net effect is the `Added` entries above.)
   ReadiumCSS `customColors_pref.css` user-text-colour rule that previously won the
   cascade on EPUB-profile publications.
 
+---
 ## [0.0.1] - 2026-06-01
 
 ### Added

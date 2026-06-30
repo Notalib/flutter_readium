@@ -9,10 +9,12 @@ import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import dk.nota.flutterreadium.EpubImageTapBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
+import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.R
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.SpotlightStyle
+import dk.nota.flutterreadium.effectiveForLayout
 import dk.nota.flutterreadium.isFixed
 import dk.nota.flutterreadium.models.EpubReaderViewModel
 import dk.nota.flutterreadium.models.ViewPortSize
@@ -231,8 +233,10 @@ class EpubReaderFragment :
                 return
             }
 
+        PluginLog.d(TAG, "::applyCustomCssVariables - layoutMode:$layoutMode")
+
         val cssVariables =
-            model.preferences?.toCustomCssVariables() ?: run {
+            model.preferences?.effectiveForLayout(layoutMode)?.toCustomCssVariables() ?: run {
                 PluginLog.d(TAG, "::applyCustomCssVariables - no css variables")
                 return
             }
@@ -608,8 +612,14 @@ class EpubReaderFragment :
                     } else {
                         null
                     },
-            )
-        navigatorConfig.registerJavascriptInterface("FlutterImageBridge") { _ -> EpubImageTapBridge() }
+            ).apply {
+                // Register JS→native bridge for window.updateNarrationSync(bool).
+                registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ -> NarrationSyncInterface(ReadiumReader) }
+
+                // TODO: This is a temporary solution until kotlin-toolkit supports image tap events natively.
+                // Register JS→native bridge for window.onImageTappedCallback(string).
+                registerJavascriptInterface("FlutterImageBridge") { _ -> EpubImageTapBridge() }
+            },
 
         val fragmentFactory =
             navigatorFactory.createFragmentFactory(

@@ -54,9 +54,14 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
   static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();
+  static final StreamController<bool> _narrationSyncController = StreamController<bool>.broadcast();
 
   static void addTextLocatorUpdate(Locator locator) {
     _locatorTextController.add(locator);
+  }
+
+  static void addNarrationSyncUpdate(bool synced) {
+    _narrationSyncController.add(synced);
   }
 
   static void addTimeBasedStateUpdate(ReadiumTimebasedState timebasedState) {
@@ -73,6 +78,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Stream<Locator> get onTextLocatorChanged => _locatorTextController.stream;
+
+  @override
+  Stream<bool> get onNarrationSyncChanged => _narrationSyncController.stream;
 
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedStateController.stream;
@@ -315,6 +323,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Future<bool> goToProgression(double progression) async => JsPublicationChannel.goToProgression(progression);
+
+  @override
+  Future<void> setNarrationSyncEnabled(bool enabled) async => JsPublicationChannel.setNarrationSyncEnabled(enabled);
 
   // COMMON PLAYBACK API - END
 

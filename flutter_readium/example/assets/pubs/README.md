@@ -19,6 +19,24 @@ Some ones prefixed with a number are self-produced by Nota.
 | pdf_test.pdf              | pdf               | PDF (minimal dummy)           |
 | time_machine.pdf          | pdf               | PDF (public domain)           |
 | alice.pdf                 | pdf               | PDF /w images (public domain) |
+| sample_comic.cbz          | cbz               | Comic (synthetic, 3 pages)    |
+| 50272-nota-comics.webpub  | webpub/ebook      | Narrated comic (EPUB+MO)      |
+| 50272-nota-comics.divina  | divina            | Narrated comic (Guided Nav)   |
+
+## Regenerating the DiViNa comic
+
+`50272-nota-comics.divina` is generated from the EPUB+MediaOverlay comic
+`50272-nota-comics.webpub` by `bin/make_comic_divina.py` (repo root). It is the same
+content re-expressed in the native Readium DiViNa + Guided Navigation form: the reading
+order becomes the page images, and a single `guided-navigation.json` carries each narrated
+segment's `audioref` (mp3 time range), `textref` (the page image), and `imgref` (the panel
+`#xywh=` region, kept for future panel-zoom). Regenerate with:
+
+```sh
+bin/make_comic_divina.py \
+  flutter_readium/example/assets/pubs/50272-nota-comics.webpub \
+  flutter_readium/example/assets/pubs/50272-nota-comics.divina
+```
 
 ## Regenerating the PDFs
 

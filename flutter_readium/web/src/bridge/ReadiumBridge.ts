@@ -59,4 +59,12 @@ export class ReadiumBridge {
   emitImageTapped(json: string): void {
     window.onImageTappedCallback?.(json);
   }
+
+  /**
+   * Notify Flutter that narration↔visual sync state changed.
+   * `true` = in sync (hide re-sync UI); `false` = user took manual control (show re-sync UI).
+   */
+  emitNarrationSync(synced: boolean): void {
+    window.updateNarrationSync?.(synced);
+  }
 }

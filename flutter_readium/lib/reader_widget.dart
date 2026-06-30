@@ -460,6 +460,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
     }
+
+    // A user swipe / edge-tap is the unambiguous "user took manual control"
+    // signal (audio-driven page turns are programmatic and never reach this
+    // Listener). The native side enters narration manual mode only if narration
+    // is active, so this is a no-op during plain reading.
+    _channel?.notifyUserNavigation();
   }
 
   Widget _buildSemanticsPrevNextPage({

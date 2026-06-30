@@ -5,9 +5,11 @@ import android.app.Application
 import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
+import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
+import dk.nota.flutterreadium.events.NarrationSyncEventChannel
 import dk.nota.flutterreadium.events.ReadiumError
 import dk.nota.flutterreadium.events.ReadiumErrorEventChannel
 import dk.nota.flutterreadium.events.ReadiumReaderStatus
@@ -16,6 +18,7 @@ import dk.nota.flutterreadium.events.TextLocatorEventChannel
 import dk.nota.flutterreadium.events.TimedBasedStateEventChannel
 import dk.nota.flutterreadium.models.ReadiumTimebasedState
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
+import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
 import dk.nota.flutterreadium.navigators.FlutterVisualNavigator
 import dk.nota.flutterreadium.navigators.PageBreakSkippingContentIteratorFactory
@@ -87,6 +90,7 @@ private val syncAudioEnabledKey = "syncAudioEnabled"
 
 private val epubEnabledKey = "epubEnabled"
 private val pdfEnabledKey = "pdfEnabled"
+private val comicEnabledKey = "comicEnabled"
 private val ttsNavigatorStateKey = "ttsState"
 private val audioNavigatorStateKey = "audioState"
 private val syncAudioNavigatorStateKey = "syncAudioState"
@@ -103,6 +107,16 @@ object ReadiumReader :
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     private var appRef: WeakReference<Application>? = null
 
+    private var activityRef: WeakReference<Activity>? = null
+
+    /**
+     * The host [FragmentActivity], if available. Sourced from the plugin's ActivityAware
+     * binding rather than a PlatformView's view context, which is only the Activity under
+     * Texture-Layer Hybrid Composition — under Hybrid Composition it is a non-Activity context.
+     */
+    val fragmentActivity: FragmentActivity?
+        get() = activityRef?.get() as? FragmentActivity
+
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
 
     private var textLocatorEventChannel: TextLocatorEventChannel? = null
@@ -110,6 +124,15 @@ object ReadiumReader :
     private var readiumReaderStatusEventChannel: ReadiumReaderStatusEventChannel? = null
 
     private var errorChannel: ReadiumErrorEventChannel? = null
+
+    private var narrationSyncEventChannel: NarrationSyncEventChannel? = null
+
+    /**
+     * Runtime narration-sync flag. `true` means the visual reader follows the audio cue
+     * automatically; `false` means the user has entered manual mode (visual stays, audio plays).
+     * Seeded from [FlutterEpubPreferences.disableSynchronization]: enabled == !disableSynchronization.
+     */
+    private var narrationSyncEnabled: Boolean = true
 
     private var readerViewRef: WeakReference<ReadiumReaderWidget>? = null
 
@@ -179,6 +202,10 @@ object ReadiumReader :
     val isPdf: Boolean
         get() = visualNavigator is PdfNavigator
 
+    /** True when the current visual navigator is a comic (CBZ / DiViNa) navigator. */
+    val isComic: Boolean
+        get() = visualNavigator is ComicNavigator
+
     /** Typed accessor for EPUB-specific operations. */
     private val epubNavigator: EpubNavigator?
         get() = visualNavigator as? EpubNavigator
@@ -186,6 +213,10 @@ object ReadiumReader :
     /** Typed accessor for PDF-specific operations. */
     private val pdfNavigator: PdfNavigator?
         get() = visualNavigator as? PdfNavigator
+
+    /** Typed accessor for comic (CBZ / DiViNa) navigator. */
+    private val comicNavigator: ComicNavigator?
+        get() = visualNavigator as? ComicNavigator
 
     private var _audioPreferences: FlutterAudioPreferences = FlutterAudioPreferences()
 
@@ -222,6 +253,7 @@ object ReadiumReader :
         messenger: BinaryMessenger,
     ) {
         unwrapToApplication(activity)?.let { appRef = WeakReference(it) }
+        activityRef = WeakReference(activity)
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
@@ -234,6 +266,9 @@ object ReadiumReader :
 
         errorChannel?.dispose()
         errorChannel = ReadiumErrorEventChannel(messenger)
+
+        narrationSyncEventChannel?.dispose()
+        narrationSyncEventChannel = NarrationSyncEventChannel(messenger)
 
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
@@ -275,6 +310,9 @@ object ReadiumReader :
             // its onResume). We record the boolean for symmetry but skip the
             // serialised state bundle — the widget reopens fresh on restore.
             putBoolean(pdfEnabledKey, pdfNavigator != null)
+            // ImageNavigatorFragment also throws RestorationNotSupportedException on
+            // process-death restore — same treatment as PDF: record the flag only.
+            putBoolean(comicEnabledKey, comicNavigator != null)
             putBoolean(ttsEnabledKey, ttsNavigator != null)
             putBundle(ttsNavigatorStateKey, ttsNavigator?.storeState())
             putBoolean(audioEnabledKey, audiobookNavigator != null)
@@ -329,6 +367,13 @@ object ReadiumReader :
             // Dart re-supplies via creation params.
             if (bundle.getBoolean(pdfEnabledKey)) {
                 PluginLog.d(TAG, ":storeState - PDF was active; skipping restore (unsupported by PdfNavigatorFragment)")
+            }
+
+            // ImageNavigatorFragment also throws RestorationNotSupportedException on
+            // process-death restore — same treatment as PDF: skip and let the widget
+            // re-enable on next attach.
+            if (bundle.getBoolean(comicEnabledKey)) {
+                PluginLog.d(TAG, "::storeState - comic was active; skipping restore (unsupported by ImageNavigatorFragment)")
             }
 
             if (bundle.getBoolean(ttsEnabledKey)) {
@@ -388,6 +433,9 @@ object ReadiumReader :
         appRef?.clear()
         appRef = null
 
+        activityRef?.clear()
+        activityRef = null
+
         savedStateRef?.clear()
         savedStateRef = null
 
@@ -408,6 +456,9 @@ object ReadiumReader :
 
         errorChannel?.dispose()
         errorChannel = null
+
+        narrationSyncEventChannel?.dispose()
+        narrationSyncEventChannel = null
 
         coroutineContext.cancelChildren()
     }
@@ -604,7 +655,8 @@ object ReadiumReader :
                         publication.tableOfContents
                             .flattenChildren()
                             .mapNotNull { it.href.resolve().fragment }
-                    val epubPreferences = navigator.preferences
+                    val epubPreferences =
+                        navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(tocIds, epubPreferences)
                     } else {
@@ -754,7 +806,7 @@ object ReadiumReader :
         }
 
         launch {
-            epubSyncToLocator(locator, true)
+            syncVisualToLocator(locator, true)
         }
     }
 
@@ -838,6 +890,10 @@ object ReadiumReader :
         if (!isEpub) {
             throw Exception("Publication is not an EPUB, cannot enable epub navigator")
         }
+
+        // Seed the runtime sync flag from the initial preference. If the preference
+        // already disables synchronization, start in manual mode.
+        narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
         withMainContext {
             epubNavigator?.let {
@@ -973,6 +1029,69 @@ object ReadiumReader :
             .copyWithTocHref(tocEntry)
     }
 
+    @OptIn(InternalReadiumApi::class)
+    suspend fun comicEnable(
+        initialLocator: Locator?,
+        fragmentManager: FragmentManager,
+        viewGroup: ViewGroup,
+        readerWidget: ReadiumReaderWidget,
+    ) {
+        val pub = currentPublication ?: throw Exception("Publication not opened cannot enable comic")
+
+        currentReaderWidget = readerWidget
+
+        val isComic =
+            pub.conformsTo(Publication.Profile.DIVINA) ||
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.CBZ) == true
+
+        if (!isComic) {
+            throw Exception("Publication is not a comic (CBZ/DiViNa), cannot enable comic navigator")
+        }
+
+        withMainContext {
+            comicNavigator?.let {
+                attachComicNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+
+            ComicNavigator(pub, initialLocator, this@ReadiumReader).apply {
+                initNavigator()
+                visualNavigator = this
+                attachComicNavigator(fragmentManager, viewGroup)
+                return@withMainContext
+            }
+        }
+    }
+
+    suspend fun attachComicNavigator(
+        fragmentManager: FragmentManager?,
+        viewGroup: ViewGroup?,
+    ) {
+        if (fragmentManager == null || viewGroup == null) {
+            PluginLog.d(TAG, "::attachComicNavigator: Missing fragmentManager or viewGroup")
+            return
+        }
+
+        val navigator =
+            comicNavigator ?: run {
+                PluginLog.d(TAG, "::attachComicNavigator: Tried to attach a non-existing comic navigator?")
+                return
+            }
+
+        withMainContext {
+            navigator.attachNavigator(fragmentManager, viewGroup)
+        }
+    }
+
+    fun comicClose() {
+        currentReaderWidget = null
+        visualNavigator?.dispose()
+        visualNavigator = null
+    }
+
     fun epubClose() {
         currentReaderWidget = null
         visualNavigator?.dispose()
@@ -1001,16 +1120,28 @@ object ReadiumReader :
     ) {
         val pub =
             currentPublication ?: throw Exception("Publication not opened cannot enable visual navigator")
+
+        // Route to the appropriate navigator. Comic check comes first: CBZ publications may
+        // lack the EPUB profile even though the streamer parsed them successfully, so we must
+        // not let them fall through to epubEnable (which throws for non-EPUB).
         val isPdf =
             pub.conformsTo(Publication.Profile.PDF) ||
                 pub.readingOrder
                     .firstOrNull()
                     ?.mediaType
                     ?.matches(MediaType.PDF) == true
-        if (isPdf) {
-            pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-        } else {
-            epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+
+        val isComic =
+            pub.conformsTo(Publication.Profile.DIVINA) ||
+                pub.readingOrder
+                    .firstOrNull()
+                    ?.mediaType
+                    ?.matches(MediaType.CBZ) == true
+
+        when {
+            isPdf -> pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            isComic -> comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            else -> epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
         }
     }
 
@@ -1174,6 +1305,22 @@ object ReadiumReader :
         }
 
         currentReadiumTimebasedState.value = ReadiumTimebasedState.none()
+        exitNarrationMode()
+    }
+
+    /**
+     * Resets narration-sync state and returns the comic overlay to its full-page view.
+     * Called on stop (not pause). Distinct from [setNarrationSyncEnabled] which re-pans
+     * to the last narrated panel.
+     */
+    fun exitNarrationMode() {
+        PluginLog.d(TAG, "::exitNarrationMode")
+        narrationSyncEnabled = true
+        emitNarrationSyncChanged(true)
+        launch {
+            epubNavigator?.exitNarrationMode()
+            comicNavigator?.exitNarrationMode()
+        }
     }
 
     /**
@@ -1211,6 +1358,10 @@ object ReadiumReader :
             return
         }
 
+        // An explicit locator jump (TOC / bookmark / search) during active narration is
+        // handled by the timebasedNavigator.goToLocator branch above (narration follows the
+        // jump). This branch is only reached when narration is NOT active, so a jump must not
+        // enter manual mode. Page-turns (epubGoForward/epubGoBackward) do enter manual mode.
         epubGoToLocator(toLocator, true)
     }
 
@@ -1411,6 +1562,7 @@ object ReadiumReader :
                 return
             }
 
+        enterManualModeIfNarrating("epubGoBackward")
         navigator.goBackward(animated)
     }
 
@@ -1424,6 +1576,7 @@ object ReadiumReader :
                 return
             }
 
+        enterManualModeIfNarrating("epubGoForward")
         navigator.goForward(animated)
     }
 
@@ -1462,16 +1615,64 @@ object ReadiumReader :
     }
 
     /**
-     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator]
+     * Sync epub to [SyncAudiobookNavigator] or [TTSNavigator].
+     * Delegates to [syncVisualToLocator] for EPUB; kept for call-site compatibility.
      */
     suspend fun epubSyncToLocator(
         locator: Locator,
         animated: Boolean,
         segmentDuration: Double? = null,
     ) {
-        val navigator = epubNavigator ?: return
-        withMainContext {
-            navigator.syncToLocator(locator, animated, segmentDuration)
+        syncVisualToLocator(locator, animated, segmentDuration)
+    }
+
+    /**
+     * Routes an audio-cue sync to the active visual navigator, respecting the manual-mode gate.
+     *
+     * For EPUB: delegates to [EpubNavigator.syncToLocator] which also tracks [lastSyncLocator]
+     * so re-enabling sync can catch up immediately.
+     * For comic (CBZ / DiViNa): calls [ComicNavigator.goToLocator] directly since comics have
+     * no per-word scroll logic. Highlight decorations are applied regardless of the sync flag
+     * (matching the existing [disableSynchronization] behaviour for EPUB).
+     *
+     * Note: this only fires when the comic publication actually carries narration cues mapped
+     * through [mediaOverlays]. DiViNa guided-navigation cues are parsed on Android only when
+     * [Publication.hasGuidedNavigationMediaOverlays] is true and [makeSyncAudiobook] succeeds;
+     * if that prerequisite is not met the [SyncAudiobookNavigator] will not be active and this
+     * path is never reached.
+     */
+    private suspend fun syncVisualToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double? = null,
+    ) {
+        val epub = epubNavigator
+        if (epub != null) {
+            if (!narrationSyncEnabled) {
+                // Manual mode: remember the cue so a later Re-sync can catch up, but don't
+                // move the view. (Highlight decorations are still applied by the caller.)
+                PluginLog.d(TAG, "::syncVisualToLocator - manual mode: deferring epub sync")
+                epub.recordDeferredSync(locator, segmentDuration)
+                return
+            }
+            withMainContext {
+                epub.syncToLocator(locator, animated, segmentDuration)
+            }
+            return
+        }
+
+        val comic = comicNavigator
+        if (comic != null) {
+            if (!narrationSyncEnabled) {
+                // Manual mode: record the cue so a later Re-sync can catch up to the
+                // current page, but don't move the view.
+                PluginLog.d(TAG, "::syncVisualToLocator - manual mode: deferring comic sync")
+                comic.recordDeferredSync(locator)
+                return
+            }
+            withMainContext {
+                comic.syncToLocator(locator, animated, segmentDuration)
+            }
         }
     }
 
@@ -1512,5 +1713,71 @@ object ReadiumReader :
         textLocatorEventChannel?.sendEvent(locator)
 
         currentTextLocator.value = locator
+    }
+
+    /**
+     * Emit narration-sync state change to the Flutter layer.
+     */
+    fun emitNarrationSyncChanged(enabled: Boolean) {
+        narrationSyncEventChannel?.sendEvent(enabled)
+    }
+
+    /**
+     * Returns `true` when a timed-based (narrating) navigator is active and playing.
+     * Used to decide whether explicit user navigation should trigger manual mode.
+     */
+    private fun isNarrationActive(): Boolean = timebasedNavigator != null
+
+    /**
+     * If narration is active, enters manual mode and emits the state change.
+     *
+     * Called from explicit page navigation (`goForward`/`goBackward`) and from in-reader user
+     * gestures: the Flutter `reader_widget.dart` `Listener` detects a swipe / edge-tap and calls
+     * the reader-view channel `"notifyUserNavigation"`, which routes here. Those pointer events
+     * fire only for genuine user interaction (audio-driven page turns are programmatic and never
+     * reach the Listener), so they are a clean "user took control" signal.
+     */
+    fun enterManualModeIfNarrating(callSite: String) {
+        if (!isNarrationActive()) return
+        if (!narrationSyncEnabled) return
+        PluginLog.d(TAG, "::$callSite - user navigation detected while narrating; entering manual mode")
+        narrationSyncEnabled = false
+        emitNarrationSyncChanged(false)
+    }
+
+    /**
+     * Enable or disable narration sync at runtime.
+     *
+     * When `true`: clears manual mode and immediately re-positions the visual reader to
+     * the current audio cue (catch-up). When `false`: enters manual mode — the visual
+     * reader stops following audio cues, but audio keeps playing.
+     *
+     * This is the single unified runtime sync gate. [FlutterEpubPreferences.disableSynchronization]
+     * only seeds it at [epubEnable] and flips it on a preference transition (see
+     * [EpubNavigator.updatePreferences]); all gating for both EPUB and comic cue sync goes through
+     * [narrationSyncEnabled] in [syncVisualToLocator].
+     */
+    fun setNarrationSyncEnabled(enabled: Boolean) {
+        PluginLog.d(TAG, "::setNarrationSyncEnabled enabled=$enabled")
+        narrationSyncEnabled = enabled
+        if (enabled) {
+            // Re-sync to the last known audio cue immediately.
+            launch {
+                val epub = epubNavigator
+                if (epub != null) {
+                    epub.resyncAfterManualMode()
+                    return@launch
+                }
+                val comic = comicNavigator
+                if (comic != null) {
+                    // Page-level catch-up: jump to the last audio-cue page immediately.
+                    // Panel-level framing is Phase 2 (no panel pan/zoom API on Android yet —
+                    // see docs/parity/native-divina-sync-handoff.md).
+                    comic.resyncAfterManualMode()
+                    return@launch
+                }
+            }
+        }
+        emitNarrationSyncChanged(enabled)
     }
 }

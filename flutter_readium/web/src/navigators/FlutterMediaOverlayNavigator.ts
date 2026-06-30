@@ -11,7 +11,7 @@
  *     state/locator events matching iOS/Android behaviour.
  */
 
-import { Link, Locator, Manifest, Profile } from "@readium/shared";
+import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -127,13 +127,38 @@ async function _initializeFromItems(
     );
   }
 
+  // Keep separate dedup keys for:
+  // - detailed cue locators (includes comicRegion/panel changes), used by
+  //   internal sync callbacks (e.g. comic auto-pan), and
+  // - coarse locators (href/position), emitted to Dart via updateTextLocator.
+  let lastDetailedTextLocatorKey: string | undefined;
+  let lastPublicTextLocatorKey: string | undefined;
+
   const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
     const resolvedTime = audioLocator.locations?.time() ?? _nav.currentTime;
     const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
     if (item) {
+      const detailedTextLocator = textLocatorForItem(item);
+      const publicTextLocator = _coarseLocatorForPublicEvent(detailedTextLocator);
+
+      const detailedKey = JSON.stringify(detailedTextLocator.serialize());
+      const shouldEmitDetailedTextLocator =
+        detailedKey !== lastDetailedTextLocatorKey;
+      if (shouldEmitDetailedTextLocator) {
+        lastDetailedTextLocatorKey = detailedKey;
+      }
+
+      const publicKey = JSON.stringify(publicTextLocator.serialize());
+      const shouldEmitPublicTextLocator =
+        publicKey !== lastPublicTextLocatorKey;
+      if (shouldEmitPublicTextLocator) {
+        lastPublicTextLocatorKey = publicKey;
+      }
+
       return {
         stateLocator: combinedLocatorForItem(item, audioLocator),
-        textLocator: textLocatorForItem(item),
+        textLocator: shouldEmitDetailedTextLocator ? detailedTextLocator : undefined,
+        publicTextLocator: shouldEmitPublicTextLocator ? publicTextLocator : undefined,
       };
     }
     return { stateLocator: audioLocator };
@@ -194,6 +219,25 @@ async function _initializeFromItems(
       wrappedCallback(textLocatorForItem(initItem), initDurationMs);
     }
   }
+}
+
+/**
+ * Strips cue-level detail (fragment/comicRegion/cssSelector/highlight) from a
+ * locator so Dart-side `onTextLocatorChanged` can track stable reading
+ * position (href + 1-based page position) without panel-level churn.
+ */
+function _coarseLocatorForPublicEvent(locator: Locator): Locator {
+  const tocHref = locator.locations?.otherLocations?.get("tocHref");
+  const otherLocations = tocHref != null ? new Map<string, any>([["tocHref", tocHref]]) : undefined;
+  return new Locator({
+    href: locator.href,
+    type: locator.type,
+    title: locator.title,
+    locations: new LocatorLocations({
+      position: locator.locations?.position,
+      otherLocations,
+    }),
+  });
 }
 
 // ---------------------------------------------------------------------------

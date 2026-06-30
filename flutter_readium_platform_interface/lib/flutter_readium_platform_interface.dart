@@ -121,7 +121,9 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Play the publication from the given locator, or resume if null.
   Future<void> play(Locator? fromLocator) => throw UnimplementedError('play() has not been implemented');
 
-  /// Stop playback.
+  /// Stop playback and tear down the active time-based navigator.
+  ///
+  /// Call `audioEnable` or `ttsEnable` again before resuming audio/TTS playback.
   Future<void> stop() => throw UnimplementedError('stop() has not been implemented');
 
   /// Pause playback.
@@ -162,6 +164,18 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
       throw UnimplementedError('ttsSetPreferences() has not been implemented');
   // TTS API - END
 
+  /// Toggles narration↔visual sync for the current publication.
+  ///
+  /// `true` = follow narration / re-sync now (clears any manual override and
+  /// immediately re-pans / re-positions to the last narration region).
+  /// `false` = manual mode (the reader no longer auto-follows narration cues).
+  ///
+  /// For comic (DiViNa) publications this controls audio-driven panel auto-pan;
+  /// future implementations will also cover Media Overlay. No-op for publication
+  /// types that have no narration track.
+  Future<void> setNarrationSyncEnabled(bool enabled) =>
+      throw UnimplementedError('setNarrationSyncEnabled() has not been implemented');
+
   // AUDIOBOOK API - BEGIN
   /// Enable audiobook playback with optional preferences and starting from an optional locator.
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>
@@ -192,6 +206,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     throw UnimplementedError(
       'onTextLocatorChanged stream has not been implemented.',
     );
+  }
+
+  /// Stream emitting narration↔visual sync state changes.
+  /// `true` = in sync (hide re-sync UI); `false` = user took manual control (show re-sync UI).
+  /// Currently fired by comic (DiViNa) navigators; future: Media Overlay.
+  Stream<bool> get onNarrationSyncChanged {
+    throw UnimplementedError('onNarrationSyncChanged stream has not been implemented.');
   }
 
   /// Stream emitting the current timebased playback state during TTS or audio playback.

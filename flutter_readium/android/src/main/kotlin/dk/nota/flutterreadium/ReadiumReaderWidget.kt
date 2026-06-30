@@ -1,7 +1,6 @@
 package dk.nota.flutterreadium
 
 import android.content.Context
-import android.content.ContextWrapper
 import android.graphics.Color
 import android.util.AttributeSet
 import android.view.View
@@ -58,8 +57,16 @@ class ReadiumReaderWidget(
 
     private val layout: ViewGroup
 
-    private val activity
-        get() = (context as ContextWrapper).baseContext as FragmentActivity
+    // Source the host activity from the plugin's ActivityAware binding (via ReadiumReader),
+    // not the PlatformView's view context. The view context is the Activity only under
+    // Texture-Layer Hybrid Composition; under Hybrid Composition it is a non-Activity context
+    // and casting it throws ClassCastException.
+    private val activity: FragmentActivity
+        get() =
+            ReadiumReader.fragmentActivity
+                ?: throw IllegalStateException(
+                    "::activity. No FragmentActivity available — is the plugin attached to a FragmentActivity host?",
+                )
     private val fragmentManager
         get() = activity.supportFragmentManager
 
@@ -244,31 +251,40 @@ class ReadiumReaderWidget(
     ) {
         var emittingLocator = locator
         try {
-            if (ReadiumReader.isPdf) {
-                // Enrich PDF locator with the current TOC chapter title/href by
-                // matching "#page=N" fragments from the publication's table of contents.
-                emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
-            } else {
-                // EPUB: JS page-info eval + TOC href enrichment.
-                try {
-                    evaluateJavascript("window.flutterReadium.getPageInformation()")
-                        ?.let {
-                            PageInformation.fromJson(
-                                it,
-                                locator.href,
-                            )
-                        }?.let { pageInfo ->
-                            emittingLocator =
-                                emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                        } ?: {
-                        PluginLog.d(TAG, "::emitOnPageChanged - no page information")
-                    }
-                } catch (e: Error) {
-                    PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+            when {
+                ReadiumReader.isPdf -> {
+                    // Enrich PDF locator with the current TOC chapter title/href by
+                    // matching "#page=N" fragments from the publication's table of contents.
+                    emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
                 }
 
-                emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
-                emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
+                ReadiumReader.isComic -> {
+                    // Comic (CBZ/DiViNa): no JS webview — just emit the locator as-is.
+                    // ImageNavigatorFragment already produces a correct position-bearing locator.
+                }
+
+                else -> {
+                    // EPUB: JS page-info eval + TOC href enrichment.
+                    try {
+                        evaluateJavascript("window.flutterReadium.getPageInformation()")
+                            ?.let {
+                                PageInformation.fromJson(
+                                    it,
+                                    locator.href,
+                                )
+                            }?.let { pageInfo ->
+                                emittingLocator =
+                                    emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                            } ?: {
+                            PluginLog.d(TAG, "::emitOnPageChanged - no page information")
+                        }
+                    } catch (e: Error) {
+                        PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+                    }
+
+                    emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
+                    emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
+                }
             }
 
             channel.onPageChanged(emittingLocator)
@@ -305,10 +321,19 @@ class ReadiumReaderWidget(
                                 )
                                 return@launch
                             }
-                        if (ReadiumReader.isPdf) {
-                            ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
-                        } else {
-                            setPreferencesFromMap(prefsMap)
+                        when {
+                            ReadiumReader.isPdf -> {
+                                ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
+                            }
+
+                            ReadiumReader.isComic -> {
+                                // ImageNavigatorFragment has no user-configurable preferences.
+                                PluginLog.d(TAG, "::setPreferences - not supported for comic")
+                            }
+
+                            else -> {
+                                setPreferencesFromMap(prefsMap)
+                            }
                         }
                         result.success(null)
                     } catch (ex: Exception) {
@@ -345,10 +370,10 @@ class ReadiumReaderWidget(
                 }
 
                 "applyDecorations" -> {
-                    if (ReadiumReader.isPdf) {
-                        // Pdfium-backed PdfNavigatorFragment does not expose a
-                        // DecorableNavigator surface in kotlin-toolkit 3.1.2.
-                        PluginLog.d(TAG, "::applyDecorations - not supported for PDF")
+                    if (ReadiumReader.isPdf || ReadiumReader.isComic) {
+                        // PdfNavigatorFragment and ImageNavigatorFragment do not expose a
+                        // DecorableNavigator surface in kotlin-toolkit 3.2.0.
+                        PluginLog.d(TAG, "::applyDecorations - not supported for PDF/comic")
                         result.success(null)
                         return@launch
                     }
@@ -374,6 +399,14 @@ class ReadiumReaderWidget(
                                 title = map["title"] ?: "",
                             )
                         }
+                    result.success(null)
+                }
+
+                "notifyUserNavigation" -> {
+                    // User swiped or edge-tapped the reader (detected by the Flutter Listener
+                    // above the platform view). Enter narration manual mode if narration is
+                    // currently driving the reader; otherwise a no-op.
+                    ReadiumReader.enterManualModeIfNarrating("notifyUserNavigation")
                     result.success(null)
                 }
 

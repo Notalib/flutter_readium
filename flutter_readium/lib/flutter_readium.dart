@@ -133,7 +133,9 @@ class FlutterReadium {
   /// Starts playback from the given [fromLocator], or from the current position if `null`.
   Future<void> play(Locator? fromLocator) => _platform.play(fromLocator);
 
-  /// Stops playback and resets the playback position.
+  /// Stops playback and tears down the active time-based navigator.
+  ///
+  /// Call [audioEnable] or [ttsEnable] again before resuming audio/TTS playback.
   Future<void> stop() => _platform.stop();
 
   /// Pauses playback at the current position.
@@ -157,6 +159,22 @@ class FlutterReadium {
   ///
   /// Returns `true` if navigation succeeded, `false` otherwise.
   Future<bool> goToProgression(double progression) => _platform.goToProgression(progression);
+
+  /// Toggles narration↔visual sync for the current publication.
+  ///
+  /// `true` = follow narration / re-sync now (clears any manual override and
+  /// immediately re-pans / re-positions to the last narration region).
+  /// `false` = manual mode (the reader no longer auto-follows narration cues).
+  ///
+  /// For comic (DiViNa) publications this controls audio-driven panel auto-pan;
+  /// future implementations will also cover Media Overlay. No-op for publication
+  /// types that have no narration track.
+  Future<void> setNarrationSyncEnabled(bool enabled) => _platform.setNarrationSyncEnabled(enabled);
+
+  /// Stream emitting narration↔visual sync state changes.
+  /// `true` = in sync; `false` = user took manual control (show re-sync UI).
+  /// Currently fired by DiViNa comic navigators; future: Media Overlay.
+  Stream<bool> get onNarrationSyncChanged => _platform.onNarrationSyncChanged;
 
   /// Enables audio playback for the currently opened publication, optionally applying [prefs] and starting from [fromLocator].
   Future<void> audioEnable({AudioPreferences? prefs, Locator? fromLocator}) =>

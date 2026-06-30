@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Download fat sample fixtures for local development.
+
+These files are NOT checked into the repo (see example/assets/pubs/.gitignore).
+Run this script once after cloning to get realistic test publications.
+
+Usage:
+  bin/download_sample_fixtures          # download all fixtures
+  bin/download_sample_fixtures --force  # re-download even if already present
+
+Current fixtures:
+  pepper-and-carrot-ep01.cbz  — Episode 1 of Pepper & Carrot by David Revoy
+                                CC-BY 4.0  https://www.peppercarrot.com
+                                Low-res English pages packaged as CBZ.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import tempfile
+import urllib.request
+import zipfile
+from pathlib import Path
+
+BASE_URL = "https://www.peppercarrot.com/0_sources"
+
+FIXTURES: list[dict] = [
+    {
+        "filename": "pepper-and-carrot-ep01.cbz",
+        "description": "Pepper & Carrot Episode 1 — Potion of Flight (CC-BY 4.0, David Revoy)",
+        "episode": "ep01_Potion-of-Flight",
+        "pages": [
+            "en_Pepper-and-Carrot_by-David-Revoy_E01P00.jpg",
+            "en_Pepper-and-Carrot_by-David-Revoy_E01P01.jpg",
+            "en_Pepper-and-Carrot_by-David-Revoy_E01P02.jpg",
+            "en_Pepper-and-Carrot_by-David-Revoy_E01P03.jpg",
+            "en_Pepper-and-Carrot_by-David-Revoy_E01P04.jpg",
+        ],
+        "comic_info": {
+            "Title": "Potion of Flight",
+            "Series": "Pepper &amp; Carrot",
+            "Number": "1",
+            "Year": "2014",
+            "Writer": "David Revoy",
+            "Penciller": "David Revoy",
+            "Colorist": "David Revoy",
+            "Publisher": "peppercarrot.com",
+            "LanguageISO": "en",
+            "PageCount": "5",
+        },
+    },
+]
+
+PUBS_DIR = Path(__file__).parent.parent / "flutter_readium" / "example" / "assets" / "pubs"
+GITIGNORE = PUBS_DIR / ".gitignore"
+
+
+def _ensure_gitignore(filename: str) -> None:
+    lines = GITIGNORE.read_text().splitlines() if GITIGNORE.exists() else []
+    if filename not in lines:
+        with GITIGNORE.open("a") as f:
+            f.write(f"\n{filename}\n")
+        print(f"  Added {filename} to {GITIGNORE.relative_to(Path.cwd())}")
+
+
+def _comic_info_xml(fields: dict[str, str], page_count: int) -> str:
+    tags = "\n".join(f"  <{k}>{v}</{k}>" for k, v in fields.items())
+    pages = "\n".join(
+        f'    <Page Image="{i}" Type="{"FrontCover" if i == 0 else "Story"}" />'
+        for i in range(page_count)
+    )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<ComicInfo>\n"
+        f"{tags}\n"
+        "  <Pages>\n"
+        f"{pages}\n"
+        "  </Pages>\n"
+        "</ComicInfo>\n"
+    )
+
+
+def _download(url: str, dest: Path, label: str) -> None:
+    print(f"  Downloading {label} …", end="", flush=True)
+    urllib.request.urlretrieve(url, dest)
+    size_kb = dest.stat().st_size // 1024
+    print(f" {size_kb} KB")
+
+
+def build_fixture(fixture: dict, force: bool) -> None:
+    out_path = PUBS_DIR / fixture["filename"]
+    if out_path.exists() and not force:
+        print(f"[skip] {fixture['filename']} already exists (use --force to re-download)")
+        return
+
+    print(f"\n[download] {fixture['filename']}")
+    print(f"  {fixture['description']}")
+
+    episode = fixture["episode"]
+    low_res_base = f"{BASE_URL}/{episode}/low-res"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        page_files: list[Path] = []
+        for page in fixture["pages"]:
+            url = f"{low_res_base}/{page}"
+            dest = tmp_path / page
+            _download(url, dest, page)
+            page_files.append(dest)
+
+        # Pack as CBZ (ZIP of images + ComicInfo.xml).
+        PUBS_DIR.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(out_path, "w", zipfile.ZIP_STORED) as z:
+            for page_file in page_files:
+                z.write(page_file, page_file.name)
+            z.writestr(
+                "ComicInfo.xml",
+                _comic_info_xml(fixture["comic_info"], len(page_files)),
+            )
+
+    size_kb = out_path.stat().st_size // 1024
+    print(f"  → {out_path.relative_to(Path.cwd())} ({size_kb} KB)")
+    _ensure_gitignore(fixture["filename"])
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--force", action="store_true", help="Re-download even if the file already exists")
+    args = parser.parse_args()
+
+    print(f"Fixture directory: {PUBS_DIR.relative_to(Path.cwd())}")
+    for fixture in FIXTURES:
+        build_fixture(fixture, force=args.force)
+
+    print("\nDone. Open the example app and load the fixture from the bookshelf.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

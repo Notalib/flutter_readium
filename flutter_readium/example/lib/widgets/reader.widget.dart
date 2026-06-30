@@ -42,53 +42,57 @@ class ReaderWidget extends StatelessWidget {
         return Semantics(
           container: true,
           explicitChildNodes: true,
-          child: ReadiumReaderWidget(
-            publication: state.publication!,
-            initialLocator: state.initialLocator,
-            shouldShowControls: shouldShowControls,
-            allowedDefaultActions: const {
-              DefaultSelectionAction.copy,
-              DefaultSelectionAction.share,
-              DefaultSelectionAction.translate,
-            },
-            selectionActions: const [
-              SelectionAction(id: 'highlight', title: 'Highlight'),
-              SelectionAction(id: 'note', title: 'Add Note'),
+          child: Stack(
+            children: [
+              ReadiumReaderWidget(
+                publication: state.publication!,
+                initialLocator: state.initialLocator,
+                shouldShowControls: shouldShowControls,
+                allowedDefaultActions: const {
+                  DefaultSelectionAction.copy,
+                  DefaultSelectionAction.share,
+                  DefaultSelectionAction.translate,
+                },
+                selectionActions: const [
+                  SelectionAction(id: 'highlight', title: 'Highlight'),
+                  SelectionAction(id: 'note', title: 'Add Note'),
+                ],
+                onTextSelected: (event) {
+                  debugPrint('[Selection] text="${event.selectedText}"');
+                },
+                onSelectionAction: (event) {
+                  debugPrint(
+                    '[SelectionAction] action=${event.actionId} text="${event.selectedText}"',
+                  );
+                  if (event.actionId == 'highlight') {
+                    _applyHighlight(context, event);
+                  } else if (event.actionId == 'note') {
+                    _showNoteDialog(context, event);
+                  }
+                },
+                onImageTapped: (event) {
+                  debugPrint('[ImageTap] href=${event.href} srcUrl=${event.srcUrl}');
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => FullScreenImageView(event: event),
+                    ),
+                  );
+                },
+                onDecorationInteraction: (event) {
+                  debugPrint(
+                    '[DecorationInteraction] id=${event.decorationId} group=${event.group}',
+                  );
+                  if (event.decorationId.startsWith('highlight')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Tapped highlight: ${event.decorationId}'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              ),
             ],
-            onTextSelected: (event) {
-              debugPrint('[Selection] text="${event.selectedText}"');
-            },
-            onSelectionAction: (event) {
-              debugPrint(
-                '[SelectionAction] action=${event.actionId} text="${event.selectedText}"',
-              );
-              if (event.actionId == 'highlight') {
-                _applyHighlight(context, event);
-              } else if (event.actionId == 'note') {
-                _showNoteDialog(context, event);
-              }
-            },
-            onDecorationInteraction: (event) {
-              debugPrint(
-                '[DecorationInteraction] id=${event.decorationId} group=${event.group}',
-              );
-              if (event.decorationId.startsWith('highlight')) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Tapped highlight: ${event.decorationId}'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              }
-            },
-            onImageTapped: (event) {
-              debugPrint('[ImageTap] href=${event.href} srcUrl=${event.srcUrl}');
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => FullScreenImageView(event: event),
-                ),
-              );
-            },
           ),
         );
       }
