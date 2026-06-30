@@ -1,8 +1,8 @@
 package dk.nota.flutterreadium
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
 
 @OptIn(org.readium.r2.shared.ExperimentalReadiumApi::class)
 internal class FlutterEpubPreferencesTest {

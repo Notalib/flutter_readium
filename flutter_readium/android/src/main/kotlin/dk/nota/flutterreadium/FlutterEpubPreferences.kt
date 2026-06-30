@@ -48,6 +48,7 @@ data class FlutterEpubPreferences(
     val blackAndWhiteComicMode: Boolean? = false,
     val disableSynchronization: Boolean? = false,
     val firstElementTopMargin: Int? = null,
+    val preventMOColumnBreaks: Boolean? = true,
 ) : Configurable.Preferences<FlutterEpubPreferences> {
     override fun plus(other: FlutterEpubPreferences): FlutterEpubPreferences =
         FlutterEpubPreferences(
@@ -78,6 +79,7 @@ data class FlutterEpubPreferences(
             blackAndWhiteComicMode = other.blackAndWhiteComicMode ?: blackAndWhiteComicMode,
             disableSynchronization = other.disableSynchronization ?: disableSynchronization,
             firstElementTopMargin = other.firstElementTopMargin ?: firstElementTopMargin,
+            preventMOColumnBreaks = other.preventMOColumnBreaks ?: preventMOColumnBreaks,
         )
 
     fun toEpubPreferences(): EpubPreferences =

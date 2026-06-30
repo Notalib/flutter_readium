@@ -46,6 +46,10 @@ public protocol ReadiumReaderView: AnyObject {
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?, isWordRange: Bool) async -> Bool
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String)
   func onCustomEditingAction() -> Void
+  /// Called when media-overlay playback starts (`active: true`) or stops (`active: false`).
+  /// The reader view decides whether to inject column-break-prevention CSS based on this
+  /// flag combined with the `preventMOColumnBreaks` preference.
+  func setMOActive(_ active: Bool)
   /// Called when narration stops. Resets narration-sync state and, for comic
   /// pages, animates the view back to the full page so the user can browse freely.
   func resetForNarrationStop()
