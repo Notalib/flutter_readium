@@ -171,7 +171,7 @@ void main() {
 
   group('setDefaultPreferences', () {
     test('stores preferences on the platform', () {
-      final prefs = EPUBPreferences(fontSize: 150);
+      final prefs = EPUBPreferences(fontSize: 1.5);
       reader.setDefaultPreferences(prefs);
       expect(platform.defaultPreferences, prefs);
     });
