@@ -126,6 +126,32 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// This is used to create space for UI elements like a toolbar without overlapping the content.
   final int? firstElementTopMargin;
 
+  /// Readium's supported [fontSize] range (ratio; `1.0` = 100%). Matches
+  /// swift-toolkit's `EPUBPreferencesEditor.fontSize.supportedRange` (`0.1...5.0`).
+  ///
+  /// The native EPUB navigators only enforce this range in their stepper UI, not
+  /// when the plugin sets `fontSize` directly, so we clamp here. This keeps an
+  /// out-of-range value — e.g. a percentage int left over from the pre-ratio API
+  /// (`90` instead of `0.9`) — from producing catastrophic text sizes, most
+  /// visibly on iOS where it becomes `--USER__fontSize: <value * 100>%`.
+  static const double _fontSizeMin = 0.1;
+  static const double _fontSizeMax = 5.0;
+
+  /// Clamps [fontSize] to [[_fontSizeMin], [_fontSizeMax]], warning when the
+  /// input is out of range. Returns `null` when [fontSize] is `null`.
+  double? _clampedFontSize() {
+    final value = fontSize;
+    if (value == null || (value >= _fontSizeMin && value <= _fontSizeMax)) {
+      return value;
+    }
+    final clamped = value.clamp(_fontSizeMin, _fontSizeMax).toDouble();
+    ReadiumLog.warn(
+      'EPUBPreferences.fontSize $value is outside the supported range '
+      '[$_fontSizeMin, $_fontSizeMax]; clamped to $clamped. fontSize is a ratio',
+    );
+    return clamped;
+  }
+
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final backgroundColorStr = jsonObject.optNullableString(
@@ -250,7 +276,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('backgroundColor', backgroundColor?.toCSS())
     ..putOpt('columnCount', columnCount?.toJson())
     ..putOpt('fontFamily', fontFamily)
-    ..putOpt('fontSize', fontSize)
+    ..putOpt('fontSize', _clampedFontSize())
     ..putOpt('fontWeight', fontWeight)
     ..putOpt('hyphens', hyphens)
     ..putOpt('imageFilter', imageFilter?.toJson())
