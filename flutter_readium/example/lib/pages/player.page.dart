@@ -45,10 +45,16 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         onPopInvokedWithResult: (didPop, result) {
           // When Player page is popped, make sure to close current publication.
           context.read<PlayerControlsBloc>().add(Stop());
+          // Capture the bloc reference now, while this context is still valid.
+          // By the time the delay below elapses, the page has been popped and
+          // its element deactivated — reading the context then would throw
+          // "Looking up a deactivated widget's ancestor is unsafe". The bloc is
+          // app-scoped (provided in main.dart), so it outlives this page.
+          final publicationBloc = context.read<PublicationBloc>();
           // Put some delay to ensure that the closePublication is called after navigating back visually.
-          Duration delay = const Duration(milliseconds: 450);
+          const delay = Duration(milliseconds: 400);
           Future.delayed(delay, () {
-            context.read<PublicationBloc>().add(ClosePublication());
+            publicationBloc.add(ClosePublication());
           });
         },
         child: Scaffold(
@@ -73,6 +79,36 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                       )
                     : ReaderWidget(shouldShowControls: _shouldShowControls),
               ),
+              if (!isAudioBook)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: SafeArea(
+                    minimum: const EdgeInsets.only(right: 8, bottom: 8),
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _shouldShowControls,
+                      builder: (context, controlsVisible, _) {
+                        final extraBottom = controlsVisible ? 108.0 : 0.0;
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: extraBottom),
+                          child: BlocBuilder<PlayerControlsBloc, PlayerControlsState>(
+                            buildWhen: (prev, next) => prev.narrationSyncEnabled != next.narrationSyncEnabled,
+                            builder: (context, playerState) {
+                              if (playerState.narrationSyncEnabled != false) {
+                                return const SizedBox.shrink();
+                              }
+                              return FilledButton.icon(
+                                onPressed: () => FlutterReadium().setNarrationSyncEnabled(true),
+                                icon: const Icon(Icons.sync),
+                                label: const Text('Re-sync'),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               if (pubState.publication != null)
                 Positioned(
                   left: 0,

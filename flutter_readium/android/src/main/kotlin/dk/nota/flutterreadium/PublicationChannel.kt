@@ -9,10 +9,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.getOrElse
 
@@ -273,6 +275,12 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 }
             }
 
+            "setNarrationSyncEnabled" -> {
+                val enabled = arguments as? Boolean ?: return Try.success(null)
+                ReadiumReader.setNarrationSyncEnabled(enabled)
+                return Try.success(null)
+            }
+
             else -> {
                 throw NotImplementedError()
             }
@@ -288,11 +296,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.failure(error)
             }
 
-        val pubJsonManifest =
-            publication.manifest
-                .toJSON()
-                .toString()
-                .replace("\\/", "/")
+        val pubJsonManifest = publication.toDartManifestJson()
 
         // Close the publication to avoid leaks.
         publication.close()
@@ -310,13 +314,33 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.failure(error)
             }
 
-        val pubJsonManifest =
-            publication.manifest
-                .toJSON()
-                .toString()
-                .replace("\\/", "/")
+        val pubJsonManifest = publication.toDartManifestJson()
 
         return Try.success(pubJsonManifest)
+    }
+
+    /**
+     * Serialises the publication manifest to the JSON string sent to Dart.
+     *
+     * For image publications (CBZ/DiViNa) whose title kotlin-toolkit's `ImageParser` left blank,
+     * this enriches the metadata from `ComicInfo.xml` (see [readComicInfoMetadata]) so Android
+     * matches iOS. No-op for any publication that already carries a title.
+     */
+    private suspend fun Publication.toDartManifestJson(): String {
+        val manifestJson = manifest.toJSON()
+        if (conformsTo(Publication.Profile.DIVINA) && metadata.title.isNullOrBlank()) {
+            readComicInfoMetadata()?.let { info ->
+                manifestJson.optJSONObject("metadata")?.apply {
+                    if (!info.title.isNullOrBlank()) {
+                        put("title", info.title)
+                    }
+                    if (info.authors.isNotEmpty() && opt("author") == null) {
+                        put("author", JSONArray(info.authors))
+                    }
+                }
+            }
+        }
+        return manifestJson.toString().replace("\\/", "/")
     }
 
     /**

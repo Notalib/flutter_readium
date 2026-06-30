@@ -95,8 +95,14 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     FlutterReadiumWebPlugin.addErrorEvent(error);
   }
 
+  @js_interop.JSExport()
+  void onNarrationSyncHandler(final bool synced) {
+    FlutterReadiumWebPlugin.addNarrationSyncUpdate(synced);
+  }
+
   void registerJSExports() {
     updateTextLocator = onTextLocatorUpdate.toJS;
+    updateNarrationSync = onNarrationSyncHandler.toJS;
     updateReaderStatus = onReaderStatusChanged.toJS;
     updateTimebasedPlayerState = onTimebasedPlayerStateHandler.toJS;
     onTextSelectedCallback = onTextSelectedHandler.toJS;

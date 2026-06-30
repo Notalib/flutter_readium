@@ -12,6 +12,8 @@ Plans are split into **Open** (still actionable) and **Implemented** (kept for r
 
 - **[epub-theme-preference.md](epub-theme-preference.md)** — `docs/api-reference/preferences.md` documents an `EpubThemeType` enum (`light`/`dark`/`sepia`) that does not exist in any platform. A doc/code mismatch to resolve by either implementing the feature or removing the reference — missing equally on all platforms, so not a web-vs-native gap. *(Upstream feature / S)*
 
+- **[native-divina-sync-handoff.md](native-divina-sync-handoff.md)** — Web DiViNa narration sync / Re-sync is now satisfactory; implement equivalent Sync Narration and Guided Navigation behavior on iOS and Android, including native `setComicAutoPan`, narration sync state events, and comic cue visual sync. *(Cross-platform parity / M-L)*
+
 ## Implemented
 
 These plans have been implemented on the `feat/web-feature-parity` branch and are retained for reference.

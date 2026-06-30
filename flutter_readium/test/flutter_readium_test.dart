@@ -19,6 +19,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   final _statusController = StreamController<ReadiumReaderStatus>.broadcast();
   final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
   final _errorController = StreamController<ReadiumError>.broadcast();
+  final _narrationSyncController = StreamController<bool>.broadcast();
 
   @override
   Stream<Locator> get onTextLocatorChanged => _textLocatorController.stream;
@@ -31,6 +32,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 
   @override
   Stream<ReadiumError> get onErrorEvent => _errorController.stream;
+
+  @override
+  Stream<bool> get onNarrationSyncChanged => _narrationSyncController.stream;
+
+  @override
+  Future<void> setNarrationSyncEnabled(bool enabled) async {}
 
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {

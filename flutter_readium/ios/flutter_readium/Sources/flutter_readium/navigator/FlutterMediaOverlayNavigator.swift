@@ -170,9 +170,14 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
   
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
-    guard let textLocator = textLocator,
-          let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator)}),
+    guard let textLocator = textLocator else {
+      Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - nil text locator")
+      return nil
+    }
+    guard let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator) }),
           var audioLocator = matchingMediaOverlayItem.asAudioLocator else {
+      Log.navigator.warn("mapTextLocatorToMediaOverlayAudioLocator - no media overlay matched text locator " +
+                         "href=\(textLocator.href.string) mediaType=\(textLocator.mediaType.string) fragments=\(textLocator.locations.fragments)")
       return nil
     }
     
@@ -192,7 +197,9 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       let timeOffset = textLocatorTimeBegin
       audioLocator = audioLocator.copyWithOffset(timeOffset)
     }
-    
+
+    Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - mapped text href=\(textLocator.href.string) " +
+                        "-> audio href=\(audioLocator.href.string) fragments=\(audioLocator.locations.fragments)")
     return audioLocator
   }
 }

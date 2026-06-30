@@ -51,4 +51,12 @@ export class ReadiumBridge {
   emitError(message: string, code?: string): void {
     window.onErrorCallback?.(JSON.stringify({ message, ...(code ? { code } : {}) }));
   }
+
+  /**
+   * Notify Flutter that narration↔visual sync state changed.
+   * `true` = in sync (hide re-sync UI); `false` = user took manual control (show re-sync UI).
+   */
+  emitNarrationSync(synced: boolean): void {
+    window.updateNarrationSync?.(synced);
+  }
 }

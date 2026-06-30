@@ -46,4 +46,12 @@ public protocol ReadiumReaderView: AnyObject {
   func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?, isWordRange: Bool) async -> Bool
   func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String)
   func onCustomEditingAction() -> Void
+  /// Called when narration stops. Resets narration-sync state and, for comic
+  /// pages, animates the view back to the full page so the user can browse freely.
+  func resetForNarrationStop()
+}
+
+public extension ReadiumReaderView {
+  // PDF and other non-EPUB readers: no narration state to reset.
+  func resetForNarrationStop() {}
 }

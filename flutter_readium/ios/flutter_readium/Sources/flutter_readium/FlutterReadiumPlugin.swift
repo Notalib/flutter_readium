@@ -28,6 +28,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var readerStatusStreamHandler: EventStreamHandler?
   internal var textLocatorStreamHandler: EventStreamHandler?
 
+  /// Narration-sync state stream (true = in sync, false = manual mode)
+  internal var narrationSyncStreamHandler: EventStreamHandler?
+
   /// Timebased player events & state
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
@@ -61,6 +64,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     plugin.textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
+    plugin.narrationSyncStreamHandler = EventStreamHandler(withName: "narration-sync", messenger: registrar.messenger())
     instance = plugin
 
     // Register reader view factory
@@ -117,6 +121,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         readerStatusStreamHandler = nil
         errorStreamHandler?.dispose()
         errorStreamHandler = nil
+        narrationSyncStreamHandler?.dispose()
+        narrationSyncStreamHandler = nil
         result(nil)
       }
     case "closePublication":
@@ -313,6 +319,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
           self.updateReaderViewTimebasedDecorations([])
         }
+        // Reset narration sync state and return comic to full-page view.
+        self.currentReaderView?.resetForNarrationStop()
       }
       result(nil)
     case "pause":
@@ -503,6 +511,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
               }
             }
           }
+
+    case "setNarrationSyncEnabled":
+      guard let enabled = call.arguments as? Bool else {
+        return result(FlutterError(
+          code: "InvalidArgument",
+          message: "setNarrationSyncEnabled expects a Bool argument",
+          details: nil))
+      }
+      Task { @MainActor in
+        if let readerView = self.currentReaderView as? EPUBReaderView {
+          readerView.setNarrationSyncEnabled(enabled)
+        }
+        result(nil)
+      }
 
     default:
       result(FlutterMethodNotImplemented)

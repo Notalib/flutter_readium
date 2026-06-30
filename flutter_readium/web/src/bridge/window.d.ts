@@ -31,5 +31,13 @@ declare global {
      * @param errorJson JSON-stringified { message: string, code?: string }
      */
     onErrorCallback?: (errorJson: string) => void;
+
+    /**
+     * Notify Flutter that narration↔visual sync state changed.
+     * `true` = view is tracking narration (in sync, hide re-sync UI).
+     * `false` = user has taken manual control (out of sync, show re-sync UI).
+     * Fired by comic (DiViNa) and, in future, Media Overlay navigators.
+     */
+    updateNarrationSync?: (synced: boolean) => void;
   }
 }
