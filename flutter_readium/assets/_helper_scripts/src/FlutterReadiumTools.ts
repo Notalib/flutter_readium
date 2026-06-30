@@ -46,6 +46,23 @@ class FlutterReadiumTools {
   }
 
   /**
+   * Inject a style tag that prevents paragraphs from splitting across CSS columns during
+   * Media Overlay playback. Idempotent: no-op if the tag is already present.
+   */
+  public injectMOBreakCSS(): void {
+    if (document.getElementById('flutter-readium-mo-breaks')) return;
+    const style = document.createElement('style');
+    style.id = 'flutter-readium-mo-breaks';
+    style.textContent = 'p { break-inside: avoid !important }';
+    document.head.appendChild(style);
+  }
+
+  /** Remove the MO column-break style tag injected by injectMOBreakCSS. No-op if absent. */
+  public removeMOBreakCSS(): void {
+    document.getElementById('flutter-readium-mo-breaks')?.remove();
+  }
+
+  /**
    * Find current page information, including physical page, css selector of the current position, and the nearest ToC element id.
    */
   public getPageInformation(): PageInformation {

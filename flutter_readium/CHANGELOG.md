@@ -88,6 +88,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
   the visual EPUB navigator now jumps to the last sync locator that was reached
   while synchronization was disabled, matching Android behavior.
+- **iOS: Media Overlay clips that span a CSS column boundary no longer desync** — in
+  paginated mode, a paragraph straddling two columns would start audio on the first
+  column but continue playing through text visible only on the second column. When
+  media-overlay playback is active, a `break-inside: avoid` CSS rule is now injected
+  so each paragraph stays whole on one page, keeping audio and visible text in sync.
+  Controlled by `EPUBPreferences.preventMOColumnBreaks` (default `true`; set to
+  `false` to opt out and restore the original layout).
+- **Android + Web: Media Overlay clips that span a CSS column boundary no longer desync** — same fix
+  as iOS above, now applied to Android and Web via the shared `flutterReadium` helper-script bundle.
+- **iOS: TTS no longer snaps back to the previous page mid-sentence** — when a spoken sentence
+  crossed a paginated page boundary, the reader correctly advanced to page N+1 for the word being
+  spoken but then flickered back to page N on each subsequent word. The cause was a double-assignment
+  to the `@Published playingUtterance` property (raw locator, then position mutation), which defeated
+  `removeDuplicates()` and fired the page-sync on every word update instead of only on utterance
+  changes.
+- **Web: Improved error-handling** - `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices` failures are
+  now caught and `.stack` is now included in `PlatformException.message`.
+- **iOS: early reader events are no longer dropped** — the `text-locator` and
+  `reader-status` event channels now buffer the most-recent event on the native
+  side when Dart has not yet attached a listener.  The buffer is flushed
+  immediately when `onListen` fires.
 
 ---
 
@@ -96,7 +117,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Brings the Web platform up to feature parity with iOS / Android (audio,
 Media Overlay, TTS, Guided Navigation, decorations), plus a handful of
 supporting cross-platform additions.
-
 ### Added
 
 - **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,

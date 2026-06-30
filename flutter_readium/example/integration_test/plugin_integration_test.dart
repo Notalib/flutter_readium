@@ -714,7 +714,7 @@ void main() {
       );
 
       await expectLater(
-        reader.setEPUBPreferences(EPUBPreferences(fontSize: 200)),
+        reader.setEPUBPreferences(EPUBPreferences(fontSize: 2.0)),
         completes,
         reason: 'setEPUBPreferences should not throw',
       );

@@ -24,6 +24,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var hasSentReady = false
   private var isJumpingToLocator = false
   private var lastHrefLocation: String?
+  private var isMOActive = false
+  private var shouldPreventColumnBreaks: Bool { isMOActive && (preferences?.preventMOColumnBreaks ?? true) }
   private var preferences: FlutterEPUBPreferences?
   private var lastSyncLocator: Locator?
   private var lastSyncSegmentDuration: TimeInterval?
@@ -318,6 +320,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       if let preferences = self.preferences {
         updateCustomPreferences(preferences)
       }
+      if shouldPreventColumnBreaks {
+        injectColumnBreakCSS()
+      }
     }
     emitOnPageChanged(locator: locator)
   }
@@ -485,8 +490,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   }
 
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
+    self.preferences = preferences
     self.readiumViewController.submitPreferences(preferences.readium)
     self.updateCustomPreferences(preferences)
+    applyColumnBreakPrevention()
   }
 
   /// Resolves preferences against the publication's layout. The first-element top
@@ -528,6 +535,33 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
           await self.readiumViewController.evaluateJavaScript("window.spread?.eval?.('',\(scriptJson));")
         }
       }
+    }
+  }
+
+  public func setMOActive(_ active: Bool) {
+    isMOActive = active
+    applyColumnBreakPrevention()
+  }
+
+  private func applyColumnBreakPrevention() {
+    if shouldPreventColumnBreaks {
+      injectColumnBreakCSS()
+    } else {
+      removeColumnBreakCSS()
+    }
+  }
+
+  private func injectColumnBreakCSS() {
+    Task.detached(priority: .high) {
+      // Delegates to the helper bundle (window.flutterReadium), matching Android.
+      // Optional-chained: no-op if called before the helper finishes initializing.
+      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.injectMOBreakCSS();")
+    }
+  }
+
+  private func removeColumnBreakCSS() {
+    Task.detached(priority: .high) {
+      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.removeMOBreakCSS();")
     }
   }
 

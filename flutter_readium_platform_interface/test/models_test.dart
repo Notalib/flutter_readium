@@ -58,6 +58,53 @@ void main() {
     });
   });
 
+  // ---------------------------------------------------------------------------
+  // EPUBPreferences serialisation
+  // ---------------------------------------------------------------------------
+  group('EPUBPreferences', () {
+    test('round-trips preventMOColumnBreaks: true through toJson / fromJson', () {
+      const prefs = EPUBPreferences(preventMOColumnBreaks: true);
+      final restored = EPUBPreferences.fromJson(prefs.toJson());
+      expect(restored.preventMOColumnBreaks, isTrue);
+    });
+
+    test('round-trips preventMOColumnBreaks: false through toJson / fromJson', () {
+      const prefs = EPUBPreferences(preventMOColumnBreaks: false);
+      final restored = EPUBPreferences.fromJson(prefs.toJson());
+      expect(restored.preventMOColumnBreaks, isFalse);
+    });
+
+    test('toJson emits preventMOColumnBreaks under the correct key', () {
+      const prefs = EPUBPreferences(preventMOColumnBreaks: false);
+      final json = prefs.toJson();
+      expect(json.containsKey('preventMOColumnBreaks'), isTrue);
+      expect(json['preventMOColumnBreaks'], isFalse);
+    });
+
+    test('fromJson defaults preventMOColumnBreaks to true when key is absent', () {
+      final restored = EPUBPreferences.fromJson({});
+      expect(restored.preventMOColumnBreaks, isTrue);
+    });
+
+    test('copyWith preserves preventMOColumnBreaks when not overridden', () {
+      const prefs = EPUBPreferences(preventMOColumnBreaks: false);
+      final copied = prefs.copyWith();
+      expect(copied.preventMOColumnBreaks, isFalse);
+    });
+
+    test('copyWith overrides preventMOColumnBreaks', () {
+      const prefs = EPUBPreferences(preventMOColumnBreaks: false);
+      final copied = prefs.copyWith(preventMOColumnBreaks: true);
+      expect(copied.preventMOColumnBreaks, isTrue);
+    });
+
+    test('equality distinguishes preventMOColumnBreaks values', () {
+      const a = EPUBPreferences(preventMOColumnBreaks: true);
+      const b = EPUBPreferences(preventMOColumnBreaks: false);
+      expect(a, isNot(equals(b)));
+    });
+  });
+
   group('PDFPreferences', () {
     const prefs = PDFPreferences(
       layout: PDFLayout.scrollVertical,

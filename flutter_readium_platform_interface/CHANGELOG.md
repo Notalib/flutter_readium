@@ -59,6 +59,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   per-item Sync Narration media-overlay format used by the Readium ts-toolkit (web).
 - `TaggedReadiumLog` — `ReadiumLog.tag('Name')` factory creating child loggers named
   `flutter_readium.<Name>`, surfacing the source / area in log records.
+- `EPUBPreferences.preventMOColumnBreaks` (`bool`, default `true`) — when `true`,
+  prevents paragraph elements from splitting across CSS columns during media-overlay
+  playback, keeping audio and visible text in sync on paginated iOS layouts. Set to
+  `false` to opt out and preserve the EPUB's original column layout. Has no effect
+  outside of media-overlay mode.
 
 ### Changed
 

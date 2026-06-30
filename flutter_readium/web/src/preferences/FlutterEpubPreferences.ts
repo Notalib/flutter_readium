@@ -178,9 +178,22 @@ export function epubPreferencesFromJson(
   //   on native via custom CSS variables. Not wired through on web yet — would require
   //   custom CSS injection into the EPUB iframe.
   // - disableSynchronization: handled by ReadiumReader (plugin state), not navigator prefs.
+  // - preventMOColumnBreaks: handled by ReadiumReader (plugin state), not navigator prefs.
   // ---------------------------------------------------------------------------
 
   return normalizeTypes(out);
+}
+
+/**
+ * Extract plugin-owned fields from a raw Dart EPUBPreferences JSON object.
+ * These fields are not forwarded to the navigator but drive plugin-side behaviour.
+ */
+export function pluginPrefsFromJson(prefs: Record<string, unknown>): {
+  preventMOColumnBreaks: boolean;
+} {
+  return {
+    preventMOColumnBreaks: prefs.preventMOColumnBreaks !== false,
+  };
 }
 
 export function initializeEpubPreferencesFromString(
