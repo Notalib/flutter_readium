@@ -21,6 +21,7 @@ import dk.nota.flutterreadium.navigators.AudiobookNavigator
 import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
 import dk.nota.flutterreadium.navigators.FlutterVisualNavigator
+import dk.nota.flutterreadium.navigators.PageBreakSkippingContentIteratorFactory
 import dk.nota.flutterreadium.navigators.PdfNavigator
 import dk.nota.flutterreadium.navigators.SyncAudiobookNavigator
 import dk.nota.flutterreadium.navigators.TTSNavigator
@@ -50,6 +51,9 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.content.DefaultContentService
+import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.publication.services.content.contentServiceFactory
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -183,6 +187,8 @@ object ReadiumReader :
     private var publicationOpenerCache: PublicationOpener? = null
 
     private var ttsNavigator: TTSNavigator? = null
+
+    private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
 
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
@@ -510,6 +516,14 @@ object ReadiumReader :
             publicationOpener
                 .open(asset, allowUserInteraction = true, onCreatePublication = {
                     container = transformingContainerFactory?.let { it(container) } ?: container
+                    if (manifest.conformsTo(Publication.Profile.EPUB)) {
+                        val factory = PageBreakSkippingContentIteratorFactory()
+                        pageBreakIteratorFactory = factory
+                        servicesBuilder.contentServiceFactory =
+                            DefaultContentService.createFactory(
+                                listOf(factory),
+                            )
+                    }
                 })
                 .getOrElse { err: OpenError ->
                     fun unwrapCause(e: org.readium.r2.shared.util.Error?): String =
@@ -728,6 +742,7 @@ object ReadiumReader :
 
         _currentPublication?.close()
         _currentPublication = null
+        pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
 
         state.clear()
@@ -1171,6 +1186,7 @@ object ReadiumReader :
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
+            pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
             ttsNavigator =
                 TTSNavigator(it, this@ReadiumReader, currentTextLocator.value, ttsPrefs).apply {
                     initNavigator()
@@ -1180,6 +1196,7 @@ object ReadiumReader :
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
         ttsNavigator?.updatePreferences(ttsPrefs)
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }

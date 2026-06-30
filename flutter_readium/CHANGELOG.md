@@ -28,6 +28,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **`TTSPreferences.pageBreakBehavior`** — controls how EPUB page-break elements (DAISY/Nordic
+  EPUB3 `epub:type="pagebreak"`) are handled during TTS. Accepts a `PageBreakBehavior` enum:
+  `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
+  localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
+  Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
+  Replaces the previous `skipPageBreaks` bool.
 - **`EPUBPreferences.disableSynchronization` is deprecated** in favour of the runtime
   `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
   works and now seeds the unified narration-sync state when a publication is opened.
