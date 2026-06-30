@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed
+
+- `EPUBPreferences.fontSize` is now clamped to Readium's supported ratio range
+  `[0.1, 5.0]` on serialization, logging a warning when an out-of-range value is passed.
+
 ## [0.1.1] - 2026-06-26
 
 ### Fixed
