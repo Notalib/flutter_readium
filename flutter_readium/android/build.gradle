@@ -111,6 +111,4 @@ dependencies {
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 
   testImplementation 'junit:junit:4.13.2'
-  testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
-  testImplementation 'org.mockito:mockito-core:5.20.0'
 }
