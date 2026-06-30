@@ -505,28 +505,15 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   private func injectColumnBreakCSS() {
     Task.detached(priority: .high) {
-      let js = """
-        (function(){
-          if (document.getElementById('flutter-readium-mo-breaks')) return;
-          var s = document.createElement('style');
-          s.id = 'flutter-readium-mo-breaks';
-          s.textContent = 'p { break-inside: avoid !important; }';
-          document.head && document.head.appendChild(s);
-        })();
-        """
-      await self.readiumViewController.evaluateJavaScript(js)
+      // Delegates to the helper bundle (window.flutterReadium), matching Android.
+      // Optional-chained: no-op if called before the helper finishes initializing.
+      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.injectMOBreakCSS();")
     }
   }
 
   private func removeColumnBreakCSS() {
     Task.detached(priority: .high) {
-      let js = """
-        (function(){
-          var s = document.getElementById('flutter-readium-mo-breaks');
-          if (s) s.parentNode.removeChild(s);
-        })();
-        """
-      await self.readiumViewController.evaluateJavaScript(js)
+      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.removeMOBreakCSS();")
     }
   }
 
