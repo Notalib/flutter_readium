@@ -115,7 +115,7 @@ See guide for [Highlights & Annotations](../guides/highlights-annotations.md) fo
 ```dart
 await reader.setEPUBPreferences(
   EPUBPreferences(
-    fontSize: 140,
+    fontSize: 1.4,
     fontFamily: 'Helvetica',
     scroll: true, // vertical scroll instead of horizontal pagination
     publisherStyles: false,

@@ -28,6 +28,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal var readerStatusStreamHandler: EventStreamHandler?
   internal var textLocatorStreamHandler: EventStreamHandler?
 
+  /// Narration-sync state stream (true = in sync, false = manual mode)
+  internal var narrationSyncStreamHandler: EventStreamHandler?
+
   /// Timebased player events & state
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
@@ -38,6 +41,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// For EPUB profile, maps document path to a list of all the cssSelectors in the document.
   /// This is used to find the current toc item.
   private var currentPublicationCssSelectorMap: [String: [String]]?
+  private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory?
 
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
@@ -60,6 +64,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     plugin.textLocatorStreamHandler = EventStreamHandler(withName: "text-locator", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.readerStatusStreamHandler = EventStreamHandler(withName: "reader-status", messenger: registrar.messenger(), bufferLatestEvent: true)
     plugin.errorStreamHandler = EventStreamHandler(withName: "error", messenger: registrar.messenger())
+    plugin.narrationSyncStreamHandler = EventStreamHandler(withName: "narration-sync", messenger: registrar.messenger())
     instance = plugin
 
     // Register reader view factory
@@ -116,6 +121,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         readerStatusStreamHandler = nil
         errorStreamHandler?.dispose()
         errorStreamHandler = nil
+        narrationSyncStreamHandler?.dispose()
+        narrationSyncStreamHandler = nil
         result(nil)
       }
     case "closePublication":
@@ -206,12 +213,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
           Task { @MainActor in
             // Start TTS from the reader's current location
+            self.pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
-            Task {
-              await self.timebasedNavigator?.initNavigator()
-            }
+            await self.timebasedNavigator?.initNavigator()
             result(nil)
           }
         } catch {
@@ -274,6 +280,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       do {
         let ttsPrefs = try TTSPreferences(fromMap: args!)
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
         ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {
@@ -316,6 +323,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             self.currentReaderView?.setMOActive(false)
           }
         }
+        // Reset narration sync state and return comic to full-page view.
+        self.currentReaderView?.resetForNarrationStop()
       }
       result(nil)
     case "pause":
@@ -513,6 +522,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           }
 
+    case "setNarrationSyncEnabled":
+      guard let enabled = call.arguments as? Bool else {
+        return result(FlutterError(
+          code: "InvalidArgument",
+          message: "setNarrationSyncEnabled expects a Bool argument",
+          details: nil))
+      }
+      Task { @MainActor in
+        if let readerView = self.currentReaderView as? EPUBReaderView {
+          readerView.setNarrationSyncEnabled(enabled)
+        }
+        result(nil)
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -645,6 +668,17 @@ extension FlutterReadiumPlugin {
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
+        onCreatePublication: { manifest, _, services in
+          if manifest.conforms(to: .epub) {
+            let factory = PageBreakSkippingContentIteratorFactory()
+            self.pageBreakIteratorFactory = factory
+            services.setContentServiceFactory(
+              DefaultContentService.makeFactory(
+                resourceContentIteratorFactories: [factory]
+              )
+            )
+          }
+        },
         sender: sender
       ).get()
 
@@ -689,6 +723,7 @@ extension FlutterReadiumPlugin {
     currentPublication = nil
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
+    pageBreakIteratorFactory = nil
     // Clear the stream buffers so that a subscriber opening the next publication
     // never receives a stale locator or status from this closed publication.
     textLocatorStreamHandler?.clearBuffer()

@@ -20,11 +20,11 @@ jobs:
           docker-images: true
           swap-storage: false
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v5
         with:
-          distribution: jetbrains
+          distribution: temurin
           java-version: '21'
 
       - name: Read Flutter version
@@ -38,7 +38,7 @@ jobs:
           pub-cache: true
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -46,6 +46,11 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
           restore-keys: |
             gradle-${{ runner.os }}-
+
+      # Build the gitignored webview helper assets so the built app bundles them
+      # (Android injects them into its WebView; see docs/troubleshooting.md).
+      - name: Build webview helper assets
+        uses: ./.github/actions/build-webview-helpers
 
       - name: Install dependencies
         run: flutter pub get

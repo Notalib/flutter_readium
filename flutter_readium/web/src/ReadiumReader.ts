@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Locator } from "@readium/shared";
+import { Link, Locator, Publication } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -17,6 +17,7 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 // Navigators
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
+import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
@@ -25,7 +26,14 @@ import { setEpubPreferencesFromString, pluginPrefsFromJson } from "./preferences
 import { ttsPreferencesFromJson } from "./preferences/FlutterTTSPreferences";
 import { applyAudioPreferences } from "./preferences/FlutterAudioPreferences";
 // Sync narration
-import { SyncNarrationItem, detectSyncNarration, textLocatorToAudioLocator } from "./mediaoverlay/syncNarration";
+import {
+  ComicRegion,
+  SyncNarrationItem,
+  detectSyncNarration,
+  findItemByAudioTime,
+  textLocatorForItem,
+  textLocatorToAudioLocator,
+} from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
@@ -33,6 +41,24 @@ import { navIframeWindows } from "./decorations/decorationFrameUtils";
 import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
 
 const log = createLogger("Reader");
+
+/**
+ * The subset of the upstream `VisualNavigator` surface that ReadiumReader drives.
+ * Structurally satisfied by the EPUB, WebPub and DiViNa navigators alike, so the
+ * reader can treat whichever is active uniformly for navigation. EPUB-only
+ * concerns (preferences, decorations) stay on the concrete `_nav` field instead.
+ */
+interface VisualNavigatorLike {
+  readonly publication: Publication;
+  readonly currentLocator: Locator;
+  goRight(animated: boolean, cb: (ok: boolean) => void): void;
+  goLeft(animated: boolean, cb: (ok: boolean) => void): void;
+  goForward(animated: boolean, cb: (ok: boolean) => void): void;
+  goBackward(animated: boolean, cb: (ok: boolean) => void): void;
+  go(locator: Locator, animated: boolean, cb: (ok: boolean) => void): void;
+  goLink(link: Link, animated: boolean, cb: (ok: boolean) => void): void;
+  destroy(): Promise<void>;
+}
 
 class _ReadiumReader {
   public constructor() {
@@ -51,7 +77,15 @@ class _ReadiumReader {
 
   private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
+  /**
+   * Render-only navigator for the DiViNa / CBZ profile (image comics). Kept
+   * separate from `_nav` because it is not an EPUB/WebPub navigator and does not
+   * support preferences or decorations. Navigation routes through `_visualNav`.
+   */
+  private _comicNav: FlutterDivinaNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
+  /** Last audiobook locator selected while audio is stopped/destructed. */
+  private _stoppedAudioLocator: Locator | undefined;
   private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
   private _positions: Locator[] = [];
@@ -61,11 +95,24 @@ class _ReadiumReader {
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
   /**
-   * Latest value of `EPUBPreferences.disableSynchronization` from the Dart side.
-   * Held here because it is plugin-side state, not part of the navigator's
-   * preference surface. Passed to the TTS engine on enable and on every change.
+   * Unified runtime narration-sync flag. When true (default), audio-driven
+   * visual sync is active: MediaOverlay cues scroll the EPUB navigator, and TTS
+   * utterances do the same. When false (manual mode), sync cues are deferred and
+   * the view stays where the user left it.
+   *
+   * This is the single source of truth for both the MO and TTS sync paths,
+   * replacing the old separate `_disableSynchronization` boolean. It is:
+   *   - Seeded from `EPUBPreferences.disableSynchronization` transitions
+   *     (only when the preference value actually changes).
+   *   - Flipped to false when the user explicitly navigates during active
+   *     narration (goRight / goLeft / goForward / goBackward / goTo).
+   *   - Flipped by explicit `setNarrationSyncEnabled()` calls from Dart.
+   *
+   * The DiViNa/comic auto-pan flag is separate; `setNarrationSyncEnabled` also
+   * forwards to `_comicNav.setAutoPan()` so the comic path remains the authority
+   * for panel-level state.
    */
-  private _disableSynchronization = false;
+  private _narrationSyncEnabled = true;
   /** Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`. */
   private _preventMOColumnBreaks = true;
   /** Last visual sync locator deferred while synchronization was disabled. */
@@ -86,8 +133,13 @@ class _ReadiumReader {
   private readonly _pubManager = new PublicationManager();
   private readonly _decorations = new DecorationController();
 
+  /** The active visual navigator (EPUB, WebPub or DiViNa), for navigation calls. */
+  private get _visualNav(): VisualNavigatorLike | undefined {
+    return this._nav ?? this._comicNav;
+  }
+
   public get isNavigatorReady(): boolean {
-    return !!this._nav;
+    return !!this._visualNav;
   }
 
   public async getPublication(publicationURL: string) {
@@ -107,12 +159,14 @@ class _ReadiumReader {
 
   public goRight() {
     log.debug("goRight");
-    this._nav?.goRight(true, () => {});
+    this._enterManualModeIfNarrating("goRight");
+    this._visualNav?.goRight(true, () => {});
   }
 
   public goLeft() {
     log.debug("goLeft");
-    this._nav?.goLeft(true, () => {});
+    this._enterManualModeIfNarrating("goLeft");
+    this._visualNav?.goLeft(true, () => {});
   }
 
   /**
@@ -122,12 +176,14 @@ class _ReadiumReader {
    */
   public goForward() {
     log.debug("goForward");
-    this._nav?.goForward(true, () => {});
+    this._enterManualModeIfNarrating("goForward");
+    this._visualNav?.goForward(true, () => {});
   }
 
   public goBackward() {
     log.debug("goBackward");
-    this._nav?.goBackward(true, () => {});
+    this._enterManualModeIfNarrating("goBackward");
+    this._visualNav?.goBackward(true, () => {});
   }
 
   public async goTo(locatorJson: string): Promise<void> {
@@ -174,14 +230,14 @@ class _ReadiumReader {
         log.warn("goTo: MediaOverlay — no SyncNarrationItem found for", locator.href, "; falling through to visual navigation");
       }
       // Always update the visual navigator so the page scrolls to the bookmarked paragraph.
-      const visualPub = this._nav?.publication;
+      const visualPub = this._visualNav?.publication;
       const visualLinks = [
         ...(visualPub?.readingOrder?.items ?? []),
         ...(visualPub?.resources?.items ?? []),
       ];
       const visualLink = findLinkByHref(visualLinks, locator.href);
       if (visualLink) {
-        this._nav?.goLink(visualLink, true, (ok) => {
+        this._visualNav?.goLink(visualLink, true, (ok) => {
           if (!ok) log.warn("goTo: MediaOverlay — visual navigation failed for", locator.href);
         });
       }
@@ -190,11 +246,10 @@ class _ReadiumReader {
 
     // Pure audiobook (no sync narration): build an audio locator from the
     // incoming locator, preserving any t= time fragment it already carries.
-    if (this._audioNav) {
-      const pub = this._publication;
+    if (this._audioNav || this._publication?.conformsToAudiobook) {
       const allLinks = [
-        ...(pub?.readingOrder?.items ?? []),
-        ...(pub?.resources?.items ?? []),
+        ...(this._publication?.readingOrder?.items ?? []),
+        ...(this._publication?.resources?.items ?? []),
       ];
       const link = findLinkByHref(allLinks, locator.href);
       if (!link) {
@@ -207,13 +262,26 @@ class _ReadiumReader {
         type: link.type ?? "audio/mpeg",
         locations: locator.locations,
       });
+      if (!this._audioNav) {
+        log.info("goTo: stopped audiobook — storing pending audio locator", audioLocator.href, audioLocator.locations?.fragments);
+        this._stoppedAudioLocator = audioLocator;
+        window.updateTimebasedPlayerState?.(
+          JSON.stringify({
+            state: "none",
+            currentOffset: null,
+            currentDuration: null,
+            currentLocator: audioLocator.serialize(),
+          })
+        );
+        return;
+      }
       const wasPlaying = this._audioNav.isPlaying;
       await this._seekAudioAndResume(audioLocator, wasPlaying);
       return;
     }
 
-    // EPUB / WebPub with no audio active: visual-only navigation.
-    const pub = this._nav?.publication;
+    // EPUB / WebPub / DiViNa with no audio active: visual-only navigation.
+    const pub = this._visualNav?.publication;
     const allLinks = [
       ...(pub?.readingOrder?.items ?? []),
       ...(pub?.resources?.items ?? []),
@@ -223,7 +291,7 @@ class _ReadiumReader {
       log.error("goTo: link not found:", locator.href);
       throw new Error("Link not found " + locator.href);
     }
-    this._nav?.goLink(link, true, (ok) => {
+    this._visualNav?.goLink(link, true, (ok) => {
       if (!ok) {
         log.error("goTo: failed to navigate to link:", locator.href);
         throw new Error("Failed to navigate to link " + locator.href);
@@ -254,6 +322,10 @@ class _ReadiumReader {
     this._hasGuidedNavigation = false;
     this._syncItems = [];
     this._positions = [];
+    this._stoppedAudioLocator = undefined;
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
+    this._narrationSyncEnabled = true;
 
     try {
       // TODO: match native
@@ -306,6 +378,23 @@ class _ReadiumReader {
               }
             }
           );
+        } else if (this._publication.conformsToDivina) {
+          log.info("Publication conforms to DiViNa profile (comic)");
+          this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
+          if (this._hasGuidedNavigation) log.info("DiViNa: Guided Navigation detected");
+          // ts-toolkit has no DiViNa/image navigator; render images ourselves.
+          await FlutterDivinaNavigator.create(
+            container,
+            this._publication,
+            publicationURL,
+            initialPosition,
+            preferencesJsonString,
+            (nav) => {
+              this._comicNav = nav;
+              this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
+            },
+            (positions) => { this._positions = positions; }
+          );
         } else {
           log.info("Publication conforms to WebPub profile");
           await FlutterWebPubNavigator.create(
@@ -335,22 +424,18 @@ class _ReadiumReader {
       throw new Error("Navigator is not initialized");
     }
     log.debug("setEPUBPreferences");
-    // Track the plugin-side `disableSynchronization` flag separately from the
-    // navigator's preferences (the web navigator doesn't expose this toggle).
+    // Track the plugin-side `disableSynchronization` preference separately from
+    // the visual navigator's preferences (it is not part of the EpubNavigator
+    // preference surface). Route changes through _setNarrationSyncEnabled so the
+    // unified flag, TTS engine, and deferred-replay logic stay consistent.
+    // Only act on an actual value transition to avoid spurious re-sync flips.
     try {
-      const wasSyncDisabled = this._disableSynchronization;
-      const parsed = JSON.parse(newPreferencesString) as Record<string, unknown>;
-      this._disableSynchronization = parsed.disableSynchronization === true;
-      this._ttsEngine?.setSyncEnabled(!this._disableSynchronization);
-      if (wasSyncDisabled && !this._disableSynchronization && this._lastDeferredSyncLocator) {
-        const deferredLocator = this._lastDeferredSyncLocator;
-        const deferredDurationMs = this._lastDeferredSyncDurationMs;
-        this._lastDeferredSyncLocator = null;
-        this._lastDeferredSyncDurationMs = undefined;
-        // Clear dedup key so replaying the same cue still performs a visual sync.
-        this._lastMediaOverlayLocatorKey = null;
-        this._syncVisualToMediaOverlayLocator(deferredLocator, "MediaOverlay (resume sync)", deferredDurationMs);
+      const parsed = JSON.parse(newPreferencesString) as { disableSynchronization?: boolean };
+      const prefSyncEnabled = parsed.disableSynchronization !== true;
+      if (prefSyncEnabled !== this._narrationSyncEnabled) {
+        this._setNarrationSyncEnabled(prefSyncEnabled, "EPUBPreferences.disableSynchronization");
       }
+      // Prevent MO column breaks is a custom preference, not part of upstream navigator.
       const { preventMOColumnBreaks } = pluginPrefsFromJson(parsed);
       if (preventMOColumnBreaks !== this._preventMOColumnBreaks && this._audioNav) {
         if (preventMOColumnBreaks) {
@@ -364,6 +449,86 @@ class _ReadiumReader {
       // Ignore parse errors — setEpubPreferencesFromString will surface them.
     }
     setEpubPreferencesFromString(newPreferencesString, this._nav);
+  }
+
+  /**
+   * Enable/disable the unified narration-sync flag from the Dart side.
+   *
+   * When `enabled`:
+   *   - Clears manual mode and resumes audio→visual synchronization.
+   *   - Replays any deferred sync locator (MO or TTS) so the view catches up to
+   *     the current cue.
+   *   - For comics (DiViNa), also re-enables auto-pan and re-frames the current panel.
+   *   - Emits `window.updateNarrationSync(true)`.
+   *
+   * When `disabled`:
+   *   - Enters manual mode; subsequent MO/TTS sync cues are deferred.
+   *   - Emits `window.updateNarrationSync(false)`.
+   *
+   * The DiViNa `setAutoPan` call is always forwarded so the comic panel state
+   * remains authoritative in `FlutterDivinaNavigator`.
+   */
+  public setNarrationSyncEnabled(enabled: boolean): void {
+    log.debug("setNarrationSyncEnabled", enabled);
+    this._setNarrationSyncEnabled(enabled, "setNarrationSyncEnabled");
+    // Forward to DiViNa auto-pan unconditionally so the comic navigator stays
+    // the authority for panel-level state. The general _narrationSyncEnabled
+    // flag governs MO/TTS page sync; the comic path manages its own manual override.
+    this._comicNav?.setAutoPan(enabled);
+    if (enabled) {
+      const synced = this._resyncDivinaToCurrentAudioCue();
+      log.debug(`setNarrationSyncEnabled: DiViNa re-sync ${synced ? "applied" : "had no active cue"}`);
+    }
+  }
+
+  /**
+   * Internal implementation of the narration-sync flag transition. Shared by
+   * `setNarrationSyncEnabled` (explicit Dart call) and `setEPUBPreferences`
+   * (preference transition) and `_enterManualModeIfNarrating` (user navigation).
+   *
+   * Does NOT forward to `_comicNav.setAutoPan` — the public `setNarrationSyncEnabled`
+   * handles that so the comic navigator remains the authority for panel state.
+   */
+  private _setNarrationSyncEnabled(enabled: boolean, reason: string): void {
+    const wasEnabled = this._narrationSyncEnabled;
+    this._narrationSyncEnabled = enabled;
+    log.debug(`_setNarrationSyncEnabled(${enabled}) via ${reason}`);
+
+    // Keep TTS engine in sync with the unified flag.
+    this._ttsEngine?.setSyncEnabled(enabled);
+
+    if (!wasEnabled && enabled) {
+      // Transitioning into sync: replay any deferred locator.
+      if (this._lastDeferredSyncLocator) {
+        const deferredLocator = this._lastDeferredSyncLocator;
+        const deferredDurationMs = this._lastDeferredSyncDurationMs;
+        this._lastDeferredSyncLocator = null;
+        this._lastDeferredSyncDurationMs = undefined;
+        // Clear dedup key so replaying the same cue still performs a visual sync.
+        this._lastMediaOverlayLocatorKey = null;
+        this._syncVisualToMediaOverlayLocator(deferredLocator, `MediaOverlay (resume sync via ${reason})`, deferredDurationMs);
+      }
+      window.updateNarrationSync?.(true);
+    } else if (wasEnabled && !enabled) {
+      window.updateNarrationSync?.(false);
+    }
+    // No emission when the value is unchanged (idempotent calls are silent).
+  }
+
+  /**
+   * Enters manual mode (sync disabled) when narration is actively playing.
+   * Called by the explicit navigation methods (goRight/goLeft/goForward/goBackward).
+   *
+   * Gesture-driven page turns inside the EPUB iframe are intentionally NOT
+   * detected here — that requires cross-platform JS injection into the iframe
+   * and is deferred to a later wave (matching the native limitation described in
+   * the platform-interface spec).
+   */
+  private _enterManualModeIfNarrating(source: string): void {
+    const narrationActive = !!this._audioNav || !!this._ttsEngine;
+    if (!narrationActive || !this._narrationSyncEnabled) return;
+    log.debug(`Manual navigation during narration (${source}): entering manual mode`);
+    this._setNarrationSyncEnabled(false, source);
   }
 
   /**
@@ -425,6 +590,7 @@ class _ReadiumReader {
     this._audioNav?.stop();
     this._audioNav?.destroy();
     this._audioNav = undefined;
+    this._stoppedAudioLocator = undefined;
 
     this._hasSyncNarration = false;
     this._hasGuidedNavigation = false;
@@ -432,14 +598,18 @@ class _ReadiumReader {
     this._positions = [];
     this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
+    this._narrationSyncEnabled = true;
     this._isComicBook = false;
     this._decorations.reset();
 
     // Detach the visual navigator reference synchronously so any late
     // media-overlay sync callback (which guards on `this._nav`) becomes a no-op
     // even while the async destroy() below is still settling.
-    const nav = this._nav;
+    const nav: VisualNavigatorLike | undefined = this._nav ?? this._comicNav;
     this._nav = undefined;
+    this._comicNav = undefined;
 
     const container = document.getElementById("container");
     if (container) {
@@ -515,14 +685,46 @@ class _ReadiumReader {
 
   public stop(): void {
     log.debug("stop");
-    if (this._ttsEngine) { this._ttsEngine.stop(); return; }
-    const wasMO = this._hasSyncNarration || this._hasGuidedNavigation;
-    this._audioNav?.stop();
-    // Clear Media Overlay / Guided Navigation utterance decoration when narration stops.
-    if (wasMO && this._nav) {
+    if (this._ttsEngine) {
+      const ttsEngine = this._ttsEngine;
+      this._ttsEngine = undefined;
+      ttsEngine.stop();
+      ttsEngine.destroy();
+      return;
+    }
+    const audioNav = this._audioNav;
+    if (!audioNav) return;
+
+    // Keep the plugin-level stop contract aligned with native: stop tears down
+    // the active timebased navigator. Clients must call audioEnable() again.
+    setAudioEmissionsEnabled(false);
+    this._stoppedAudioLocator = audioNav.currentLocator;
+    log.info(
+      "stop: destroying audio navigator",
+      this._hasSyncNarration || this._hasGuidedNavigation
+        ? "(Media Overlay / Guided Navigation)"
+        : "(plain audiobook)"
+    );
+    this._audioNav = undefined;
+    audioNav.stop();
+    audioNav.destroy();
+    window.updateTimebasedPlayerState?.(
+      JSON.stringify({
+        state: "none",
+        currentOffset: null,
+        currentDuration: null,
+        currentLocator: null,
+      })
+    );
+
+    // Clear Media Overlay / Guided Navigation state when narration stops.
+    if (this._hasSyncNarration || this._hasGuidedNavigation) {
+      this._syncItems = [];
       this._lastMediaOverlayLocatorKey = null;
-      this.applyDecorations("media_overlay_utterance", "[]");
-      this._removeMOBreakCSSOnIframes();
+      if (this._nav) {
+        this.applyDecorations("media_overlay_utterance", "[]");
+        this._removeMOBreakCSSOnIframes();
+      }
     }
   }
 
@@ -582,13 +784,13 @@ class _ReadiumReader {
       return true;
     }
 
-    if (this._nav && this._positions.length > 0) {
+    if (this._visualNav && this._positions.length > 0) {
       const index = Math.min(
         Math.floor(progression * this._positions.length),
         this._positions.length - 1
       );
       const locator = this._positions[index];
-      this._nav.go(locator, true, (ok) => {
+      this._visualNav.go(locator, true, (ok) => {
         if (!ok) {
           log.warn("goToProgression: navigation failed for position", index);
         }
@@ -621,7 +823,7 @@ class _ReadiumReader {
       this._nav,
       this._publication,
       prefs,
-      !this._disableSynchronization,
+      this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
       (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
@@ -693,6 +895,49 @@ class _ReadiumReader {
     wnd.requestAnimationFrame(() =>
       this._callGotoComicFrame(wnd, fragmentId, durationMs, retriesLeft - 1)
     );
+  }
+
+  /**
+   * Synchronises the DiViNa image navigator to the active Guided Navigation cue:
+   * turns to the cue's page (only when it changes) and pans/zooms to the cue's
+   * panel region (`xywh`, every cue). The pan is gated inside the navigator
+   * (auto-pan toggle + manual-override). A cue with no region re-frames the
+   * whole page.
+   */
+  private _syncDivinaToMediaOverlayLocator(textLocator: Locator): void {
+    const nav = this._comicNav;
+    if (!nav) return;
+    // Turn the page only when the href changes (cues on one page share it).
+    if (textLocator.href !== this._lastMediaOverlayLocatorKey) {
+      this._lastMediaOverlayLocatorKey = textLocator.href;
+      log.debug(`GuidedNavigation(DiViNa): sync to page "${textLocator.href}"`);
+      nav.go(textLocator, false, (ok) => {
+        if (!ok) {
+          log.warn(`GuidedNavigation(DiViNa): failed to navigate to "${textLocator.href}"`);
+        }
+      });
+    }
+    // Pan to the panel on every cue (region rides on the locator's otherLocations).
+    const region = (textLocator.locations?.otherLocations?.get("comicRegion") ??
+      null) as ComicRegion | null;
+    nav.panToRegion(region);
+  }
+
+  /**
+   * Re-sync the DiViNa view to the currently active audio cue (page + panel).
+    * Used by the explicit re-sync action; normal playback should rely on fresh
+    * AudioNavigator cue emissions so listener/polling failures remain visible.
+   */
+  private _resyncDivinaToCurrentAudioCue(): boolean {
+    if (!this._comicNav || !this._audioNav || this._syncItems.length === 0) return false;
+    const audioLocator = this._audioNav.currentLocator;
+    const resolvedTime = audioLocator.locations?.time() ?? this._audioNav.currentTime;
+    const item = findItemByAudioTime(this._syncItems, audioLocator.href, resolvedTime);
+    if (!item) return false;
+    // Force page sync even when the cue key equals the last emitted one.
+    this._lastMediaOverlayLocatorKey = null;
+    this._syncDivinaToMediaOverlayLocator(textLocatorForItem(item));
+    return true;
   }
 
   /**
@@ -809,15 +1054,17 @@ class _ReadiumReader {
       }
     };
 
-    if (this._disableSynchronization) {
-      this._lastDeferredSyncLocator = textLocator;
-      this._lastDeferredSyncDurationMs = durationMs;
+    // Track the most recent cue unconditionally so a Re-sync
+    // (setNarrationSyncEnabled(true)) can snap to the CURRENT cue immediately, even
+    // when triggered mid-cue. Previously this was cleared on the enabled path, so a
+    // mid-cue Re-sync had no locator to replay and only corrected on the next cue.
+    this._lastDeferredSyncLocator = textLocator;
+    this._lastDeferredSyncDurationMs = durationMs;
+
+    if (!this._narrationSyncEnabled) {
       applyUtteranceDecoration();
       return;
     }
-
-    this._lastDeferredSyncLocator = null;
-    this._lastDeferredSyncDurationMs = undefined;
 
     nav.go(textLocator, false, (ok) => {
       if (!ok) {
@@ -838,7 +1085,7 @@ class _ReadiumReader {
     log.info("audioEnable");
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
-      : this._nav?.currentLocator;
+      : this._visualNav?.currentLocator;
 
     if (this._audioNav) {
       if (resolvedFromLocator) {
@@ -849,22 +1096,42 @@ class _ReadiumReader {
         this._seekAudioAndResume(locator, true);
         return;
       }
-      this._audioNav.play();
+      // Use the safe restart path so polling resumes even when we're already at
+      // the current cue/position (upstream same-position seek quirk).
+      this._seekAudioAndResume(this._audioNav.currentLocator, true);
       return;
     }
 
     if (this._hasGuidedNavigation && this._publication) {
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
-      await initializeGuidedNavigationNavigator(
-        this._publication,
-        fromLocator,
-        prefsJson,
-        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
-      );
-      (this._audioNav as AudioNavigator | undefined)?.play();
-      if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
+      if (this._comicNav) {
+        // DiViNa: page-level sync only — no iframe, no decoration.
+        await initializeGuidedNavigationNavigator(
+          this._publication,
+          fromLocator,
+          prefsJson,
+          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+          (textLocator, _durationMs) => this._syncDivinaToMediaOverlayLocator(textLocator)
+        );
+      } else {
+        // EPUB: full sync with visual decoration.
+        await initializeGuidedNavigationNavigator(
+          this._publication,
+          fromLocator,
+          prefsJson,
+          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+          (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
+        );
+      }
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        const mappedStart = fromLocator
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          : undefined;
+        await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
+        if (!this._comicNav && this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
+      }
       return;
     }
 
@@ -878,8 +1145,31 @@ class _ReadiumReader {
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
         (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
       );
-      (this._audioNav as AudioNavigator | undefined)?.play();
-      if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        const mappedStart = fromLocator
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          : undefined;
+        await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
+        if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
+      }
+      return;
+    }
+
+    if (this._publication?.conformsToAudiobook) {
+      const fromLocator = resolvedFromLocator ?? this._stoppedAudioLocator;
+      log.info("audioEnable: recreating plain audiobook navigator");
+      await FlutterAudioNavigator.create(
+        this._publication,
+        fromLocator,
+        prefsJson,
+        (nav) => { this._audioNav = nav; }
+      );
+      const nav = this._audioNav as AudioNavigator | undefined;
+      if (nav) {
+        this._stoppedAudioLocator = undefined;
+        await this._seekAudioAndResume(fromLocator ?? nav.currentLocator, true);
+      }
       return;
     }
 

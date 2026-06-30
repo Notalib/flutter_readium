@@ -7,6 +7,15 @@ import WebKit
 private var userScripts: [WKUserScript] = []
 private let jsonEncoder = JSONEncoder()
 
+/// Breaks the `WKUserContentController → message-handler → EPUBReaderView` retain cycle.
+private final class WeakScriptHandler: NSObject, WKScriptMessageHandler {
+  private weak var parent: EPUBReaderView?
+  init(_ parent: EPUBReaderView) { self.parent = parent }
+  func userContentController(_ ctrl: WKUserContentController, didReceive message: WKScriptMessage) {
+    parent?.handleScriptMessage(message)
+  }
+}
+
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
   private let channel: ReadiumReaderChannel
@@ -22,6 +31,24 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   private var lastSyncSegmentDuration: TimeInterval?
   private let publication: Publication
   private var lastViewport: NavigatorViewport?
+
+  /// Runtime narration-sync flag: true = reader follows audio cues (default),
+  /// false = manual mode (user took control; audio keeps playing, visual stays put).
+  ///
+  /// Unified source of truth for sync gating — replaces the direct use of
+  /// `preferences?.disableSync` in `syncToLocator`. The flag is initialised from
+  /// `preferences.disableSync` when preferences arrive and updated live via
+  /// `setNarrationSyncEnabled(_:)` (the method-channel handler) and from manual-mode
+  /// detection on page navigation (`goForward`/`goBackward`).
+  ///
+  /// In-reader user gestures (swipe / edge-tap) are detected in Dart by the
+  /// `reader_widget.dart` `Listener` above the platform view, which calls the
+  /// reader-view channel `"notifyUserNavigation"` → `enterManualModeIfNarrationPlaying()`.
+  /// Those pointer events fire only for genuine user interaction (audio-driven page
+  /// turns are programmatic `go(to:)` calls that never reach the Flutter Listener), so
+  /// they are a clean "user took control" signal — avoiding the swift-toolkit delegate's
+  /// inability to distinguish a finger-swipe from an audio-driven `syncToLocator`.
+  private var narrationSyncEnabled: Bool = true
 
   var publicationIdentifier: String?
 
@@ -160,6 +187,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     self.containerView = containerView
     super.init()
 
+    // Initialise runtime sync flag from initial preferences so that
+    // disableSync:true passed at construction is honoured immediately.
+    if let disableSync = self.preferences?.disableSync {
+      narrationSyncEnabled = !disableSync
+    }
+
     containerView.readerView = self
     channel.setMethodCallHandler(onMethodCall)
     readiumViewController.delegate = self
@@ -207,9 +240,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     for script in userScripts {
       userContentController.addUserScript(script)
     }
+    // Register handler so `window.updateNarrationSync(bool)` in the helper script can reach native.
+    // WeakScriptHandler breaks the retain cycle WKUserContentController → handler → EPUBReaderView.
+    userContentController.add(WeakScriptHandler(self), name: "narrationSync")
 
     /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
-    if let preferencesStylesheet = self.preferences?.toInjectableStyleSheet() {
+    if let preferencesStylesheet = self.preferences.map(effectivePreferences)?.toInjectableStyleSheet() {
       let source = """
         (function() {
         var parent = document.getElementsByTagName('head').item(0);
@@ -395,6 +431,16 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  /// Receives messages from the `window.updateNarrationSync(bool)` bridge injected
+  /// by the iOS platform shim (bootstrap script in `initUserScripts`).
+  func handleScriptMessage(_ message: WKScriptMessage) {
+    guard message.name == "narrationSync", let enabled = message.body as? Bool else { return }
+    Log.reader.debug("handleScriptMessage: narrationSync=\(enabled)")
+    Task { @MainActor in
+      setNarrationSyncEnabled(enabled)
+    }
+  }
+
   private func setUserPreferences(preferences: FlutterEPUBPreferences) {
     self.preferences = preferences
     self.readiumViewController.submitPreferences(preferences.readium)
@@ -402,14 +448,44 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     applyColumnBreakPrevention()
   }
 
+  /// Resolves preferences against the publication's layout. The first-element top
+  /// margin is a reflowable-text affordance, so it's dropped for every non-reflowable
+  /// publication — FXL EPUBs and paginated DiViNa report `.fixed`, scrolled DiViNa
+  /// reports `.scrolled`, and image publications (CBZ via ImageParser) report no
+  /// layout at all — where it would otherwise shift the full-page content down.
+  private func effectivePreferences(_ preferences: FlutterEPUBPreferences) -> FlutterEPUBPreferences {
+    guard publication.metadata.layout != .reflowable else { return preferences }
+    var resolved = preferences
+    resolved.firstElementTopMargin = nil
+    return resolved
+  }
+
   private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
-    let cssVariables = preferences.toCustomCssVariables()
-    if cssVariables.isEmpty == false,
-       let jsonData = try? jsonEncoder.encode(cssVariables),
-       let jsonString = String(data: jsonData, encoding: .utf8) {
-      Task.detached(priority: .high) { [jsonString] in
-        let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
-        Log.reader.info("updated custom preferences: \(result)")
+    let cssVariables = effectivePreferences(preferences).toCustomCssVariables()
+
+    guard cssVariables.isEmpty == false,
+          let jsonData = try? jsonEncoder.encode(cssVariables),
+          let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+
+    Task.detached(priority: .high) { [jsonString] in
+      let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
+      Log.reader.info("updated custom preferences: \(result)")
+    }
+
+    // For CBZ/DiViNa FXL publications, also propagate CSS vars to the inner
+    // iframe. The FXL wrapper (fxl-spread-one.html) exposes window.spread.eval("", code)
+    // which runs JS in the iframe's context. This ensures dynamic preference
+    // updates (e.g. toggling B&W mode mid-read) reach the image iframe.
+    if publication.conforms(to: Publication.Profile.divina) {
+      let innerScript = cssVariables.map { k, v in
+        if let v { "document.documentElement.style.setProperty('\(k)','\(v)','important');" }
+        else { "document.documentElement.style.removeProperty('\(k)');" }
+      }.joined()
+      if let scriptData = try? jsonEncoder.encode(innerScript),
+         let scriptJson = String(data: scriptData, encoding: .utf8) {
+        Task.detached(priority: .high) { [scriptJson] in
+          await self.readiumViewController.evaluateJavaScript("window.spread?.eval?.('',\(scriptJson));")
+        }
       }
     }
   }
@@ -500,6 +576,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
     Log.reader.debug("goToLocator: \(locator)")
 
+    // NOTE: an explicit locator jump (TOC / bookmark / search) during active narration is
+    // handled upstream in FlutterReadiumPlugin's "goToLocator" by seeking the timebased
+    // navigator (narration follows the jump) — this method is only reached when narration is
+    // NOT active, so a jump must not enter manual mode here. Page-turns (goForward/goBackward)
+    // do enter manual mode; see those methods.
     isJumpingToLocator = true
 
     // Promote a `#id` css anchor to `fragments.first` so swift-toolkit positions correctly
@@ -524,14 +605,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.debug("syncToLocator: skipped")
       return false
     }
-    if preferences?.disableSync == true {
+    if !narrationSyncEnabled {
       lastSyncLocator = locator
       lastSyncSegmentDuration = segmentDuration
-      Log.reader.debug("syncToLocator: deferred while synchronization is disabled")
+      Log.reader.debug("syncToLocator: deferred while narration sync is disabled")
       return false
     }
-    lastSyncLocator = nil
-    lastSyncSegmentDuration = nil
     // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
     // spoken word re-pins the current paragraph to the top of the viewport
     // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
@@ -542,6 +621,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
       return false
     }
+    // Track the most recent navigated cue so a Re-sync (setNarrationSyncEnabled(true))
+    // can snap to the CURRENT cue immediately, even when triggered mid-cue. Previously
+    // this was cleared here, so a mid-cue Re-sync had no locator to replay and only
+    // corrected once the next cue arrived.
+    lastSyncLocator = locator
+    lastSyncSegmentDuration = segmentDuration
     return await performSyncNavigation(locator, animated: animated, segmentDuration: segmentDuration)
   }
 
@@ -551,6 +636,17 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let segmentDurationMs = duration * 1000.0
       await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
     }
+
+    // For Nota comics (EPUB + MediaOverlay) the panel pan is driven entirely by the
+    // navigator's go(to:) below: the locator carries the panel element id as its
+    // fragment/cssSelector, so the toolkit emits `readium.scrollToId(...)`, which the
+    // NotaComicBook helper intercepts and animates (using the segment duration set
+    // above). No explicit gotoComicFrame call is needed here.
+    //
+    // Signal the comic helper that narration is now active so it exits explore mode on
+    // the first cue and can navigate to the panel normally. No-op on non-comic pages.
+    await readiumViewController.evaluateJavaScript("window.comicBookPage?.onNarrationCue?.();")
+
     // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
     // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
     // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
@@ -559,6 +655,70 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // isJumpingToLocator == true, and silently drops the sync. The next utterance then
     // plays audio but the spotlight decoration and page position never advance.
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
+  }
+
+  /// Sets the runtime narration-sync flag and emits the new state on the
+  /// `narration-sync` event channel.
+  ///
+  /// When enabling sync (true), any deferred sync locator that was held while sync
+  /// was disabled is replayed immediately so the visual reader jumps to the current
+  /// audio cue.
+  ///
+  /// Must be called on the MainActor (property access and stream emission are not
+  /// thread-safe).
+  @MainActor
+  internal func setNarrationSyncEnabled(_ enabled: Bool) {
+    let wasEnabled = narrationSyncEnabled
+    narrationSyncEnabled = enabled
+    Log.reader.debug("setNarrationSyncEnabled: \(enabled)")
+    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(enabled)
+    // Replay deferred sync locator when re-enabling, matching the existing
+    // wasSyncDisabled catch-up logic that was previously in setPreferences.
+    if enabled, !wasEnabled, let deferredLocator = lastSyncLocator {
+      let deferredSegmentDuration = lastSyncSegmentDuration
+      lastSyncLocator = nil
+      lastSyncSegmentDuration = nil
+      Task.detached(priority: .high) {
+        // Clear the JS-side manual-override flag so the next pinch re-enters manual
+        // mode. No-op (optional chaining) on non-comic pages.
+        await self.evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
+        _ = await self.performSyncNavigation(
+          deferredLocator,
+          animated: false,
+          segmentDuration: deferredSegmentDuration)
+      }
+    }
+  }
+
+  /// Called when narration stops (not paused — fully stopped). Resets the
+  /// runtime sync flag and deferred-locator state, then tells the comic overlay
+  /// to animate back to the full-page view so the user can browse freely.
+  /// Distinct from setNarrationSyncEnabled(true) which replays the last cue.
+  @MainActor
+  public func resetForNarrationStop() {
+    narrationSyncEnabled = true
+    lastSyncLocator = nil
+    lastSyncSegmentDuration = nil
+    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(true)
+    Task.detached(priority: .high) {
+      await self.evaluateJavascript("window.comicBookPage?.exitNarrationMode?.();")
+    }
+  }
+
+  /// Enters manual mode (disables narration sync) if narration is actively
+  /// playing. Called from explicit user/app navigation entry points.
+  ///
+  /// Only transitions when sync is currently enabled and a timebased navigator
+  /// is present and playing, so normal reading without narration is unaffected.
+  @MainActor
+  private func enterManualModeIfNarrationPlaying() {
+    guard narrationSyncEnabled,
+          FlutterReadiumPlugin.instance?.timebasedNavigator != nil,
+          FlutterReadiumPlugin.instance?.lastTimebasedPlayerState?.state == .playing else {
+      return
+    }
+    Log.reader.debug("enterManualModeIfNarrationPlaying: entering manual mode")
+    setNarrationSyncEnabled(false)
   }
 
   private func emitOnPageChanged() {
@@ -597,6 +757,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
+        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -616,6 +777,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
+        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -628,25 +790,29 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         }
       }
       break
+    case "notifyUserNavigation":
+      // The user swiped or edge-tapped the reader (detected by the Flutter
+      // Listener above the platform view). Enter narration manual mode if
+      // narration is currently driving the reader; otherwise a no-op.
+      Task { @MainActor in
+        enterManualModeIfNarrationPlaying()
+        result(nil)
+      }
+      break
     case "setPreferences":
       let args = call.arguments as! [String: Any]
       Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
-      let wasSyncDisabled = self.preferences?.disableSync == true
+      let oldDisableSync = self.preferences?.disableSync
       let preferences = FlutterEPUBPreferences.init(fromMap: args)
       setUserPreferences(preferences: preferences)
       self.preferences = preferences
-      if wasSyncDisabled,
-         preferences.disableSync == false,
-         let deferredLocator = self.lastSyncLocator {
-        let deferredSegmentDuration = self.lastSyncSegmentDuration
-        self.lastSyncLocator = nil
-        self.lastSyncSegmentDuration = nil
-        Task.detached(priority: .high) {
-          _ = await self.performSyncNavigation(
-            deferredLocator,
-            animated: false,
-            segmentDuration: deferredSegmentDuration)
-        }
+      // Flip the runtime sync flag only on an actual `disableSync` transition.
+      // `disableSynchronization` is serialized on every preferences push (non-null on
+      // the Dart side), so reacting unconditionally would clobber a manual-mode override
+      // set via setNarrationSyncEnabled whenever any unrelated preference (font, theme, …)
+      // changes mid-playback.
+      if let disableSync = preferences.disableSync, disableSync != oldDisableSync {
+        setNarrationSyncEnabled(!disableSync)
       }
       result(nil)
       break
@@ -689,23 +855,40 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
   }
 
+  /// Loads a bundled Flutter asset's bytes, returning nil (and logging) instead of
+  /// trapping when the asset is absent. The webview helper assets
+  /// `assets/helpers/flutterReadiumTools.{js,css}` are gitignored build artifacts
+  /// (compiled from assets/_helper_scripts/src via `npm run build:flutter` /
+  /// `bin/install`); when an app is built without generating them, the reader now
+  /// degrades — no helper injection — rather than crashing. See docs/troubleshooting.md.
+  private func loadBundledAsset(_ assetKey: String) -> Data? {
+    guard let path = Bundle.main.path(forResource: assetKey, ofType: nil) else {
+      Log.reader.error("Missing bundled asset '\(assetKey)' — were the webview helpers built? (npm run build:flutter / bin/install)")
+      return nil
+    }
+    guard let data = FileManager().contents(atPath: path) else {
+      Log.reader.error("Bundled asset '\(assetKey)' could not be read at \(path)")
+      return nil
+    }
+    return data
+  }
+
   func initUserScripts(registrar: FlutterPluginRegistrar) {
     let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
     let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-    let jsScripts = [flutterReadiumJsKey].map { sourceFile -> String in
-      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-      let data = FileManager().contents(atPath: path)!
-      return String(data: data, encoding: .utf8)!
+    let jsScripts = [flutterReadiumJsKey].compactMap { assetKey -> String? in
+      guard let data = loadBundledAsset(assetKey) else { return nil }
+      return String(data: data, encoding: .utf8)
     }
-    let addCssScripts = [flutterReadiumCssKey].map { sourceFile -> String in
-      let path = Bundle.main.path(forResource: sourceFile, ofType: nil)!
-      let data = FileManager().contents(atPath: path)!.base64EncodedString()
+    let addCssScripts = [flutterReadiumCssKey].compactMap { assetKey -> String? in
+      guard let data = loadBundledAsset(assetKey) else { return nil }
+      let base64Css = data.base64EncodedString()
       return """
         (function() {
         var parent = document.getElementsByTagName('head').item(0);
         var style = document.createElement('style');
         style.type = 'text/css';
-        style.innerHTML = window.atob('\(data)');
+        style.innerHTML = window.atob('\(base64Css)');
         parent.appendChild(style)})();
       """
     }
@@ -716,8 +899,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     for jsScript in jsScripts {
       userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
     }
-    /// Add simple script used by our JS to detect OS
-    userScripts.append(WKUserScript(source: "const isAndroid=false,isIos=true;", injectionTime: .atDocumentStart, forMainFrameOnly: false))
+    /// Platform shim: OS flags + window.updateNarrationSync bridge.
+    /// Posting to the "narrationSync" WKScriptMessageHandler delivers the bool to native.
+    userScripts.append(WKUserScript(source: """
+      const isAndroid=false,isIos=true;
+      window.updateNarrationSync=function(v){webkit.messageHandlers.narrationSync.postMessage(v===true);};
+      """, injectionTime: .atDocumentStart, forMainFrameOnly: false))
 
     /// Add all known ToC IDs for this publication to a global javascript array.
     do {

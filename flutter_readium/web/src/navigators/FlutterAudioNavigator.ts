@@ -106,17 +106,44 @@ export function withTocHref(locator: Locator, tocHref: string | undefined): Loca
 export function buildStatePayload(
   state: string,
   nav: AudioNavigator,
-  locator?: Locator
+  locator?: Locator,
+  totalProgressDuration?: number,
+  totalDuration?: number
 ): string {
   const currentLocator = locator ?? nav.currentLocator;
   return JSON.stringify({
     state,
     currentOffset: Math.round(nav.currentTime * 1000),
     currentDuration: nav.duration > 0 ? Math.round(nav.duration * 1000) : null,
+    totalProgressDuration: totalProgressDuration ?? null,
+    totalDuration: totalDuration ?? null,
     // Use serialize() so otherLocations Map entries are inlined into locations.
     // Plain JSON.stringify drops Map entries silently.
     currentLocator: currentLocator?.serialize(),
   });
+}
+
+function makePublicationTotalDurationMs(
+  publication: ReadiumPublication
+): number | undefined {
+  const items = publication.readingOrder.items;
+  if (items.length === 0) return undefined;
+  const missing = items.some((i) => i.duration === undefined || i.duration <= 0);
+  if (missing) return undefined;
+  const totalSeconds = items.reduce((sum, item) => sum + item.duration!, 0);
+  if (totalSeconds <= 0) return undefined;
+  return Math.round(totalSeconds * 1000);
+}
+
+function makeTotalProgressDurationMs(
+  locator: Locator,
+  publicationTotalDurationMs: number | undefined
+): number | undefined {
+  if (publicationTotalDurationMs === undefined) return undefined;
+  const totalProgression = locator.locations?.totalProgression;
+  if (totalProgression === undefined) return undefined;
+  const clamped = Math.min(1, Math.max(0, totalProgression));
+  return Math.round(clamped * publicationTotalDurationMs);
 }
 
 
@@ -134,7 +161,19 @@ export function buildStatePayload(
 export type AudioLocatorMapper = (
   nav: AudioNavigator,
   audioLocator: Locator
-) => { stateLocator: Locator; textLocator?: Locator };
+) => {
+  stateLocator: Locator;
+  /**
+   * High-fidelity text locator for internal sync callbacks
+   * (e.g. comic panel auto-pan on Guided Navigation cues).
+   */
+  textLocator?: Locator;
+  /**
+   * Coarse text locator for the public bridge event (`updateTextLocator`).
+   * Falls back to `textLocator` when omitted.
+   */
+  publicTextLocator?: Locator;
+};
 
 /**
  * Narrow structural view of the parts of `AudioNavigator` that
@@ -217,6 +256,7 @@ export function seekAudioAndResume(
   // value, fire no "seeked", and hang upstream go(). Restart playback directly
   // so the DOM "play" event re-fires and position polling resumes.
   if (isAlreadyAtPosition(nav, audioLocator)) {
+    log.debug("seekAudioAndResume: already at target", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "");
     if (resumePlaying) {
       if (nav.isPlaying) nav.pause(); // force a paused→playing transition
       nav.play();
@@ -226,12 +266,14 @@ export function seekAudioAndResume(
 
   // Pausing here (when playing) guarantees the post-seek play() restarts the
   // upstream position poll; go() alone would leave it stopped.
+  log.debug("seekAudioAndResume: seeking", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "", resumePlaying ? "and resuming" : "without resume");
   if (nav.isPlaying) nav.pause();
   return nav.go(audioLocator, false, (ok) => {
     if (!ok) {
       log.warn("seekAudioAndResume: audio seek failed for", audioLocator.href);
       return;
     }
+    log.debug("seekAudioAndResume: seek completed", audioLocator.href);
     if (resumePlaying) nav.play();
   });
 }
@@ -247,6 +289,7 @@ let _emissionsEnabled = true;
 
 /** Enable/disable audio navigator emissions (text/state/visual sync). */
 export function setAudioEmissionsEnabled(enabled: boolean): void {
+  log.debug(`Audio emissions ${enabled ? "enabled" : "disabled"}`);
   _emissionsEnabled = enabled;
 }
 
@@ -257,13 +300,21 @@ function _emitState(
   mapper: AudioLocatorMapper | undefined,
   alsoText: boolean,
   computeTotalProgression: (locator: Locator) => number | undefined,
+  publicationTotalDurationMs: number | undefined,
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   getTocHref?: () => string | undefined
 ): void {
-  if (!_emissionsEnabled) return;
+  if (!_emissionsEnabled) {
+    log.debug(
+      "emitState suppressed because audio emissions are disabled",
+      state,
+      rawLocator?.href ?? nav.currentLocator.href
+    );
+    return;
+  }
   const locator = rawLocator ?? nav.currentLocator;
   if (mapper) {
-    const { stateLocator, textLocator } = mapper(nav, locator);
+    const { stateLocator, textLocator, publicTextLocator } = mapper(nav, locator);
     // Compute publication-wide totalProgression from the AUDIO locator, not the
     // mapped state locator. The mapper rewrites the locator to the text href
     // (so the player highlights the right element), but computeTotalProgression
@@ -274,12 +325,19 @@ function _emitState(
       stateLocator,
       computeTotalProgression(locator)
     );
-    window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enrichedStateLocator)
+    const totalProgressDuration = makeTotalProgressDurationMs(
+      enrichedStateLocator,
+      publicationTotalDurationMs
     );
-    if (textLocator) {
+    window.updateTimebasedPlayerState?.(
+      buildStatePayload(state, nav, enrichedStateLocator, totalProgressDuration, publicationTotalDurationMs)
+    );
+    const emittedPublicLocator = publicTextLocator ?? textLocator;
+    if (emittedPublicLocator) {
       // Use serialize() so otherLocations Map entries (e.g. cssSelector) reach Dart.
-      window.updateTextLocator?.(JSON.stringify(textLocator.serialize()));
+      window.updateTextLocator?.(JSON.stringify(emittedPublicLocator.serialize()));
+    }
+    if (textLocator) {
       onTextLocatorChanged?.(textLocator, undefined);
     }
   } else {
@@ -287,8 +345,12 @@ function _emitState(
       withTotalProgression(locator, computeTotalProgression(locator)),
       getTocHref?.()
     );
+    const totalProgressDuration = makeTotalProgressDurationMs(
+      enriched,
+      publicationTotalDurationMs
+    );
     window.updateTimebasedPlayerState?.(
-      buildStatePayload(state, nav, enriched)
+      buildStatePayload(state, nav, enriched, totalProgressDuration, publicationTotalDurationMs)
     );
     if (alsoText) {
       window.updateTextLocator?.(JSON.stringify(enriched.serialize()));
@@ -349,6 +411,7 @@ export class FlutterAudioNavigator {
     };
 
     const computeTotalProgression = makeAudioTotalProgressionFn(publication);
+    const publicationTotalDurationMs = makePublicationTotalDurationMs(publication);
 
     // Build the publication timeline so we can extract the current ToC chapter
     // href from `timelineItemChanged` events. Only used on the plain audiobook
@@ -361,6 +424,7 @@ export class FlutterAudioNavigator {
     // nav is used inside the closure before assignment; TypeScript is fine with
     // this because the listeners are only called after `nav` is assigned below.
     let nav: AudioNavigator;
+    let lastPositionLogKey = "";
 
     // Local emit shorthand — captures the 5 context args so each listener
     // only names the state, locator, and alsoText flag it actually varies.
@@ -376,6 +440,7 @@ export class FlutterAudioNavigator {
         locatorMapper,
         alsoText,
         computeTotalProgression,
+        publicationTotalDurationMs,
         onTextLocatorChanged,
         getTocHref
       );
@@ -396,6 +461,12 @@ export class FlutterAudioNavigator {
           }
         },
         positionChanged: (locator) => {
+          const time = locator.locations?.time?.() ?? nav.currentTime;
+          const key = `${locator.href}#${Math.floor(time)}`;
+          if (key !== lastPositionLogKey) {
+            lastPositionLogKey = key;
+            log.debug("positionChanged", locator.href, `t=${time.toFixed(2)}`, nav.isPlaying ? "playing" : "paused");
+          }
           emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
         },
         timelineItemChanged: (item) => {

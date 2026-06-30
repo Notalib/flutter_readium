@@ -42,7 +42,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._preferences = preferences
     self._nowPlayingUpdater = NowPlayingInfoUpdater(
       withPublication: publication,
-      infoType: preferences.controlPanelInfoType
+      infoType: preferences.controlPanelInfoType,
+      timebase: preferences.controlPanelTimebase
     )
     self._initialLocator = resolveLocator(initialLocator)
   }
@@ -169,12 +170,30 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return true
   }
 
+  @MainActor
+  public func seek(toPublicationOffset: Double) async -> Bool {
+    guard let currentLocator = _audioNavigator?.currentLocation,
+          let target = resolvePublicationOffsetTarget(toPublicationOffset) else {
+      return false
+    }
+
+    if target.readingOrderIndex == playback.resourceIndex {
+      return await seek(toOffset: target.offsetSeconds)
+    }
+
+    guard let targetLocator = makeAudioLocator(from: currentLocator, target: target) else {
+      return false
+    }
+
+    return await seek(toLocator: targetLocator)
+  }
+
   public func seekRelative(byOffsetSeconds: Double) async -> Bool {
     if !_preferences.continuousSeeking {
       await _audioNavigator?.seek(by: byOffsetSeconds)
       return true
     }
-    
+
     if byOffsetSeconds < 0 {
       return await rewindBy(seconds: abs(byOffsetSeconds))
     } else {
@@ -203,27 +222,27 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     ) else {
       return false
     }
-    
+
     return await seek(
       to: target,
       currentIndex: currentIndex,
       currentLocator: audioNavigator.currentLocation
     )
   }
-  
+
   private func fastForwardBy(seconds fastForwardSeconds: TimeInterval) async -> Bool {
     guard let audioNavigator = _audioNavigator else {
       return false
     }
-    
+
     let info = audioNavigator.playbackInfo
     let currentIndex = info.resourceIndex
-    
+
     let durations = audioDurations(
       currentIndex: currentIndex,
       currentDuration: info.duration
     )
-    
+
     guard let target = AudioSeekPolicy.resolveFastForwardTarget(
       currentIndex: currentIndex,
       currentOffsetSeconds: info.time,
@@ -232,14 +251,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     ) else {
       return false
     }
-    
+
     return await seek(
       to: target,
       currentIndex: currentIndex,
       currentLocator: audioNavigator.currentLocation
     )
   }
-  
+
   private func audioDurations(
     currentIndex: Int,
     currentDuration: TimeInterval?
@@ -247,14 +266,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     var durations: [TimeInterval?] = publication.readingOrder.map { link in
       link.duration
     }
-    
+
     if durations.indices.contains(currentIndex), durations[currentIndex] == nil {
       durations[currentIndex] = currentDuration
     }
-    
+
     return durations
   }
-  
+
   private func seek(
     to target: AudioSeekPolicy.Target,
     currentIndex: Int,
@@ -263,18 +282,18 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     if target.readingOrderIndex == currentIndex {
       return await seek(toOffset: target.offsetSeconds)
     }
-    
+
     guard let currentLocator else {
       return false
     }
-    
+
     guard let targetLocator = makeAudioLocator(
       from: currentLocator,
       target: target
     ) else {
       return false
     }
-    
+
     return await seek(toLocator: targetLocator)
   }
 
@@ -353,6 +372,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   @MainActor
   func setAudioPreferences(_ preferences: FlutterAudioPreferences) {
     self._preferences = preferences
+    self._nowPlayingUpdater.infoType = preferences.controlPanelInfoType
+    self._nowPlayingUpdater.timebase = preferences.controlPanelTimebase
+
+    if let info = self._audioNavigator?.playbackInfo {
+      self._nowPlayingUpdater.updatePlaybackFromInfo(
+        info,
+        withSpeedSetting: self._audioNavigator?.settings.speed
+      )
+    }
+
     /// Update the Audio Navigator.
     self._audioNavigator?.submitPreferences(AudioPreferences(fromFlutterPrefs: preferences))
     /// Update the CommandCenter controls.
@@ -425,7 +454,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     /// Fix href if not in readingOrder, by using position.
     let readingOrderContainsHref = publication.readingOrder.contains(where: { $0.href == locator.href.string.removingPrefix("/") })
     if readingOrderContainsHref == false,
-       let position = locator.locations.position {
+       let position = locator.locations.position,
+       publication.readingOrder.indices.contains(position - 1) {
       resolvedLocator = locator.copy(href: publication.readingOrder[position - 1].url())
     }
     /// Set time offset fragment from progression
@@ -442,14 +472,14 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   internal func mapToTimebasedState(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) -> ReadiumTimebasedState {
     var locator = location
-    
+
     /// Enrich Locator with position before submitting to listeners.
     if locator != nil {
       locator?.locations.position = info.resourceIndex + 1
       /// Ensure timeOffset is rounded to 2 decimals
       locator = locator?.toClientFriendlyLocator()
     }
-    
+
     /// Fetch MediaPlaybackState and convert it to TimebasedState
     var playerState = info.state.asTimebasedState
     if (info.state == .paused && info.progress >= 1.0 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
@@ -459,14 +489,87 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       locator?.locations.totalProgression = 1.0
     }
 
+    let totalProgressDuration = makeTotalProgressDuration(locator)
+    let totalDuration = makePublicationDuration()
+
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = ReadiumTimebasedState(
       state: playerState,
       currentOffset: info.time,
       currentBuffered: bufferedInterval,
       currentDuration: info.duration ?? nil,
+      totalProgressDuration: totalProgressDuration,
+      totalDuration: totalDuration,
       currentLocator: locator
     )
     return timebasedState
   }
+
+  private func makePublicationDuration() -> TimeInterval? {
+    computePublicationDuration(publication.readingOrder.map { $0.duration })
+  }
+
+  private func resolvePublicationOffsetTarget(_ offsetSeconds: TimeInterval) -> AudioSeekPolicy.Target? {
+    let durations = publication.readingOrder.map { $0.duration }
+    let validDurations = durations.compactMap { duration -> TimeInterval? in
+      guard let duration, duration.isFinite, duration > 0 else {
+        return nil
+      }
+      return duration
+    }
+
+    guard validDurations.count == durations.count, !validDurations.isEmpty else {
+      return nil
+    }
+
+    let publicationDuration = validDurations.reduce(0, +)
+    var remaining = min(max(0, offsetSeconds), publicationDuration)
+
+    for (index, duration) in validDurations.enumerated() {
+      if remaining <= duration || index == validDurations.indices.last {
+        return AudioSeekPolicy.Target(
+          readingOrderIndex: index,
+          offsetSeconds: min(remaining, duration),
+        )
+      }
+      remaining -= duration
+    }
+
+    return nil
+  }
+
+  private func makeTotalProgressDuration(_ locator: Locator?) -> TimeInterval? {
+    computeTotalProgressDuration(
+      totalProgression: locator?.locations.totalProgression,
+      publicationDuration: makePublicationDuration()
+    )
+  }
+}
+
+func computePublicationDuration(_ durations: [Double?]) -> TimeInterval? {
+  let validDurations = durations.compactMap { duration -> TimeInterval? in
+    guard let duration, duration.isFinite, duration > 0 else {
+      return nil
+    }
+    return duration
+  }
+
+  if validDurations.count != durations.count || validDurations.isEmpty {
+    return nil
+  }
+
+  return validDurations.reduce(0, +)
+}
+
+func computeTotalProgressDuration(
+  totalProgression: Double?,
+  publicationDuration: TimeInterval?
+) -> TimeInterval? {
+  guard let totalProgression,
+        totalProgression.isFinite,
+        let publicationDuration else {
+    return nil
+  }
+
+  return min(1.0, max(0.0, totalProgression)) * publicationDuration
 }

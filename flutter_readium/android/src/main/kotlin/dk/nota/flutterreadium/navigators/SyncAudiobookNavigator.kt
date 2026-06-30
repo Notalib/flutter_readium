@@ -273,11 +273,11 @@ class SyncAudiobookNavigator(
         ): SyncAudiobookNavigator {
             val initialLocator =
                 state
-                    .getString(currentTimebaseLocatorKey)
+                    .getString(CURRENT_TIMEBASE_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences =
                 state
-                    .getString(audioPreferencesKey)
+                    .getString(AUDIO_PREFERENCES_KEY)
                     ?.let { json -> FlutterAudioPreferences.fromJSON(json) }
                     ?: FlutterAudioPreferences()
 

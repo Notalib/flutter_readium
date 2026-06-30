@@ -196,6 +196,8 @@ describe("buildStatePayload", () => {
     expect(payload.state).toBe("playing");
     expect(payload.currentOffset).toBe(2500);
     expect(payload.currentDuration).toBe(10000);
+    expect(payload.totalProgressDuration).toBeNull();
+    expect(payload.totalDuration).toBeNull();
     expect(payload.currentLocator.href).toBe("chap1.mp3");
   });
 
@@ -265,6 +267,32 @@ describe("buildStatePayload", () => {
     const p = JSON.parse(buildStatePayload("playing", nav));
     expect(p.currentOffset).toBe(2500);
     expect(p.currentDuration).toBe(10999);
+  });
+
+  it("includes totalProgressDuration when provided", () => {
+    const nav = fakeNav({ currentTime: 3, duration: 20 });
+    const payload = JSON.parse(buildStatePayload("playing", nav, undefined, 1234));
+    expect(payload.totalProgressDuration).toBe(1234);
+  });
+
+  it("emits totalProgressDuration as null when omitted", () => {
+    const nav = fakeNav({ currentTime: 3, duration: 20 });
+    const payload = JSON.parse(
+      buildStatePayload("playing", nav, undefined, undefined),
+    );
+    expect(payload.totalProgressDuration).toBeNull();
+  });
+
+  it("includes totalDuration when provided", () => {
+    const nav = fakeNav({ currentTime: 3, duration: 20 });
+    const payload = JSON.parse(buildStatePayload("playing", nav, undefined, undefined, 60000));
+    expect(payload.totalDuration).toBe(60000);
+  });
+
+  it("emits totalDuration as null when omitted", () => {
+    const nav = fakeNav({ currentTime: 3, duration: 20 });
+    const payload = JSON.parse(buildStatePayload("playing", nav));
+    expect(payload.totalDuration).toBeNull();
   });
 });
 

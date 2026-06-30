@@ -3,5 +3,10 @@
   "compilerOptions": {
     "types": ["jest", "node"]
   },
-  "include": ["**/*.ts", "__tests__/**/*.ts"]
+  "include": ["**/*.ts", "__tests__/**/*.ts"],
+  // Override the base tsconfig's exclude — it lists "__tests__", and `exclude`
+  // is inherited through `extends` and beats `include`, so without this the
+  // test files would be silently dropped from the program (jest still runs them
+  // via per-file transform, but tsc/VSCode would not type-check them).
+  "exclude": ["node_modules"]
 }
