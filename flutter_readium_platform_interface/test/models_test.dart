@@ -361,5 +361,24 @@ void main() {
       final restored = EPUBPreferences.fromJson(prefs.toJson());
       expect(restored.fontSize, closeTo(1.0, 1e-9));
     });
+
+    test('toJson clamps an unmigrated percentage value to the max ratio', () {
+      // A client still passing the old percentage int (90 = "90%") instead of
+      // the ratio 0.9 must not reach the native side as 90.0 (→ 9000% on iOS).
+      const prefs = EPUBPreferences(fontSize: 90);
+      final json = prefs.toJson();
+      expect(json['fontSize'], isA<double>());
+      expect(json['fontSize'], closeTo(5.0, 1e-9));
+    });
+
+    test('toJson clamps a too-small ratio to the min', () {
+      const prefs = EPUBPreferences(fontSize: 0.01);
+      expect(prefs.toJson()['fontSize'], closeTo(0.1, 1e-9));
+    });
+
+    test('toJson leaves an in-range ratio untouched', () {
+      const prefs = EPUBPreferences(fontSize: 2.5);
+      expect(prefs.toJson()['fontSize'], closeTo(2.5, 1e-9));
+    });
   });
 }
