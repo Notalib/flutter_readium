@@ -38,6 +38,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// For EPUB profile, maps document path to a list of all the cssSelectors in the document.
   /// This is used to find the current toc item.
   private var currentPublicationCssSelectorMap: [String: [String]]?
+  private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory?
 
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
     "en": "Chapter",
@@ -206,6 +207,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
           Task { @MainActor in
             // Start TTS from the reader's current location
+            self.pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
@@ -272,6 +274,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       do {
         let ttsPrefs = try TTSPreferences(fromMap: args!)
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
         ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {
@@ -633,6 +636,17 @@ extension FlutterReadiumPlugin {
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
+        onCreatePublication: { manifest, _, services in
+          if manifest.conforms(to: .epub) {
+            let factory = PageBreakSkippingContentIteratorFactory()
+            self.pageBreakIteratorFactory = factory
+            services.setContentServiceFactory(
+              DefaultContentService.makeFactory(
+                resourceContentIteratorFactories: [factory]
+              )
+            )
+          }
+        },
         sender: sender
       ).get()
 
@@ -677,6 +691,7 @@ extension FlutterReadiumPlugin {
     currentPublication = nil
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
+    pageBreakIteratorFactory = nil
     // Clear the stream buffers so that a subscriber opening the next publication
     // never receives a stale locator or status from this closed publication.
     textLocatorStreamHandler?.clearBuffer()
