@@ -47,8 +47,9 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// Font family for text content.
   final String? fontFamily;
 
-  /// Font size for text content.
-  final int? fontSize;
+  /// Font-size scale relative to the publisher default (`1.0` = 100%, `1.5` = 150%).
+  /// Forwarded to Readium unchanged on every platform.
+  final double? fontSize;
 
   /// Font weight for text content.
   final double? fontWeight;
@@ -125,6 +126,32 @@ class EPUBPreferences with EquatableMixin implements JSONable {
   /// This is used to create space for UI elements like a toolbar without overlapping the content.
   final int? firstElementTopMargin;
 
+  /// Readium's supported [fontSize] range (ratio; `1.0` = 100%). Matches
+  /// swift-toolkit's `EPUBPreferencesEditor.fontSize.supportedRange` (`0.1...5.0`).
+  ///
+  /// The native EPUB navigators only enforce this range in their stepper UI, not
+  /// when the plugin sets `fontSize` directly, so we clamp here. This keeps an
+  /// out-of-range value — e.g. a percentage int left over from the pre-ratio API
+  /// (`90` instead of `0.9`) — from producing catastrophic text sizes, most
+  /// visibly on iOS where it becomes `--USER__fontSize: <value * 100>%`.
+  static const double _fontSizeMin = 0.1;
+  static const double _fontSizeMax = 5.0;
+
+  /// Clamps [fontSize] to [[_fontSizeMin], [_fontSizeMax]], warning when the
+  /// input is out of range. Returns `null` when [fontSize] is `null`.
+  double? _clampedFontSize() {
+    final value = fontSize;
+    if (value == null || (value >= _fontSizeMin && value <= _fontSizeMax)) {
+      return value;
+    }
+    final clamped = value.clamp(_fontSizeMin, _fontSizeMax).toDouble();
+    ReadiumLog.warn(
+      'EPUBPreferences.fontSize $value is outside the supported range '
+      '[$_fontSizeMin, $_fontSizeMax]; clamped to $clamped. fontSize is a ratio',
+    );
+    return clamped;
+  }
+
   factory EPUBPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final backgroundColorStr = jsonObject.optNullableString(
@@ -137,7 +164,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     );
     final columnCount = columnCountStr != null ? EpubColumnCount.fromJson(columnCountStr) : null;
     final fontFamily = jsonObject.optNullableString('fontFamily', remove: true);
-    final fontSize = jsonObject.optNullableInt('fontSize', remove: true);
+    final fontSize = jsonObject.optNullableDouble('fontSize', remove: true);
     final fontWeight = jsonObject.optNullableDouble('fontWeight', remove: true);
     final hyphens = jsonObject.optNullableBoolean('hyphens', remove: true);
     final imageFilterStr = jsonObject.optNullableString(
@@ -249,7 +276,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     ..putOpt('backgroundColor', backgroundColor?.toCSS())
     ..putOpt('columnCount', columnCount?.toJson())
     ..putOpt('fontFamily', fontFamily)
-    ..putOpt('fontSize', fontSize)
+    ..putOpt('fontSize', _clampedFontSize())
     ..putOpt('fontWeight', fontWeight)
     ..putOpt('hyphens', hyphens)
     ..putOpt('imageFilter', imageFilter?.toJson())
@@ -278,7 +305,7 @@ class EPUBPreferences with EquatableMixin implements JSONable {
     Color? backgroundColor,
     EpubColumnCount? columnCount,
     String? fontFamily,
-    int? fontSize,
+    double? fontSize,
     double? fontWeight,
     bool? hyphens,
     EpubImageFilter? imageFilter,
@@ -373,8 +400,12 @@ enum EpubColumnCount {
     switch (value) {
       case 'auto':
         return EpubColumnCount.auto;
+      // '1'/'2' are the canonical Readium serial values; 'one'/'two' are
+      // accepted for backward tolerance with any legacy persisted values.
+      case '1':
       case 'one':
         return EpubColumnCount.one;
+      case '2':
       case 'two':
         return EpubColumnCount.two;
       default:
@@ -382,14 +413,16 @@ enum EpubColumnCount {
     }
   }
 
+  /// Serializes to Readium's canonical `ColumnCount` values (`auto`/`1`/`2`),
+  /// matching the native swift- and kotlin-toolkit enums.
   String toJson() {
     switch (this) {
       case EpubColumnCount.auto:
         return 'auto';
       case EpubColumnCount.one:
-        return 'one';
+        return '1';
       case EpubColumnCount.two:
-        return 'two';
+        return '2';
     }
   }
 }

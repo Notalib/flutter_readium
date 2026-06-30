@@ -45,7 +45,11 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self._publication = publication
     self._initialLocator = initialLocator
     self.preferences = preferences
-    self.nowPlayingUpdater = .init(withPublication: publication)
+    self.nowPlayingUpdater = .init(
+      withPublication: publication,
+      infoType: preferences.controlPanelInfoType ?? .standard,
+      timebase: preferences.controlPanelTimebase ?? .chapter
+    )
   }
 
   public func initNavigator() -> Void {
@@ -156,7 +160,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     self.synthesizer?.start(from: toLocator)
     return true
   }
-  
+
   public func seek(toProgression: Double) async -> Bool {
     guard let currentHref = (currentLocator ?? initialLocator)?.href else {
       return false
@@ -177,7 +181,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     // Cannot be implemented for TTS
     return false
   }
-  
+
   public func decorationsUpdated() -> Void {
     if let currentUtterance = playingUtterance {
       let currentWordRange = playingWordRange
@@ -194,6 +198,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     preferences.pitch = prefs.pitch
     preferences.voiceIdentifier = prefs.voiceIdentifier
     preferences.overrideLanguage = prefs.overrideLanguage
+    preferences.controlPanelInfoType = prefs.controlPanelInfoType
+    preferences.controlPanelTimebase = prefs.controlPanelTimebase
+    nowPlayingUpdater.infoType = prefs.controlPanelInfoType ?? .standard
+    nowPlayingUpdater.timebase = prefs.controlPanelTimebase ?? .chapter
     self.synthesizer?.config.voiceIdentifier = preferences.voiceIdentifier
     self.synthesizer?.config.defaultLanguage = preferences.overrideLanguage
   }
@@ -238,7 +246,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
       //updateDecorations(uttLocator: nil, rangeLocator: nil)
       self.nowPlayingUpdater.clearNowPlaying()
     }
-    
+
     let state = ReadiumTimebasedState(state: state.asTimebasedState, currentLocator: playingUtterance)
     self.listener?.timebasedNavigator(self, didChangeState: state)
   }
@@ -258,7 +266,7 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
     utterance.rate = preferences.rate ?? AVSpeechUtteranceDefaultSpeechRate
     utterance.pitchMultiplier = preferences.pitch ?? 1.0
   }
-  
+
   // MARK: From progression
 
   private func resolveLocatorWithProgression(_ locator: Locator) async -> Locator? {

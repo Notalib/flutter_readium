@@ -15,8 +15,8 @@ import org.readium.r2.shared.util.Language
 
 private const val TAG = "FlutterEpubPreferences"
 
-private const val topMarginCssVariable = "--FLUTTER_READIUM-first-element-top-margin"
-private const val blackAndWhiteComicModeCssVariable = "--FLUTTER_READIUM-black-white-comic-mode"
+private const val TOP_MARGIN_CSS_VARIABLE = "--FLUTTER_READIUM-first-element-top-margin"
+private const val BLACK_AND_WHITE_COMIC_MODE_CSS_VARIABLE = "--FLUTTER_READIUM-black-white-comic-mode"
 
 @OptIn(ExperimentalReadiumApi::class)
 @Serializable
@@ -113,8 +113,8 @@ data class FlutterEpubPreferences(
 
     fun toCustomCssVariables(): Map<String, String?> {
         val map = mutableMapOf<String, String?>()
-        map[topMarginCssVariable] = firstElementTopMargin?.let { "${it}px" }
-        map[blackAndWhiteComicModeCssVariable] = if (blackAndWhiteComicMode == true) "1" else null
+        map[TOP_MARGIN_CSS_VARIABLE] = firstElementTopMargin?.let { "${it}px" }
+        map[BLACK_AND_WHITE_COMIC_MODE_CSS_VARIABLE] = if (blackAndWhiteComicMode == true) "1" else null
         return map
     }
 

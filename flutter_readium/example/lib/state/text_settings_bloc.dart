@@ -258,7 +258,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   void submitPreferenceUpdate() async {
     final epubPreferences = EPUBPreferences(
       fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
+      fontSize: state.fontSize / 100.0,
       fontWeight: kIsWeb ? state.fontWeight * 100 : state.fontWeight,
       scroll: state.scroll,
       backgroundColor: state.theme.backgroundColor,
@@ -287,7 +287,7 @@ class TextSettingsBloc extends Bloc<TextSettingsEvent, TextSettingsState> {
   void setDefaultPreferences() {
     final defaultPreferences = EPUBPreferences(
       fontFamily: state.fontFamily,
-      fontSize: state.fontSize,
+      fontSize: state.fontSize / 100.0,
       fontWeight: state.fontWeight,
       scroll: state.scroll,
       backgroundColor: state.theme.backgroundColor,

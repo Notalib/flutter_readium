@@ -25,9 +25,8 @@ const log = createLogger("WebPubPrefs");
  * have no WebPub equivalent and are silently dropped by the upstream navigator.
  *
  * Notable translations:
- *   - `fontSize` (Dart percentage int, e.g. 120) → `zoom` (ratio in [0.7, 4]),
- *     matching the EPUB mapper's `/100` conversion. WebPub has no `fontSize`
- *     field; `zoom` is the closest analogue (it scales spacing too).
+ *   - `fontSize` (Dart ratio, e.g. 1.2 = 120%) → `zoom` (ratio in [0.7, 4]).
+ *     WebPub has no `fontSize` field; `zoom` is the closest analogue.
  *   - `verticalScroll` (legacy Dart alias) → `scroll` (then dropped — see below).
  */
 export function initializeWebPubPreferencesFromString(
@@ -58,11 +57,8 @@ export function initializeWebPubPreferencesFromString(
     textAlign: prefs.textAlign ?? null,
     textNormalization: prefs.textNormalization ?? null,
     wordSpacing: prefs.wordSpacing ?? null,
-    // Use `fontSize` as a fallback to zoom.
-    // It's sent as a percentage int, so we convert to a zoom ratio.
-    zoom: prefs.zoom ?? typeof prefs.fontSize === "number"
-      ? prefs.fontSize / 100
-      : null,
+    // Use `fontSize` as a fallback to zoom. Both are ratios (1.0 = default).
+    zoom: prefs.zoom ?? (typeof prefs.fontSize === "number" ? prefs.fontSize : null),
   };
 
   preferences = normalizeTypes(preferences);

@@ -14,11 +14,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `getResourceBytes(String href)` — reads the raw bytes of any publication
   resource (e.g. an image link from `ImageTapEvent.href`) over the method channel.
   Throws `PlatformException` when the resource is missing or unreadable.
+- **`TTSPreferences.pageBreakBehavior`** (`PageBreakBehavior?`) — controls how EPUB page-break
+  elements are handled during TTS playback. Values: `readAsIs` (default — raw label spoken as-is),
+  `prefixLabel` (label rewritten with a localized prefix, e.g. "Page 42"), `skip` (element
+  filtered out entirely).
+
+### Changed
+
+- `EPUBPreferences.fontSize` is now clamped to Readium's supported ratio range
+  `[0.1, 5.0]` on serialization, logging a warning when an out-of-range value is passed.
+
+## [0.1.1] - 2026-06-26
+
+### Fixed
+
+- `EpubColumnCount` now serializes to Readium's canonical values (`auto`/`1`/`2`) instead of
+  `auto`/`one`/`two`, fixing column count not being applied natively. `fromJson` still accepts
+  the legacy `one`/`two` strings.
 
 ## [0.1.0] - 2026-06-20
 
 ### Added
 
+- `ReadiumTimebasedState.totalProgressDuration` — nullable `Duration` for the
+  publication-level playback offset derived from
+  `currentLocator.locations.totalProgression * publicationDuration`.
+- `ReadiumTimebasedState.totalDuration` — nullable `Duration` for the total
+  publication duration (sum of all reading-order link durations); `null` when any
+  reading-order link is missing a duration.
 - `PDFSpread` — enum (`auto` / `never` / `always`) for synthetic dual-page spread on
   PDF publications. iOS only; Android `PdfiumPreferences` does not expose spread.
 - `PDFPreferences` — three new iOS-only fields: `offsetFirstPage: bool?`,

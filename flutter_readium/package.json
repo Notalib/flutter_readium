@@ -1,27 +1,35 @@
 {
   "dependencies": {
-    "@readium/navigator": "^2.5.5",
-    "@readium/navigator-html-injectables": "^2.4.2",
-    "@readium/shared": "^2.2.0"
+    "@readium/navigator": "^2.6.0",
+    "@readium/navigator-html-injectables": "^2.5.0",
+    "@readium/shared": "^2.2.2"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-replace": "^6.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
     "@types/jest": "^30.0.0",
-    "css-loader": "^7.1.2",
-    "jest": "^30.3.0",
-    "patch-package": "^8.0.1",
-    "style-loader": "^4.0.0",
-    "terser-webpack-plugin": "^5.3.14",
-    "ts-jest": "^29.4.9",
-    "ts-loader": "^9.5.1",
-    "typescript": "^5.7.2",
-    "webpack": "^5.105.0",
-    "webpack-cli": "^5.1.4"
+    "cross-env": "^10.1.0",
+    "jest": "^30.4.2",
+    "postcss": "^8.5.15",
+    "rollup": "^4.62.2",
+    "rollup-plugin-postcss": "^4.0.2",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "ts-jest": "^29.4.11",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.3"
   },
   "scripts": {
-    "postinstall": "patch-package",
-    "build_dev": "webpack --config ./web/src/webpack.config.js --mode development",
-    "build": "webpack --config ./web/src/webpack.config.js --mode production",
-    "typecheck": "tsc --noEmit -p web/src/tsconfig.json",
+    "copy_example_js": "cd example && dart run flutter_readium:copy_js_file web dev",
+    "build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.mjs && npm run copy_example_js",
+    "build:dev:stats": "STATS=1 npm run build:dev",
+    "build": "cross-env NODE_ENV=production rollup -c rollup.config.mjs",
+    "build:stats": "STATS=1 npm run build:dev",
+    "build:helpers": "cd assets/_helper_scripts && npm run build:flutter",
+    "build:helpers:stats": "cd assets/_helper_scripts && npm run build:flutter:stats",
+    "typecheck": "tsc --noEmit -p web/src/tsconfig.test.json",
     "test": "jest --config web/src/jest.config.js"
   }
 }

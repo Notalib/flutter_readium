@@ -21,8 +21,10 @@ import {
   HTMLResourceContentIterator,
   Link,
   Locator,
+  Manifest,
   PublicationContentIterator,
   TextElement,
+  TextSegment,
 } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -90,6 +92,63 @@ function emitLocator(locator: Locator) {
   window.updateTextLocator?.(JSON.stringify(normalizeLocatorJson(locator)));
 }
 
+// ---------------------------------------------------------------------------
+// Page-break helpers
+// ---------------------------------------------------------------------------
+
+const PAGE_LABEL_FORMATS: Record<string, string> = {
+  en: "Page {label}",
+  da: "side {label}",
+  no: "side {label}",
+  sv: "sida {label}",
+  is: "{label}. síða",
+};
+
+function pageBreakIdsFromManifest(manifest: Manifest): Set<string> {
+  const pageList = manifest.subcollections?.get("pageList");
+  if (!pageList || pageList.length === 0) return new Set();
+  const ids = new Set<string>();
+  for (const link of pageList[0].links.items) {
+    try {
+      const hash = new URL(link.href, "http://localhost").hash;
+      if (hash.startsWith("#") && hash.length > 1) ids.add(hash.slice(1));
+    } catch {
+      // ignore malformed hrefs
+    }
+  }
+  return ids;
+}
+
+function makePageLabelFormatter(
+  manifest: Manifest
+): ((label: string) => string) | null {
+  const lang = manifest.metadata.languages?.[0];
+  if (!lang) return null;
+  const base = lang.split("-")[0].toLowerCase();
+  const format = PAGE_LABEL_FORMATS[base];
+  if (!format) return null;
+  return (label) => format.replace("{label}", label);
+}
+
+function isPageBreak(element: TextElement, ids: Set<string>): boolean {
+  if (ids.size === 0) return false;
+  const selector = element.locator.locations.getCssSelector();
+  return !!selector && selector.startsWith("#") && ids.has(selector.slice(1));
+}
+
+function rewriteAsPageLabel(
+  element: TextElement,
+  formatter: ((label: string) => string) | null
+): TextElement {
+  const rawLabel = element.text?.trim() ?? "";
+  if (!rawLabel) return element;
+  const label = formatter ? formatter(rawLabel) : rawLabel;
+  const newSegments = element.segments.map((seg, i) =>
+    new TextSegment(seg.locator, i === 0 ? label : "", seg._attributes)
+  );
+  return new TextElement(element.locator, element.role, newSegments, element._attributes);
+}
+
 export class FlutterTTSNavigator {
   private readonly _nav: AnyNavigator;
   private readonly _publication: ReadiumPublication;
@@ -98,7 +157,7 @@ export class FlutterTTSNavigator {
    * When true (default), each utterance scrolls the visual navigator to the
    * spoken paragraph. Mirrors `EPUBPreferences.disableSynchronization` on native
    * — see kotlin-toolkit's gate at ReadiumReader.kt:1420 for the equivalent
-   * behaviour on Android.
+   * behavior on Android.
    */
   private _syncEnabled: boolean;
 
@@ -124,12 +183,17 @@ export class FlutterTTSNavigator {
   private _utteranceStyle: object | null;
   /** Decoration style for the active word/boundary span (null = no range decoration). */
   private _rangeStyle: object | null;
+  /** Last utterance locator deferred while sync is disabled. */
+  private _lastDeferredSyncLocator: Locator | null = null;
   /**
    * Callback invoked to apply a decoration group. Receives the group name and a
    * JSON-encoded array of ReaderDecoration objects (same shape as the Dart
    * applyDecorations contract). Passing an empty array clears the group.
    */
   private _onApplyDecorations: ((group: string, decorationsJson: string) => void) | null;
+
+  private readonly _pageBreakIds: Set<string>;
+  private readonly _pageLabel: ((label: string) => string) | null;
 
   constructor(
     nav: AnyNavigator,
@@ -148,6 +212,8 @@ export class FlutterTTSNavigator {
     this._rangeStyle = rangeStyle;
     this._onApplyDecorations = onApplyDecorations;
     this._flatToc = flattenToc(publication.manifest.toc?.items ?? []);
+    this._pageBreakIds = pageBreakIdsFromManifest(publication.manifest);
+    this._pageLabel = makePageLabelFormatter(publication.manifest);
     // Hard-reset Chrome's speechSynthesis on construction. Leftover state from
     // a previous publication (or a wedge that survived a page navigation) can
     // prevent the very first speak() of the new session from dispatching
@@ -165,7 +231,17 @@ export class FlutterTTSNavigator {
    * session — see ReadiumReader.setEPUBPreferences.
    */
   setSyncEnabled(enabled: boolean): void {
+    const wasEnabled = this._syncEnabled;
     this._syncEnabled = enabled;
+    if (!wasEnabled && enabled && this._lastDeferredSyncLocator) {
+      const deferredLocator = this._lastDeferredSyncLocator;
+      this._lastDeferredSyncLocator = null;
+      try {
+        this._nav.go(deferredLocator, false, () => {});
+      } catch (navError) {
+        log.warn("TTS deferred sync replay failed:", navError);
+      }
+    }
   }
 
   /**
@@ -187,6 +263,7 @@ export class FlutterTTSNavigator {
 
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
+    this._lastDeferredSyncLocator = null;
     log.info("play", fromLocator ? "(from locator)" : "", {
       speaking: speechSynthesis.speaking,
       pending: speechSynthesis.pending,
@@ -244,6 +321,7 @@ export class FlutterTTSNavigator {
   stop(): void {
     if (this._destroyed) return;
     log.info("stop");
+    this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
@@ -286,6 +364,7 @@ export class FlutterTTSNavigator {
   destroy(): void {
     log.info("destroy");
     this._destroyed = true;
+    this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
     this._currentElement = null;
@@ -327,8 +406,16 @@ export class FlutterTTSNavigator {
       return;
     }
 
-    this._currentElement = element;
-    this._speakElement(element);
+    if (this._prefs.pageBreakBehavior === "skip" && isPageBreak(element, this._pageBreakIds)) {
+      await this._speakNext();
+      return;
+    }
+    const finalElement =
+      this._prefs.pageBreakBehavior === "prefixLabel" && isPageBreak(element, this._pageBreakIds)
+        ? rewriteAsPageLabel(element, this._pageLabel)
+        : element;
+    this._currentElement = finalElement;
+    this._speakElement(finalElement);
   }
 
   private async _speakPrevious(): Promise<void> {
@@ -349,8 +436,16 @@ export class FlutterTTSNavigator {
       return;
     }
 
-    this._currentElement = element;
-    this._speakElement(element);
+    if (this._prefs.pageBreakBehavior === "skip" && isPageBreak(element, this._pageBreakIds)) {
+      await this._speakPrevious();
+      return;
+    }
+    const finalElement =
+      this._prefs.pageBreakBehavior === "prefixLabel" && isPageBreak(element, this._pageBreakIds)
+        ? rewriteAsPageLabel(element, this._pageLabel)
+        : element;
+    this._currentElement = finalElement;
+    this._speakElement(finalElement);
   }
 
   private _speakElement(element: TextElement): void {
@@ -455,9 +550,12 @@ export class FlutterTTSNavigator {
         try {
           // Cross-resource transitions use animated=true; same-resource use false.
           this._nav.go(element.locator, false, () => {});
+          this._lastDeferredSyncLocator = null;
         } catch (navError) {
             log.warn("TTS navigator sync failed:", navError);
           }
+      } else {
+        this._lastDeferredSyncLocator = element.locator;
       }
     };
 
