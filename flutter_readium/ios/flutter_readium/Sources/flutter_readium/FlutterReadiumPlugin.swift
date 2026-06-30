@@ -41,6 +41,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// For EPUB profile, maps document path to a list of all the cssSelectors in the document.
   /// This is used to find the current toc item.
   private var currentPublicationCssSelectorMap: [String: [String]]?
+
+  /// TTS-only: handles page-break *elements* during content iteration. Not
+  /// related to `EPUBReaderView.setMOActive`'s column-break CSS (MO-only).
   private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory?
 
   lazy var fallbackChapterTitle: LocalizedString = LocalizedString.localized([
@@ -213,7 +216,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
           Task { @MainActor in
             // Start TTS from the reader's current location
-            self.pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
+            self.applyPageBreakBehavior(from: ttsPrefs)
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
@@ -280,7 +283,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       do {
         let ttsPrefs = try TTSPreferences(fromMap: args!)
-        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
+        applyPageBreakBehavior(from: ttsPrefs)
         ttsNavigator.ttsSetPreferences(prefs: ttsPrefs)
         result(nil)
       } catch {
@@ -539,6 +542,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     default:
       result(FlutterMethodNotImplemented)
     }
+  }
+
+  /// Shared by "ttsEnable" and "ttsSetPreferences" — both can set this.
+  private func applyPageBreakBehavior(from ttsPrefs: TTSPreferences) {
+    pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?? .readAsIs
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, didChangeState state: ReadiumTimebasedState) {
