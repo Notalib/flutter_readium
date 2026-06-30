@@ -35,8 +35,15 @@ function test_android() {
     flutter build apk --config-only --project-directory "$EXAMPLE_DIR"
   fi
 
-  cd "$EXAMPLE_DIR/android"
+  cd "$EXAMPLE_DIR/android" || exit 1
   ./gradlew :flutter_readium:testDebugUnitTest
+}
+
+function test_web() {
+  WEB_DIR="$REPO_ROOT/flutter_readium/web/src"
+  cd "$WEB_DIR" || exit 1
+  echo "Running web unit-tests..."
+  npm test
 }
 
 case "$PLATFORM" in
@@ -46,10 +53,15 @@ case "$PLATFORM" in
   android)
     test_android
     ;;
+  web)
+    test_web
+    ;;
   all)
     test_android
     echo
     test_ios
+    echo
+    test_web
     ;;
   *)
     echo "Unknown platform: $PLATFORM" >&2
