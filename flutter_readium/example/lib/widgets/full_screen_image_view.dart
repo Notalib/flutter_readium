@@ -22,16 +22,18 @@ class FullScreenImageView extends StatelessWidget {
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
-        backgroundColor: Colors.black87,
+        backgroundColor: Colors.black,
         body: SafeArea(
           child: Stack(
             children: [
-              Center(
+              Positioned.fill(
                 child: InteractiveViewer(
                   key: const ValueKey<String>('full_screen_image_gesture'),
+                  boundaryMargin: const EdgeInsets.all(12.0),
+                  clipBehavior: Clip.none,
                   minScale: 0.5,
                   maxScale: 10.0,
-                  child: _buildImage(context, srcUrl),
+                  child: Center(child: _buildImage(context, srcUrl)),
                 ),
               ),
               Positioned(

@@ -12,10 +12,8 @@ import '../index.dart';
 /// metadata); the image bytes are fetched lazily on demand via
 /// `FlutterReadium.getResourceBytes` / `imageProvider`.
 ///
-/// The event fires for *every* tapped image, including images inside a Nota
-/// comic book. The plugin does not filter by publication type — deciding
-/// whether to act on a tap (e.g. open a full-screen viewer, or ignore it for
-/// comic books) is the consumer's responsibility.
+/// Platform implementations may suppress taps where images are part of reader
+/// interaction, such as DiViNa publications or Nota comic page images.
 class ImageTapEvent implements JSONable {
   const ImageTapEvent({
     required this.href,

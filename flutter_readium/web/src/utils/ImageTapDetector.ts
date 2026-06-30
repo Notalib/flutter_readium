@@ -22,6 +22,8 @@ export function tryBuildImageTapPayload(
   publication: ReadiumPublication
 ): string | null {
   try {
+    if (publication.conformsToDivina) return null;
+
     // Find the iframe Window whose src matches the click's target frame.
     const iframes = navIframeWindows(nav);
     let targetWnd =
@@ -73,6 +75,7 @@ export function tryBuildImageTapPayload(
     // Walk up the DOM to find an <img> at or near the tap point.
     const imgEl = el.closest("img") as HTMLImageElement | null;
     if (!imgEl) return null;
+    if (isNotaComicPageImage(imgEl)) return null;
 
     // Resolved absolute src and natural dimensions.
     const srcUrl = imgEl.src ?? "";
@@ -128,4 +131,12 @@ export function tryBuildImageTapPayload(
     log.warn("tryBuildImageTapPayload threw unexpectedly:", err);
     return null;
   }
+}
+
+function isNotaComicPageImage(imgEl: HTMLImageElement): boolean {
+  const figure = imgEl.closest("figure");
+  return (
+    (imgEl.classList?.contains("page") === true && !!figure?.querySelector(".area")) ||
+    imgEl.closest(".nota-comicbook-page-container") !== null
+  );
 }

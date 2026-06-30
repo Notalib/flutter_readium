@@ -412,6 +412,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// Called when the user taps an image element inside an EPUB resource.
   /// Forwards the event to the Flutter channel as an `onImageTapped` call.
   private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
+    if suppressesImageTapEvent(image: image) {
+      Log.reader.debug("onImageTapped: suppressed for publication/content type")
+      return
+    }
     Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
     let href = image.embeddedLink.href
     // accessibilityLabel carries the HTML alt="" attribute (stored in attributes
@@ -424,6 +428,18 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       alt: alt,
       frame: frame
     )
+  }
+
+  private func suppressesImageTapEvent(image: ImageContentElement) -> Bool {
+    publication.conforms(to: Publication.Profile.divina)
+      || isNotaComicPageImage(image: image)
+  }
+
+  private func isNotaComicPageImage(image: ImageContentElement) -> Bool {
+    let cssSelector = image.locator.locations.cssSelector ?? ""
+    return cssSelector.contains("img.page")
+      || cssSelector.contains("#hix")
+      || cssSelector.contains(".nota-comicbook-page-container")
   }
 
   /// Registers decoration interaction observation for a group.

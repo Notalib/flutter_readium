@@ -312,6 +312,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                     }
                 PluginLog.d(TAG, "::getResourceBytes. href=$href bytes=${bytes.size}")
                 return Try.success(bytes)
+            }
 
             else -> {
                 throw NotImplementedError()

@@ -28,20 +28,33 @@ interface ImgOpts {
   naturalWidth?: number;
   naturalHeight?: number;
   rect?: { x: number; y: number; width: number; height: number };
+  classes?: string[];
+  notaComicFigure?: boolean;
+  notaComicClone?: boolean;
 }
 
 /** A mock <img>: closest("img") returns itself, anything else returns null. */
 function makeImg(opts: ImgOpts = {}): Element {
+  const figure = opts.notaComicFigure
+    ? { querySelector: (sel: string) => (sel === ".area" ? {} : null) }
+    : null;
+  const comicContainer = opts.notaComicClone ? {} : null;
   const img: any = {
     src: opts.src ?? "",
     naturalWidth: opts.naturalWidth ?? 0,
     naturalHeight: opts.naturalHeight ?? 0,
+    classList: { contains: (name: string) => opts.classes?.includes(name) ?? false },
     getBoundingClientRect: () =>
       opts.rect ?? { x: 0, y: 0, width: 0, height: 0 },
     getAttribute: (name: string) =>
       name === "alt" ? (opts.alt ?? null) : null,
   };
-  img.closest = (sel: string) => (sel === "img" ? img : null);
+  img.closest = (sel: string) => {
+    if (sel === "img") return img;
+    if (sel === "figure") return figure;
+    if (sel === ".nota-comicbook-page-container") return comicContainer;
+    return null;
+  };
   return img as Element;
 }
 
@@ -77,9 +90,53 @@ function makeNav(windows: Window[]): EpubNavigator | WebPubNavigator {
   } as unknown as EpubNavigator | WebPubNavigator;
 }
 
-function makePublication(hrefs: string[]): ReadiumPublication {
+interface PublicationOpts {
+  conformsToDivina?: boolean;
+  guidedNavigation?: boolean;
+  syncNarration?: boolean;
+}
+
+function makeLinks(items: any[] = []): any {
+  return {
+    items,
+    findWithMediaType: (mediaType: string) =>
+      items.find((item) => item.type === mediaType || item.mediaType === mediaType),
+  };
+}
+
+function makePublication(
+  hrefs: string[],
+  opts: PublicationOpts = {}
+): ReadiumPublication {
+  const readingOrderItems = hrefs.map((href, index) => ({
+    href,
+    alternates: makeLinks(
+      opts.syncNarration
+        ? [
+            {
+              href: `narration-${index}.json`,
+              type: "application/vnd.readium.narration+json",
+            },
+          ]
+        : []
+    ),
+  }));
   return {
     allLinks: hrefs.map((href) => ({ href })),
+    conformsToDivina: opts.conformsToDivina ?? false,
+    manifest: {
+      links: makeLinks(
+        opts.guidedNavigation
+          ? [
+              {
+                href: "guided-navigation.json",
+                type: "application/guided-navigation+json",
+              },
+            ]
+          : []
+      ),
+    },
+    readingOrder: { items: readingOrderItems },
   } as unknown as ReadiumPublication;
 }
 
@@ -274,6 +331,65 @@ describe("tryBuildImageTapPayload — returns null", () => {
 
     const result = tryBuildImageTapPayload(
       makeEvent({ targetFrameSrc: FRAME_SRC, cssSelector: "img.missing" }),
+      nav,
+      pub
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("allows ordinary image taps in sync narration publications", () => {
+    const img = makeImg({ src: "https://readium/images/illustration.jpg" });
+    const wnd = makeWindow({ href: FRAME_SRC, queryResult: img });
+    const nav = makeNav([wnd]);
+    const pub = makePublication(["images/illustration.jpg"], {
+      syncNarration: true,
+    });
+
+    const result = tryBuildImageTapPayload(
+      makeEvent({ targetFrameSrc: FRAME_SRC, cssSelector: "img" }),
+      nav,
+      pub
+    );
+
+    expect(result).not.toBeNull();
+    expect(JSON.parse(result!).href).toBe("images/illustration.jpg");
+  });
+
+  it("returns null for Nota comic page images", () => {
+    const img = makeImg({
+      src: "https://readium/images/comic-page.jpg",
+      classes: ["page"],
+      notaComicFigure: true,
+    });
+    const wnd = makeWindow({ href: FRAME_SRC, queryResult: img });
+    const nav = makeNav([wnd]);
+    const pub = makePublication(["images/comic-page.jpg"], {
+      syncNarration: true,
+    });
+
+    const result = tryBuildImageTapPayload(
+      makeEvent({ targetFrameSrc: FRAME_SRC, cssSelector: "img.page" }),
+      nav,
+      pub
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null for Nota comic helper clones", () => {
+    const img = makeImg({
+      src: "https://readium/images/comic-page.jpg",
+      notaComicClone: true,
+    });
+    const wnd = makeWindow({ href: FRAME_SRC, queryResult: img });
+    const nav = makeNav([wnd]);
+    const pub = makePublication(["images/comic-page.jpg"], {
+      syncNarration: true,
+    });
+
+    const result = tryBuildImageTapPayload(
+      makeEvent({ targetFrameSrc: FRAME_SRC, cssSelector: "img#hix00003-clone" }),
       nav,
       pub
     );

@@ -3,6 +3,7 @@ package dk.nota.flutterreadium
 import android.webkit.JavascriptInterface
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.json.JSONObject
+import org.readium.r2.shared.publication.Publication
 import java.net.URI
 
 private const val TAG = "EpubImageTapBridge"
@@ -21,6 +22,11 @@ private const val TAG = "EpubImageTapBridge"
 class EpubImageTapBridge {
     @JavascriptInterface
     fun onImageTapped(json: String) {
+        val publication =
+            ReadiumReader.currentPublication ?: run {
+                PluginLog.w(TAG, "::onImageTapped. No publication available.")
+                return
+            }
         val channel =
             ReadiumReader.currentReaderWidget?.channel ?: run {
                 PluginLog.w(TAG, "::onImageTapped. No reader channel available.")
@@ -28,6 +34,10 @@ class EpubImageTapBridge {
             }
         try {
             val data = JSONObject(json)
+            if (publication.suppressesImageTapEvents(data)) {
+                PluginLog.d(TAG, "::onImageTapped. Suppressed for publication/content type.")
+                return
+            }
             val srcUrl = data.optString("srcUrl")
             val href =
                 resolvePublicationHref(srcUrl) ?: run {
@@ -73,4 +83,7 @@ class EpubImageTapBridge {
             null
         }
     }
+
+    private fun Publication.suppressesImageTapEvents(data: JSONObject) =
+        conformsTo(Publication.Profile.DIVINA) || data.optBoolean("notaComicPageImage", false)
 }
