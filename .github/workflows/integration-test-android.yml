@@ -26,7 +26,7 @@ jobs:
           docker-images: true
           swap-storage: false
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Enable KVM
         run: |
@@ -51,7 +51,7 @@ jobs:
           pub-cache: true
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -70,7 +70,7 @@ jobs:
         working-directory: flutter_readium/example
 
       - name: Cache AVD
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: avd-cache
         with:
           path: |

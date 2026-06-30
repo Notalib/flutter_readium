@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **`TTSPreferences.pageBreakBehavior`** (`PageBreakBehavior?`) — controls how EPUB page-break
+  elements are handled during TTS playback. Values: `readAsIs` (default — raw label spoken as-is),
+  `prefixLabel` (label rewritten with a localized prefix, e.g. "Page 42"), `skip` (element
+  filtered out entirely).
+
+### Changed
+
+- `EPUBPreferences.fontSize` is now clamped to Readium's supported ratio range
+  `[0.1, 5.0]` on serialization, logging a warning when an out-of-range value is passed.
+
 ## [0.1.1] - 2026-06-26
 
 ### Fixed

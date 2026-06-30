@@ -21,7 +21,7 @@ jobs:
       SIMULATOR_DEVICE: iPhone 17 Pro
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read Flutter version
         id: flutter_version
@@ -33,7 +33,7 @@ jobs:
           cache: true
 
       - name: Cache CocoaPods
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: pods-cache
         with:
           path: |
@@ -44,7 +44,7 @@ jobs:
             pods-${{ runner.os }}-
 
       - name: Cache Xcode derived data
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           # Keyed on the runner image, not runner.os ("macOS" is identical

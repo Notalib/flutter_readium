@@ -21,6 +21,7 @@ data class FlutterTtsPreferences(
     val speed: Double? = null,
     val voices: Map<String, String>? = null,
     val controlPanelInfoType: ControlPanelInfoType? = ControlPanelInfoType.STANDARD,
+    val pageBreakBehavior: PageBreakBehavior? = null,
     val controlPanelTimebase: ControlPanelTimebase? = ControlPanelTimebase.CHAPTER,
 ) {
     /**
@@ -51,6 +52,7 @@ data class FlutterTtsPreferences(
             speed = other.speed ?: speed,
             voices = other.voices ?: voices,
             controlPanelInfoType = other.controlPanelInfoType ?: controlPanelInfoType,
+            pageBreakBehavior = other.pageBreakBehavior ?: pageBreakBehavior,
             controlPanelTimebase = other.controlPanelTimebase ?: controlPanelTimebase,
         )
 
@@ -84,6 +86,7 @@ data class FlutterTtsPreferences(
                             "standard",
                         ),
                     ),
+                pageBreakBehavior = PageBreakBehavior.fromString(jsonObject.optString("pageBreakBehavior").ifEmpty { null }),
                 controlPanelTimebase =
                     ControlPanelTimebase.fromString(
                         jsonObject.optString(
@@ -108,6 +111,7 @@ data class FlutterTtsPreferences(
                 jsonObject.put("voices", voicesJson)
             }
             jsonObject.put("controlPanelInfoType", preferences.controlPanelInfoType?.toString())
+            preferences.pageBreakBehavior?.let { jsonObject.put("pageBreakBehavior", PageBreakBehavior.toString(it)) }
             jsonObject.put("controlPanelTimebase", preferences.controlPanelTimebase?.let(ControlPanelTimebase::toString))
             return jsonObject
         }
@@ -150,6 +154,7 @@ data class FlutterTtsPreferences(
                     ControlPanelInfoType.fromString(
                         ttsPrefs?.get("controlPanelInfoType") as? String ?: "standard",
                     ),
+                pageBreakBehavior = PageBreakBehavior.fromString(ttsPrefs?.get("pageBreakBehavior") as? String),
                 controlPanelTimebase =
                     ControlPanelTimebase.fromString(
                         ttsPrefs?.get("controlPanelTimebase") as? String ?: DEFAULT_CONTENT_PANEL_TIMEBASE_STRING,

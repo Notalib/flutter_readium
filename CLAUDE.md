@@ -24,7 +24,10 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 - `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
 - **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
-- **After editing web TS (`flutter_readium/web/`):** `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
+- **Before declaring any Swift changes done:** run `flutter build ios --no-codesign` in `flutter_readium/example` and fix all errors.
+- **Before declaring any Kotlin changes done:** run `./gradlew :flutter_readium:compileDebugKotlin` in `flutter_readium/example/android/` and fix all errors.
+- **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
+- **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.
 - **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
 - **Branching workflow** — never commit to `main`, and never let a branch track `Notalib/flutter_readium`:
   - Worktree branches created by agents often track upstream `main` — rename and re-track before committing: `git branch -m fix/short-slug && git push -u <fork> HEAD`.

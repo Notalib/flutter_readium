@@ -13,6 +13,7 @@ export interface WebTTSPreferences {
   voice: SpeechSynthesisVoice | null;
   /** BCP-47 language override – applied when voice is null. */
   lang: string | null;
+  pageBreakBehavior?: "readAsIs" | "prefixLabel" | "skip";
 }
 
 const DEFAULT_RATE = 1.0;
@@ -61,7 +62,14 @@ export function ttsPreferencesFromJson(json: Record<string, any>): WebTTSPrefere
     voice = speechSynthesis.getVoices().find((v) => v.voiceURI === voiceId) ?? null;
   }
 
-  return { rate, pitch, voice, lang: langOverride };
+  const pageBreakBehavior =
+    json.pageBreakBehavior === "readAsIs" ||
+    json.pageBreakBehavior === "prefixLabel" ||
+    json.pageBreakBehavior === "skip"
+      ? (json.pageBreakBehavior as WebTTSPreferences["pageBreakBehavior"])
+      : undefined;
+
+  return { rate, pitch, voice, lang: langOverride, pageBreakBehavior };
 }
 
 /**
