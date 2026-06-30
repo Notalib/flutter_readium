@@ -167,5 +167,46 @@ extension EPUBReaderView {
     userScripts.append(WKUserScript(source: """
       window.updateNarrationSync=function(v){webkit.messageHandlers.narrationSync.postMessage(v===true);};
       """, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+
+    /// Workaround for a swift-toolkit defect: when a spread's webview finishes loading,
+    /// it re-injects every currently-stored decoration for that resource via unconditional
+    /// `add()` calls, without clearing first. `DecorationGroup.add()` doesn't dedupe by
+    /// logical decoration id, so if a decoration (e.g. our TTS "tts-utt"/"tts-range") was
+    /// already applied to this resource before the re-injection ran — which can happen
+    /// across a ToC jump while TTS is playing — the id ends up with two DOM elements, and
+    /// the next incremental `update()` only ever removes the first match, leaving a stale
+    /// duplicate underline/spotlight behind for the rest of the chapter. Patch `add()` to
+    /// always clear any existing element for the same id first, making it idempotent.
+    ///
+    /// TODO: report upstream to readium/swift-toolkit — `spreadViewDidLoad`'s re-injection
+    /// (EPUBNavigatorViewController.swift) should `clear()` a group before replaying it, and/or
+    /// `DecorationChange` (DiffableDecoration.swift) should support removing *all* elements for
+    /// an id rather than only the first match. Either upstream fix would let us drop this patch.
+    /// There is also no public signal for "re-injection finished", which rules out a Swift-only
+    /// ordering fix (e.g. deferring `apply()` until `locationDidChange`) — confirmed not to fully
+    /// close the race in testing, since `locationDidChange` isn't causally ordered against it.
+    userScripts.append(WKUserScript(source: """
+      (function() {
+        function patchGroup(group) {
+          if (!group || group.__flutterReadiumDeduped || typeof group.add !== 'function' || typeof group.remove !== 'function') {
+            return group;
+          }
+          group.__flutterReadiumDeduped = true;
+          var originalAdd = group.add.bind(group);
+          group.add = function(decoration) {
+            group.remove(decoration.id);
+            originalAdd(decoration);
+          };
+          return group;
+        }
+        if (window.readium && typeof window.readium.getDecorations === 'function' && !window.readium.__flutterReadiumDeduped) {
+          window.readium.__flutterReadiumDeduped = true;
+          var originalGetDecorations = window.readium.getDecorations.bind(window.readium);
+          window.readium.getDecorations = function(groupName) {
+            return patchGroup(originalGetDecorations(groupName));
+          };
+        }
+      })();
+      """, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
   }
 }
