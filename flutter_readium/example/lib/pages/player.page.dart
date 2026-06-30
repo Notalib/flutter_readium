@@ -45,10 +45,16 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
         onPopInvokedWithResult: (didPop, result) {
           // When Player page is popped, make sure to close current publication.
           context.read<PlayerControlsBloc>().add(Stop());
+          // Capture the bloc reference now, while this context is still valid.
+          // By the time the delay below elapses, the page has been popped and
+          // its element deactivated — reading the context then would throw
+          // "Looking up a deactivated widget's ancestor is unsafe". The bloc is
+          // app-scoped (provided in main.dart), so it outlives this page.
+          final publicationBloc = context.read<PublicationBloc>();
           // Put some delay to ensure that the closePublication is called after navigating back visually.
-          Duration delay = const Duration(milliseconds: 450);
+          const delay = Duration(milliseconds: 400);
           Future.delayed(delay, () {
-            context.read<PublicationBloc>().add(ClosePublication());
+            publicationBloc.add(ClosePublication());
           });
         },
         child: Scaffold(
