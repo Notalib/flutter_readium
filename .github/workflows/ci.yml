@@ -21,7 +21,7 @@ jobs:
       android: ${{ github.event_name != 'pull_request' || steps.filter.outputs.android == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
       web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter

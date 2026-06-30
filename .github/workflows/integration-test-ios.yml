@@ -21,7 +21,7 @@ jobs:
       SIMULATOR_DEVICE: iPhone 17 Pro
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read Flutter version
         id: flutter_version
