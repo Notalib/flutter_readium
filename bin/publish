@@ -91,10 +91,10 @@ for pkg in "${PACKAGES[@]}"; do
 
   # Stats reports are local build artifacts and must not be published.
   if [ "$pkg" = "flutter_readium" ]; then
-    rm -f "$PROJECT_ROOT/flutter_readium/assets/helpers/stats.html"
-    rm -f "$PROJECT_ROOT/flutter_readium/assets/helpers/stats.json"
-    rm -f "$PROJECT_ROOT/flutter_readium/build/rollup-stats.html"
-    rm -f "$PROJECT_ROOT/flutter_readium/build/rollup-stats.json"
+    rm -rf "$PROJECT_ROOT/flutter_readium/assets/helpers/*"
+    rm -rf "$PROJECT_ROOT/flutter_readium/build/*"
+
+    $PROJECT_ROOT/bin/build_js
   fi
 
   (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub publish "${PUBLISH_ARGS[@]}")

@@ -37,6 +37,15 @@ export class NotaComicBook {
 
     this.#comicBookPages = figureElements.map((figureElement) => new NotaComicBookPage(figureElement, this.#container));
 
+    // Auto-mount the first comic page in full-page mode. Without this the user sees the
+    // raw EPUB rendering (page heading + figure) and pinch-zoom has no clone to act on.
+    // Instant render (duration 0) — no entry animation on book open.
+    const firstPage = this.#comicBookPages[0];
+    if (firstPage) {
+      this.#lastElementId = firstPage.comicImgId;
+      firstPage.showFullPage(0);
+    }
+
     if (typeof window.readium !== 'undefined') {
       // We need to capture scrollToId calls to handle scrolling to comic frames, but we want to preserve the original functionality for non-comic content. So we override scrollToId to route through our custom function, and keep a reference to the original function for non-comic use.
       window.readium.scrollToId = (id: string) => {
@@ -45,6 +54,7 @@ export class NotaComicBook {
     }
 
     window.addEventListener('resize', this.#onResize);
+    this.#initGestureDetection();
   }
 
   public segmentDuration: number = 1000;
@@ -55,8 +65,31 @@ export class NotaComicBook {
 
   #container!: HTMLDivElement;
 
+  /**
+   * True while narration is actively driving the comic (set by the first narration cue,
+   * cleared by exitNarrationMode). When false, scrollToId shows the full page so the
+   * user can explore freely before pressing play.
+   */
+  #narrationActive = false;
+  /** True once a pinch gesture has been detected; remains true until clearManualOverride(). */
+  #manualOverrideActive = false;
+  /** True only while fingers are actively pinching (cleared on touchend). */
+  #isPinching = false;
+  #pinchStartDist = 0;
+  #pinchStartW = 0;
+  #pinchStartH = 0;
+  #pinchStartScrollLeft = 0;
+  #pinchStartScrollTop = 0;
+  /** Focal point (midpoint of 2 fingers) in container-viewport coords at pinch start. */
+  #focalX = 0;
+  #focalY = 0;
+
   #getComicBookPageByFrameId(id: string): NotaComicBookPage | undefined {
     return this.#comicBookPages.find((page) => !!page.getComicArea(id));
+  }
+
+  get #activeClone(): HTMLImageElement | null {
+    return this.#container.querySelector<HTMLImageElement>('img');
   }
 
   public scrollToId(id: string, duration: number = this.segmentDuration): void {
@@ -71,8 +104,17 @@ export class NotaComicBook {
     const lcId = sanitizeId(id);
     const page = this.#getComicBookPageByFrameId(lcId);
     if (!page) {
-      // Not a comic book page, so we need to use the original scrollToId function to scroll to the element,
-      // and remove the active comic page container class to reset any comic page specific styling or behavior.
+      // Id doesn't match a known comic frame on this page. Two cases:
+      // 1. We're on a comic spine doc but Readium is scrolling to an unrelated anchor
+      //    (e.g. the EPUB's heading "side2"). In explore mode the comic overlay is the
+      //    canonical view — ignore the anchor and keep the overlay mounted.
+      //    During narration this branch shouldn't fire (cues always target comic frames),
+      //    but stay safe and also ignore it then.
+      // 2. We're on a non-comic spine doc. #comicBookPages is empty, so fall through
+      //    to native scroll behaviour and ensure the overlay (empty) is reset.
+      if (this.#comicBookPages.length > 0) {
+        return;
+      }
       this.#container.classList.remove(activeComicPageContainerClass);
       for (let child of this.#container.childNodes) {
         this.#container.removeChild(child);
@@ -82,11 +124,173 @@ export class NotaComicBook {
       return;
     }
 
+    if (!this.#narrationActive) {
+      page.showFullPage();
+      return;
+    }
     page.gotoComicFrame(lcId, duration ?? this.segmentDuration ?? 1000);
   }
 
   public gotoComicFrame(id: string, duration?: number) {
     this.scrollToId(id, duration);
+  }
+
+  /**
+   * Called by native when narration stops. Clears the zoom layout and navigates back
+   * to the full-page view so the user can browse freely. Does NOT replay any deferred
+   * locator — that is Re-sync's job.
+   */
+  public exitNarrationMode(): void {
+    this.#narrationActive = false;
+    this.clearManualOverride();
+    if (this.#lastElementId) {
+      this.#getComicBookPageByFrameId(this.#lastElementId)?.showFullPage(0);
+    }
+  }
+
+  /**
+   * Called by native at the start of each narration cue (before scrollToId). Transitions
+   * the comic from explore mode into narration-driven mode on the first cue. Any pre-play
+   * manual zoom is cleared so narration can take over cleanly.
+   */
+  public onNarrationCue(): void {
+    if (!this.#narrationActive) {
+      this.#narrationActive = true;
+      if (this.#manualOverrideActive) {
+        this.clearManualOverride();
+      }
+    }
+  }
+
+  /**
+   * Resets the manual-override flag and removes the zoom layout so the next narration
+   * cue re-pans cleanly. Called by native before replaying the deferred locator on Re-sync.
+   */
+  public clearManualOverride(): void {
+    this.#manualOverrideActive = false;
+    this.#isPinching = false;
+    const c = this.#container;
+    c.classList.remove('nota-comic-manual');
+    c.scrollLeft = 0;
+    c.scrollTop = 0;
+  }
+
+  /**
+   * Handles pinch-to-zoom (Plan A′): zoom by changing the clone's layout width/height
+   * so the fixed container becomes scrollable, then let native overflow scroll handle
+   * single-finger pan.
+   *
+   * All listeners are passive and on `document` (not captured on the container) so the
+   * triptych pager's single-finger horizontal swipe is never blocked by JS.
+   */
+  #initGestureDetection(): void {
+    document.addEventListener('touchstart', (e: TouchEvent) => {
+      if (e.touches.length < 2) return;
+      if (!this.#manualOverrideActive) {
+        this.#enterManualZoom(e);
+      } else {
+        // Re-entering pinch while already in manual mode — update start state
+        // so zoom continues from the current level (not from the original).
+        this.#startPinch(e);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e: TouchEvent) => {
+      if (e.touches.length >= 2 && this.#isPinching) {
+        this.#onPinchMove(e);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      this.#isPinching = false;
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', () => {
+      this.#isPinching = false;
+    }, { passive: true });
+  }
+
+  #pinchDist(e: TouchEvent): number {
+    const dx = e.touches[1].clientX - e.touches[0].clientX;
+    const dy = e.touches[1].clientY - e.touches[0].clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  /** Records pinch start state from current clone size + scroll position. */
+  #startPinch(e: TouchEvent): void {
+    const clone = this.#activeClone;
+    if (!clone) return;
+    this.#pinchStartDist = this.#pinchDist(e);
+    this.#pinchStartW = parseFloat(clone.style.width) || 0;
+    this.#pinchStartH = parseFloat(clone.style.height) || 0;
+    this.#pinchStartScrollLeft = this.#container.scrollLeft;
+    this.#pinchStartScrollTop = this.#container.scrollTop;
+    const rect = this.#container.getBoundingClientRect();
+    this.#focalX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+    this.#focalY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+    this.#isPinching = true;
+  }
+
+  /**
+   * Called on the first 2-finger touch. Freezes the running animation at the current
+   * visual frame, re-bases the clone to scroll coordinates, enters manual mode.
+   */
+  #enterManualZoom(e: TouchEvent): void {
+    // Freeze animation and capture current frame geometry.
+    const activePage = this.#lastElementId
+      ? this.#getComicBookPageByFrameId(this.#lastElementId)
+      : undefined;
+    const frame = activePage?.freezeAtCurrentFrame();
+
+    const clone = this.#activeClone;
+    if (!clone) return;
+
+    // Re-base: place the clone at (0,0) and set scroll to show the same viewport area.
+    // The animation uses negative top/left to pan the large image; converting to scroll
+    // lets the browser handle single-finger pan natively.
+    if (frame) {
+      const scrollLeft = Math.max(0, -frame.left);
+      const scrollTop = Math.max(0, -frame.top);
+      clone.style.left = '0px';
+      clone.style.top = '0px';
+      // Add class before setting scroll so the container accepts scrollLeft/Top writes.
+      this.#container.classList.add('nota-comic-manual');
+      this.#container.scrollLeft = scrollLeft;
+      this.#container.scrollTop = scrollTop;
+    } else {
+      this.#container.classList.add('nota-comic-manual');
+    }
+
+    this.#manualOverrideActive = true;
+    if (this.#narrationActive) {
+      window.updateNarrationSync?.(false);
+    }
+    this.#startPinch(e);
+  }
+
+  /** Updates zoom on each pinch-move frame, keeping the focal point stationary. */
+  #onPinchMove(e: TouchEvent): void {
+    const clone = this.#activeClone;
+    if (!clone || this.#pinchStartDist === 0 || this.#pinchStartW === 0) return;
+
+    const ratio = this.#pinchDist(e) / this.#pinchStartDist;
+    const containerW = this.#container.clientWidth;
+    const containerH = this.#container.clientHeight;
+    // Lower bound = fit image in viewport; upper bound = 4× original pinch-start size.
+    const minW = Math.min(this.#pinchStartW, containerW);
+    const maxW = this.#pinchStartW * 4;
+    const newW = Math.max(minW, Math.min(maxW, this.#pinchStartW * ratio));
+    const newH = newW * (this.#pinchStartH / this.#pinchStartW);
+
+    clone.style.width = `${newW}px`;
+    clone.style.height = `${newH}px`;
+
+    // Zoom toward the focal point: the content point under focalX/Y should remain
+    // at the same viewport position after the scale change.
+    const newScrollLeft = (this.#pinchStartScrollLeft + this.#focalX) * (newW / this.#pinchStartW) - this.#focalX;
+    const newScrollTop = (this.#pinchStartScrollTop + this.#focalY) * (newH / this.#pinchStartH) - this.#focalY;
+    this.#container.scrollLeft = Math.max(0, Math.min(newW - containerW, newScrollLeft));
+    this.#container.scrollTop = Math.max(0, Math.min(newH - containerH, newScrollTop));
   }
 
   #onResize = (): void => this.scrollToId(this.#lastElementId ?? '');
@@ -376,6 +580,52 @@ export class NotaComicBookPage {
     this.setCurrentFrame(id, duration);
 
     void this.#renderCurrentComicFrame();
+  }
+
+  /**
+   * Pauses the running animation at its current visual position and commits the live
+   * frame geometry to inline styles. Returns the frozen geometry so the caller can
+   * re-base it into scroll coordinates.
+   *
+   * Called by `NotaComicBook.#enterManualZoom` when a pinch gesture is detected.
+   */
+  public freezeAtCurrentFrame(): { top: number; left: number; width: number; height: number } {
+    const img = this.#container.querySelector<HTMLImageElement>('img');
+    // Read computed (animated) values before cancelling the animation.
+    const cs = img ? getComputedStyle(img) : null;
+    const frame = {
+      top: parseFloat(cs?.top ?? '0'),
+      left: parseFloat(cs?.left ?? '0'),
+      width: parseFloat(cs?.width ?? '0'),
+      height: parseFloat(cs?.height ?? '0'),
+    };
+    if (this.#animation) {
+      try { this.#animation.commitStyles(); } catch { /* element may be detached */ }
+      this.#animation.cancel();
+      this.#animation = undefined;
+    }
+    // Write computed values as inline styles so they persist after animation teardown.
+    if (img) {
+      img.style.top = `${frame.top}px`;
+      img.style.left = `${frame.left}px`;
+      img.style.width = `${frame.width}px`;
+      img.style.height = `${frame.height}px`;
+      if (cs?.opacity) img.style.opacity = cs.opacity;
+    }
+    return frame;
+  }
+
+  /** Id of this page's comic image. Used by NotaComicBook to seed #lastElementId on auto-mount. */
+  public get comicImgId(): string {
+    return this.#comicImg.id;
+  }
+
+  /**
+   * Renders the clone at the full-page view. Default duration animates smoothly for
+   * narration→full transitions; pass 0 for an instant snap (initial mount, stop).
+   */
+  public showFullPage(duration: number = 400): void {
+    this.renderCurrentFrame(this.#comicImg.id, duration);
   }
 
   public gotoComicFrame(id: string, duration: number) {

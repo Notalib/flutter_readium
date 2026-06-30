@@ -22,6 +22,7 @@ import {
   enrichItemsWithToc,
   isJsonObject,
   parseAudioField,
+  parseImgField,
   parseTextField,
   normalizeHref,
 } from "./syncNarration";
@@ -37,6 +38,7 @@ export const GUIDED_NAVIGATION_MEDIA_TYPE = "application/guided-navigation+json"
 interface GuidedNavigationObject {
   audioref?: string;
   textref?: string;
+  imgref?: string;
   children: GuidedNavigationObject[];
 }
 
@@ -186,7 +188,7 @@ function _flattenWithReadingOrderLookup(
     const position = roIndex === -1 ? 0 : roIndex + 1;
     const readingOrderDuration =
       roIndex === -1 ? undefined : publication.readingOrder.items[roIndex].duration;
-    out.push(_buildItem(obj.audioref, obj.textref, position, readingOrderDuration));
+    out.push(_buildItem(obj.audioref, obj.textref, obj.imgref, position, readingOrderDuration));
   }
   for (const child of obj.children) {
     _flattenWithReadingOrderLookup(child, out, publication);
@@ -205,7 +207,7 @@ function _flattenWithFixedPosition(
   out: SyncNarrationItem[]
 ): void {
   if (obj.audioref !== undefined && obj.textref !== undefined) {
-    out.push(_buildItem(obj.audioref, obj.textref, position, readingOrderDuration));
+    out.push(_buildItem(obj.audioref, obj.textref, obj.imgref, position, readingOrderDuration));
   }
   for (const child of obj.children) {
     _flattenWithFixedPosition(child, position, readingOrderDuration, out);
@@ -215,11 +217,14 @@ function _flattenWithFixedPosition(
 function _buildItem(
   audioref: string,
   textref: string,
+  imgref: string | undefined,
   position: number,
   readingOrderDuration: number | undefined
 ): SyncNarrationItem {
   const { audioHref, audioStart, audioEnd } = parseAudioField(audioref);
   const { textHref, textId } = parseTextField(textref);
+  // Panel region (xywh) comes from imgref, not textref. Absent → page-level cue.
+  const region = imgref !== undefined ? parseImgField(imgref).region : null;
   return {
     audio: audioref,
     text: textref,
@@ -230,6 +235,7 @@ function _buildItem(
     textHref,
     textId,
     readingOrderDuration,
+    region: region ?? undefined,
   };
 }
 
@@ -257,8 +263,10 @@ function _parseObject(json: unknown): GuidedNavigationObject | null {
 
   const audiorefRaw = json["audioref"];
   const textrefRaw = json["textref"];
+  const imgrefRaw = json["imgref"];
   const audioref = typeof audiorefRaw === "string" ? audiorefRaw : undefined;
   const textref = typeof textrefRaw === "string" ? textrefRaw : undefined;
+  const imgref = typeof imgrefRaw === "string" ? imgrefRaw : undefined;
 
   const children: GuidedNavigationObject[] = [];
   const childrenRaw = json["children"];
@@ -270,7 +278,7 @@ function _parseObject(json: unknown): GuidedNavigationObject | null {
   }
 
   if (audioref === undefined && textref === undefined && children.length === 0) return null;
-  return { audioref, textref, children };
+  return { audioref, textref, imgref, children };
 }
 
 // ---------------------------------------------------------------------------

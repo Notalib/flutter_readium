@@ -5,8 +5,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Narration sync state & manual mode (iOS, Android, Web)** — a new
+  `FlutterReadium.onNarrationSyncChanged` stream (`Stream<bool>`: `true` = following narration,
+  `false` = manual mode) and `FlutterReadium.setNarrationSyncEnabled(bool)`. While Media Overlay or
+  TTS narration is driving the reader, manually turning the page (swipe, edge-tap, or
+  next/previous) now enters **manual mode**: audio keeps playing while the reader stops
+  auto-following cues, and `onNarrationSyncChanged` emits `false` (e.g. to show a "Re-sync"
+  control). Call `setNarrationSyncEnabled(true)` to snap the reader back to the current narration
+  position. An explicit jump (`goToLocator` to a TOC entry, bookmark, or search result) instead
+  re-seeks narration to the new location, keeping audio and reader together.
+- **Comic panel pan/zoom during narration (iOS, Android)** — Nota EPUB+MediaOverlay comics now
+  pan and zoom to the active panel as narration plays on native platforms, matching the existing
+  web behaviour. A manual pinch-zoom in the EPUB webview enters the same manual mode as a page
+  swipe, emitting `onNarrationSyncChanged(false)`; `setNarrationSyncEnabled(true)` re-pans to the
+  current narrated panel.
+- **Comic explore mode** — Nota MO comics now open directly to the comic page view (no EPUB
+  chrome) and accept pinch-zoom for free exploration before narration is started. When
+  narration begins, the view transitions automatically to panel-by-panel mode — no Re-sync
+  action needed. Stopping narration snaps the comic back to the full-page view instantly.
+
+### Changed
+
+- **`TTSPreferences.pageBreakBehavior`** — controls how EPUB page-break elements (DAISY/Nordic
+  EPUB3 `epub:type="pagebreak"`) are handled during TTS. Accepts a `PageBreakBehavior` enum:
+  `readAsIs` (default — raw label text spoken unchanged), `prefixLabel` (label rewritten with a
+  localized prefix, e.g. "Page 42" / "side 42"; supports English, Danish, Swedish, Norwegian,
+  Icelandic; falls back to the raw label otherwise), `skip` (element filtered out entirely).
+  Replaces the previous `skipPageBreaks` bool.
+- **`EPUBPreferences.disableSynchronization` is deprecated** in favour of the runtime
+  `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
+  works and now seeds the unified narration-sync state when a publication is opened.
+
+## [0.1.1] - 2026-06-26
+
+### Changed (breaking)
+
+- **`EPUBPreferences.fontSize` is now a `double` ratio** (`1.0` = default, `1.5` = 150%)
+  instead of a percentage `int`. Divide existing values by 100 to migrate
+  (`fontSize: 130` → `fontSize: 1.3`). This fixes Android font-size having no
+  visible effect ([#140](https://github.com/Notalib/flutter_readium/issues/140)) and aligns
+  the API with Readium's own `EpubPreferences.fontSize`.
+- **Web `stop()` now tears down the active audio/TTS navigator**, matching iOS and Android.
+  Call `audioEnable()` or `ttsEnable()` again before resuming audiobook, Media Overlay,
+  Guided Navigation, or TTS playback after `stop()`.
+
+### Added
+
+- **CBZ comic support (iOS, Android, Web)** — CBZ archives (Comic Book ZIP) now open and render.
+  Pages are displayed one at a time; swipe/tap navigates between pages and `goToLocator` restores
+  saved positions. On iOS/Android the existing `blackAndWhiteComicMode` preference in
+  `ReaderEpubPreferences` applies the grayscale filter to CBZ pages as well.
+- **DiViNa narrated-comic support (iOS, Android, Web)** — DiViNa publications (`profiles/divina`)
+  that carry a Guided Navigation document open as comics with page-synced audio narration. Page
+  images render (via the fixed-layout path on iOS/Android; via a plugin-side image navigator on Web,
+  since ts-toolkit ships no DiViNa navigator), and `audioEnable` / `play` drive page-synced audio
+  from the guided-navigation document. Panel-level zoom is not yet implemented on any platform (the
+  segments' `xywh` / `imgref` regions are carried in the asset for that follow-up).
+- **Web comic navigation** — DiViNa/CBZ publications page one image at a time, emit page locators
+  (`onPageChanged`), and support `goToLocator` / `goToProgression`.
+
 ### Fixed
 
+- **`EPUBPreferences.columnCount` (`one`/`two`) not applied** — the serialized value diverged
+  from Readium's canonical `ColumnCount` (`auto`/`1`/`2`), so Android threw a
+  `PlatformException` and iOS silently ignored the setting when starting playback. The shared
+  Dart serialization now matches the native toolkits; column count is applied on all platforms.
+- **iOS: possible crash (`Index out of range`) when enabling audio / starting playback** on
+  media-overlay books and comics, caused by an unchecked reading-order index in
+  locator resolution. Out-of-range positions now degrade gracefully instead of trapping.
 - **iOS + Web: synchronization catch-up after re-enable** — when
   `EPUBPreferences.disableSynchronization` is turned back off (`true -> false`),
   the visual EPUB navigator now jumps to the last sync locator that was reached
@@ -32,6 +100,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `reader-status` event channels now buffer the most-recent event on the native
   side when Dart has not yet attached a listener.  The buffer is flushed
   immediately when `onListen` fires.
+
+---
 
 ## [0.1.0] - 2026-06-20
 
@@ -109,6 +179,12 @@ supporting cross-platform additions.
   these fields; they are silently ignored on Android and web.
 - **`totalProgression` for EPUB and audio navigators (web)** — computed and surfaced for
   the progress slider on web.
+- **`totalProgressDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes a publication-level elapsed duration (`ReadiumTimebasedState.totalProgressDuration`)
+  computed from `currentLocator.locations.totalProgression` and publication duration when available.
+- **`totalDuration` on timebased playback state** — `onTimebasedPlayerStateChanged`
+  now includes the total publication duration (`ReadiumTimebasedState.totalDuration`),
+  the sum of all reading-order link durations; `null` when any link is missing a duration.
 - **`DecorationStyle.spotlight`** — new decoration style that dims everything outside
   the decorated range and (optionally) renders the tint inside it. Implemented across
   Dart API, iOS (`box-shadow` + body dim), Android (`box-shadow` + body dim), and web
@@ -218,6 +294,7 @@ not listed separately; their net effect is the `Added` entries above.)
   ReadiumCSS `customColors_pref.css` user-text-colour rule that previously won the
   cascade on EPUB-profile publications.
 
+---
 ## [0.0.1] - 2026-06-01
 
 ### Added

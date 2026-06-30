@@ -1,4 +1,4 @@
-name: Integration Tests (Android)
+name: Integration Tests (Web)
 
 on:
   workflow_call:
@@ -12,7 +12,7 @@ jobs:
     continue-on-error: true # allowed to fail for now
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read Flutter version
         id: flutter_version
@@ -27,6 +27,11 @@ jobs:
       - name: Install Dart dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
+
+      # Build the gitignored web navigator bundle (/readiumReader.js) so the web
+      # reader's custom element registers; see docs/troubleshooting.md.
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
 
       - name: Install ChromeDriver
         uses: nanasess/setup-chromedriver@e913548694400f275b4070efcd90f47dbbc8914c # v3.0.0

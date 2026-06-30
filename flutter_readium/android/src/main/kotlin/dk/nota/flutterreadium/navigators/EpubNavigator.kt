@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.PluginLog
+import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutterreadium.fragments.EpubReaderFragment
 import dk.nota.flutterreadium.models.EpubReaderViewModel
@@ -29,11 +30,11 @@ import org.readium.r2.shared.util.AbsoluteUrl
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EpubNavigator"
-private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
+private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualCurrentLocator"
 
-private const val epubPreferencesKey = "epubPreferences"
+private const val EPUB_PREFERENCES_KEY = "epubPreferences"
 
-private const val currentDecorationListKey = "currentDecorationsList"
+private const val CURRENT_DECORATION_LIST_KEY = "currentDecorationsList"
 
 /**
  * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
@@ -63,9 +64,9 @@ class EpubNavigator :
     val visualListener: VisualListener
 
     private var currentVisualLocator: Locator?
-        get() = state[currentVisualLocatorKey] as? Locator
+        get() = state[CURRENT_VISUAL_LOCATOR_KEY] as? Locator
         set(value) {
-            state[currentVisualLocatorKey] = value
+            state[CURRENT_VISUAL_LOCATOR_KEY] = value
         }
 
     /**
@@ -113,9 +114,9 @@ class EpubNavigator :
      * Current EPUB preferences.
      */
     var preferences: FlutterEpubPreferences
-        get() = state[epubPreferencesKey] as? FlutterEpubPreferences ?: FlutterEpubPreferences()
+        get() = state[EPUB_PREFERENCES_KEY] as? FlutterEpubPreferences ?: FlutterEpubPreferences()
         set(value) {
-            state[epubPreferencesKey] = value
+            state[EPUB_PREFERENCES_KEY] = value
         }
 
     /**
@@ -180,6 +181,10 @@ class EpubNavigator :
                 navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
             }
 
+            // Signal the comic helper that narration is active so it exits explore mode on the
+            // first cue and navigates to the panel normally. No-op on non-comic pages.
+            navigator.evaluateJavascript("window.comicBookPage?.onNarrationCue?.();")
+
             if (!navigator.go(locator, animated)) {
                 PluginLog.w(TAG, "::go -  FAILED!")
                 return@withMainContext false
@@ -220,15 +225,12 @@ class EpubNavigator :
             navigator.updatePreferences(flutterEpubPreferences)
 
             preferences = flutterEpubPreferences
-            if (oldPreferences.disableSynchronization == true && flutterEpubPreferences.disableSynchronization == false) {
-                // If synchronization is re-enabled, we sync to the last locator that was attempted to be synced to while synchronization was disabled.
-                lastSyncLocator?.let { locator ->
-                    goToLocator(
-                        locator,
-                        animated = false,
-                        lastSyncSegmentDuration,
-                    )
-                }
+            // `disableSynchronization` now seeds the unified runtime narration-sync flag.
+            // Only act on an actual transition so an unrelated preference push (e.g. font
+            // change) does not clobber a manual-mode override set via setNarrationSyncEnabled.
+            // Re-enabling triggers the catch-up to the last cue via resyncAfterManualMode().
+            if (oldPreferences.disableSynchronization != flutterEpubPreferences.disableSynchronization) {
+                ReadiumReader.setNarrationSyncEnabled(flutterEpubPreferences.disableSynchronization != true)
             }
         } catch (ex: Exception) {
             PluginLog.e(TAG, "::updatePreferences - error applying EpubPreferences: $ex")
@@ -260,7 +262,7 @@ class EpubNavigator :
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentVisualLocatorKey,
+                CURRENT_VISUAL_LOCATOR_KEY,
                 currentVisualLocator?.toJSON()?.toString(),
             )
 
@@ -274,11 +276,11 @@ class EpubNavigator :
                     )
                 }
 
-                putBundle(currentDecorationListKey, decorationBundle)
+                putBundle(CURRENT_DECORATION_LIST_KEY, decorationBundle)
             }
 
             putString(
-                epubPreferencesKey,
+                EPUB_PREFERENCES_KEY,
                 Json.encodeToString(FlutterEpubPreferences.serializer(), preferences),
             )
         }
@@ -501,17 +503,63 @@ class EpubNavigator :
      */
     private var lastSyncSegmentDuration: Double? = null
 
-    suspend fun syncToLocator(locator: Locator, animated: Boolean, segmentDuration: Double?) {
-        if (preferences.disableSynchronization == true) {
-            lastSyncLocator = locator
-            lastSyncSegmentDuration = segmentDuration
-            return
-        }
+    suspend fun syncToLocator(
+        locator: Locator,
+        animated: Boolean,
+        segmentDuration: Double?,
+    ) {
+        // Manual-mode gating is centralized on [ReadiumReader.narrationSyncEnabled] in
+        // [ReadiumReader.syncVisualToLocator]; this method only runs when sync is enabled.
+        lastSyncLocator = locator
+        lastSyncSegmentDuration = segmentDuration
 
+        // For Nota comics (EPUB + MediaOverlay) the panel pan is driven by goToLocator:
+        // the locator carries the panel element id as its fragment/cssSelector, so the
+        // toolkit emits `readium.scrollToId(...)`, which the NotaComicBook helper
+        // intercepts and animates using the segment duration set in [go]. No explicit
+        // gotoComicFrame call is needed here.
+        goToLocator(locator, animated, segmentDuration)
+    }
+
+    /**
+     * Records the latest audio-cue locator without navigating, so that a later catch-up
+     * ([resyncAfterManualMode]) can jump to the current cue. Called while in manual mode.
+     */
+    fun recordDeferredSync(
+        locator: Locator,
+        segmentDuration: Double?,
+    ) {
+        lastSyncLocator = locator
+        lastSyncSegmentDuration = segmentDuration
+    }
+
+    /**
+     * Called when narration stops (not paused). Clears any deferred-sync state and tells
+     * the comic overlay to animate back to the full-page view so the user can browse freely.
+     * Distinct from [resyncAfterManualMode] which replays the last cue.
+     */
+    suspend fun exitNarrationMode() {
+        PluginLog.d(TAG, "::exitNarrationMode")
         lastSyncLocator = null
         lastSyncSegmentDuration = null
+        evaluateJavascript("window.comicBookPage?.exitNarrationMode?.();")
+    }
 
-        goToLocator(locator, animated, segmentDuration)
+    /**
+     * Re-positions the visual reader to the last known audio-cue locator after exiting manual mode.
+     * Called by [ReadiumReader.setNarrationSyncEnabled] when re-enabling sync.
+     */
+    suspend fun resyncAfterManualMode() {
+        val locator =
+            lastSyncLocator ?: run {
+                PluginLog.d(TAG, "::resyncAfterManualMode - no lastSyncLocator stored")
+                return
+            }
+        PluginLog.d(TAG, "::resyncAfterManualMode - catching up to $locator")
+        // Clear the JS-side manual-override flag so the next pinch re-enters manual
+        // mode. No-op (optional chaining) on non-comic pages.
+        evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
+        syncToLocator(locator, false, lastSyncSegmentDuration)
     }
 
     companion object {
@@ -522,16 +570,16 @@ class EpubNavigator :
         ): EpubNavigator {
             val locator =
                 state
-                    .getString(currentVisualLocatorKey)
+                    .getString(CURRENT_VISUAL_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             val preferences =
                 state
-                    .getString(epubPreferencesKey)
+                    .getString(EPUB_PREFERENCES_KEY)
                     ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
                     ?: FlutterEpubPreferences()
 
             val currentDecorations = mutableMapOf<String, List<Decoration>>()
-            state.getBundle(currentDecorationListKey)?.let { bundle ->
+            state.getBundle(CURRENT_DECORATION_LIST_KEY)?.let { bundle ->
                 for (key in bundle.keySet()) {
                     val list: ArrayList<Decoration>? = bundle.getParcelableArrayList(key)
                     if (list != null) currentDecorations[key] = list

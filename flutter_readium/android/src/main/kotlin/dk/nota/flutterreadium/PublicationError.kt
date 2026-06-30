@@ -23,41 +23,43 @@ sealed class PublicationError(
 ) : Error {
     class Reading(
         override val cause: ReadError,
-    ) : PublicationError(ReadiumExceptionType.readingError, cause.message, cause.cause)
+    ) : PublicationError(ReadiumExceptionType.READING_ERROR, cause.message, cause.cause)
 
     class UnsupportedScheme(
         cause: Error,
-    ) : PublicationError(ReadiumExceptionType.unsupportedScheme, cause.message, cause.cause)
+    ) : PublicationError(ReadiumExceptionType.UNSUPPORTED_SCHEME, cause.message, cause.cause)
 
     class FormatNotSupported(
         cause: Error,
-    ) : PublicationError(ReadiumExceptionType.formatNotSupported, cause.message, cause.cause)
+    ) : PublicationError(ReadiumExceptionType.FORMAT_NOT_SUPPORTED, cause.message, cause.cause)
 
     class InvalidPublicationUrl(
         msg: String,
-    ) : PublicationError(ReadiumExceptionType.notFound, msg)
+    ) : PublicationError(ReadiumExceptionType.NOT_FOUND, msg)
 
     class Unexpected(
         cause: Error,
-    ) : PublicationError(ReadiumExceptionType.unknown, cause.message, cause.cause)
+    ) : PublicationError(ReadiumExceptionType.UNKNOWN, cause.message, cause.cause)
 
     class Unavailable(
         message: String = "Resource unavailable",
-    ) : PublicationError(ReadiumExceptionType.unavailable, message)
+    ) : PublicationError(ReadiumExceptionType.UNAVAILABLE, message)
 
     class Unknown(
         message: String = "Unknown error",
-    ) : PublicationError(ReadiumExceptionType.unknown, message)
+    ) : PublicationError(ReadiumExceptionType.UNKNOWN, message)
 
-    enum class ReadiumExceptionType {
-        formatNotSupported,
-        unsupportedScheme,
-        readingError,
-        notFound,
-        forbidden,
-        unavailable,
-        incorrectCredentials,
-        unknown,
+    enum class ReadiumExceptionType(
+        val wireValue: String,
+    ) {
+        FORMAT_NOT_SUPPORTED("formatNotSupported"),
+        UNSUPPORTED_SCHEME("unsupportedScheme"),
+        READING_ERROR("readingError"),
+        NOT_FOUND("notFound"),
+        FORBIDDEN("forbidden"),
+        UNAVAILABLE("unavailable"),
+        INCORRECT_CREDENTIALS("incorrectCredentials"),
+        UNKNOWN("unknown"),
     }
 
     companion object {

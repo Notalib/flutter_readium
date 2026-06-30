@@ -30,6 +30,16 @@ div.nota-comicbook-page-container {
     display: block;
   }
 
+  &.nota-comic-manual {
+    overflow: auto;
+    // Momentum scrolling on iOS WebKit.
+    -webkit-overflow-scrolling: touch;
+    // Don't chain scroll to the Flutter pager when the image edge is reached.
+    overscroll-behavior: contain;
+    // Allow single-finger native pan; pinch is handled in JS.
+    touch-action: pan-x pan-y;
+  }
+
   img {
     position: absolute;
     opacity: 0; // Allows the image to be faded in.
@@ -62,5 +72,17 @@ figure.nota-comicbook-page {
       filter: grayscale(1) contrast(255) brightness(1);
       mix-blend-mode: multiply;
     }
+  }
+
+  /**
+   * CBZ / DiViNa fixed-layout pages: the FXL wrapper loads each image in a
+   * blob-URL iframe whose body contains a single <img>. The Setup() function
+   * in FlutterReadiumTools.ts copies --FLUTTER_READIUM-* variables from the
+   * cascade to the iframe root's inline style, so this [style*=...] selector
+   * matches and applies the grayscale filter.
+   */
+  body > img {
+    filter: grayscale(1) contrast(255) brightness(1) !important;
+    mix-blend-mode: multiply;
   }
 }

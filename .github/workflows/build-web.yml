@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read Flutter version
         id: flutter_version
@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
+
+      # Build the gitignored web navigator bundle (/readiumReader.js) so the web
+      # reader's custom element registers; see docs/troubleshooting.md.
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
 
       - name: Build web
         run: flutter build web

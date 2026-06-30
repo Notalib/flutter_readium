@@ -50,4 +50,12 @@ public protocol ReadiumReaderView: AnyObject {
   /// The reader view decides whether to inject column-break-prevention CSS based on this
   /// flag combined with the `preventMOColumnBreaks` preference.
   func setMOActive(_ active: Bool)
+  /// Called when narration stops. Resets narration-sync state and, for comic
+  /// pages, animates the view back to the full page so the user can browse freely.
+  func resetForNarrationStop()
+}
+
+public extension ReadiumReaderView {
+  // PDF and other non-EPUB readers: no narration state to reset.
+  func resetForNarrationStop() {}
 }

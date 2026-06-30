@@ -250,6 +250,70 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // ControlPanelTimebase enum
+  // ---------------------------------------------------------------------------
+  group('ControlPanelTimebase', () {
+    test('fromOptString accepts canonical value', () {
+      expect(
+        ControlPanelTimebase.fromOptString('wholeBook'),
+        ControlPanelTimebase.wholeBook,
+      );
+    });
+
+    test('fromOptString accepts canonical and snake_case variants', () {
+      expect(
+        ControlPanelTimebase.fromOptString('whole_book'),
+        ControlPanelTimebase.wholeBook,
+      );
+      expect(
+        ControlPanelTimebase.fromOptString('CHAPTER'),
+        ControlPanelTimebase.chapter,
+      );
+    });
+
+    test('fromOptString returns null for unknown values', () {
+      expect(ControlPanelTimebase.fromOptString('unknown_xyz'), isNull);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Preferences fallback behavior
+  // ---------------------------------------------------------------------------
+  group('Preferences controlPanelTimebase fallback', () {
+    test('AudioPreferences.fromJson keeps null when missing', () {
+      final prefs = AudioPreferences.fromJson({
+        'speed': 1.0,
+      });
+
+      expect(prefs.controlPanelTimebase, isNull);
+    });
+
+    test('AudioPreferences.fromJson defaults invalid value to chapter', () {
+      final prefs = AudioPreferences.fromJson({
+        'controlPanelTimebase': 'invalid_value',
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+
+    test('TTSPreferences.fromJson defaults missing value to chapter', () {
+      final prefs = TTSPreferences.fromJson({
+        'speed': 1.0,
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+
+    test('TTSPreferences.fromJson defaults invalid value to chapter', () {
+      final prefs = TTSPreferences.fromJson({
+        'controlPanelTimebase': 'invalid_value',
+      });
+
+      expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // TTSVoiceGender enum
   // ---------------------------------------------------------------------------
   group('TTSVoiceGender', () {
@@ -315,6 +379,53 @@ void main() {
       final locator = pub.locatorFromLink(link);
       expect(locator, isNotNull);
       expect(locator!.href, contains('ch1'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // EPUBPreferences — fontSize is a double ratio, no per-platform conversion
+  // ---------------------------------------------------------------------------
+  group('EPUBPreferences.fontSize', () {
+    test('round-trips as double ratio through toJson / fromJson', () {
+      const prefs = EPUBPreferences(fontSize: 1.5);
+      final json = prefs.toJson();
+      expect(json['fontSize'], isA<double>());
+      expect(json['fontSize'], closeTo(1.5, 1e-9));
+      final restored = EPUBPreferences.fromJson(json);
+      expect(restored.fontSize, closeTo(1.5, 1e-9));
+    });
+
+    test('null fontSize round-trips as absent', () {
+      const prefs = EPUBPreferences();
+      final json = prefs.toJson();
+      expect(json.containsKey('fontSize'), isFalse);
+      final restored = EPUBPreferences.fromJson(json);
+      expect(restored.fontSize, isNull);
+    });
+
+    test('default ratio (1.0) is preserved', () {
+      const prefs = EPUBPreferences(fontSize: 1.0);
+      final restored = EPUBPreferences.fromJson(prefs.toJson());
+      expect(restored.fontSize, closeTo(1.0, 1e-9));
+    });
+
+    test('toJson clamps an unmigrated percentage value to the max ratio', () {
+      // A client still passing the old percentage int (90 = "90%") instead of
+      // the ratio 0.9 must not reach the native side as 90.0 (→ 9000% on iOS).
+      const prefs = EPUBPreferences(fontSize: 90);
+      final json = prefs.toJson();
+      expect(json['fontSize'], isA<double>());
+      expect(json['fontSize'], closeTo(5.0, 1e-9));
+    });
+
+    test('toJson clamps a too-small ratio to the min', () {
+      const prefs = EPUBPreferences(fontSize: 0.01);
+      expect(prefs.toJson()['fontSize'], closeTo(0.1, 1e-9));
+    });
+
+    test('toJson leaves an in-range ratio untouched', () {
+      const prefs = EPUBPreferences(fontSize: 2.5);
+      expect(prefs.toJson()['fontSize'], closeTo(2.5, 1e-9));
     });
   });
 }

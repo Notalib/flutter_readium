@@ -382,6 +382,8 @@ declare global {
     comicBookPage?: NotaComicBook;
     gotoComicFrame: (id: string, duration: number) => void;
     debugCaptureReadiumFunctionCalls: () => void;
+    /** Injected by the native bootstrap shim; no-op on web (defined on outer window, not iframe). */
+    updateNarrationSync?: (enabled: boolean) => void;
   }
 }
 

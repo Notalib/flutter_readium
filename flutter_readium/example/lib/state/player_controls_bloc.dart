@@ -1,4 +1,4 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
+// ignore_for_file: prefer_if_null_operators, public_member_api_docs, sort_constructors_first
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -96,6 +96,13 @@ class UpdateCurrentTocHref extends PlayerControlsEvent {
 }
 
 @immutable
+class SetSyncNarrationEnabled extends PlayerControlsEvent {
+  SetSyncNarrationEnabled(this.enabled);
+
+  final bool enabled;
+}
+
+@immutable
 class PlayerClosed extends PlayerControlsEvent {}
 
 class PlayerControlsState {
@@ -103,23 +110,31 @@ class PlayerControlsState {
     required this.playing,
     required this.ttsEnabled,
     required this.audioEnabled,
+    required this.audioControlPanelTimebase,
+    this.narrationSyncEnabled,
     this.currentTocHref,
   });
 
   final bool playing;
   final bool ttsEnabled;
   final bool audioEnabled;
+  final ControlPanelTimebase audioControlPanelTimebase;
+  final bool? narrationSyncEnabled;
   final String? currentTocHref;
 
   PlayerControlsState copyWith({
     bool? playing,
     bool? ttsEnabled,
     bool? audioEnabled,
+    ControlPanelTimebase? audioControlPanelTimebase,
+    bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
-    playing: playing ?? this.playing,
-    ttsEnabled: ttsEnabled ?? this.ttsEnabled,
-    audioEnabled: audioEnabled ?? this.audioEnabled,
+    playing: playing != null ? playing : this.playing,
+    ttsEnabled: ttsEnabled != null ? ttsEnabled : this.ttsEnabled,
+    audioEnabled: audioEnabled != null ? audioEnabled : this.audioEnabled,
+    audioControlPanelTimebase: audioControlPanelTimebase ?? this.audioControlPanelTimebase,
+    narrationSyncEnabled: narrationSyncEnabled != null ? narrationSyncEnabled : this.narrationSyncEnabled,
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
 
@@ -149,9 +164,13 @@ class PlayerControlsState {
     playing: false,
     ttsEnabled: false,
     audioEnabled: false,
+    audioControlPanelTimebase: audioControlPanelTimebase,
     currentTocHref: null,
   );
 }
+
+@immutable
+class ToggleAudioControlPanelTimebase extends PlayerControlsEvent {}
 
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   List<StreamSubscription> subscriptions = [];
@@ -168,6 +187,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
           playing: false,
           ttsEnabled: false,
           audioEnabled: false,
+          audioControlPanelTimebase: ControlPanelTimebase.chapter,
         ),
       ) {
     subscriptions.add(
@@ -177,6 +197,13 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       ]).listen((val) {
         currentLocator = val;
         _currentLocatorSubject.add(val);
+      }),
+    );
+
+    subscriptions.add(
+      instance.onNarrationSyncChanged.listen((syncEnabled) {
+        _log.fine('onNarrationSyncChanged: $syncEnabled');
+        add(SetSyncNarrationEnabled(syncEnabled));
       }),
     );
 
@@ -255,11 +282,7 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
         await instance.audioEnable(
-          prefs: AudioPreferences(
-            speed: 1.5,
-            seekInterval: 10,
-            continuousSeeking: true,
-          ),
+          prefs: _buildAudioPreferences(state.audioControlPanelTimebase),
           fromLocator: event.fromLocator,
         );
         await instance.play(event.fromLocator);
@@ -340,6 +363,14 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       ),
     );
 
+    on<UpdateCurrentTocHref>((event, emit) async {
+      emit(state.setTocHref(event.tocHref));
+    });
+
+    on<SetSyncNarrationEnabled>((event, emit) async {
+      emit(state.copyWith(narrationSyncEnabled: event.enabled));
+    });
+
     on<GetAvailableVoices>((final event, final emit) async {
       final voices = await instance.ttsGetAvailableVoices();
 
@@ -365,10 +396,25 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       }
     });
 
-    on<UpdateCurrentTocHref>((event, emit) async {
-      emit(state.setTocHref(event.tocHref));
+    on<ToggleAudioControlPanelTimebase>((event, emit) async {
+      final nextTimebase = state.audioControlPanelTimebase == ControlPanelTimebase.chapter
+          ? ControlPanelTimebase.wholeBook
+          : ControlPanelTimebase.chapter;
+
+      emit(state.copyWith(audioControlPanelTimebase: nextTimebase));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(nextTimebase));
+      }
     });
   }
+
+  AudioPreferences _buildAudioPreferences(ControlPanelTimebase timebase) => AudioPreferences(
+    speed: 1.5,
+    seekInterval: 10,
+    continuousSeeking: true,
+    controlPanelTimebase: timebase,
+  );
 
   @override
   Future<void> close() async {

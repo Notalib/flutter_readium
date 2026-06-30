@@ -40,22 +40,30 @@ struct FlutterMediaOverlay {
       return nil
     }
     
-    // Get time offset
+    // Audio time fragment → exact item by time range.
     let timeOffset = locator.timeOffset
     if (timeOffset != nil) {
       return itemInRangeOfTime(timeOffset!, inHref: href)
     }
-    
+
+    // DiViNa comic page: the page locator's only anchor is a generic "img" css selector
+    // (which `textId` would otherwise pick up), not a media-overlay text id. Match the
+    // page's first narrated item by href — the textref is the image itself.
+    if (locator.mediaType.isBitmap) {
+      return items.first(where: { $0.textFile == href })
+    }
+
+    // Reflowable text: match by DOM element id when present.
     let textId = locator.textId
     if (textId != nil) {
       return itemFromTextId(textId!, inHref: href)
     }
-    
+
+    // No fragment on a text document → first item of the resource.
     if (locator.locations.fragments.isEmpty && [MediaType.html, MediaType.xhtml].contains(locator.mediaType)) {
-      // No fragments found, find first item matching just the href.
       return items.first(where: { $0.textFile == href })
     }
-    
+
     return nil
   }
   

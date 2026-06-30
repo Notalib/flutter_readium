@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 "$REPO_ROOT/bin/forAll" flutter pub get
@@ -7,12 +8,18 @@ if [ "$(uname)" = "Darwin" ]; then
   ( cd "$REPO_ROOT/flutter_readium/example/ios" && pod update && pod install --repo-update )
 fi
 
-# Make sure web dependencies are installed (package.json lives at the plugin root)
-cd "$REPO_ROOT/flutter_readium" && npm install --ignore-scripts
+# npm <11.15.0 rejects min-release-age + --before together (fixed in npm/cli#9339).
+_npm_ver="$(npm --version)"; _npm_major="${_npm_ver%%.*}"; _npm_minor="${_npm_ver#*.}"; _npm_minor="${_npm_minor%%.*}"
+if [ "$_npm_major" -lt 11 ] || { [ "$_npm_major" -eq 11 ] && [ "$_npm_minor" -lt 15 ]; }; then
+  echo "error: npm $_npm_ver is too old — upgrade to 11.15.0+ (e.g. nvm install <node/24/lts>)" >&2
+  exit 1
+fi
 
-"$REPO_ROOT/flutter_readium/bin/build_helper_scripts.sh"
-"$REPO_ROOT/bin/build_js"
-"$REPO_ROOT/bin/update_web_example"
+# Install helper-script dependencies (used by example/lib/flutter_readium:copy_js_file)
+(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm install --ignore-scripts)
+
+# Make sure web dependencies are installed (package.json lives at the plugin root)
+(cd "$REPO_ROOT/flutter_readium" && (npm ci --ignore-scripts && npm run build:dev))
 
 # Optional: AI code-search index (tokensave, https://github.com/aovestdipaperino/tokensave).
 # Entirely no-op for anyone who doesn't have the tokensave CLI installed.

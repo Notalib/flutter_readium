@@ -26,7 +26,7 @@ jobs:
           docker-images: true
           swap-storage: false
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Enable KVM
         run: |
@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-java@v5
         with:
-          distribution: jetbrains
+          distribution: temurin
           java-version: '21'
 
       - name: Read Flutter version
@@ -51,7 +51,7 @@ jobs:
           pub-cache: true
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -60,12 +60,17 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      # Build the gitignored webview helper assets so the app under test bundles
+      # them (Android injects them into its WebView; see docs/troubleshooting.md).
+      - name: Build webview helper assets
+        uses: ./.github/actions/build-webview-helpers
+
       - name: Install Dart dependencies
         run: flutter pub get
         working-directory: flutter_readium/example
 
       - name: Cache AVD
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: avd-cache
         with:
           path: |

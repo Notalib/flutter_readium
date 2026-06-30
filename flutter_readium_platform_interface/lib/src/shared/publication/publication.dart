@@ -268,6 +268,14 @@ class Publication with EquatableMixin implements JSONable {
       ) ==
       true;
 
+  /// Whether the publication declares conformance to the Readium DiViNa profile.
+  /// This is true for CBZ comics and other image-based publications parsed by the ImageParser.
+  bool get conformsToReadiumDivina =>
+      metadata.conformsTo?.any(
+        (c) => c == 'https://readium.org/webpub-manifest/profiles/divina',
+      ) ==
+      true;
+
   /// Whether any reading-order item carries a media overlay alternate —
   /// either the older `application/vnd.syncnarr+json` or the newer
   /// Readium Sync Narration `application/vnd.readium.narration+json` format.
@@ -283,8 +291,12 @@ class Publication with EquatableMixin implements JSONable {
 
   /// Whether the publication has a guided navigation document (`application/guided-navigation+json`),
   /// either as a publication-level link or as per-item alternates in the reading order.
+  ///
+  /// Recognised for both EPUB ebooks (narrated text) and DiViNa comics (narrated
+  /// image panels) — guided navigation is profile-agnostic, and a DiViNa with a
+  /// guided-navigation document is the native form of Nota's narrated comics.
   bool get containsGuidedNavigation =>
-      conformsToReadiumEbook &&
+      (conformsToReadiumEbook || conformsToReadiumDivina) &&
       (links.any(
             (link) => MediaType.syncMediaNarrationManifest.matchesFromName(link.type),
           ) ||

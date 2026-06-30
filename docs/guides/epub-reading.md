@@ -116,7 +116,7 @@ ReadiumReaderWidget(
 
 ```dart
 await reader.setEPUBPreferences(EPUBPreferences(
-  fontSize: 130,
+  fontSize: 1.3,
   fontFamily: 'Georgia',
   scroll: false,
   publisherStyles: true,

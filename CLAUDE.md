@@ -1,99 +1,70 @@
 # flutter_readium
 
-A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. The Flutter macOS desktop target registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit.
+Federated Flutter plugin wrapping the [Readium](https://readium.org) toolkits (EPUB / audiobook / WebPub). One shared Dart API; each platform delegates to its native Readium toolkit. macOS = no-op stub (upstream swift-toolkit has no macOS support). `AGENTS.md` symlinks here. Deep detail lives in `docs/` — pointers inline below.
 
 ## Repo layout
 
-This is a **federated Flutter plugin** with two pub packages and a multi-package root:
-
 - `flutter_readium_platform_interface/` — shared Dart API, models, method-channel contract.
-- `flutter_readium/` — app-facing package with native wrappers (iOS/Swift, Android/Kotlin, macOS stub) and a web implementation (TypeScript → JS bundle in a webview).
-  - `example/` — **the smoke-test target.** All UI / behavior changes should be verified by running the example app and using marionette to confirm implementation before declaring a task done.
-- `bin/` (repo root) — multi-package developer scripts (see below).
+- `flutter_readium/` — app package: native wrappers (iOS/Swift, Android/Kotlin, macOS stub) + web impl (TS → JS bundle in a webview).
+  - `example/` — **the smoke-test target.** Verify UI/behavior changes here (via marionette) before declaring done.
+- `bin/` — multi-package dev scripts (self-describing; run directly, never `bash -lc`).
 
-## Upstream Readium toolkits
+## Upstream toolkits
 
-The native sides are thin wrappers around upstream Readium code — when debugging native behavior, the source of truth is upstream:
+Native sides are thin wrappers — for native behavior the source of truth is upstream. Inspect via `gh api`/`WebFetch`; **never decompile JARs/.framework/build artifacts.** Versions are pinned in the build files (run `bin/readium_versions` to print them), not duplicated here.
 
-- swift-toolkit: https://github.com/readium/swift-toolkit/ — pinned in `flutter_readium/ios/flutter_readium.podspec` and the example `Podfile`.
-- kotlin-toolkit: https://github.com/readium/kotlin-toolkit/ — pinned via `ext.readium_version` in `flutter_readium/android/build.gradle`.
-- ts-toolkit (Web): consumed via npm — `@readium/shared`, `@readium/navigator`, `@readium/navigator-html-injectables` (see `flutter_readium/package.json`).
+- swift-toolkit — https://github.com/readium/swift-toolkit/ (version in podspec + example `Podfile`)
+- kotlin-toolkit — https://github.com/readium/kotlin-toolkit/ (`ext.readium_version` in `android/build.gradle`)
+- ts-toolkit — npm `@readium/{shared,navigator,navigator-html-injectables}` (`package.json`)
+- TTS voice data — https://github.com/readium/speech (refresh: `bin/update_readium_voice_data`)
 
-When you need to inspect upstream implementation details (e.g. how a navigator handles a locator, what fields a model uses), read the source on GitHub — do NOT decompile local JARs, .framework bundles, or other build artifacts. Use `gh api` or `WebFetch` against the repos above.
+When upgrading a toolkit, move all three platforms together where API surface overlaps — divergence is a recurring bug source. Architecture: `README.md`, `docs/architecture.md`, `docs/api-reference/`.
 
-If unsure about plugin architecture, be sure to read the README.md files, /docs/architecture.md and /docs/api-reference files.
+## Workflow
 
-Voice data for TTS comes from https://github.com/readium/speech (refreshed by `bin/update_readium_voice_data`).
-
-When upgrading any toolkit version, check that all three platforms move together where API surface overlaps — divergence between platforms is a recurring source of bugs. Keep the build/package files above as the source-of-truth, and avoid duplicating exact version numbers broadly in docs.
-
-## Developer workflow
-
-Scripts in `bin/` source `bin/_common.sh`, so they're location-independent (run from any directory) and self-bootstrap the toolchain on PATH for non-interactive shells (CI / AI agents). Run them directly (`bash bin/<script>`), never via `bash -lc`. Use `bin/doctor` to check the toolchain resolves.
-
-Key scripts:
-
-- `bin/doctor` — verify `dart`/`flutter`/`node`/`npm` resolve; exits non-zero if a required tool is missing.
-- `bin/install` — bootstrap everything: `pub get` in both packages, `pod update && pod install` for the example, build helper scripts, build web JS, copy JS into example. Run after a fresh clone or when dependencies change.
-- `bin/format` — check Dart formatting across all three packages (platform interface, plugin, example). Fails if any file needs reformatting.
-- `bin/analyze` — run `dart analyze --fatal-infos --fatal-warnings` across all three packages.
-- `bin/typecheck` — type-check the web TypeScript (sources + Jest tests) via `tsc --noEmit` against `web/src/tsconfig.json`. Run after editing any TS in `flutter_readium/web/`. Exits non-zero on a type error.
-- `bin/build_js` — build the web bundle (currently `build_dev`; production build is commented out).
-- `bin/update_web_example` — `build_js` + copy the bundle into `flutter_readium/example/web/`. Run after editing TS in `flutter_readium/web/`.
-- `bin/update_readium_voice_data` — refresh `flutter_readium/assets/voice_data/voices.json` from the upstream `readium/speech` repo (requires `jq`).
-- `flutter_readium/bin/build_helper_scripts.sh` — rebuild the helper-scripts TS bundle injected into the webview. Relevant when having touched files in `flutter_readium/assets/_helper_scripts/src`.
-
-## Code search (tokensave)
-
-This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensave) (`.tokensave/`, gitignored). For codebase research — finding symbols, callers/callees, impact — prefer the `tokensave_*` MCP tools over grep/glob/Explore; they answer from the semantic graph at a fraction of the tokens. Fall back to direct reads/grep when tokensave is unavailable or a raw text match is genuinely the better tool (e.g. the built JS bundles, which are excluded from the index). Exclusions live in `.tokensave/config.json`; after pulling source changes, run `tokensave sync` to refresh.
+- `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
+- **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
+- **Before declaring any Swift changes done:** run `flutter build ios --no-codesign` in `flutter_readium/example` and fix all errors.
+- **Before declaring any Kotlin changes done:** run `./gradlew :flutter_readium:compileDebugKotlin` in `flutter_readium/example/android/` and fix all errors.
+- **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
+- **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.
+- **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
+- **Branching workflow** — never commit to `main`, and never let a branch track `Notalib/flutter_readium`:
+  - Worktree branches created by agents often track upstream `main` — rename and re-track before committing: `git branch -m fix/short-slug && git push -u <fork> HEAD`.
+  - Branch names must use a CC prefix: `fix/`, `feat/`, `chore/`, `docs/`, `refactor/`, `test/`.
+  - Find the fork remote: `gh api user --jq '.login'` → username matches fork remote name.
+  - When done: confirm all changes committed, then open a PR `<fork>:<branch>` → `Notalib/flutter_readium:main`. Confirm with user before pushing.
 
 ## Conventions
 
-- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) with scopes (see `git log`). PR titles follow the same format.
-- **Branching**: GitHub flow — short-lived feature branches off `main`. `main` is the only relevant branch; any older branches in the repo are historical and should be ignored.
-- **Smoke test**: the example app at `flutter_readium/example/` is the canonical end-to-end smoke test. **Don't claim verification you haven't done:** if a change can't be exercised in the example app, say so explicitly. This applies to native-only changes, platform-specific edge cases, or anything behind a flag.
-- **Models & method-channel contract**: keep the Dart side in `flutter_readium_platform_interface` in sync with both native implementations. **Make intentional gaps explicit:** if you add a method-channel call, all three native sides (Swift, Kotlin, web) need a matching handler — or an explicit `UnimplementedError` if intentionally unsupported. Undocumented silence looks like a bug; an explicit error makes the intent clear.
-- **Models**: serialise with hand-written `toJson` / `fromJson` methods. The project no longer uses `json_serializable` or `freezed` code generation — don't reintroduce build_runner-based codegen.
-- **Method channel serialization**: Use **JSON strings** (via `json.encode`) for any Readium-owned objects crossing the bridge (`Locator`, `Decoration`, etc.) — the upstream toolkits already own the schema and provide the deserializers, so encoding as a string avoids lossy `[String: Any]` / `Map<String, dynamic>` round-trips. Use **Maps/Dictionaries** only for flat plugin-owned structures (e.g. preferences, action configs) where the shape is simple and fully controlled by this plugin.
-- **Web TS: Locator → JSON always via `.serialize()`**: `@readium/shared` Locators store extra location fields (e.g. `cssSelector`, `tocHref`) in `locations.otherLocations` as a `Map<string, any>`. `JSON.stringify(locator)` silently drops all Map entries. Always use `JSON.stringify(locator.serialize())` when emitting a Locator to Dart, and `locator.serialize()` when embedding a locator inside a larger object before stringifying. The same applies to `JSON.parse(JSON.stringify(locator))` deep-clones — use `JSON.parse(JSON.stringify(locator.serialize()))` instead. Reading `otherLocations` entries also requires the Map API: `locator.locations?.otherLocations?.get('cssSelector')`, not `(locator.locations as any)?.cssSelector`.
-- **Pre-PR validation**: before considering a task done or creating a PR, run `bin/format` and `bin/analyze` from the repo root. Fix any issues they report. These scripts check all packages (platform interface, plugin, and example app).
-- **Changelog**: when completing a feature or bugfix, make sure to update the CHANGELOG.md file. Anything new goes under Unreleased. Write for **consumers of the published package**, applying the Keep a Changelog test — *would someone upgrading from the last release notice this?*
-  - **Keep intra-PR fixes out.** Bugs introduced and resolved within the same unreleased PR were never in a release, so don't list them as `Fixed` — their net effect is already the feature's `Added` entry. Only list `Fixed` items that change behaviour which actually shipped in a prior release. Fold any genuinely useful *behaviour* from a dropped dev-fix into the relevant `Added`/`Changed` entry instead.
-  - **Keep example-app changes out.** The `example/` app is a smoke-test target, not part of the published package — changes to it don't belong in the CHANGELOG.
-- **Web JS**: don't hand-edit the built JS in `example/web/`. Edit TS sources, then `bin/update_web_example`.
-- **PDF locator shape**: PDFs are represented as a single-resource publication. The canonical position lives in `Locator.locations.position` as a **1-based page number** — this matches the upstream `PDFPositionsService` (swift-toolkit) and `Locator.locations.position` from `PdfNavigatorFragment.currentLocator` (kotlin-toolkit). The PDF resource href is always the single reading-order entry, and the locator's `fragments` carry `"page=N"` on iOS (where the upstream parser produces it). **Don't duplicate upstream models:** if upstream Readium already models something (locator position, decoration style, etc.), use that representation rather than inventing a plugin-side parallel — alternatives create two sources of truth that diverge over time. Consumers should read `locations.position` for page navigation and round-trip via `goToLocator`.
+- **Commits / PR titles**: Conventional Commits with scopes (see `git log`). Include fixed issues in commit desc, e.g. "Fixes #123"
+- **Branching**: GitHub flow off `main`; `main` is the only relevant branch.
+- **Changelog**: update `CHANGELOG.md` under Unreleased for consumer-visible changes only — exclude intra-PR fixes and example-app changes ("would someone upgrading notice this?").
+- **Verification honesty**: don't claim verification you didn't do. If a change can't be exercised in the example app (native-only, behind a flag, platform edge case), say so explicitly.
+- **Method-channel contract**: keep Dart (`flutter_readium_platform_interface`) in sync with all native sides. Every call needs a Swift, Kotlin, and web handler — or an explicit `UnimplementedError` if intentionally unsupported.
+- **Bridge serialization**: Readium-owned objects (`Locator`, `Decoration`, …) → JSON strings via `json.encode`; plugin-owned flat structures (preferences, action configs) → Maps. Rationale + Web-TS `.serialize()` rules: `docs/architecture.md#bridge-serialization`.
+- **Models**: hand-written `toJson`/`fromJson`. No `json_serializable`/`freezed`/build_runner codegen — don't reintroduce.
+- **PDF locator**: position = 1-based page in `Locator.locations.position` (matches upstream); don't invent plugin-side parallels to upstream models. Detail: `docs/api-reference/locator.md#pdf-locators`.
 
 ### Android
 
-- **Kotlin formatting**: after writing or editing any Kotlin file, run `ktlint --format` on it. All violations must be resolved before committing.
-- **Android log messages**: every `PluginLog.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
-- **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
-  ```kotlin
-  val navigator = epubNavigator ?: run {
-      PluginLog.w(TAG, "::myFunction. Navigator not ready.")
-      return
-  }
-  return withContext(coroutineContext) { navigator.someCall() }
-  ```
-
-## Build / toolchain facts
-
-- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.32.0`.
-- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
-- iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
-- Web: webpack 5, TypeScript 5.7+.
+- After editing any Kotlin file: `ktlint --format`; resolve all violations before committing.
+- Every `PluginLog.*` message starts with `::functionName` (exact enclosing named function).
+- Navigator-dependent `suspend` funcs: capture `navigator` as a local with a `?: run { … return }` guard, then wrap calls in `return withContext(coroutineContext) { }`. Funcs that only delegate to other wrappers skip the guard.
 
 ## Gotchas
 
-- The example app's `Podfile.lock` and `pubspec.lock` are committed — be intentional about lockfile changes in diffs.
-- The plugin exposes a singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`); don't reintroduce per-instance state without considering the existing global publication lifecycle.
-- **Prefer honest limitations over brittle workarounds:** When a platform constraint makes a feature impossible or incomplete, document the limitation clearly rather than reimplementing platform behaviour. Reimplementing system UI (copy semantics, share intents, localised strings, DRM-aware actions) to work around a constraint produces code that is hard to maintain and silently diverges from platform conventions. A clear doc comment is more valuable than a fragile shim.
-- **Ask before committing to a solution with obvious downsides:** if a planned approach has significant trade-offs, platform gaps, or multiple reasonable alternatives, surface them to the user with a brief summary of options before implementing. Don't silently pick the path of least resistance — a short "here are the options" saves a revert later.
-- **Readium CSS overrides decoration `background-color` — fills MUST be `!important`:** When a custom theme/background is active (the reader effectively always sets one), Readium CSS injects `:root[style*="--USER__backgroundColor"] * { background-color: transparent !important }`, which forces *every* element's background to transparent. Any decoration whose visible effect is its fill (e.g. `highlight`, `ruler`) must declare `background-color: … !important`, or it renders invisibly — this is why the upstream default highlight template uses `!important`. This applies on all three platforms: iOS/Android emit the `!important` directly in the decoration template HTML; on Web the upstream decorator sets only a *plain* inline `background-color`, so `injectDecorationOverrides` re-asserts it as inline `!important` (inline important beats stylesheet important) via a `MutationObserver`. Decorations that don't rely on a fill are immune: `spotlight` works via box-shadow (iOS/Android) or body-dimming `color` CSS (Web), and `underline` swaps the fill for a `border-bottom`.
+- Singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`) — no per-instance state; respect the global publication lifecycle.
+- `example/`'s `Podfile.lock` + `pubspec.lock` are committed — be intentional about lockfile diffs.
+- iOS consumers need `use_frameworks!` + `use_modular_headers!` in their `Podfile` (see `README.md`).
+- **Decoration fills must be `!important`** — Readium CSS forces all backgrounds transparent under a custom theme. Editing any fill-based decoration (highlight/ruler)? Read `docs/troubleshooting.md#decorations-render-invisibly-fills-must-be-important` first.
+- **Honest limitations over brittle workarounds**: document a platform constraint rather than reimplementing system UI (copy/share/localised strings/DRM). Surface trade-offs and ask before committing to an approach with obvious downsides.
 
-## Testability (marionette)
+## Testing (marionette / web preview)
 
-- **Launching the app:** Run `flutter run` with `run_in_background: true` (the command never terminates while the app is running). Poll the background task output for `A Dart VM Service ... is available at: <uri>`, extract the URI, then `marionette register <name> <uri>/ws`. Do not use a foreground Bash call — it will always hit the timeout. Poll pattern: `for i in $(seq 1 30); do grep -m1 "Dart VM Service" <output_file> 2>/dev/null && break; sleep 1; done`
-- When adding interactive UI elements to the example app that should be exercisable via marionette, add a `ValueKey<String>` to the widget (especially `TextField`s inside `Autocomplete`). This makes `marionette tap --key` and `marionette enter-text --key` reliable.
-- Prefer `tap --key` or `tap --text` over coordinate-based taps (`tap --x --y`). Coordinate taps are fragile — elements can overlap or shift between devices, leading to flaky tests that hit the wrong target.
-- PDF content does not render visibly in marionette screenshots — marionette captures the Flutter compositing layer, which cannot reach native platform views (PDFKit/PDFium). When you need to visually verify native view content, use `xcrun simctl io booted screenshot /tmp/screen.png` instead (captures the full simulator framebuffer). For routine PDF navigation verification, check `marionette get-logs` for `onPageChanged` locator position.
+Example app is the canonical E2E smoke test. Full operational guide: `docs/agent-testing.md`.
+
+- Launch `flutter run` **in background**, poll output for the Dart VM Service URI, then `marionette register`. Never a foreground Bash call (it hits the timeout).
+- Add `ValueKey<String>` to interactive widgets; prefer `tap --key`/`--text` over coordinate taps.
+- PDF/native views don't render in marionette screenshots — use `xcrun simctl io booted screenshot`, or check `marionette get-logs` for `onPageChanged`.
+- Web example: `bin/run_web_example [port]` + `Claude_Preview` MCP. Flutter shell = `<canvas>` (use screenshots); EPUB content = real HTML/iframe (inspect/eval works).

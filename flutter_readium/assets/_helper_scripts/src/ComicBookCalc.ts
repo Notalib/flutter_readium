@@ -19,6 +19,14 @@ const initialFocusDuration = 500;
 const holdBeforePanningDuration = 500;
 // zoom from full-panel view into the first half
 const zoomIntoPanStartDuration = 300;
+// Visual floor for any plain panel-to-panel move. If the narration clip is shorter than
+// this we'd otherwise produce a glitch-fast move; we accept a small audio overrun instead.
+// duration === 0 (instant mount / stop) is exempted from this floor.
+const minPanelMoveDuration = 250;
+// Minimum time we'll spend on the actual pan portion of an intra-panel pan. If a clip is
+// long enough to cross the pre-pan threshold but the pan itself would be shorter than this,
+// we skip the pan entirely (existing graceful fallback) rather than show a rushed pan.
+const minIntraPanelPanDuration = 500;
 const MAX_ZOOM_VALUE = 3;
 const framePadding = 15;
 
@@ -86,10 +94,21 @@ export class ComicBookCalc {
       : willPan ? extraFocusDuration : panelToPanelDuration;
 
     const focusKeyframe = this.calcFramePositionAndSize(currentFrame, canvasSize, availableWidth, availableHeight);
+    // Pick the duration for the focus keyframe. Three cases:
+    // - duration 0: instant render (initial mount / stop) — no animation.
+    // - intra-panel pan: the 500ms hold that follows the focus keyframe is what gives
+    //   the reader time to orient, so no minimum floor is needed on the focus itself.
+    // - plain panel-to-panel: floor at minPanelMoveDuration so very short narration
+    //   clips don't produce a glitch-fast move.
+    const focusDuration = duration === 0
+      ? 0
+      : willPan
+        ? Math.min(focus, duration)
+        : Math.max(minPanelMoveDuration, Math.min(focus, duration));
     const keyframes: ComicKeyframe[] = [
       {
         ...focusKeyframe,
-        duration: Math.max(0, Math.min(focus, duration)),
+        duration: focusDuration,
         opacity: 1, // fixes odd jump at first render of the new image.
       },
     ];
@@ -104,8 +123,8 @@ export class ComicBookCalc {
     // sequence lands exactly on `duration` and the pan is never truncated.
     const prePanDuration = focus + holdBeforePanningDuration + zoomIntoPanStartDuration;
 
-    if (duration <= prePanDuration) {
-      console.warn("ComicBookCalc.MakeKeyFrames() -> duration is too short for panning, skipping pan animation. duration: " + duration);
+    if (duration < prePanDuration + minIntraPanelPanDuration) {
+      console.warn(`ComicBookCalc.MakeKeyFrames() -> duration ${duration}ms too short for a non-rushed pan (need >= ${prePanDuration + minIntraPanelPanDuration}ms), skipping pan animation.`);
       return keyframes;
     }
 
