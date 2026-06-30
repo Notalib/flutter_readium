@@ -28,7 +28,7 @@ import org.readium.r2.shared.publication.indexOfFirstWithHref
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "ComicNavigator"
-private const val currentVisualLocatorKey = "currentVisualCurrentLocator"
+private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualLocator"
 
 /**
  * Wraps the Readium [ImageNavigatorFragment] for bitmap-based publications (CBZ / DiViNa)
@@ -66,9 +66,9 @@ class ComicNavigator :
     val visualListener: EpubNavigator.VisualListener
 
     private var currentVisualLocator: Locator?
-        get() = state[currentVisualLocatorKey] as? Locator
+        get() = state[CURRENT_VISUAL_LOCATOR_KEY] as? Locator
         set(value) {
-            state[currentVisualLocatorKey] = value
+            state[CURRENT_VISUAL_LOCATOR_KEY] = value
         }
 
     private var imageNavigator: ImageNavigatorFragment? = null
@@ -324,7 +324,7 @@ class ComicNavigator :
     override fun storeState(): Bundle =
         Bundle().apply {
             putString(
-                currentVisualLocatorKey,
+                CURRENT_VISUAL_LOCATOR_KEY,
                 currentVisualLocator?.toJSON()?.toString(),
             )
         }
@@ -378,7 +378,7 @@ class ComicNavigator :
         ): ComicNavigator {
             val locator =
                 state
-                    .getString(currentVisualLocatorKey)
+                    .getString(CURRENT_VISUAL_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             PluginLog.d(TAG, "::restoreState - locator: $locator")
             return ComicNavigator(publication, locator, listener)
