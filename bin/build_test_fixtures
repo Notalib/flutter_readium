@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Builds every local test fixture from an already-checked-out
+# readium-test-resources clone — both the native `assets/pubs/` bundle and the
+# exploded/trimmed `example/web/test-*/` fixtures. Shared by bin/fetch_test_resources
+# (local dev, clones on demand) and .github/actions/fetch-test-resources (CI,
+# checks out via actions/checkout). Add new fixture source content to
+# https://github.com/Notalib/readium-test-resources rather than hand-maintaining
+# it here.
+#
+# Usage: bin/build_test_fixtures <test-resources-checkout-dir>
+
+RESOURCES_CHECKOUT="${1:?Usage: bin/build_test_fixtures <test-resources-checkout-dir>}"
+PUBS_DIR="$REPO_ROOT/flutter_readium/example/assets/pubs"
+WEB_DIR="$REPO_ROOT/flutter_readium/example/web"
+
+bash "$RESOURCES_CHECKOUT/bin/build-publications.sh" build "$PUBS_DIR"
+
+echo "Deriving example/web/ test fixtures…"
+trim() {
+  if [ -n "${3:-}" ]; then
+    python3 "$REPO_ROOT/bin/trim_web_fixture.py" "$PUBS_DIR/$1" "$WEB_DIR/$2" "$3"
+  else
+    python3 "$REPO_ROOT/bin/trim_web_fixture.py" "$PUBS_DIR/$1" "$WEB_DIR/$2"
+  fi
+}
+
+trim 38533_overlay_preview.webpub               test-overlay           4
+trim 38533.audiobook                            test-audiobook-nota    3
+trim 38533_guided_navigation_preview.webpub     test-guided-navigation 4
+trim 50272-nota-comics.webpub                   test-comic
+trim 50272-nota-comics.divina                   test-divina
+trim 712199_ebook.webpub                        test-ebook
+trim flatland_remote.audiobook                  test-audiobook
+trim test-fixed-layout.webpub                   test-fixed-layout
+trim test-peter-rabbit.webpub                   test-peter-rabbit
