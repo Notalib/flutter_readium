@@ -764,6 +764,7 @@ object ReadiumReader :
         _currentPublication = null
         pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
+        ResourceFileCache.purgeAll()
 
         state.clear()
     }
