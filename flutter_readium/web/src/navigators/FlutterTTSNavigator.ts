@@ -192,7 +192,9 @@ export class FlutterTTSNavigator {
    */
   private _onApplyDecorations: ((group: string, decorationsJson: string) => void) | null;
 
+  /** Page-break element ids, for `_prefs.pageBreakBehavior`. Not MO sync-related. */
   private readonly _pageBreakIds: Set<string>;
+  /** Localized "Page {label}" formatter for `pageBreakBehavior: "prefixLabel"`. */
   private readonly _pageLabel: ((label: string) => string) | null;
 
   constructor(
@@ -406,14 +408,11 @@ export class FlutterTTSNavigator {
       return;
     }
 
-    if (this._prefs.pageBreakBehavior === "skip" && isPageBreak(element, this._pageBreakIds)) {
+    const finalElement = this._applyPageBreakBehavior(element);
+    if (!finalElement) {
       await this._speakNext();
       return;
     }
-    const finalElement =
-      this._prefs.pageBreakBehavior === "prefixLabel" && isPageBreak(element, this._pageBreakIds)
-        ? rewriteAsPageLabel(element, this._pageLabel)
-        : element;
     this._currentElement = finalElement;
     this._speakElement(finalElement);
   }
@@ -436,16 +435,23 @@ export class FlutterTTSNavigator {
       return;
     }
 
-    if (this._prefs.pageBreakBehavior === "skip" && isPageBreak(element, this._pageBreakIds)) {
+    const finalElement = this._applyPageBreakBehavior(element);
+    if (!finalElement) {
       await this._speakPrevious();
       return;
     }
-    const finalElement =
-      this._prefs.pageBreakBehavior === "prefixLabel" && isPageBreak(element, this._pageBreakIds)
-        ? rewriteAsPageLabel(element, this._pageLabel)
-        : element;
     this._currentElement = finalElement;
     this._speakElement(finalElement);
+  }
+
+  /** Shared by `_speakNext`/`_speakPrevious`. Returns `null` to skip the element. */
+  private _applyPageBreakBehavior(element: TextElement): TextElement | null {
+    if (!isPageBreak(element, this._pageBreakIds)) return element;
+    if (this._prefs.pageBreakBehavior === "skip") return null;
+    if (this._prefs.pageBreakBehavior === "prefixLabel") {
+      return rewriteAsPageLabel(element, this._pageLabel);
+    }
+    return element;
   }
 
   private _speakElement(element: TextElement): void {

@@ -193,10 +193,11 @@ object ReadiumReader :
 
     private var ttsNavigator: TTSNavigator? = null
 
-    private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
-
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
+
+    /** TTS-only: handles page-break elements during content iteration. Not [_preventMOColumnBreaks] (MO-only). */
+    private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
 
     /**
      * Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`.
@@ -1205,7 +1206,7 @@ object ReadiumReader :
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
         currentPublication?.let {
-            pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
+            applyPageBreakBehavior(ttsPrefs)
             ttsNavigator =
                 TTSNavigator(it, this@ReadiumReader, currentTextLocator.value, ttsPrefs).apply {
                     initNavigator()
@@ -1215,7 +1216,7 @@ object ReadiumReader :
     }
 
     suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences) {
-        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
+        applyPageBreakBehavior(ttsPrefs)
         ttsNavigator?.updatePreferences(ttsPrefs)
             ?: throw Exception("TTS is not enabled, can't set preferences")
     }
@@ -1710,6 +1711,11 @@ object ReadiumReader :
                 comic.syncToLocator(locator, animated, segmentDuration)
             }
         }
+    }
+
+    /** Shared by [ttsEnable] and [ttsSetPreferences] — both can set this. */
+    private fun applyPageBreakBehavior(ttsPrefs: FlutterTtsPreferences) {
+        pageBreakIteratorFactory?.pageBreakBehavior = ttsPrefs.pageBreakBehavior ?: PageBreakBehavior.READ_AS_IS
     }
 
     /**

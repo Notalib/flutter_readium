@@ -2,34 +2,36 @@
 import ReadiumShared
 import Flutter
 import UIKit
-import WebKit
 
-private var userScripts: [WKUserScript] = []
-private let jsonEncoder = JSONEncoder()
-
-/// Breaks the `WKUserContentController → message-handler → EPUBReaderView` retain cycle.
-private final class WeakScriptHandler: NSObject, WKScriptMessageHandler {
-  private weak var parent: EPUBReaderView?
-  init(_ parent: EPUBReaderView) { self.parent = parent }
-  func userContentController(_ ctrl: WKUserContentController, didReceive message: WKScriptMessage) {
-    parent?.handleScriptMessage(message)
-  }
-}
-
+/// Core class declaration, stored state, lifecycle, and the base `Navigator`/
+/// `EPUBNavigatorDelegate` callbacks that don't have a more specific home.
+/// Related behaviour lives in the `EPUBReaderView+*.swift` extensions in this
+/// directory:
+///   - `+Decorations`: applying/observing decorations, custom-highlight action, spotlight template
+///   - `+Selection`: `SelectableNavigatorDelegate`, selection-driven actions
+///   - `+JSBridge`: injected user scripts, JS evaluation, script-message handling
+///   - `+Preferences`: preference application, media-overlay column-break CSS
+///   - `+Navigation`: goTo/sync navigation, narration-sync state, scroll-mode paging
+///   - `+MethodChannel`: the Flutter method-channel dispatch (`onMethodCall`)
+///
+/// Stored properties below are `internal` (not `private`) wherever an extension in
+/// another file needs them — Swift extensions can only see `private` members of the
+/// same type when they live in the same file, and stored properties themselves can
+/// only ever be declared here, never added by an extension.
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
-  private let channel: ReadiumReaderChannel
-  private let containerView: EPUBContainerView
-  private let readiumViewController: EPUBNavigatorViewController
+  let channel: ReadiumReaderChannel
+  let containerView: EPUBContainerView
+  let readiumViewController: EPUBNavigatorViewController
   private var hasSentReady = false
-  private var isJumpingToLocator = false
+  var isJumpingToLocator = false
   private var lastHrefLocation: String?
-  private var isMOActive = false
-  private var shouldPreventColumnBreaks: Bool { isMOActive && (preferences?.preventMOColumnBreaks ?? true) }
-  private var preferences: FlutterEPUBPreferences?
-  private var lastSyncLocator: Locator?
-  private var lastSyncSegmentDuration: TimeInterval?
-  private let publication: Publication
+  var isMOActive = false
+  var shouldPreventColumnBreaks: Bool { isMOActive && (preferences?.preventMOColumnBreaks ?? true) }
+  var preferences: FlutterEPUBPreferences?
+  var lastSyncLocator: Locator?
+  var lastSyncSegmentDuration: TimeInterval?
+  let publication: Publication
   private var lastViewport: NavigatorViewport?
 
   /// Runtime narration-sync flag: true = reader follows audio cues (default),
@@ -48,7 +50,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// turns are programmatic `go(to:)` calls that never reach the Flutter Listener), so
   /// they are a clean "user took control" signal — avoiding the swift-toolkit delegate's
   /// inability to distinguish a finger-swipe from an audio-driven `syncToLocator`.
-  private var narrationSyncEnabled: Bool = true
+  var narrationSyncEnabled: Bool = true
+
+  /// Decoration groups currently observed for tap/activation events. Seeded with
+  /// "user-highlight" (registered eagerly in `init`); other groups (e.g. the TTS
+  /// "timebased-highlight" group) are added lazily by `ensureDecorationObservation`.
+  var observedDecorationGroups: Set<String> = ["user-highlight"]
 
   var publicationIdentifier: String?
 
@@ -215,9 +222,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     FlutterReadiumPlugin.instance?.registerAsCurrentReaderView(self)
 
     /// Ensure userScripts are initialized for later injection.
-    if userScripts.isEmpty {
-      self.initUserScripts(registrar: registrar)
-    }
+    self.ensureUserScriptsInitialized(registrar: registrar)
 
     /// This adapter will automatically turn pages when the user taps the
     /// screen edges or presses arrow keys.
@@ -247,30 +252,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     })
 
     Log.reader.debug("init success")
-  }
-
-  // implements EPUBNavigatorDelegate::navigator:setupUserScripts
-  public func navigator(_ navigator: EPUBNavigatorViewController, setupUserScripts userContentController: WKUserContentController) {
-    Log.reader.debug("setupUserScripts: adding \(userScripts.count) scripts")
-    for script in userScripts {
-      userContentController.addUserScript(script)
-    }
-    // Register handler so `window.updateNarrationSync(bool)` in the helper script can reach native.
-    // WeakScriptHandler breaks the retain cycle WKUserContentController → handler → EPUBReaderView.
-    userContentController.add(WeakScriptHandler(self), name: "narrationSync")
-
-    /// Custom preferences added dynamically for each WebView, to make sure changes to preferences are respected.
-    if let preferencesStylesheet = self.preferences.map(effectivePreferences)?.toInjectableStyleSheet() {
-      let source = """
-        (function() {
-        var parent = document.getElementsByTagName('head').item(0);
-        var style = document.createElement('style');
-        style.type = 'text/css';
-        style.innerHTML = '\(preferencesStylesheet)';
-        parent.appendChild(style)})();
-      """
-      userContentController.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-    }
   }
 
   func middleTapHandler() {
@@ -345,75 +326,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     return true
   }
 
-  public func applyDecorations(_ decorations: [Decoration], forGroup groupIdentifier: String) {
-    Log.reader.debug("applyDecorations: \(decorations) identifier: \(groupIdentifier)")
-    ensureDecorationObservation(forGroup: groupIdentifier)
-    self.readiumViewController.apply(decorations: decorations, in: groupIdentifier)
-  }
-
-  public func getFirstVisibleLocator() async -> Locator? {
-    return await self.readiumViewController.firstVisibleElementLocator()
-  }
-
-  public func getCurrentLocation() -> Locator? {
-    return self.readiumViewController.currentLocation
-  }
-
-  @objc public func onCustomEditingAction() {
-    Log.reader.debug("onCustomEditingAction")
-    // NOTE: This method will not actually be hit. It will try to find an "onCustomEditingAction" function in the Responder chain!
-    // Because of how Flutter generates its responder chain, we need to implement this func in the client AppDelegate.swift and then call back into the plugin from there.
-    // see https://github.com/readium/swift-toolkit/issues/466
-
-    if let selection = readiumViewController.currentSelection {
-      let selectionLocator = selection.locator
-      readiumViewController.apply(decorations: [Decoration(id: "highlight", locator: selectionLocator, style: .highlight(), userInfo: [:])], in: "user-highlight")
-      readiumViewController.clearSelection()
-    }
-  }
-
-  // MARK: - SelectableNavigatorDelegate
-
-  public func navigator(_ navigator: SelectableNavigator, shouldShowMenuForSelection selection: Selection) -> Bool {
-    Log.reader.debug("shouldShowMenuForSelection: \(selection.locator)")
-    let locator = selection.locator
-    let selectedText = locator.text.highlight
-    channel.onTextSelected(locator: locator, selectedText: selectedText)
-    // Return true to also show the native context menu with editing actions.
-    return true
-  }
-
-  public func navigator(_ navigator: SelectableNavigator, canPerformAction action: EditingAction, for selection: Selection) -> Bool {
-    return true
-  }
-
-  /// Called by `EPUBContainerView` when a configured action slot fires via the responder chain.
-  func handleSelectionAction(actionId: String) {
-    Log.reader.debug("handleSelectionAction: \(actionId)")
-    guard let selection = readiumViewController.currentSelection else {
-      Log.reader.warn("handleSelectionAction: no current selection")
-      return
-    }
-    let locator = selection.locator
-    let selectedText = locator.text.highlight
-    channel.onSelectionAction(actionId: actionId, locator: locator, selectedText: selectedText)
-  }
-
-  func getCurrentSelection() -> Locator? {
-    return self.readiumViewController.currentSelection?.locator
-  }
-
-  /// Called when a decoration is tapped/activated by the user.
-  private func onDecorationActivated(event: OnDecorationActivatedEvent) {
-    Log.reader.debug("onDecorationActivated: \(event.decoration.id) in group \(event.group)")
-    channel.onDecorationInteraction(
-      decorationId: event.decoration.id,
-      group: event.group,
-      type: "tap",
-      locator: event.decoration.locator
-    )
-  }
-
   /// Called when the user taps an image element inside an EPUB resource.
   /// Forwards the event to the Flutter channel as an `onImageTapped` call.
   private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
@@ -447,124 +359,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       || cssSelector.contains(".nota-comicbook-page-container")
   }
 
-  /// Registers decoration interaction observation for a group.
-  /// Called when `applyDecorations` is used with a new group identifier.
-  private var observedDecorationGroups: Set<String> = ["user-highlight"]
-  private func ensureDecorationObservation(forGroup group: String) {
-    guard !observedDecorationGroups.contains(group) else { return }
-    observedDecorationGroups.insert(group)
-    readiumViewController.observeDecorationInteractions(inGroup: group) { [weak self] event in
-      self?.onDecorationActivated(event: event)
-    }
-  }
-
-  private func evaluateJavascript(_ code: String) async -> Result<Any, Error> {
-    return await self.readiumViewController.evaluateJavaScript(code)
-  }
-
-  private func evaluateJSReturnResult(_ code: String, result: @escaping FlutterResult) {
-    Task.detached(priority: .high) {
-      do {
-        let data = try await self.evaluateJavascript(code).get()
-        Log.reader.debug("evaluateJavascript result: \(data)")
-        await MainActor.run() {
-          return result(data)
-        }
-      } catch (let err) {
-        Log.reader.error("evaluateJavascript error: \(err)")
-        await MainActor.run() {
-          return result(nil)
-        }
-      }
-    }
-  }
-
-  /// Receives messages from the `window.updateNarrationSync(bool)` bridge injected
-  /// by the iOS platform shim (bootstrap script in `initUserScripts`).
-  func handleScriptMessage(_ message: WKScriptMessage) {
-    guard message.name == "narrationSync", let enabled = message.body as? Bool else { return }
-    Log.reader.debug("handleScriptMessage: narrationSync=\(enabled)")
-    Task { @MainActor in
-      setNarrationSyncEnabled(enabled)
-    }
-  }
-
-  private func setUserPreferences(preferences: FlutterEPUBPreferences) {
-    self.preferences = preferences
-    self.readiumViewController.submitPreferences(preferences.readium)
-    self.updateCustomPreferences(preferences)
-    applyColumnBreakPrevention()
-  }
-
-  /// Resolves preferences against the publication's layout. The first-element top
-  /// margin is a reflowable-text affordance, so it's dropped for every non-reflowable
-  /// publication — FXL EPUBs and paginated DiViNa report `.fixed`, scrolled DiViNa
-  /// reports `.scrolled`, and image publications (CBZ via ImageParser) report no
-  /// layout at all — where it would otherwise shift the full-page content down.
-  private func effectivePreferences(_ preferences: FlutterEPUBPreferences) -> FlutterEPUBPreferences {
-    guard publication.metadata.layout != .reflowable else { return preferences }
-    var resolved = preferences
-    resolved.firstElementTopMargin = nil
-    return resolved
-  }
-
-  private func updateCustomPreferences(_ preferences: FlutterEPUBPreferences) {
-    let cssVariables = effectivePreferences(preferences).toCustomCssVariables()
-
-    guard cssVariables.isEmpty == false,
-          let jsonData = try? jsonEncoder.encode(cssVariables),
-          let jsonString = String(data: jsonData, encoding: .utf8) else { return }
-
-    Task.detached(priority: .high) { [jsonString] in
-      let result = await self.readiumViewController.evaluateJavaScript("readium.setCSSProperties(\(jsonString));")
-      Log.reader.info("updated custom preferences: \(result)")
-    }
-
-    // For CBZ/DiViNa FXL publications, also propagate CSS vars to the inner
-    // iframe. The FXL wrapper (fxl-spread-one.html) exposes window.spread.eval("", code)
-    // which runs JS in the iframe's context. This ensures dynamic preference
-    // updates (e.g. toggling B&W mode mid-read) reach the image iframe.
-    if publication.conforms(to: Publication.Profile.divina) {
-      let innerScript = cssVariables.map { k, v in
-        if let v { "document.documentElement.style.setProperty('\(k)','\(v)','important');" }
-        else { "document.documentElement.style.removeProperty('\(k)');" }
-      }.joined()
-      if let scriptData = try? jsonEncoder.encode(innerScript),
-         let scriptJson = String(data: scriptData, encoding: .utf8) {
-        Task.detached(priority: .high) { [scriptJson] in
-          await self.readiumViewController.evaluateJavaScript("window.spread?.eval?.('',\(scriptJson));")
-        }
-      }
-    }
-  }
-
-  public func setMOActive(_ active: Bool) {
-    isMOActive = active
-    applyColumnBreakPrevention()
-  }
-
-  private func applyColumnBreakPrevention() {
-    if shouldPreventColumnBreaks {
-      injectColumnBreakCSS()
-    } else {
-      removeColumnBreakCSS()
-    }
-  }
-
-  private func injectColumnBreakCSS() {
-    Task.detached(priority: .high) {
-      // Delegates to the helper bundle (window.flutterReadium), matching Android.
-      // Optional-chained: no-op if called before the helper finishes initializing.
-      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.injectMOBreakCSS();")
-    }
-  }
-
-  private func removeColumnBreakCSS() {
-    Task.detached(priority: .high) {
-      await self.readiumViewController.evaluateJavaScript("window.flutterReadium?.removeMOBreakCSS();")
-    }
-  }
-
   private func emitOnPageChanged(locator: Locator) -> Void {
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
@@ -595,474 +389,6 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         self.channel.onExternalLinkActivated(url: url)
       }
     }
-  }
-
-  internal func getPageInformation() async -> PageInformation? {
-    switch await self.evaluateJavascript("window.flutterReadium.getPageInformation();") {
-    case .success(let jresult):
-      let pageInfo = PageInformation.fromJson(jresult as? Dictionary<String, Any> ?? Dictionary())
-      return pageInfo
-    case .failure(let err):
-      Log.reader.error("getPageInformation failed! \(err)")
-      return nil
-    }
-  }
-
-  public func goToLocator(_ locator: Locator, animated: Bool) async -> Bool {
-    Log.reader.debug("goToLocator: \(locator)")
-
-    // NOTE: an explicit locator jump (TOC / bookmark / search) during active narration is
-    // handled upstream in FlutterReadiumPlugin's "goToLocator" by seeking the timebased
-    // navigator (narration follows the jump) — this method is only reached when narration is
-    // NOT active, so a jump must not enter manual mode here. Page-turns (goForward/goBackward)
-    // do enter manual mode; see those methods.
-    isJumpingToLocator = true
-
-    // Promote a `#id` css anchor to `fragments.first` so swift-toolkit positions correctly
-    // when jumping to a media-overlay / cssSelector-only locator (e.g. a saved position or
-    // bookmark). See docs/parity/locator-field-priority.md.
-    let target = locator.promotingTextAnchorForVisualNav()
-    return await readiumViewController.go(to: target, options: NavigatorGoOptions(animated: animated))
-  }
-
-  public func goToProgression(_ progression: Double, animated: Bool) async -> Bool {
-    Log.reader.debug("goToProgression:\(progression)")
-    guard let locator = getCurrentLocation() else {
-      return false
-    }
-    let newLocator = locator.copyWithProgressionLocations(progression: progression)
-    return await readiumViewController.go(to: newLocator, options: NavigatorGoOptions(animated: animated))
-  }
-
-
-  public func syncToLocator(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval? = nil, isWordRange: Bool = false) async -> Bool {
-    if isJumpingToLocator {
-      Log.reader.debug("syncToLocator: skipped")
-      return false
-    }
-    if !narrationSyncEnabled {
-      lastSyncLocator = locator
-      lastSyncSegmentDuration = segmentDuration
-      Log.reader.debug("syncToLocator: deferred while narration sync is disabled")
-      return false
-    }
-    // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
-    // spoken word re-pins the current paragraph to the top of the viewport
-    // ~10×/sec, causing constant snap-to-top jitter. The utterance-level sync
-    // and the per-word highlight decoration keep the reader in the right place.
-    // In pagination we DO follow the word range, so an utterance spanning a page
-    // boundary turns the page to the word currently being spoken.
-    if (isWordRange && readiumViewController.presentation.scroll) {
-      Log.reader.debug("syncToLocator: skipped word-range sync in scroll mode")
-      return false
-    }
-    // Track the most recent navigated cue so a Re-sync (setNarrationSyncEnabled(true))
-    // can snap to the CURRENT cue immediately, even when triggered mid-cue. Previously
-    // this was cleared here, so a mid-cue Re-sync had no locator to replay and only
-    // corrected once the next cue arrived.
-    lastSyncLocator = locator
-    lastSyncSegmentDuration = segmentDuration
-    return await performSyncNavigation(locator, animated: animated, segmentDuration: segmentDuration)
-  }
-
-  private func performSyncNavigation(_ locator: Locator, animated: Bool, segmentDuration: TimeInterval?) async -> Bool {
-    Log.reader.debug("syncToLocator: \(locator)")
-    if let duration = segmentDuration {
-      let segmentDurationMs = duration * 1000.0
-      await readiumViewController.evaluateJavaScript("window.flutterReadium.setSegmentDuration(\(segmentDurationMs));");
-    }
-
-    // For Nota comics (EPUB + MediaOverlay) the panel pan is driven entirely by the
-    // navigator's go(to:) below: the locator carries the panel element id as its
-    // fragment/cssSelector, so the toolkit emits `readium.scrollToId(...)`, which the
-    // NotaComicBook helper intercepts and animates (using the segment duration set
-    // above). No explicit gotoComicFrame call is needed here.
-    //
-    // Signal the comic helper that narration is now active so it exits explore mode on
-    // the first cue and can navigate to the panel normally. No-op on non-comic pages.
-    await readiumViewController.evaluateJavaScript("window.comicBookPage?.onNarrationCue?.();")
-
-    // Navigate directly — do NOT call goToLocator, which sets isJumpingToLocator = true.
-    // isJumpingToLocator is meant to block TTS syncs while the user/app explicitly navigates
-    // (method-channel "go"). Setting it here for a TTS-internal sync causes a cross-page
-    // progression stall: the MainActor Task for the next utterance's syncToLocator runs
-    // while this Task is suspended awaiting the CSS-column page turn, sees
-    // isJumpingToLocator == true, and silently drops the sync. The next utterance then
-    // plays audio but the spotlight decoration and page position never advance.
-    return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
-  }
-
-  /// Sets the runtime narration-sync flag and emits the new state on the
-  /// `narration-sync` event channel.
-  ///
-  /// When enabling sync (true), any deferred sync locator that was held while sync
-  /// was disabled is replayed immediately so the visual reader jumps to the current
-  /// audio cue.
-  ///
-  /// Must be called on the MainActor (property access and stream emission are not
-  /// thread-safe).
-  @MainActor
-  internal func setNarrationSyncEnabled(_ enabled: Bool) {
-    let wasEnabled = narrationSyncEnabled
-    narrationSyncEnabled = enabled
-    Log.reader.debug("setNarrationSyncEnabled: \(enabled)")
-    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(enabled)
-    // Replay deferred sync locator when re-enabling, matching the existing
-    // wasSyncDisabled catch-up logic that was previously in setPreferences.
-    if enabled, !wasEnabled, let deferredLocator = lastSyncLocator {
-      let deferredSegmentDuration = lastSyncSegmentDuration
-      lastSyncLocator = nil
-      lastSyncSegmentDuration = nil
-      Task.detached(priority: .high) {
-        // Clear the JS-side manual-override flag so the next pinch re-enters manual
-        // mode. No-op (optional chaining) on non-comic pages.
-        await self.evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
-        _ = await self.performSyncNavigation(
-          deferredLocator,
-          animated: false,
-          segmentDuration: deferredSegmentDuration)
-      }
-    }
-  }
-
-  /// Called when narration stops (not paused — fully stopped). Resets the
-  /// runtime sync flag and deferred-locator state, then tells the comic overlay
-  /// to animate back to the full-page view so the user can browse freely.
-  /// Distinct from setNarrationSyncEnabled(true) which replays the last cue.
-  @MainActor
-  public func resetForNarrationStop() {
-    narrationSyncEnabled = true
-    lastSyncLocator = nil
-    lastSyncSegmentDuration = nil
-    FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(true)
-    Task.detached(priority: .high) {
-      await self.evaluateJavascript("window.comicBookPage?.exitNarrationMode?.();")
-    }
-  }
-
-  /// Enters manual mode (disables narration sync) if narration is actively
-  /// playing. Called from explicit user/app navigation entry points.
-  ///
-  /// Only transitions when sync is currently enabled and a timebased navigator
-  /// is present and playing, so normal reading without narration is unaffected.
-  @MainActor
-  private func enterManualModeIfNarrationPlaying() {
-    guard narrationSyncEnabled,
-          FlutterReadiumPlugin.instance?.timebasedNavigator != nil,
-          FlutterReadiumPlugin.instance?.lastTimebasedPlayerState?.state == .playing else {
-      return
-    }
-    Log.reader.debug("enterManualModeIfNarrationPlaying: entering manual mode")
-    setNarrationSyncEnabled(false)
-  }
-
-  private func emitOnPageChanged() {
-    guard let locator = readiumViewController.currentLocation else {
-      Log.reader.warn("emitOnPageChanged: currentLocation was nil!")
-      return
-    }
-
-    navigator(readiumViewController, locationDidChange: locator)
-  }
-
-  func onMethodCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    Log.reader.debug("onMethodCall: \(call.method)")
-    switch call.method {
-    case "go":
-      let args = call.arguments as? [Any?]
-      guard let locatorStr = args?[0] as? String,
-            let locator = try? Locator(legacyJSONString: locatorStr, warnings: readiumBugLogger) else {
-        Log.reader.warn("go: failed to parse locator argument; ignoring navigation request")
-        result(false)
-        break
-      }
-      let animated = args?[1] as? Bool ?? false
-
-      Task.detached(priority: .high) {
-        let success = await self.goToLocator(locator, animated: animated)
-        await MainActor.run() {
-          result(success)
-        }
-      }
-      break
-    case "goBackward":
-      let animated = call.arguments as? Bool ?? false
-      let navOptions = NavigatorGoOptions(animated: animated)
-      let readiumViewController = self.readiumViewController
-      let scrollMode = self.readiumViewController.presentation.scroll
-
-      Task.detached(priority: .high) {
-        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
-        let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
-        let success: Bool
-        if (layoutMode == .reflowable && scrollMode == true) {
-          success = await self.goBackwardInScrollMode(options: navOptions)
-        } else {
-          success = await readiumViewController.goBackward(options: navOptions)
-        }
-        await MainActor.run() {
-          result(success)
-        }
-      }
-      break
-    case "goForward":
-      let animated = call.arguments as? Bool ?? false
-      let navOptions = NavigatorGoOptions(animated: animated)
-      let readiumViewController = self.readiumViewController
-      let scrollMode = self.readiumViewController.presentation.scroll
-
-      Task.detached(priority: .high) {
-        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
-        let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
-        let success: Bool
-        if (layoutMode == .reflowable && scrollMode == true) {
-          success = await self.goForwardInScrollMode(options: navOptions)
-        } else {
-          success = await readiumViewController.goForward(options: navOptions)
-        }
-        await MainActor.run() {
-          result(success)
-        }
-      }
-      break
-    case "notifyUserNavigation":
-      // The user swiped or edge-tapped the reader (detected by the Flutter
-      // Listener above the platform view). Enter narration manual mode if
-      // narration is currently driving the reader; otherwise a no-op.
-      Task { @MainActor in
-        enterManualModeIfNarrationPlaying()
-        result(nil)
-      }
-      break
-    case "setPreferences":
-      let args = call.arguments as! [String: Any]
-      Log.reader.debug("onMethodCall[setPreferences] args = \(args)")
-      let oldDisableSync = self.preferences?.disableSync
-      let preferences = FlutterEPUBPreferences.init(fromMap: args)
-      setUserPreferences(preferences: preferences)
-      self.preferences = preferences
-      // Flip the runtime sync flag only on an actual `disableSync` transition.
-      // `disableSynchronization` is serialized on every preferences push (non-null on
-      // the Dart side), so reacting unconditionally would clobber a manual-mode override
-      // set via setNarrationSyncEnabled whenever any unrelated preference (font, theme, …)
-      // changes mid-playback.
-      if let disableSync = preferences.disableSync, disableSync != oldDisableSync {
-        setNarrationSyncEnabled(!disableSync)
-      }
-      result(nil)
-      break
-    case "applyDecorations":
-      let args = call.arguments as! [Any?]
-      let identifier = args[0] as! String
-      let decorationsStr = args[1] as! [String]
-
-      guard let decorations = try? decorationsStr.map({ try Decoration(fromJson: $0) }) else {
-        return result(FlutterError.init(
-          code: "JSON mapping error",
-          message: "Could not map decorations from JSON: \(decorationsStr)",
-          details: nil))
-      }
-
-      applyDecorations(decorations, forGroup: identifier)
-      result(nil)
-      break
-    case "configureSelectionActions":
-      let args = call.arguments as! [[String: Any]]
-      let actions = args.compactMap { dict -> (id: String, title: String)? in
-        guard let id = dict["id"] as? String, let title = dict["title"] as? String else { return nil }
-        return (id: id, title: title)
-      }
-      containerView.configureActions(actions)
-      result(nil)
-      break
-    case "dispose":
-      Log.reader.info("Disposing readiumViewController")
-      readiumViewController.view.removeFromSuperview()
-      readiumViewController.delegate = nil
-      FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
-      emitReaderStatusChanged(status: ReadiumReaderStatusClosed)
-      result(nil)
-      break
-    default:
-      Log.reader.warn("Unhandled call: \(call.method)")
-      result(FlutterMethodNotImplemented)
-      break
-    }
-  }
-
-  /// Loads a bundled Flutter asset's bytes, returning nil (and logging) instead of
-  /// trapping when the asset is absent. The webview helper assets
-  /// `assets/helpers/flutterReadiumTools.{js,css}` are gitignored build artifacts
-  /// (compiled from assets/_helper_scripts/src via `npm run build:flutter` /
-  /// `bin/install`); when an app is built without generating them, the reader now
-  /// degrades — no helper injection — rather than crashing. See docs/troubleshooting.md.
-  private func loadBundledAsset(_ assetKey: String) -> Data? {
-    guard let path = Bundle.main.path(forResource: assetKey, ofType: nil) else {
-      Log.reader.error("Missing bundled asset '\(assetKey)' — were the webview helpers built? (npm run build:flutter / bin/install)")
-      return nil
-    }
-    guard let data = FileManager().contents(atPath: path) else {
-      Log.reader.error("Bundled asset '\(assetKey)' could not be read at \(path)")
-      return nil
-    }
-    return data
-  }
-
-  func initUserScripts(registrar: FlutterPluginRegistrar) {
-    let flutterReadiumJsKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.js", fromPackage: "flutter_readium")
-    let flutterReadiumCssKey = registrar.lookupKey(forAsset: "assets/helpers/flutterReadiumTools.css", fromPackage: "flutter_readium")
-    let jsScripts = [flutterReadiumJsKey].compactMap { assetKey -> String? in
-      guard let data = loadBundledAsset(assetKey) else { return nil }
-      return String(data: data, encoding: .utf8)
-    }
-    let addCssScripts = [flutterReadiumCssKey].compactMap { assetKey -> String? in
-      guard let data = loadBundledAsset(assetKey) else { return nil }
-      let base64Css = data.base64EncodedString()
-      return """
-        (function() {
-        var parent = document.getElementsByTagName('head').item(0);
-        var style = document.createElement('style');
-        style.type = 'text/css';
-        style.innerHTML = window.atob('\(base64Css)');
-        parent.appendChild(style)})();
-      """
-    }
-
-    /// INJECTED AT DOCUMENT START
-
-    /// Add JS scripts right away, before loading the rest of the document.
-    for jsScript in jsScripts {
-      userScripts.append(WKUserScript(source: jsScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-    }
-    /// Platform shim: OS flags + window.updateNarrationSync bridge.
-    /// Posting to the "narrationSync" WKScriptMessageHandler delivers the bool to native.
-    userScripts.append(WKUserScript(source: """
-      const isAndroid=false,isIos=true;
-      window.updateNarrationSync=function(v){webkit.messageHandlers.narrationSync.postMessage(v===true);};
-      """, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-
-    /// Add all known ToC IDs for this publication to a global javascript array.
-    do {
-      let tocFragments = self.readiumViewController.publication.getFlattenedToC().compactMap(\.fragment)
-      let data = try jsonEncoder.encode(tocFragments)
-      if let tocFragmentsJSON = String(data: data, encoding: String.Encoding.utf8) {
-        let tocScript = "window.readiumTocIDs = \(tocFragmentsJSON);"
-        userScripts.append(WKUserScript(source: tocScript, injectionTime: .atDocumentStart, forMainFrameOnly: false))
-      }
-    } catch (let err) {
-      Log.readium.error("Failed to inject ToC IDs in webview: \(err)")
-    }
-
-    /// INJECTED AT DOCUMENT END
-
-    /// Add css injection scripts after primary document finished loading.
-    for addCssScript in addCssScripts {
-      userScripts.append(WKUserScript(source: addCssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-    }
-  }
-
-  func goBackwardInScrollMode(options: NavigatorGoOptions) async -> Bool {
-    guard var locator = getCurrentLocation(),
-          let currentProgression = locator.locations.progression else {
-      Log.reader.error("no current location or progression")
-      return false
-    }
-    let jsResult = await self.evaluateJavascript("window.flutterReadium.getViewPortSize();")
-    guard case .success(let viewPortResult) = jsResult,
-          let viewPortMap = viewPortResult as? Dictionary<String, Any> else {
-      Log.reader.error("getViewPortSize JS eval failed – \(jsResult.getOrNil() ?? "nil")")
-      return false
-    }
-    let viewPort = ViewPortSize.fromJson(viewPortMap, scrollMode: true)
-    let progression = viewPort.progression
-    let prevProgression = viewPort.prevProgression
-    if (progression == 0.0 && prevProgression <= 0.0) {
-      // Current progress is already at the top and prevProgression is <= 0.0,
-      // We need to go to the previous file in the readingOrder.
-      Log.reader.debug("at beginning, use default goBackward")
-      return await self.readiumViewController.goBackward(options: options)
-    }
-
-    Log.reader.debug("goBackward from progression:\(currentProgression) to \(prevProgression)")
-    locator.locations.progression = clamp(prevProgression, minValue: 0.0, maxValue: 1.0)
-    return await self.readiumViewController.go(to: locator, options: options)
-  }
-
-  func goForwardInScrollMode(options: NavigatorGoOptions) async -> Bool {
-    guard var locator = getCurrentLocation(),
-          let currentProgression = locator.locations.progression else {
-      Log.reader.error("no current location or progression")
-      return false
-    }
-    let jsResult = await self.evaluateJavascript("window.flutterReadium.getViewPortSize();")
-    guard case .success(let viewPortResult) = jsResult,
-          let viewPortMap = viewPortResult as? Dictionary<String, Any> else {
-      Log.reader.error("getViewPortSize JS eval failed – \(jsResult.getOrNil() ?? "nil")")
-      return false
-    }
-    let viewPort = ViewPortSize.fromJson(viewPortMap, scrollMode: true)
-
-    let endProgression = viewPort.endProgression
-    let nextProgression = viewPort.nextProgression
-    if (nextProgression >= 1.0 && endProgression == 1.0) {
-      // Current progress is already at the top and prevProgression is <= 0.0,
-      // We need to go to the previous file in the readingOrder.
-      Log.reader.debug("at end, use default goForward")
-      return await self.readiumViewController.goForward(options: options)
-    }
-
-    Log.reader.debug("goForward from progression:\(currentProgression) to \(nextProgression)")
-    locator.locations.progression = clamp(nextProgression, minValue: 0.0, maxValue: 1.0)
-    return await self.readiumViewController.go(to: locator, options: options)
-  }
-
-  // MARK: – Custom decoration templates
-
-  /// Escape a string for use as an HTML attribute value (double-quoted).
-  private static func escapeHtmlAttr(_ s: String) -> String {
-    s.replacingOccurrences(of: "&", with: "&amp;")
-     .replacingOccurrences(of: "\"", with: "&quot;")
-     .replacingOccurrences(of: "<", with: "&lt;")
-     .replacingOccurrences(of: ">", with: "&gt;")
-  }
-
-  /// Spotlight: semi-transparent tinted box over the active text range, one per
-  /// text line.
-  ///
-  /// Uses `.boxes` layout (one `<div>` per CSS border box / text line) so that
-  /// utterances spanning CSS columns are represented by per-line boxes each
-  /// contained within their own column. `.bounds` would produce a single rectangle
-  /// spanning the bounding box of the whole range, which overflows across the gutter
-  /// and into the next column when an utterance crosses a column boundary.
-  ///
-  /// The class `flutter-readium-spotlight` is a stable marker that
-  /// `flutterReadiumTools.js` watches via MutationObserver to:
-  ///   1. Toggle `body.flutter-readium-spotlight-active`, which fades all body text
-  ///      to low contrast via an injected CSS rule.
-  ///   2. Read `data-css-selector` and add `.flutter-readium-spotlit-text` to the
-  ///      matching element, so a higher-specificity CSS rule restores its text colour.
-  ///
-  /// `background-color` MUST be `!important`: Readium CSS forces every element's
-  /// background to transparent when a custom theme is active (see Gotcha in
-  /// CLAUDE.md); without `!important` the fill would be invisible.
-  ///
-  /// `z-index: -1` renders the fill behind the text glyphs (same as the upstream
-  /// highlight/underline templates). This keeps the text colour
-  /// visually unaffected by the tint overlay and matches what `::highlight()` does
-  /// on web — the yellow acts purely as a background, not a colour wash.
-  private static func spotlightDecorationTemplate() -> HTMLDecorationTemplate {
-    HTMLDecorationTemplate(
-      layout: .boxes,
-      width: .bounds,
-      element: { decoration in
-        let config = decoration.style.config as! Decoration.Style.HighlightConfig
-        let bgColor = config.tint.map { "\($0.cssValue(alpha: 0.5))" } ?? "transparent"
-        let sel = Self.escapeHtmlAttr(decoration.locator.locations.cssSelector ?? "")
-        let hl  = Self.escapeHtmlAttr(decoration.locator.text.highlight ?? "")
-        let bef = Self.escapeHtmlAttr(decoration.locator.text.before ?? "")
-        return "<div class=\"flutter-readium-spotlight\" data-css-selector=\"\(sel)\" data-text-highlight=\"\(hl)\" data-text-before=\"\(bef)\" data-tint=\"\(bgColor)\" style=\"z-index: -1; box-sizing: border-box;\"/>"
-      }
-    )
   }
 
 }

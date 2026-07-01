@@ -19,6 +19,8 @@ public struct TTSPreferences {
 
   public var controlPanelInfoType: ControlPanelInfoType?
 
+  /// How TTS handles page-break elements: as-is, relabeled, or skipped.
+  /// Unrelated to `FlutterEPUBPreferences.preventMOColumnBreaks` (MO-only CSS fix).
   public var pageBreakBehavior: PageBreakBehavior?
 
   public var controlPanelTimebase: ControlPanelTimebase?
