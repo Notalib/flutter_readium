@@ -98,4 +98,4 @@ tmp
 # Test fixtures — generated from the readium-test-resources repo by
 # bin/build_test_fixtures (run via bin/install locally, or the
 # fetch-test-resources CI action). Not committed; see bin/fetch_test_resources.
-flutter_readium/example/web/test-*/
+flutter_readium/example/web/test-fixtures/

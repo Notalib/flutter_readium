@@ -303,10 +303,10 @@ function _buildAudioReadingOrder(
 
   // Absolutize the self link against the document origin before deriving the
   // base URL. If the manifest's self link is relative/root-relative (e.g. a
-  // publication served at "/test-overlay/manifest.json"), a non-absolute base
-  // produces non-absolute audio hrefs, which the upstream AudioNavigator then
+  // publication served at "/test-fixtures/overlay/manifest.json"), a non-absolute
+  // base produces non-absolute audio hrefs, which the upstream AudioNavigator then
   // resolves a *second* time against the publication base — doubling the
-  // sub-path (".../test-overlay/test-overlay/01.mp3" → 404). Fully-qualifying
+  // sub-path (".../overlay/overlay/01.mp3" → 404). Fully-qualifying
   // here makes the synthetic hrefs absolute so upstream leaves them untouched.
   // Already-absolute self links (e.g. remote "https://…/manifest.json") are
   // returned unchanged by `new URL`.

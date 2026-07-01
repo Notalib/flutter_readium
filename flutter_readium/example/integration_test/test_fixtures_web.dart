@@ -18,18 +18,18 @@ Future<Map<String, String>> loadFixturePaths() async {
     'moby_dick.epub': 'https://readium.org/webpub-manifest/examples/MobyDick/manifest.json',
 
     // EPUB with media overlays (trimmed, local) — synced audio + text.
-    '38533_overlay_preview.webpub': '/test-overlay/manifest.json',
+    '38533_overlay_preview.webpub': '/test-fixtures/overlay/manifest.json',
 
     // Audiobook (trimmed, local) — audio-only playback.
-    '38533.audiobook': '/test-audiobook-nota/manifest.json',
+    '38533.audiobook': '/test-fixtures/audiobook/manifest.json',
 
     // Fixed-layout EPUB (local) — authored public-domain FXL test book.
-    'fixed_layout.webpub': '/test-fixed-layout/manifest.json',
+    'fixed_layout.webpub': '/test-fixtures/fixed-layout/manifest.json',
 
     // Guided-navigation publication (local) — narration synced to text.
-    'guided_navigation.webpub': '/test-guided-navigation/manifest.json',
+    'guided_navigation.webpub': '/test-fixtures/guided-navigation/manifest.json',
 
     // Nota comic-book media-overlay EPUB (local).
-    'comic.webpub': '/test-comic/manifest.json',
+    'comic.webpub': '/test-fixtures/comic/manifest.json',
   };
 }

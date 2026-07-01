@@ -26,12 +26,12 @@ trim() {
   fi
 }
 
-trim 38533_overlay_preview.webpub               test-overlay           4
-trim 38533.audiobook                            test-audiobook-nota    3
-trim 38533_guided_navigation_preview.webpub     test-guided-navigation 4
-trim 50272-nota-comics.webpub                   test-comic
-trim 50272-nota-comics.divina                   test-divina
-trim 712199_ebook.webpub                        test-ebook
-trim flatland_remote.audiobook                  test-audiobook
-trim test-fixed-layout.webpub                   test-fixed-layout
-trim test-peter-rabbit.webpub                   test-peter-rabbit
+trim 38533_overlay_preview.webpub               test-fixtures/overlay            4
+trim 38533.audiobook                            test-fixtures/audiobook          3
+trim 38533_guided_navigation_preview.webpub     test-fixtures/guided-navigation  4
+trim 50272-nota-comics.webpub                   test-fixtures/comic
+trim 50272-nota-comics.divina                   test-fixtures/divina
+trim 712199_ebook.webpub                        test-fixtures/ebook
+trim flatland_remote.audiobook                  test-fixtures/audiobook-remote
+trim test-fixed-layout.webpub                   test-fixtures/fixed-layout
+trim test-peter-rabbit.webpub                   test-fixtures/peter-rabbit
