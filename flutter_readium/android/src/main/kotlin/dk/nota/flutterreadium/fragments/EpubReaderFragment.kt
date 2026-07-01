@@ -7,6 +7,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
+import dk.nota.flutterreadium.EpubImageTapBridge
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.NarrationSyncInterface
 import dk.nota.flutterreadium.PluginLog
@@ -115,8 +116,36 @@ class EpubReaderFragment :
         PluginLog.d(TAG, "::onPageLoaded")
         lifecycleScope.launch {
             applyCustomCssVariables()
+            injectImageTapListeners()
         }
         listener?.onPageLoaded()
+    }
+
+    private suspend fun injectImageTapListeners() {
+        evaluateJavascript(
+            """
+            (function() {
+                if (window.__flutterImageBridgeReady) return;
+                if (typeof FlutterImageBridge === 'undefined') return;
+                window.__flutterImageBridgeReady = true;
+                document.addEventListener('click', function(e) {
+                    var img = e.target && e.target.closest ? e.target.closest('img') : null;
+                    if (!img) return;
+                    var figure = img.closest ? img.closest('figure') : null;
+                    var comicContainer = img.closest ? img.closest('.nota-comicbook-page-container') : null;
+                    var r = img.getBoundingClientRect();
+                    FlutterImageBridge.onImageTapped(JSON.stringify({
+                        srcUrl: img.src || '',
+                        alt: img.getAttribute('alt') || null,
+                        notaComicPageImage: !!((img.classList && img.classList.contains('page') && figure && figure.querySelector('.area')) || comicContainer),
+                        rect: { x: r.left, y: r.top, width: r.width, height: r.height },
+                        nw: img.naturalWidth || 0,
+                        nh: img.naturalHeight || 0
+                    }));
+                }, true);
+            })();
+            """.trimIndent(),
+        )
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {
@@ -559,44 +588,46 @@ class EpubReaderFragment :
         model.preferences = preferences
         val navigatorFactory = model.navigatorFactory!!
 
+        val navigatorConfig =
+            EpubNavigatorFragment
+                .Configuration(
+                    // Padding should be added on Flutter side
+                    shouldApplyInsetsPadding = false,
+                    // Extra served asssets will be relative to your app's src/main/assets/ folder.
+                    // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
+                    // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
+                    servedAssets =
+                        listOf(
+                            "flutter_assets/packages/flutter_readium/assets/.*",
+                        ),
+                    // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
+                    decorationTemplates =
+                        HtmlDecorationTemplates
+                            .defaultTemplates(
+                                alpha = 1.0,
+                                experimentalPositioning = true,
+                            ).also { templates ->
+                                templates[SpotlightStyle::class] = spotlightDecorationTemplate()
+                            },
+                    // Only register the callback if custom selectionActions are added.
+                    selectionActionModeCallback =
+                        if (ReadiumReader.selectionActions.isNotEmpty()) {
+                            createSelectionActionModeCallback()
+                        } else {
+                            null
+                        },
+                ).apply {
+                    // Register JS→native bridge for window.updateNarrationSync(bool).
+                    registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ -> NarrationSyncInterface(ReadiumReader) }
+
+                    // TODO: This is a temporary solution until kotlin-toolkit supports image tap events natively.
+                    // Register JS→native bridge for window.onImageTappedCallback(string).
+                    registerJavascriptInterface("FlutterImageBridge") { _ -> EpubImageTapBridge() }
+                }
+
         val fragmentFactory =
             navigatorFactory.createFragmentFactory(
-                configuration =
-                    EpubNavigatorFragment
-                        .Configuration(
-                            // Padding should be added on Flutter side
-                            shouldApplyInsetsPadding = false,
-                            // Extra served asssets will be relative to your app's src/main/assets/ folder.
-                            // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
-                            // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
-                            servedAssets =
-                                listOf(
-                                    "flutter_assets/packages/flutter_readium/assets/.*",
-                                ),
-                            // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
-                            decorationTemplates =
-                                HtmlDecorationTemplates
-                                    .defaultTemplates(
-                                        alpha = 1.0,
-                                        experimentalPositioning = true,
-                                    ).also { templates ->
-                                        templates[SpotlightStyle::class] = spotlightDecorationTemplate()
-                                    },
-                            // Only register the callback if custom selectionActions are added.
-                            selectionActionModeCallback =
-                                if (ReadiumReader.selectionActions.isNotEmpty()) {
-                                    createSelectionActionModeCallback()
-                                } else {
-                                    null
-                                },
-                        ).apply {
-                            // Register JS→native bridge for window.updateNarrationSync(bool).
-                            // The bootstrap shim in ReadiumExtensions defines window.updateNarrationSync to call
-                            // window.narrationSync.onNarrationSyncChanged(v), which forwards here.
-                            registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ ->
-                                NarrationSyncInterface(ReadiumReader)
-                            }
-                        },
+                configuration = navigatorConfig,
                 initialLocator = model.locator,
                 listener = this,
                 paginationListener = this,

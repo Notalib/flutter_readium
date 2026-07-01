@@ -241,6 +241,12 @@ class ReadiumReaderWidget(
         PluginLog.d(TAG, "::setPreferencesFromMap")
         val newPreferences = FlutterEpubPreferences.fromMap(prefMap)
         updatePreferences(newPreferences)
+        // Push the comic re-sync policy to the injected helper.
+        newPreferences.syncPolicy?.let { policy ->
+            ReadiumReader.epubEvaluateJavascript(
+                "window.flutterReadium && window.flutterReadium.setComicSyncPolicy(${JSONObject.quote(policy)});",
+            )
+        }
     }
 
     private suspend fun emitOnPageChanged(

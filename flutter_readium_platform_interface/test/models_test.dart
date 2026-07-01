@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show Rect;
 
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -379,6 +380,102 @@ void main() {
       final locator = pub.locatorFromLink(link);
       expect(locator, isNotNull);
       expect(locator!.href, contains('ch1'));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ImageTapEvent serialisation
+  // ---------------------------------------------------------------------------
+  group('ImageTapEvent', () {
+    test('round-trips a fully-populated iOS-style event through toJson / fromJson', () {
+      final event = ImageTapEvent(
+        href: 'images/wendy.jpg',
+        caption: 'Wendy and the boys',
+        rect: const Rect.fromLTWH(10.0, 20.0, 300.0, 200.0),
+        pixelWidth: 600,
+        pixelHeight: 400,
+      );
+
+      final restored = ImageTapEvent.fromJson(event.toJson());
+      expect(restored.href, event.href);
+      expect(restored.caption, event.caption);
+      expect(restored.alt, isNull);
+      expect(restored.rect!.left, closeTo(10.0, 1e-9));
+      expect(restored.rect!.height, closeTo(200.0, 1e-9));
+      expect(restored.pixelWidth, 600);
+      expect(restored.pixelHeight, 400);
+      expect(restored.srcUrl, isNull);
+    });
+
+    test('round-trips a fully-populated web-style event (with alt + srcUrl)', () {
+      final event = ImageTapEvent(
+        href: 'images/tinker_bell.png',
+        alt: 'Tinker Bell',
+        rect: const Rect.fromLTWH(0.0, 0.0, 500.0, 350.0),
+        pixelWidth: 1000,
+        pixelHeight: 700,
+        srcUrl: 'http://localhost:8080/EPUB/images/tinker_bell.png',
+      );
+
+      final json = event.toJson();
+      final restored = ImageTapEvent.fromJson(json);
+      expect(restored.href, event.href);
+      expect(restored.alt, 'Tinker Bell');
+      expect(restored.caption, isNull);
+      expect(restored.srcUrl, event.srcUrl);
+    });
+
+    test('toJson omits null optional fields', () {
+      final event = ImageTapEvent(href: 'images/cover.jpg');
+      final json = event.toJson();
+
+      expect(json.containsKey('caption'), isFalse);
+      expect(json.containsKey('alt'), isFalse);
+      expect(json.containsKey('rect'), isFalse);
+      expect(json.containsKey('pixelWidth'), isFalse);
+      expect(json.containsKey('pixelHeight'), isFalse);
+      expect(json.containsKey('srcUrl'), isFalse);
+      expect(json['href'], 'images/cover.jpg');
+    });
+
+    test('fromJson tolerates num rect values from native JSON codecs', () {
+      // Native method channels decode numbers as int or double; ensure
+      // the defensive cast in fromJson handles both.
+      final raw = <String, dynamic>{
+        'href': 'images/cover.jpg',
+        'rect': <String, dynamic>{
+          'x': 5, // int, not double
+          'y': 10.5, // double
+          'width': 200,
+          'height': 150,
+        },
+      };
+
+      final event = ImageTapEvent.fromJson(raw);
+      expect(event.rect!.left, 5.0);
+      expect(event.rect!.top, closeTo(10.5, 1e-9));
+      expect(event.rect!.width, 200.0);
+    });
+
+    test('fromJson throws ArgumentError when href is missing', () {
+      expect(
+        () => ImageTapEvent.fromJson({'alt': 'no href here'}),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('round-trips through JSON string (the wire format)', () {
+      final event = ImageTapEvent(
+        href: 'images/neverland.jpg',
+        alt: 'Neverland',
+        srcUrl: 'http://localhost:8080/images/neverland.jpg',
+      );
+      final jsonString = jsonEncode(event.toJson());
+      final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
+      final restored = ImageTapEvent.fromJson(decoded);
+      expect(restored.href, event.href);
+      expect(restored.alt, event.alt);
+      expect(restored.srcUrl, event.srcUrl);
     });
   });
 

@@ -15,6 +15,12 @@ Future<Map<String, String>> loadFixturePaths() => platform.loadFixturePaths();
 /// Fixture keys used across tests. Keeping them here avoids typos.
 abstract final class FixtureKeys {
   static const mobyDickEpub = 'moby_dick.epub';
+
+  /// Illustrated EPUB (Beatrix Potter's *The Tale of Peter Rabbit*, Project
+  /// Gutenberg #14838) used for image-tap and getResourceBytes tests. Contains
+  /// ~29 image resources (cover + interior plates) detectable via the manifest
+  /// resources list.
+  static const peterRabbitEpub = 'peter_rabbit.epub';
   static const overlayWebpub = '38533_overlay_preview.webpub';
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';

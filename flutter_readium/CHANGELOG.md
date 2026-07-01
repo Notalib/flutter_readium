@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
+  with an `ImageTapEvent` carrying the publication-relative `href`, optional
+  `alt` / `caption`, on-screen `rect`, and a `srcUrl` on Web. Detection runs on
+  iOS, Android, and Web. Android and Web suppress image-tap events for DiViNa publications
+  and Nota comic page images so narrated comics keep their panel navigation behavior.
+- **`getResourceBytes(href)`** — new API on `FlutterReadium` and the underlying
+  platform interface that returns the raw bytes of any manifest resource, plus a
+  companion `FlutterReadium.imageProvider(href)` that plugs into Flutter's image
+  pipeline for lazy display. Implemented on iOS, Android, and Web.
 - **Narration sync state & manual mode (iOS, Android, Web)** — a new
   `FlutterReadium.onNarrationSyncChanged` stream (`Stream<bool>`: `true` = following narration,
   `false` = manual mode) and `FlutterReadium.setNarrationSyncEnabled(bool)`. While Media Overlay or

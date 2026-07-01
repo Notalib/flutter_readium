@@ -53,6 +53,14 @@ export class ReadiumBridge {
   }
 
   /**
+   * Emit an image-tap event to Flutter.
+   * @param json JSON-stringified ImageTapEvent payload
+   */
+  emitImageTapped(json: string): void {
+    window.onImageTappedCallback?.(json);
+  }
+
+  /**
    * Notify Flutter that narration↔visual sync state changed.
    * `true` = in sync (hide re-sync UI); `false` = user took manual control (show re-sync UI).
    */

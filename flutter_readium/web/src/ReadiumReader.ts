@@ -369,6 +369,7 @@ class _ReadiumReader {
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
             },
             (positions) => { this._positions = positions; },
+            (json) => { this._bridge.emitImageTapped(json); },
             (wnd) => {
               // Re-inject MO column-break CSS into freshly-loaded frames when MO is active.
               // Use direct DOM manipulation — window.flutterReadium is deferred by rAF
@@ -1074,6 +1075,29 @@ class _ReadiumReader {
       }
       applyUtteranceDecoration();
     });
+  }
+
+  /**
+   * Fetches the raw bytes for a publication resource identified by its
+   * publication-relative href (e.g. `images/cover.png`).
+   * Returns a `Uint8Array` that can be passed directly back to Dart as a
+   * typed array — do NOT JSON-encode it.
+   */
+  public async getResourceBytes(href: string): Promise<Uint8Array> {
+    const pub = this._publication;
+    if (!pub) {
+      throw new Error("getResourceBytes: no publication is open");
+    }
+    const link = findLinkByHref(pub.allLinks, href);
+    if (!link) {
+      throw new Error(`getResourceBytes: no resource found for href: ${href}`);
+    }
+    const resource = pub.get(link);
+    const bytes = await resource.read();
+    if (!bytes) {
+      throw new Error(`getResourceBytes: read() returned undefined for href: ${href}`);
+    }
+    return bytes;
   }
 
   /**

@@ -24,6 +24,7 @@ import {
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
   enrichWithTocHref,
@@ -57,6 +58,7 @@ export class FlutterEpubNavigator {
     preferencesJsonString: string,
     setNav: (nav: EpubNavigator | WebPubNavigator) => void,
     setPositions?: (positions: Locator[]) => void,
+    emitImageTapped?: (json: string) => void,
     onFrameLoaded?: (wnd: Window) => void,
   ): Promise<FlutterEpubNavigator> {
     log.info("Initializing EpubNavigator");
@@ -116,6 +118,17 @@ export class FlutterEpubNavigator {
       },
     });
 
+    const handleImageTapEvent = function (e: FrameClickEvent): boolean {
+      if (emitImageTapped) {
+        const payload = tryBuildImageTapPayload(e, nav, publication);
+        if (payload !== null) {
+          emitImageTapped(payload);
+          return true;
+        }
+      }
+      return false;
+    };
+
     const listeners: EpubNavigatorListeners = {
       scroll: function (_amount: number): void {},
       frameLoaded: function (_wnd: Window): void {
@@ -146,12 +159,8 @@ export class FlutterEpubNavigator {
           )
         );
       },
-      tap: function (_e: FrameClickEvent): boolean {
-        return false;
-      },
-      click: function (_e: FrameClickEvent): boolean {
-        return false;
-      },
+      tap: handleImageTapEvent,
+      click: handleImageTapEvent,
       zoom: function (_scale: number): void {},
       miscPointer: function (_amount: number): void {},
       customEvent: function (_key: string, _data: unknown): void {},

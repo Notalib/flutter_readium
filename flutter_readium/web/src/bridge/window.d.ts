@@ -33,6 +33,12 @@ declare global {
     onErrorCallback?: (errorJson: string) => void;
 
     /**
+     * Callback for image-tap events.
+     * @param json JSON-stringified ImageTapEvent (matches Dart ImageTapEvent.fromJson)
+     */
+    onImageTappedCallback?: (json: string) => void;
+
+    /**
      * Notify Flutter that narration↔visual sync state changed.
      * `true` = view is tracking narration (in sync, hide re-sync UI).
      * `false` = user has taken manual control (out of sync, show re-sync UI).

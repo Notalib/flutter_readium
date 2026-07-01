@@ -160,6 +160,68 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Image tap API (getResourceBytes)
+  // ---------------------------------------------------------------------------
+
+  group(
+    'EPUB image tap API',
+    // The illustrated fixture is a native-bundled asset; the web integration
+    // suite serves a different (webpub) fixture set, so this group runs on
+    // iOS/Android only. getResourceBytes itself is implemented on web too.
+    skip: kIsWeb ? 'Native-bundled fixture not available on web' : null,
+    () {
+      test('opens EPUB and reads publication metadata', () async {
+        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
+        expect(
+          path,
+          isNotNull,
+          reason: 'Fixture peter_rabbit.epub missing from asset bundle',
+        );
+
+        final pub = await reader.openPublication(path!);
+
+        expect(pub.metadata.title, isNotEmpty);
+        expect(pub.readingOrder, isNotEmpty);
+      });
+
+      test('getResourceBytes returns non-empty bytes for an image resource', () async {
+        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
+        expect(path, isNotNull, reason: 'Fixture peter_rabbit.epub missing');
+
+        final pub = await reader.openPublication(path!);
+
+        // peter_rabbit.epub has many image resources (cover + interior plates).
+        final imageLink = pub.resources.firstWhere(
+          (l) =>
+              l.type?.startsWith('image/') == true ||
+              (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
+          orElse: () => throw StateError(
+            'peter_rabbit.epub has no image resources — cannot test getResourceBytes',
+          ),
+        );
+
+        final bytes = await reader.getResourceBytes(imageLink.href);
+        expect(
+          bytes,
+          isNotEmpty,
+          reason: 'getResourceBytes returned empty bytes for href: ${imageLink.href}',
+        );
+        // Sanity-check that the bytes look like an image by checking for known
+        // magic bytes. JPEG starts with 0xFF 0xD8; PNG with 0x89 0x50 0x4E 0x47.
+        final isJpeg = bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        final isPng = bytes.length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
+        expect(
+          isJpeg || isPng,
+          isTrue,
+          reason:
+              'Bytes for ${imageLink.href} do not start with a JPEG or PNG magic header '
+              '(got 0x${bytes.take(4).map((b) => b.toRadixString(16).padLeft(2, "0")).join()})',
+        );
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
   // PDF
   // ---------------------------------------------------------------------------
 

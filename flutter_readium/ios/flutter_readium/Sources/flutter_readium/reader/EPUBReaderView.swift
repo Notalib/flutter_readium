@@ -1,4 +1,4 @@
-import ReadiumNavigator
+@_spi(ExperimentalTargetElement) import ReadiumNavigator
 import ReadiumShared
 import Flutter
 import UIKit
@@ -236,6 +236,21 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       self?.onDecorationActivated(event: event)
     }
 
+    // Observe image-tap events via the ExperimentalTargetElement SPI.
+    // When the user taps an <img>, the navigator calls back with an
+    // ActivateEvent whose targetElement is an ImageContentElement.
+    readiumViewController.addObserver(.activate { [weak self] event in
+      guard let self = self else { return false }
+      guard let imageElement = event.targetElement?.content as? ImageContentElement else {
+        return false
+      }
+      self.onImageTapped(
+        image: imageElement,
+        frame: event.targetElement?.frame
+      )
+      return true
+    })
+
     Log.reader.debug("init success")
   }
 
@@ -309,6 +324,39 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   public func navigator(_ navigator: Navigator, shouldNavigateToNoteAt link: Link, content: String, referrer: String?) -> Bool {
     Log.reader.info("user tapped on note: \(content)")
     return true
+  }
+
+  /// Called when the user taps an image element inside an EPUB resource.
+  /// Forwards the event to the Flutter channel as an `onImageTapped` call.
+  private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
+    if suppressesImageTapEvent(image: image) {
+      Log.reader.debug("onImageTapped: suppressed for publication/content type")
+      return
+    }
+    Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
+    let href = image.embeddedLink.href
+    // accessibilityLabel carries the HTML alt="" attribute (stored in attributes
+    // under ContentAttributeKey.accessibilityLabel by the HTML content iterator).
+    // image.caption is the <figcaption> text — always nil in the current
+    // swift-toolkit (see TODO in HTMLResourceContentIterator).
+    let alt = image.accessibilityLabel
+    channel.onImageTapped(
+      href: href,
+      alt: alt,
+      frame: frame
+    )
+  }
+
+  private func suppressesImageTapEvent(image: ImageContentElement) -> Bool {
+    publication.conforms(to: Publication.Profile.divina)
+      || isNotaComicPageImage(image: image)
+  }
+
+  private func isNotaComicPageImage(image: ImageContentElement) -> Bool {
+    let cssSelector = image.locator.locations.cssSelector ?? ""
+    return cssSelector.contains("img.page")
+      || cssSelector.contains("#hix")
+      || cssSelector.contains(".nota-comicbook-page-container")
   }
 
   private func emitOnPageChanged(locator: Locator) -> Void {

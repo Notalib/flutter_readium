@@ -17,6 +17,7 @@ class ReadiumWebView extends StatefulWidget {
     this.onTextSelected,
     this.onSelectionAction,
     this.onDecorationInteraction,
+    this.onImageTapped,
   });
 
   final Publication publication;
@@ -24,6 +25,7 @@ class ReadiumWebView extends StatefulWidget {
   final void Function(TextSelectionEvent)? onTextSelected;
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
+  final void Function(ImageTapEvent)? onImageTapped;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -82,6 +84,13 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
   }
 
   @js_interop.JSExport()
+  void onImageTappedHandler(final String jsonString) {
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+    final event = ImageTapEvent.fromJson(json);
+    widget.onImageTapped?.call(event);
+  }
+
+  @js_interop.JSExport()
   void onTimebasedPlayerStateHandler(final String jsonString) {
     final json = jsonDecode(jsonString) as Map<String, dynamic>;
     final state = ReadiumTimebasedState.fromJson(json);
@@ -109,6 +118,7 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
     onSelectionActionCallback = onSelectionActionHandler.toJS;
     onDecorationInteractionCallback = onDecorationInteractionHandler.toJS;
     onErrorCallback = onErrorHandler.toJS;
+    onImageTappedCallback = onImageTappedHandler.toJS;
   }
 
   void createPlatformView(int id, web.HTMLDivElement htmlElement) async {

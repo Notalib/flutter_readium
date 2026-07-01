@@ -46,6 +46,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString prefsJson,
     JSString? fromLocatorJson,
   );
+  external JSPromise<JSUint8Array> getResourceBytes(JSString href);
 }
 
 @JS()
@@ -71,6 +72,9 @@ external set onDecorationInteractionCallback(JSFunction f);
 
 @JS()
 external set onErrorCallback(JSFunction f);
+
+@JS()
+external set onImageTappedCallback(JSFunction f);
 
 class JsPublicationChannel {
   static final ReadiumReader _readiumReader = ReadiumReader();
@@ -281,6 +285,20 @@ class JsPublicationChannel {
         code: nativeCode,
         message: errorString,
         details: statusCode,
+        stacktrace: stackTrace.toString(),
+      );
+    }
+  }
+
+  static Future<Uint8List> getResourceBytes(String href) async {
+    try {
+      final jsArray = await _readiumReader.getResourceBytes(href.toJS).toDart;
+      return jsArray.toDart;
+    } on Object catch (jsError, stackTrace) {
+      final errorString = describeJsError(jsError);
+      throw PlatformException(
+        code: 'ResourceReadError',
+        message: errorString,
         stacktrace: stackTrace.toString(),
       );
     }

@@ -28,6 +28,7 @@ class ReadiumReaderChannel extends MethodChannel {
     this.onTextSelected,
     this.onSelectionAction,
     this.onDecorationInteraction,
+    this.onImageTapped,
   }) {
     setMethodCallHandler(onMethodCall);
   }
@@ -48,6 +49,9 @@ class ReadiumReaderChannel extends MethodChannel {
 
   /// Called when the user interacts with an existing decoration.
   void Function(DecorationInteractionEvent)? onDecorationInteraction;
+
+  /// Called when the user taps an image in the EPUB.
+  void Function(ImageTapEvent)? onImageTapped;
 
   /// Go e.g. navigate to a specific locator in the publication.
   Future<void> go(
@@ -172,6 +176,14 @@ class ReadiumReaderChannel extends MethodChannel {
           final event = DecorationInteractionEvent.fromJson(eventJson);
           _log.d('onDecorationInteraction ${event.decorationId}');
           onDecorationInteraction?.call(event);
+
+          return null;
+        case 'onImageTapped':
+          final args = call.arguments as String;
+          final eventJson = json.decode(args) as Map<String, dynamic>;
+          final event = ImageTapEvent.fromJson(eventJson);
+          _log.d('onImageTapped ${event.href}');
+          onImageTapped?.call(event);
 
           return null;
         default:

@@ -393,5 +393,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   // AUDIOBOOK API - END
 
   @override
+  Future<Uint8List> getResourceBytes(String href) => JsPublicationChannel.getResourceBytes(href);
+
+  @override
   Stream<ReadiumError> get onErrorEvent => _errorEventController.stream;
 }
