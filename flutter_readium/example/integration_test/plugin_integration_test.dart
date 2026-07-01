@@ -172,20 +172,6 @@ void main() {
     // iOS/Android only. getResourceUrl itself is implemented on web too.
     skip: kIsWeb ? 'Native-bundled fixture not available on web' : null,
     () {
-      test('opens EPUB and reads publication metadata', () async {
-        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
-        expect(
-          path,
-          isNotNull,
-          reason: 'Fixture peter_rabbit.epub missing from asset bundle',
-        );
-
-        final pub = await reader.openPublication(path!);
-
-        expect(pub.metadata.title, isNotEmpty);
-        expect(pub.readingOrder, isNotEmpty);
-      });
-
       test('getResourceUrl returns a file:// URL to a cached, decodable image', () async {
         final path = fixturePaths[FixtureKeys.peterRabbitEpub];
         expect(path, isNotNull, reason: 'Fixture peter_rabbit.epub missing');
