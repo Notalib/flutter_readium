@@ -17,7 +17,7 @@ abstract final class FixtureKeys {
   static const mobyDickEpub = 'moby_dick.epub';
 
   /// Illustrated EPUB (Beatrix Potter's *The Tale of Peter Rabbit*, Project
-  /// Gutenberg #14838) used for image-tap and getResourceBytes tests. Contains
+  /// Gutenberg #14838) used for image-tap and getResourceUrl tests. Contains
   /// ~29 image resources (cover + interior plates) detectable via the manifest
   /// resources list.
   static const peterRabbitEpub = 'peter_rabbit.epub';
