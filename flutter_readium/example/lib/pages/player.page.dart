@@ -67,7 +67,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
-            actions: _buildActionButtons(),
+            actions: _buildActionButtons(isAudioBook),
           ),
           body: Stack(
             children: [
@@ -123,40 +123,40 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     },
   );
 
-  List<Widget> _buildActionButtons() => <Widget>[
-    // IconButton(
-    //   icon: const Icon(Icons.headphones),
-    //   onPressed: () {
-    //     context.read<TtsSettingsBloc>().add(GetTtsVoicesEvent());
+  List<Widget> _buildActionButtons(final bool isAudioBook) => <Widget>[
+    if (!isAudioBook)
+      IconButton(
+        icon: const Icon(Icons.format_paint),
+        onPressed: () {
+          final publication = context.read<PublicationBloc>().state.publication;
+          final isPDF = publication?.conformsToReadiumPDF ?? false;
 
-    //     final pubLang =
-    //         context.read<PublicationBloc>().state.publication?.metadata.language ?? ['en'];
-
-    //     showModalBottomSheet(
-    //       context: context,
-    //       isScrollControlled: true,
-    //       builder: (final context) => TtsSettingsWidget(
-    //         pubLang: pubLang,
-    //       ),
-    //     );
-    //   },
-    //   tooltip: 'Open tts settings',
-    // ),
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (final context) => PointerInterceptor(
+              child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+            ),
+          );
+        },
+        tooltip: 'Open visual reader settings',
+      ),
     IconButton(
-      icon: const Icon(Icons.format_paint),
+      icon: const Icon(Icons.headphones),
       onPressed: () {
-        final publication = context.read<PublicationBloc>().state.publication;
-        final isPDF = publication?.conformsToReadiumPDF ?? false;
+        if (!isAudioBook) {
+          context.read<TtsSettingsBloc>().add(LoadAvailableVoices());
+        }
 
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           builder: (final context) => PointerInterceptor(
-            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+            child: isAudioBook ? const AudiobookSettingsWidget() : const TtsSettingsWidget(),
           ),
         );
       },
-      tooltip: 'Open reader settings',
+      tooltip: 'Open audio/playback settings',
     ),
     IconButton(
       icon: const Icon(Icons.search),

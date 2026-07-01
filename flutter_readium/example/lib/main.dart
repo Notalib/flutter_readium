@@ -47,11 +47,10 @@ Future<void> main() async {
             return bloc;
           },
         ),
-        // BlocProvider(
-        //   create: (final _) => TtsSettingsBloc(),
-        //   lazy: false,
-        // ),
-        BlocProvider(create: (final _) => PlayerControlsBloc()),
+        BlocProvider(create: (final _) => TtsSettingsBloc()),
+        BlocProvider(
+          create: (final ctx) => PlayerControlsBloc(ttsSettingsBloc: ctx.read<TtsSettingsBloc>()),
+        ),
         BlocProvider(create: (final _) => PDFSettingsBloc()),
       ],
       child: MyApp(),
