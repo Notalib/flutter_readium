@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Extra JS/CSS injection** — `FlutterReadium().setJavaScriptInjections(List<InjectionAsset>)`
+  and `FlutterReadium().setCssInjections(List<InjectionAsset>)` register additional JavaScript
+  and CSS assets to inject into every EPUB HTML resource alongside the
+  built-in `flutterReadiumTools.js` / `flutterReadiumTools.css`. Supported on iOS and Android.
+  Call before opening a publication so the injections are active when the reader view is created.
 - **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
   with an `ImageTapEvent` carrying the publication-relative `href`, optional
   `alt` / `caption`, on-screen `rect`, and a `srcUrl` on Web. Detection runs on

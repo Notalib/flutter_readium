@@ -5,6 +5,22 @@ import MediaPlayer
 import ReadiumNavigator
 import ReadiumShared
 
+/// A Flutter asset (JS or CSS) to inject into every EPUB HTML resource.
+struct InjectionAsset {
+  let assetPath: String
+  let packageName: String?
+
+  init(assetPath: String, packageName: String? = nil) {
+    self.assetPath = assetPath
+    self.packageName = packageName
+  }
+
+  init(from map: [String: Any?]) {
+    assetPath = map["assetPath"] as! String
+    packageName = map["package"] as? String
+  }
+}
+
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
@@ -13,6 +29,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public var currentPublicationUrlStr: String?
   public var currentPublication: Publication?
   public var currentReaderView: (any ReadiumReaderView)?
+
+  /// Extra CSS assets injected alongside the built-in helpers.
+  var cssInjections: [InjectionAsset] = []
+
+  /// Extra JavaScript assets injected alongside the built-in helpers.
+  var javaScriptInjections: [InjectionAsset] = []
 
   /// Incremented each time a new publication is successfully opened.
   /// Used to guard against stale `closePublication` calls from a previous
@@ -194,6 +216,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
+    case "setCssInjections":
+      let items = call.arguments as? [[String: Any?]] ?? []
+      self.cssInjections = items.map { InjectionAsset(from: $0) }
+      result(nil)
+    case "setJavaScriptInjections":
+      let items = call.arguments as? [[String: Any?]] ?? []
+      self.javaScriptInjections = items.map { InjectionAsset(from: $0) }
+      result(nil)
     case "setCustomHeaders":
       guard let args = call.arguments as? [String: Any],
             let httpHeaders = args["httpHeaders"] as? [String: String] else {

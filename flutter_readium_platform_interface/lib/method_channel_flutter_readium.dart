@@ -139,6 +139,22 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setCssInjections(List<InjectionAsset> injections) async {
+    await methodChannel.invokeMethod<void>(
+      'setCssInjections',
+      injections.map((e) => e.toJson()).toList(),
+    );
+  }
+
+  @override
+  Future<void> setJavaScriptInjections(List<InjectionAsset> injections) async {
+    await methodChannel.invokeMethod<void>(
+      'setJavaScriptInjections',
+      injections.map((e) => e.toJson()).toList(),
+    );
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('openPublication', [pubUrl])

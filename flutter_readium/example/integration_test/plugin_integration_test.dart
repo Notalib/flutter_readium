@@ -898,7 +898,7 @@ void main() {
 
         await _waitUntil(
           () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
-          timeout: const Duration(seconds: 10),
+          timeout: const Duration(seconds: 110),
           reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
         );
 

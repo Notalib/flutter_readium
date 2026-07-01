@@ -102,12 +102,12 @@
   "java.configuration.updateBuildConfiguration": "interactive",
   "dart.mcpServer": true,
   "chat.tools.terminal.autoApprove": {
-    "flutter": true,
-    "dart": true,
     "./gradlew": true,
+    "bin/analyze": true,
     "command": true,
+    "dart": true,
+    "flutter": true,
     "ktlint": true,
-    "npm run build:flutter": true,
-    "bin/analyze": true
+    "npm run build:flutter": true
   }
 }

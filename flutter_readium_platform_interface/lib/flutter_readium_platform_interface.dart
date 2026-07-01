@@ -67,6 +67,18 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
   Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
+    /// Registers extra CSS assets to inject into every EPUB HTML resource,
+    /// in addition to the built-in `flutterReadiumTools.css`.
+    /// Call before opening a publication so the injections are in effect when the reader view is created.
+    Future<void> setCssInjections(List<InjectionAsset> injections) =>
+      throw UnimplementedError('setCssInjections() has not been implemented.');
+
+    /// Registers extra JavaScript assets to inject into every EPUB HTML resource,
+    /// in addition to the built-in `flutterReadiumTools.js`.
+    /// Call before opening a publication so the injections are in effect when the reader view is created.
+    Future<void> setJavaScriptInjections(List<InjectionAsset> injections) =>
+      throw UnimplementedError('setJavaScriptInjections() has not been implemented.');
+
   /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;

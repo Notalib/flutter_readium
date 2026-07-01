@@ -141,6 +141,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setLogLevel(LogLevel level) async {}
 
   @override
+  Future<void> setCssInjections(List<InjectionAsset> injections) async {}
+
+  @override
+  Future<void> setJavaScriptInjections(List<InjectionAsset> injections) async {}
+
+  @override
   Future<Uint8List> getResourceBytes(String href) async => Uint8List(0);
 
   @override

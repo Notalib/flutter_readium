@@ -90,6 +90,32 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.success(null)
             }
 
+            "setCssInjections" -> {
+                @Suppress("UNCHECKED_CAST")
+                val items = arguments as? List<Map<String, Any?>> ?: emptyList()
+                ReadiumReader.cssInjections =
+                    items.map { map ->
+                        InjectionAsset(
+                            assetPath = map["assetPath"] as String,
+                            packageName = map["package"] as? String,
+                        )
+                    }
+                return Try.success(null)
+            }
+
+            "setJavaScriptInjections" -> {
+                @Suppress("UNCHECKED_CAST")
+                val items = arguments as? List<Map<String, Any?>> ?: emptyList()
+                ReadiumReader.javaScriptInjections =
+                    items.map { map ->
+                        InjectionAsset(
+                            assetPath = map["assetPath"] as String,
+                            packageName = map["package"] as? String,
+                        )
+                    }
+                return Try.success(null)
+            }
+
             "loadPublication" -> {
                 val args = arguments as List<Any?>
                 val pubUrlStr = args[0] as String
