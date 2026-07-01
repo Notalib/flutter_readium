@@ -9,12 +9,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `ImageTapEvent` — model for an EPUB image tap, carrying the publication-relative
   `href`, optional `caption` / `alt`, an on-screen `rect` (`dart:ui` `Rect`), and
-  natural `pixelWidth` / `pixelHeight`.
+  natural `pixelWidth` / `pixelHeight`, with hand-written `toJson` / `fromJson`.
 - `getResourceUrl(String href)` — resolves any publication resource (e.g. an image
   link from `ImageTapEvent.href`) to a loadable URL over the method channel: a
   native-cached `file://` URL on iOS/Android, or the served resource URL on Web.
-  On Web, loading the resolved URL as an image requires the server to send
-  `Access-Control-Allow-Origin` — a CanvasKit/browser constraint.
+  Throws `PlatformException` when the resource is missing or unreadable. On Web,
+  loading the resolved URL as an image requires the server to send
+  `Access-Control-Allow-Origin` — a CanvasKit/browser constraint, not fixable
+  client-side.
 - `Publication.conformsToReadiumDivina` — convenience getter mirroring the existing
   `conformsToReadiumPDF/Ebook/Audiobook` helpers; returns `true` for CBZ comics and other
   image-based publications whose `metadata.conformsTo` includes the DiViNa profile URI.
