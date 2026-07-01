@@ -1,0 +1,26 @@
+{
+  "@context": "https://readium.org/webpub-manifest/context.jsonld",
+  "metadata": {
+    "@type": "http://schema.org/Book",
+    "conformsTo": "https://readium.org/webpub-manifest/profiles/epub",
+    "identifier": "flutter-readium-test-peter-rabbit",
+    "title": "The Tale of Peter Rabbit (test)",
+    "author": "Beatrix Potter",
+    "language": "en"
+  },
+  "links": [
+    { "rel": "self", "href": "manifest.json", "type": "application/webpub+json" },
+    { "rel": "cover", "href": "images/cover.jpg", "type": "image/jpeg" }
+  ],
+  "readingOrder": [
+    { "href": "page1.xhtml", "type": "text/html", "title": "Page 1" }
+  ],
+  "resources": [
+    { "href": "page1.xhtml", "type": "text/html" },
+    { "href": "images/cover.jpg", "type": "image/jpeg" },
+    { "href": "images/plate04.jpg", "type": "image/jpeg" }
+  ],
+  "toc": [
+    { "href": "page1.xhtml", "title": "Page 1" }
+  ]
+}
