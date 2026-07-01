@@ -48,9 +48,23 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 ### Android
 
-- After editing any Kotlin file: `ktlint --format`; resolve all violations before committing.
-- Every `PluginLog.*` message starts with `::functionName` (exact enclosing named function).
-- Navigator-dependent `suspend` funcs: capture `navigator` as a local with a `?: run { … return }` guard, then wrap calls in `return withContext(coroutineContext) { }`. Funcs that only delegate to other wrappers skip the guard.
+- **Kotlin formatting**: after writing or editing any Kotlin file, run `ktlint --format` on it. All violations must be resolved before committing.
+- **Android log messages**: every `PluginLog.*` call in Kotlin must start with `::functionName` (double colon, then the exact name of the enclosing function). For lambdas, use the name of the enclosing named function. Example: `Log.d(TAG, "::goBackward. Navigator not ready.")`. Single-colon or missing prefixes are bugs; wrong function names from copy-paste are also bugs.
+- **Android navigator null guard**: every `suspend` function that needs the navigator must capture it as a local variable with a `?: run { }` early-return guard, then wrap direct navigator calls in `return withContext(coroutineContext) { }`. Functions that only call other wrapper functions (e.g. `evaluateJavascript`) do not need their own guard or `withContext` — delegate instead. Example:
+  ```kotlin
+  val navigator = epubNavigator ?: run {
+      PluginLog.w(TAG, "::myFunction. Navigator not ready.")
+      return
+  }
+  return withContext(coroutineContext) { navigator.someCall() }
+  ```
+
+## Build / toolchain facts
+
+- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.44.0`.
+- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
+- iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
+- Web: webpack 5, TypeScript 5.7+.
 
 ## Gotchas
 
