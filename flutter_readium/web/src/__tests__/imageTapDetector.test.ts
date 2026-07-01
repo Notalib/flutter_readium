@@ -187,7 +187,6 @@ describe("tryBuildImageTapPayload — image hit", () => {
       rect: { x: 10, y: 20, width: 100, height: 150 },
       pixelWidth: 800,
       pixelHeight: 1200,
-      srcUrl: "https://readium/images/cover.jpg",
     });
   });
 
@@ -265,7 +264,7 @@ describe("tryBuildImageTapPayload — image hit", () => {
     expect(JSON.parse(result!).href).toBe("images/p4.png");
   });
 
-  it("omits alt, dimensions, and srcUrl when unavailable", () => {
+  it("omits alt and dimensions when unavailable", () => {
     const img = makeImg({ src: "", alt: null, naturalWidth: 0, naturalHeight: 0 });
     const wnd = makeWindow({ href: FRAME_SRC, queryResult: img });
     const nav = makeNav([wnd]);
@@ -282,7 +281,6 @@ describe("tryBuildImageTapPayload — image hit", () => {
     expect(payload.alt).toBeUndefined();
     expect(payload.pixelWidth).toBeUndefined();
     expect(payload.pixelHeight).toBeUndefined();
-    expect(payload.srcUrl).toBeUndefined();
     // No src → empty href, but the rect is still emitted.
     expect(payload.href).toBe("");
     expect(payload.rect).toEqual({ x: 0, y: 0, width: 0, height: 0 });
