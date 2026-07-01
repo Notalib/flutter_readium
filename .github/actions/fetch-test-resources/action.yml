@@ -1,0 +1,22 @@
+name: Fetch test resources
+description: Clone readium-test-resources and build publications into example/assets/pubs/
+
+runs:
+  using: composite
+  steps:
+    - name: Check out test resources
+      uses: actions/checkout@v7
+      with:
+        repository: Notalib/readium-test-resources
+        path: .test-resources
+
+    - name: Build publications
+      shell: bash
+      run: |
+        REPO_ROOT="$(pwd)"
+        bash .test-resources/bin/build-publications.sh build \
+          "$REPO_ROOT/flutter_readium/example/assets/pubs"
+
+    - name: Clean up cloned resources
+      shell: bash
+      run: rm -rf .test-resources
