@@ -56,6 +56,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 - Singleton API (`FlutterReadium()` in `lib/flutter_readium.dart`) — no per-instance state; respect the global publication lifecycle.
 - `example/`'s `Podfile.lock` + `pubspec.lock` are committed — be intentional about lockfile diffs.
+- **Test fixtures are generated, not committed** — `example/assets/pubs/` (native) and `example/web/test-fixtures/` (web) are gitignored, built from the `readium-test-resources` repo by `bin/fetch_test_resources` (run by `bin/install`; CI uses the `fetch-test-resources` action). Missing/stale fixtures? Re-run `bin/fetch_test_resources`. Never hand-edit them; to add/change one, edit the source repo + the matching `trim` line in `bin/build_test_fixtures`. Detail: `CONTRIBUTING.md#test-fixtures`.
 - iOS consumers need `use_frameworks!` + `use_modular_headers!` in their `Podfile` (see `README.md`).
 - **Decoration fills must be `!important`** — Readium CSS forces all backgrounds transparent under a custom theme. Editing any fill-based decoration (highlight/ruler)? Read `docs/troubleshooting.md#decorations-render-invisibly-fills-must-be-important` first.
 - **Honest limitations over brittle workarounds**: document a platform constraint rather than reimplementing system UI (copy/share/localised strings/DRM). Surface trade-offs and ask before committing to an approach with obvious downsides.
