@@ -196,14 +196,14 @@ object ReadiumReader :
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
-    /** TTS-only: handles page-break elements during content iteration. Not [_preventMOColumnBreaks] (MO-only). */
+    /** TTS-only: handles page-break elements during content iteration. Not [preventMOColumnBreaksActive] (MO-only). */
     private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
 
     /**
      * Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`.
      * Consumer can opt out via preferences.
      */
-    private var _preventMOColumnBreaks: Boolean = true
+    private var preventMOColumnBreaksActive: Boolean = true
 
     /** True when a Media Overlay (sync-narration) navigator is active. */
     val isMOActive: Boolean
@@ -211,7 +211,7 @@ object ReadiumReader :
 
     /** Whether MO page-change reinjection should run for the current reader state. */
     internal val shouldInjectMOColumnBreakCssOnPageChange: Boolean
-        get() = shouldInjectMOColumnBreakCss(isMOActive, _preventMOColumnBreaks)
+        get() = shouldInjectMOColumnBreakCss(isMOActive, preventMOColumnBreaksActive)
 
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
@@ -1494,7 +1494,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
-            if (_preventMOColumnBreaks) {
+            if (preventMOColumnBreaksActive) {
                 epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
             }
             currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
@@ -1577,14 +1577,14 @@ object ReadiumReader :
             }
 
         val newPreventBreaks = preferences.preventMOColumnBreaks ?: true
-        if (isMOActive && newPreventBreaks != _preventMOColumnBreaks) {
+        if (isMOActive && newPreventBreaks != preventMOColumnBreaksActive) {
             if (newPreventBreaks) {
                 epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
             } else {
                 epubEvaluateJavascript("window.flutterReadium.removeMOBreakCSS()")
             }
         }
-        _preventMOColumnBreaks = newPreventBreaks
+        preventMOColumnBreaksActive = newPreventBreaks
 
         navigator.updatePreferences(preferences)
     }
