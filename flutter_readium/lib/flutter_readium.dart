@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 
+import 'network_image_codec_switch.dart';
+
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 export 'reader_widget_switch.dart';
 
@@ -229,21 +231,30 @@ class FlutterReadium {
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async =>
       _platform.searchInPublication(searchKey);
 
-  /// Fetches the raw bytes of the publication resource identified by [href].
+  /// Resolves the publication resource identified by [href] to a loadable
+  /// URL.
   ///
   /// [href] is the publication-relative href as reported in an [ImageTapEvent]
-  /// (e.g. `images/cover.png`). Returns the resource bytes.
+  /// (e.g. `images/cover.png`). On iOS/Android the resource is fetched
+  /// natively and cached to an app-owned file, returning a `file://` URL; on
+  /// Web it returns the resource's served URL directly.
   ///
-  /// Implemented on iOS and Web. Throws [UnimplementedError] on Android until
-  /// the kotlin-toolkit exposes an equivalent per-resource fetch API.
-  Future<Uint8List> getResourceBytes(String href) => _platform.getResourceBytes(href);
+  /// **Web caveat**: displaying the resulting URL via [imageProvider] (or any
+  /// `Image.network`/`NetworkImage`) requires the resource's server to send
+  /// `Access-Control-Allow-Origin` — Flutter Web's CanvasKit renderer always
+  /// needs CORS to decode an image, even just to display it. Without it, the
+  /// image fails to load with a CORS error in the browser console. This is a
+  /// browser/renderer constraint, not fixable client-side. iOS/Android are
+  /// unaffected (native-cached `file://` URLs are never subject to CORS).
+  /// See `docs/troubleshooting.md` for details.
+  ///
+  /// Implemented on iOS, Android, and Web.
+  Future<String> getResourceUrl(String href) => _platform.getResourceUrl(href);
 
   /// Returns a Flutter [ImageProvider] that lazily loads the EPUB resource at
-  /// [href] via [getResourceBytes].
+  /// [href] via [getResourceUrl].
   ///
-  /// On Web, prefer loading via [ImageTapEvent.srcUrl] using `Image.network`
-  /// when available — it avoids the byte bridge. Use this provider as a
-  /// fallback or for iOS/Android.
+  /// See [getResourceUrl] for a Web CORS caveat.
   ImageProvider imageProvider(String href) => ReadiumResourceImageProvider(href, _platform);
 
   ///////////////////////
@@ -278,8 +289,13 @@ class FlutterReadium {
   }
 }
 
-/// An [ImageProvider] that fetches EPUB image resource bytes via the Readium
-/// platform bridge ([FlutterReadiumPlatform.getResourceBytes]).
+/// An [ImageProvider] that lazily resolves an EPUB image resource to a URL
+/// via the Readium platform bridge ([FlutterReadiumPlatform.getResourceUrl])
+/// and loads it from there.
+///
+/// On iOS/Android the resolved URL is a `file://` path to a native-cached
+/// copy of the resource, decoded directly from disk. On Web it is the
+/// resource's served URL, fetched over the network.
 ///
 /// Usage:
 /// ```dart
@@ -304,18 +320,22 @@ class ReadiumResourceImageProvider extends ImageProvider<ReadiumResourceImagePro
     ReadiumResourceImageProvider key,
     ImageDecoderCallback decode,
   ) => MultiFrameImageStreamCompleter(
-    codec: _loadBytes(key, decode),
+    codec: _loadCodec(key, decode),
     scale: 1.0,
     debugLabel: 'ReadiumResource($href)',
   );
 
-  Future<ui.Codec> _loadBytes(
+  Future<ui.Codec> _loadCodec(
     ReadiumResourceImageProvider key,
     ImageDecoderCallback decode,
   ) async {
-    final bytes = await key._platform.getResourceBytes(key.href);
-    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    return decode(buffer);
+    final url = await key._platform.getResourceUrl(key.href);
+    final uri = Uri.parse(url);
+    if (uri.isScheme('file')) {
+      final buffer = await ui.ImmutableBuffer.fromFilePath(uri.toFilePath());
+      return decode(buffer);
+    }
+    return loadNetworkImageCodec(uri, decode);
   }
 
   @override

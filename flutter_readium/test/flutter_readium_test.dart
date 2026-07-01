@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -141,7 +140,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setLogLevel(LogLevel level) async {}
 
   @override
-  Future<Uint8List> getResourceBytes(String href) async => Uint8List(0);
+  Future<String> getResourceUrl(String href) async => 'file:///tmp/$href';
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async => [];
