@@ -39,6 +39,10 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   ) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
+      // DiViNa (comics/image-based) publications have no text content — the
+      // "EPUB Settings" sheet (typography/layout/theme) is a poor fit, so
+      // hide the visual settings icon for them.
+      final isDivina = pubState.publication?.conformsToReadiumDivina ?? false;
 
       return PopScope(
         canPop: true,
@@ -67,7 +71,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
-            actions: _buildActionButtons(isAudioBook),
+            actions: _buildActionButtons(isAudioBook, isDivina),
           ),
           body: Stack(
             children: [
@@ -123,8 +127,8 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     },
   );
 
-  List<Widget> _buildActionButtons(final bool isAudioBook) => <Widget>[
-    if (!isAudioBook)
+  List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina) => <Widget>[
+    if (!isAudioBook && !isDivina)
       IconButton(
         icon: const Icon(Icons.format_paint),
         onPressed: () {
@@ -144,7 +148,14 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     IconButton(
       icon: const Icon(Icons.headphones),
       onPressed: () {
-        if (!isAudioBook) {
+        final publication = context.read<PublicationBloc>().state.publication;
+        // Broader than the `isAudioBook` param above (which only gates the
+        // visual/body layout): also true for Media Overlay / Guided
+        // Navigation EPUBs, which play back through the same audio pipeline
+        // as a plain audiobook and need the same speed/pitch controls.
+        final hasAudioPlayback = publication?.isAudioBook ?? false;
+
+        if (!hasAudioPlayback) {
           context.read<TtsSettingsBloc>().add(LoadAvailableVoices());
         }
 
@@ -152,7 +163,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
           context: context,
           isScrollControlled: true,
           builder: (final context) => PointerInterceptor(
-            child: isAudioBook ? const AudiobookSettingsWidget() : const TtsSettingsWidget(),
+            child: hasAudioPlayback ? const AudioPlaybackSettingsWidget() : const TtsSettingsWidget(),
           ),
         );
       },

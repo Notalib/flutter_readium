@@ -41,3 +41,20 @@ class ListItemWidget extends StatelessWidget {
           ),
   );
 }
+
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({required this.title, super.key});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+      ),
+    ),
+  );
+}

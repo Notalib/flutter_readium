@@ -99,6 +99,12 @@ class ChangeAudioSeekInterval extends PlayerControlsEvent {
 }
 
 @immutable
+class ChangeAudioPitch extends PlayerControlsEvent {
+  ChangeAudioPitch(this.value);
+  final double value;
+}
+
+@immutable
 class UpdateCurrentTocHref extends PlayerControlsEvent {
   UpdateCurrentTocHref(this.tocHref);
 
@@ -123,6 +129,7 @@ class PlayerControlsState {
     required this.audioControlPanelTimebase,
     this.audioSpeed = 1.5,
     this.audioSeekInterval = 10.0,
+    this.audioPitch = 1.0,
     this.narrationSyncEnabled,
     this.currentTocHref,
   });
@@ -133,6 +140,7 @@ class PlayerControlsState {
   final ControlPanelTimebase audioControlPanelTimebase;
   final double audioSpeed;
   final double audioSeekInterval;
+  final double audioPitch;
   final bool? narrationSyncEnabled;
   final String? currentTocHref;
 
@@ -143,6 +151,7 @@ class PlayerControlsState {
     ControlPanelTimebase? audioControlPanelTimebase,
     double? audioSpeed,
     double? audioSeekInterval,
+    double? audioPitch,
     bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
@@ -152,6 +161,7 @@ class PlayerControlsState {
     audioControlPanelTimebase: audioControlPanelTimebase ?? this.audioControlPanelTimebase,
     audioSpeed: audioSpeed ?? this.audioSpeed,
     audioSeekInterval: audioSeekInterval ?? this.audioSeekInterval,
+    audioPitch: audioPitch ?? this.audioPitch,
     narrationSyncEnabled: narrationSyncEnabled != null ? narrationSyncEnabled : this.narrationSyncEnabled,
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
@@ -185,6 +195,7 @@ class PlayerControlsState {
     audioControlPanelTimebase: audioControlPanelTimebase,
     audioSpeed: audioSpeed,
     audioSeekInterval: audioSeekInterval,
+    audioPitch: audioPitch,
     currentTocHref: null,
   );
 }
@@ -424,10 +435,19 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.audioSetPreferences(_buildAudioPreferences(state.audioControlPanelTimebase));
       }
     });
+
+    on<ChangeAudioPitch>((event, emit) async {
+      emit(state.copyWith(audioPitch: event.value));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(state.audioControlPanelTimebase));
+      }
+    });
   }
 
   AudioPreferences _buildAudioPreferences(ControlPanelTimebase timebase) => AudioPreferences(
     speed: state.audioSpeed,
+    pitch: state.audioPitch,
     seekInterval: state.audioSeekInterval,
     continuousSeeking: true,
     controlPanelTimebase: timebase,

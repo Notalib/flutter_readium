@@ -6,9 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 
-import '../extensions/text_settings_theme.dart';
 import '../state/publication_bloc.dart';
-import '../state/text_settings_bloc.dart';
 import '../state/tts_settings_bloc.dart';
 import 'index.dart';
 
@@ -68,7 +66,7 @@ class TtsSettingsWidget extends StatelessWidget {
               ),
             ),
             const Divider(),
-            _SectionHeader(title: 'Voice'),
+            const SectionHeader(title: 'Voice'),
             if (!kIsWeb && Platform.isIOS)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -95,49 +93,7 @@ class TtsSettingsWidget extends StatelessWidget {
                   child: _VoiceDropdown(language: language),
                 ),
             const Divider(),
-            _SectionHeader(title: 'Highlight'),
-            ListItemWidget(
-              label: 'Color',
-              child: ThemeSelectorWidget(themes: highlights, isHighlight: true),
-            ),
-            ListItemWidget(
-              label: 'Utterance',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.utteranceStyle,
-                builder: (context, utteranceStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('utterance_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                  ],
-                  selected: {utteranceStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeUtteranceStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
-            ),
-            ListItemWidget(
-              label: 'Range',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.rangeStyle,
-                builder: (context, rangeStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('range_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                  ],
-                  selected: {rangeStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeRangeStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
-            ),
+            const HighlightSettingsSection(showRange: true),
             const Divider(),
             TextButton(
               key: const ValueKey('tts_settings_close_button'),
@@ -174,7 +130,14 @@ class _VoiceDropdown extends StatelessWidget {
     final ttsSettingsBloc = context.watch<TtsSettingsBloc>();
     final state = ttsSettingsBloc.state;
 
-    final matchingVoices = state.availableVoices.where((v) => v.language == language).toList();
+    // Match by primary BCP-47 subtag rather than exact equality — publications
+    // commonly declare a bare language ("da"), while device voices are
+    // region-qualified ("da-DK"), so an exact match would (almost) never hit
+    // and silently fall back to listing every voice on the device.
+    final primarySubtag = language?.split('-').first.toLowerCase();
+    final matchingVoices = state.availableVoices
+        .where((v) => v.language.split('-').first.toLowerCase() == primarySubtag)
+        .toList();
     final voices = matchingVoices.isNotEmpty ? matchingVoices : state.availableVoices;
 
     final selected = state.voicesByLanguage[language];
@@ -196,25 +159,6 @@ class _VoiceDropdown extends StatelessWidget {
             ),
           )
           .toList(),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-        ),
-      ),
     );
   }
 }
