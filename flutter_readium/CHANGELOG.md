@@ -51,6 +51,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
   works and now seeds the unified narration-sync state when a publication is opened.
 
+### Fixed
+
+- **iOS media-overlay playback crashes on malformed sync-narration data** — starting playback in a
+  publication with a reversed or non-finite audio time fragment (`t=start,end` where `end < start`)
+  no longer traps with `Range requires lowerBound <= upperBound`, and a `narration` block with no
+  valid audio/text pairs no longer crashes navigator setup. Such items now degrade gracefully.
+
 ## [0.1.1] - 2026-06-26
 
 ### Changed (breaking)
