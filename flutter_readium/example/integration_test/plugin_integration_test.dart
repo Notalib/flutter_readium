@@ -110,8 +110,8 @@ void main() {
       await _exerciseAudioPlayback(
         reader,
         enable: () => reader.ttsEnable(TTSPreferences(speed: 1.0)),
-        // First-time TTS engine init on Android can be slow.
-        timeout: const Duration(seconds: 10),
+        // First-time TTS engine init can be slow.
+        timeout: const Duration(seconds: 60),
       );
     },
   );
