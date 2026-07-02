@@ -525,7 +525,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           }
 
-    case "getResourceBytes":
+    case "getResourceUrl":
       guard let publication = getCurrentPublication() else {
         return result(FlutterError(
           code: "NoPublication",
@@ -536,14 +536,31 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let href = args["href"] as? String else {
         return result(FlutterError(
           code: "InvalidArgument",
-          message: "getResourceBytes requires a 'href' string argument",
+          message: "getResourceUrl requires a 'href' string argument",
           details: nil))
       }
-      Log.reader.debug("::getResourceBytes. href=\(href)")
+      Log.reader.debug("::getResourceUrl. href=\(href)")
       Task.detached(priority: .userInitiated) {
+        guard let cacheFileURL = try? ResourceFileCache.fileURL(forHref: href) else {
+          Log.reader.error("::getResourceUrl. Could not compute cache path for href: \(href)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceCacheError",
+              message: "Could not compute cache path for href: \(href)",
+              details: nil))
+          }
+          return
+        }
+        if FileManager.default.fileExists(atPath: cacheFileURL.path) {
+          Log.reader.debug("::getResourceUrl. href=\(href) reused cache file")
+          await MainActor.run {
+            result(cacheFileURL.absoluteString)
+          }
+          return
+        }
         guard let relativeURL = RelativeURL(string: href),
               let link = publication.linkWithHREF(relativeURL) else {
-          Log.reader.warn("::getResourceBytes. No link found for href: \(href)")
+          Log.reader.warn("::getResourceUrl. No link found for href: \(href)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceNotFound",
@@ -553,7 +570,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           return
         }
         guard let resource = publication.get(link) else {
-          Log.reader.warn("::getResourceBytes. Could not open resource for href: \(href)")
+          Log.reader.warn("::getResourceUrl. Could not open resource for href: \(href)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceNotFound",
@@ -562,18 +579,34 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
           return
         }
-        switch await resource.read() {
-        case .success(let bytes):
-          Log.reader.debug("::getResourceBytes. href=\(href) bytes=\(bytes.count)")
+        FileManager.default.createFile(atPath: cacheFileURL.path, contents: nil)
+        guard let fileHandle = try? FileHandle(forWritingTo: cacheFileURL) else {
+          Log.reader.error("::getResourceUrl. Could not open cache file for writing: \(cacheFileURL.path)")
           await MainActor.run {
-            result(FlutterStandardTypedData(bytes: bytes))
+            result(FlutterError(
+              code: "ResourceCacheError",
+              message: "Could not open cache file for writing for href: \(href)",
+              details: nil))
+          }
+          return
+        }
+        let streamResult = await resource.stream { chunk in
+          fileHandle.write(chunk)
+        }
+        try? fileHandle.close()
+        switch streamResult {
+        case .success:
+          Log.reader.debug("::getResourceUrl. href=\(href) cached to \(cacheFileURL.path)")
+          await MainActor.run {
+            result(cacheFileURL.absoluteString)
           }
         case .failure(let error):
-          Log.reader.error("::getResourceBytes. Read failed for href: \(href). \(error.localizedDescription)")
+          try? FileManager.default.removeItem(at: cacheFileURL)
+          Log.reader.error("::getResourceUrl. Read failed for href: \(href). \(error.localizedDescription)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceReadError",
-              message: "Failed to read resource bytes for href: \(href). \(error.localizedDescription)",
+              message: "Failed to read resource for href: \(href). \(error.localizedDescription)",
               details: nil))
           }
         }
@@ -786,6 +819,7 @@ extension FlutterReadiumPlugin {
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
     pageBreakIteratorFactory = nil
+    ResourceFileCache.purgeAll()
     // Clear the stream buffers so that a subscriber opening the next publication
     // never receives a stale locator or status from this closed publication.
     textLocatorStreamHandler?.clearBuffer()

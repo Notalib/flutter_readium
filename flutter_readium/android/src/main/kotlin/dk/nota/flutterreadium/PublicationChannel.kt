@@ -18,8 +18,13 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.getOrElse
+import java.io.FileOutputStream
+import java.io.IOException
 
 private const val TAG = "PublicationChannel"
+
+/** Window size used when streaming a resource to a cache file in `getResourceUrl`. */
+private const val RESOURCE_CACHE_CHUNK_SIZE = 1L * 1024 * 1024
 
 internal val publicationChannelName = "dk.nota.flutter_readium/main"
 
@@ -282,36 +287,59 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.success(null)
             }
 
-            "getResourceBytes" -> {
+            "getResourceUrl" -> {
                 @Suppress("UNCHECKED_CAST")
                 val args = arguments as? Map<String, Any?>
                 val href =
                     args?.get("href") as? String
                         ?: return Try.failure(
-                            PublicationError.Unknown("::getResourceBytes requires a 'href' string argument"),
+                            PublicationError.Unknown("::getResourceUrl requires a 'href' string argument"),
                         )
                 val publication =
                     ReadiumReader.currentPublication
                         ?: return Try.failure(
-                            PublicationError.Unavailable("::getResourceBytes No publication open"),
+                            PublicationError.Unavailable("::getResourceUrl No publication open"),
                         )
+
+                val cacheFile = ResourceFileCache.fileFor(href)
+                if (cacheFile.exists()) {
+                    PluginLog.d(TAG, "::getResourceUrl. href=$href reused cache file")
+                    return Try.success(cacheFile.toURI().toString())
+                }
+
                 val url =
                     Url(href)
                         ?: return Try.failure(
-                            PublicationError.Unknown("::getResourceBytes Invalid href: $href"),
+                            PublicationError.Unknown("::getResourceUrl Invalid href: $href"),
                         )
                 val resource =
                     publication.get(url)
                         ?: return Try.failure(
-                            PublicationError.InvalidPublicationUrl("::getResourceBytes No resource for href: $href"),
+                            PublicationError.InvalidPublicationUrl("::getResourceUrl No resource for href: $href"),
                         )
-                val bytes =
-                    resource.read().getOrElse { readError ->
-                        PluginLog.w(TAG, "::getResourceBytes. Read failed for href: $href. ${readError.message}")
-                        return Try.failure(PublicationError.Reading(readError))
+
+                try {
+                    FileOutputStream(cacheFile).use { out ->
+                        var offset = 0L
+                        while (true) {
+                            val chunk =
+                                resource.read(offset until offset + RESOURCE_CACHE_CHUNK_SIZE).getOrElse { readError ->
+                                    PluginLog.w(TAG, "::getResourceUrl. Read failed for href: $href. ${readError.message}")
+                                    return Try.failure(PublicationError.Reading(readError))
+                                }
+                            if (chunk.isEmpty()) break
+                            out.write(chunk)
+                            offset += chunk.size
+                            if (chunk.size < RESOURCE_CACHE_CHUNK_SIZE) break
+                        }
                     }
-                PluginLog.d(TAG, "::getResourceBytes. href=$href bytes=${bytes.size}")
-                return Try.success(bytes)
+                } catch (e: IOException) {
+                    cacheFile.delete()
+                    PluginLog.w(TAG, "::getResourceUrl. Failed writing cache file for href: $href. ${e.message}")
+                    return Try.failure(PublicationError.Unknown("::getResourceUrl Failed writing cache file for href: $href"))
+                }
+                PluginLog.d(TAG, "::getResourceUrl. href=$href cached to ${cacheFile.path}")
+                return Try.success(cacheFile.toURI().toString())
             }
 
             else -> {

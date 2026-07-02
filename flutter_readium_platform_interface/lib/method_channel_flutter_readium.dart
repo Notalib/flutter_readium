@@ -251,15 +251,15 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
 
   @override
-  Future<Uint8List> getResourceBytes(String href) async {
-    final result = await methodChannel.invokeMethod<Uint8List>(
-      'getResourceBytes',
+  Future<String> getResourceUrl(String href) async {
+    final result = await methodChannel.invokeMethod<String>(
+      'getResourceUrl',
       {'href': href},
     );
     if (result == null) {
       throw PlatformException(
         code: 'ResourceNotFound',
-        message: 'getResourceBytes returned null for href: $href',
+        message: 'getResourceUrl returned null for href: $href',
       );
     }
     return result;

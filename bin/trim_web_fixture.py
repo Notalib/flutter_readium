@@ -4,8 +4,7 @@ use as an offline web integration-test fixture under example/web/), optionally
 trimming it to the first N reading-order entries to keep the committed size down.
 
 The packaged Nota assets already contain a relative-href manifest.json, so the
-exploded tree serves directly at the app origin during `flutter drive`
-(see flutter_readium/example/assets/pubs/README.md).
+exploded tree serves directly at the app origin during `flutter drive`.
 
 Trimming keeps the first N reading-order entries and only the resources/toc/audio
 they reference (everything else is deleted), then recomputes metadata.duration.
@@ -56,13 +55,25 @@ def main():
     with zipfile.ZipFile(src) as z:
         z.extractall(out_dir)
 
+    # The served fixture must be reachable as `manifest.json` regardless of
+    # what the source package's own manifest file is named internally.
     mpath = os.path.join(out_dir, "manifest.json")
+    if not os.path.exists(mpath):
+        json_names = [name for name in os.listdir(out_dir) if name.endswith(".json")]
+        if len(json_names) != 1:
+            raise SystemExit(f"Expected exactly one top-level .json in {out_dir}, found {json_names}")
+        os.rename(os.path.join(out_dir, json_names[0]), mpath)
+
+    if n is None:
+        # Explode as-is: no trim requested, so nothing gets pruned — every
+        # extracted file and the manifest stay exactly as packaged.
+        print(f"Exploded {src} -> {out_dir} (as-is, no trim)")
+        return
+
     with open(mpath, encoding="utf-8") as f:
         m = json.load(f)
 
-    reading_order = m["readingOrder"]
-    if n is not None:
-        reading_order = reading_order[:n]
+    reading_order = m["readingOrder"][:n]
     m["readingOrder"] = reading_order
 
     # Collect the relative hrefs that must survive the trim.
@@ -97,6 +108,37 @@ def main():
                 for audio in re.findall(r'"audio"\s*:\s*"([^"#]+)', blob):
                     if not audio.startswith("http"):
                         kept.add(audio)
+
+    # Guided Navigation (a separate mechanism from Media Overlay): a top-level
+    # `links` entry of type `application/guided-navigation+json` points to a
+    # document whose `guided` sections pair each `textref` with an `audioref`.
+    # Trim its sections to the kept xhtml files and keep only their audio.
+    guided_nav_path = None
+    for link in m.get("links", []):
+        if "guided-navigation" in link.get("type", "") and not link.get("href", "").startswith("http"):
+            guided_nav_path = strip_frag(link["href"])
+            kept.add(guided_nav_path)
+            break
+
+    if guided_nav_path:
+        gp = os.path.join(out_dir, guided_nav_path)
+        with open(gp, encoding="utf-8") as gf:
+            guided_doc = json.load(gf)
+
+        def section_in_scope(section):
+            in_scope = False
+            for child in section.get("children", []):
+                textref = strip_frag(child.get("textref", ""))
+                if textref in xhtml_kept:
+                    in_scope = True
+                    audioref = strip_frag(child.get("audioref", ""))
+                    if audioref and not audioref.startswith("http"):
+                        kept.add(audioref)
+            return in_scope
+
+        guided_doc["guided"] = [s for s in guided_doc.get("guided", []) if section_in_scope(s)]
+        with open(gp, "w", encoding="utf-8") as gf:
+            json.dump(guided_doc, gf, ensure_ascii=False, indent=2)
 
     # Filter the resources list (and add any kept resources to the keep set).
     if "resources" in m:
@@ -135,12 +177,18 @@ def main():
     with open(mpath, "w", encoding="utf-8") as f:
         json.dump(m, f, ensure_ascii=False, indent=2)
 
-    # Delete any extracted files that are no longer referenced.
+    # Delete any extracted files that are no longer referenced (walking
+    # subdirectories, e.g. `images/cover.jpg`), then prune dirs left empty.
     removed = []
-    for name in os.listdir(out_dir):
-        if name not in kept:
-            os.remove(os.path.join(out_dir, name))
-            removed.append(name)
+    for dirpath, _dirnames, filenames in os.walk(out_dir, topdown=False):
+        for filename in filenames:
+            file_path = os.path.join(dirpath, filename)
+            rel_path = os.path.relpath(file_path, out_dir)
+            if rel_path not in kept:
+                os.remove(file_path)
+                removed.append(rel_path)
+        if dirpath != out_dir and not os.listdir(dirpath):
+            os.rmdir(dirpath)
 
     print(f"Exploded {src} -> {out_dir}")
     print(f"  readingOrder entries: {len(reading_order)}")
