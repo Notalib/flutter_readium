@@ -1,21 +1,23 @@
 // Web fixture loader — returns URLs to webpub manifests the ts-toolkit
 // HttpFetcher can fetch directly.
 //
-// Most fixtures are served locally from `example/web/` (Flutter copies the
-// whole `web/` tree into the build output, so they resolve at the app origin
+// Fixtures are served locally from `example/web/test-fixtures/` (Flutter copies
+// the whole `web/` tree into the build output, so they resolve at the app origin
 // during `flutter drive -d chrome`). Keeping them local removes the network
-// dependency on external hosts and makes CI deterministic. The packaged Nota
-// `.webpub` / `.audiobook` assets were exploded (and trimmed to a few chapters)
-// into `example/web/` — see `example/assets/pubs/README.md`.
+// dependency on external hosts and makes CI deterministic. They are generated
+// (exploded + trimmed) from the readium-test-resources repo — see
+// `CONTRIBUTING.md#test-fixtures`.
 //
-// Moby-Dick stays remote: it is the shared reflowable workhorse for many
-// cross-platform tests and ships only as a `.epub` (no RWPM manifest to
-// explode), so re-hosting it locally would mean generating a manifest by hand.
-
 Future<Map<String, String>> loadFixturePaths() async {
   return const {
-    // Moby-Dick EPUB served as exploded webpub by readium.org (reflowable).
-    'moby_dick.epub': 'https://readium.org/webpub-manifest/examples/MobyDick/manifest.json',
+    // Reflowable workhorse (Nota's *De nye læsere*) — the same 712199_ebook
+    // source the native suite opens as `.epub`, here served as a local exploded
+    // webpub. Keeping it local (rather than a remote book) makes the shared EPUB
+    // navigation tests deterministic on web too.
+    '712199_ebook.epub': '/test-fixtures/ebook/manifest.json',
+
+    // Synthetic single-page webpub used to warm up the reader platform view.
+    'test-peter-rabbit.webpub': '/test-fixtures/peter-rabbit/manifest.json',
 
     // EPUB with media overlays (trimmed, local) — synced audio + text.
     '38533_overlay_preview.webpub': '/test-fixtures/overlay/manifest.json',

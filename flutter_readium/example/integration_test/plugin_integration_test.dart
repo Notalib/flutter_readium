@@ -35,9 +35,58 @@ void main() {
     await reader.closePublication();
   });
 
+  // Warm up the reader platform view before the real tests run.
+  //
+  // The first ReadiumReaderWidget mount on a cold CI iOS simulator is far slower
+  // than a warm one: the WKWebView content process spins up lazily, and that
+  // one-time cost has intermittently blown a per-test timeout (the first
+  // widget-mounting test stalled at `readerStatus=loading` while every later
+  // mount rendered instantly). Absorbing it here — first in declaration order,
+  // outside any tight assertion and with a generous timeout — means every
+  // subsequent test starts against an already-warm webview. The timeout is kept
+  // large enough that a genuinely stuck reader still fails loudly rather than
+  // being masked.
+  //
+  // Uses the synthetic single-page test-peter-rabbit webpub — the lightest
+  // publication in the suite (one 789-byte page + a couple of images) — so the
+  // first render, whose cost we only care about absorbing, completes as fast as
+  // possible. It's generated for both platforms, so the warm-up runs everywhere.
+  testWidgets(
+    'warms up the reader platform view',
+    (tester) async {
+      final path = fixturePaths[FixtureKeys.warmupWebpub];
+      expect(path, isNotNull, reason: 'Fixture ${FixtureKeys.warmupWebpub} missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      final textLocatorSub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(textLocatorSub.cancel);
+      addTearDown(readerStatusSub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 120),
+        reason: 'Reader never emitted an initial textLocator during warm-up',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   test('opens EPUB succesfully', () async {
-    final path = fixturePaths['moby_dick.epub'];
-    expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+    final path = fixturePaths['712199_ebook.epub'];
+    expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
     final pub = await reader.openPublication(path!);
 
@@ -53,8 +102,8 @@ void main() {
     // exercised in the web test harness. Covered on iOS/Android.
     skip: kIsWeb ? 'Web Speech API unavailable in the web test harness' : false,
     () async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       await reader.openPublication(path!);
 
@@ -68,8 +117,8 @@ void main() {
   );
 
   testWidgets('opens and navigates forward in EPUB and receives a new textLocator', (tester) async {
-    final path = fixturePaths['moby_dick.epub'];
-    expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+    final path = fixturePaths['712199_ebook.epub'];
+    expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
     final pub = await reader.openPublication(path!);
 
@@ -517,23 +566,24 @@ void main() {
 
   group('EPUB navigation and state', () {
     test(
-      'searchInPublication returns hits for a common word in Moby-Dick',
+      'searchInPublication returns hits for a common word in a reflowable EPUB',
       skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
       () async {
-        final path = fixturePaths['moby_dick.epub'];
-        expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+        final path = fixturePaths['712199_ebook.epub'];
+        expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
         await reader.openPublication(path!);
 
-        final results = await reader.searchInPublication('whale');
-        expect(results, isNotEmpty, reason: '"whale" should yield matches in Moby-Dick');
+        // "og" (Danish "and") is the highest-frequency word in this Danish book.
+        final results = await reader.searchInPublication('og');
+        expect(results, isNotEmpty, reason: '"og" should yield matches in the Danish EPUB');
         expect(results.first.locator.href, isNotEmpty);
       },
     );
 
     testWidgets('goToLocator round-trips back to a saved position', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -591,8 +641,8 @@ void main() {
     });
 
     testWidgets('initialLocator restores the saved position on widget mount', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -655,8 +705,8 @@ void main() {
     });
 
     testWidgets('mounting the reader widget emits a ready reader status', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -681,8 +731,8 @@ void main() {
     });
 
     testWidgets('setEPUBPreferences applies without throwing', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -712,8 +762,8 @@ void main() {
     });
 
     testWidgets('applyDecorations applies a highlight without throwing', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -753,8 +803,8 @@ void main() {
     });
 
     testWidgets('goToLocator round-trips cssSelector precision', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
