@@ -1,236 +1,164 @@
-// import 'dart:io';
+import 'dart:io';
 
-// import 'package:flutter/material.dart';
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:flutter_readium/flutter_readium.dart';
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 
-// import '../state/tts_settings_bloc.dart';
-// import 'index.dart';
+import '../state/publication_bloc.dart';
+import '../state/tts_settings_bloc.dart';
+import 'index.dart';
 
-// class TtsSettingsWidget extends StatefulWidget {
-//   const TtsSettingsWidget({required this.pubLang, super.key});
+class TtsSettingsWidget extends StatelessWidget {
+  const TtsSettingsWidget({super.key});
 
-//   final List<String> pubLang;
+  @override
+  Widget build(final BuildContext context) {
+    final ttsSettingsBloc = context.watch<TtsSettingsBloc>();
+    final state = ttsSettingsBloc.state;
+    final languages = context.watch<PublicationBloc>().state.publication?.metadata.languages ?? [];
+    // `null` stands in for "no declared language" — a single default voice picker.
+    final voiceLanguages = languages.isEmpty ? <String?>[null] : languages;
 
-//   @override
-//   _TtsSettingsWidgetState createState() => _TtsSettingsWidgetState();
-// }
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.75,
+      expand: false,
+      builder: (context, scrollController) => SingleChildScrollView(
+        controller: scrollController,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Semantics(
+                header: true,
+                child: const Align(
+                  alignment: Alignment.center,
+                  child: Text('Text-to-Speech Settings', style: TextStyle(fontSize: 25)),
+                ),
+              ),
+            ),
+            const Divider(),
+            ListItemWidget(
+              label: 'Speed: ${state.speed.toStringAsFixed(2)}x',
+              child: Slider(
+                key: const ValueKey('tts_speed_slider'),
+                value: state.speed,
+                min: 0.5,
+                max: 2.0,
+                divisions: 6,
+                label: state.speed.toStringAsFixed(2),
+                onChanged: (value) => ttsSettingsBloc.add(ChangeSpeed(value)),
+              ),
+            ),
+            ListItemWidget(
+              label: 'Pitch: ${state.pitch.toStringAsFixed(2)}',
+              child: Slider(
+                key: const ValueKey('tts_pitch_slider'),
+                value: state.pitch,
+                min: 0.5,
+                max: 2.0,
+                divisions: 6,
+                label: state.pitch.toStringAsFixed(2),
+                onChanged: (value) => ttsSettingsBloc.add(ChangePitch(value)),
+              ),
+            ),
+            const Divider(),
+            const SectionHeader(title: 'Voice'),
+            if (!kIsWeb && Platform.isIOS)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'On iOS, only the most recently selected voice below takes effect — '
+                  'per-language voice switching is not yet supported by the platform.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ),
+            if (!state.voicesLoaded)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              )
+            else if (state.availableVoices.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('No voices available'),
+              )
+            else
+              for (final language in voiceLanguages)
+                ListItemWidget(
+                  label: language ?? 'Default voice',
+                  child: _VoiceDropdown(language: language),
+                ),
+            const Divider(),
+            const HighlightSettingsSection(showRange: true),
+            const Divider(),
+            TextButton(
+              key: const ValueKey('tts_settings_close_button'),
+              onPressed: () => Navigator.of(context).pop(),
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
+                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: 8.0,
+                children: [
+                  Icon(Icons.close, size: 20),
+                  Text('Close', style: TextStyle(fontSize: 20)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-// class _TtsSettingsWidgetState extends State<TtsSettingsWidget> {
-//   String? selectedLocale;
-//   ReadiumTtsVoice? selectedVoice;
+class _VoiceDropdown extends StatelessWidget {
+  const _VoiceDropdown({required this.language});
 
-//   @override
-//   void initState() {
-//     super.initState();
-//   }
+  final String? language;
 
-//   @override
-//   Widget build(final BuildContext context) => SafeArea(
-//         child: Wrap(
-//           children: [
-//             Padding(
-//               padding: const EdgeInsets.all(20.0),
-//               child: Semantics(
-//                 header: true,
-//                 child: const Align(
-//                   alignment: Alignment.center,
-//                   child: Text(
-//                     'TTS settings',
-//                     style: TextStyle(fontSize: 25),
-//                   ),
-//                 ),
-//               ),
-//             ),
-//             const Divider(),
-//             SingleChildScrollView(
-//               child: Column(
-//                 children: [
-//                   ListItemWidget(
-//                     label: 'Voice',
-//                     child: _buildVoiceOptions(context),
-//                   ),
-//                   const Divider(),
-//                   // TODO: Remember that it will only highlight paragraphs if google network voices are used. Implement this in the UI.
-//                   ListItemWidget(
-//                     label: 'Highlight',
-//                     child: BlocBuilder<TtsSettingsBloc, TtsSettingsState>(
-//                       builder: (final context, final state) {
-//                         final chosenVoices = _findVoicesByLangCode(state, widget.pubLang);
-//                         final isGoogleNetworkVoice =
-//                             chosenVoices.any((final voice) => voice.androidIsLocal == false);
-//                         final highlightModes = isGoogleNetworkVoice
-//                             ? [ReadiumHighlightMode.paragraph]
-//                             : ReadiumHighlightMode.values;
+  @override
+  Widget build(BuildContext context) {
+    final ttsSettingsBloc = context.watch<TtsSettingsBloc>();
+    final state = ttsSettingsBloc.state;
 
-//                         return SingleChildScrollView(
-//                           scrollDirection: Axis.horizontal,
-//                           child: ToggleButtons(
-//                             isSelected: highlightModes
-//                                 .map(
-//                                   (final mode) => mode == state.highlightMode,
-//                                 )
-//                                 .toList(),
-//                             selectedBorderColor: Colors.blue,
-//                             borderWidth: 4.0,
-//                             borderColor: Colors.transparent,
-//                             onPressed: (final index) {
-//                               context.read<TtsSettingsBloc>().add(
-//                                     SetTtsHighlightModeEvent(
-//                                       ReadiumHighlightMode.values[index],
-//                                     ),
-//                                   );
-//                             },
-//                             children: highlightModes
-//                                 .map(
-//                                   (final mode) => SizedBox(
-//                                     width: 120,
-//                                     child: Padding(
-//                                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-//                                       child: Center(
-//                                         child: Text(
-//                                           mode.toString().split('.').last[0].toUpperCase() +
-//                                               mode
-//                                                   .toString()
-//                                                   .split('.')
-//                                                   .last
-//                                                   .substring(1)
-//                                                   .toLowerCase(),
-//                                           style: TextStyle(fontSize: 16),
-//                                         ),
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 )
-//                                 .toList(),
-//                           ),
-//                         );
-//                       },
-//                     ),
-//                   ),
-//                   const Divider(),
-//                   ListItemWidget(
-//                     label: 'Announce page numbers',
-//                     isVerticalAlignment: true,
-//                     child: BlocSelector<TtsSettingsBloc, TtsSettingsState, bool>(
-//                       selector: (final state) => state.ttsSpeakPhysicalPageIndex ?? false,
-//                       builder: (final context, final ttsSpeakPhysicalPageIndex) => Switch(
-//                         value: ttsSpeakPhysicalPageIndex,
-//                         onChanged: (final value) {
-//                           context.read<TtsSettingsBloc>().add(
-//                                 SetTtsSpeakPhysicalPageIndexEvent(value),
-//                               );
-//                         },
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ),
-//           ],
-//         ),
-//       );
+    // Match by primary BCP-47 subtag rather than exact equality — publications
+    // commonly declare a bare language ("da"), while device voices are
+    // region-qualified ("da-DK"), so an exact match would (almost) never hit
+    // and silently fall back to listing every voice on the device.
+    final primarySubtag = language?.split('-').first.toLowerCase();
+    final matchingVoices = state.availableVoices
+        .where((v) => v.language.split('-').first.toLowerCase() == primarySubtag)
+        .toList();
+    final voices = matchingVoices.isNotEmpty ? matchingVoices : state.availableVoices;
 
-//   Widget _buildVoiceOptions(final BuildContext context) {
-//     final ttsSettingsBloc = context.watch<TtsSettingsBloc>();
-//     final state = ttsSettingsBloc.state;
+    final selected = state.voicesByLanguage[language];
+    final selectedVoice = voices.firstWhereOrNull((v) => v.identifier == selected);
 
-//     final voices = state.voices;
-//     final voicesLocale = voices?.map((final voice) => voice.locale).toSet();
-//     final preferredVoices = state.preferredVoices;
-
-//     final voicesLoaded = state.loaded ?? false;
-
-//     final preferredLocale = voicesLocale != null
-//         ? preferredVoices
-//             ?.firstWhereOrNull(
-//               (final preferredVoice) => voicesLocale.contains(preferredVoice.locale),
-//             )
-//             ?.locale
-//         : null;
-
-//     final showVoiceOptions = voicesLoaded &&
-//         voices != null &&
-//         voices.isNotEmpty &&
-//         (selectedLocale != null || voicesLocale == null || voicesLocale.length == 1);
-
-//     if (!voicesLoaded) return const CircularProgressIndicator();
-//     if (voicesLoaded && (voices == null || voices.isEmpty)) {
-//       return const Text('No voices available');
-//     }
-//     if (voicesLoaded && voices != null && voices.isNotEmpty) {
-//       return Row(
-//         children: [
-//           if (voicesLocale != null && voicesLocale.length > 1)
-//             DropdownButton<String>(
-//               value: selectedLocale ?? preferredLocale,
-//               onChanged: (final locale) {
-//                 setState(() {
-//                   selectedLocale = locale;
-//                   selectedVoice = null;
-//                 });
-//               },
-//               items: voicesLocale
-//                   .map(
-//                     (final locale) => DropdownMenuItem<String>(
-//                       value: locale,
-//                       child: Text(locale),
-//                     ),
-//                   )
-//                   .toList(),
-//             ),
-//           if (showVoiceOptions)
-//             DropdownButton<ReadiumTtsVoice>(
-//               value: selectedVoice ??
-//                   preferredVoices?.firstWhereOrNull(
-//                     (final preferredVoice) => voices
-//                         .where(
-//                           (final voice) => voice.locale == selectedLocale || selectedLocale == null,
-//                         )
-//                         .contains(preferredVoice),
-//                   ),
-//               onChanged: (final voice) {
-//                 ttsSettingsBloc.add(SetTtsVoiceEvent(voice!));
-//                 setState(() {
-//                   selectedVoice = voice;
-//                 });
-//               },
-//               items: voices
-//                   .where((final voice) => voice.locale == selectedLocale || selectedLocale == null)
-//                   .map(
-//                     (final voice) => DropdownMenuItem<ReadiumTtsVoice>(
-//                       value: voice,
-//                       child: Platform.isAndroid
-//                           ? Text(_getAndroidTtsVoiceName(voice))
-//                           : Text(voice.name),
-//                     ),
-//                   )
-//                   .toList(),
-//             ),
-//         ],
-//       );
-//     }
-//     return const Text('Something went wrong. Please try again.');
-//   }
-// }
-
-// _getAndroidTtsVoiceName(final ReadiumTtsVoice voice) {
-//   final name = voice.androidVoiceName ?? voice.name;
-//   final localOrNetwork = voice.androidIsLocal == true
-//       ? ' (Local)'
-//       : voice.androidIsLocal == false
-//           ? ' (Network)'
-//           : '';
-//   return '$name$localOrNetwork';
-// }
-
-// List<ReadiumTtsVoice> _findVoicesByLangCode(
-//   final TtsSettingsState state,
-//   final List<String> pubLang,
-// ) =>
-//     state.preferredVoices
-//         ?.where(
-//           (final voice) => pubLang.contains(voice.langCode),
-//         )
-//         .toList() ??
-//     [];
+    return DropdownButton<ReaderTTSVoice>(
+      value: selectedVoice,
+      hint: const Text('Select voice'),
+      onChanged: (voice) {
+        if (voice != null) {
+          ttsSettingsBloc.add(ChangeVoiceForLanguage(language, voice.identifier));
+        }
+      },
+      items: voices
+          .map(
+            (voice) => DropdownMenuItem<ReaderTTSVoice>(
+              value: voice,
+              child: Text(voice.name),
+            ),
+          )
+          .toList(),
+    );
+  }
+}

@@ -10,8 +10,17 @@ import 'index.dart';
 
 const List<String> _fontFamilies = ['Original', 'serif', 'sans-serif', 'monospace'];
 
-class TextSettingsWidget extends StatelessWidget {
+enum _Section { text, layout, theme }
+
+class TextSettingsWidget extends StatefulWidget {
   const TextSettingsWidget({super.key});
+
+  @override
+  State<TextSettingsWidget> createState() => _TextSettingsWidgetState();
+}
+
+class _TextSettingsWidgetState extends State<TextSettingsWidget> {
+  _Section _section = _Section.text;
 
   @override
   Widget build(final BuildContext context) {
@@ -25,9 +34,9 @@ class TextSettingsWidget extends StatelessWidget {
     final scrollToggleDisabled = kIsWeb && !(publication?.conformsToReadiumEbook ?? false);
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.8,
+      initialChildSize: 0.75,
       minChildSize: 0.4,
-      maxChildSize: 0.8,
+      maxChildSize: 0.75,
       expand: false,
       builder: (context, scrollController) => SingleChildScrollView(
         controller: scrollController,
@@ -44,202 +53,270 @@ class TextSettingsWidget extends StatelessWidget {
               ),
             ),
             const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: SegmentedButton<_Section>(
+                key: const ValueKey('text_settings_section_selector'),
+                segments: const [
+                  ButtonSegment(value: _Section.text, label: Text('Text')),
+                  ButtonSegment(value: _Section.layout, label: Text('Layout')),
+                  ButtonSegment(value: _Section.theme, label: Text('Theme')),
+                ],
+                selected: {_section},
+                onSelectionChanged: (values) => setState(() => _section = values.first),
+              ),
+            ),
+            const Divider(),
+            switch (_section) {
+              _Section.text => _TextSection(textSettingsBloc: textSettingsBloc, state: state),
+              _Section.layout => _LayoutSection(
+                textSettingsBloc: textSettingsBloc,
+                state: state,
+                scrollToggleDisabled: scrollToggleDisabled,
+              ),
+              _Section.theme => _ThemeSection(textSettingsBloc: textSettingsBloc, state: state),
+            },
+            const Divider(),
+            TextButton(
+              key: const ValueKey('text_settings_close_button'),
+              onPressed: () => Navigator.of(context).pop(),
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
+                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                spacing: 8.0,
+                children: [
+                  Icon(Icons.close, size: 20),
+                  Text('Close', style: TextStyle(fontSize: 20)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // --- Basic Typography ---
-            _SectionHeader(title: 'Typography'),
+class _TextSection extends StatelessWidget {
+  const _TextSection({required this.textSettingsBloc, required this.state});
+
+  final TextSettingsBloc textSettingsBloc;
+  final TextSettingsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListItemWidget(
+          label: 'Font Size',
+          child: Slider(
+            key: const ValueKey('font_size_slider'),
+            value: state.fontSize.toDouble(),
+            min: 70.0,
+            max: 200.0,
+            divisions: 13,
+            label: state.fontSize.toString(),
+            onChanged: (value) {
+              textSettingsBloc.add(ChangeFontSize(value.toInt()));
+            },
+          ),
+        ),
+        ListItemWidget(
+          label: 'Font Family',
+          child: DropdownMenu<String>(
+            key: const ValueKey('font_family_selector'),
+            initialSelection: state.fontFamily,
+            dropdownMenuEntries: _fontFamilies.map((f) => DropdownMenuEntry(value: f, label: f)).toList(),
+            onSelected: (value) {
+              if (value != null) textSettingsBloc.add(ChangeFontFamily(value));
+            },
+          ),
+        ),
+        ListItemWidget(
+          label: 'Text Align',
+          child: SegmentedButton<TextAlign>(
+            key: const ValueKey('text_align_selector'),
+            emptySelectionAllowed: true,
+            segments: const [
+              ButtonSegment(value: TextAlign.start, icon: Icon(Icons.format_align_left), tooltip: 'Start'),
+              ButtonSegment(value: TextAlign.right, icon: Icon(Icons.format_align_right), tooltip: 'Right'),
+              ButtonSegment(value: TextAlign.justify, icon: Icon(Icons.format_align_justify), tooltip: 'Justify'),
+            ],
+            selected: state.textAlign != null ? {state.textAlign!} : {},
+            onSelectionChanged: (values) {
+              textSettingsBloc.add(ChangeTextAlign(values.isEmpty ? null : values.first));
+            },
+          ),
+        ),
+        const Divider(),
+        _CollapsibleSection(
+          title: 'Advanced Typography',
+          initiallyExpanded: false,
+          children: [
             ListItemWidget(
-              label: 'Font Size',
+              label: 'Font Weight',
               child: Slider(
-                key: const ValueKey('font_size_slider'),
-                value: state.fontSize.toDouble(),
-                min: 70.0,
-                max: 200.0,
-                divisions: 13,
-                label: state.fontSize.toString(),
+                key: const ValueKey('font_weight_slider'),
+                value: state.fontWeight,
+                min: kIsWeb ? 1.0 : 0.5,
+                max: kIsWeb ? 9.0 : 2.0,
+                divisions: kIsWeb ? 8 : 6,
+                label: kIsWeb ? (state.fontWeight * 100).toStringAsFixed(0) : state.fontWeight.toStringAsFixed(1),
                 onChanged: (value) {
-                  textSettingsBloc.add(ChangeFontSize(value.toInt()));
+                  textSettingsBloc.add(ChangeFontWeight(value));
                 },
               ),
             ),
             ListItemWidget(
-              label: 'Font Family',
-              child: DropdownMenu<String>(
-                key: const ValueKey('font_family_selector'),
-                initialSelection: state.fontFamily,
-                dropdownMenuEntries: _fontFamilies.map((f) => DropdownMenuEntry(value: f, label: f)).toList(),
-                onSelected: (value) {
-                  if (value != null) textSettingsBloc.add(ChangeFontFamily(value));
+              label: 'Letter Spacing',
+              child: Slider(
+                key: const ValueKey('letter_spacing_slider'),
+                value: state.letterSpacing ?? 0.0,
+                min: -0.1,
+                max: 0.5,
+                divisions: 6,
+                label: (state.letterSpacing ?? 0.0).toStringAsFixed(2),
+                onChanged: (value) {
+                  textSettingsBloc.add(ChangeLetterSpacing(value));
                 },
               ),
             ),
             ListItemWidget(
-              label: 'Text Align',
-              child: SegmentedButton<TextAlign>(
-                key: const ValueKey('text_align_selector'),
-                emptySelectionAllowed: true,
-                segments: const [
-                  ButtonSegment(value: TextAlign.start, icon: Icon(Icons.format_align_left), tooltip: 'Start'),
-                  ButtonSegment(value: TextAlign.right, icon: Icon(Icons.format_align_right), tooltip: 'Right'),
-                  ButtonSegment(value: TextAlign.justify, icon: Icon(Icons.format_align_justify), tooltip: 'Justify'),
-                ],
-                selected: state.textAlign != null ? {state.textAlign!} : {},
-                onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeTextAlign(values.isEmpty ? null : values.first));
+              label: 'Word Spacing',
+              child: Slider(
+                key: const ValueKey('word_spacing_slider'),
+                value: state.wordSpacing ?? 0.0,
+                min: 0.0,
+                max: 1.0,
+                divisions: 5,
+                label: (state.wordSpacing ?? 0.0).toStringAsFixed(2),
+                onChanged: (value) {
+                  textSettingsBloc.add(ChangeWordSpacing(value));
                 },
               ),
             ),
-            const Divider(),
+            ListItemWidget(
+              label: 'Line Height',
+              child: Slider(
+                key: const ValueKey('line_height_slider'),
+                value: state.lineHeight ?? 1.2,
+                min: 1.0,
+                max: 3.0,
+                divisions: 8,
+                label: (state.lineHeight ?? 1.2).toStringAsFixed(1),
+                onChanged: (value) {
+                  textSettingsBloc.add(ChangeLineHeight(value));
+                },
+              ),
+            ),
+            ListItemWidget(
+              label: 'Paragraph Indent',
+              child: Slider(
+                key: const ValueKey('paragraph_indent_slider'),
+                value: state.paragraphIndent ?? 0.0,
+                min: 0.0,
+                max: 3.0,
+                divisions: 6,
+                label: (state.paragraphIndent ?? 0.0).toStringAsFixed(1),
+                onChanged: (value) {
+                  textSettingsBloc.add(ChangeParagraphIndent(value));
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
-            // --- Advanced Typography (collapsible) ---
-            _CollapsibleSection(
-              title: 'Advanced Typography',
-              children: [
-                ListItemWidget(
-                  label: 'Font Weight',
-                  child: Slider(
-                    key: const ValueKey('font_weight_slider'),
-                    value: state.fontWeight,
-                    min: kIsWeb ? 1.0 : 0.5,
-                    max: kIsWeb ? 9.0 : 2.0,
-                    divisions: kIsWeb ? 8 : 6,
-                    label: kIsWeb ? (state.fontWeight * 100).toStringAsFixed(0) : state.fontWeight.toStringAsFixed(1),
-                    onChanged: (value) {
-                      textSettingsBloc.add(ChangeFontWeight(value));
-                    },
-                  ),
-                ),
-                ListItemWidget(
-                  label: 'Letter Spacing',
-                  child: Slider(
-                    key: const ValueKey('letter_spacing_slider'),
-                    value: state.letterSpacing ?? 0.0,
-                    min: -0.1,
-                    max: 0.5,
-                    divisions: 6,
-                    label: (state.letterSpacing ?? 0.0).toStringAsFixed(2),
-                    onChanged: (value) {
-                      textSettingsBloc.add(ChangeLetterSpacing(value));
-                    },
-                  ),
-                ),
-                ListItemWidget(
-                  label: 'Word Spacing',
-                  child: Slider(
-                    key: const ValueKey('word_spacing_slider'),
-                    value: state.wordSpacing ?? 0.0,
-                    min: 0.0,
-                    max: 1.0,
-                    divisions: 5,
-                    label: (state.wordSpacing ?? 0.0).toStringAsFixed(2),
-                    onChanged: (value) {
-                      textSettingsBloc.add(ChangeWordSpacing(value));
-                    },
-                  ),
-                ),
-                ListItemWidget(
-                  label: 'Line Height',
-                  child: Slider(
-                    key: const ValueKey('line_height_slider'),
-                    value: state.lineHeight ?? 1.2,
-                    min: 1.0,
-                    max: 3.0,
-                    divisions: 8,
-                    label: (state.lineHeight ?? 1.2).toStringAsFixed(1),
-                    onChanged: (value) {
-                      textSettingsBloc.add(ChangeLineHeight(value));
-                    },
-                  ),
-                ),
-                ListItemWidget(
-                  label: 'Paragraph Indent',
-                  child: Slider(
-                    key: const ValueKey('paragraph_indent_slider'),
-                    value: state.paragraphIndent ?? 0.0,
-                    min: 0.0,
-                    max: 3.0,
-                    divisions: 6,
-                    label: (state.paragraphIndent ?? 0.0).toStringAsFixed(1),
-                    onChanged: (value) {
-                      textSettingsBloc.add(ChangeParagraphIndent(value));
-                    },
-                  ),
-                ),
+class _LayoutSection extends StatelessWidget {
+  const _LayoutSection({required this.textSettingsBloc, required this.state, required this.scrollToggleDisabled});
+
+  final TextSettingsBloc textSettingsBloc;
+  final TextSettingsState state;
+  final bool scrollToggleDisabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Note (web): this toggle is structurally a no-op for publications
+        // routed to WebPubNavigator — upstream `IWebPubPreferences` has no
+        // `scroll` field, so the web mapper silently drops it. Only
+        // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
+        // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
+        // `flutter_readium/web/src/preferences/FlutterWebPubPreferences.ts`
+        // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
+        // non-EPUB publications and surface the reason via a tooltip.
+        ListItemWidget(
+          label: 'Page Layout',
+          child: Tooltip(
+            message: scrollToggleDisabled
+                ? 'Page layout cannot be changed for this publication on web. '
+                      'Only publications that declare the EPUB profile in '
+                      'metadata.conformsTo support paginated/scroll on web.'
+                : '',
+            child: SegmentedButton<bool>(
+              key: const ValueKey('scroll_mode_selector'),
+              segments: const [
+                ButtonSegment(value: false, label: Text('Paginated')),
+                ButtonSegment(value: true, label: Text('Scroll')),
               ],
+              selected: {state.scroll},
+              onSelectionChanged: scrollToggleDisabled
+                  ? null
+                  : (values) {
+                      if (values.first != state.scroll) {
+                        textSettingsBloc.add(ToggleScrollMode());
+                      }
+                    },
             ),
-            const Divider(),
-
-            // --- Layout Section ---
-            _SectionHeader(title: 'Layout'),
-            // Note (web): this toggle is structurally a no-op for publications
-            // routed to WebPubNavigator — upstream `IWebPubPreferences` has no
-            // `scroll` field, so the web mapper silently drops it. Only
-            // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
-            // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
-            // `flutter_readium/web/src/preferences/FlutterWebPubPreferences.ts`
-            // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
-            // non-EPUB publications and surface the reason via a tooltip.
-            ListItemWidget(
-              label: 'Page Layout',
-              child: Tooltip(
-                message: scrollToggleDisabled
-                    ? 'Page layout cannot be changed for this publication on web. '
-                          'Only publications that declare the EPUB profile in '
-                          'metadata.conformsTo support paginated/scroll on web.'
-                    : '',
-                child: SegmentedButton<bool>(
-                  key: const ValueKey('scroll_mode_selector'),
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('Paginated')),
-                    ButtonSegment(value: true, label: Text('Scroll')),
-                  ],
-                  selected: {state.scroll},
-                  onSelectionChanged: scrollToggleDisabled
-                      ? null
-                      : (values) {
-                          if (values.first != state.scroll) {
-                            textSettingsBloc.add(ToggleScrollMode());
-                          }
-                        },
-                ),
-              ),
+          ),
+        ),
+        ListItemWidget(
+          label: 'Columns',
+          child: SegmentedButton<EpubColumnCount>(
+            key: const ValueKey('column_count_selector'),
+            segments: const [
+              ButtonSegment(value: EpubColumnCount.auto, label: Text('Auto')),
+              ButtonSegment(value: EpubColumnCount.one, label: Text('One')),
+              ButtonSegment(value: EpubColumnCount.two, label: Text('Two')),
+            ],
+            selected: {state.columnCount ?? EpubColumnCount.auto},
+            onSelectionChanged: (values) {
+              textSettingsBloc.add(ChangeColumnCount(values.first));
+            },
+          ),
+        ),
+        // Reading direction: native-only. The web Readium navigator derives this
+        // from the publication manifest at navigator creation time and does not
+        // accept it as a runtime preference.
+        if (!kIsWeb)
+          ListItemWidget(
+            label: 'Reading Direction',
+            child: SegmentedButton<EpubReadingProgression>(
+              key: const ValueKey('reading_progression_selector'),
+              segments: const [
+                ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
+                ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
+              ],
+              selected: {state.readingProgression ?? EpubReadingProgression.ltr},
+              onSelectionChanged: (values) {
+                textSettingsBloc.add(ChangeReadingProgression(values.first));
+              },
             ),
-            ListItemWidget(
-              label: 'Columns',
-              child: SegmentedButton<EpubColumnCount>(
-                key: const ValueKey('column_count_selector'),
-                segments: const [
-                  ButtonSegment(value: EpubColumnCount.auto, label: Text('Auto')),
-                  ButtonSegment(value: EpubColumnCount.one, label: Text('One')),
-                  ButtonSegment(value: EpubColumnCount.two, label: Text('Two')),
-                ],
-                selected: {state.columnCount ?? EpubColumnCount.auto},
-                onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeColumnCount(values.first));
-                },
-              ),
-            ),
-            // Reading direction: native-only. The web Readium navigator derives this
-            // from the publication manifest at navigator creation time and does not
-            // accept it as a runtime preference.
-            if (!kIsWeb)
-              ListItemWidget(
-                label: 'Reading Direction',
-                child: SegmentedButton<EpubReadingProgression>(
-                  key: const ValueKey('reading_progression_selector'),
-                  segments: const [
-                    ButtonSegment(value: EpubReadingProgression.ltr, label: Text('LTR')),
-                    ButtonSegment(value: EpubReadingProgression.rtl, label: Text('RTL')),
-                  ],
-                  selected: {state.readingProgression ?? EpubReadingProgression.ltr},
-                  onSelectionChanged: (values) {
-                    textSettingsBloc.add(ChangeReadingProgression(values.first));
-                  },
-                ),
-              ),
-            const Divider(),
-
-            // --- Styling Override Section ---
-            _SectionHeader(title: 'Styling'),
+          ),
+        const Divider(),
+        _CollapsibleSection(
+          title: 'Styling',
+          initiallyExpanded: true,
+          children: [
             // Publisher Styles: native-only. The web navigator does not expose a
             // publisher-CSS toggle, IEpubPreferences overrides always apply, so the
             // toggle would have no effect on web.
@@ -247,9 +324,9 @@ class TextSettingsWidget extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  'When Publisher Styles is ON, the book\u2019s original CSS is preserved and most custom '
+                  'When Publisher Styles is ON, the book’s original CSS is preserved and most custom '
                   'typography settings (font, spacing, alignment) will have no effect. '
-                  'Turn it OFF to allow your custom settings to override the publisher\u2019s styles.',
+                  'Turn it OFF to allow your custom settings to override the publisher’s styles.',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ),
@@ -336,102 +413,52 @@ class TextSettingsWidget extends StatelessWidget {
                 },
               ),
             ),
-            const Divider(),
-
-            // --- Theme Section ---
-            _SectionHeader(title: 'Theme'),
-            ListItemWidget(
-              label: 'Color Theme',
-              child: ThemeSelectorWidget(themes: themes, isHighlight: false),
-            ),
-            ListItemWidget(
-              label: 'Image Filter',
-              child: SegmentedButton<EpubImageFilter?>(
-                key: const ValueKey('image_filter_selector'),
-                emptySelectionAllowed: true,
-                segments: const [
-                  ButtonSegment(value: EpubImageFilter.darken, label: Text('Darken')),
-                  ButtonSegment(value: EpubImageFilter.invert, label: Text('Invert')),
-                ],
-                selected: {state.imageFilter}.whereType<EpubImageFilter?>().toSet(),
-                onSelectionChanged: (values) {
-                  textSettingsBloc.add(ChangeImageFilter(values.isEmpty ? null : values.first));
-                },
-              ),
-            ),
-            const Divider(),
-            ListItemWidget(
-              label: 'Highlight',
-              child: ThemeSelectorWidget(themes: highlights, isHighlight: true),
-            ),
-            ListItemWidget(
-              label: 'Utterance',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.utteranceStyle,
-                builder: (context, utteranceStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('utterance_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                  ],
-                  selected: {utteranceStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeUtteranceStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
-            ),
-            ListItemWidget(
-              label: 'Range',
-              child: BlocSelector<TextSettingsBloc, TextSettingsState, DecorationStyle?>(
-                selector: (state) => state.rangeStyle,
-                builder: (context, rangeStyle) => SegmentedButton<DecorationStyle?>(
-                  key: const ValueKey('range_style_selector'),
-                  emptySelectionAllowed: true,
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('Off')),
-                    ButtonSegment(value: DecorationStyle.highlight, label: Text('Fill')),
-                    ButtonSegment(value: DecorationStyle.underline, label: Text('Line')),
-                    ButtonSegment(value: DecorationStyle.spotlight, label: Text('Spot')),
-                  ],
-                  selected: {rangeStyle},
-                  onSelectionChanged: (values) =>
-                      context.read<TextSettingsBloc>().add(ChangeRangeStyle(values.isEmpty ? null : values.first)),
-                ),
-              ),
-            ),
-            const Divider(),
-            TextButton(
-              key: const ValueKey('text_settings_close_button'),
-              onPressed: () => Navigator.of(context).pop(),
-              style: ButtonStyle(
-                padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.symmetric(vertical: 16.0)),
-                shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(0.0)),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                spacing: 8.0,
-                children: [
-                  Icon(Icons.close, size: 20),
-                  Text('Close', style: TextStyle(fontSize: 20)),
-                ],
-              ),
-            ),
           ],
         ),
-      ),
+      ],
+    );
+  }
+}
+
+class _ThemeSection extends StatelessWidget {
+  const _ThemeSection({required this.textSettingsBloc, required this.state});
+
+  final TextSettingsBloc textSettingsBloc;
+  final TextSettingsState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListItemWidget(
+          label: 'Color Theme',
+          child: ThemeSelectorWidget(themes: themes, isHighlight: false),
+        ),
+        ListItemWidget(
+          label: 'Image Filter',
+          child: SegmentedButton<EpubImageFilter?>(
+            key: const ValueKey('image_filter_selector'),
+            emptySelectionAllowed: true,
+            segments: const [
+              ButtonSegment(value: EpubImageFilter.darken, label: Text('Darken')),
+              ButtonSegment(value: EpubImageFilter.invert, label: Text('Invert')),
+            ],
+            selected: {state.imageFilter}.whereType<EpubImageFilter?>().toSet(),
+            onSelectionChanged: (values) {
+              textSettingsBloc.add(ChangeImageFilter(values.isEmpty ? null : values.first));
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _CollapsibleSection extends StatelessWidget {
-  const _CollapsibleSection({required this.title, required this.children});
+  const _CollapsibleSection({required this.title, required this.children, this.initiallyExpanded = false});
   final String title;
   final List<Widget> children;
+  final bool initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -442,27 +469,8 @@ class _CollapsibleSection extends StatelessWidget {
           title,
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
-        initiallyExpanded: false,
+        initiallyExpanded: initiallyExpanded,
         children: children,
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-        ),
       ),
     );
   }

@@ -1089,7 +1089,135 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Fully-wired ReadiumReaderWidget smoke test
+  //
+  // Mounts the reader with the same configuration
+  // example/lib/widgets/reader.widget.dart uses in production — selection
+  // actions, decoration/selection callbacks, a real drag gesture — for one
+  // fixture per content type/navigator. Only asserts "renders without
+  // crashing"; no feature is exercised in depth.
+  // ---------------------------------------------------------------------------
+
+  group('Fully-wired ReadiumReaderWidget smoke test', () {
+    Future<void> mountFullyWiredAndSmokeTest(
+      WidgetTester tester,
+      Publication pub, {
+      required String reason,
+    }) async {
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: _fullyWiredReaderWidget(pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: reason,
+      );
+
+      // Exercise the gesture-driven notifyUserNavigation path: a plain
+      // center-tap toggles controls instead (see reader_widget.dart
+      // `_onInteraction`), only a drag past the ~3px swipe threshold reaches it.
+      await tester.drag(find.byType(ReadiumReaderWidget), const Offset(20, 0));
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox());
+    }
+
+    testWidgets('EPUB', (tester) async {
+      final path = fixturePaths['moby_dick.epub'];
+      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+      await mountFullyWiredAndSmokeTest(
+        tester,
+        pub,
+        reason: 'Fully-wired EPUB reader never emitted an initial textLocator',
+      );
+    });
+
+    testWidgets(
+      'PDF',
+      // PDF not supported on web.
+      skip: kIsWeb,
+      (tester) async {
+        final path = fixturePaths['time_machine.pdf'];
+        expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+        final pub = await reader.openPublication(path!);
+        await mountFullyWiredAndSmokeTest(
+          tester,
+          pub,
+          reason: 'Fully-wired PDF reader never emitted an initial textLocator',
+        );
+      },
+    );
+
+    testWidgets('WebPub with Media Overlay', (tester) async {
+      final path = fixturePaths['38533_overlay_preview.webpub'];
+      expect(path, isNotNull, reason: 'Fixture 38533_overlay_preview.webpub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+      await mountFullyWiredAndSmokeTest(
+        tester,
+        pub,
+        reason: 'Fully-wired media-overlay reader never emitted an initial textLocator',
+      );
+    });
+
+    testWidgets(
+      'DiViNa comic (CBZ)',
+      // Not part of the bundled web fixture set (see test_fixtures_web.dart) —
+      // native-only asset.
+      skip: kIsWeb,
+      (tester) async {
+        final path = fixturePaths['sample_comic.cbz'];
+        expect(path, isNotNull, reason: 'Fixture sample_comic.cbz missing from asset bundle');
+
+        final pub = await reader.openPublication(path!);
+        expect(
+          pub.conformsToReadiumDivina,
+          isTrue,
+          reason: 'CBZ fixture should conform to the Readium DiViNa profile',
+        );
+        await mountFullyWiredAndSmokeTest(
+          tester,
+          pub,
+          reason: 'Fully-wired DiViNa reader never emitted an initial textLocator',
+        );
+      },
+    );
+  });
 }
+
+/// The same `ReadiumReaderWidget` configuration used in production by
+/// example/lib/widgets/reader.widget.dart — a non-empty `selectionActions` and
+/// all interaction callbacks wired up, rather than the bare
+/// `ReadiumReaderWidget(publication: pub)` the other test groups use.
+ReadiumReaderWidget _fullyWiredReaderWidget(Publication pub) => ReadiumReaderWidget(
+  publication: pub,
+  shouldShowControls: ValueNotifier(true),
+  allowedDefaultActions: const {
+    DefaultSelectionAction.copy,
+    DefaultSelectionAction.share,
+    DefaultSelectionAction.translate,
+  },
+  selectionActions: const [
+    SelectionAction(id: 'highlight', title: 'Highlight'),
+    SelectionAction(id: 'note', title: 'Add Note'),
+  ],
+  onExternalLinkActivated: (_) {},
+  onTextSelected: (_) {},
+  onSelectionAction: (_) {},
+  onDecorationInteraction: (_) {},
+);
 
 /// Drives the timebased playback path end-to-end:
 ///   enable -> play -> wait for [TimebasedState.playing] -> pause
