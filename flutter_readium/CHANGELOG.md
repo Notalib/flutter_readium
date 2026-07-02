@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.2.0] - 2026-07-02
+
 ### Added
 
 - **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
