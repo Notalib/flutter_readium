@@ -46,6 +46,7 @@ jobs:
 
       - name: Cache Xcode derived data
         uses: actions/cache@v6
+        id: deriveddata-cache
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           # Keyed on the runner image, not runner.os ("macOS" is identical
@@ -57,6 +58,20 @@ jobs:
           key: xcode-deriveddata-macos26-${{ hashFiles('.flutter-version', 'flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
           restore-keys: |
             xcode-deriveddata-macos26-
+
+      # Diagnostic: the dominant iOS-CI time sinks are cold caches (full pod install
+      # + full Xcode rebuild) and underpowered runners. Surface both up front so a
+      # slow run can be attributed to a cache miss vs. a genuinely slow build.
+      - name: Report runner environment & cache status
+        run: |
+          echo "Runner:                $(uname -mrs)"
+          echo "CPU cores:             $(sysctl -n hw.ncpu)"
+          echo "RAM:                   $(( $(sysctl -n hw.memsize) / 1073741824 )) GiB"
+          echo "Disk free (/):         $(df -h / | tail -1 | awk '{print $4}')"
+          echo "Xcode:                 $(xcodebuild -version | tr '\n' ' ')"
+          echo "CocoaPods cache hit:   ${{ steps.pods-cache.outputs.cache-hit }}"
+          echo "DerivedData cache hit: ${{ steps.deriveddata-cache.outputs.cache-hit }}"
+          echo "DerivedData restored:  $(du -sh ~/Library/Developer/Xcode/DerivedData 2>/dev/null | cut -f1 || echo none)"
 
       # Build the gitignored webview helper assets before the Xcode build (inside
       # `flutter test`); without them EPUBReaderView crashes on the first reader
@@ -109,9 +124,32 @@ jobs:
           # Boot and wait for full boot (SpringBoard up) so the first EPUB open
           # isn't racing a half-warm simulator — cold first-WKWebView is the
           # slowest, flakiest case.
+          boot_start=$SECONDS
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          echo "Simulator boot + full-boot wait took $(( SECONDS - boot_start ))s"
           echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
+      # Native (Swift) unit tests run through the example app's app-hosted RunnerTests
+      # target, which needs a booted simulator + pod install — hence here, reusing the
+      # integration job's setup, rather than in the Ubuntu-based unit-test workflow.
+      - name: Run iOS native unit tests
+        # arch pinned to the runner's native arch (a bare id= destination lists both
+        # arm64 + x86_64 and can pick the Rosetta x86_64 slice); -quiet keeps only
+        # test results + errors.
+        #
+        # This step builds the full Runner app + all pods, so its
+        # -showBuildTimingSummary is a representative breakdown of which compile
+        # phases dominate the (shared) iOS build — the main lever on slow CI.
+        run: |
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -only-testing:RunnerTests \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID,arch=$(uname -m)" \
+            -showBuildTimingSummary \
+            -quiet
+        working-directory: flutter_readium/example/ios
 
       - name: Run integration tests
         # Force the `expanded` reporter. In CI, package:test auto-selects its
@@ -122,6 +160,26 @@ jobs:
         # found — keep it so future native crashes stay legible in CI logs.
         run: flutter test integration_test --reporter expanded --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
+
+      # Diagnostic: confirm the integration build ran the host-native arch and not
+      # the x86_64/Rosetta slice (a suspected cause of slow runs). Reports the host
+      # arch, the simulator's default arch, and the arch(es) actually compiled into
+      # the Runner.app that ran. Purely informational — never fails the job.
+      - name: Report integration build architecture
+        if: always()
+        # Informational only — must never fail the job (runs under bash -eo pipefail),
+        # hence the trailing `|| true`. Filters to simulator builds; the iphoneos
+        # (device) Runner.app is irrelevant to the integration run.
+        run: |
+          echo "Host arch:            $(uname -m)"
+          echo "Simulator spawn arch: $(xcrun simctl spawn "$IOS_SIMULATOR_UDID" arch 2>/dev/null || echo '?')"
+          find "$GITHUB_WORKSPACE/flutter_readium/example/build" \
+               "$HOME/Library/Developer/Xcode/DerivedData" \
+               -type d -name Runner.app 2>/dev/null | while read -r app; do
+            case "$app" in *[Ss]imulator*) ;; *) continue ;; esac
+            bin="$app/Runner"
+            [ -f "$bin" ] && echo "Runner binary arch:   $(lipo -archs "$bin" 2>/dev/null || file -b "$bin")  ($bin)"
+          done || true
 
       - name: Collect iOS crash & simulator diagnostics on failure
         if: failure()
