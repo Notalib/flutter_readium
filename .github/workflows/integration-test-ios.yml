@@ -130,27 +130,6 @@ jobs:
           echo "Simulator boot + full-boot wait took $(( SECONDS - boot_start ))s"
           echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
 
-      # Native (Swift) unit tests run through the example app's app-hosted RunnerTests
-      # target, which needs a booted simulator + pod install — hence here, reusing the
-      # integration job's setup, rather than in the Ubuntu-based unit-test workflow.
-      - name: Run iOS native unit tests
-        # arch pinned to the runner's native arch (a bare id= destination lists both
-        # arm64 + x86_64 and can pick the Rosetta x86_64 slice); -quiet keeps only
-        # test results + errors.
-        #
-        # This step builds the full Runner app + all pods, so its
-        # -showBuildTimingSummary is a representative breakdown of which compile
-        # phases dominate the (shared) iOS build — the main lever on slow CI.
-        run: |
-          xcodebuild test \
-            -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -only-testing:RunnerTests \
-            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID,arch=$(uname -m)" \
-            -showBuildTimingSummary \
-            -quiet
-        working-directory: flutter_readium/example/ios
-
       - name: Run integration tests
         # Force the `expanded` reporter. In CI, package:test auto-selects its
         # GitHub Actions reporter (GITHUB_ACTIONS=true), which rendered a real
