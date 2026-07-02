@@ -360,6 +360,11 @@ describe("textLocatorToAudioLocator", () => {
     expect(audioLoc!.locations.fragments).toContain("t=0");
   });
 
+  it("returns undefined for a no-textId locator when resource fallback is disallowed", () => {
+    const loc = new Locator({ href: "chap1.html", type: "text/html", locations: new LocatorLocations({}) });
+    expect(textLocatorToAudioLocator(items, loc, false)).toBeUndefined();
+  });
+
   it("falls back to first item in href when textId has no match", () => {
     // "chap1.html#unknown" — no SyncNarrationItem with textId="unknown"
     const loc = textLocator("chap1.html", "unknown");
@@ -368,6 +373,21 @@ describe("textLocatorToAudioLocator", () => {
     expect(audioLoc).not.toBeUndefined();
     expect(audioLoc!.href).toBe("chap1.mp3");
     expect(audioLoc!.locations.fragments).toContain("t=0");
+  });
+
+  it("returns undefined for an unmatched textId when resource fallback is disallowed", () => {
+    // Same-resource ToC tap at a cue-less anchor must not rewind audio (issue #139).
+    const loc = textLocator("chap1.html", "unknown");
+    expect(textLocatorToAudioLocator(items, loc, false)).toBeUndefined();
+  });
+
+  it("still maps an exact href+id match when resource fallback is disallowed", () => {
+    // Gating only suppresses the imprecise fallback; a real cue match always maps.
+    const loc = textLocator("chap1.html", "p2");
+    const audioLoc = textLocatorToAudioLocator(items, loc, false);
+    expect(audioLoc).not.toBeUndefined();
+    expect(audioLoc!.href).toBe("chap1.mp3");
+    expect(audioLoc!.locations.fragments).toContain("t=5");
   });
 
   it("uses progression within the item range when audioStart/End are set", () => {

@@ -32,6 +32,7 @@ import {
   SyncNarrationItem,
   detectSyncNarration,
   findItemByAudioTime,
+  normalizeHref,
   textLocatorForItem,
   textLocatorToAudioLocator,
 } from "./mediaoverlay/syncNarration";
@@ -233,7 +234,16 @@ class _ReadiumReader {
     // seek audio nav, and also scroll the visual navigator to the text position.
     // Mirrors FlutterMediaOverlayNavigator.seek(toLocator:) on iOS/Android.
     if (this._audioNav && this._syncItems.length > 0) {
-      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator);
+      // Only fall back to the resource's first cue when this ToC/bookmark tap
+      // crosses into a *different* resource than the one currently playing —
+      // an uncued anchor within the current chapter must not rewind audio to
+      // the chapter top. See issue #139.
+      const curAudioLoc = this._audioNav.currentLocator;
+      const curTime = getTime(curAudioLoc.locations) ?? this._audioNav.currentTime;
+      const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime);
+      const crossResource =
+        !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
+      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource);
       if (audioLocator) {
         const wasPlaying = this._audioNav.isPlaying;
         log.info(

@@ -115,9 +115,19 @@ data class FlutterMediaOverlay(
      * Find the media overlay item from the given locator.
      * A locator can either be an audio+time based locator or a text+id based locator.
      * This allows us to map back and forth between audio and text.
+     *
+     * [allowResourceFallback] gates the *imprecise* resource-first fallbacks (an
+     * unmatched text id, or no id at all on an HTML resource): when true, an uncued
+     * anchor maps to the first cue of the resource; when false, returns null so the
+     * caller can leave playback untouched. Pass false when audio is already playing
+     * in this same resource (cross-resource check is done at the navigator level).
+     * See issue #139.
      */
     @OptIn(InternalReadiumApi::class)
-    fun findItemFromLocator(locator: Locator): FlutterMediaOverlayItem? {
+    fun findItemFromLocator(
+        locator: Locator,
+        allowResourceFallback: Boolean = true,
+    ): FlutterMediaOverlayItem? {
         val href = locator.href
         if (!href.isEquivalent(Url.invoke(textFile)) && !href.isEquivalent(Url.invoke(audioFile))) {
             return null
@@ -134,8 +144,10 @@ data class FlutterMediaOverlay(
             return items.firstOrNull { item -> item.textFile == href.path }
         }
 
+        // Reflowable text: try exact DOM element id match first; fall through on no match.
         locator.getTextId()?.let { textId ->
-            return findItemFromTextId(href, textId)
+            findItemFromTextId(href, textId)?.let { return it }
+            PluginLog.d(TAG, "::findItemFromLocator - textId '$textId' matched no cue for href=${href.path}")
         }
 
         locator.progression?.let { progression ->
@@ -145,11 +157,12 @@ data class FlutterMediaOverlay(
             return item
         }
 
-        if (locator.locations.fragments.isEmpty() && locator.mediaType.isHtml) {
-            // No fragment on a text document → first item of the resource.
+        if (allowResourceFallback && locator.mediaType.isHtml) {
+            // No cue matched — fall back to first item of the resource (covers both
+            // no-fragment HTML and an id that has no narration entry e.g. a heading).
             PluginLog.d(
                 TAG,
-                "::findItemFromLocator - no fragment in html locator, returning first item for href=${href.path}",
+                "::findItemFromLocator - resource-fallback: first item for href=${href.path}",
             )
             return items.firstOrNull { item ->
                 item.textFile == href.path
@@ -158,7 +171,7 @@ data class FlutterMediaOverlay(
 
         PluginLog.d(
             TAG,
-            "::findItemFromLocator - no time or textId in locator, cannot find item for locator=$locator",
+            "::findItemFromLocator - no match for locator=$locator",
         )
 
         return null

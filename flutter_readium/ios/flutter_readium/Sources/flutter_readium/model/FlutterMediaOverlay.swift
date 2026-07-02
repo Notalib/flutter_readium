@@ -34,12 +34,18 @@ struct FlutterMediaOverlay {
     return items.first(where: { $0.textId == textId })
   }
   
-  func itemFromLocator(_ locator: Locator) -> FlutterMediaOverlayItem? {
+  /// `allowResourceFallback` gates the *imprecise* resource-first fallbacks (an
+  /// unmatched text id, or no id at all on an HTML resource): when true, an uncued
+  /// anchor maps to the first cue of the resource; when false, returns nil so the
+  /// caller can leave playback untouched. Pass false when audio is already playing
+  /// in this same resource (cross-resource check is done at the navigator level).
+  /// See issue #139.
+  func itemFromLocator(_ locator: Locator, allowResourceFallback: Bool = true) -> FlutterMediaOverlayItem? {
     let href = locator.href.string
     if (textFile != href && audioFile != href) {
       return nil
     }
-    
+
     // Audio time fragment → exact item by time range.
     let timeOffset = locator.timeOffset
     if (timeOffset != nil) {
@@ -53,14 +59,18 @@ struct FlutterMediaOverlay {
       return items.first(where: { $0.textFile == href })
     }
 
-    // Reflowable text: match by DOM element id when present.
-    let textId = locator.textId
-    if (textId != nil) {
-      return itemFromTextId(textId!, inHref: href)
+    // Reflowable text: try exact DOM element id match first.
+    if let textId = locator.textId, let item = itemFromTextId(textId, inHref: href) {
+      return item
     }
 
-    // No fragment on a text document → first item of the resource.
-    if (locator.locations.fragments.isEmpty && [MediaType.html, MediaType.xhtml].contains(locator.mediaType)) {
+    // No id, or id matched no cue → resource-first fallback, gated by policy.
+    // Covers: no fragment on an HTML resource, AND an id that has no narration cue
+    // (e.g. a ToC entry pointing at a heading that lacks its own sync data).
+    if allowResourceFallback && [MediaType.html, MediaType.xhtml].contains(locator.mediaType) {
+      if locator.textId != nil {
+        Log.navigator.warn("itemFromLocator: textId matched no cue in \(href); falling back to first item in resource")
+      }
       return items.first(where: { $0.textFile == href })
     }
 

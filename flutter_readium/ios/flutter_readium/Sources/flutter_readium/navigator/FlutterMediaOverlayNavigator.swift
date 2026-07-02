@@ -12,7 +12,6 @@ import ReadiumNavigator
 public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 {
   internal var mediaOverlays: [FlutterMediaOverlay] = []
-  internal var lastMediaOverlayItem: FlutterMediaOverlayItem? = nil
   
   public override var currentLocator: Locator? {
     get {
@@ -180,7 +179,13 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - nil text locator")
       return nil
     }
-    guard let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator) }),
+    // Only allow the imprecise resource-first fallback when tapping into a
+    // *different* resource than the one currently playing — an uncued anchor
+    // within the current chapter must not rewind audio. See issue #139.
+    let currentTextFile = audioLocator.flatMap { mediaOverlayItemFromAudioLocator($0)?.textFile }
+    let crossResource = currentTextFile == nil
+      || currentTextFile != textLocator.href.string
+    guard let matchingMediaOverlayItem = self.mediaOverlays.firstMap({ $0.itemFromLocator(textLocator, allowResourceFallback: crossResource) }),
           var audioLocator = matchingMediaOverlayItem.asAudioLocator else {
       Log.navigator.warn("mapTextLocatorToMediaOverlayAudioLocator - no media overlay matched text locator " +
                          "href=\(textLocator.href.string) mediaType=\(textLocator.mediaType.string) fragments=\(textLocator.locations.fragments)")

@@ -215,12 +215,20 @@ export function combinedLocatorForItem(
  *
  * Returns undefined when no matching item is found.
  *
+ * `allowResourceFallback` gates the *imprecise* resource-first fallbacks (an
+ * unmatched text id, or no id at all): when true, an uncued anchor maps to the
+ * first cue of the resource; when false, it returns undefined so the caller
+ * leaves playback untouched. Callers pass false when audio is already playing
+ * *within the same resource* — a ToC tap at a cue-less heading in the current
+ * chapter shouldn't rewind audio to the chapter top. See issue #139.
+ *
  * Mirrors FlutterMediaOverlayNavigator.mapTextLocatorToMediaOverlayAudioLocator
  * (iOS) and SyncAudiobookNavigator.mapTextLocatorToMediaOverlayLocator (Android).
  */
 export function textLocatorToAudioLocator(
   items: SyncNarrationItem[],
-  textLocator: Locator
+  textLocator: Locator,
+  allowResourceFallback = true
 ): Locator | undefined {
   const targetHref = textLocator.href;
   log.debug(`Mapping text locator to audio: href="${targetHref}", ${items.length} items`);
@@ -241,18 +249,20 @@ export function textLocatorToAudioLocator(
   // Primary: exact href + textId match (ID-anchored ToC entry, decoration callback, etc.).
   // Fallback: first item in matching href (covers ToC entries whose fragment points at a
   // heading or section that has no Sync Narration item — e.g. `chap1.xhtml#title`).
-  // Mirrors iOS/Android's "no fragments + HTML → first item by href" fallback in
+  // The fallback is *imprecise* (resource start, not the anchor), so it's gated by
+  // `allowResourceFallback` — suppressed when audio is already in this same resource.
+  // Mirrors iOS/Android's gated resource-first fallback in
   // FlutterMediaOverlay.itemFromLocator / findItemFromLocator.
   let match: SyncNarrationItem | undefined;
   if (targetId) {
     match = hrefMatches.find((item) => item.textId === targetId);
-    if (!match && hrefMatches.length > 0) {
+    if (!match && allowResourceFallback && hrefMatches.length > 0) {
       log.warn(
         `textLocatorToAudioLocator: no SyncNarrationItem matched textId "${targetId}" in ${targetHrefNormalized}; falling back to first item in resource.`
       );
       match = hrefMatches[0];
     }
-  } else {
+  } else if (allowResourceFallback) {
     match = hrefMatches[0];
   }
 

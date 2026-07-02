@@ -212,9 +212,23 @@ class SyncAudiobookNavigator(
 
     @OptIn(InternalReadiumApi::class)
     private fun mapTextLocatorToMediaOverlayLocator(locator: Locator): Locator? {
+        // Only allow the imprecise resource-first fallback when navigating into a
+        // *different* resource than the one currently playing — an uncued anchor
+        // within the current chapter must not rewind audio. See issue #139.
+        val curAudioLoc = audioNavigator?.currentLocator?.value
+        val curTextFile: String? =
+            if (curAudioLoc != null) {
+                val duration = publication.getReadingOrderItemDuration(curAudioLoc.href)
+                val timeOffset = curAudioLoc.locations.timeWithDuration(duration) ?: 0.seconds
+                mediaOverlays.firstNotNullOfOrNull { mo -> mo?.findItemInRange(curAudioLoc.href, timeOffset) }?.textFile
+            } else {
+                null
+            }
+        val crossResource = curTextFile == null || curTextFile != locator.href.path
+
         val mediaOverlay =
             mediaOverlays.firstNotNullOfOrNull { mo ->
-                mo?.findItemFromLocator(locator)
+                mo?.findItemFromLocator(locator, allowResourceFallback = crossResource)
             }
 
         val syncAudioLocator =
