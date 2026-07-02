@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logging/logging.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:collection/collection.dart';
 
 import 'package:flutter_readium/flutter_readium.dart';
+
+import 'tts_settings_bloc.dart';
 
 final _log = Logger('PlayerControlsBloc');
 
@@ -86,7 +87,22 @@ class SeekRelative extends PlayerControlsEvent {
 }
 
 @immutable
-class GetAvailableVoices extends PlayerControlsEvent {}
+class ChangeAudioSpeed extends PlayerControlsEvent {
+  ChangeAudioSpeed(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeAudioSeekInterval extends PlayerControlsEvent {
+  ChangeAudioSeekInterval(this.value);
+  final double value;
+}
+
+@immutable
+class ChangeAudioPitch extends PlayerControlsEvent {
+  ChangeAudioPitch(this.value);
+  final double value;
+}
 
 @immutable
 class UpdateCurrentTocHref extends PlayerControlsEvent {
@@ -111,6 +127,9 @@ class PlayerControlsState {
     required this.ttsEnabled,
     required this.audioEnabled,
     required this.audioControlPanelTimebase,
+    this.audioSpeed = 1.5,
+    this.audioSeekInterval = 10.0,
+    this.audioPitch = 1.0,
     this.narrationSyncEnabled,
     this.currentTocHref,
   });
@@ -119,6 +138,9 @@ class PlayerControlsState {
   final bool ttsEnabled;
   final bool audioEnabled;
   final ControlPanelTimebase audioControlPanelTimebase;
+  final double audioSpeed;
+  final double audioSeekInterval;
+  final double audioPitch;
   final bool? narrationSyncEnabled;
   final String? currentTocHref;
 
@@ -127,6 +149,9 @@ class PlayerControlsState {
     bool? ttsEnabled,
     bool? audioEnabled,
     ControlPanelTimebase? audioControlPanelTimebase,
+    double? audioSpeed,
+    double? audioSeekInterval,
+    double? audioPitch,
     bool? narrationSyncEnabled,
     String? currentTocHref,
   }) => PlayerControlsState(
@@ -134,6 +159,9 @@ class PlayerControlsState {
     ttsEnabled: ttsEnabled != null ? ttsEnabled : this.ttsEnabled,
     audioEnabled: audioEnabled != null ? audioEnabled : this.audioEnabled,
     audioControlPanelTimebase: audioControlPanelTimebase ?? this.audioControlPanelTimebase,
+    audioSpeed: audioSpeed ?? this.audioSpeed,
+    audioSeekInterval: audioSeekInterval ?? this.audioSeekInterval,
+    audioPitch: audioPitch ?? this.audioPitch,
     narrationSyncEnabled: narrationSyncEnabled != null ? narrationSyncEnabled : this.narrationSyncEnabled,
     currentTocHref: currentTocHref ?? this.currentTocHref,
   );
@@ -165,6 +193,9 @@ class PlayerControlsState {
     ttsEnabled: false,
     audioEnabled: false,
     audioControlPanelTimebase: audioControlPanelTimebase,
+    audioSpeed: audioSpeed,
+    audioSeekInterval: audioSeekInterval,
+    audioPitch: audioPitch,
     currentTocHref: null,
   );
 }
@@ -175,13 +206,14 @@ class ToggleAudioControlPanelTimebase extends PlayerControlsEvent {}
 class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> {
   List<StreamSubscription> subscriptions = [];
   Locator? currentLocator;
+  final TtsSettingsBloc ttsSettingsBloc;
 
   /// Broadcasts the current resource [Locator] regardless of media type, retaining
   /// the latest value so late subscribers (e.g. a slider rebuilt by the parent
   /// `BlocBuilder`) immediately receive the current progression.
   final BehaviorSubject<Locator> _currentLocatorSubject = BehaviorSubject<Locator>();
 
-  PlayerControlsBloc()
+  PlayerControlsBloc({required this.ttsSettingsBloc})
     : super(
         PlayerControlsState(
           playing: false,
@@ -269,7 +301,12 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<PlayTTS>((final event, final emit) async {
       if (!state.ttsEnabled) {
-        await instance.ttsEnable(TTSPreferences(speed: 1.2));
+        await instance.ttsEnable(ttsSettingsBloc.buildPreferences());
+        // TTSPreferences.voices is only honored by Android — push each
+        // per-language selection again via ttsSetVoice so iOS/Web pick it up.
+        for (final entry in ttsSettingsBloc.state.voicesByLanguage.entries) {
+          await instance.ttsSetVoice(entry.value, entry.key);
+        }
         await instance.play(event.fromLocator);
         emit(
           state.toggleTTSEnabled(true, event.fromLocator?.locations?.tocHref),
@@ -371,31 +408,6 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
       emit(state.copyWith(narrationSyncEnabled: event.enabled));
     });
 
-    on<GetAvailableVoices>((final event, final emit) async {
-      final voices = await instance.ttsGetAvailableVoices();
-
-      // Sort by identifer
-      voices.sortBy((v) => v.identifier);
-
-      for (final i in voices.groupListsBy((v) => v.language).entries) {
-        _log.info('Language: ${i.key}');
-        _log.info('  Available voices:');
-        for (final v in i.value) {
-          _log.info(
-            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
-          );
-        }
-      }
-
-      final dkVoices = voices.where((v) => v.language == "da-DK").toList();
-
-      // TODO: Demo: change to first voice matching "da-DK" language.
-      final daVoice = dkVoices.lastOrNull;
-      if (daVoice != null) {
-        await instance.ttsSetVoice(daVoice.identifier, daVoice.language);
-      }
-    });
-
     on<ToggleAudioControlPanelTimebase>((event, emit) async {
       final nextTimebase = state.audioControlPanelTimebase == ControlPanelTimebase.chapter
           ? ControlPanelTimebase.wholeBook
@@ -407,11 +419,36 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
         await instance.audioSetPreferences(_buildAudioPreferences(nextTimebase));
       }
     });
+
+    on<ChangeAudioSpeed>((event, emit) async {
+      emit(state.copyWith(audioSpeed: event.value));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(state.audioControlPanelTimebase));
+      }
+    });
+
+    on<ChangeAudioSeekInterval>((event, emit) async {
+      emit(state.copyWith(audioSeekInterval: event.value));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(state.audioControlPanelTimebase));
+      }
+    });
+
+    on<ChangeAudioPitch>((event, emit) async {
+      emit(state.copyWith(audioPitch: event.value));
+
+      if (state.audioEnabled) {
+        await instance.audioSetPreferences(_buildAudioPreferences(state.audioControlPanelTimebase));
+      }
+    });
   }
 
   AudioPreferences _buildAudioPreferences(ControlPanelTimebase timebase) => AudioPreferences(
-    speed: 1.5,
-    seekInterval: 10,
+    speed: state.audioSpeed,
+    pitch: state.audioPitch,
+    seekInterval: state.audioSeekInterval,
     continuousSeeking: true,
     controlPanelTimebase: timebase,
   );

@@ -9,8 +9,8 @@ import '../index.dart';
 /// WebView), and on Web (via DOM hit-testing).
 ///
 /// The event carries only the publication-relative [href] (plus lightweight
-/// metadata); the image bytes are fetched lazily on demand via
-/// `FlutterReadium.getResourceBytes` / `imageProvider`.
+/// metadata); the image is resolved lazily on demand via
+/// `FlutterReadium.getResourceUrl` / `imageProvider`.
 ///
 /// Platform implementations may suppress taps where images are part of reader
 /// interaction, such as DiViNa publications or Nota comic page images.
@@ -22,7 +22,6 @@ class ImageTapEvent implements JSONable {
     this.rect,
     this.pixelWidth,
     this.pixelHeight,
-    this.srcUrl,
   });
 
   factory ImageTapEvent.fromJson(final Map<String, dynamic> map) {
@@ -47,7 +46,6 @@ class ImageTapEvent implements JSONable {
           : null,
       pixelWidth: map.optNullableInt('pixelWidth'),
       pixelHeight: map.optNullableInt('pixelHeight'),
-      srcUrl: map.optNullableString('srcUrl'),
     );
   }
 
@@ -71,10 +69,6 @@ class ImageTapEvent implements JSONable {
   /// Natural pixel height of the image, if known.
   final int? pixelHeight;
 
-  /// Absolute served URL of the image (Web only). When present it can be loaded
-  /// directly via `Image.network`, skipping the byte bridge.
-  final String? srcUrl;
-
   @override
   Map<String, dynamic> toJson() => {
     'href': href,
@@ -89,6 +83,5 @@ class ImageTapEvent implements JSONable {
       },
     if (pixelWidth != null) 'pixelWidth': pixelWidth,
     if (pixelHeight != null) 'pixelHeight': pixelHeight,
-    if (srcUrl != null) 'srcUrl': srcUrl,
   };
 }

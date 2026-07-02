@@ -5,6 +5,8 @@
 // These tests exercise the Dart -> native -> Dart contract that pure Dart
 // unit tests cannot reach. They run on iOS, Android, and Web via the example app.
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
@@ -33,9 +35,58 @@ void main() {
     await reader.closePublication();
   });
 
+  // Warm up the reader platform view before the real tests run.
+  //
+  // The first ReadiumReaderWidget mount on a cold CI iOS simulator is far slower
+  // than a warm one: the WKWebView content process spins up lazily, and that
+  // one-time cost has intermittently blown a per-test timeout (the first
+  // widget-mounting test stalled at `readerStatus=loading` while every later
+  // mount rendered instantly). Absorbing it here — first in declaration order,
+  // outside any tight assertion and with a generous timeout — means every
+  // subsequent test starts against an already-warm webview. The timeout is kept
+  // large enough that a genuinely stuck reader still fails loudly rather than
+  // being masked.
+  //
+  // Uses the synthetic single-page test-peter-rabbit webpub — the lightest
+  // publication in the suite (one 789-byte page + a couple of images) — so the
+  // first render, whose cost we only care about absorbing, completes as fast as
+  // possible. It's generated for both platforms, so the warm-up runs everywhere.
+  testWidgets(
+    'warms up the reader platform view',
+    (tester) async {
+      final path = fixturePaths[FixtureKeys.warmupWebpub];
+      expect(path, isNotNull, reason: 'Fixture ${FixtureKeys.warmupWebpub} missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+
+      final locators = <Locator>[];
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      final textLocatorSub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(textLocatorSub.cancel);
+      addTearDown(readerStatusSub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReadiumReaderWidget(publication: pub)),
+        ),
+      );
+
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 120),
+        reason: 'Reader never emitted an initial textLocator during warm-up',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
   test('opens EPUB succesfully', () async {
-    final path = fixturePaths['moby_dick.epub'];
-    expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+    final path = fixturePaths['712199_ebook.epub'];
+    expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
     final pub = await reader.openPublication(path!);
 
@@ -51,8 +102,8 @@ void main() {
     // exercised in the web test harness. Covered on iOS/Android.
     skip: kIsWeb ? 'Web Speech API unavailable in the web test harness' : false,
     () async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       await reader.openPublication(path!);
 
@@ -66,8 +117,8 @@ void main() {
   );
 
   testWidgets('opens and navigates forward in EPUB and receives a new textLocator', (tester) async {
-    final path = fixturePaths['moby_dick.epub'];
-    expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+    final path = fixturePaths['712199_ebook.epub'];
+    expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
     final pub = await reader.openPublication(path!);
 
@@ -160,31 +211,17 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Image tap API (getResourceBytes)
+  // Image tap API (getResourceUrl)
   // ---------------------------------------------------------------------------
 
   group(
     'EPUB image tap API',
     // The illustrated fixture is a native-bundled asset; the web integration
     // suite serves a different (webpub) fixture set, so this group runs on
-    // iOS/Android only. getResourceBytes itself is implemented on web too.
+    // iOS/Android only. getResourceUrl itself is implemented on web too.
     skip: kIsWeb ? 'Native-bundled fixture not available on web' : null,
     () {
-      test('opens EPUB and reads publication metadata', () async {
-        final path = fixturePaths[FixtureKeys.peterRabbitEpub];
-        expect(
-          path,
-          isNotNull,
-          reason: 'Fixture peter_rabbit.epub missing from asset bundle',
-        );
-
-        final pub = await reader.openPublication(path!);
-
-        expect(pub.metadata.title, isNotEmpty);
-        expect(pub.readingOrder, isNotEmpty);
-      });
-
-      test('getResourceBytes returns non-empty bytes for an image resource', () async {
+      test('getResourceUrl returns a file:// URL to a cached, decodable image', () async {
         final path = fixturePaths[FixtureKeys.peterRabbitEpub];
         expect(path, isNotNull, reason: 'Fixture peter_rabbit.epub missing');
 
@@ -196,26 +233,27 @@ void main() {
               l.type?.startsWith('image/') == true ||
               (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
           orElse: () => throw StateError(
-            'peter_rabbit.epub has no image resources — cannot test getResourceBytes',
+            'peter_rabbit.epub has no image resources — cannot test getResourceUrl',
           ),
         );
 
-        final bytes = await reader.getResourceBytes(imageLink.href);
+        final url = await reader.getResourceUrl(imageLink.href);
         expect(
-          bytes,
-          isNotEmpty,
-          reason: 'getResourceBytes returned empty bytes for href: ${imageLink.href}',
-        );
-        // Sanity-check that the bytes look like an image by checking for known
-        // magic bytes. JPEG starts with 0xFF 0xD8; PNG with 0x89 0x50 0x4E 0x47.
-        final isJpeg = bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
-        final isPng = bytes.length >= 4 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47;
-        expect(
-          isJpeg || isPng,
+          Uri.parse(url).isScheme('file'),
           isTrue,
-          reason:
-              'Bytes for ${imageLink.href} do not start with a JPEG or PNG magic header '
-              '(got 0x${bytes.take(4).map((b) => b.toRadixString(16).padLeft(2, "0")).join()})',
+          reason: 'Expected a file:// URL on native platforms, got: $url',
+        );
+
+        // Loading the cached file into an image codec proves the file exists,
+        // is non-empty, and contains valid image data — without pulling the
+        // bytes into Dart via dart:io (unavailable when this file compiles for web).
+        final buffer = await ui.ImmutableBuffer.fromFilePath(Uri.parse(url).toFilePath());
+        final codec = await ui.instantiateImageCodecFromBuffer(buffer);
+        final frame = await codec.getNextFrame();
+        expect(
+          frame.image.width > 0 && frame.image.height > 0,
+          isTrue,
+          reason: 'Cached file for ${imageLink.href} did not decode to a valid image',
         );
       });
     },
@@ -528,23 +566,24 @@ void main() {
 
   group('EPUB navigation and state', () {
     test(
-      'searchInPublication returns hits for a common word in Moby-Dick',
+      'searchInPublication returns hits for a common word in a reflowable EPUB',
       skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
       () async {
-        final path = fixturePaths['moby_dick.epub'];
-        expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+        final path = fixturePaths['712199_ebook.epub'];
+        expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
         await reader.openPublication(path!);
 
-        final results = await reader.searchInPublication('whale');
-        expect(results, isNotEmpty, reason: '"whale" should yield matches in Moby-Dick');
+        // "og" (Danish "and") is the highest-frequency word in this Danish book.
+        final results = await reader.searchInPublication('og');
+        expect(results, isNotEmpty, reason: '"og" should yield matches in the Danish EPUB');
         expect(results.first.locator.href, isNotEmpty);
       },
     );
 
     testWidgets('goToLocator round-trips back to a saved position', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -602,8 +641,8 @@ void main() {
     });
 
     testWidgets('initialLocator restores the saved position on widget mount', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -666,8 +705,8 @@ void main() {
     });
 
     testWidgets('mounting the reader widget emits a ready reader status', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -692,8 +731,8 @@ void main() {
     });
 
     testWidgets('setEPUBPreferences applies without throwing', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -723,8 +762,8 @@ void main() {
     });
 
     testWidgets('applyDecorations applies a highlight without throwing', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -764,8 +803,8 @@ void main() {
     });
 
     testWidgets('goToLocator round-trips cssSelector precision', (tester) async {
-      final path = fixturePaths['moby_dick.epub'];
-      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+      final path = fixturePaths['712199_ebook.epub'];
+      expect(path, isNotNull, reason: 'Fixture 712199_ebook.epub missing from asset bundle');
 
       final pub = await reader.openPublication(path!);
 
@@ -1050,7 +1089,135 @@ void main() {
       );
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Fully-wired ReadiumReaderWidget smoke test
+  //
+  // Mounts the reader with the same configuration
+  // example/lib/widgets/reader.widget.dart uses in production — selection
+  // actions, decoration/selection callbacks, a real drag gesture — for one
+  // fixture per content type/navigator. Only asserts "renders without
+  // crashing"; no feature is exercised in depth.
+  // ---------------------------------------------------------------------------
+
+  group('Fully-wired ReadiumReaderWidget smoke test', () {
+    Future<void> mountFullyWiredAndSmokeTest(
+      WidgetTester tester,
+      Publication pub, {
+      required String reason,
+    }) async {
+      final locators = <Locator>[];
+      final sub = reader.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: _fullyWiredReaderWidget(pub)),
+        ),
+      );
+      await _waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: reason,
+      );
+
+      // Exercise the gesture-driven notifyUserNavigation path: a plain
+      // center-tap toggles controls instead (see reader_widget.dart
+      // `_onInteraction`), only a drag past the ~3px swipe threshold reaches it.
+      await tester.drag(find.byType(ReadiumReaderWidget), const Offset(20, 0));
+      await tester.pump();
+
+      await tester.pumpWidget(const SizedBox());
+    }
+
+    testWidgets('EPUB', (tester) async {
+      final path = fixturePaths['moby_dick.epub'];
+      expect(path, isNotNull, reason: 'Fixture moby_dick.epub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+      await mountFullyWiredAndSmokeTest(
+        tester,
+        pub,
+        reason: 'Fully-wired EPUB reader never emitted an initial textLocator',
+      );
+    });
+
+    testWidgets(
+      'PDF',
+      // PDF not supported on web.
+      skip: kIsWeb,
+      (tester) async {
+        final path = fixturePaths['time_machine.pdf'];
+        expect(path, isNotNull, reason: 'Fixture time_machine.pdf missing from asset bundle');
+
+        final pub = await reader.openPublication(path!);
+        await mountFullyWiredAndSmokeTest(
+          tester,
+          pub,
+          reason: 'Fully-wired PDF reader never emitted an initial textLocator',
+        );
+      },
+    );
+
+    testWidgets('WebPub with Media Overlay', (tester) async {
+      final path = fixturePaths['38533_overlay_preview.webpub'];
+      expect(path, isNotNull, reason: 'Fixture 38533_overlay_preview.webpub missing from asset bundle');
+
+      final pub = await reader.openPublication(path!);
+      await mountFullyWiredAndSmokeTest(
+        tester,
+        pub,
+        reason: 'Fully-wired media-overlay reader never emitted an initial textLocator',
+      );
+    });
+
+    testWidgets(
+      'DiViNa comic (CBZ)',
+      // Not part of the bundled web fixture set (see test_fixtures_web.dart) —
+      // native-only asset.
+      skip: kIsWeb,
+      (tester) async {
+        final path = fixturePaths['sample_comic.cbz'];
+        expect(path, isNotNull, reason: 'Fixture sample_comic.cbz missing from asset bundle');
+
+        final pub = await reader.openPublication(path!);
+        expect(
+          pub.conformsToReadiumDivina,
+          isTrue,
+          reason: 'CBZ fixture should conform to the Readium DiViNa profile',
+        );
+        await mountFullyWiredAndSmokeTest(
+          tester,
+          pub,
+          reason: 'Fully-wired DiViNa reader never emitted an initial textLocator',
+        );
+      },
+    );
+  });
 }
+
+/// The same `ReadiumReaderWidget` configuration used in production by
+/// example/lib/widgets/reader.widget.dart — a non-empty `selectionActions` and
+/// all interaction callbacks wired up, rather than the bare
+/// `ReadiumReaderWidget(publication: pub)` the other test groups use.
+ReadiumReaderWidget _fullyWiredReaderWidget(Publication pub) => ReadiumReaderWidget(
+  publication: pub,
+  shouldShowControls: ValueNotifier(true),
+  allowedDefaultActions: const {
+    DefaultSelectionAction.copy,
+    DefaultSelectionAction.share,
+    DefaultSelectionAction.translate,
+  },
+  selectionActions: const [
+    SelectionAction(id: 'highlight', title: 'Highlight'),
+    SelectionAction(id: 'note', title: 'Add Note'),
+  ],
+  onExternalLinkActivated: (_) {},
+  onTextSelected: (_) {},
+  onSelectionAction: (_) {},
+  onDecorationInteraction: (_) {},
+);
 
 /// Drives the timebased playback path end-to-end:
 ///   enable -> play -> wait for [TimebasedState.playing] -> pause

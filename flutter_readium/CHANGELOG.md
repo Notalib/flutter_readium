@@ -9,13 +9,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`
   with an `ImageTapEvent` carrying the publication-relative `href`, optional
-  `alt` / `caption`, on-screen `rect`, and a `srcUrl` on Web. Detection runs on
+  `alt` / `caption`, on-screen `rect`, and pixel dimensions. Detection runs on
   iOS, Android, and Web. Android and Web suppress image-tap events for DiViNa publications
   and Nota comic page images so narrated comics keep their panel navigation behavior.
-- **`getResourceBytes(href)`** — new API on `FlutterReadium` and the underlying
-  platform interface that returns the raw bytes of any manifest resource, plus a
-  companion `FlutterReadium.imageProvider(href)` that plugs into Flutter's image
-  pipeline for lazy display. Implemented on iOS, Android, and Web.
+- **`getResourceUrl(href)`** — new API on `FlutterReadium` and the underlying
+  platform interface that resolves any manifest resource to a loadable URL —
+  a native-cached `file://` URL on iOS/Android, or the served resource URL on
+  Web — plus a companion `FlutterReadium.imageProvider(href)` that plugs into
+  Flutter's image pipeline for lazy display. Implemented on iOS, Android, and Web.
+  On Web, displaying the resolved URL requires the resource's server to send
+  `Access-Control-Allow-Origin` — a CanvasKit/browser constraint, not fixable
+  client-side (see `docs/troubleshooting.md`). iOS/Android are unaffected.
 - **Narration sync state & manual mode (iOS, Android, Web)** — a new
   `FlutterReadium.onNarrationSyncChanged` stream (`Stream<bool>`: `true` = following narration,
   `false` = manual mode) and `FlutterReadium.setNarrationSyncEnabled(bool)`. While Media Overlay or
@@ -46,6 +50,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`EPUBPreferences.disableSynchronization` is deprecated** in favour of the runtime
   `FlutterReadium.setNarrationSyncEnabled(bool)` / `onNarrationSyncChanged`. The preference still
   works and now seeds the unified narration-sync state when a publication is opened.
+
+### Fixed
+
+- **iOS media-overlay playback crashes on malformed sync-narration data** — starting playback in a
+  publication with a reversed or non-finite audio time fragment (`t=start,end` where `end < start`)
+  no longer traps with `Range requires lowerBound <= upperBound`, and a `narration` block with no
+  valid audio/text pairs no longer crashes navigator setup. Such items now degrade gracefully.
 
 ## [0.1.1] - 2026-06-26
 

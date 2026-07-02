@@ -33,8 +33,27 @@ Setup script `bin/install` does the following in order:
 2. `pod update && pod install` for the iOS example app
 3. Builds the `assets/_helper_scripts` TypeScript bundle
 4. Builds the web JS bundle and copies it into `example/web/`
+5. Fetches test fixtures via `bin/fetch_test_resources` (see [Test fixtures](#test-fixtures))
 
 If you only change Dart code you can skip the full install and just run `flutter pub get` in the affected package.
+
+---
+
+## Test fixtures
+
+Test publications are **not committed** to this repo. They are generated from the
+[`readium-test-resources`](https://github.com/Notalib/readium-test-resources) repo,
+which holds the unpackaged source publications (the single source of truth).
+
+- `bin/fetch_test_resources` clones that repo and runs `bin/build_test_fixtures`, which:
+  - packages native fixtures into `flutter_readium/example/assets/pubs/` (`.epub` / `.webpub` / `.audiobook` / `.pdf` / …); and
+  - explodes/trims a subset into web fixtures under `flutter_readium/example/web/test-fixtures/<scenario>/` (via `bin/trim_web_fixture.py`), each served at `/test-fixtures/<scenario>/manifest.json` during `flutter drive -d chrome`.
+- Both output locations are gitignored. `bin/install` runs the fetch; CI uses the `fetch-test-resources` action before every integration-test job.
+- The web-fixture scenario → source mapping lives in `bin/build_test_fixtures`; the served paths are referenced from `integration_test/test_fixtures_web.dart` (automated) and `example/assets/webManifestList.json` (interactive bookshelf).
+
+**To add or change a fixture:** edit the source in `readium-test-resources` (add a
+new one there if none fits), then add/adjust the matching `trim` line in
+`bin/build_test_fixtures` and re-run `bin/fetch_test_resources`.
 
 ---
 

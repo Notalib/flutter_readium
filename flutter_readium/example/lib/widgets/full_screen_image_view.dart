@@ -4,9 +4,10 @@ import 'package:flutter_readium/flutter_readium.dart';
 /// Full-screen pinch-zoom image viewer shown when the user taps an image in
 /// an EPUB.
 ///
-/// On Web, the image is loaded directly via `Image.network` using
-/// [ImageTapEvent.srcUrl] (no byte-bridge round-trip). On iOS (and future
-/// Android), bytes are fetched lazily via [ReadiumResourceImageProvider].
+/// The image is resolved lazily on all platforms via
+/// [ReadiumResourceImageProvider] ([FlutterReadium.imageProvider]), which
+/// resolves [ImageTapEvent.href] to a native-cached `file://` URL on
+/// iOS/Android or the served resource URL on Web.
 ///
 /// Dismiss by tapping the background or pressing the system back button.
 class FullScreenImageView extends StatelessWidget {
@@ -16,8 +17,6 @@ class FullScreenImageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final srcUrl = event.srcUrl;
-
     return GestureDetector(
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
@@ -33,7 +32,7 @@ class FullScreenImageView extends StatelessWidget {
                   clipBehavior: Clip.none,
                   minScale: 0.5,
                   maxScale: 10.0,
-                  child: Center(child: _buildImage(context, srcUrl)),
+                  child: Center(child: _buildImage(context)),
                 ),
               ),
               Positioned(
@@ -51,21 +50,7 @@ class FullScreenImageView extends StatelessWidget {
     );
   }
 
-  Widget _buildImage(BuildContext context, String? srcUrl) {
-    // Web: prefer the served URL — no byte bridge needed.
-    if (srcUrl != null && srcUrl.isNotEmpty) {
-      return Image.network(
-        key: const ValueKey<String>('full_screen_image_network'),
-        srcUrl,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _loadingSpinner();
-        },
-        errorBuilder: (context, error, stackTrace) => _errorWidget(error),
-      );
-    }
-
-    // iOS / Android: fetch bytes lazily via the resource bridge.
+  Widget _buildImage(BuildContext context) {
     // ReadiumResourceImageProvider handles caching and avoids re-fetching on rebuild.
     return Image(
       key: const ValueKey<String>('full_screen_image_memory'),

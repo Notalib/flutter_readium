@@ -44,16 +44,17 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       return
     }
     
-    let audioReadingOrder = mediaOverlays.enumerated().map { (idx, narr) in
-      let item = narr.items.first!
-
+    // Skip overlays with no items — a `narration` block with no valid audio/text pairs
+    // yields an empty overlay, and force-unwrapping `.first` here would trap.
+    let audioReadingOrder: [Link] = mediaOverlays.compactMap { narr in
+      guard let item = narr.items.first else { return nil }
       return Link(
         href: item.audioFile,
         mediaType: item.audioMediaType,
         title: item.tocTitle,
-        duration: narr.items.reduce(0, { $0 + ($1.audioDuration ?? 0) })
+        duration: narr.items.reduce(0) { $0 + ($1.audioDuration ?? 0) }
       )
-    }.filter({ $0 != nil }) as! [Link]
+    }
     
     // Copy the manifest and set its readingOrder to audioReadingOrder.
     var audioPubManifest = publication.manifest // var of struct == implicit copy

@@ -1,0 +1,109 @@
+name: iOS Unit Tests
+
+# workflow_dispatch only, on purpose: this used to be a step inside
+# integration-test-ios.yml, but xcodebuild test runs RunnerTests on an
+# ephemeral "Clone N of <device>" and leaves the shared simulator Shutdown
+# once the test session ends — which broke the following `flutter test
+# --device-id` step there (see incident:
+# https://github.com/Notalib/flutter_readium/actions/runs/28591293702/job/84775289147).
+# Kept here, manually triggerable, until it gets its own runner/simulator and
+# is wired into ci.yml for real.
+on:
+  workflow_dispatch:
+
+jobs:
+  ios-unit-tests:
+    name: iOS (Native Unit Tests)
+    runs-on: macos-26
+    timeout-minutes: 20
+
+    env:
+      SIMULATOR_DEVICE: iPhone 16e
+      SIMULATOR_RUNTIME_VERSION: '26.2'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read Flutter version
+        id: flutter_version
+        run: echo "version=$(cat .flutter-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ steps.flutter_version.outputs.version }}
+          cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v6
+        id: pods-cache
+        with:
+          path: |
+            flutter_readium/example/ios/Pods
+            ~/.cocoapods
+          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      # Build the gitignored webview helper assets before the Xcode build:
+      # assets/helpers/ is a declared asset dir in flutter_readium/pubspec.yaml,
+      # so the Flutter asset-bundling build phase fails outright without it —
+      # even though these native unit tests never open a WebView.
+      - name: Build webview helper assets
+        uses: ./.github/actions/build-webview-helpers
+
+      - name: Install Dart dependencies
+        run: flutter pub get
+        working-directory: flutter_readium/example
+
+      # assets/pubs/ is a declared asset dir in the example's pubspec.yaml too —
+      # gitignored, so the asset-bundling build phase fails without it even
+      # though these tests never open a publication.
+      - name: Fetch test resources
+        uses: ./.github/actions/fetch-test-resources
+
+      - name: Install CocoaPods dependencies
+        run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
+        working-directory: flutter_readium/example/ios
+
+      - name: Boot iOS simulator
+        run: |
+          set -euo pipefail
+
+          # Prefer $SIMULATOR_DEVICE on $SIMULATOR_RUNTIME_VERSION; otherwise
+          # fall back to the newest available iPhone of any model.
+          IFS=$'\t' read -r UDID DEVICE_NAME RUNTIME < <(
+            xcrun simctl list devices available --json \
+              | jq -r --arg want "$SIMULATOR_DEVICE" --arg wantVersion "$SIMULATOR_RUNTIME_VERSION" '
+                  [ .devices | to_entries[]
+                    | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS"))
+                    | .key as $rt | .value[]
+                    | select(.name | startswith("iPhone"))
+                    | {name: .name, udid: .udid, rt: $rt,
+                       ver: ($rt | capture("iOS-(?<a>[0-9]+)-(?<b>[0-9]+)")
+                                 | [(.a | tonumber), (.b | tonumber)])} ] as $all
+                  | ( ( [ $all[] | select(.name == $want and (.ver | join(".") == $wantVersion)) ] | first )
+                      // ( $all | sort_by(.ver) | last ) )
+                  | "\(.udid)\t\(.name)\t\(.rt)"'
+          )
+
+          if [ -z "${UDID:-}" ]; then
+            echo "::error::No available iPhone simulator found"; exit 1
+          fi
+          echo "Selected simulator: $DEVICE_NAME ($RUNTIME) -> $UDID"
+
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Run iOS native unit tests
+        # arch pinned to the runner's native arch (a bare id= destination lists both
+        # arm64 + x86_64 and can pick the Rosetta x86_64 slice); -quiet keeps only
+        # test results + errors.
+        run: |
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -only-testing:RunnerTests \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID,arch=$(uname -m)" \
+            -quiet
+        working-directory: flutter_readium/example/ios

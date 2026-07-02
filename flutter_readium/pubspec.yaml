@@ -43,6 +43,7 @@ dependencies:
   wakelock_plus: ^1.6.0
   web: ^1.1.1
   collection: ^1.19.1
+  http: ^1.5.0
 
 dev_dependencies:
   flutter_test:

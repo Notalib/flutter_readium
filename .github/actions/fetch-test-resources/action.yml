@@ -1,5 +1,7 @@
 name: Fetch test resources
-description: Clone readium-test-resources and build publications into example/assets/pubs/
+description: >-
+  Clone readium-test-resources and build every local test fixture from it —
+  both example/assets/pubs/ and the exploded/trimmed example/web/test-*/ fixtures.
 
 runs:
   using: composite
@@ -10,12 +12,9 @@ runs:
         repository: Notalib/readium-test-resources
         path: .test-resources
 
-    - name: Build publications
+    - name: Build fixtures
       shell: bash
-      run: |
-        REPO_ROOT="$(pwd)"
-        bash .test-resources/bin/build-publications.sh build \
-          "$REPO_ROOT/flutter_readium/example/assets/pubs"
+      run: bin/build_test_fixtures .test-resources
 
     - name: Clean up cloned resources
       shell: bash

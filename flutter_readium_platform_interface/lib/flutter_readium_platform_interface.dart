@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -227,14 +226,23 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     throw UnimplementedError('onErrorEvent stream has not been implemented.');
   }
 
-  /// Reads the raw bytes of a publication resource identified by its [href].
+  /// Resolves a publication resource identified by its [href] to a loadable
+  /// URL.
   ///
   /// The [href] should match a resource in the current publication's reading
   /// order or resources manifest (e.g. an image link from [ImageTapEvent.href]).
+  /// On iOS/Android the resource is fetched natively and cached to an
+  /// app-owned file, returning a `file://` URL; on Web it returns the
+  /// resource's served URL directly.
+  ///
+  /// **Web caveat**: loading the returned URL as an image requires the
+  /// resource's server to send `Access-Control-Allow-Origin` — CanvasKit
+  /// always needs CORS to decode an image on Web, even just for display.
+  /// This is a browser/renderer constraint, not fixable client-side.
   ///
   /// Throws [PlatformException] if the resource is not found or cannot be read.
   /// Implemented on iOS, Android, and Web.
-  Future<Uint8List> getResourceBytes(String href) => throw UnimplementedError(
-    'getResourceBytes(href) has not been implemented.',
+  Future<String> getResourceUrl(String href) => throw UnimplementedError(
+    'getResourceUrl(href) has not been implemented.',
   );
 }

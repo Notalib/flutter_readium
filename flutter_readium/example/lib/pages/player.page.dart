@@ -39,6 +39,10 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   ) => BlocBuilder<PublicationBloc, PublicationState>(
     builder: (final context, final pubState) {
       final isAudioBook = pubState.publication?.conformsToReadiumAudiobook ?? false;
+      // DiViNa (comics/image-based) publications have no text content — the
+      // "EPUB Settings" sheet (typography/layout/theme) is a poor fit, so
+      // hide the visual settings icon for them.
+      final isDivina = pubState.publication?.conformsToReadiumDivina ?? false;
 
       return PopScope(
         canPop: true,
@@ -67,7 +71,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
-            actions: _buildActionButtons(),
+            actions: _buildActionButtons(isAudioBook, isDivina),
           ),
           body: Stack(
             children: [
@@ -123,40 +127,47 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     },
   );
 
-  List<Widget> _buildActionButtons() => <Widget>[
-    // IconButton(
-    //   icon: const Icon(Icons.headphones),
-    //   onPressed: () {
-    //     context.read<TtsSettingsBloc>().add(GetTtsVoicesEvent());
+  List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina) => <Widget>[
+    if (!isAudioBook && !isDivina)
+      IconButton(
+        icon: const Icon(Icons.format_paint),
+        onPressed: () {
+          final publication = context.read<PublicationBloc>().state.publication;
+          final isPDF = publication?.conformsToReadiumPDF ?? false;
 
-    //     final pubLang =
-    //         context.read<PublicationBloc>().state.publication?.metadata.language ?? ['en'];
-
-    //     showModalBottomSheet(
-    //       context: context,
-    //       isScrollControlled: true,
-    //       builder: (final context) => TtsSettingsWidget(
-    //         pubLang: pubLang,
-    //       ),
-    //     );
-    //   },
-    //   tooltip: 'Open tts settings',
-    // ),
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (final context) => PointerInterceptor(
+              child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+            ),
+          );
+        },
+        tooltip: 'Open visual reader settings',
+      ),
     IconButton(
-      icon: const Icon(Icons.format_paint),
+      icon: const Icon(Icons.headphones),
       onPressed: () {
         final publication = context.read<PublicationBloc>().state.publication;
-        final isPDF = publication?.conformsToReadiumPDF ?? false;
+        // Broader than the `isAudioBook` param above (which only gates the
+        // visual/body layout): also true for Media Overlay / Guided
+        // Navigation EPUBs, which play back through the same audio pipeline
+        // as a plain audiobook and need the same speed/pitch controls.
+        final hasAudioPlayback = publication?.isAudioBook ?? false;
+
+        if (!hasAudioPlayback) {
+          context.read<TtsSettingsBloc>().add(LoadAvailableVoices());
+        }
 
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
           builder: (final context) => PointerInterceptor(
-            child: isPDF ? const PDFSettingsWidget() : const TextSettingsWidget(),
+            child: hasAudioPlayback ? const AudioPlaybackSettingsWidget() : const TtsSettingsWidget(),
           ),
         );
       },
-      tooltip: 'Open reader settings',
+      tooltip: 'Open audio/playback settings',
     ),
     IconButton(
       icon: const Icon(Icons.search),

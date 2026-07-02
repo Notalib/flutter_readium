@@ -100,7 +100,7 @@ public class NowPlayingInfoUpdater {
     }
 
     var elapsedTime = info.time
-    for index in 0..<min(info.resourceIndex, publication.readingOrder.count) {
+    for index in 0..<max(0, min(info.resourceIndex, publication.readingOrder.count)) {
       guard let duration = publication.readingOrder[index].duration,
             duration.isFinite,
             duration > 0 else {

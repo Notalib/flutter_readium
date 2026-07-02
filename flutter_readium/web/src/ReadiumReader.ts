@@ -1078,26 +1078,23 @@ class _ReadiumReader {
   }
 
   /**
-   * Fetches the raw bytes for a publication resource identified by its
-   * publication-relative href (e.g. `images/cover.png`).
-   * Returns a `Uint8Array` that can be passed directly back to Dart as a
-   * typed array — do NOT JSON-encode it.
+   * Resolves a publication resource identified by its publication-relative
+   * href (e.g. `images/cover.png`) to its absolute served URL.
    */
-  public async getResourceBytes(href: string): Promise<Uint8Array> {
+  public async getResourceUrl(href: string): Promise<string> {
     const pub = this._publication;
     if (!pub) {
-      throw new Error("getResourceBytes: no publication is open");
+      throw new Error("getResourceUrl: no publication is open");
     }
     const link = findLinkByHref(pub.allLinks, href);
     if (!link) {
-      throw new Error(`getResourceBytes: no resource found for href: ${href}`);
+      throw new Error(`getResourceUrl: no resource found for href: ${href}`);
     }
-    const resource = pub.get(link);
-    const bytes = await resource.read();
-    if (!bytes) {
-      throw new Error(`getResourceBytes: read() returned undefined for href: ${href}`);
+    const url = link.toURL(pub.baseURL);
+    if (!url) {
+      throw new Error(`getResourceUrl: could not resolve URL for href: ${href}`);
     }
-    return bytes;
+    return url;
   }
 
   /**

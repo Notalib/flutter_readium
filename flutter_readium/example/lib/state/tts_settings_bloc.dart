@@ -1,123 +1,131 @@
-// import 'package:flutter_bloc/flutter_bloc.dart';
-// import 'package:flutter_readium/flutter_readium.dart';
+import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_readium/flutter_readium.dart';
+import 'package:logging/logging.dart';
 
-// abstract class TtsSettingsEvent {}
+final _log = Logger('TtsSettingsBloc');
 
-// class GetTtsVoicesEvent extends TtsSettingsEvent {
-//   GetTtsVoicesEvent({this.fallbackLang});
-//   final List<String>? fallbackLang;
-// }
+abstract class TtsSettingsEvent {}
 
-// class SetTtsVoiceEvent extends TtsSettingsEvent {
-//   SetTtsVoiceEvent(this.selectedVoice);
-//   final ReadiumTtsVoice selectedVoice;
-// }
+@immutable
+class LoadAvailableVoices extends TtsSettingsEvent {}
 
-// class SetTtsHighlightModeEvent extends TtsSettingsEvent {
-//   SetTtsHighlightModeEvent(this.highlightMode);
-//   final ReadiumHighlightMode highlightMode;
-// }
+@immutable
+class ChangeSpeed extends TtsSettingsEvent {
+  ChangeSpeed(this.value);
+  final double value;
+}
 
-// class ToggleTtsHighlightModeEvent extends TtsSettingsEvent {}
+@immutable
+class ChangePitch extends TtsSettingsEvent {
+  ChangePitch(this.value);
+  final double value;
+}
 
-// class SetTtsSpeakPhysicalPageIndexEvent extends TtsSettingsEvent {
-//   SetTtsSpeakPhysicalPageIndexEvent(this.speak);
-//   final bool speak;
-// }
+@immutable
+class ChangeVoiceForLanguage extends TtsSettingsEvent {
+  ChangeVoiceForLanguage(this.language, this.voiceIdentifier);
+  final String? language;
+  final String voiceIdentifier;
+}
 
-// class TtsSettingsState {
-//   TtsSettingsState({
-//     this.voices,
-//     this.loaded,
-//     this.preferredVoices,
-//     this.highlightMode,
-//     this.ttsSpeakPhysicalPageIndex,
-//   });
-//   final List<ReadiumTtsVoice>? voices;
-//   final bool? loaded;
-//   final List<ReadiumTtsVoice>? preferredVoices;
-//   final ReadiumHighlightMode? highlightMode;
-//   final bool? ttsSpeakPhysicalPageIndex;
+@immutable
+class TtsSettingsState {
+  const TtsSettingsState({
+    this.speed = 1.0,
+    this.pitch = 1.0,
+    this.voicesByLanguage = const {},
+    this.availableVoices = const [],
+    this.voicesLoaded = false,
+  });
 
-//   TtsSettingsState copyWith({
-//     final List<ReadiumTtsVoice>? voices,
-//     final bool? loaded,
-//     final List<ReadiumTtsVoice>? preferredVoices,
-//     final ReadiumHighlightMode? highlightMode,
-//     final bool? ttsSpeakPhysicalPageIndex,
-//   }) =>
-//       TtsSettingsState(
-//         voices: voices ?? this.voices,
-//         loaded: loaded ?? this.loaded,
-//         preferredVoices: preferredVoices ?? this.preferredVoices,
-//         highlightMode: highlightMode ?? this.highlightMode,
-//         ttsSpeakPhysicalPageIndex: ttsSpeakPhysicalPageIndex ?? this.ttsSpeakPhysicalPageIndex,
-//       );
+  /// Speech rate. 1.0 is normal speed.
+  final double speed;
 
-//   TtsSettingsState updateVoices(final List<ReadiumTtsVoice> voices) => copyWith(
-//         voices: voices,
-//         loaded: true,
-//       );
+  /// Speech pitch. 1.0 is normal pitch.
+  final double pitch;
 
-//   TtsSettingsState updatePreferredVoices(final ReadiumTtsVoice selectedVoice) {
-//     final preferredVoicesList = preferredVoices ?? [];
-//     final updatedVoices = preferredVoicesList
-//         .where((final voice) => voice.langCode != selectedVoice.langCode)
-//         .toList()
-//       ..add(selectedVoice);
+  /// Selected voice identifier per publication language. A `null` key is used
+  /// when the publication declares no language and a single default voice
+  /// picker is shown instead.
+  final Map<String?, String> voicesByLanguage;
+  final List<ReaderTTSVoice> availableVoices;
+  final bool voicesLoaded;
 
-//     FlutterReadium().updateCurrentTtsVoicesReadium(updatedVoices);
+  TtsSettingsState copyWith({
+    double? speed,
+    double? pitch,
+    Map<String?, String>? voicesByLanguage,
+    List<ReaderTTSVoice>? availableVoices,
+    bool? voicesLoaded,
+  }) => TtsSettingsState(
+    speed: speed ?? this.speed,
+    pitch: pitch ?? this.pitch,
+    voicesByLanguage: voicesByLanguage ?? this.voicesByLanguage,
+    availableVoices: availableVoices ?? this.availableVoices,
+    voicesLoaded: voicesLoaded ?? this.voicesLoaded,
+  );
+}
 
-//     return copyWith(preferredVoices: updatedVoices);
-//   }
+class TtsSettingsBloc extends Bloc<TtsSettingsEvent, TtsSettingsState> {
+  TtsSettingsBloc() : super(const TtsSettingsState()) {
+    on<LoadAvailableVoices>((final event, final emit) async {
+      final voices = await instance.ttsGetAvailableVoices();
 
-//   TtsSettingsState setHighlightMode(final ReadiumHighlightMode highlightMode) {
-//     FlutterReadium().setHighlightMode(highlightMode);
-//     return copyWith(highlightMode: highlightMode);
-//   }
+      // Sort by identifier.
+      voices.sortBy((v) => v.identifier);
 
-//   TtsSettingsState setTtsSpeakPhysicalPageIndex(final bool speak) {
-//     FlutterReadium().setTtsSpeakPhysicalPageIndex(speak: speak);
-//     return copyWith(ttsSpeakPhysicalPageIndex: speak);
-//   }
-// }
+      for (final i in voices.groupListsBy((v) => v.language).entries) {
+        _log.info('Language: ${i.key}');
+        _log.info('  Available voices:');
+        for (final v in i.value) {
+          _log.info(
+            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
+          );
+        }
+      }
 
-// class TtsSettingsBloc extends Bloc<TtsSettingsEvent, TtsSettingsState> {
-//   TtsSettingsBloc()
-//       : super(
-//           TtsSettingsState(
-//             voices: [],
-//             loaded: false,
-//             preferredVoices: [],
-//             highlightMode: ReadiumHighlightMode.paragraph, // to reflect default in ReadiumState
-//             ttsSpeakPhysicalPageIndex: false,
-//           ),
-//         ) {
-//     on<GetTtsVoicesEvent>((final event, final emit) async {
-//       final voices = await instance.getTtsVoices(fallbackLang: event.fallbackLang);
-//       emit(state.updateVoices(voices));
-//     });
+      emit(state.copyWith(availableVoices: voices, voicesLoaded: true));
+    });
 
-//     on<SetTtsVoiceEvent>((final event, final emit) async {
-//       await instance.setTtsVoice(event.selectedVoice);
-//       emit(state.updatePreferredVoices(event.selectedVoice));
-//     });
+    on<ChangeSpeed>((final event, final emit) async {
+      emit(state.copyWith(speed: event.value));
+      await _applyPreferences();
+    });
 
-//     on<SetTtsHighlightModeEvent>((final event, final emit) async {
-//       emit(state.setHighlightMode(event.highlightMode));
-//     });
+    on<ChangePitch>((final event, final emit) async {
+      emit(state.copyWith(pitch: event.value));
+      await _applyPreferences();
+    });
 
-//     on<ToggleTtsHighlightModeEvent>((final event, final emit) async {
-//       final newHighlightMode = state.highlightMode == ReadiumHighlightMode.word
-//           ? ReadiumHighlightMode.paragraph
-//           : ReadiumHighlightMode.word;
-//       emit(state.setHighlightMode(newHighlightMode));
-//     });
+    on<ChangeVoiceForLanguage>((final event, final emit) async {
+      final voicesByLanguage = Map<String?, String>.of(state.voicesByLanguage)
+        ..[event.language] = event.voiceIdentifier;
+      emit(state.copyWith(voicesByLanguage: voicesByLanguage));
+      await instance.ttsSetVoice(event.voiceIdentifier, event.language).catchError((e) {
+        _log.warning('ttsSetVoice failed (TTS likely not active yet): $e');
+      });
+    });
+  }
 
-//     on<SetTtsSpeakPhysicalPageIndexEvent>((final event, final emit) async {
-//       emit(state.setTtsSpeakPhysicalPageIndex(event.speak));
-//     });
-//   }
+  final FlutterReadium instance = FlutterReadium();
 
-//   final FlutterReadium instance = FlutterReadium();
-// }
+  Future<void> _applyPreferences() async {
+    await instance.ttsSetPreferences(buildPreferences()).catchError((e) {
+      _log.warning('ttsSetPreferences failed (TTS likely not active yet): $e');
+    });
+  }
+
+  /// Builds the [TTSPreferences] to pass to [FlutterReadium.ttsEnable]. The
+  /// `null`-language fallback entry in [TtsSettingsState.voicesByLanguage] is
+  /// dropped here, since [TTSPreferences.voices] is keyed by language only.
+  TTSPreferences buildPreferences() => TTSPreferences(
+    speed: state.speed,
+    pitch: state.pitch,
+    voices: {
+      for (final entry in state.voicesByLanguage.entries)
+        if (entry.key != null) entry.key!: entry.value,
+    },
+  );
+}

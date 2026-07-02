@@ -404,17 +404,15 @@ void main() {
       expect(restored.rect!.height, closeTo(200.0, 1e-9));
       expect(restored.pixelWidth, 600);
       expect(restored.pixelHeight, 400);
-      expect(restored.srcUrl, isNull);
     });
 
-    test('round-trips a fully-populated web-style event (with alt + srcUrl)', () {
+    test('round-trips a fully-populated web-style event (with alt)', () {
       final event = ImageTapEvent(
         href: 'images/tinker_bell.png',
         alt: 'Tinker Bell',
         rect: const Rect.fromLTWH(0.0, 0.0, 500.0, 350.0),
         pixelWidth: 1000,
         pixelHeight: 700,
-        srcUrl: 'http://localhost:8080/EPUB/images/tinker_bell.png',
       );
 
       final json = event.toJson();
@@ -422,7 +420,6 @@ void main() {
       expect(restored.href, event.href);
       expect(restored.alt, 'Tinker Bell');
       expect(restored.caption, isNull);
-      expect(restored.srcUrl, event.srcUrl);
     });
 
     test('toJson omits null optional fields', () {
@@ -434,7 +431,6 @@ void main() {
       expect(json.containsKey('rect'), isFalse);
       expect(json.containsKey('pixelWidth'), isFalse);
       expect(json.containsKey('pixelHeight'), isFalse);
-      expect(json.containsKey('srcUrl'), isFalse);
       expect(json['href'], 'images/cover.jpg');
     });
 
@@ -468,14 +464,12 @@ void main() {
       final event = ImageTapEvent(
         href: 'images/neverland.jpg',
         alt: 'Neverland',
-        srcUrl: 'http://localhost:8080/images/neverland.jpg',
       );
       final jsonString = jsonEncode(event.toJson());
       final decoded = jsonDecode(jsonString) as Map<String, dynamic>;
       final restored = ImageTapEvent.fromJson(decoded);
       expect(restored.href, event.href);
       expect(restored.alt, event.alt);
-      expect(restored.srcUrl, event.srcUrl);
     });
   });
 

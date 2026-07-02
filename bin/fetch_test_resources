@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Clones readium-test-resources and builds every local test fixture from it.
+# CI uses the same underlying bin/build_test_fixtures via
+# .github/actions/fetch-test-resources (checkout there is done via
+# actions/checkout instead of an SSH clone).
+#
+# Usage: bin/fetch_test_resources
+
+_tmp_res="$(mktemp -d)"
+trap 'rm -rf "$_tmp_res"' EXIT
+
+echo "Fetching test publications from readium-test-resources…"
+git clone --depth=1 git@github.com:Notalib/readium-test-resources.git "$_tmp_res"
+
+"$REPO_ROOT/bin/build_test_fixtures" "$_tmp_res"
