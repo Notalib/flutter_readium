@@ -10,7 +10,7 @@ jobs:
     # can lag behind the newest image, and we need the iOS 26 runtime that ships
     # the pinned SIMULATOR_DEVICE below.
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     env:
       # Pin the simulator model/runtime for run-to-run determinism and faster
