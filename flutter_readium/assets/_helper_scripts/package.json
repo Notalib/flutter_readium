@@ -18,7 +18,6 @@
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
     "@typescript-eslint/parser": "^8.58.1",
-    "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
@@ -35,13 +34,10 @@
     "typescript": "^6.0.0"
   },
   "scripts": {
-    "build": "cross-env NODE_ENV=production rollup -c rollup.config.ts --configPlugin typescript",
-    "build:flutter": "cross-env NODE_ENV=production IS_FLUTTER=1 rollup -c rollup.config.ts --configPlugin typescript",
-    "build:flutter:stats": "cross-env NODE_ENV=production IS_FLUTTER=1 STATS=1 rollup -c rollup.config.ts --configPlugin typescript",
-    "build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.ts --configPlugin typescript",
-    "build:dev:stats": "cross-env NODE_ENV=development STATS=1 rollup -c rollup.config.ts --configPlugin typescript",
-    "watch": "cross-env NODE_ENV=production IS_FLUTTER=1 rollup -c rollup.config.ts --configPlugin typescript --watch",
-    "start": "cross-env NODE_ENV=development rollup -c rollup.config.ts --configPlugin typescript --watch"
+    "build": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=production",
+    "build:stats": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=production,STATS",
+    "build:dev": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=development",
+    "serve": "rollup -c rollup.config.mjs --configPlugin typescript --watch --environment SERVE,BUILD=development"
   },
   "dependencies": {
     "css-selector-generator": "^3.9.1",

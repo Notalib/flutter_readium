@@ -169,7 +169,7 @@ cd flutter_readium/example && flutter run
 
 For dependency size analysis:
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:flutter:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
 - web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
 
 ## Contributing

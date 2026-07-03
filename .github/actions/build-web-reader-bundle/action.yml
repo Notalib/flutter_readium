@@ -17,5 +17,5 @@ runs:
         node-version: 24
     - name: Build & copy web reader bundle
       shell: bash
-      run: npm ci --ignore-scripts && npm run build:dev
+      run: npm ci --ignore-scripts && npm run build
       working-directory: flutter_readium

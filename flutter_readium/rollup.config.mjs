@@ -5,25 +5,32 @@ import replace from '@rollup/plugin-replace';
 import terser from '@rollup/plugin-terser';
 import postcss from 'rollup-plugin-postcss';
 import { visualizer } from 'rollup-plugin-visualizer';
+import * as path from 'path';
 
-const isDev = process.env.NODE_ENV === 'development';
-const writeStats = process.env.STATS === '1';
+const isDev = process.env.BUILD === 'development';
+const isProd = process.env.BUILD === 'production';
+const writeStats = process.env.STATS === 'true';
 
 function statsPlugins() {
   if (!writeStats) {
     return [];
   }
 
+  const htmlOutputPath = path.resolve('build/rollup-stats.html');
+  const jsonOutputPath = path.resolve('build/rollup-stats.json');
+
+  console.log(`Writing rollup stats to ${htmlOutputPath} and ${jsonOutputPath}`);
+
   return [
     visualizer({
-      filename: 'build/rollup-stats.html',
+      filename: htmlOutputPath,
       template: 'treemap',
       gzipSize: true,
       brotliSize: true,
       projectRoot: process.cwd(),
     }),
     visualizer({
-      filename: 'build/rollup-stats.json',
+      filename: jsonOutputPath,
       template: 'raw-data',
       gzipSize: true,
       brotliSize: true,
@@ -59,15 +66,11 @@ export default {
     // The webview loads only readiumReader.js, so CSS must not be extracted to a
     // separate file.
     postcss({ inject: true, minimize: !isDev }),
-    ...(isDev
-      ? []
-      : [
-          terser({
-            compress: {
-              pure_funcs: ['console.log'],
-            },
-          }),
-        ]),
+    isProd ? terser({
+      compress: {
+        pure_funcs: ['console.log'],
+      },
+    }) : null,
     ...statsPlugins(),
   ],
 };
