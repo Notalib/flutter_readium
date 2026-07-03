@@ -7,11 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **iOS: audiobooks no longer emit `TimebasedState.ended`** — the end-of-book
-  heuristic compared playback progress against `1.0`, but AVPlayer's reported
-  position at end-of-track rarely lines up exactly with the resource duration,
-  so the condition was never met. Now derived from the navigator's own
-  "resource finished" signal instead of a progress threshold.
+- **iOS: audiobooks now reliably emit `TimebasedState.ended` at end of book** —
+  the end-of-book heuristic compared playback progress against `1.0`, but AVPlayer's
+  reported position at end-of-track rarely lines up exactly with the resource
+  duration, so the condition was never met and `.ended` was never emitted. Now
+  derived from the navigator's own "resource finished" signal instead of a progress
+  threshold.
 - **Android: audiobook `goToLocator` now waits for the seek to take effect** —
   previously it could return before the player had moved, so a following `play()`
   resumed from the old position (e.g. jumping to a bookmark and playing started
