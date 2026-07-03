@@ -115,3 +115,58 @@ final class AudioRecoveryPolicyTests: XCTestCase {
     XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
   }
 }
+
+/// Resource stub whose reads always fail with the given error.
+private final class FailingResource: Resource {
+  let error: ReadError
+  init(error: ReadError) { self.error = error }
+  var sourceURL: AbsoluteURL? { nil }
+  func properties() async -> ReadResult<ResourceProperties> { .failure(error) }
+  func estimatedLength() async -> ReadResult<UInt64?> { .failure(error) }
+  func stream(range: Range<UInt64>?, consume: @escaping (Data) -> Void) async -> ReadResult<Void> {
+    .failure(error)
+  }
+}
+
+private struct SingleResourceContainer: Container {
+  let href: AnyURL
+  let resource: Resource
+  var sourceURL: AbsoluteURL? { nil }
+  var entries: Set<AnyURL> { [href] }
+  subscript(url: any URLConvertible) -> Resource? {
+    url.anyURL.normalized == href ? resource : nil
+  }
+}
+
+final class ResourceReadErrorReportingTests: XCTestCase {
+  func testStreamFailureIsReportedWithHref() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reported: (AnyURL, ReadError)?
+    observer.setHandler { reported = ($0, $1) }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.http(.timeout(nil))))),
+      observer: observer)
+
+    let result = await container[href]!.stream(range: nil, consume: { _ in })
+
+    guard case .failure = result else { return XCTFail("expected failure passthrough") }
+    XCTAssertEqual(reported?.0, href)
+    if case .access(.http(.timeout)) = reported?.1 {} else { XCTFail("wrong error: \(String(describing: reported?.1))") }
+  }
+
+  func testSuccessIsNotReported() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reportCount = 0
+    observer.setHandler { _, _ in reportCount += 1 }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: DataResource(data: Data([1, 2, 3]))),
+      observer: observer)
+
+    _ = await container[href]!.read()
+    XCTAssertEqual(reportCount, 0)
+  }
+}

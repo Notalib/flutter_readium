@@ -190,7 +190,7 @@ git commit -m "feat(ios): classify audio resource read errors + recovery backoff
 **Interfaces:**
 - Produces: `final class ResourceReadErrorObserver` with `setHandler(((AnyURL, ReadError) -> Void)?)` and internal `report(href:error:)`; `struct ReadErrorReportingContainer: Container` with `init(wrapping: Container, observer: ResourceReadErrorObserver)`. Tasks 3–4 consume these.
 
-- [ ] **Step 1: Write the failing tests** — append to `RunnerTests.swift`:
+- [x] **Step 1: Write the failing tests** — append to `RunnerTests.swift`:
 
 ```swift
 /// Resource stub whose reads always fail with the given error.
@@ -251,9 +251,9 @@ final class ResourceReadErrorReportingTests: XCTestCase {
 
 (`DataResource` is a `ReadiumShared` in-memory resource; if its initializer differs at 3.9.0, use another trivial always-succeeding `Resource` stub in the same style as `FailingResource`.)
 
-- [ ] **Step 2: Run tests to verify they fail** (same xcodebuild command as Task 1). Expected: compile FAILURE — types not defined.
+- [x] **Step 2: Run tests to verify they fail** (same xcodebuild command as Task 1). Expected: compile FAILURE — types not defined.
 
-- [ ] **Step 3: Implement** — create `ResourceReadErrorReporting.swift`:
+- [x] **Step 3: Implement** — create `ResourceReadErrorReporting.swift`:
 
 ```swift
 import Foundation
@@ -341,9 +341,9 @@ final class ReadErrorReportingResource: Resource {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass.** Expected: PASS.
+- [x] **Step 4: Run tests to verify they pass.** Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add flutter_readium/ios/flutter_readium/Sources/flutter_readium/utils/ResourceReadErrorReporting.swift flutter_readium/example/ios/RunnerTests/RunnerTests.swift
