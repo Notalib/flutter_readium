@@ -36,6 +36,8 @@ abstract final class FixtureKeys {
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';
   static const timeMachinePdf = 'time_machine.pdf';
+  static const mobyDickEpub = 'moby_dick.epub';
+  static const divinaComicCbz = 'sample_comic.cbz';
 
   /// Fixed-layout EPUB (web-only; served as a local exploded webpub).
   static const fixedLayout = 'fixed_layout.webpub';
