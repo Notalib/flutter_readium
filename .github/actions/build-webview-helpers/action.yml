@@ -14,9 +14,9 @@ runs:
   steps:
     - uses: actions/setup-node@v6
       with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: flutter_readium/assets/_helper_scripts/package-lock.json
+        node-version: lts/*
+        cache: npm
+        cache-dependency-path: flutter_readium/assets/_helper_scripts/package-lock.json
     - name: Build webview helper assets
       shell: bash
       run: >
