@@ -10,6 +10,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   internal var _initialLocator: Locator?
   internal var _preferences: FlutterAudioPreferences
   internal var _lastTimebasedPlayerState: ReadiumTimebasedState?
+  /// Resource index `.ended` was last submitted for. AVPlayer's `timeControlStatus` can
+  /// settle to `.paused` a few milliseconds after `shouldPlayNextResource` reports the
+  /// resource finished, and that trailing update still flows through the throttled
+  /// `$playback` pipeline — without this guard it silently overwrites `.ended`.
+  private var _endedResourceIndex: Int?
   internal var _nowPlayingUpdater: NowPlayingInfoUpdater
   @MainActor internal var _audioNavigator: AudioNavigator?
 
@@ -354,7 +359,17 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Called when the navigator finished playing the current resource.
   /// Returns whether the next resource should be played. Default is true.
+  ///
+  /// Fires from `AVPlayerItemDidPlayToEndTime`, before any auto-advance — this is the
+  /// authoritative "resource finished" signal (mirrors the web bridge's `trackEnded`).
+  /// When there's no next resource, the publication has ended: submit `.ended` directly
+  /// here rather than relying on `info.progress >= 1.0` in the throttled `$playback`
+  /// pipeline, since AVPlayer's reported currentTime at end-of-track is rarely exactly
+  /// equal to the resource duration.
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
+    if !canGoForward {
+      submitEndedStateToListener(info: info)
+    }
     return true
   }
 
@@ -433,11 +448,48 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
+    if let endedIndex = _endedResourceIndex {
+      if info.resourceIndex == endedIndex && info.state == .paused {
+        // AVPlayer settling to .paused right after we reported .ended for this resource.
+        Log.navigator.debug("Skipped state emission - resource \(endedIndex) already reported ended")
+        return
+      }
+      // Any other transition (new resourceIndex, or .playing/.loading on the same one) means
+      // playback moved on for real; stop suppressing.
+      _endedResourceIndex = nil
+    }
 
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
 
     // If state has changed, submit it to listener.
+    if (timebasedState != self._lastTimebasedPlayerState) {
+      self._lastTimebasedPlayerState = timebasedState
+      self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
+    } else {
+      Log.navigator.debug("Skipped state emission - duplicate")
+    }
+  }
+
+  /// Submits the terminal `.ended` state directly, bypassing the throttled `$playback`
+  /// pipeline. See `navigator(_:shouldPlayNextResource:)` for why.
+  private func submitEndedStateToListener(info: MediaPlaybackInfo) {
+    var locator = audioLocator
+    locator?.locations.position = info.resourceIndex + 1
+    locator = locator?.toClientFriendlyLocator()
+    locator?.locations.totalProgression = 1.0
+
+    let timebasedState = ReadiumTimebasedState(
+      state: .ended,
+      currentOffset: info.time,
+      currentDuration: info.duration,
+      totalProgressDuration: makeTotalProgressDuration(locator),
+      totalDuration: makePublicationDuration(),
+      currentLocator: locator
+    )
+
+    _endedResourceIndex = info.resourceIndex
+
     if (timebasedState != self._lastTimebasedPlayerState) {
       self._lastTimebasedPlayerState = timebasedState
       self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
@@ -481,13 +533,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
 
     /// Fetch MediaPlaybackState and convert it to TimebasedState
-    var playerState = info.state.asTimebasedState
-    if (info.state == .paused && info.progress >= 1.0 && info.resourceIndex == self.publication.manifest.readingOrder.count - 1) {
-      /// If paused at progress 1 of the last resource in readingOrder, we can assume the book has ended.
-      playerState = .ended
-      /// FIX: totalProgression will be very close to 1.0, but not always exactly there, so we have to force it.
-      locator?.locations.totalProgression = 1.0
-    }
+    let playerState = info.state.asTimebasedState
 
     let totalProgressDuration = makeTotalProgressDuration(locator)
     let totalDuration = makePublicationDuration()

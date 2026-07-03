@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS: audiobooks no longer emit `TimebasedState.ended`** — the end-of-book
+  heuristic compared playback progress against `1.0`, but AVPlayer's reported
+  position at end-of-track rarely lines up exactly with the resource duration,
+  so the condition was never met. Now derived from the navigator's own
+  "resource finished" signal instead of a progress threshold.
+
 ## [0.2.0] - 2026-07-02
 
 ### Added
