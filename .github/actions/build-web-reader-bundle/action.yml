@@ -15,7 +15,11 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: 24
+    - name: Build webview helper assets
+      uses: ./.github/actions/build-webview-helpers
     - name: Build & copy web reader bundle
       shell: bash
-      run: npm ci --ignore-scripts && npm run build
+      run: >
+        npm ci --ignore-scripts
+        npm run build
       working-directory: flutter_readium

@@ -24,9 +24,9 @@
   "scripts": {
     "copy_example_js": "cd example && dart run flutter_readium:copy_js_file web dev",
     "build:web": "rollup -c rollup.config.mjs && npm run copy_example_js",
-    "build:dev": "cross-env BUILD=development npm run build:web && npm run build:helpers:dev",
-    "build": "cross-env BUILD=production npm run build:web && npm run build:helpers",
-    "build:stats": "cross-env rollup -c rollup.config.mjs --environment BUILD=production,STATS",
+    "build:dev": "cross-env BUILD=development npm run build:web",
+    "build": "cross-env BUILD=production npm run build:web",
+    "build:stats": "rollup -c rollup.config.mjs --environment BUILD=production,STATS",
     "build:helpers": "cd assets/_helper_scripts && npm run build",
     "build:helpers:dev": "cd assets/_helper_scripts && npm run build:dev",
     "build:helpers:stats": "cd assets/_helper_scripts && npm run build:stats",

@@ -17,5 +17,7 @@ runs:
         node-version: 24
     - name: Build webview helper assets
       shell: bash
-      run: npm ci --ignore-scripts && npm run build
+      run: >
+        npm ci --ignore-scripts
+        npm run build
       working-directory: flutter_readium/assets/_helper_scripts
