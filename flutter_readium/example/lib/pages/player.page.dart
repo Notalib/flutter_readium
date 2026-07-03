@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,6 +24,43 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   final _slideDuration = const Duration(milliseconds: 350);
   final _shouldShowControls = ValueNotifier(true);
+  StreamSubscription<ReadiumError>? _errorSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _errorSub = FlutterReadium().onErrorEvent.listen(_onReadiumError);
+  }
+
+  @override
+  void dispose() {
+    _errorSub?.cancel();
+    super.dispose();
+  }
+
+  /// Popup on terminal audio-stream failures; AudioStreamRetry is informational.
+  void _onReadiumError(final ReadiumError error) {
+    final code = error.code;
+    if (code == null || !code.startsWith('AudioStream') || code == 'AudioStreamRetry') {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Audio playback failed ($code)'),
+        content: Text(error.message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _deferWebGoToAfterRoutePop() async {
     if (!kIsWeb) {
