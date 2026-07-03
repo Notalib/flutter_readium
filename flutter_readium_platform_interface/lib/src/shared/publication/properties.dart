@@ -71,10 +71,10 @@ class Properties extends AdditionalProperties with EquatableMixin implements JSO
   Map<String, dynamic> toJson() => Map<String, dynamic>.of(additionalProperties)
     ..putOpt('page', page?.name)
     ..putIterableIfNotEmpty('contains', contains)
-    ..putOpt('orientation', orientation)
-    ..putOpt('layout', layout)
-    ..putOpt('overflow', overflow)
-    ..putOpt('spread', spread)
+    ..putOpt('orientation', orientation?.name)
+    ..putOpt('layout', layout?.name)
+    ..putOpt('overflow', overflow?.name)
+    ..putOpt('spread', spread?.name)
     ..putOpt('encryption', encryption);
 
   Properties copyWith({

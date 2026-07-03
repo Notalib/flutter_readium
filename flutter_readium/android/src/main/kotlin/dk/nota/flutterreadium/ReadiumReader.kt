@@ -1374,11 +1374,16 @@ object ReadiumReader :
         val toLocator = publication.normalizeLocator(locator)
         timebasedNavigator?.let { navigator ->
             PluginLog.d(TAG, "::goToLocator - timebased $toLocator")
-            navigator.goToLocator(
+            val narrationLocator =
                 toLocator.copy(
                     text = Locator.Text(),
-                ),
-            )
+                )
+            navigator.goToLocator(narrationLocator)
+            // navigator.goToLocator blocks until the seek lands (see AudiobookNavigator),
+            // so reflect the confirmed position in state before returning. This is what a
+            // subsequent play(null) reads to resume from, closing the seek→play race.
+            currentReadiumTimebasedState.value =
+                currentReadiumTimebasedState.value.copyWith(currentLocator = narrationLocator)
 
             return
         }

@@ -519,4 +519,45 @@ void main() {
       expect(prefs.toJson()['fontSize'], closeTo(2.5, 1e-9));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Properties serialisation
+  // ---------------------------------------------------------------------------
+  group('Properties', () {
+    test('toJson emits presentation enums as their string names', () {
+      final json = Properties(
+        orientation: PresentationOrientation.landscape,
+        layout: EpubLayout.fixed,
+        overflow: PresentationOverflow.paginated,
+        spread: PresentationSpread.both,
+      ).toJson();
+
+      expect(json['orientation'], 'landscape');
+      expect(json['layout'], 'fixed');
+      expect(json['overflow'], 'paginated');
+      expect(json['spread'], 'both');
+    });
+
+    test('toJson output is json-encodable for a fixed-layout resource', () {
+      // Regression: raw EpubLayout (and sibling enums) leaked into toJson,
+      // so jsonEncode threw for FXL publications (HydratedUnsupportedError).
+      final json = Properties(layout: EpubLayout.fixed).toJson();
+      expect(() => jsonEncode(json), returnsNormally);
+    });
+
+    test('round-trips presentation enums through toJson / fromJson', () {
+      final properties = Properties(
+        orientation: PresentationOrientation.landscape,
+        layout: EpubLayout.fixed,
+        overflow: PresentationOverflow.paginated,
+        spread: PresentationSpread.both,
+      );
+      final restored = Properties.fromJson(properties.toJson());
+
+      expect(restored.orientation, PresentationOrientation.landscape);
+      expect(restored.layout, EpubLayout.fixed);
+      expect(restored.overflow, PresentationOverflow.paginated);
+      expect(restored.spread, PresentationSpread.both);
+    });
+  });
 }
