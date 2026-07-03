@@ -368,7 +368,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// equal to the resource duration.
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
     if !canGoForward {
+      Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
       submitEndedStateToListener(info: info)
+    } else {
+      Log.navigator.debug("Resource \(info.resourceIndex) finished, advancing to next resource")
     }
     return true
   }
@@ -465,6 +468,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     // If state has changed, submit it to listener.
     if (timebasedState != self._lastTimebasedPlayerState) {
       self._lastTimebasedPlayerState = timebasedState
+      Log.navigator.debug("Submitting state=\(timebasedState.state) resourceIndex=\(info.resourceIndex) progress=\(info.progress)")
       self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
     } else {
       Log.navigator.debug("Skipped state emission - duplicate")
@@ -492,6 +496,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
     if (timebasedState != self._lastTimebasedPlayerState) {
       self._lastTimebasedPlayerState = timebasedState
+      Log.navigator.debug("Submitting state=ended resourceIndex=\(info.resourceIndex) progress=\(info.progress)")
       self.listener?.timebasedNavigator(self, didChangeState: timebasedState)
     } else {
       Log.navigator.debug("Skipped state emission - duplicate")
