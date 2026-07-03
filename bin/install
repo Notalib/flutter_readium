@@ -16,7 +16,7 @@ if [ "$_npm_major" -lt 11 ] || { [ "$_npm_major" -eq 11 ] && [ "$_npm_minor" -lt
 fi
 
 # Install helper-script dependencies (used by example/lib/flutter_readium:copy_js_file)
-(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm install --ignore-scripts)
+(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm ci --ignore-scripts && npm run build:dev)
 
 # Make sure web dependencies are installed (package.json lives at the plugin root)
 (cd "$REPO_ROOT/flutter_readium" && (npm ci --ignore-scripts && npm run build:dev))

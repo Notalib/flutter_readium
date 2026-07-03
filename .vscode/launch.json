@@ -50,7 +50,7 @@
       "preLaunchTask": "build_helper_scripts"
     },
     {
-      "command": "npm run start",
+      "command": "npm run serve",
       "name": "Run comicbook demo",
       "cwd": "${workspaceFolder}/flutter_readium/assets/_helper_scripts",
       "request": "launch",

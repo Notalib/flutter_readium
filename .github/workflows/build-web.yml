@@ -25,6 +25,9 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium/example
 
+      - name: Build webview helper script
+        uses: ./.github/actions/build-webview-helpers
+
       # Build the gitignored web navigator bundle (/readiumReader.js) so the web
       # reader's custom element registers; see docs/troubleshooting.md.
       - name: Build web reader bundle

@@ -136,6 +136,7 @@ export class DemoComicPanning extends LitElement {
         ?.reverse()
         ?.reduce((p, v) => p + v, 0) ?? 0;
 
+      iframe.contentWindow?.comicBookPage?.onNarrationCue?.();
       iframe.contentWindow?.gotoComicFrame?.(textUrl.hash, duration * 1000);
     }
 

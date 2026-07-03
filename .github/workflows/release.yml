@@ -199,9 +199,11 @@ jobs:
           exit 1
         working-directory: flutter_readium
 
-      - name: Build production web bundle
-        run: npm ci && npm run build
-        working-directory: flutter_readium
+      - name: Build webview helper script
+        uses: ./.github/actions/build-webview-helpers
+
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
 
       - name: Materialize self-contained analysis_options (flutter_readium)
         run: |
