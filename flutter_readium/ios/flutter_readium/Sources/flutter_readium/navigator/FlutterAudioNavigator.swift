@@ -102,7 +102,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if _lastTimebasedPlayerState?.state == .failure {
+    if _hasFailed {
+      _hasFailed = false
       _recoveryTask?.cancel()
       _recoveryTask = nil
       await rebuildNavigator(at: resolveLocator(fromLocator) ?? audioLocator)
@@ -437,6 +438,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   internal var _recoveryTask: Task<Void, Never>?
   internal let _recoveryPolicy = AudioRecoveryPolicy()
+  /// Terminal-failure latch. Must be an explicit flag: inferring it from
+  /// `_lastTimebasedPlayerState` is unreliable, as rebuilt navigators emit
+  /// paused/loading states that would overwrite a `.failure` there.
+  internal var _hasFailed = false
 
   /// Entry point for resource read errors routed from the plugin.
   @MainActor
@@ -446,7 +451,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return
     }
     /// Already in terminal failure — client must call play() to retry.
-    if _lastTimebasedPlayerState?.state == .failure {
+    if _hasFailed {
       return
     }
 
@@ -524,13 +529,23 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   @MainActor
   internal func enterFailureState(error: Error, code: String, description: String) {
     Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
+    _hasFailed = true
+    _recoveryTask?.cancel()
+    /// Tear down so the failed player stops issuing resource reads and
+    /// emitting states. play() rebuilds from the last locator.
     _audioNavigator?.pause()
+    _audioNavigator?.delegate = nil
+    _audioNavigator = nil
     sendErrorEvent(code: code, message: error.localizedDescription, data: description)
     submitRecoveryState(.failure, locator: audioLocator)
   }
 
   @MainActor
   private func submitRecoveryState(_ state: TimebasedState, locator: Locator?) {
+    var locator = locator
+    if locator?.locations.position == nil {
+      locator?.locations.position = playback.resourceIndex + 1
+    }
     let timebasedState = ReadiumTimebasedState(state: state, currentLocator: locator?.toClientFriendlyLocator())
     if timebasedState != _lastTimebasedPlayerState {
       _lastTimebasedPlayerState = timebasedState
@@ -553,6 +568,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
+    /// While recovery pins .loading (or after terminal failure), suppress the
+    /// rebuilt navigators' paused/loading churn — only submitRecoveryState emits.
+    if _recoveryTask != nil || _hasFailed {
+      return
+    }
 
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
