@@ -1,4 +1,5 @@
 import XCTest
+import ReadiumShared
 
 @testable import flutter_readium
 
@@ -54,5 +55,63 @@ class FlutterMediaOverlayItemTests: XCTestCase {
     let item = makeItem(audio: "ch1.mp3#t=5,10")
 
     XCTAssertFalse(item.isAudioInRangeOfTime(7, inHref: "other.mp3"))
+  }
+}
+
+final class AudioStreamErrorPolicyTests: XCTestCase {
+  private func httpResponse(status: Int) -> HTTPResponse {
+    let url = HTTPURL(string: "https://example.com/audio.mp3")!
+    return HTTPResponse(
+      request: HTTPRequest(url: url),
+      url: url,
+      status: HTTPStatus(rawValue: status),
+      headers: [:],
+      mediaType: nil,
+      body: nil
+    )
+  }
+
+  func testCancelledIsIgnored() {
+    XCTAssertEqual(ReadError.cancelled.audioStreamAction, .ignore)
+  }
+
+  func testTimeoutOfflineUnreachableAreRetryable() {
+    XCTAssertEqual(ReadError.access(.http(.timeout(nil))).audioStreamAction, .retry)
+    XCTAssertEqual(ReadError.access(.http(.offline(nil))).audioStreamAction, .retry)
+    XCTAssertEqual(ReadError.access(.http(.unreachable(nil))).audioStreamAction, .retry)
+  }
+
+  func testAuthErrorsAreTerminalWithAuthCode() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 401)))).audioStreamAction,
+      .fail(code: "AudioStreamAuthError"))
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 403)))).audioStreamAction,
+      .fail(code: "AudioStreamAuthError"))
+  }
+
+  func testServerErrorsAreRetryableClientErrorsAreNot() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 503)))).audioStreamAction,
+      .retry)
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 404)))).audioStreamAction,
+      .fail(code: "AudioStreamHTTPError"))
+  }
+
+  func testDecodingErrorIsTerminal() {
+    XCTAssertEqual(
+      ReadError.decoding("bad data").audioStreamAction,
+      .fail(code: "AudioStreamError"))
+  }
+}
+
+final class AudioRecoveryPolicyTests: XCTestCase {
+  func testExponentialBackoffDelays() {
+    let policy = AudioRecoveryPolicy()
+    XCTAssertEqual(policy.maxAttempts, 3)
+    XCTAssertEqual(policy.delay(forAttempt: 1), 1.0)
+    XCTAssertEqual(policy.delay(forAttempt: 2), 2.0)
+    XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
   }
 }

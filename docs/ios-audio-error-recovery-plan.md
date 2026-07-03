@@ -31,7 +31,7 @@
 **Interfaces:**
 - Produces: `enum AudioStreamErrorAction { case ignore; case retry; case fail(code: String) }`, `ReadError.audioStreamAction: AudioStreamErrorAction`, `struct AudioRecoveryPolicy { var maxAttempts: Int; func delay(forAttempt: Int) -> TimeInterval }`. Task 4 consumes all three.
 
-- [ ] **Step 1: Write the failing tests** — append to `RunnerTests.swift`:
+- [x] **Step 1: Write the failing tests** — append to `RunnerTests.swift`:
 
 ```swift
 final class AudioStreamErrorPolicyTests: XCTestCase {
@@ -95,7 +95,7 @@ final class AudioRecoveryPolicyTests: XCTestCase {
 
 Add `import ReadiumShared` to the file's imports if missing.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Prep once (if pods/fixtures missing, run `bin/install` first):
 
@@ -108,7 +108,7 @@ cd ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
 
 Expected: compile FAILURE — `audioStreamAction` / `AudioRecoveryPolicy` not defined.
 
-- [ ] **Step 3: Implement** — create `AudioStreamErrorPolicy.swift`:
+- [x] **Step 3: Implement** — create `AudioStreamErrorPolicy.swift`:
 
 ```swift
 import Foundation
@@ -170,9 +170,9 @@ struct AudioRecoveryPolicy {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass** (same command as Step 2). Expected: PASS.
+- [x] **Step 4: Run tests to verify they pass** (same command as Step 2). Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add flutter_readium/ios/flutter_readium/Sources/flutter_readium/utils/AudioStreamErrorPolicy.swift flutter_readium/example/ios/RunnerTests/RunnerTests.swift
