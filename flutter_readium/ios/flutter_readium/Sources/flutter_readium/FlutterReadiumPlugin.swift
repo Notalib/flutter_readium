@@ -456,6 +456,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
 
         self.timebasedNavigator?.listener = self
+        resourceReadErrorObserver.setHandler { [weak self] href, error in
+          Task { @MainActor in
+            guard let audioNavigator = self?.timebasedNavigator as? FlutterAudioNavigator else { return }
+            audioNavigator.handleResourceReadError(href: href, error: error)
+          }
+        }
         await self.timebasedNavigator?.initNavigator()
 
         if self.timebasedNavigator is FlutterMediaOverlayNavigator {
@@ -824,6 +830,7 @@ extension FlutterReadiumPlugin {
     Log.readium.info("closePublication: disposing timebased navigator and current publication")
     self.timebasedNavigator?.dispose()
     self.timebasedNavigator = nil
+    resourceReadErrorObserver.setHandler(nil)
     currentPublication?.close()
     currentPublication = nil
     currentPublicationUrlStr = nil

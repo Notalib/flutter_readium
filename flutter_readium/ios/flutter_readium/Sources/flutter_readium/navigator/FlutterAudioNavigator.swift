@@ -49,21 +49,27 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func initNavigator() async -> Void {
-    _audioNavigator = AudioNavigator(
-      publication: publication,
-      initialLocation: initialLocator,
-      config: AudioNavigator.Configuration(
-        preferences: AudioPreferences(fromFlutterPrefs: _preferences),
-        playbackRefreshInterval: _preferences.updateIntervalSecs,
-      )
-    )
-    _audioNavigator?.delegate = self
+    _audioNavigator = await makeAudioNavigator(initialLocation: initialLocator)
 
     self.setupNavigatorStateListeners()
 
     Task {
       cover = try? await publication.cover().get()
     }
+  }
+
+  @MainActor
+  private func makeAudioNavigator(initialLocation: Locator?) -> AudioNavigator {
+    let navigator = AudioNavigator(
+      publication: publication,
+      initialLocation: initialLocation,
+      config: AudioNavigator.Configuration(
+        preferences: AudioPreferences(fromFlutterPrefs: _preferences),
+        playbackRefreshInterval: _preferences.updateIntervalSecs,
+      )
+    )
+    navigator.delegate = self
+    return navigator
   }
 
   private func setupNavigatorStateListeners() {
@@ -82,6 +88,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func dispose() -> Void {
+    _recoveryTask?.cancel()
+    _recoveryTask = nil
     if (self._audioNavigator != nil) {
       self._audioNavigator?.pause()
       self._audioNavigator?.delegate = nil
@@ -94,7 +102,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if let locator = resolveLocator(fromLocator) {
+    if _lastTimebasedPlayerState?.state == .failure {
+      _recoveryTask?.cancel()
+      _recoveryTask = nil
+      await rebuildNavigator(at: resolveLocator(fromLocator) ?? audioLocator)
+    } else if let locator = resolveLocator(fromLocator) {
       let _ = await seek(toLocator: locator)
     }
     _audioNavigator?.play()
@@ -422,6 +434,114 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   // MARK: Internal AudioNavigator API
+
+  internal var _recoveryTask: Task<Void, Never>?
+  internal let _recoveryPolicy = AudioRecoveryPolicy()
+
+  /// Entry point for resource read errors routed from the plugin.
+  @MainActor
+  public func handleResourceReadError(href: AnyURL, error: ReadError) {
+    /// Only react to failures of this publication's audio resources.
+    guard publication.readingOrder.firstWithHREF(href) != nil else {
+      return
+    }
+    /// Already in terminal failure — client must call play() to retry.
+    if _lastTimebasedPlayerState?.state == .failure {
+      return
+    }
+
+    switch error.audioStreamAction {
+    case .ignore:
+      return
+    case let .fail(code):
+      enterFailureState(error: error, code: code, description: "Resource read failed: \(href)")
+    case .retry:
+      startRecovery(href: href, error: error)
+    }
+  }
+
+  @MainActor
+  private func startRecovery(href: AnyURL, error: ReadError) {
+    guard _recoveryTask == nil else {
+      return  // recovery already in progress
+    }
+    let resumeLocator = (audioLocator ?? _audioNavigator?.currentLocation)?.copyWithOffset(playback.time)
+
+    _recoveryTask = Task { @MainActor in
+      defer { _recoveryTask = nil }
+
+      for attempt in 1..._recoveryPolicy.maxAttempts {
+        sendErrorEvent(
+          code: "AudioStreamRetry",
+          message: error.localizedDescription,
+          data: "attempt=\(attempt)/\(_recoveryPolicy.maxAttempts) href=\(href)")
+        submitRecoveryState(.loading, locator: resumeLocator)
+
+        try? await Task.sleep(nanoseconds: UInt64(_recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
+        if Task.isCancelled { return }
+
+        await rebuildNavigator(at: resumeLocator)
+
+        if await playbackAdvanced(withinSeconds: 5) {
+          return  // recovered — regular state emissions resume via delegate
+        }
+      }
+
+      enterFailureState(
+        error: error,
+        code: "AudioStreamFailed",
+        description: "Recovery failed after \(_recoveryPolicy.maxAttempts) attempts: \(href)")
+    }
+  }
+
+  /// Tears down and rebuilds the upstream navigator. Required for recovery:
+  /// upstream never replaces a failed AVPlayerItem for the same resource index.
+  @MainActor
+  private func rebuildNavigator(at locator: Locator?) async {
+    _audioNavigator?.pause()
+    _audioNavigator?.delegate = nil
+    _audioNavigator = makeAudioNavigator(initialLocation: locator ?? initialLocator)
+    _audioNavigator?.play()
+  }
+
+  /// True once playback time advances past its pre-check value while playing.
+  /// (`state == .playing` alone is unreliable: with
+  /// `automaticallyWaitsToMinimizeStalling = false` a stalled player can report
+  /// a playing timeControlStatus.)
+  @MainActor
+  private func playbackAdvanced(withinSeconds timeout: TimeInterval) async -> Bool {
+    let startTime = playback.time
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline, !Task.isCancelled {
+      if playback.state == .playing, playback.time > startTime + 0.1 {
+        return true
+      }
+      try? await Task.sleep(nanoseconds: 500_000_000)
+    }
+    return false
+  }
+
+  @MainActor
+  internal func enterFailureState(error: Error, code: String, description: String) {
+    Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
+    _audioNavigator?.pause()
+    sendErrorEvent(code: code, message: error.localizedDescription, data: description)
+    submitRecoveryState(.failure, locator: audioLocator)
+  }
+
+  @MainActor
+  private func submitRecoveryState(_ state: TimebasedState, locator: Locator?) {
+    let timebasedState = ReadiumTimebasedState(state: state, currentLocator: locator?.toClientFriendlyLocator())
+    if timebasedState != _lastTimebasedPlayerState {
+      _lastTimebasedPlayerState = timebasedState
+      listener?.timebasedNavigator(self, didChangeState: timebasedState)
+    }
+  }
+
+  private func sendErrorEvent(code: String, message: String, data: String?) {
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(
+      FlutterReadiumError(message: message, code: code, data: data).toJsonString())
+  }
 
   internal func submitAudioLocatorReachedToListener(_ locator: Locator) {
     var locator = locator

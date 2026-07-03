@@ -414,7 +414,7 @@ git commit -m "feat(ios): wrap publication container to observe resource read er
 - Consumes: `AudioStreamErrorAction`, `ReadError.audioStreamAction`, `AudioRecoveryPolicy` (Task 1); `resourceReadErrorObserver` (Task 3); existing `FlutterReadiumPlugin.instance?.errorStreamHandler` + `FlutterReadiumError(message:code:data:)` (precedent: `FlutterTTSNavigator.swift:259`); existing `TimebasedListener.timebasedNavigator(_:didChangeState:)`.
 - Produces: `@MainActor func handleResourceReadError(href: AnyURL, error: ReadError)` on `FlutterAudioNavigator`.
 
-- [ ] **Step 1: Refactor navigator creation for reuse.** In `FlutterAudioNavigator.swift`, replace the body of `initNavigator()` and add `makeAudioNavigator`:
+- [x] **Step 1: Refactor navigator creation for reuse.** In `FlutterAudioNavigator.swift`, replace the body of `initNavigator()` and add `makeAudioNavigator`:
 
 ```swift
 public func initNavigator() async -> Void {
@@ -442,7 +442,7 @@ private func makeAudioNavigator(initialLocation: Locator?) -> AudioNavigator {
 }
 ```
 
-- [ ] **Step 2: Add recovery state + error handling.** Add members and functions to `FlutterAudioNavigator` (near the `// MARK: Internal AudioNavigator API` section):
+- [x] **Step 2: Add recovery state + error handling.** Add members and functions to `FlutterAudioNavigator` (near the `// MARK: Internal AudioNavigator API` section):
 
 ```swift
 internal var _recoveryTask: Task<Void, Never>?
@@ -554,7 +554,7 @@ private func sendErrorEvent(code: String, message: String, data: String?) {
 }
 ```
 
-- [ ] **Step 3: Make client-initiated retry work after failure.** In `play(fromLocator:)`, a rebuild is required because the failed `AVPlayerItem` is never replaced by upstream `go(to:)` for the same resource. Replace the body's start:
+- [x] **Step 3: Make client-initiated retry work after failure.** In `play(fromLocator:)`, a rebuild is required because the failed `AVPlayerItem` is never replaced by upstream `go(to:)` for the same resource. Replace the body's start:
 
 ```swift
 public func play(fromLocator: Locator?) async -> Void {
@@ -570,14 +570,14 @@ public func play(fromLocator: Locator?) async -> Void {
 }
 ```
 
-- [ ] **Step 4: Clean up in dispose().** Add at the top of `dispose()`:
+- [x] **Step 4: Clean up in dispose().** Add at the top of `dispose()`:
 
 ```swift
 _recoveryTask?.cancel()
 _recoveryTask = nil
 ```
 
-- [ ] **Step 5: Route observer → navigator in the plugin.** In `FlutterReadiumPlugin.swift`, right after the audio navigator is created and its listener set (`self.timebasedNavigator = await FlutterAudioNavigator(…)` at ~line 449, after `self.timebasedNavigator?.listener = self`):
+- [x] **Step 5: Route observer → navigator in the plugin.** In `FlutterReadiumPlugin.swift`, right after the audio navigator is created and its listener set (`self.timebasedNavigator = await FlutterAudioNavigator(…)` at ~line 449, after `self.timebasedNavigator?.listener = self`):
 
 ```swift
 resourceReadErrorObserver.setHandler { href, error in
@@ -588,9 +588,13 @@ resourceReadErrorObserver.setHandler { href, error in
 }
 ```
 
+> **Deviation:** the closure above (as written) does not compile — `timebasedNavigator` is an instance property, and a Swift closure that captures it must do so explicitly. Implemented as `resourceReadErrorObserver.setHandler { [weak self] href, error in ... guard let audioNavigator = self?.timebasedNavigator as? FlutterAudioNavigator ... }`, capturing `self` weakly since the module-scope `resourceReadErrorObserver` singleton otherwise outlives (and would retain) the plugin instance.
+
 Then find where the timebased navigator is torn down (grep `timebasedNavigator?.dispose()` / `timebasedNavigator = nil` in the plugin) and add `resourceReadErrorObserver.setHandler(nil)` beside it.
 
-- [ ] **Step 6: Build + run all tests**
+> There are two teardown sites: the `"stop"` method-channel case (tears down the timebased navigator only, publication stays open — handler is deliberately left wired so a later `play` still routes errors) and `closePublication` (full publication-scoped teardown). Added `resourceReadErrorObserver.setHandler(nil)` at `closePublication` only, since that's where the wrapped container's publication itself goes out of scope.
+
+- [x] **Step 6: Build + run all tests**
 
 ```bash
 cd flutter_readium/example && fvm flutter build ios --no-codesign 2>&1 | tail -5
@@ -601,7 +605,7 @@ cd ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
 
 Expected: build succeeds, all RunnerTests PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add flutter_readium/ios/flutter_readium/Sources/flutter_readium/navigator/FlutterAudioNavigator.swift flutter_readium/ios/flutter_readium/Sources/flutter_readium/FlutterReadiumPlugin.swift
