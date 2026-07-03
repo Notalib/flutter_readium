@@ -947,6 +947,73 @@ void main() {
           reason: 'audioSeekBy() should have advanced offset by ~seekDuration',
         );
       });
+
+      test('audiobook emits ended state when playback reaches end of book', () async {
+        await reader.setLogLevel(LogLevel.debug);
+        addTearDown(() => reader.setLogLevel(LogLevel.info));
+
+        final path = fixturePaths['38533.audiobook'];
+        expect(path, isNotNull, reason: 'Fixture 38533.audiobook missing from asset bundle');
+
+        final pub = await reader.openPublication(path!);
+        expect(pub.readingOrder, isNotEmpty);
+
+        // Seek to just before the end of the LAST reading-order resource so the
+        // tail plays out quickly rather than playing the whole book.
+        final lastIndex = pub.readingOrder.length - 1;
+        final lastLink = pub.readingOrder[lastIndex];
+        final lastDuration = lastLink.duration;
+        expect(
+          lastDuration != null && lastDuration.isFinite && lastDuration > 3,
+          isTrue,
+          reason:
+              'Test requires the last resource to have a finite duration > 3s '
+              '(got $lastDuration) to seek near its end',
+        );
+        // Play out the final ~2s of the book.
+        final beginSeconds = lastDuration! - 2;
+
+        final states = <ReadiumTimebasedState>[];
+        final sub = reader.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+
+        await reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
+
+        final endLocator = Locator(
+          href: lastLink.href,
+          type: lastLink.type ?? 'audio/mpeg',
+          locations: Locations(
+            // Position is 1-based (matches upstream); last resource == length.
+            position: pub.readingOrder.length,
+            fragments: ['t=$beginSeconds'],
+          ),
+        );
+        final navigated = await reader.goToLocator(endLocator);
+        expect(navigated, isTrue, reason: 'goToLocator to end of last resource should succeed');
+
+        await reader.play(null);
+
+        await _waitUntil(
+          () => states.any((s) => s.state == TimebasedState.ended),
+          timeout: const Duration(seconds: 30),
+          reason:
+              'Playback reached end of book but no TimebasedState.ended was emitted. '
+              'Last state seen: ${states.isEmpty ? "<none>" : states.last.state}',
+        );
+
+        // A trailing state update (e.g. the player settling to paused right after
+        // finishing) must not clobber ended — it should be the final, stable state.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        expect(
+          states.last.state,
+          equals(TimebasedState.ended),
+          reason:
+              'ended was reported but a later state overwrote it as the last emission: '
+              '${states.last.state}',
+        );
+
+        await reader.pause();
+      });
     },
   );
 
