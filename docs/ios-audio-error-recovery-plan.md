@@ -361,13 +361,13 @@ git commit -m "feat(ios): container wrapper reporting resource read errors"
 - Consumes: `ResourceReadErrorObserver`, `ReadErrorReportingContainer` (Task 2).
 - Produces: module-scope `internal let resourceReadErrorObserver = ResourceReadErrorObserver()` — Task 4 registers/clears its handler.
 
-- [ ] **Step 1: Add the module-scope observer** next to the existing module-scope vars (`currentPublication`, `timebasedNavigator`):
+- [x] **Step 1: Add the module-scope observer** next to the existing module-scope vars (`currentPublication`, `timebasedNavigator`):
 
 ```swift
 internal let resourceReadErrorObserver = ResourceReadErrorObserver()
 ```
 
-- [ ] **Step 2: Wrap the container** in `openPublication`'s `onCreatePublication` closure. Current code ignores the container parameter (`{ manifest, _, services in`); change to:
+- [x] **Step 2: Wrap the container** in `openPublication`'s `onCreatePublication` closure. Current code ignores the container parameter (`{ manifest, _, services in`); change to:
 
 ```swift
 onCreatePublication: { manifest, container, services in
@@ -387,7 +387,7 @@ onCreatePublication: { manifest, container, services in
 },
 ```
 
-- [ ] **Step 3: Build to verify**
+- [x] **Step 3: Build to verify**
 
 ```bash
 cd flutter_readium/example && fvm flutter build ios --no-codesign 2>&1 | tail -5
@@ -395,7 +395,7 @@ cd flutter_readium/example && fvm flutter build ios --no-codesign 2>&1 | tail -5
 
 Expected: `✓ Built …` (no Swift errors).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add flutter_readium/ios/flutter_readium/Sources/flutter_readium/FlutterReadiumPlugin.swift

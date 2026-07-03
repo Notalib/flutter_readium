@@ -5,6 +5,12 @@ import MediaPlayer
 import ReadiumNavigator
 import ReadiumShared
 
+/// Reports resource read failures during publication open (audio streaming
+/// errors are otherwise swallowed inside upstream AudioNavigator — no handler
+/// set means no-op). Module scope: installed in `openPublication` before the
+/// audio navigator that will register a handler for it even exists.
+internal let resourceReadErrorObserver = ResourceReadErrorObserver()
+
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
@@ -763,7 +769,11 @@ extension FlutterReadiumPlugin {
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
-        onCreatePublication: { manifest, _, services in
+        onCreatePublication: { manifest, container, services in
+          /// Report resource read failures (audio streaming errors are otherwise
+          /// swallowed inside upstream AudioNavigator — no handler set means no-op).
+          container = ReadErrorReportingContainer(wrapping: container, observer: resourceReadErrorObserver)
+
           if manifest.conforms(to: .epub) {
             let factory = PageBreakSkippingContentIteratorFactory()
             self.pageBreakIteratorFactory = factory
