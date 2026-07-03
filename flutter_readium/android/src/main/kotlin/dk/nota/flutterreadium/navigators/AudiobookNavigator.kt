@@ -19,11 +19,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
@@ -39,11 +41,21 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.getOrElse
+import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
+
+/** Max time [goToLocator] waits for ExoPlayer to reflect a seek before giving up. */
+private val SEEK_SETTLE_TIMEOUT = 5.seconds
+
+/**
+ * Offset tolerance when matching playback position against the seek target. ExoPlayer
+ * rarely lands exactly on the requested offset, so treat "close enough" as arrived.
+ */
+private val SEEK_MATCH_TOLERANCE = 1500.milliseconds
 
 const val CURRENT_TIMEBASE_LOCATOR_KEY = "currentTimebaseLocator"
 
@@ -211,30 +223,54 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator = ensureNavigator()
 
-        withMainContext {
-            val itemIndex =
-                navigator.readingOrder.items
-                    .indexOfFirst { it.href == locator.href }
-                    .takeIf { it > -1 }
+        val targetSeek =
+            withMainContext {
+                val itemIndex =
+                    navigator.readingOrder.items
+                        .indexOfFirst { it.href == locator.href }
+                        .takeIf { it > -1 }
 
-            if (itemIndex == null) {
-                PluginLog.e(
-                    TAG,
-                    "::goToLocator - ${locator.href} not found in navigator's readingOrder",
-                )
-                return@withMainContext
-            }
+                if (itemIndex == null) {
+                    PluginLog.e(
+                        TAG,
+                        "::goToLocator - ${locator.href} not found in navigator's readingOrder",
+                    )
+                    return@withMainContext null
+                }
 
-            val item = navigator.readingOrder.items[itemIndex]
-            val timeOffset = locator.locations.timeWithDuration(item.duration)
-            if (timeOffset == null) {
-                PluginLog.w(
-                    TAG,
-                    "::goToLocator - couldn't find timeOffset from starting file over.",
-                )
-            }
-            navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
-            return@withMainContext
+                val item = navigator.readingOrder.items[itemIndex]
+                val timeOffset = locator.locations.timeWithDuration(item.duration)
+                if (timeOffset == null) {
+                    PluginLog.w(
+                        TAG,
+                        "::goToLocator - couldn't find timeOffset from starting file over.",
+                    )
+                }
+
+                val resolvedOffset = timeOffset ?: Duration.ZERO
+                navigator.skipTo(itemIndex, resolvedOffset)
+                itemIndex to resolvedOffset
+            } ?: return
+
+        val (targetItemIndex, targetOffset) = targetSeek
+
+        // skipTo() is fire-and-forget: ExoPlayer applies the seek asynchronously, so
+        // navigator.playback still reports the old index/offset for a short window. Block
+        // until it reflects the target before returning, so an awaited goToLocator followed
+        // by play(null) resumes from the seeked position rather than the stale one.
+        val didReachTarget =
+            withTimeoutOrNull(SEEK_SETTLE_TIMEOUT) {
+                navigator.playback.first { playback ->
+                    playback.index == targetItemIndex &&
+                        abs((playback.offset - targetOffset).inWholeMilliseconds) <= SEEK_MATCH_TOLERANCE.inWholeMilliseconds
+                }
+            } != null
+
+        if (!didReachTarget) {
+            PluginLog.w(
+                TAG,
+                "::goToLocator - timed out waiting for playback index=$targetItemIndex @ $targetOffset after skipTo(${locator.href})",
+            )
         }
     }
 
