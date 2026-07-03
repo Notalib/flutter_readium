@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- `Properties.toJson()` emitted the `orientation`, `layout`, `overflow` and `spread`
+  presentation hints as raw enum instances instead of their string names, so
+  `jsonEncode`-ing a serialized `Publication` threw for fixed-layout (FXL) resources
+  (e.g. `Converting object to an encodable object failed: Instance of 'EpubLayout'`).
+  They now serialize as strings and round-trip through `fromJson`.
+
 ## [0.2.0] - 2026-07-02
 
 ### Added
