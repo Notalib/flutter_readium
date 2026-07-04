@@ -31,7 +31,7 @@ trim() {
 copy_manifest() {
   rm -rf "$WEB_DIR/$2"
   mkdir -p "$WEB_DIR/$2"
-  cp "$PUBS_DIR/$1" "$WEB_DIR/$2/manifest.json"
+  python3 "$RESOURCES_CHECKOUT/bin/validate_remote_manifest.py" --fix "$PUBS_DIR/$1" > "$WEB_DIR/$2/manifest.json"
 }
 
 trim 38533_overlay_preview.webpub               test-fixtures/overlay            4
