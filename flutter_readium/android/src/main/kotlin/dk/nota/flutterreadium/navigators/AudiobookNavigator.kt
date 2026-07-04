@@ -11,6 +11,7 @@ import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
 import dk.nota.flutterreadium.copyWithTocHref
 import dk.nota.flutterreadium.events.ReadiumError
+import dk.nota.flutterreadium.events.ReadiumErrorDetails
 import dk.nota.flutterreadium.flattenChildren
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.time
@@ -553,7 +554,8 @@ open class AudiobookNavigator(
                     }
 
                     is AudioStreamErrorAction.Fail -> {
-                        enterTerminalFailure(error, code = action.code)
+                        val href = (state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator)?.href?.toString()
+                        enterTerminalFailure(error, code = action.code, href = href, httpStatus = error.audioStreamHttpStatus())
                     }
                 }
             }
@@ -591,7 +593,12 @@ open class AudiobookNavigator(
                             ReadiumError(
                                 message = error.message,
                                 code = "AudioStreamRetry",
-                                data = "attempt=$attempt/${recoveryPolicy.maxAttempts} href=$href",
+                                data =
+                                    ReadiumErrorDetails(
+                                        href = href,
+                                        attempt = attempt,
+                                        maxAttempts = recoveryPolicy.maxAttempts,
+                                    ),
                             ),
                         )
                         timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Loading)
@@ -609,7 +616,7 @@ open class AudiobookNavigator(
                         }
                     }
 
-                    enterTerminalFailure(error, code = "AudioStreamFailed")
+                    enterTerminalFailure(error, code = "AudioStreamFailed", href = href)
                 } finally {
                     isRecovering = false
                     recoveryJob = null
@@ -652,6 +659,8 @@ open class AudiobookNavigator(
     private fun enterTerminalFailure(
         error: Error,
         code: String,
+        href: String? = null,
+        httpStatus: Int? = null,
     ) {
         if (isTerminallyFailed) return
         isTerminallyFailed = true
@@ -661,7 +670,11 @@ open class AudiobookNavigator(
         launch { withMainContext { audioNavigator?.close() } }
 
         ReadiumReader.emitError(
-            ReadiumError(message = error.message, code = code, data = error.cause?.message),
+            ReadiumError(
+                message = error.message,
+                code = code,
+                data = ReadiumErrorDetails(href = href, httpStatus = httpStatus),
+            ),
         )
         timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
     }

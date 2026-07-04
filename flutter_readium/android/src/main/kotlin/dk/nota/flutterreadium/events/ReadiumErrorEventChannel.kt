@@ -21,11 +21,25 @@ class ReadiumErrorEventChannel(
     }
 }
 
+/**
+ * Structured supplementary payload for [ReadiumError.data] — a JSON object, not a
+ * freeform string. All fields optional per producer; see
+ * `docs/api-reference/error-codes.md`.
+ */
+@Serializable
+data class ReadiumErrorDetails(
+    val href: String? = null,
+    val attempt: Int? = null,
+    val maxAttempts: Int? = null,
+    val httpStatus: Int? = null,
+    val message: String? = null,
+)
+
 @Serializable
 data class ReadiumError(
     val message: String,
     val code: String? = null,
-    val data: String? = null,
+    val data: ReadiumErrorDetails? = null,
     val stackTrace: String? = null,
 ) {
     companion object {
@@ -33,7 +47,7 @@ data class ReadiumError(
             ReadiumError(
                 message = error.message,
                 code = error.errorCode.wireValue,
-                data = error.cause?.message,
+                data = error.cause?.message?.let { ReadiumErrorDetails(message = it) },
             )
 
         operator fun invoke(error: Throwable): ReadiumError =

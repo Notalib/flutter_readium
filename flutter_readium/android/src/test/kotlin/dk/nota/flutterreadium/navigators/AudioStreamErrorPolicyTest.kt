@@ -75,6 +75,30 @@ internal class AudioStreamErrorPolicyTest {
     }
 
     @Test
+    fun `httpStatus extracts status from ErrorResponse`() {
+        val error = HttpError.ErrorResponse(status = HttpStatus(401))
+        assertEquals(401, error.audioStreamHttpStatus())
+    }
+
+    @Test
+    fun `httpStatus extracts status from a nested cause`() {
+        val wrapper = DebugError("engine error", cause = HttpError.ErrorResponse(status = HttpStatus(503)))
+        assertEquals(503, wrapper.audioStreamHttpStatus())
+    }
+
+    @Test
+    fun `httpStatus is null for non-ErrorResponse http errors`() {
+        val error = HttpError.Timeout(DebugError("timed out"))
+        assertEquals(null, error.audioStreamHttpStatus())
+    }
+
+    @Test
+    fun `httpStatus is null for unclassifiable errors`() {
+        val error: Error = DebugError("mystery failure")
+        assertEquals(null, error.audioStreamHttpStatus())
+    }
+
+    @Test
     fun `recovery policy has 3 max attempts`() {
         assertEquals(3, AudioRecoveryPolicy().maxAttempts)
     }

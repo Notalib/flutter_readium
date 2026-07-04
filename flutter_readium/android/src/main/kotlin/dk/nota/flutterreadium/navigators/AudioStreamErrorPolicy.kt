@@ -35,6 +35,13 @@ sealed class AudioStreamErrorAction {
 fun Error.audioStreamAction(): AudioStreamErrorAction =
     findHttpError()?.classify() ?: AudioStreamErrorAction.Fail(code = "AudioStreamNetworkError")
 
+/**
+ * The HTTP status code behind this error, if its cause chain contains an
+ * [HttpError.ErrorResponse]. `null` for all other error shapes (offline, timeout,
+ * decoding, etc.). Mirrors iOS's `ReadError.httpStatus`.
+ */
+fun Error.audioStreamHttpStatus(): Int? = (findHttpError() as? HttpError.ErrorResponse)?.status?.code
+
 private fun HttpError.classify(): AudioStreamErrorAction =
     when (this) {
         is HttpError.Timeout, is HttpError.Unreachable, is HttpError.Redirection,
