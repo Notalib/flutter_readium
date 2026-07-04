@@ -22,6 +22,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   classify auth/HTTP errors; when the probe is inconclusive they surface as
   `AudioStreamNetworkError` / `AudioStreamError` instead.
 
+### Changed
+
+- **Breaking**: error events' `data` payload is now a structured JSON object
+  (`{href, attempt, maxAttempts, httpStatus}`, fields optional) instead of a
+  freeform string — surfaced in Dart as `ReadiumError.details` with typed
+  getters. Error codes are additionally exposed as the typed
+  `ReadiumError.codeEnum` (`ReadiumErrorCode`) with `isFatal` /
+  `isInformational` and `category`; see `docs/api-reference/error-codes.md`.
+
 ### Fixed
 
 - Android: audio playback failures previously emitted a generic error event

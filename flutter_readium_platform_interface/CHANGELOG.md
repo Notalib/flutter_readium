@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `ReadiumErrorCode` — typed enum for error-event codes with `isFatal` /
+  `isInformational` and `category` getters, parsed onto `ReadiumError.codeEnum`
+  (raw string `code` kept). Vocabulary documented in
+  `docs/api-reference/error-codes.md`.
+- Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
+  `httpStatus`.
+
+### Changed
+
+- **Breaking**: `ReadiumError.data` (freeform string) is replaced by
+  `details` (`Map<String, dynamic>?`) carrying structured fields
+  `{href, attempt, maxAttempts, httpStatus}`. Legacy string payloads are
+  wrapped as `{"message": <string>}`.
+
 ## [0.2.0] - 2026-07-02
 
 ### Added
