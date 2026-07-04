@@ -507,6 +507,6 @@ fun MethodChannel.Result.publicationError(
     this.error(
         error.errorCode.wireValue,
         error.message,
-        error.cause,
+        error.toMethodChannelDetails(),
     )
 }

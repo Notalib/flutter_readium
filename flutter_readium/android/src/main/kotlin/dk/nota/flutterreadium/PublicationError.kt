@@ -6,6 +6,7 @@
 
 package dk.nota.flutterreadium
 
+import dk.nota.flutterreadium.events.ReadiumErrorDetails
 import org.readium.navigator.media.audio.AudioEngine
 import org.readium.navigator.media.audio.AudioNavigatorFactory
 import org.readium.navigator.media.tts.TtsNavigator
@@ -123,3 +124,16 @@ sealed class PublicationError(
             }
     }
 }
+
+fun PublicationError.toReadiumErrorDetails(): ReadiumErrorDetails? = cause?.message?.let { ReadiumErrorDetails(message = it) }
+
+fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? =
+    toReadiumErrorDetails()?.let { details ->
+        buildMap {
+            details.href?.let { put("href", it) }
+            details.attempt?.let { put("attempt", it) }
+            details.maxAttempts?.let { put("maxAttempts", it) }
+            details.httpStatus?.let { put("httpStatus", it) }
+            details.message?.let { put("message", it) }
+        }.takeIf { it.isNotEmpty() }
+    }

@@ -2,6 +2,7 @@ package dk.nota.flutterreadium.events
 
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.PublicationError
+import dk.nota.flutterreadium.toReadiumErrorDetails
 import io.flutter.plugin.common.BinaryMessenger
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -40,21 +41,21 @@ data class ReadiumError(
     val message: String,
     val code: String? = null,
     val data: ReadiumErrorDetails? = null,
-    val stackTrace: String? = null,
 ) {
     companion object {
         operator fun invoke(error: PublicationError): ReadiumError =
             ReadiumError(
                 message = error.message,
                 code = error.errorCode.wireValue,
-                data = error.cause?.message?.let { ReadiumErrorDetails(message = it) },
+                data = error.toReadiumErrorDetails(),
             )
 
-        operator fun invoke(error: Throwable): ReadiumError =
-            ReadiumError(
+        operator fun invoke(error: Throwable): ReadiumError {
+            PluginLog.e("ReadiumError", "::invoke ${error.stackTraceToString()}")
+            return ReadiumError(
                 message = error.message ?: error::class.simpleName ?: "Unknown error",
                 code = error::class.simpleName,
-                stackTrace = error.stackTraceToString(),
             )
+        }
     }
 }

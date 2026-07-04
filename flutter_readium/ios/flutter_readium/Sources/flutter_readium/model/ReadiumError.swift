@@ -35,6 +35,10 @@ struct FlutterReadiumError {
     }
     return str
   }
+
+  func toFlutterError() -> FlutterError {
+    FlutterError(code: code ?? "unknown", message: message, details: data)
+  }
 }
 
 enum ReadiumError: Error {
@@ -153,7 +157,11 @@ extension ReadiumError: UserErrorConvertible {
   func toFlutterError() -> FlutterError {
     switch self {
     case .formatNotSupported(let msg):
-      return FlutterError(code: "formatNotSupported", message: self.localizedDescription, details: msg)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "formatNotSupported",
+        data: ["message": msg]
+      ).toFlutterError()
     case .readingError(let err):
       switch err {
       case ReadiumShared.ArchiveOpenError.reading(.access(.http(let httpError))),
@@ -181,24 +189,57 @@ extension ReadiumError: UserErrorConvertible {
         } else {
           message = "HTTPError(\(kind)): \(httpError.localizedDescription)"
         }
-        return FlutterError(code: "readingError", message: message, details: httpError.responseHeaders)
+        var data: [String: Any] = ["message": httpError.localizedDescription]
+        if let status = httpError.statusCode?.rawValue {
+          data["httpStatus"] = status
+        }
+        return FlutterReadiumError(
+          message: message,
+          code: "readingError",
+          data: data
+        ).toFlutterError()
       case ReadiumShared.ArchiveOpenError.reading(.access(.fileSystem(let fsError))),
            ReadiumShared.ReadError.access(.fileSystem(let fsError)),
            ReadiumShared.AccessError.fileSystem(let fsError):
-        return FlutterError(code: "readingError", message: "FilesystemError", details: fsError.localizedDescription)
+        return FlutterReadiumError(
+          message: "FilesystemError",
+          code: "readingError",
+          data: ["message": fsError.localizedDescription]
+        ).toFlutterError()
       default:
-        return FlutterError(code: "readingError", message: self.localizedDescription, details: err.localizedDescription)
+        return FlutterReadiumError(
+          message: self.localizedDescription,
+          code: "readingError",
+          data: ["message": err.localizedDescription]
+        ).toFlutterError()
       }
     case .notFound(let msg):
-      return FlutterError(code: "notFound", message: self.localizedDescription, details: msg)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "notFound",
+        data: msg.map { ["message": $0] }
+      ).toFlutterError()
     case .publicationIsRestricted(let err):
-      return FlutterError(code: "forbidden", message: self.localizedDescription, details: err.localizedDescription)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "forbidden",
+        data: ["message": err.localizedDescription]
+      ).toFlutterError()
     case .readerViewNotFound:
-      return FlutterError(code: "readerViewNotFound", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "readerViewNotFound"
+      ).toFlutterError()
     case .voiceNotFound:
-      return FlutterError(code: "voiceNotFound", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "voiceNotFound"
+      ).toFlutterError()
     default:
-      return FlutterError(code: "unknown", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "unknown"
+      ).toFlutterError()
     }
   }
   func userError() -> UserError {

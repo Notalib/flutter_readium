@@ -186,6 +186,20 @@ final class FlutterReadiumErrorTests: XCTestCase {
     XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: nil).toJsonString())["data"])
     XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: [:]).toJsonString())["data"])
   }
+
+  func testToFlutterErrorPreservesCodeMessageAndStructuredDetails() {
+    let flutterError = FlutterReadiumError(
+      message: "boom",
+      code: "notFound",
+      data: ["message": "missing", "httpStatus": 404]
+    ).toFlutterError()
+
+    XCTAssertEqual(flutterError.code, "notFound")
+    XCTAssertEqual(flutterError.message, "boom")
+    let details = flutterError.details as? [String: Any]
+    XCTAssertEqual(details?["message"] as? String, "missing")
+    XCTAssertEqual(details?["httpStatus"] as? Int, 404)
+  }
 }
 
 final class AudioRecoveryPolicyTests: XCTestCase {
