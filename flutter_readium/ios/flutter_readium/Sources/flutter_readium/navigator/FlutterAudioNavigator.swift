@@ -448,6 +448,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   public func handleResourceReadError(href: AnyURL, error: ReadError) {
     /// Only react to failures of this publication's audio resources.
     guard publication.readingOrder.firstWithHREF(href) != nil else {
+      Log.navigator.warn("Ignoring read error for href not in readingOrder: \(href) — \(error)")
       return
     }
     /// Already in terminal failure — client must call play() to retry.
