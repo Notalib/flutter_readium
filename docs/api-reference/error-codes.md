@@ -48,3 +48,18 @@ reader.onErrorEvent.listen((error) {
 Android does not currently emit `AudioStreamFailed` failures beyond backoff, `AudioStreamFileError`, or `AudioStreamError` — its ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network); anything else falls back to `AudioStreamNetworkError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone and falls back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
 
 `isFatal` and `isInformational` are exact complements — `isInformational` is `true` only for `audioStreamRetry`.
+
+## Structured `details` payload
+
+`ReadiumError.details` (wire field: `data`) is a JSON object with producer-specific optional fields — never a freeform string:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `href` | string | Resource href the error relates to |
+| `attempt` | int | Current retry attempt number (`audioStreamRetry`) |
+| `maxAttempts` | int | Retry budget (`audioStreamRetry`) |
+| `httpStatus` | int | HTTP status that triggered the error, when known |
+
+All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`) over reading `details` directly. A `null` `details` means no structured payload was sent.
+
+`ReadiumError.fromJson` tolerates a stale native side still sending `data` as a freeform string (pre-R2 wire format) by wrapping it as `{"message": <string>}` — it never throws on a legacy payload.

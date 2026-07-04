@@ -81,7 +81,7 @@ class ReadiumError implements Error {
 
     final message = jsonObject.optString('message', remove: true);
     final code = jsonObject.optNullableString('code', remove: true);
-    final data = jsonObject.opt('data', remove: true);
+    final rawData = jsonObject.opt('data', remove: true);
     final stackTraceStr = jsonObject.optNullableString(
       'stackTrace',
       remove: true,
@@ -90,15 +90,25 @@ class ReadiumError implements Error {
     return ReadiumError(
       message,
       code: code,
-      data: data,
+      details: _detailsFromWire(rawData),
       stackTrace: stackTraceStr != null ? StackTrace.fromString(stackTraceStr) : null,
     );
+  }
+
+  /// Tolerates a stale native side still sending `data` as a freeform
+  /// string (pre-R2 wire format) by wrapping it as `{"message": <string>}`,
+  /// so the stream decoder never crashes on a legacy payload.
+  static Map<String, dynamic>? _detailsFromWire(Object? rawData) {
+    if (rawData == null) return null;
+    if (rawData is Map<String, dynamic>) return rawData;
+    if (rawData is Map) return Map<String, dynamic>.from(rawData);
+    return {'message': rawData.toString()};
   }
 
   ReadiumError(
     this.message, {
     this.code,
-    this.data,
+    this.details,
     final StackTrace? stackTrace,
   }) : codeEnum = ReadiumErrorCode.fromWire(code),
        stackTrace = stackTrace ?? StackTrace.current;
@@ -114,7 +124,26 @@ class ReadiumError implements Error {
   /// codes — never throws.
   final ReadiumErrorCode codeEnum;
 
-  final Object? data;
+  /// Structured supplementary payload. All fields are optional and producer
+  /// specific — see `docs/api-reference/error-codes.md`. Prefer the typed
+  /// getters ([href], [attempt], [maxAttempts], [httpStatus]) over reading
+  /// this map directly.
+  final Map<String, dynamic>? details;
+
+  /// The resource href the error relates to, if any (e.g. the audio
+  /// resource being streamed).
+  String? get href => details == null ? null : details.optNullableString('href');
+
+  /// The current retry attempt number, for informational recovery events
+  /// (e.g. `audioStreamRetry`).
+  int? get attempt => details == null ? null : details.optNullableInt('attempt');
+
+  /// The maximum number of retry attempts, for informational recovery
+  /// events (e.g. `audioStreamRetry`).
+  int? get maxAttempts => details == null ? null : details.optNullableInt('maxAttempts');
+
+  /// The HTTP status code that triggered the error, when known.
+  int? get httpStatus => details == null ? null : details.optNullableInt('httpStatus');
 
   @override
   final StackTrace? stackTrace;
@@ -127,11 +156,11 @@ class ReadiumError implements Error {
   int get hashCode => message.hashCode ^ code.hashCode;
 
   @override
-  String toString() => 'ReadiumError(message: $message, code: $code data: $data, stackTrace: $stackTrace)';
+  String toString() => 'ReadiumError(message: $message, code: $code details: $details, stackTrace: $stackTrace)';
 
   Map<String, dynamic> toJson() => {}
     ..put('message', message)
     ..putOpt('code', code)
-    ..putOpt('data', data?.toString())
+    ..putObjectIfNotEmpty('data', details)
     ..putOpt('stackTrace', stackTrace?.toString());
 }

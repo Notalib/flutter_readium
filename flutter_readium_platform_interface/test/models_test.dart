@@ -175,10 +175,42 @@ void main() {
     });
 
     test('round-trips through toJson / fromJson', () {
-      final error = ReadiumError('oops', code: '42', data: 'extra');
+      final error = ReadiumError(
+        'oops',
+        code: '42',
+        details: {'href': '/ch1.mp3', 'attempt': 1, 'maxAttempts': 3, 'httpStatus': 503},
+      );
       final restored = ReadiumError.fromJson(error.toJson());
       expect(restored.message, 'oops');
       expect(restored.code, '42');
+      expect(restored.href, '/ch1.mp3');
+      expect(restored.attempt, 1);
+      expect(restored.maxAttempts, 3);
+      expect(restored.httpStatus, 503);
+    });
+
+    test('details is null when omitted', () {
+      final error = ReadiumError.fromJson({'message': 'oops', 'code': '42'});
+      expect(error.details, isNull);
+      expect(error.href, isNull);
+      expect(error.attempt, isNull);
+      expect(error.maxAttempts, isNull);
+      expect(error.httpStatus, isNull);
+    });
+
+    test('tolerates a legacy freeform-string data payload by wrapping it as message', () {
+      final error = ReadiumError.fromJson({
+        'message': 'oops',
+        'code': '42',
+        'data': 'attempt=1/3 href=/ch1.mp3',
+      });
+      expect(error.details, {'message': 'attempt=1/3 href=/ch1.mp3'});
+      expect(error.href, isNull);
+    });
+
+    test('toJson omits data when details is null', () {
+      final error = ReadiumError('oops', code: '42');
+      expect(error.toJson().containsKey('data'), isFalse);
     });
   });
 
