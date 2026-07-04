@@ -15,7 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   terminal failures emit a typed code and `TimebasedState.failure`, after which
   `play()` retries from the last position. The code vocabulary, the Web
   HTTP-probe caveat, and the configurable recovery policy (retry budget,
-  backoff, stall timeout) are documented in
+  backoff, stall timeout, per-attempt connection timeout) are documented in
   [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
 ### Changed
