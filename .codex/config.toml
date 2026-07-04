@@ -1,0 +1,17 @@
+[mcp_servers.context7]
+command = "npx"
+args = [
+    "-y",
+    "@upstash/context7-mcp@3.0.0",
+]
+
+[mcp_servers.dart]
+command = "dart"
+args = ["mcp-server"]
+
+[mcp_servers.marionette]
+command = "dart"
+args = [
+    "run",
+    "marionette_mcp",
+]
