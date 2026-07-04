@@ -54,7 +54,23 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func initNavigator() async -> Void {
-    _audioNavigator = await makeAudioNavigator(initialLocation: initialLocator)
+    let startedAt = Date()
+    let navigator = makeAudioNavigator(initialLocation: initialLocator)
+    if Date().timeIntervalSince(startedAt) > self._recoveryPolicy.connectionTimeoutSeconds {
+      Log.navigator.error("AudioNavigator initial create exceeded \(self._recoveryPolicy.connectionTimeoutSeconds)s")
+      navigator.delegate = nil
+      enterFailureState(
+        error: ReadError.access(.other(DebugError("Timed out preparing audio playback"))),
+        code: "AudioStreamNetworkError",
+        href: initialLocator?.href.string,
+        description: "Timed out preparing audio playback")
+      return
+    }
+    if _disposed {
+      navigator.delegate = nil
+      return
+    }
+    _audioNavigator = navigator
 
     self.setupNavigatorStateListeners()
     self.startStallWatchdog()
@@ -94,6 +110,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func dispose() -> Void {
+    _disposed = true
+    _playbackIntent = false
     _recoveryTask?.cancel()
     _recoveryTask = nil
     _stallWatchdogTask?.cancel()
@@ -110,11 +128,17 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
+    if _disposed {
+      return
+    }
+    _playbackIntent = true
     if _hasFailed {
       _hasFailed = false
       _recoveryTask?.cancel()
       _recoveryTask = nil
-      await rebuildNavigator(at: resolveLocator(fromLocator) ?? audioLocator)
+      guard await rebuildNavigator(at: resolveLocator(fromLocator) ?? audioLocator) else {
+        return
+      }
     } else if let locator = resolveLocator(fromLocator) {
       let _ = await seek(toLocator: locator)
     }
@@ -128,10 +152,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func pause() async -> Void {
+    _playbackIntent = false
     _audioNavigator?.pause()
   }
 
   public func resume() async -> Void {
+    if _disposed {
+      return
+    }
+    _playbackIntent = true
     _audioNavigator?.play()
   }
 
@@ -345,6 +374,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Called when the playback updates.
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
+    if info.state == .paused,
+       info.progress >= 1.0,
+       info.resourceIndex == self.publication.manifest.readingOrder.count - 1 {
+      _playbackIntent = false
+    }
     self._nowPlayingUpdater.updatePlaybackFromInfo(info, withSpeedSetting: _audioNavigator?.settings.speed)
     self._nowPlayingUpdater.updateCommandCenterControls()
     self.playback = info
@@ -467,6 +501,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// `_lastTimebasedPlayerState` is unreliable, as rebuilt navigators emit
   /// paused/loading states that would overwrite a `.failure` there.
   internal var _hasFailed = false
+  /// Set in `dispose`; prevents recovery/rebuild from installing a fresh player
+  /// after the publication was closed.
+  internal var _disposed = false
+  /// User/app playback intent. iOS exposes only `.paused/.playing/.loading`, so
+  /// this mirrors Android's `playWhenReady` for stall-watchdog decisions.
+  internal var _playbackIntent = false
   /// Stall watchdog task - see `startStallWatchdog`. Cancelled/restarted on rebuild.
   internal var _stallWatchdogTask: Task<Void, Never>?
 
@@ -485,12 +525,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
     switch error.audioStreamAction {
     case .ignore:
+      Log.navigator.debug("Ignoring audio resource read error for \(href): \(error)")
       return
     case let .fail(code):
+      Log.navigator.warn("Audio resource read error classified as terminal [\(code)] for \(href): \(error)")
       enterFailureState(
         error: error, code: code, href: href.string, httpStatus: error.httpStatus,
         description: "Resource read failed: \(href)")
     case .retry:
+      Log.navigator.warn("Audio resource read error classified as retryable for \(href): \(error)")
       startRecovery(href: href, error: error, terminalCode: "AudioStreamNetworkError")
     }
   }
@@ -501,6 +544,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   ///   `AudioStreamFailed` fallback.
   @MainActor
   private func startRecovery(href: AnyURL, error: Error, terminalCode: String) {
+    guard !_disposed else {
+      return
+    }
     guard _recoveryTask == nil else {
       return  // recovery already in progress
     }
@@ -516,14 +562,16 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
           data: [
             "href": href.string,
             "attempt": attempt,
-            "maxAttempts": _recoveryPolicy.maxAttempts,
+            "maxAttempts": self._recoveryPolicy.maxAttempts,
           ])
         submitRecoveryState(.loading, locator: resumeLocator)
 
-        try? await Task.sleep(nanoseconds: UInt64(_recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
+        try? await Task.sleep(nanoseconds: UInt64(self._recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
         if Task.isCancelled { return }
 
-        await rebuildNavigator(at: resumeLocator)
+        guard await rebuildNavigator(at: resumeLocator) else {
+          continue
+        }
 
         if await playbackAdvanced(withinSeconds: 5) {
           return  // recovered — regular state emissions resume via delegate
@@ -535,19 +583,34 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         code: terminalCode,
         href: href.string,
         httpStatus: (error as? ReadError)?.httpStatus,
-        description: "Recovery failed after \(_recoveryPolicy.maxAttempts) attempts: \(href)")
+        description: "Recovery failed after \(self._recoveryPolicy.maxAttempts) attempts: \(href)")
     }
   }
 
   /// Tears down and rebuilds the upstream navigator. Required for recovery:
   /// upstream never replaces a failed AVPlayerItem for the same resource index.
   @MainActor
-  private func rebuildNavigator(at locator: Locator?) async {
+  private func rebuildNavigator(at locator: Locator?) async -> Bool {
+    guard !_disposed else {
+      return false
+    }
+    let startedAt = Date()
     _audioNavigator?.pause()
     _audioNavigator?.delegate = nil
-    _audioNavigator = makeAudioNavigator(initialLocation: locator ?? initialLocator)
-    _audioNavigator?.play()
+    let navigator = makeAudioNavigator(initialLocation: locator ?? initialLocator)
+    if Date().timeIntervalSince(startedAt) > self._recoveryPolicy.connectionTimeoutSeconds {
+      Log.navigator.error("AudioNavigator rebuild exceeded \(self._recoveryPolicy.connectionTimeoutSeconds)s")
+      navigator.delegate = nil
+      return false
+    }
+    guard !_disposed else {
+      navigator.delegate = nil
+      return false
+    }
+    _audioNavigator = navigator
+    navigator.play()
     startStallWatchdog()
+    return true
   }
 
   /// True once [offsetAdvanced] within `timeout`. (`state == .playing` alone is
@@ -591,7 +654,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _stallWatchdogTask?.cancel()
     _stallWatchdogTask = Task { @MainActor in
       var lastAdvanceTime = playback.time
-      var deadline = Date().addingTimeInterval(_recoveryPolicy.stallTimeoutSeconds)
+      var deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
 
       while !Task.isCancelled {
         try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -599,20 +662,22 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
         if _recoveryTask != nil || _hasFailed {
           lastAdvanceTime = playback.time
-          deadline = Date().addingTimeInterval(_recoveryPolicy.stallTimeoutSeconds)
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
           continue
         }
 
-        guard playback.state == .playing else {
-          // Not intending to play right now (paused/ended) — not a stall, reset the window.
+        guard _playbackIntent, playback.state != .paused else {
+          // Genuinely not trying to play (paused/ended) — not a stall, reset the
+          // window. `.loading` with playback intent is NOT reset here: a network
+          // stall sits there, so it must count toward the deadline.
           lastAdvanceTime = playback.time
-          deadline = Date().addingTimeInterval(_recoveryPolicy.stallTimeoutSeconds)
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
           continue
         }
 
         if offsetAdvanced(sinceTime: lastAdvanceTime) {
           lastAdvanceTime = playback.time
-          deadline = Date().addingTimeInterval(_recoveryPolicy.stallTimeoutSeconds)
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
           continue
         }
 
@@ -639,6 +704,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   ) {
     Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
     _hasFailed = true
+    _playbackIntent = false
     _recoveryTask?.cancel()
     _stallWatchdogTask?.cancel()
     _stallWatchdogTask = nil
@@ -774,8 +840,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       locator = locator?.toClientFriendlyLocator()
     }
 
-    /// Fetch MediaPlaybackState and convert it to TimebasedState
-    let playerState = info.state.asTimebasedState
+    /// Fetch MediaPlaybackState and convert it to TimebasedState.
+    let playerState = info.asClientTimebasedState(playbackIntent: _playbackIntent)
 
     let totalProgressDuration = makeTotalProgressDuration(locator)
     let totalDuration = makePublicationDuration()

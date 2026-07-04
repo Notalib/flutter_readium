@@ -30,6 +30,10 @@ extension ReadError {
       switch access {
       case let .http(httpError):
         switch httpError {
+        case .cancelled:
+          return .ignore
+        case .rangeNotSupported:
+          return .fail(code: "AudioStreamRangeNotSupported")
         case .timeout, .unreachable, .offline, .redirection, .malformedResponse:
           return .retry
         case let .errorResponse(response):

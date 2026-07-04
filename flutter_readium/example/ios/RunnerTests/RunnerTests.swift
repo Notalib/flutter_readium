@@ -1,4 +1,5 @@
 import XCTest
+import ReadiumNavigator
 import ReadiumShared
 
 @testable import flutter_readium
@@ -75,10 +76,20 @@ final class AudioStreamErrorPolicyTests: XCTestCase {
     XCTAssertEqual(ReadError.cancelled.audioStreamAction, .ignore)
   }
 
+  func testHttpCancelledIsIgnored() {
+    XCTAssertEqual(ReadError.access(.http(.cancelled)).audioStreamAction, .ignore)
+  }
+
   func testTimeoutOfflineUnreachableAreRetryable() {
     XCTAssertEqual(ReadError.access(.http(.timeout(nil))).audioStreamAction, .retry)
     XCTAssertEqual(ReadError.access(.http(.offline(nil))).audioStreamAction, .retry)
     XCTAssertEqual(ReadError.access(.http(.unreachable(nil))).audioStreamAction, .retry)
+  }
+
+  func testRangeNotSupportedIsTerminalWithRangeCode() {
+    XCTAssertEqual(
+      ReadError.access(.http(.rangeNotSupported)).audioStreamAction,
+      .fail(code: "AudioStreamRangeNotSupported"))
   }
 
   func testAuthErrorsAreTerminalWithAuthCode() {
@@ -117,6 +128,37 @@ final class AudioStreamErrorPolicyTests: XCTestCase {
     XCTAssertNil(ReadError.access(.http(.offline(nil))).httpStatus)
     XCTAssertNil(ReadError.cancelled.httpStatus)
     XCTAssertNil(ReadError.decoding("bad data").httpStatus)
+  }
+}
+
+final class AudioPlaybackStateMappingTests: XCTestCase {
+  func testPlayingAtZeroWithPlaybackIntentMapsToLoading() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: true), .loading)
+  }
+
+  func testPlayingAtZeroWithoutPlaybackIntentStaysPlaying() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: false), .playing)
+  }
+
+  func testPlayingAfterProgressStaysPlaying() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0.01, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: true), .playing)
+  }
+
+  func testNonPlayingStatesPassThrough() {
+    XCTAssertEqual(
+      MediaPlaybackInfo(resourceIndex: 0, state: .loading, time: 0, duration: 10)
+        .asClientTimebasedState(playbackIntent: true),
+      .loading)
+    XCTAssertEqual(
+      MediaPlaybackInfo(resourceIndex: 0, state: .paused, time: 0, duration: 10)
+        .asClientTimebasedState(playbackIntent: true),
+      .paused)
   }
 }
 
@@ -194,6 +236,41 @@ final class ResourceReadErrorReportingTests: XCTestCase {
     guard case .failure = result else { return XCTFail("expected failure passthrough") }
     XCTAssertEqual(reported?.0, href)
     if case .access(.http(.timeout)) = reported?.1 {} else { XCTFail("wrong error: \(String(describing: reported?.1))") }
+  }
+
+  func testPropertiesFailuresAreNotReported() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reportCount = 0
+    observer.setHandler { _, _ in reportCount += 1 }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.other(DebugError("probe failed"))))),
+      observer: observer)
+
+    guard case .failure = await container[href]!.properties() else {
+      return XCTFail("expected properties failure passthrough")
+    }
+
+    XCTAssertEqual(reportCount, 0)
+  }
+
+  func testEstimatedLengthFailureIsReportedWithHref() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reported: (AnyURL, ReadError)?
+    observer.setHandler { reported = ($0, $1) }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.http(.offline(nil))))),
+      observer: observer)
+
+    guard case .failure = await container[href]!.estimatedLength() else {
+      return XCTFail("expected estimatedLength failure passthrough")
+    }
+
+    XCTAssertEqual(reported?.0, href)
+    if case .access(.http(.offline)) = reported?.1 {} else { XCTFail("wrong error: \(String(describing: reported?.1))") }
   }
 
   func testSuccessIsNotReported() async {

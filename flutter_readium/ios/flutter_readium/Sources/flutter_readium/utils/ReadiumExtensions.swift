@@ -266,6 +266,18 @@ extension MediaPlaybackState {
   }
 }
 
+extension MediaPlaybackInfo {
+  func asClientTimebasedState(playbackIntent: Bool) -> TimebasedState {
+    // Startup buffering normalization: AVPlayer can report `.playing` immediately
+    // after play intent, before the first audio byte advances time. Present that
+    // exact zero-offset startup window as loading, then pass through upstream state.
+    if playbackIntent, state == .playing, time == 0 {
+      return .loading
+    }
+    return state.asTimebasedState
+  }
+}
+
 extension PublicationSpeechSynthesizer.State {
   var asTimebasedState: TimebasedState {
     switch self {

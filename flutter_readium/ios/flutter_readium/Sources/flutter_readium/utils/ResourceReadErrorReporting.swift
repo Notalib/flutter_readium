@@ -48,7 +48,13 @@ struct ReadErrorReportingContainer: Container {
   }
 }
 
-/// Forwards all reads to the wrapped `Resource`, reporting failures.
+/// Forwards reads to the wrapped `Resource`, reporting failures that block audio playback.
+///
+/// `properties()` is auxiliary and can fail without blocking playback, but
+/// `estimatedLength()` is load-bearing for iOS audio: Readium's AVAsset loader
+/// uses it to answer AVPlayer's content-information request before a range
+/// stream is opened. If that request fails while offline, no `stream(range:)`
+/// failure follows, so recovery must be driven from the length failure.
 final class ReadErrorReportingResource: Resource {
   private let wrapped: Resource
   private let href: AnyURL
@@ -63,11 +69,16 @@ final class ReadErrorReportingResource: Resource {
   var sourceURL: AbsoluteURL? { wrapped.sourceURL }
 
   func properties() async -> ReadResult<ResourceProperties> {
-    reporting(await wrapped.properties())
+    await wrapped.properties()
   }
 
   func estimatedLength() async -> ReadResult<UInt64?> {
-    reporting(await wrapped.estimatedLength())
+    let result = await wrapped.estimatedLength()
+    if case let .failure(error) = result {
+      Log.navigator.debug("Audio resource estimatedLength failed for \(self.href): \(error)")
+      observer.report(href: href, error: error)
+    }
+    return result
   }
 
   func stream(range: Range<UInt64>?, consume: @escaping (Data) -> Void) async -> ReadResult<Void> {
