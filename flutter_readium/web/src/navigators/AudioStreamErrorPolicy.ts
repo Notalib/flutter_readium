@@ -194,6 +194,7 @@ export interface AudioRecoveryHooks {
 export class AudioStreamRecoveryController {
   private recovering = false;
   private terminallyFailed = false;
+  private disposed = false;
 
   constructor(
     private readonly hooks: AudioRecoveryHooks,
@@ -201,15 +202,23 @@ export class AudioStreamRecoveryController {
   ) {}
 
   isSuppressed(): boolean {
-    return this.recovering;
+    return !this.disposed && this.recovering;
   }
 
   isTerminallyFailed(): boolean {
-    return this.terminallyFailed;
+    return !this.disposed && this.terminallyFailed;
   }
 
   /** Clears the terminal-failure latch. Call before retrying playback (e.g. from `play()`). */
   clearFailure(): void {
+    if (this.disposed) return;
+    this.terminallyFailed = false;
+  }
+
+  /** Cancels this controller so close/stop cannot resume playback later. */
+  dispose(): void {
+    this.disposed = true;
+    this.recovering = false;
     this.terminallyFailed = false;
   }
 
@@ -223,6 +232,7 @@ export class AudioStreamRecoveryController {
    * @param resumeHref   href to rebuild/retry at (last known locator).
    */
   handle(message: string, action: AudioStreamErrorAction, resumeHref: string): void {
+    if (this.disposed) return;
     // Latched terminal failure: further errors from the (already torn down)
     // navigator are noise until play() retries.
     if (this.terminallyFailed) return;
@@ -245,9 +255,11 @@ export class AudioStreamRecoveryController {
   }
 
   private async startRecovery(message: string, href: string, terminalCode: string): Promise<void> {
+    if (this.disposed) return;
     this.recovering = true;
     try {
       for (let attempt = 1; attempt <= this.policy.maxAttempts; attempt++) {
+        if (this.disposed) return;
         this.hooks.emitError(message, "AudioStreamRetry", {
           href,
           attempt,
@@ -256,13 +268,17 @@ export class AudioStreamRecoveryController {
         this.hooks.setPinnedState("loading");
 
         await this.hooks.delay(this.policy.delayMillis(attempt));
+        if (this.disposed) return;
 
         const recovered = await this.hooks.rebuildAndVerify(href);
+        if (this.disposed) return;
         if (recovered) return; // regular state emissions resume
       }
       this.enterTerminalFailure(message, terminalCode, href);
     } finally {
-      this.recovering = false;
+      if (!this.disposed) {
+        this.recovering = false;
+      }
     }
   }
 
@@ -278,6 +294,7 @@ export class AudioStreamRecoveryController {
     href?: string,
     httpStatus?: number
   ): void {
+    if (this.disposed) return;
     if (this.terminallyFailed) return;
     this.terminallyFailed = true;
 

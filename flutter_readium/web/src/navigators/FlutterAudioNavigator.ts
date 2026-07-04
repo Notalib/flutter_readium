@@ -33,6 +33,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+class TimeoutError extends Error {}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new TimeoutError(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
 /**
  * Builds a function that computes publication-wide `totalProgression` for an
  * audio locator using accumulated track durations from `readingOrder`.
@@ -459,8 +475,11 @@ async function rebuildAndVerifyPlayback(
   setNav: (nav: AudioNavigator) => void,
   pollIntervalOverrideMs: number | undefined,
   bridge: ReadiumBridge,
-  onNavReplaced: (nav: AudioNavigator) => void
+  onNavReplaced: (nav: AudioNavigator) => void,
+  connectionTimeoutMs: number,
+  isDisposed: () => boolean
 ): Promise<boolean> {
+  if (isDisposed()) return false;
   const lastPosition = getLastLocator();
   const resumeLocator = new Locator({
     href,
@@ -469,32 +488,44 @@ async function rebuildAndVerifyPlayback(
   });
 
   let rebuilt: AudioNavigator | undefined;
+  let attemptCancelled = false;
   try {
-    await FlutterAudioNavigator.create(
-      publication,
-      resumeLocator,
-      preferencesJsonString,
-      (n) => {
-        rebuilt = n;
-        onNavReplaced(n);
-        setNav(n);
-      },
-      undefined,
-      undefined,
-      pollIntervalOverrideMs,
-      bridge
+    await withTimeout(
+      FlutterAudioNavigator.create(
+        publication,
+        resumeLocator,
+        preferencesJsonString,
+        (n) => {
+          if (attemptCancelled || isDisposed()) {
+            n.stop();
+            n.destroy();
+            return;
+          }
+          rebuilt = n;
+          onNavReplaced(n);
+          setNav(n);
+        },
+        undefined,
+        undefined,
+        pollIntervalOverrideMs,
+        bridge,
+        false
+      ),
+      connectionTimeoutMs,
+      `Timed out rebuilding audio playback after ${connectionTimeoutMs / 1000}s`
     );
   } catch (e) {
+    attemptCancelled = true;
     log.error("rebuildAndVerifyPlayback: rebuild failed", e);
     return false;
   }
-  if (!rebuilt) return false;
+  if (!rebuilt || isDisposed()) return false;
 
   rebuilt.play();
 
   const startOffset = rebuilt.currentTime;
   const deadline = Date.now() + RECOVERY_VERIFY_WINDOW_MS;
-  while (Date.now() < deadline) {
+  while (Date.now() < deadline && !isDisposed()) {
     if (rebuilt.currentTime > startOffset + RECOVERY_VERIFY_MIN_ADVANCE_S) {
       return true;
     }
@@ -518,6 +549,8 @@ export class FlutterAudioNavigator {
    * Overlay / TTS sessions are out of scope for this parity pass.
    */
   private static _recovery: AudioStreamRecoveryController | undefined;
+  /** Incremented on close/stop so stale async callbacks can self-suppress. */
+  private static _sessionGeneration = 0;
 
   /**
    * Clears the terminal-failure latch and rebuilds playback at the last known
@@ -536,6 +569,8 @@ export class FlutterAudioNavigator {
   /** Clears any recovery state. Call when a session ends (stop/closePublication)
    *  so a stale latch/controller can't leak into the next audiobook session. */
   static resetRecovery(): void {
+    this._sessionGeneration += 1;
+    this._recovery?.dispose();
     this._recovery = undefined;
   }
 
@@ -556,7 +591,9 @@ export class FlutterAudioNavigator {
     /** Bridge used to emit streaming-failure error events. Only consulted on
      *  the plain audiobook path (no `locatorMapper`) — pass it from
      *  `ReadiumReader` to enable retry/failure recovery for that session. */
-    bridge?: ReadiumBridge
+    bridge?: ReadiumBridge,
+    /** Internal: recovery rebuild timeouts are failed attempts, not initial-open errors. */
+    emitCreateTimeoutError = true
   ): Promise<void> {
     const tracks = publication.readingOrder.items.length;
     log.info(
@@ -570,7 +607,10 @@ export class FlutterAudioNavigator {
 
     // A fresh session: re-enable emissions (closePublication disables them to
     // suppress post-close stragglers from a previous navigator).
+    const sessionGeneration = FlutterAudioNavigator._sessionGeneration;
     _emissionsEnabled = true;
+    const isDisposed = () =>
+      FlutterAudioNavigator._sessionGeneration !== sessionGeneration || !_emissionsEnabled;
 
     const basePrefs = audioPreferencesFromJson(preferencesJsonString);
     if (pollIntervalOverrideMs != null) {
@@ -601,9 +641,10 @@ export class FlutterAudioNavigator {
     let currentTocHref: string | undefined;
     const getTocHref = timeline ? () => currentTocHref : undefined;
 
-    // nav is used inside the closure before assignment; TypeScript is fine with
-    // this because the listeners are only called after `nav` is assigned below.
-    let nav: AudioNavigator;
+    // Assigned after listener construction. Some timeout/error paths can run
+    // before assignment, so cleanup guards every direct use.
+    let nav: AudioNavigator | undefined;
+    let createCancelled = false;
     let lastPositionLogKey = "";
 
     const recoveryPolicy = getCurrentAudioRecoveryPolicy();
@@ -650,22 +691,27 @@ export class FlutterAudioNavigator {
         {
           emitError: (message, code, data) => bridge.emitError(message, code, data),
           setPinnedState: (state) => {
+            if (isDisposed()) return;
+            if (!nav) return;
             window.updateTimebasedPlayerState?.(buildStatePayload(state, nav));
           },
           stopPlayback: () => {
-            nav.stop();
+            if (isDisposed()) return;
+            nav?.stop();
           },
           delay: sleep,
           rebuildAndVerify: (href) =>
             rebuildAndVerifyPlayback(
               href,
               publication,
-              () => nav.currentLocator,
+              () => nav?.currentLocator,
               preferencesJsonString,
               setNav,
               pollIntervalOverrideMs,
               bridge,
-              (n) => { nav = n; }
+              (n) => { nav = n; },
+              recoveryPolicy.connectionTimeoutSeconds * 1000,
+              isDisposed
             ),
         },
         getCurrentAudioRecoveryPolicy()
@@ -679,7 +725,8 @@ export class FlutterAudioNavigator {
       state: string,
       locator: Locator | undefined,
       alsoText: boolean
-    ) =>
+    ) => {
+      if (!nav) return;
       _emitState(
         state,
         nav,
@@ -691,6 +738,7 @@ export class FlutterAudioNavigator {
         onTextLocatorChanged,
         getTocHref
       );
+    };
 
     // Promise that resolves once the first track is loaded and the navigator is
     // ready for playback. Callers awaiting create() will block until this point,
@@ -700,6 +748,13 @@ export class FlutterAudioNavigator {
 
       const listeners: AudioNavigatorListeners = {
         trackLoaded: (_media) => {
+          if (createCancelled || isDisposed()) {
+            nav?.stop();
+            nav?.destroy();
+            resolve();
+            return;
+          }
+          if (!nav) return;
           if (!resolved) {
             resolved = true;
             log.info("AudioNavigator ready (first track loaded)");
@@ -708,6 +763,7 @@ export class FlutterAudioNavigator {
           }
         },
         positionChanged: (locator) => {
+          if (!nav) return;
           const time = locator.locations?.time?.() ?? nav.currentTime;
           const key = `${locator.href}#${Math.floor(time)}`;
           if (key !== lastPositionLogKey) {
@@ -751,6 +807,7 @@ export class FlutterAudioNavigator {
           emit("paused", locator, false);
         },
         trackEnded: (locator) => {
+          if (!nav) return;
           // Only emit "ended" when the publication is truly finished (last track).
           // Intermediate track-ends are followed by auto-advance; emitting "ended"
           // would cause Dart-side to close the player prematurely.
@@ -764,6 +821,7 @@ export class FlutterAudioNavigator {
           }
         },
         stalled: (isStalled) => {
+          if (!nav) return;
           // Suppress the underlying navigator's own loading/playing/paused churn
           // while a recovery attempt is in flight — only the pinned "loading"
           // state (emitted by the recovery controller) should reach the bridge.
@@ -772,6 +830,7 @@ export class FlutterAudioNavigator {
           emit(isStalled ? "loading" : nav.isPlaying ? "playing" : "paused", undefined, false);
         },
         error: (mediaError, locator) => {
+          if (!nav) return;
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
           clearStallWatchdog();
           lastAdvanceOffset = undefined;
@@ -797,7 +856,31 @@ export class FlutterAudioNavigator {
       nav = new AudioNavigator(publication, listeners, initialPosition, configuration);
     });
 
-    return await ready;
+    try {
+      return await withTimeout(
+        ready,
+        recoveryPolicy.connectionTimeoutSeconds * 1000,
+        `Timed out preparing audio playback after ${recoveryPolicy.connectionTimeoutSeconds}s`
+      );
+    } catch (error) {
+      const timedOut = error instanceof TimeoutError;
+      createCancelled = true;
+      clearStallWatchdog();
+      if (!isDisposed()) {
+        try {
+          nav?.stop();
+          nav?.destroy();
+        } catch (destroyError) {
+          log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
+        }
+        if (timedOut && emitCreateTimeoutError && !locatorMapper && bridge) {
+          bridge.emitError("Timed out preparing audio playback", "AudioStreamNetworkError", {
+            href: initialPosition?.href,
+          });
+        }
+      }
+      throw error;
+    }
   }
 }
 
