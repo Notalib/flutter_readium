@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
@@ -195,37 +196,51 @@ open class AudiobookNavigator(
                 return null
             }
 
-        return withMainContext {
-            audioNavigator?.close()
-            mediaServiceFacade?.closeSession()
+        // Bound the rebuild: under sustained connection loss createNavigator / MediaSession
+        // re-open can suspend indefinitely waiting on connectivity. The recovery loop only
+        // times out the play-verification phase, so an unbounded rebuild would stall the
+        // whole loop (no further attempts, never terminal). A null result (timeout or create
+        // failure) is treated as a failed attempt by the caller.
+        val rebuildTimeoutMs = (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+        return withTimeoutOrNull(rebuildTimeoutMs) {
+            withMainContext {
+                audioNavigator?.close()
+                mediaServiceFacade?.closeSession()
 
-            val newNavigator =
-                navigatorFactory
-                    .createNavigator(locator, preferences.toExoPlayerPreferences())
-                    .getOrElse { error ->
-                        PluginLog.e(TAG, "::rebuildNavigator - $error")
-                        null
-                    } ?: return@withMainContext null
+                val newNavigator =
+                    navigatorFactory
+                        .createNavigator(locator, preferences.toExoPlayerPreferences())
+                        .getOrElse { error ->
+                            PluginLog.e(TAG, "::rebuildNavigator - $error")
+                            null
+                        } ?: return@withMainContext null
 
-            // dispose() may have run while createNavigator suspended - do not retain a
-            // fresh player past close, or it resumes when connectivity returns.
-            if (disposed) {
-                newNavigator.close()
-                return@withMainContext null
+                // dispose() may have run while createNavigator suspended - do not retain a
+                // fresh player past close, or it resumes when connectivity returns.
+                if (disposed) {
+                    newNavigator.close()
+                    return@withMainContext null
+                }
+
+                audioNavigator = newNavigator
+                setupNavigatorListeners()
+
+                try {
+                    val mediaSession =
+                        mediaServiceFacade ?: PluginMediaServiceFacade(ReadiumReader.application).also { mediaServiceFacade = it }
+                    mediaSession.openSession(newNavigator) { isPlaying -> onIsPlayingFromPlayer(isPlaying) }
+                } catch (e: Exception) {
+                    PluginLog.e(TAG, "::rebuildNavigator - failed to reopen MediaSession: ${e.message}")
+                }
+
+                newNavigator
             }
-
-            audioNavigator = newNavigator
-            setupNavigatorListeners()
-
-            try {
-                val mediaSession =
-                    mediaServiceFacade ?: PluginMediaServiceFacade(ReadiumReader.application).also { mediaServiceFacade = it }
-                mediaSession.openSession(newNavigator) { isPlaying -> onIsPlayingFromPlayer(isPlaying) }
-            } catch (e: Exception) {
-                PluginLog.e(TAG, "::rebuildNavigator - failed to reopen MediaSession: ${e.message}")
-            }
-
-            newNavigator
+        } ?: run {
+            PluginLog.e(
+                TAG,
+                "::rebuildNavigator - no navigator within ${recoveryPolicy.stallTimeoutSeconds}s (timeout or create failure); attempt failed",
+            )
+            null
         }
     }
 
