@@ -5,8 +5,7 @@ void main() {
   group('ReadiumErrorCode.fromWire', () {
     test('parses every known wire string to its enum member', () {
       const expected = {
-        // Opening errors (OpeningReadiumExceptionType wire vocabulary,
-        // also emitted by Android's PublicationError.ReadiumExceptionType).
+        // Opening errors, shared by awaited failures and event payloads.
         'formatNotSupported': ReadiumErrorCode.formatNotSupported,
         'unsupportedScheme': ReadiumErrorCode.unsupportedScheme,
         'readingError': ReadiumErrorCode.readingError,
@@ -77,6 +76,7 @@ void main() {
         ReadiumErrorCode.audioStreamAuthError,
         ReadiumErrorCode.audioStreamHttpError,
         ReadiumErrorCode.audioStreamNetworkError,
+        ReadiumErrorCode.audioStreamRangeNotSupported,
         ReadiumErrorCode.audioStreamFileError,
         ReadiumErrorCode.audioStreamError,
       ]) {

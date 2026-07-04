@@ -23,6 +23,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Breaking**: awaited platform failures now surface a single `ReadiumException`
+  shape that wraps `ReadiumError`. The opening-specific Dart exception API
+  (`OpeningReadiumException`, `OpeningReadiumExceptionType`, and unused typed
+  subclasses) has been removed; handle failures via `e.code` / `e.codeEnum`.
+- **Breaking**: `ReadiumError` is now a plain value type instead of a Dart
+  `Error`, and native `stackTrace` is no longer part of the wire contract or
+  `toJson()`.
 - **Breaking**: `ReadiumError.data` (freeform string) is replaced by
   `details` (`Map<String, dynamic>?`) carrying structured fields
   `{href, attempt, maxAttempts, httpStatus}`. Legacy string payloads are

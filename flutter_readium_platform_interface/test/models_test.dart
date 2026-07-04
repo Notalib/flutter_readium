@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:ui' show Rect;
 
+import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -137,7 +137,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('ReadiumException', () {
     test('toString includes message', () {
-      const e = ReadiumException('something failed');
+      final e = ReadiumException(ReadiumError('something failed'));
       expect(e.toString(), contains('something failed'));
     });
 
@@ -146,24 +146,21 @@ void main() {
       expect(e, isA<ReadiumException>());
       expect(e.message, contains('boom'));
     });
-  });
 
-  group('OpeningReadiumException', () {
-    test('type is preserved', () {
-      const e = OpeningReadiumException(
-        'not found',
-        type: OpeningReadiumExceptionType.notFound,
+    test('fromPlatformException preserves structured error fields', () {
+      final e = ReadiumException.fromPlatformException(
+        PlatformException(
+          code: 'notFound',
+          message: 'Publication not found',
+          details: {'href': '/pub.epub', 'httpStatus': 404, 'message': 'native detail'},
+        ),
       );
-      expect(e.type, OpeningReadiumExceptionType.notFound);
-    });
 
-    test('toString includes type and message', () {
-      const e = OpeningReadiumException(
-        'msg',
-        type: OpeningReadiumExceptionType.forbidden,
-      );
-      expect(e.toString(), contains('forbidden'));
-      expect(e.toString(), contains('msg'));
+      expect(e.message, 'Publication not found');
+      expect(e.code, 'notFound');
+      expect(e.codeEnum, ReadiumErrorCode.notFound);
+      expect(e.href, '/pub.epub');
+      expect(e.httpStatus, 404);
     });
   });
 
@@ -206,6 +203,18 @@ void main() {
       });
       expect(error.details, {'message': 'attempt=1/3 href=/ch1.mp3'});
       expect(error.href, isNull);
+    });
+
+    test('ignores legacy stackTrace payload from stale producers', () {
+      final error = ReadiumError.fromJson({
+        'message': 'oops',
+        'code': 'notFound',
+        'stackTrace': 'native stack',
+      });
+
+      expect(error.message, 'oops');
+      expect(error.code, 'notFound');
+      expect(error.toJson().containsKey('stackTrace'), isFalse);
     });
 
     test('toJson omits data when details is null', () {

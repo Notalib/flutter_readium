@@ -1,107 +1,78 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
 import '../../flutter_readium_platform_interface.dart';
 
 class ReadiumException implements Exception {
-  const ReadiumException(this.message, {this.type});
+  ReadiumException(this.error);
 
-  final String message;
+  final ReadiumError error;
 
-  final Object? type;
+  String get message => error.message;
+
+  String? get code => error.code;
+
+  ReadiumErrorCode get codeEnum => error.codeEnum;
+
+  Map<String, dynamic>? get details => error.details;
+
+  String? get href => error.href;
+
+  int? get attempt => error.attempt;
+
+  int? get maxAttempts => error.maxAttempts;
+
+  int? get httpStatus => error.httpStatus;
+
+  bool get isFatal => error.isFatal;
+
+  bool get isInformational => error.isInformational;
 
   @override
-  String toString() => 'ReadiumException{$message}';
+  String toString() => 'ReadiumException{code: $code, message: $message, details: $details}';
 
-  static ReadiumException fromPlatformException(PlatformException ex) {
-    final type = OpeningReadiumExceptionType.values.firstWhereOrNull(
-      (v) => v.name == ex.code,
-    );
-    // `ex.details` is `Object?` on the platform channel — for most error paths
-    // it's a String, but the iOS HTTPError(.errorResponse) path puts the
-    // response headers Map there. Prefer `ex.message` (always a human-readable
-    // string from FlutterError on the native side), fall back to a stringified
-    // details, then a generic 'unknown'. Avoids a Map-to-String cast crash.
-    final message = ex.message ?? ex.details?.toString() ?? 'unknown';
-    return ReadiumException(message, type: type);
-  }
+  static ReadiumException fromPlatformException(PlatformException ex) =>
+      ReadiumException(ReadiumError.fromPlatformException(ex));
 
   static ReadiumException fromError(Object? err) {
     if (err is PlatformException) {
       return fromPlatformException(err);
-    } else {
-      return ReadiumException(err.toString(), type: err.runtimeType.toString());
     }
+    if (err is ReadiumError) return ReadiumException(err);
+    if (err is ReadiumException) return err;
+    return ReadiumException(ReadiumError(err?.toString() ?? 'unknown'));
   }
 }
 
-class PublicationNotSetReadiumException extends ReadiumException {
-  const PublicationNotSetReadiumException(super.message);
-
-  @override
-  String toString() => 'PublicationNotSetReadiumException{$message}';
-}
-
-class OfflineReadiumException extends ReadiumException {
-  const OfflineReadiumException([final String? message]) : super('Offline: $message');
-
-  @override
-  String toString() => 'OfflineReadiumException';
-}
-
-// Matched by name against the native `code` string (see
-// ReadiumException.fromPlatformException below), not by ordinal/position —
-// neither iOS (FlutterError code: string literals) nor Android
-// (PublicationError.ReadiumExceptionType.wireValue string constants) send an
-// ordinal. Member order here is cosmetic.
-enum OpeningReadiumExceptionType {
-  formatNotSupported,
-  readingError,
-  notFound,
-  forbidden,
-  unavailable,
-  incorrectCredentials,
-  unknown,
-}
-
-class OpeningReadiumException extends ReadiumException {
-  const OpeningReadiumException(super.message, {required super.type});
-
-  @override
-  String toString() => 'OpeningReadiumException{$type,$message}';
-}
-
-extension PlatformExceptionCodeExtension on PlatformException {
-  int? get intCode => code.isEmpty ? null : int.tryParse(code, radix: 10);
-}
-
-class ReadiumError implements Error {
+class ReadiumError {
   factory ReadiumError.fromJson(final Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
     final message = jsonObject.optString('message', remove: true);
     final code = jsonObject.optNullableString('code', remove: true);
     final rawData = jsonObject.opt('data', remove: true);
-    final stackTraceStr = jsonObject.optNullableString(
-      'stackTrace',
-      remove: true,
-    );
+    jsonObject.remove('stackTrace');
 
     return ReadiumError(
       message,
       code: code,
       details: _detailsFromWire(rawData),
-      stackTrace: stackTraceStr != null ? StackTrace.fromString(stackTraceStr) : null,
     );
+  }
+
+  factory ReadiumError.fromPlatformException(PlatformException ex) {
+    final details = _detailsFromWire(ex.details);
+    final detailMessage = details?.optNullableString('message');
+    final message = ex.message ?? detailMessage ?? ex.details?.toString() ?? 'unknown';
+    final code = ex.code.isEmpty ? null : ex.code;
+
+    return ReadiumError(message, code: code, details: details);
   }
 
   ReadiumError(
     this.message, {
     this.code,
     this.details,
-    final StackTrace? stackTrace,
-  }) : codeEnum = ReadiumErrorCode.fromWire(code),
-       stackTrace = stackTrace ?? StackTrace.current;
+  }) : codeEnum = ReadiumErrorCode.fromWire(code);
 
   /// Tolerates a stale native side still sending `data` as a freeform
   /// string (pre-R2 wire format) by wrapping it as `{"message": <string>}`,
@@ -123,6 +94,14 @@ class ReadiumError implements Error {
   /// Falls back to [ReadiumErrorCode.unknown] for unrecognised or missing
   /// codes — never throws.
   final ReadiumErrorCode codeEnum;
+
+  /// Mirrors [ReadiumErrorCode.isFatal] for convenience when handling stream
+  /// events or exception payloads directly.
+  bool get isFatal => codeEnum.isFatal;
+
+  /// Mirrors [ReadiumErrorCode.isInformational] for convenience when handling
+  /// stream events or exception payloads directly.
+  bool get isInformational => codeEnum.isInformational;
 
   /// Structured supplementary payload. All fields are optional and producer
   /// specific — see `docs/api-reference/error-codes.md`. Prefer the typed
@@ -146,9 +125,6 @@ class ReadiumError implements Error {
   int? get httpStatus => details?.optNullableInt('httpStatus');
 
   @override
-  final StackTrace? stackTrace;
-
-  @override
   bool operator ==(covariant final Object other) =>
       identical(this, other) || other is ReadiumError && other.message == message && other.code == code;
 
@@ -156,11 +132,10 @@ class ReadiumError implements Error {
   int get hashCode => message.hashCode ^ code.hashCode;
 
   @override
-  String toString() => 'ReadiumError(message: $message, code: $code details: $details, stackTrace: $stackTrace)';
+  String toString() => 'ReadiumError(message: $message, code: $code, details: $details)';
 
   Map<String, dynamic> toJson() => {}
     ..put('message', message)
     ..putOpt('code', code)
-    ..putObjectIfNotEmpty('data', details)
-    ..putOpt('stackTrace', stackTrace?.toString());
+    ..putObjectIfNotEmpty('data', details);
 }

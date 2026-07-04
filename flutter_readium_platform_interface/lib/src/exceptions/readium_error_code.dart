@@ -11,8 +11,8 @@ enum ReadiumErrorCategory {
   /// streaming or TTS.
   navigator,
 
-  /// Publication-opening failures (shared `OpeningReadiumExceptionType`
-  /// vocabulary, used by both the method-call and event-channel paths).
+  /// Publication-opening failures, used by both the method-call and
+  /// event-channel paths.
   opening,
 
   /// No known category — see [ReadiumErrorCode.unknown].
@@ -20,18 +20,17 @@ enum ReadiumErrorCategory {
 }
 
 /// Typed vocabulary for the wire `code` string carried by [ReadiumError] and
-/// [OpeningReadiumException].
+/// [ReadiumException].
 ///
 /// This enum only classifies known codes for client convenience — it never
-/// replaces the raw `code`/`type` string fields, which remain the source of
-/// truth. Parsing never throws: an unrecognised or missing wire code maps to
+/// replaces the raw `code` string field, which remains the source of truth.
+/// Parsing never throws: an unrecognised or missing wire code maps to
 /// [unknown].
 ///
 /// See `docs/api-reference/error-codes.md` for the full vocabulary table
 /// (which platforms emit which code, meaning, fatal/informational, category).
 enum ReadiumErrorCode {
-  // Opening errors — shared `OpeningReadiumExceptionType` (Dart) /
-  // `PublicationError.ReadiumExceptionType` (Android) wire vocabulary.
+  // Opening errors — shared cross-platform wire vocabulary.
   formatNotSupported,
   unsupportedScheme,
   readingError,
