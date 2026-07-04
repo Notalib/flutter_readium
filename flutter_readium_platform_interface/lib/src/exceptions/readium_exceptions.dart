@@ -49,7 +49,11 @@ class OfflineReadiumException extends ReadiumException {
   String toString() => 'OfflineReadiumException';
 }
 
-// Order must match native code.
+// Matched by name against the native `code` string (see
+// ReadiumException.fromPlatformException below), not by ordinal/position —
+// neither iOS (FlutterError code: string literals) nor Android
+// (PublicationError.ReadiumExceptionType.wireValue string constants) send an
+// ordinal. Member order here is cosmetic.
 enum OpeningReadiumExceptionType {
   formatNotSupported,
   readingError,
@@ -96,10 +100,19 @@ class ReadiumError implements Error {
     this.code,
     this.data,
     final StackTrace? stackTrace,
-  }) : stackTrace = stackTrace ?? StackTrace.current;
+  }) : codeEnum = ReadiumErrorCode.fromWire(code),
+       stackTrace = stackTrace ?? StackTrace.current;
 
   final String message;
+
+  /// Raw wire code as sent by the native side. Kept for backwards
+  /// compatibility and debugging; prefer [codeEnum] for typed handling.
   final String? code;
+
+  /// Typed classification of [code], parsed once at construction time.
+  /// Falls back to [ReadiumErrorCode.unknown] for unrecognised or missing
+  /// codes — never throws.
+  final ReadiumErrorCode codeEnum;
 
   final Object? data;
 
