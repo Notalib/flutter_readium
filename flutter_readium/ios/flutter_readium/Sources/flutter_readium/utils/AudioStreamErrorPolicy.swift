@@ -12,6 +12,15 @@ enum AudioStreamErrorAction: Equatable {
 }
 
 extension ReadError {
+  /// The HTTP status code behind this error, if it's an `.access(.http(.errorResponse))`
+  /// failure. `nil` for all other read-error shapes (offline, timeout, filesystem, etc.).
+  var httpStatus: Int? {
+    if case let .access(.http(.errorResponse(response))) = self {
+      return response.status.rawValue
+    }
+    return nil
+  }
+
   /// Classifies a resource read error for audio streaming purposes.
   var audioStreamAction: AudioStreamErrorAction {
     switch self {

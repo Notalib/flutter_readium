@@ -104,6 +104,46 @@ final class AudioStreamErrorPolicyTests: XCTestCase {
       ReadError.decoding("bad data").audioStreamAction,
       .fail(code: "AudioStreamError"))
   }
+
+  func testHttpStatusExtractsStatusFromErrorResponse() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 401)))).httpStatus, 401)
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 503)))).httpStatus, 503)
+  }
+
+  func testHttpStatusIsNilForNonErrorResponseCases() {
+    XCTAssertNil(ReadError.access(.http(.timeout(nil))).httpStatus)
+    XCTAssertNil(ReadError.access(.http(.offline(nil))).httpStatus)
+    XCTAssertNil(ReadError.cancelled.httpStatus)
+    XCTAssertNil(ReadError.decoding("bad data").httpStatus)
+  }
+}
+
+final class FlutterReadiumErrorTests: XCTestCase {
+  private func decodedJSON(_ jsonString: String) -> [String: Any] {
+    let data = jsonString.data(using: .utf8)!
+    return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+  }
+
+  func testSerializesStructuredDataObject() {
+    let error = FlutterReadiumError(
+      message: "boom", code: "AudioStreamRetry",
+      data: ["href": "ch1.mp3", "attempt": 1, "maxAttempts": 3])
+    let json = decodedJSON(error.toJsonString())
+
+    XCTAssertEqual(json["message"] as? String, "boom")
+    XCTAssertEqual(json["code"] as? String, "AudioStreamRetry")
+    let data = json["data"] as? [String: Any]
+    XCTAssertEqual(data?["href"] as? String, "ch1.mp3")
+    XCTAssertEqual(data?["attempt"] as? Int, 1)
+    XCTAssertEqual(data?["maxAttempts"] as? Int, 3)
+  }
+
+  func testOmitsDataKeyWhenNilOrEmpty() {
+    XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: nil).toJsonString())["data"])
+    XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: [:]).toJsonString())["data"])
+  }
 }
 
 final class AudioRecoveryPolicyTests: XCTestCase {

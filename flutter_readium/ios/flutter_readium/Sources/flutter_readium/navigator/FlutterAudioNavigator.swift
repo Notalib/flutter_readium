@@ -460,7 +460,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     case .ignore:
       return
     case let .fail(code):
-      enterFailureState(error: error, code: code, description: "Resource read failed: \(href)")
+      enterFailureState(
+        error: error, code: code, href: href.string, httpStatus: error.httpStatus,
+        description: "Resource read failed: \(href)")
     case .retry:
       startRecovery(href: href, error: error)
     }
@@ -480,7 +482,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
         sendErrorEvent(
           code: "AudioStreamRetry",
           message: error.localizedDescription,
-          data: "attempt=\(attempt)/\(_recoveryPolicy.maxAttempts) href=\(href)")
+          data: [
+            "href": href.string,
+            "attempt": attempt,
+            "maxAttempts": _recoveryPolicy.maxAttempts,
+          ])
         submitRecoveryState(.loading, locator: resumeLocator)
 
         try? await Task.sleep(nanoseconds: UInt64(_recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
@@ -496,6 +502,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       enterFailureState(
         error: error,
         code: "AudioStreamFailed",
+        href: href.string,
+        httpStatus: error.httpStatus,
         description: "Recovery failed after \(_recoveryPolicy.maxAttempts) attempts: \(href)")
     }
   }
@@ -528,7 +536,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   @MainActor
-  internal func enterFailureState(error: Error, code: String, description: String) {
+  internal func enterFailureState(
+    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, description: String
+  ) {
     Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
     _hasFailed = true
     _recoveryTask?.cancel()
@@ -537,7 +547,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _audioNavigator?.pause()
     _audioNavigator?.delegate = nil
     _audioNavigator = nil
-    sendErrorEvent(code: code, message: error.localizedDescription, data: description)
+    var data: [String: Any] = [:]
+    if let href { data["href"] = href }
+    if let httpStatus { data["httpStatus"] = httpStatus }
+    sendErrorEvent(code: code, message: error.localizedDescription, data: data)
     submitRecoveryState(.failure, locator: audioLocator)
   }
 
@@ -554,7 +567,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
   }
 
-  private func sendErrorEvent(code: String, message: String, data: String?) {
+  private func sendErrorEvent(code: String, message: String, data: [String: Any]? = nil) {
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(
       FlutterReadiumError(message: message, code: code, data: data).toJsonString())
   }

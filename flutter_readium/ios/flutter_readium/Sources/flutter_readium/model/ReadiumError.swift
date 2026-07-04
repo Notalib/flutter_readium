@@ -12,18 +12,21 @@ import Flutter
 struct FlutterReadiumError {
   let message: String
   let code: String?
-  let data: String?
+  /// Structured supplementary payload — a JSON object, not a freeform string.
+  /// Optional fields: `href`, `attempt`, `maxAttempts`, `httpStatus`. See
+  /// `docs/api-reference/error-codes.md`.
+  let data: [String: Any]?
 
-  init(message: String, code: String? = nil, data: String? = nil) {
+  init(message: String, code: String? = nil, data: [String: Any]? = nil) {
     self.message = message
     self.code = code
     self.data = data
   }
 
   func toJsonString() -> String {
-    var map: [String: String] = ["message": message]
+    var map: [String: Any] = ["message": message]
     if let code { map["code"] = code }
-    if let data { map["data"] = data }
+    if let data, !data.isEmpty { map["data"] = data }
     guard
       let bytes = try? JSONSerialization.data(withJSONObject: map),
       let str = String(data: bytes, encoding: .utf8)

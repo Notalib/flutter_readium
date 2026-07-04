@@ -679,7 +679,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     Log.readium.error("TimebasedNavigator error: \(error), description: \(String(describing: description))")
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: description).toJsonString())
+    let data: [String: Any]? = description.map { ["message": $0] }
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: data).toJsonString())
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, segmentDuration: TimeInterval?, isWordRange: Bool) {
