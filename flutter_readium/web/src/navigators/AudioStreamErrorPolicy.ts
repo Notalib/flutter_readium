@@ -11,16 +11,22 @@
  * mapping for "the browser gave up on the network fetch".
  */
 
+import { ReadiumErrorEventData } from "../bridge/ReadiumBridge";
+
 /** What the audio navigator should do about a playback failure. */
 export type AudioStreamErrorAction =
   | { kind: "ignore" }
   | { kind: "retry" }
-  | { kind: "fail"; code: string };
+  | { kind: "fail"; code: string; httpStatus?: number };
 
 export const AudioStreamErrorAction = {
   ignore: (): AudioStreamErrorAction => ({ kind: "ignore" }),
   retry: (): AudioStreamErrorAction => ({ kind: "retry" }),
-  fail: (code: string): AudioStreamErrorAction => ({ kind: "fail", code }),
+  fail: (code: string, httpStatus?: number): AudioStreamErrorAction => ({
+    kind: "fail",
+    code,
+    ...(httpStatus !== undefined ? { httpStatus } : {}),
+  }),
 };
 
 /**
@@ -96,8 +102,8 @@ export class AudioRecoveryPolicy {
  * element. `FlutterAudioNavigator` wires these to the real navigator.
  */
 export interface AudioRecoveryHooks {
-  /** Emit a bridge error event (message, code, optional data). */
-  emitError(message: string, code: string, data?: string): void;
+  /** Emit a bridge error event (message, code, optional structured data). */
+  emitError(message: string, code: string, data?: ReadiumErrorEventData): void;
   /** Pin the timebased state to "loading" (or, on terminal failure, "failure"). */
   setPinnedState(state: "loading" | "failure"): void;
   /**
@@ -167,7 +173,7 @@ export class AudioStreamRecoveryController {
       case "ignore":
         return;
       case "fail":
-        this.enterTerminalFailure(message, action.code);
+        this.enterTerminalFailure(message, action.code, resumeHref, action.httpStatus);
         return;
       case "retry":
         if (this.recovering) return; // recovery already in progress
@@ -180,11 +186,11 @@ export class AudioStreamRecoveryController {
     this.recovering = true;
     try {
       for (let attempt = 1; attempt <= this.policy.maxAttempts; attempt++) {
-        this.hooks.emitError(
-          message,
-          "AudioStreamRetry",
-          `attempt=${attempt}/${this.policy.maxAttempts} href=${href}`
-        );
+        this.hooks.emitError(message, "AudioStreamRetry", {
+          href,
+          attempt,
+          maxAttempts: this.policy.maxAttempts,
+        });
         this.hooks.setPinnedState("loading");
 
         await this.hooks.delay(this.policy.delayMillis(attempt));
@@ -192,7 +198,7 @@ export class AudioStreamRecoveryController {
         const recovered = await this.hooks.rebuildAndVerify(href);
         if (recovered) return; // regular state emissions resume
       }
-      this.enterTerminalFailure(message, "AudioStreamFailed");
+      this.enterTerminalFailure(message, "AudioStreamFailed", href);
     } finally {
       this.recovering = false;
     }
@@ -204,12 +210,21 @@ export class AudioStreamRecoveryController {
    * the last emitted state) so state churn from a torn-down navigator can't
    * un-latch it.
    */
-  private enterTerminalFailure(message: string, code: string): void {
+  private enterTerminalFailure(
+    message: string,
+    code: string,
+    href?: string,
+    httpStatus?: number
+  ): void {
     if (this.terminallyFailed) return;
     this.terminallyFailed = true;
 
     this.hooks.stopPlayback();
-    this.hooks.emitError(message, code);
+    this.hooks.emitError(
+      message,
+      code,
+      href !== undefined || httpStatus !== undefined ? { href, httpStatus } : undefined
+    );
     this.hooks.setPinnedState("failure");
   }
 }

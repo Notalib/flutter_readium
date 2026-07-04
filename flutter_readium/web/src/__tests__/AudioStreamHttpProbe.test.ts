@@ -17,22 +17,22 @@ function okResponse(status: number): { status: number; ok: boolean } {
 }
 
 describe("probeAudioStreamHttpStatus", () => {
-  it("HEAD 401 -> fail(AudioStreamAuthError)", async () => {
+  it("HEAD 401 -> fail(AudioStreamAuthError) with httpStatus", async () => {
     const fetch: FetchLike = async () => okResponse(401);
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError"));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError", 401));
   });
 
-  it("HEAD 403 -> fail(AudioStreamAuthError)", async () => {
+  it("HEAD 403 -> fail(AudioStreamAuthError) with httpStatus", async () => {
     const fetch: FetchLike = async () => okResponse(403);
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError"));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError", 403));
   });
 
-  it("HEAD other 4xx (404) -> fail(AudioStreamHTTPError)", async () => {
+  it("HEAD other 4xx (404) -> fail(AudioStreamHTTPError) with httpStatus", async () => {
     const fetch: FetchLike = async () => okResponse(404);
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError"));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404));
   });
 
   it("HEAD 5xx -> retry", async () => {
@@ -60,7 +60,7 @@ describe("probeAudioStreamHttpStatus", () => {
       return init?.method === "GET" ? okResponse(401) : okResponse(405);
     };
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError"));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamAuthError", 401));
     expect(calls).toHaveLength(2);
     expect(calls[0].init?.method).toBe("HEAD");
     expect(calls[1].init?.method).toBe("GET");
@@ -75,7 +75,7 @@ describe("probeAudioStreamHttpStatus", () => {
       return okResponse(404);
     };
     const result = await probeAudioStreamHttpStatus("https://x/track.mp3", { fetch });
-    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError"));
+    expect(result).toEqual(AudioStreamErrorAction.fail("AudioStreamHTTPError", 404));
     expect(call).toBe(2);
   });
 

@@ -98,7 +98,7 @@ function fakeHooks(rebuildResults: boolean[]): AudioRecoveryHooks & { calls: str
   return {
     calls,
     emitError(message, code, data) {
-      calls.push(`emitError(${code}${data ? `, ${data}` : ""})`);
+      calls.push(`emitError(${code}${data ? `, ${JSON.stringify(data)}` : ""})`);
     },
     setPinnedState(state) {
       calls.push(`setPinnedState(${state})`);
@@ -134,7 +134,7 @@ describe("AudioStreamRecoveryController", () => {
     controller.handle("err", AudioStreamErrorAction.fail("AudioStreamError"), "chap1.mp3");
     expect(hooks.calls).toEqual([
       "stopPlayback()",
-      "emitError(AudioStreamError)",
+      `emitError(AudioStreamError, ${JSON.stringify({ href: "chap1.mp3" })})`,
       "setPinnedState(failure)",
     ]);
     expect(controller.isTerminallyFailed()).toBe(true);
@@ -147,6 +147,17 @@ describe("AudioStreamRecoveryController", () => {
     hooks.calls.length = 0;
     controller.handle("err2", AudioStreamErrorAction.fail("AudioStreamNetworkError"), "chap1.mp3");
     expect(hooks.calls).toEqual([]);
+  });
+
+  it("fail: httpStatus on the action is included in the emitted data", () => {
+    const hooks = fakeHooks([]);
+    const controller = new AudioStreamRecoveryController(hooks);
+    controller.handle("err", AudioStreamErrorAction.fail("AudioStreamHTTPError", 404), "chap1.mp3");
+    expect(hooks.calls).toEqual([
+      "stopPlayback()",
+      `emitError(AudioStreamHTTPError, ${JSON.stringify({ href: "chap1.mp3", httpStatus: 404 })})`,
+      "setPinnedState(failure)",
+    ]);
   });
 
   it("clearFailure un-latches so a subsequent error is handled again", () => {
@@ -165,7 +176,7 @@ describe("AudioStreamRecoveryController", () => {
     controller.handle("err", AudioStreamErrorAction.retry(), "chap1.mp3");
     await flushMicrotasks();
     expect(hooks.calls).toEqual([
-      "emitError(AudioStreamRetry, attempt=1/3 href=chap1.mp3)",
+      `emitError(AudioStreamRetry, ${JSON.stringify({ href: "chap1.mp3", attempt: 1, maxAttempts: 3 })})`,
       "setPinnedState(loading)",
       "delay(1000)",
       "rebuildAndVerify(chap1.mp3)",
@@ -180,20 +191,20 @@ describe("AudioStreamRecoveryController", () => {
     controller.handle("err", AudioStreamErrorAction.retry(), "chap1.mp3");
     await flushMicrotasks();
     expect(hooks.calls).toEqual([
-      "emitError(AudioStreamRetry, attempt=1/3 href=chap1.mp3)",
+      `emitError(AudioStreamRetry, ${JSON.stringify({ href: "chap1.mp3", attempt: 1, maxAttempts: 3 })})`,
       "setPinnedState(loading)",
       "delay(1000)",
       "rebuildAndVerify(chap1.mp3)",
-      "emitError(AudioStreamRetry, attempt=2/3 href=chap1.mp3)",
+      `emitError(AudioStreamRetry, ${JSON.stringify({ href: "chap1.mp3", attempt: 2, maxAttempts: 3 })})`,
       "setPinnedState(loading)",
       "delay(2000)",
       "rebuildAndVerify(chap1.mp3)",
-      "emitError(AudioStreamRetry, attempt=3/3 href=chap1.mp3)",
+      `emitError(AudioStreamRetry, ${JSON.stringify({ href: "chap1.mp3", attempt: 3, maxAttempts: 3 })})`,
       "setPinnedState(loading)",
       "delay(4000)",
       "rebuildAndVerify(chap1.mp3)",
       "stopPlayback()",
-      "emitError(AudioStreamFailed)",
+      `emitError(AudioStreamFailed, ${JSON.stringify({ href: "chap1.mp3" })})`,
       "setPinnedState(failure)",
     ]);
     expect(controller.isTerminallyFailed()).toBe(true);
