@@ -105,6 +105,14 @@ open class AudiobookNavigator(
     private var isTerminallyFailed: Boolean = false
 
     /**
+     * Set once in [dispose]. Recovery/rebuild are cooperatively cancellable, so a rebuild
+     * already past its last suspension point could otherwise install a fresh player after
+     * the publication was closed. This latch makes dispose authoritative: no recovery
+     * starts and no rebuilt navigator is retained once it is set.
+     */
+    private var disposed: Boolean = false
+
+    /**
      * While a recovery attempt is in flight, the rebuilt navigator's own Buffering/Ready
      * state churn is suppressed - only the pinned Loading state (already emitted when the
      * attempt started) is visible to clients.
@@ -180,6 +188,7 @@ open class AudiobookNavigator(
      * Returns the new navigator, or null if the factory / rebuild step failed.
      */
     private suspend fun rebuildNavigator(locator: Locator?): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+        if (disposed) return null
         val navigatorFactory =
             buildNavigatorFactory() ?: run {
                 PluginLog.e(TAG, "::rebuildNavigator - Couldn't create AudioNavigatorFactory")
@@ -197,6 +206,13 @@ open class AudiobookNavigator(
                         PluginLog.e(TAG, "::rebuildNavigator - $error")
                         null
                     } ?: return@withMainContext null
+
+            // dispose() may have run while createNavigator suspended - do not retain a
+            // fresh player past close, or it resumes when connectivity returns.
+            if (disposed) {
+                newNavigator.close()
+                return@withMainContext null
+            }
 
             audioNavigator = newNavigator
             setupNavigatorListeners()
@@ -602,6 +618,7 @@ open class AudiobookNavigator(
         error: Error,
         terminalCode: String,
     ) {
+        if (disposed) return // publication closed - do not start recovering
         if (recoveryJob != null) return // recovery already in progress
 
         val resumeLocator = state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator
@@ -703,7 +720,7 @@ open class AudiobookNavigator(
                 var lastAdvanceOffset = navigator.playback.value.offset
                 var deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
 
-                while (isActive) {
+                while (isActive && !disposed) {
                     delay(1_000)
 
                     if (isRecovering || isTerminallyFailed) {
@@ -713,9 +730,11 @@ open class AudiobookNavigator(
                     }
 
                     val playback = navigator.playback.value
-                    if (!playback.playWhenReady || playback.state !is AudioNavigator.State.Ready) {
-                        // Not intending to play right now (paused/ended/buffering-but-not-ready
-                        // in a way already handled elsewhere) - not a stall, reset the window.
+                    if (!playback.playWhenReady || playback.state is AudioNavigator.State.Ended) {
+                        // Genuinely not trying to play (paused/ended) - not a stall, reset the
+                        // window. Note: Buffering with playWhenReady is NOT reset here - a network
+                        // stall sits in Buffering (never Ready), so that is exactly what the
+                        // watchdog must count toward the deadline.
                         lastAdvanceOffset = playback.offset
                         deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
                         continue
@@ -786,6 +805,7 @@ open class AudiobookNavigator(
         }
 
     override fun dispose() {
+        disposed = true
         recoveryJob?.cancel()
         recoveryJob = null
         stallWatchdogJob?.cancel()
