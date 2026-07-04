@@ -166,15 +166,37 @@ open class AudiobookNavigator(
         }
 
         withMainContext {
+            // Bound the initial create the same way the recovery rebuild is bounded: with no
+            // navigator yet the stall watchdog can't help, so opening a remote audiobook with
+            // no connectivity would otherwise suspend here forever (silent, no error). On
+            // timeout, surface a terminal error event and throw - consistent with the existing
+            // createNavigator-error path below, which already throws.
+            val connectTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
             audioNavigator =
-                navigatorFactory
-                    .createNavigator(
-                        this@AudiobookNavigator.initialLocator,
-                        preferences.toExoPlayerPreferences(),
-                    ).getOrElse { error ->
-                        PluginLog.e(TAG, "::initNavigator - $error")
-                        throw Exception(PublicationError.invoke(error).message)
-                    }
+                withTimeoutOrNull(connectTimeoutMs) {
+                    navigatorFactory
+                        .createNavigator(
+                            this@AudiobookNavigator.initialLocator,
+                            preferences.toExoPlayerPreferences(),
+                        ).getOrElse { error ->
+                            PluginLog.e(TAG, "::initNavigator - $error")
+                            throw Exception(PublicationError.invoke(error).message)
+                        }
+                } ?: run {
+                    val href = this@AudiobookNavigator.initialLocator?.href?.toString()
+                    PluginLog.e(
+                        TAG,
+                        "::initNavigator - createNavigator timed out after ${recoveryPolicy.connectionTimeoutSeconds}s",
+                    )
+                    ReadiumReader.emitError(
+                        ReadiumError(
+                            message = "Timed out preparing audio playback",
+                            code = "AudioStreamNetworkError",
+                            data = ReadiumErrorDetails(href = href),
+                        ),
+                    )
+                    throw Exception("Timed out preparing audio playback")
+                }
 
             setupNavigatorListeners()
         }
