@@ -201,7 +201,7 @@ open class AudiobookNavigator(
         // times out the play-verification phase, so an unbounded rebuild would stall the
         // whole loop (no further attempts, never terminal). A null result (timeout or create
         // failure) is treated as a failed attempt by the caller.
-        val rebuildTimeoutMs = (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+        val rebuildTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
         return withTimeoutOrNull(rebuildTimeoutMs) {
             withMainContext {
                 audioNavigator?.close()

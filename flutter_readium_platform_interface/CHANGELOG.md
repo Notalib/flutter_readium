@@ -14,7 +14,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
   `httpStatus`.
 - `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop
-  (retry attempts, backoff, stall-watchdog timeout) shared by the
+  (retry attempts, backoff, stall-watchdog timeout, per-attempt connection
+  timeout) shared by the
   iOS/Android/web audio navigators; apply via
   `FlutterReadium().setAudioRecoveryPolicy(policy)`. Defaults reproduce prior
   recovery behaviour. Fields and semantics:

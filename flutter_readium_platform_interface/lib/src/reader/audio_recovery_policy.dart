@@ -19,12 +19,14 @@ class AudioRecoveryPolicy with EquatableMixin {
     this.maxAttempts = 3,
     this.backoffBaseSeconds = 1.0,
     this.stallTimeoutSeconds = 20.0,
+    this.connectionTimeoutSeconds = 10.0,
   });
 
   factory AudioRecoveryPolicy.fromJson(Map<String, dynamic> json) => AudioRecoveryPolicy(
     maxAttempts: (json['maxAttempts'] as num?)?.toInt() ?? 3,
     backoffBaseSeconds: (json['backoffBaseSeconds'] as num?)?.toDouble() ?? 1.0,
     stallTimeoutSeconds: (json['stallTimeoutSeconds'] as num?)?.toDouble() ?? 20.0,
+    connectionTimeoutSeconds: (json['connectionTimeoutSeconds'] as num?)?.toDouble() ?? 10.0,
   );
 
   /// Maximum number of automatic recovery attempts before entering a
@@ -42,22 +44,37 @@ class AudioRecoveryPolicy with EquatableMixin {
   /// normal seek/chapter-boundary buffering. Defaults to `20.0`.
   final double stallTimeoutSeconds;
 
+  /// How long, in seconds, a single recovery attempt may spend rebuilding the
+  /// player / (re)connecting before that attempt is abandoned and the loop
+  /// moves on (to the next attempt, or to terminal failure). Bounds a stalled
+  /// connect so a dead network can't hang recovery indefinitely. Defaults to
+  /// `10.0`.
+  final double connectionTimeoutSeconds;
+
   Map<String, Object?> toJson() => {
     'maxAttempts': maxAttempts,
     'backoffBaseSeconds': backoffBaseSeconds,
     'stallTimeoutSeconds': stallTimeoutSeconds,
+    'connectionTimeoutSeconds': connectionTimeoutSeconds,
   };
 
   AudioRecoveryPolicy copyWith({
     int? maxAttempts,
     double? backoffBaseSeconds,
     double? stallTimeoutSeconds,
+    double? connectionTimeoutSeconds,
   }) => AudioRecoveryPolicy(
     maxAttempts: maxAttempts ?? this.maxAttempts,
     backoffBaseSeconds: backoffBaseSeconds ?? this.backoffBaseSeconds,
     stallTimeoutSeconds: stallTimeoutSeconds ?? this.stallTimeoutSeconds,
+    connectionTimeoutSeconds: connectionTimeoutSeconds ?? this.connectionTimeoutSeconds,
   );
 
   @override
-  List<Object?> get props => [maxAttempts, backoffBaseSeconds, stallTimeoutSeconds];
+  List<Object?> get props => [
+    maxAttempts,
+    backoffBaseSeconds,
+    stallTimeoutSeconds,
+    connectionTimeoutSeconds,
+  ];
 }

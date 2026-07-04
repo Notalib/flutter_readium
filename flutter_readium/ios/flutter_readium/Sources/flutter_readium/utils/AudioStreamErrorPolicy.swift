@@ -71,6 +71,10 @@ struct AudioRecoveryPolicy {
   /// (while playback is intended to be running) before the stall watchdog
   /// synthesizes a retryable error and enters the recovery loop.
   var stallTimeoutSeconds: TimeInterval = 20.0
+  /// How long, in seconds, a single recovery attempt may spend rebuilding the
+  /// player / reconnecting before that attempt is abandoned and the loop moves
+  /// on. Bounds a stalled connect so a dead network can't hang recovery.
+  var connectionTimeoutSeconds: TimeInterval = 10.0
 
   func delay(forAttempt attempt: Int) -> TimeInterval {
     backoffBaseSeconds * pow(2.0, Double(max(attempt, 1) - 1))
@@ -89,7 +93,8 @@ struct AudioRecoveryPolicy {
     return AudioRecoveryPolicy(
       maxAttempts: (map["maxAttempts"] as? NSNumber)?.intValue ?? 3,
       backoffBaseSeconds: (map["backoffBaseSeconds"] as? NSNumber)?.doubleValue ?? 1.0,
-      stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0
+      stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0,
+      connectionTimeoutSeconds: (map["connectionTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 10.0
     )
   }
 }

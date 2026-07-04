@@ -101,7 +101,13 @@ export class AudioRecoveryPolicy {
      * (while playback is intended to be running) before the stall watchdog
      * synthesizes a retryable error and enters the recovery loop.
      */
-    public readonly stallTimeoutSeconds: number = 20.0
+    public readonly stallTimeoutSeconds: number = 20.0,
+    /**
+     * How long, in seconds, a single recovery attempt may spend rebuilding the
+     * player / reconnecting before that attempt is abandoned and the loop moves
+     * on. Bounds a stalled connect so a dead network can't hang recovery.
+     */
+    public readonly connectionTimeoutSeconds: number = 10.0
   ) {}
 
   delayMillis(forAttempt: number): number {
@@ -120,7 +126,14 @@ export class AudioRecoveryPolicy {
       typeof json.backoffBaseSeconds === "number" ? json.backoffBaseSeconds : 1.0;
     const stallTimeoutSeconds =
       typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 20.0;
-    return new AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds);
+    const connectionTimeoutSeconds =
+      typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 10.0;
+    return new AudioRecoveryPolicy(
+      maxAttempts,
+      backoffBaseSeconds,
+      stallTimeoutSeconds,
+      connectionTimeoutSeconds
+    );
   }
 }
 

@@ -561,6 +561,7 @@ void main() {
       expect(policy.maxAttempts, 3);
       expect(policy.backoffBaseSeconds, 1.0);
       expect(policy.stallTimeoutSeconds, 20.0);
+      expect(policy.connectionTimeoutSeconds, 10.0);
     });
 
     test('toJson emits a flat map (not nested/JSON-encoded)', () {
@@ -568,11 +569,13 @@ void main() {
         maxAttempts: 5,
         backoffBaseSeconds: 2.0,
         stallTimeoutSeconds: 15.0,
+        connectionTimeoutSeconds: 8.0,
       );
       expect(policy.toJson(), {
         'maxAttempts': 5,
         'backoffBaseSeconds': 2.0,
         'stallTimeoutSeconds': 15.0,
+        'connectionTimeoutSeconds': 8.0,
       });
     });
 
@@ -581,6 +584,7 @@ void main() {
         maxAttempts: 4,
         backoffBaseSeconds: 1.5,
         stallTimeoutSeconds: 30.0,
+        connectionTimeoutSeconds: 12.0,
       );
       final restored = AudioRecoveryPolicy.fromJson(policy.toJson());
       expect(restored, policy);

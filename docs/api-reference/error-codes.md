@@ -79,6 +79,7 @@ await FlutterReadium().setAudioRecoveryPolicy(
 | `maxAttempts` | `3` | Automatic recovery attempts before entering a terminal failure state |
 | `backoffBaseSeconds` | `1.0` | Base delay between attempts (`backoffBaseSeconds * 2^(attempt-1)`, i.e. 1s/2s/4s with the default) |
 | `stallTimeoutSeconds` | `20.0` | How long playback can go without its offset advancing (while intended to be playing) before a stall is treated as a retryable error |
+| `connectionTimeoutSeconds` | `10.0` | How long a single recovery attempt may spend rebuilding the player / reconnecting before that attempt is abandoned and the loop moves on (next attempt, or terminal). Bounds a stalled connect so a dead network can't hang recovery indefinitely |
 
 Set once — it applies to the next-opened publication and to any in-flight recovery loop, not to an already-running attempt sequence. Defaults reproduce the recovery behaviour that shipped before this policy existed, so an unconfigured consumer sees no change.
 

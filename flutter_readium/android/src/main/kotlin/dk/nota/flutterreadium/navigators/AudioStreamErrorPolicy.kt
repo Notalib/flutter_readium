@@ -83,6 +83,12 @@ data class AudioRecoveryPolicy(
      * synthesizes a retryable error and enters the recovery loop.
      */
     val stallTimeoutSeconds: Double = 20.0,
+    /**
+     * How long, in seconds, a single recovery attempt may spend rebuilding the
+     * player / reconnecting before that attempt is abandoned and the loop moves
+     * on. Bounds a stalled connect so a dead network can't hang recovery.
+     */
+    val connectionTimeoutSeconds: Double = 10.0,
 ) {
     fun delayMillis(forAttempt: Int): Long {
         val attempt = maxOf(forAttempt, 1) - 1
@@ -96,7 +102,8 @@ data class AudioRecoveryPolicy(
             val maxAttempts = (map["maxAttempts"] as? Number)?.toInt() ?: 3
             val backoffBaseSeconds = (map["backoffBaseSeconds"] as? Number)?.toDouble() ?: 1.0
             val stallTimeoutSeconds = (map["stallTimeoutSeconds"] as? Number)?.toDouble() ?: 20.0
-            return AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds)
+            val connectionTimeoutSeconds = (map["connectionTimeoutSeconds"] as? Number)?.toDouble() ?: 10.0
+            return AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds, connectionTimeoutSeconds)
         }
     }
 }

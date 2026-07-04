@@ -79,8 +79,10 @@ await FlutterReadium().setAudioRecoveryPolicy(
 
 - Set it **once**, before opening the publication you want it to apply to. It also
   affects any in-flight recovery loop, but not an already-running attempt sequence.
-- Defaults (`maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 20.0`)
-  reproduce the built-in behaviour, so leaving it unset changes nothing.
+- Defaults (`maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 20.0`,
+  `connectionTimeoutSeconds: 10.0`) reproduce the built-in behaviour, so leaving it
+  unset changes nothing. `connectionTimeoutSeconds` bounds each recovery attempt's
+  reconnect so a dead network can't hang recovery indefinitely.
 - Raise `stallTimeoutSeconds` if legitimate slow networks or long chapter-boundary
   buffering trip the stall watchdog; lower it to fail faster. Field semantics:
   [error-codes.md#audiorecoverypolicy](../api-reference/error-codes.md#audiorecoverypolicy).
