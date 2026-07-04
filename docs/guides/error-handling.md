@@ -1,32 +1,26 @@
 # Error Handling
 
-## Exception hierarchy
+## Awaited call failures
 
-```
-ReadiumException
-├── OpeningReadiumException   — publication failed to open (has a typed cause)
-├── PublicationNotSetReadiumException — operation before openPublication
-└── OfflineReadiumException   — network content unavailable offline
-```
+Awaited plugin calls throw `ReadiumException`, which wraps a `ReadiumError`.
+Use `e.code` for the raw wire string and `e.codeEnum` for typed handling.
 
 ## Catching errors on open
 
 ```dart
 try {
   final pub = await reader.openPublication(url);
-} on OpeningReadiumException catch (e) {
-  switch (e.type) {
-    case OpeningReadiumExceptionType.notFound:
+} on ReadiumException catch (e) {
+  switch (e.codeEnum) {
+    case ReadiumErrorCode.notFound:
       showError('File not found');
-    case OpeningReadiumExceptionType.formatNotSupported:
+    case ReadiumErrorCode.formatNotSupported:
       showError('Format not supported');
-    case OpeningReadiumExceptionType.forbidden:
+    case ReadiumErrorCode.forbidden:
       showError('Access forbidden');
     default:
       showError('Cannot open: ${e.message}');
   }
-} on ReadiumException catch (e) {
-  showError(e.message);
 }
 ```
 
@@ -49,6 +43,31 @@ failures during remote playback are recoverable and have their own flow — see
 [audio-network-recovery.md](audio-network-recovery.md).
 
 Always cancel this subscription in `dispose()`.
+
+## Sentry
+
+For awaited calls, capture the Dart callsite stack:
+
+```dart
+try {
+  await reader.openPublication(url);
+} on ReadiumException catch (e, st) {
+  await Sentry.captureException(e, stackTrace: st);
+}
+```
+
+For stream events, record the `ReadiumError` payload as context:
+
+```dart
+reader.onErrorEvent.listen((error) {
+  Sentry.captureMessage(
+    'Readium error event',
+    withScope: (scope) {
+      scope.setContexts('readiumError', error.toJson());
+    },
+  );
+});
+```
 
 ## Navigation errors
 
@@ -88,5 +107,5 @@ The native log level follows the Dart `setLogLevel` setting.
 
 - Wrap `openPublication` in a try/catch — never assume a path is valid.
 - Subscribe to `onErrorEvent` early and log or surface errors to users.
-- Use `OpeningReadiumException.type` to give actionable messages rather than raw error strings.
+- Use `ReadiumException.codeEnum` / `ReadiumError.codeEnum` to give actionable messages rather than raw strings.
 - Always cancel stream subscriptions in `dispose()`.

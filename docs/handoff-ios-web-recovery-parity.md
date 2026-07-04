@@ -55,8 +55,8 @@ the log confirms which.
   failures → error event. Decide whether init-timeout is method-call-only (drop the event) or
   keep both. Lean: method-call-only, per the two-paths model.
 - **Option A ⚖️ items** (4) in [unified-error-surface-draft.md](unified-error-surface-draft.md):
-  adopt A; deprecate `OpeningReadiumExceptionType` (alias-one-release vs hard-cut); drop
-  `stackTrace` from the wire; timing of steps 3–4. User has pre-approved **Option A**.
+  adopt A; hard-cut the opening-specific Dart exception API; drop `stackTrace`
+  from the wire; timing of steps 3–4. User has pre-approved **Option A**.
 - **connectionTimeoutSeconds default** is 10s; confirmed by user. Stall watchdog default 20s.
 
 ## 4. Skills to use

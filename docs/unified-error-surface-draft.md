@@ -1,14 +1,14 @@
-# Unified Error Surface — Draft for Discussion
+# Unified Error Surface
 
-Status: draft, 2026-07-04. Follow-up to [error-mapping-assessment.md](error-mapping-assessment.md) "out of scope" item. No decisions made; ⚖️ marks the ones to take.
+Status: implemented on 2026-07-04. This note records the chosen shape.
 
 ## The two paths today
 
 | | Path 1: method-call errors | Path 2: async error events |
 |---|---|---|
 | Transport | `PlatformException(code, message, details)` on the method channel result | JSON on `dk.nota.flutter_readium/error` EventChannel |
-| Dart type | `ReadiumException` hierarchy (`OpeningReadiumException`, …) | `ReadiumError { message, code?, data?, stackTrace? }` |
-| Vocabulary | `OpeningReadiumExceptionType` (name-matched) | Free-form strings (being consolidated into `ReadiumErrorCode` by R1) |
+| Dart type | `ReadiumException(ReadiumError)` | `ReadiumError { message, code?, data? }` |
+| Vocabulary | Shared `ReadiumErrorCode` wire strings | Shared `ReadiumErrorCode` wire strings |
 | Client ergonomics | try/catch per call | one stream subscription |
 
 Same underlying failures (e.g. an HTTP 401 from a publication server) surface through either path depending on *when* they happen — open time vs streaming time — with different types, codes, and payload shapes. Clients write two error handlers that can't share logic.
@@ -17,12 +17,12 @@ Same underlying failures (e.g. an HTTP 401 from a publication server) surface th
 
 **A. Shared taxonomy, separate transports (recommended).**
 Keep both transports — they serve different purposes (request-scoped vs ambient) — but make them speak one language:
-1. Both paths use the single `ReadiumErrorCode` vocabulary (R1). Native method-call failures set `PlatformException.code` to the same wire strings the event channel uses; `OpeningReadiumExceptionType` becomes a deprecated alias mapped onto the shared enum.
+1. Both paths use the single `ReadiumErrorCode` vocabulary (R1). Native method-call failures set `PlatformException.code` to the same wire strings the event channel uses.
 2. Both paths carry the same structured payload shape (R2's `details` map: `href`, `httpStatus`, `attempt`, …) — `PlatformException.details` and event `data` become the same JSON object contract.
 3. Dart converges on **one error value type**: `ReadiumError` (code enum, message, details, `isFatal`/`isInformational`). `ReadiumException` becomes a thin `Exception` wrapper around a `ReadiumError` (kept because idiomatic Dart wants throwables from awaited calls) — one classification, two delivery mechanisms.
 4. Each native side gets a single error-construction helper used by both the method-result error path and the event emission path (iOS: one `FlutterReadiumError` factory also producing `FlutterError`; Android: `ReadiumError` also backing `Result.error(...)`; web: the bridge `emitError` + promise rejections share a builder).
 
-Migration cost: moderate, mostly mechanical; breaking for clients catching `OpeningReadiumException` by `type` (pre-1.0, acceptable with a minor bump + changelog). Fully incremental after R1+R2 land — A is essentially "finish what R1/R2 started".
+Migration cost: moderate, mostly mechanical; the implementation took the planned hard cut and removed the opening-specific Dart exception API entirely.
 
 **B. Everything on the error stream.**
 Method calls return void/bool; all failures are emitted as events. One handler for everything.
@@ -54,12 +54,12 @@ class ReadiumException implements Exception {
 Stream<ReadiumError> get onErrorEvent;
 ```
 
-## ⚖️ Decisions needed
+## Decisions taken
 
-1. Adopt Option A? (B/C documented as rejected unless you disagree.)
-2. Deprecation strategy for `OpeningReadiumExceptionType` / typed exception subclasses: alias-and-deprecate for one release, or hard-cut in the next minor (pre-1.0)?
-3. Keep `stackTrace` on the wire? It's native-side trace, rarely actionable for Dart clients — proposal: drop from the contract, keep in native logs.
-4. Timing: Option A step 1–2 fall out of R1+R2 nearly for free; steps 3–4 (type convergence + native helpers) are a separate PR. Do them immediately after, or park until a client actually needs it?
+1. Adopted Option A.
+2. Hard-cut the opening-specific Dart exception API.
+3. Dropped `stackTrace` from the wire; native stacks stay in native logs.
+4. Implemented steps 3–4 in the same PR.
 
 ## Affected surface (Option A, steps 3–4)
 

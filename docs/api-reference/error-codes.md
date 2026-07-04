@@ -1,6 +1,6 @@
 # Error codes
 
-`ReadiumErrorCode` (platform interface) is a typed classification of the wire `code` string carried by two distinct error paths — see [streams-events.md](./streams-events.md#onerrorevent) for `ReadiumError` and `readium_exceptions.dart` for `OpeningReadiumException`. It never replaces the raw string fields (`ReadiumError.code`, `OpeningReadiumException.type`); parsing is additive and non-breaking.
+`ReadiumErrorCode` (platform interface) is a typed classification of the wire `code` string carried by two distinct error paths — `ReadiumException.error` for awaited failures and `ReadiumError` for stream events. It never replaces the raw `code` string; parsing is additive and non-breaking.
 
 ```dart
 reader.onErrorEvent.listen((error) {

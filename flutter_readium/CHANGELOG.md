@@ -20,6 +20,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Breaking**: awaited opening/navigation failures now use the unified
+  `ReadiumException(ReadiumError)` surface across native and web transports.
+  `PlatformException.code` for Readium/domain failures now matches the shared
+  `ReadiumErrorCode` wire strings, and `details` carries the same structured
+  payload shape as error-stream events.
 - **Breaking**: error events' `data` payload is now a structured JSON object
   (`{href, attempt, maxAttempts, httpStatus}`, fields optional) instead of a
   freeform string — surfaced in Dart as `ReadiumError.details` with typed

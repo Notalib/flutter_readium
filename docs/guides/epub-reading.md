@@ -11,10 +11,8 @@ late Publication _publication;
 Future<void> _open(String url) async {
   try {
     _publication = await reader.openPublication(url);
-  } on OpeningReadiumException catch (e) {
-    _showError('Cannot open: ${e.message}');
   } on ReadiumException catch (e) {
-    _showError(e.message);
+    _showError('Cannot open (${e.code ?? e.codeEnum.name}): ${e.message}');
   }
 }
 

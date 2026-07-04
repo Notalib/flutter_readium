@@ -1,12 +1,12 @@
 # Error Mapping Assessment — Native → Dart Clients
 
-Status: proposal, 2026-07-04. No code changes; decisions marked ⚖️ need sign-off.
+Status: superseded by [unified-error-surface-draft.md](unified-error-surface-draft.md), 2026-07-04.
 
 ## Current state
 
 Two distinct error paths reach clients:
 
-**1. Method-call errors** — `PlatformException` → `ReadiumException.fromPlatformException` ([readium_exceptions.dart](../flutter_readium_platform_interface/lib/src/exceptions/readium_exceptions.dart)). Typed via `OpeningReadiumExceptionType`, matched **by name** (`v.name == ex.code`), though the enum carries a "order must match native code" comment — order-coupling appears stale; needs verification.
+**1. Method-call errors** — `PlatformException` → `ReadiumException.fromPlatformException` ([readium_exceptions.dart](../flutter_readium_platform_interface/lib/src/exceptions/readium_exceptions.dart)). Option A replaced the opening-specific exception enum with the shared `ReadiumErrorCode` classifier.
 
 **2. Async error events** — `dk.nota.flutter_readium/error` EventChannel → `ReadiumError { message, code?, data?, stackTrace? }`. Three producers, three vocabularies:
 
@@ -26,13 +26,13 @@ Two distinct error paths reach clients:
 
 ## Recommendations (incremental, ordered by value/cost)
 
-**R1 — Dart error-code enum (cheap, do first).** Add `ReadiumErrorCode` to the platform interface: all documented codes + `unknown` fallback, parsed once in `ReadiumError.fromJson` (keep the raw `code` string alongside — non-breaking). Add derived getters: `isTerminal`, `category` (audioStream / tts / opening / navigator / unknown). Document the vocabulary in `docs/api-reference/`. Native sides unchanged.
+**R1 — Dart error-code enum (cheap, do first).** Add `ReadiumErrorCode` to the platform interface: all documented codes + `unknown` fallback, parsed once in `ReadiumError.fromJson` (keep the raw `code` string alongside — non-breaking). Add derived getters: `isFatal`, `isInformational`, `category` (audioStream / tts / opening / navigator / unknown). Document the vocabulary in `docs/api-reference/`. Native sides unchanged.
 
 **R2 — Structured `data` ⚖️ (wire-format change).** Replace freeform `data` strings with a JSON object: `{ "href": …, "attempt": 1, "maxAttempts": 3, "httpStatus": 401 }` (fields optional per code). Dart: `Map<String, dynamic>? details` + typed getters. Breaking only for clients parsing today's strings (unlikely, format is 1 day old). All three platforms touched; do together with the parity work while it's fresh.
 
-**R3 — Severity: derive, don't transport.** `isTerminal`/`isInformational` computed from the code enum in Dart (R1). No wire change needed; skip adding a `severity` field.
+**R3 — Severity: derive, don't transport.** `isFatal`/`isInformational` computed from the code enum in Dart (R1). No wire change needed; skip adding a `severity` field.
 
-**R4 — Verify/fix the `OpeningReadiumExceptionType` coupling.** Matching is by name, so confirm the "order must match" comment is stale and delete it, or fix the real ordinal dependency if one exists on the Android side.
+**R4 — Remove the opening-specific exception coupling.** The implemented hard cut deleted the old opening-only Dart exception API and routes method-call failures through `ReadiumException(ReadiumError)`.
 
 **R5 — Example app as reference consumer.** Switch on the enum: auth → "check your sign-in" dialog, network-terminal → "check connection" dialog + retry button wired to `play()`, `AudioStreamRetry` → transient banner/snackbar instead of log-only.
 
