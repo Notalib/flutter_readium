@@ -47,9 +47,14 @@ export class ReadiumBridge {
    * Emit a non-fatal error to Flutter.
    * @param message Human-readable error description.
    * @param code    Optional machine-readable error code.
+   * @param data    Optional machine-readable supplementary payload (e.g.
+   *                "attempt=1/3 href=..."). Mirrors `ReadiumError.data` on the
+   *                Dart side (see `ReadiumError.fromJson`).
    */
-  emitError(message: string, code?: string): void {
-    window.onErrorCallback?.(JSON.stringify({ message, ...(code ? { code } : {}) }));
+  emitError(message: string, code?: string, data?: string): void {
+    window.onErrorCallback?.(
+      JSON.stringify({ message, ...(code ? { code } : {}), ...(data ? { data } : {}) })
+    );
   }
 
   /**
