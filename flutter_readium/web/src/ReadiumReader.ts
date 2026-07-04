@@ -341,7 +341,11 @@ class _ReadiumReader {
           (nav) => {
             this._audioNav = nav;
             this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-          }
+          },
+          undefined,
+          undefined,
+          undefined,
+          this._bridge
         );
       } else {
         // EPUB and WebPub navigators render into a DOM container.
@@ -586,6 +590,7 @@ class _ReadiumReader {
     // publication (and the visual Media Overlay sync would run against a
     // torn-down frame).
     setAudioEmissionsEnabled(false);
+    FlutterAudioNavigator.resetRecovery();
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
     this._audioNav?.stop();
@@ -658,6 +663,33 @@ class _ReadiumReader {
       return;
     }
     if (!this._audioNav) return;
+
+    // Retrying after a terminal streaming failure: the failed navigator was
+    // already stopped by the recovery controller and is never reusable (no
+    // re-prepare API), so clear the latch and rebuild fresh at the last
+    // locator — mirrors iOS/Android's play()-after-failure contract.
+    if (FlutterAudioNavigator.isTerminallyFailed()) {
+      log.info("play: retrying after terminal audio streaming failure");
+      FlutterAudioNavigator.retryAfterFailure();
+      const resumeLocator = locatorJson
+        ? Locator.deserialize(JSON.parse(locatorJson)) ?? this._audioNav.currentLocator
+        : this._audioNav.currentLocator;
+      void FlutterAudioNavigator.create(
+        this._publication as ReadiumPublication,
+        resumeLocator,
+        "{}",
+        (nav) => {
+          this._audioNav = nav;
+          nav.play();
+        },
+        undefined,
+        undefined,
+        undefined,
+        this._bridge
+      );
+      return;
+    }
+
     if (locatorJson) {
       let locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
@@ -699,6 +731,7 @@ class _ReadiumReader {
     // Keep the plugin-level stop contract aligned with native: stop tears down
     // the active timebased navigator. Clients must call audioEnable() again.
     setAudioEmissionsEnabled(false);
+    FlutterAudioNavigator.resetRecovery();
     this._stoppedAudioLocator = audioNav.currentLocator;
     log.info(
       "stop: destroying audio navigator",
