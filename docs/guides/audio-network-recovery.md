@@ -47,7 +47,7 @@ _errorSub = FlutterReadium().onErrorEvent.listen((error) {
     // Terminal: recovery gave up. Offer an actionable retry.
     showFailureDialog(
       message: switch (error.codeEnum) {
-        ReadiumErrorCode.audioStreamAuthError => 'There was a problem signing you in.',
+        ReadiumErrorCode.audioStreamAuthError => 'Authentication error, login may have expired.',
         _ => 'There was a problem with your connection.',
       },
       onRetry: () => FlutterReadium().play(), // resumes from the last position

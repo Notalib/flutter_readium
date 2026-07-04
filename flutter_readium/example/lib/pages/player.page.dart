@@ -73,7 +73,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
 
   void _showAudioStreamFailureDialog(final ReadiumError error) {
     final String message = switch (error.codeEnum) {
-      ReadiumErrorCode.audioStreamAuthError => 'There was a problem signing you in. Please try again.',
+      ReadiumErrorCode.audioStreamAuthError => 'Authentication error, login may have expired. Please try again.',
       ReadiumErrorCode.audioStreamNetworkError ||
       ReadiumErrorCode.audioStreamHttpError ||
       ReadiumErrorCode.audioStreamFailed => 'There was a problem with your connection. Please try again.',
