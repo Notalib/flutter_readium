@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Audio streaming error events + connection recovery** — failures while
+  streaming remote audiobook resources (network loss, HTTP/auth errors) are
+  now reported on the error stream and no longer silently swallowed. Transient
+  failures trigger automatic recovery (3 attempts, exponential backoff) with an
+  `AudioStreamRetry` event per attempt while the timebased state stays
+  `loading`; terminal failures emit a coded event
+  (`AudioStreamAuthError` for HTTP 401/403, `AudioStreamHTTPError` for other
+  4xx, `AudioStreamNetworkError`, `AudioStreamError`, or `AudioStreamFailed`
+  when retries are exhausted) together with `TimebasedState.failure`, after
+  which calling `play()` retries from the last position. Supported on iOS,
+  Android, and Web — on Web, browsers do not expose HTTP status codes for
+  media loads, so auth/HTTP errors surface as `AudioStreamNetworkError` /
+  `AudioStreamError` instead.
+
+### Fixed
+
+- Android: audio playback failures previously emitted a generic error event
+  with no failure classification and no way to resume; they now use the coded
+  events above and support retry via `play()`.
+
 ## [0.2.0] - 2026-07-02
 
 ### Added
