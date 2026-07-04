@@ -34,11 +34,14 @@ export interface MediaErrorLike {
 }
 
 // MediaError.code constants (see MDN): the real values, duplicated here so
-// this module has no dependency on the DOM lib being loaded.
-const MEDIA_ERR_ABORTED = 1;
-const MEDIA_ERR_NETWORK = 2;
-const MEDIA_ERR_DECODE = 3;
-const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
+// this module has no dependency on the DOM lib being loaded. Exported so
+// callers (e.g. the HTTP probe wiring in FlutterAudioNavigator) can recognize
+// the codes that are already conclusive from MediaError alone, without
+// re-declaring the magic numbers.
+export const MEDIA_ERR_ABORTED = 1;
+export const MEDIA_ERR_NETWORK = 2;
+export const MEDIA_ERR_DECODE = 3;
+export const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 
 /**
  * Classifies an error surfaced by the ts-toolkit `AudioNavigator`'s `error`

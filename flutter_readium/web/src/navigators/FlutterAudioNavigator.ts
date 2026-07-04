@@ -6,13 +6,18 @@ import {
 } from "@readium/navigator";
 import { Locator, LocatorLocations, Timeline } from "@readium/shared";
 import { createLogger } from "../utils/ReadiumPluginLogger";
-import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { ReadiumPublication, findLinkByHref } from "../utils/ReadiumExtensions";
 import { audioPreferencesFromJson } from "../preferences/FlutterAudioPreferences";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
 import {
+  AudioStreamErrorAction,
   AudioStreamRecoveryController,
   classifyAudioStreamError,
+  MEDIA_ERR_ABORTED,
+  MEDIA_ERR_DECODE,
+  MediaErrorLike,
 } from "./AudioStreamErrorPolicy";
+import { probeAudioStreamHttpStatus } from "./AudioStreamHttpProbe";
 
 const log = createLogger("AudioNav");
 
@@ -375,6 +380,60 @@ function _emitState(
 }
 
 /**
+ * Resolves the absolute URL ts-toolkit's `AudioNavigator` assigned to
+ * `mediaElement.src` for `href`, for use as the HTTP probe target. Reuses the
+ * same `findLinkByHref` + `Link.toURL(baseURL)` pattern as
+ * `ReadiumReader.getResourceUrl` — the only other place this plugin resolves
+ * a publication-relative href to an absolute resource URL.
+ *
+ * Returns `undefined` when no matching link exists or it has no resolvable
+ * URL (e.g. malformed manifest) — callers should skip the probe in that case.
+ */
+function resolveAudioResourceUrl(
+  publication: ReadiumPublication,
+  href: string
+): string | undefined {
+  const link = findLinkByHref(publication.allLinks, href);
+  return link?.toURL(publication.baseURL) ?? undefined;
+}
+
+/**
+ * Runs the HTTP diagnostic probe (see `AudioStreamHttpProbe.ts`) ahead of
+ * classification-based dispatch, then hands off to
+ * `AudioStreamRecoveryController.handle`.
+ *
+ * The probe only runs when it could change the outcome: skipped entirely for
+ * `MEDIA_ERR_ABORTED` (already `ignore`, and firing a CORS fetch during
+ * teardown/seek would be pure overhead) and `MEDIA_ERR_DECODE` (already a
+ * conclusive terminal failure — a bad HTTP status can't explain a decode
+ * error, and a *good* status would be misleading: the file is reachable but
+ * still unplayable). For every other code the probe result — when conclusive
+ * — supersedes the MediaError-only classification; an inconclusive probe
+ * (timeout/thrown-while-online/opaque) falls back to it unchanged.
+ */
+async function handleAudioStreamError(
+  mediaError: unknown,
+  href: string,
+  publication: ReadiumPublication,
+  recovery: AudioStreamRecoveryController,
+  message: string
+): Promise<void> {
+  const fallback = classifyAudioStreamError(mediaError);
+  const code = (mediaError as MediaErrorLike | null | undefined)?.code;
+
+  let action: AudioStreamErrorAction = fallback;
+  if (code !== MEDIA_ERR_ABORTED && code !== MEDIA_ERR_DECODE) {
+    const url = resolveAudioResourceUrl(publication, href);
+    if (url) {
+      const probed = await probeAudioStreamHttpStatus(url);
+      if (probed) action = probed;
+    }
+  }
+
+  recovery.handle(message, action, href);
+}
+
+/**
  * Rebuilds the `AudioNavigator` at `href` (the ts-toolkit engine has no
  * in-place re-prepare API, so — mirroring iOS/Android — recovery tears down
  * and reconstructs it) and verifies playback position actually advances
@@ -662,10 +721,9 @@ export class FlutterAudioNavigator {
             emit("failure", locator, false);
             return;
           }
-          const action = classifyAudioStreamError(mediaError);
           const href = (locator ?? nav.currentLocator).href;
           const message = `AudioNavigator error (code=${(mediaError as { code?: number })?.code ?? "unknown"})`;
-          recovery.handle(message, action, href);
+          void handleAudioStreamError(mediaError, href, publication, recovery, message);
         },
         metadataLoaded: (_metadata) => {},
         seeking: (_isSeeking) => {},
