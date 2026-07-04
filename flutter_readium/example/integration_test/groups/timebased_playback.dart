@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
@@ -16,11 +16,11 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
         );
 
-        await harness.reader.openPublication(path);
+        await harness.readium.openPublication(path);
 
         await exerciseAudioPlayback(
-          harness.reader,
-          enable: () => harness.reader.ttsEnable(TTSPreferences(speed: 1.0)),
+          harness.readium,
+          enable: () => harness.readium.ttsEnable(TTSPreferences(speed: 1.0)),
           timeout: const Duration(seconds: 60),
         );
       },
@@ -32,15 +32,15 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
         reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       expect(pub.readingOrder, isNotEmpty);
       expect(pub.containsMediaOverlays, isTrue, reason: 'Overlay webpub should report media overlays');
 
       if (!kIsWeb) {
         await exerciseAudioPlayback(
-          harness.reader,
-          enable: () => harness.reader.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
         );
       }
     });
@@ -51,7 +51,7 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
         reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       expect(pub.readingOrder, isNotEmpty);
       expect(
@@ -62,8 +62,8 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
 
       if (!kIsWeb) {
         await exerciseAudioPlayback(
-          harness.reader,
-          enable: () => harness.reader.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
         );
       }
     });
@@ -78,14 +78,14 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
           );
 
-          await harness.reader.openPublication(path);
+          await harness.readium.openPublication(path);
 
           final states = <ReadiumTimebasedState>[];
-          final sub = harness.reader.onTimebasedPlayerStateChanged.listen(states.add);
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
           addTearDown(sub.cancel);
 
-          await harness.reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
-          await harness.reader.play(null);
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.play(null);
 
           await waitUntil(
             () => states.any((s) => s.state == TimebasedState.playing),
@@ -93,21 +93,21 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
             reason: 'Never reached initial playing state',
           );
 
-          await harness.reader.pause();
+          await harness.readium.pause();
           await waitUntil(
             () => states.last.state == TimebasedState.paused,
             timeout: const Duration(seconds: 10),
             reason: 'pause() did not produce a paused state',
           );
 
-          await harness.reader.resume();
+          await harness.readium.resume();
           await waitUntil(
             () => states.last.state == TimebasedState.playing,
             timeout: const Duration(seconds: 10),
             reason: 'resume() did not return to playing state',
           );
 
-          await harness.reader.pause();
+          await harness.readium.pause();
         });
 
         test('audioSeekBy advances the timebased position', () async {
@@ -116,14 +116,14 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
           );
 
-          await harness.reader.openPublication(path);
+          await harness.readium.openPublication(path);
 
           final states = <ReadiumTimebasedState>[];
-          final sub = harness.reader.onTimebasedPlayerStateChanged.listen(states.add);
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
           addTearDown(sub.cancel);
 
-          await harness.reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
-          await harness.reader.play(null);
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.play(null);
 
           await waitUntil(
             () => states.any((s) => s.state == TimebasedState.playing && s.currentOffset != null),
@@ -136,8 +136,8 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
           final tolerance = const Duration(milliseconds: 500);
           final expectedMinOffset = beforeSeek + seekDuration - tolerance;
 
-          await harness.reader.audioSeekBy(seekDuration);
-          await harness.reader.resume();
+          await harness.readium.audioSeekBy(seekDuration);
+          await harness.readium.resume();
 
           await waitUntil(
             () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
@@ -153,15 +153,12 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
         });
 
         test('audiobook emits ended state when playback reaches end of book', () async {
-          await harness.reader.setLogLevel(LogLevel.debug);
-          addTearDown(() => harness.reader.setLogLevel(LogLevel.info));
-
           final path = harness.fixturePath(
             FixtureKeys.audiobook,
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
           );
 
-          final pub = await harness.reader.openPublication(path);
+          final pub = await harness.readium.openPublication(path);
           expect(pub.readingOrder, isNotEmpty);
 
           final lastIndex = pub.readingOrder.length - 1;
@@ -177,10 +174,10 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
           final beginSeconds = lastDuration! - 2;
 
           final states = <ReadiumTimebasedState>[];
-          final sub = harness.reader.onTimebasedPlayerStateChanged.listen(states.add);
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
           addTearDown(sub.cancel);
 
-          await harness.reader.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
 
           final endLocator = Locator(
             href: lastLink.href,
@@ -190,10 +187,10 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
               fragments: ['t=$beginSeconds'],
             ),
           );
-          final navigated = await harness.reader.goToLocator(endLocator);
+          final navigated = await harness.readium.goToLocator(endLocator);
           expect(navigated, isTrue, reason: 'goToLocator to end of last resource should succeed');
 
-          await harness.reader.play(null);
+          await harness.readium.play(null);
 
           await waitUntil(
             () => states.any((s) => s.state == TimebasedState.ended),
@@ -212,7 +209,7 @@ void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
                 '${states.last.state}',
           );
 
-          await harness.reader.pause();
+          await harness.readium.pause();
         });
       },
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void defineSearchTests(ReadiumIntegrationHarness harness) {
@@ -15,9 +15,9 @@ void defineSearchTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
         );
 
-        await harness.reader.openPublication(path);
+        await harness.readium.openPublication(path);
 
-        final results = await harness.reader.searchInPublication('og');
+        final results = await harness.readium.searchInPublication('og');
         expect(results, isNotEmpty, reason: '"og" should yield matches in the Danish EPUB');
         expect(results.first.locator.href, isNotEmpty);
       },
@@ -32,9 +32,9 @@ void defineSearchTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
         );
 
-        await harness.reader.openPublication(path);
+        await harness.readium.openPublication(path);
 
-        final results = await harness.reader.searchInPublication('zzzxxy-not-a-word');
+        final results = await harness.readium.searchInPublication('zzzxxy-not-a-word');
         expect(results, isEmpty, reason: 'An absent search term should return an empty result set');
       },
     );
@@ -47,9 +47,9 @@ void defineSearchTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
 
-        await harness.reader.openPublication(path);
+        await harness.readium.openPublication(path);
 
-        final results = await harness.reader.searchInPublication('time');
+        final results = await harness.readium.searchInPublication('time');
         expect(results, isNotEmpty, reason: '"time" should yield matches in The Time Machine PDF');
         expect(results.first.locator.href, isNotEmpty);
         expect(
@@ -71,9 +71,9 @@ void defineSearchTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
 
-        await harness.reader.openPublication(path);
+        await harness.readium.openPublication(path);
 
-        final results = await harness.reader.searchInPublication('zzzxxy-not-a-word');
+        final results = await harness.readium.searchInPublication('zzzxxy-not-a-word');
         expect(results, isEmpty, reason: 'An absent PDF search term should return an empty result set');
       },
       skip: kIsWeb || isAndroid()

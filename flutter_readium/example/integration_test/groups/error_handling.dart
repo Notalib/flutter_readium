@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 
 void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
   group('Error handling', () {
@@ -11,7 +11,7 @@ void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
       skip: kIsWeb ? 'Error path differs on web (HTTP fetch vs file I/O)' : null,
       () async {
         await expectLater(
-          harness.reader.openPublication('/does-not-exist/no-such.epub'),
+          harness.readium.openPublication('/does-not-exist/no-such.epub'),
           throwsA(isA<ReadiumException>()),
         );
       },
@@ -22,11 +22,11 @@ void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
       skip: kIsWeb ? null : 'Web-specific HTTP error event path',
       () async {
         final errors = <ReadiumError>[];
-        final sub = harness.reader.onErrorEvent.listen(errors.add);
+        final sub = harness.readium.onErrorEvent.listen(errors.add);
         addTearDown(sub.cancel);
 
         try {
-          await harness.reader.openPublication('/no-such-fixture/manifest.json');
+          await harness.readium.openPublication('/no-such-fixture/manifest.json');
         } on Object {
           // Expected: open fails; this test asserts the error event stream.
         }

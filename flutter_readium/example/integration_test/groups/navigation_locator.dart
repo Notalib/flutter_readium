@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
@@ -13,12 +13,12 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
       ReadiumReaderStatus? readerStatus;
-      final readerStatusSub = harness.reader.onReaderStatusChanged.listen((status) => readerStatus = status);
-      final textLocatorSub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
+      final textLocatorSub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(textLocatorSub.cancel);
       addTearDown(readerStatusSub.cancel);
 
@@ -40,7 +40,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         reason: 'Reader should be in ready status after widget has mounted',
       );
 
-      await harness.reader.goForward();
+      await harness.readium.goForward();
 
       await waitWithPump(
         tester,
@@ -63,14 +63,14 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
-      final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
       ReadiumReaderStatus? readerStatus;
-      final readerStatusSub = harness.reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+      final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
       addTearDown(readerStatusSub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -85,7 +85,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
       await waitForListStable(tester, locators);
       final savedLocator = locators.last;
 
-      await harness.reader.goForward();
+      await harness.readium.goForward();
       await waitWithPump(
         tester,
         () => locators.last != savedLocator,
@@ -95,7 +95,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
       await waitForListStable(tester, locators);
       final afterForward = locators.last;
 
-      final ok = await harness.reader.goToLocator(savedLocator);
+      final ok = await harness.readium.goToLocator(savedLocator);
       expect(ok, isTrue, reason: 'goToLocator should report success');
 
       await waitWithPump(
@@ -119,10 +119,10 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
-      final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -136,7 +136,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
       final savedLocator = locators.last;
       final savedCssSelector = savedLocator.locations?.cssSelector;
 
-      await harness.reader.goForward();
+      await harness.readium.goForward();
       await waitWithPump(
         tester,
         () => locators.last != savedLocator,
@@ -144,7 +144,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         reason: 'goForward() did not produce a new locator',
       );
 
-      final ok = await harness.reader.goToLocator(savedLocator);
+      final ok = await harness.readium.goToLocator(savedLocator);
       expect(ok, isTrue, reason: 'goToLocator should report success');
       await waitWithPump(
         tester,
@@ -165,6 +165,68 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
       await tester.pumpWidget(const SizedBox());
     });
 
+    testWidgets('DiViNa goForward/goBackward changes and restores locator', (tester) async {
+      final fixtureKey = kIsWeb ? FixtureKeys.divina : FixtureKeys.divinaComicCbz;
+      final path = harness.fixturePath(
+        fixtureKey,
+        reason: 'Fixture $fixtureKey missing from asset bundle',
+      );
+      final pub = await harness.readium.openPublication(path);
+
+      final locators = <Locator>[];
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
+      addTearDown(sub.cancel);
+
+      ReadiumReaderStatus? readerStatus;
+      final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
+      addTearDown(readerStatusSub.cancel);
+
+      await tester.pumpWidget(bareReaderApp(pub));
+
+      await waitWithPump(
+        tester,
+        () => locators.isNotEmpty,
+        timeout: const Duration(seconds: 30),
+        reason: 'DiViNa reader never emitted an initial textLocator',
+        diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
+      );
+      await waitForListStable(tester, locators);
+      final initialLocator = locators.last;
+
+      await harness.readium.goForward();
+      await waitWithPump(
+        tester,
+        () => locators.last != initialLocator,
+        timeout: const Duration(seconds: 15),
+        reason: 'goForward() did not produce a new DiViNa locator',
+      );
+      await waitForListStable(tester, locators);
+      final afterForward = locators.last;
+
+      expect(
+        afterForward.href,
+        isNot(equals(initialLocator.href)),
+        reason: 'goForward() should move away from the initial DiViNa resource',
+      );
+
+      await harness.readium.goBackward();
+      await waitWithPump(
+        tester,
+        () => locators.last != afterForward,
+        timeout: const Duration(seconds: 15),
+        reason: 'goBackward() did not produce a new DiViNa locator',
+      );
+      await waitForListStable(tester, locators);
+
+      expect(
+        locators.last.href,
+        equals(initialLocator.href),
+        reason: 'goBackward() should return to the initial DiViNa resource',
+      );
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
     testWidgets(
       'paginated PDF goForward/goBackward step exactly one page',
       (tester) async {
@@ -172,14 +234,14 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         ReadiumReaderStatus? readerStatus;
-        final readerStatusSub = harness.reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+        final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
         addTearDown(readerStatusSub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -192,11 +254,11 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
         );
 
-        await harness.reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.paginated));
+        await harness.readium.setPDFPreferences(const PDFPreferences(layout: PDFLayout.paginated));
         await waitForListStable(tester, locators);
         final startPage = locators.last.locations!.position!;
 
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => locators.last.locations?.position == startPage + 1,
@@ -206,7 +268,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         expect(locators.last.locations?.position, equals(startPage + 1));
 
         final afterForward = locators.last.locations!.position!;
-        await harness.reader.goBackward();
+        await harness.readium.goBackward();
         await waitWithPump(
           tester,
           () => locators.last.locations?.position == afterForward - 1,
@@ -227,14 +289,14 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         ReadiumReaderStatus? readerStatus;
-        final readerStatusSub = harness.reader.onReaderStatusChanged.listen((status) => readerStatus = status);
+        final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
         addTearDown(readerStatusSub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -247,11 +309,11 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
         );
 
-        await harness.reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical));
+        await harness.readium.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical));
         await waitForListStable(tester, locators);
         final startPage = locators.last.locations!.position!;
 
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => (locators.last.locations?.position ?? startPage) > startPage,
@@ -261,7 +323,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         final advanced = locators.last.locations!.position!;
         expect(advanced, greaterThan(startPage));
 
-        await harness.reader.goBackward();
+        await harness.readium.goBackward();
         await waitWithPump(
           tester,
           () => (locators.last.locations?.position ?? advanced) < advanced,
@@ -282,10 +344,10 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -299,7 +361,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         await waitForListStable(tester, locators);
 
         final baselinePage = locators.last.locations!.position!;
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => locators.last.locations?.position != baselinePage,
@@ -310,7 +372,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         final savedLocator = locators.last;
         final savedPage = savedLocator.locations!.position!;
 
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => locators.last.locations?.position != savedPage,
@@ -320,7 +382,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         await waitForListStable(tester, locators);
         final afterSecondForward = locators.last;
 
-        final ok = await harness.reader.goToLocator(savedLocator);
+        final ok = await harness.readium.goToLocator(savedLocator);
         expect(ok, isTrue, reason: 'goToLocator should report success');
 
         await waitWithPump(
@@ -348,7 +410,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           FixtureKeys.fixedLayout,
           reason: 'Fixture ${FixtureKeys.fixedLayout} missing',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         expect(pub.readingOrder, isNotEmpty);
         expect(
@@ -358,7 +420,7 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
         );
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -368,19 +430,42 @@ void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
           timeout: const Duration(seconds: 30),
           reason: 'Fixed-layout reader never emitted an initial textLocator',
         );
+        await waitForListStable(tester, locators);
         final initialLocator = locators.last;
 
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => locators.last != initialLocator,
           timeout: const Duration(seconds: 15),
           reason: 'goForward() did not produce a new textLocator in fixed-layout EPUB',
         );
+        await waitForListStable(tester, locators);
+        final afterForward = locators.last;
+
+        expect(
+          afterForward,
+          isNot(equals(initialLocator)),
+          reason: 'goForward() should move away from the initial fixed-layout locator',
+        );
+
+        await harness.readium.goBackward();
+        await waitWithPump(
+          tester,
+          () => locators.last != afterForward,
+          timeout: const Duration(seconds: 15),
+          reason: 'goBackward() did not produce a new textLocator in fixed-layout EPUB',
+        );
+        await waitForListStable(tester, locators);
+
+        expect(
+          locators.last.href,
+          equals(initialLocator.href),
+          reason: 'goBackward() should return to the initial fixed-layout resource',
+        );
 
         await tester.pumpWidget(const SizedBox());
       },
-      skip: !kIsWeb,
     );
   });
 }

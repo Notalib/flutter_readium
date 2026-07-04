@@ -4,6 +4,7 @@
 // warm-up runs once and first. Domain-specific tests live in groups/.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_readium/flutter_readium.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'groups/error_handling.dart';
@@ -14,14 +15,17 @@ import 'groups/reader_widget_lifecycle.dart';
 import 'groups/search.dart';
 import 'groups/timebased_playback.dart';
 import 'groups/warm_up.dart';
-import 'support/readium_integration_harness.dart';
+import 'readium_integration_harness.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   final harness = ReadiumIntegrationHarness();
 
-  setUpAll(harness.loadFixtures);
+  setUpAll(() async {
+    await harness.readium.setLogLevel(LogLevel.debug);
+    await harness.loadFixtures();
+  });
 
   tearDown(() async {
     await harness.closePublication();

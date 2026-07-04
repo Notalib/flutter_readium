@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../test_fixtures.dart';
+import 'test_fixtures.dart';
+import 'web_resource_probe.dart' if (dart.library.js_interop) 'web_resource_probe_web.dart';
 
 class ReadiumIntegrationHarness {
-  final reader = FlutterReadium();
+  final readium = FlutterReadium();
   late Map<String, String> fixturePaths;
 
   Future<void> loadFixtures() async {
@@ -21,7 +22,7 @@ class ReadiumIntegrationHarness {
     return path!;
   }
 
-  Future<void> closePublication() => reader.closePublication();
+  Future<void> closePublication() => readium.closePublication();
 }
 
 Widget bareReaderApp(Publication pub, {Locator? initialLocator}) => MaterialApp(
@@ -58,7 +59,7 @@ Future<void> mountFullyWiredAndSmokeTest(
   required String reason,
 }) async {
   final locators = <Locator>[];
-  final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+  final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
   addTearDown(sub.cancel);
 
   await tester.pumpWidget(
@@ -95,6 +96,22 @@ Future<void> expectNativeFileImageDecodes(String url, {required String href}) as
     frame.image.width > 0 && frame.image.height > 0,
     isTrue,
     reason: 'Cached file for $href did not decode to a valid image',
+  );
+}
+
+Future<void> expectWebResourceUrlLoads(String url, {required String href}) async {
+  final uri = Uri.parse(url);
+  expect(
+    uri.path,
+    startsWith('/test-fixtures/'),
+    reason: 'Expected a same-origin test fixture URL for $href, got: $url',
+  );
+
+  final lengthInBytes = await loadWebResourceBytes(url);
+  expect(
+    lengthInBytes,
+    greaterThan(0),
+    reason: 'Web resource URL for $href did not load any bytes',
   );
 }
 

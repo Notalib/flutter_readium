@@ -2,24 +2,24 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void defineWarmUpTests(ReadiumIntegrationHarness harness) {
   testWidgets(
-    'warms up the reader platform view',
+    'Warm-up the platform reader view',
     (tester) async {
       final path = harness.fixturePath(
         FixtureKeys.warmupWebpub,
         reason: 'Fixture ${FixtureKeys.warmupWebpub} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
       ReadiumReaderStatus? readerStatus;
-      final readerStatusSub = harness.reader.onReaderStatusChanged.listen((status) => readerStatus = status);
-      final textLocatorSub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final readerStatusSub = harness.readium.onReaderStatusChanged.listen((status) => readerStatus = status);
+      final textLocatorSub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(textLocatorSub.cancel);
       addTearDown(readerStatusSub.cancel);
 

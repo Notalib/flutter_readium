@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harness) {
@@ -13,10 +13,10 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
-      final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -29,12 +29,12 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
       final beforePreferences = locators.last;
 
       await expectLater(
-        harness.reader.setEPUBPreferences(EPUBPreferences(fontSize: 2.0)),
+        harness.readium.setEPUBPreferences(EPUBPreferences(fontSize: 2.0)),
         completes,
         reason: 'setEPUBPreferences should not throw',
       );
 
-      await harness.reader.goForward();
+      await harness.readium.goForward();
       await waitWithPump(
         tester,
         () => locators.last != beforePreferences,
@@ -52,10 +52,10 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -67,14 +67,14 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
         );
 
         await expectLater(
-          harness.reader.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical)),
+          harness.readium.setPDFPreferences(const PDFPreferences(layout: PDFLayout.scrollVertical)),
           completes,
           reason: 'setPDFPreferences should not throw',
         );
         await waitForListStable(tester, locators);
         final beforeNavigation = locators.last.locations?.position;
 
-        await harness.reader.goForward();
+        await harness.readium.goForward();
         await waitWithPump(
           tester,
           () => locators.last.locations?.position != beforeNavigation,
@@ -92,10 +92,10 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
-      final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -118,17 +118,17 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
       );
 
       await expectLater(
-        harness.reader.applyDecorations('test-highlights', [firstDecoration]),
+        harness.readium.applyDecorations('test-highlights', [firstDecoration]),
         completes,
         reason: 'applyDecorations should apply a highlight without throwing',
       );
       await expectLater(
-        harness.reader.applyDecorations('test-highlights', [replacementDecoration]),
+        harness.readium.applyDecorations('test-highlights', [replacementDecoration]),
         completes,
         reason: 'applyDecorations should replace a highlight group without throwing',
       );
       await expectLater(
-        harness.reader.applyDecorations('test-highlights', const []),
+        harness.readium.applyDecorations('test-highlights', const []),
         completes,
         reason: 'applyDecorations should clear a highlight group without throwing',
       );
@@ -136,31 +136,31 @@ void definePreferencesDecorationsResourcesTests(ReadiumIntegrationHarness harnes
       await tester.pumpWidget(const SizedBox());
     });
 
-    group(
-      'EPUB image resource API',
-      skip: kIsWeb ? 'Native-bundled illustrated fixture not available on web' : null,
-      () {
-        test('getResourceUrl returns a file URL to a cached, decodable image', () async {
-          final path = harness.fixturePath(
-            FixtureKeys.peterRabbitEpub,
-            reason: 'Fixture ${FixtureKeys.peterRabbitEpub} missing',
-          );
+    group('EPUB image resource API', () {
+      test('getResourceUrl returns a loadable image URL', () async {
+        final path = harness.fixturePath(
+          FixtureKeys.peterRabbitEpub,
+          reason: 'Fixture ${FixtureKeys.peterRabbitEpub} missing',
+        );
 
-          final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
-          final imageLink = pub.resources.firstWhere(
-            (l) =>
-                l.type?.startsWith('image/') == true ||
-                (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
-            orElse: () => throw StateError(
-              '${FixtureKeys.peterRabbitEpub} has no image resources - cannot test getResourceUrl',
-            ),
-          );
+        final imageLink = pub.resources.firstWhere(
+          (l) =>
+              l.type?.startsWith('image/') == true ||
+              (l.href.contains('.png') || l.href.contains('.jpg') || l.href.contains('.jpeg')),
+          orElse: () => throw StateError(
+            '${FixtureKeys.peterRabbitEpub} has no image resources - cannot test getResourceUrl',
+          ),
+        );
 
-          final url = await harness.reader.getResourceUrl(imageLink.href);
+        final url = await harness.readium.getResourceUrl(imageLink.href);
+        if (kIsWeb) {
+          await expectWebResourceUrlLoads(url, href: imageLink.href);
+        } else {
           await expectNativeFileImageDecodes(url, href: imageLink.href);
-        });
-      },
-    );
+        }
+      });
+    });
   });
 }

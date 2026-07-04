@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
@@ -13,7 +13,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       expect(pub.metadata.title, isNotEmpty);
       expect(pub.readingOrder, isNotEmpty);
@@ -29,7 +29,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.pdfTest} missing from asset bundle',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         expect(pub.metadata.title, isNotEmpty);
         expect(pub.readingOrder, isNotEmpty);
@@ -43,7 +43,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
         reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       expect(pub.readingOrder, isNotEmpty);
       expect(pub.containsMediaOverlays, isTrue, reason: 'Overlay webpub should report media overlays');
@@ -55,7 +55,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
         reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
       );
 
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       expect(pub.readingOrder, isNotEmpty);
       expect(
@@ -67,31 +67,31 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
 
     test(
       'opens DiViNa comic',
-      skip: kIsWeb ? 'Native-only CBZ fixture not available on web' : null,
       () async {
+        final fixtureKey = kIsWeb ? FixtureKeys.divina : FixtureKeys.divinaComicCbz;
         final path = harness.fixturePath(
-          FixtureKeys.divinaComicCbz,
-          reason: 'Fixture ${FixtureKeys.divinaComicCbz} missing from asset bundle',
+          fixtureKey,
+          reason: 'Fixture $fixtureKey missing from asset bundle',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         expect(
           pub.conformsToReadiumDivina,
           isTrue,
-          reason: 'CBZ fixture should conform to the Readium DiViNa profile',
+          reason: 'DiViNa fixture should conform to the Readium DiViNa profile',
         );
       },
     );
 
-    group('Web-only publication shapes', skip: kIsWeb ? null : 'Web-only fixtures / behaviour', () {
+    group('Publication shapes', () {
       test('opens fixed-layout EPUB', () async {
         final path = harness.fixturePath(
           FixtureKeys.fixedLayout,
           reason: 'Fixture ${FixtureKeys.fixedLayout} missing',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         expect(pub.readingOrder, isNotEmpty);
         expect(
@@ -107,7 +107,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.guidedNav} missing',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
         expect(pub.readingOrder, isNotEmpty);
       });
 
@@ -117,7 +117,7 @@ void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.comic} missing',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         expect(pub.readingOrder, isNotEmpty);
         expect(

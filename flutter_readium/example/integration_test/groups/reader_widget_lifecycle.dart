@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/readium_integration_harness.dart';
+import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
 void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
@@ -13,10 +13,10 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final statuses = <ReadiumReaderStatus>[];
-      final sub = harness.reader.onReaderStatusChanged.listen(statuses.add);
+      final sub = harness.readium.onReaderStatusChanged.listen(statuses.add);
       addTearDown(sub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -38,10 +38,10 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
         );
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
 
         final locators = <Locator>[];
-        final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
         addTearDown(sub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub));
@@ -70,10 +70,10 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
       );
-      final pub = await harness.reader.openPublication(path);
+      final pub = await harness.readium.openPublication(path);
 
       final locators = <Locator>[];
-      final sub = harness.reader.onTextLocatorChanged.listen(locators.add);
+      final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
       addTearDown(sub.cancel);
 
       await tester.pumpWidget(bareReaderApp(pub));
@@ -86,7 +86,7 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
       await waitForListStable(tester, locators);
       final initialLocator = locators.last;
 
-      await harness.reader.goForward();
+      await harness.readium.goForward();
       await waitWithPump(
         tester,
         () => locators.last != initialLocator,
@@ -122,11 +122,11 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
     group('fully-wired smoke tests', () {
       testWidgets('EPUB', (tester) async {
         final path = harness.fixturePath(
-          FixtureKeys.mobyDickEpub,
-          reason: 'Fixture ${FixtureKeys.mobyDickEpub} missing from asset bundle',
+          FixtureKeys.reflowableEpub,
+          reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
         await mountFullyWiredAndSmokeTest(
           harness,
           tester,
@@ -143,7 +143,7 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
             reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
           );
 
-          final pub = await harness.reader.openPublication(path);
+          final pub = await harness.readium.openPublication(path);
           await mountFullyWiredAndSmokeTest(
             harness,
             tester,
@@ -160,7 +160,7 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
           reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
         );
 
-        final pub = await harness.reader.openPublication(path);
+        final pub = await harness.readium.openPublication(path);
         await mountFullyWiredAndSmokeTest(
           harness,
           tester,
@@ -172,16 +172,17 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
       testWidgets(
         'DiViNa comic',
         (tester) async {
+          final fixtureKey = kIsWeb ? FixtureKeys.divina : FixtureKeys.divinaComicCbz;
           final path = harness.fixturePath(
-            FixtureKeys.divinaComicCbz,
-            reason: 'Fixture ${FixtureKeys.divinaComicCbz} missing from asset bundle',
+            fixtureKey,
+            reason: 'Fixture $fixtureKey missing from asset bundle',
           );
 
-          final pub = await harness.reader.openPublication(path);
+          final pub = await harness.readium.openPublication(path);
           expect(
             pub.conformsToReadiumDivina,
             isTrue,
-            reason: 'CBZ fixture should conform to the Readium DiViNa profile',
+            reason: 'DiViNa fixture should conform to the Readium DiViNa profile',
           );
           await mountFullyWiredAndSmokeTest(
             harness,
@@ -190,7 +191,6 @@ void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
             reason: 'Fully-wired DiViNa reader never emitted an initial textLocator',
           );
         },
-        skip: kIsWeb,
       );
     });
   });
