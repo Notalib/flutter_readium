@@ -37,6 +37,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   marionette_mcp: ^0.5.0
+  web: ^1.1.1
 
 # The example app is never published (publish_to: none) and already depends on
 # the plugin via a relative path, so we override the platform interface to the

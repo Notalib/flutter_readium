@@ -183,6 +183,10 @@ class ReadiumReaderWidget(
     // To avoid duplicate onPageChanged events.
     private var lastPageLoadedKey: String? = null
 
+    // Some navigator transitions update currentLocator without a page-changed callback.
+    // Mirror those into the text-locator stream once so Flutter can observe progress.
+    private var lastVisualLocationKey: String? = null
+
     override fun onPageChanged(
         pageIndex: Int,
         totalPages: Int,
@@ -225,6 +229,15 @@ class ReadiumReaderWidget(
 
     override fun onVisualCurrentLocationChanged(locator: Locator) {
         PluginLog.d(TAG, "::onVisualCurrentLocationChanged $locator")
+
+        val currentKey = "${locator.href}@${locator.progression}@${locator.locations.position}"
+        if (lastVisualLocationKey == currentKey) {
+            return
+        }
+
+        lastVisualLocationKey = currentKey
+        ReadiumReader.emitTextLocatorUpdate(locator)
+        PluginLog.d(TAG, "::onVisualCurrentLocationChanged emitted text locator update")
     }
 
     override fun onVisualReaderIsReady() {
