@@ -17,9 +17,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   4xx, `AudioStreamNetworkError`, `AudioStreamError`, or `AudioStreamFailed`
   when retries are exhausted) together with `TimebasedState.failure`, after
   which calling `play()` retries from the last position. Supported on iOS,
-  Android, and Web — on Web, browsers do not expose HTTP status codes for
-  media loads, so auth/HTTP errors surface as `AudioStreamNetworkError` /
-  `AudioStreamError` instead.
+  Android, and Web. On Web, browsers do not expose HTTP status codes for
+  media loads, so a short diagnostic fetch probes the failing resource to
+  classify auth/HTTP errors; when the probe is inconclusive they surface as
+  `AudioStreamNetworkError` / `AudioStreamError` instead.
 
 ### Fixed
 
