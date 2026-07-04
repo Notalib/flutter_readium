@@ -139,6 +139,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    await methodChannel.invokeMethod<void>('setAudioRecoveryPolicy', policy.toJson());
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('openPublication', [pubUrl])

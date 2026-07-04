@@ -99,15 +99,49 @@ internal class AudioStreamErrorPolicyTest {
     }
 
     @Test
-    fun `recovery policy has 3 max attempts`() {
+    fun `recovery policy has 3 max attempts by default`() {
         assertEquals(3, AudioRecoveryPolicy().maxAttempts)
     }
 
     @Test
-    fun `recovery policy backs off 1s, 2s, 4s`() {
+    fun `recovery policy backs off 1s, 2s, 4s by default`() {
         val policy = AudioRecoveryPolicy()
         assertEquals(1000L, policy.delayMillis(forAttempt = 1))
         assertEquals(2000L, policy.delayMillis(forAttempt = 2))
         assertEquals(4000L, policy.delayMillis(forAttempt = 3))
+    }
+
+    @Test
+    fun `recovery policy defaults stallTimeoutSeconds to 20`() {
+        assertEquals(20.0, AudioRecoveryPolicy().stallTimeoutSeconds, 0.0)
+    }
+
+    @Test
+    fun `recovery policy honours a custom backoffBaseSeconds`() {
+        val policy = AudioRecoveryPolicy(backoffBaseSeconds = 2.0)
+        assertEquals(2000L, policy.delayMillis(forAttempt = 1))
+        assertEquals(4000L, policy.delayMillis(forAttempt = 2))
+        assertEquals(8000L, policy.delayMillis(forAttempt = 3))
+    }
+
+    @Test
+    fun `fromMap parses all fields`() {
+        val policy =
+            AudioRecoveryPolicy.fromMap(
+                mapOf(
+                    "maxAttempts" to 5,
+                    "backoffBaseSeconds" to 2.0,
+                    "stallTimeoutSeconds" to 30.0,
+                ),
+            )
+        assertEquals(5, policy.maxAttempts)
+        assertEquals(2.0, policy.backoffBaseSeconds, 0.0)
+        assertEquals(30.0, policy.stallTimeoutSeconds, 0.0)
+    }
+
+    @Test
+    fun `fromMap falls back to defaults for missing or null map`() {
+        assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(null))
+        assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(emptyMap<String, Any>()))
     }
 }

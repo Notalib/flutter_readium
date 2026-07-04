@@ -96,6 +96,11 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    JsPublicationChannel.setAudioRecoveryPolicy(jsonEncode(policy.toJson()));
+  }
+
+  @override
   Future<void> setCustomHeaders(Map<String, String> headers) async {
     _log.w(
       'setCustomHeaders is not supported on web (browser controls HTTP headers)',

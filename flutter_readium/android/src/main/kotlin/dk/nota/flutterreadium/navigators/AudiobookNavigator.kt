@@ -43,6 +43,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.getOrElse
 import kotlin.time.Duration
@@ -82,7 +83,19 @@ open class AudiobookNavigator(
      */
     private var recoveryJob: Job? = null
 
-    private val recoveryPolicy = AudioRecoveryPolicy()
+    /**
+     * Snapshotted at construction time from [ReadiumReader.audioRecoveryPolicy] — per the
+     * plugin's "no mid-stream reconfiguration" contract, a policy change via
+     * `setAudioRecoveryPolicy` only takes effect for the next-opened publication.
+     */
+    private val recoveryPolicy = ReadiumReader.audioRecoveryPolicy
+
+    /**
+     * Stall watchdog: fires when playback intent is on but the offset hasn't advanced
+     * within [AudioRecoveryPolicy.stallTimeoutSeconds]. Non-null whenever a navigator is
+     * active; cancelled/restarted on rebuild.
+     */
+    private var stallWatchdogJob: Job? = null
 
     /**
      * Explicit terminal-failure latch. Must not be inferred from the last emitted
@@ -465,6 +478,8 @@ open class AudiobookNavigator(
                 return
             }
 
+        startStallWatchdog(navigator)
+
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
@@ -550,7 +565,7 @@ open class AudiobookNavigator(
                     }
 
                     AudioStreamErrorAction.Retry -> {
-                        startRecovery(error)
+                        startRecovery(error, terminalCode = "AudioStreamNetworkError")
                     }
 
                     is AudioStreamErrorAction.Fail -> {
@@ -577,8 +592,16 @@ open class AudiobookNavigator(
      * then rebuilds the navigator at the last known locator and verifies playback time
      * actually advances (state alone is not a reliable recovery signal). Exhausting all
      * attempts enters the terminal failure state.
+     *
+     * @param terminalCode Code to use if recovery exhausts its attempts, carried through
+     * from how [error] was originally classified (e.g. `AudioStreamNetworkError` for a
+     * classified network error, or a stall-specific code) - not the generic
+     * `AudioStreamFailed` fallback.
      */
-    private fun startRecovery(error: Error) {
+    private fun startRecovery(
+        error: Error,
+        terminalCode: String,
+    ) {
         if (recoveryJob != null) return // recovery already in progress
 
         val resumeLocator = state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator
@@ -616,7 +639,7 @@ open class AudiobookNavigator(
                         }
                     }
 
-                    enterTerminalFailure(error, code = "AudioStreamFailed", href = href)
+                    enterTerminalFailure(error, code = terminalCode, href = href)
                 } finally {
                     isRecovering = false
                     recoveryJob = null
@@ -625,8 +648,8 @@ open class AudiobookNavigator(
     }
 
     /**
-     * True once playback time actually advances within [withinMillis]. Being in a
-     * Ready/playing state alone is not a reliable recovery signal.
+     * True once [offsetAdvanced] within [withinMillis]. Being in a Ready/playing state
+     * alone is not a reliable recovery signal.
      */
     private suspend fun playbackAdvanced(
         navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
@@ -636,19 +659,87 @@ open class AudiobookNavigator(
         val deadline = System.currentTimeMillis() + withinMillis
 
         while (System.currentTimeMillis() < deadline && isActive) {
-            val playback = navigator.playback.value
-            if (playback.state is AudioNavigator.State.Ready &&
-                playback.playWhenReady &&
-                playback.offset > startOffset + 100.milliseconds
-            ) {
-                return true
-            }
-            if (playback.state is AudioNavigator.State.Failure<*>) {
+            if (offsetAdvanced(navigator, startOffset)) return true
+            if (navigator.playback.value.state is AudioNavigator.State.Failure<*>) {
                 return false
             }
             delay(500)
         }
         return false
+    }
+
+    /**
+     * True when [navigator] is `Ready`, playback is intended (`playWhenReady`), and its
+     * offset has moved past `sinceOffset` by more than 100ms. Shared by [playbackAdvanced]
+     * (post-rebuild recovery verification) and [startStallWatchdog] (stall detection) so
+     * both agree on what "playback is actually progressing" means.
+     */
+    private fun offsetAdvanced(
+        navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
+        sinceOffset: Duration,
+    ): Boolean {
+        val playback = navigator.playback.value
+        return playback.state is AudioNavigator.State.Ready &&
+            playback.playWhenReady &&
+            playback.offset > sinceOffset + 100.milliseconds
+    }
+
+    /**
+     * Stall watchdog: today's recovery is error-driven only, so a *throttled* (not
+     * dropped) connection that keeps bytes trickling in never errors and playback sits in
+     * Buffering/Loading forever. This polls the offset once a second and, if playback
+     * intent is on (`playWhenReady`) but the offset hasn't advanced within
+     * [AudioRecoveryPolicy.stallTimeoutSeconds], synthesizes a retryable error into the
+     * same [startRecovery] path a real playback error would take.
+     *
+     * Skips while already recovering/terminally failed, or while playback isn't intended
+     * (paused/ended) - those aren't stalls. Cancelled and restarted whenever the navigator
+     * is rebuilt (called from [setupNavigatorListeners]).
+     */
+    private fun startStallWatchdog(navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>) {
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob =
+            launch {
+                var lastAdvanceOffset = navigator.playback.value.offset
+                var deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+
+                while (isActive) {
+                    delay(1_000)
+
+                    if (isRecovering || isTerminallyFailed) {
+                        lastAdvanceOffset = navigator.playback.value.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    val playback = navigator.playback.value
+                    if (!playback.playWhenReady || playback.state !is AudioNavigator.State.Ready) {
+                        // Not intending to play right now (paused/ended/buffering-but-not-ready
+                        // in a way already handled elsewhere) - not a stall, reset the window.
+                        lastAdvanceOffset = playback.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    if (offsetAdvanced(navigator, lastAdvanceOffset)) {
+                        lastAdvanceOffset = playback.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    if (System.currentTimeMillis() >= deadline) {
+                        PluginLog.w(
+                            TAG,
+                            "::startStallWatchdog - offset hasn't advanced in ${recoveryPolicy.stallTimeoutSeconds}s, synthesizing retryable error",
+                        )
+                        startRecovery(
+                            DebugError("Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s"),
+                            terminalCode = "AudioStreamNetworkError",
+                        )
+                        return@launch // startRecovery owns the retry loop; a fresh watchdog starts on rebuild
+                    }
+                }
+            }
     }
 
     /**
@@ -664,6 +755,8 @@ open class AudiobookNavigator(
     ) {
         if (isTerminallyFailed) return
         isTerminallyFailed = true
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob = null
 
         PluginLog.e(TAG, "::enterTerminalFailure - [$code] ${error.message}")
 
@@ -695,6 +788,8 @@ open class AudiobookNavigator(
     override fun dispose() {
         recoveryJob?.cancel()
         recoveryJob = null
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob = null
 
         super.dispose()
 

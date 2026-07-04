@@ -33,8 +33,8 @@ reader.onErrorEvent.listen((error) {
 | `forbidden` | `forbidden` | iOS, Android, web | opening | fatal | Access to the publication resource is forbidden |
 | `unavailable` | `unavailable` | iOS, Android, web | opening | fatal | Publication temporarily unavailable |
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
-| `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error; playback state pinned to loading |
-| `audioStreamFailed` | `AudioStreamFailed` | iOS, Android | audioStream | fatal | Recovery exhausted its retry budget; call `play()` to retry manually |
+| `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error, or a detected playback stall; playback state pinned to loading |
+| `audioStreamFailed` | `AudioStreamFailed` | iOS, Android | audioStream | fatal | Generic recovery-exhausted fallback; call `play()` to retry manually. Recovery carries through the originally classified code where possible (e.g. `audioStreamNetworkError`, `audioStreamAuthError`), so this is only seen for failure shapes that don't map to a more specific code |
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
 | `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
 | `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio |
@@ -63,3 +63,23 @@ Android does not currently emit `AudioStreamFailed` failures beyond backoff, `Au
 All fields are optional; a producer omits the field entirely when nothing applies. Prefer the typed getters (`error.href`, `error.attempt`, `error.maxAttempts`, `error.httpStatus`) over reading `details` directly. A `null` `details` means no structured payload was sent.
 
 `ReadiumError.fromJson` tolerates a stale native side still sending `data` as a freeform string (pre-R2 wire format) by wrapping it as `{"message": <string>}` — it never throws on a legacy payload.
+
+## `AudioRecoveryPolicy`
+
+Configures the automatic audio-stream error recovery loop shared by the iOS/Android/web audio navigators — retry attempts, exponential backoff, and stall detection:
+
+```dart
+await FlutterReadium().setAudioRecoveryPolicy(
+  const AudioRecoveryPolicy(maxAttempts: 5, stallTimeoutSeconds: 15),
+);
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `maxAttempts` | `3` | Automatic recovery attempts before entering a terminal failure state |
+| `backoffBaseSeconds` | `1.0` | Base delay between attempts (`backoffBaseSeconds * 2^(attempt-1)`, i.e. 1s/2s/4s with the default) |
+| `stallTimeoutSeconds` | `20.0` | How long playback can go without its offset advancing (while intended to be playing) before a stall is treated as a retryable error |
+
+Set once — it applies to the next-opened publication and to any in-flight recovery loop, not to an already-running attempt sequence. Defaults reproduce the recovery behaviour that shipped before this policy existed, so an unconfigured consumer sees no change.
+
+**Stall watchdog**: recovery was originally error-driven only — a dropped connection errors and recovers, but a *throttled* connection that keeps bytes trickling in never errors and playback could sit in `Buffering`/`Loading` forever. All three platforms now also watch for the offset failing to advance for `stallTimeoutSeconds` while playback is intended, and synthesize a retryable `audioStreamRetry` into the same recovery path a real error would take. On web, the browser's native `stalled` event (fires quickly, ~3s) is only an early UI signal for a buffering indicator — it does not itself trigger recovery, which still waits for the full `stallTimeoutSeconds` of a frozen offset, matching iOS/Android.

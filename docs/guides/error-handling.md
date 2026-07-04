@@ -36,10 +36,17 @@ Non-fatal errors are emitted on `onErrorEvent`:
 
 ```dart
 _errorSub = reader.onErrorEvent.listen((error) {
-  // error.message, error.code, error.data
+  // error.message, error.code / error.codeEnum, error.details
   log('Reader error ${error.code}: ${error.message}');
 });
 ```
+
+Each `ReadiumError` carries a raw `code` string plus a typed `codeEnum`
+(`ReadiumErrorCode`) with `category`, `isFatal` / `isInformational`, and a structured
+`details` map (typed getters `href` / `attempt` / `maxAttempts` / `httpStatus`). See
+[error-codes.md](../api-reference/error-codes.md) for the vocabulary. Audio-stream
+failures during remote playback are recoverable and have their own flow — see
+[audio-network-recovery.md](audio-network-recovery.md).
 
 Always cancel this subscription in `dispose()`.
 

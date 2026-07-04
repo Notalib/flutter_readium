@@ -7,20 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **Audio streaming error events + connection recovery** — failures while
-  streaming remote audiobook resources (network loss, HTTP/auth errors) are
-  now reported on the error stream and no longer silently swallowed. Transient
-  failures trigger automatic recovery (3 attempts, exponential backoff) with an
-  `AudioStreamRetry` event per attempt while the timebased state stays
-  `loading`; terminal failures emit a coded event
-  (`AudioStreamAuthError` for HTTP 401/403, `AudioStreamHTTPError` for other
-  4xx, `AudioStreamNetworkError`, `AudioStreamError`, or `AudioStreamFailed`
-  when retries are exhausted) together with `TimebasedState.failure`, after
-  which calling `play()` retries from the last position. Supported on iOS,
-  Android, and Web. On Web, browsers do not expose HTTP status codes for
-  media loads, so a short diagnostic fetch probes the failing resource to
-  classify auth/HTTP errors; when the probe is inconclusive they surface as
-  `AudioStreamNetworkError` / `AudioStreamError` instead.
+- **Audio streaming error events + connection recovery (iOS, Android, Web)** —
+  failures while streaming remote audiobook resources (network loss, HTTP/auth
+  errors, or a throttled connection that stalls without erroring) are now
+  reported on the error stream instead of being silently swallowed. Transient
+  failures and detected playback stalls trigger automatic retry with backoff;
+  terminal failures emit a typed code and `TimebasedState.failure`, after which
+  `play()` retries from the last position. The code vocabulary, the Web
+  HTTP-probe caveat, and the configurable recovery policy (retry budget,
+  backoff, stall timeout) are documented in
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
 ### Changed
 
@@ -28,14 +24,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (`{href, attempt, maxAttempts, httpStatus}`, fields optional) instead of a
   freeform string — surfaced in Dart as `ReadiumError.details` with typed
   getters. Error codes are additionally exposed as the typed
-  `ReadiumError.codeEnum` (`ReadiumErrorCode`) with `isFatal` /
-  `isInformational` and `category`; see `docs/api-reference/error-codes.md`.
-
-### Fixed
-
-- Android: audio playback failures previously emitted a generic error event
-  with no failure classification and no way to resume; they now use the coded
-  events above and support retry via `play()`.
+  `ReadiumError.codeEnum` (`ReadiumErrorCode`); see
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
 ## [0.2.0] - 2026-07-02
 

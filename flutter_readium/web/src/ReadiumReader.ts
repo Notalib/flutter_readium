@@ -19,6 +19,7 @@ import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
+import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
@@ -73,6 +74,17 @@ class _ReadiumReader {
     const mapped: LogLevel = level >= 0 && level <= 4 ? level : LogLevel.info;
     setLogLevel(mapped);
     log.info("Log level set to", LogLevel[mapped]);
+  }
+
+  /**
+   * Configures the automatic audio-stream error recovery loop (retry attempts,
+   * backoff, stall detection). Applies to the next-opened publication and to
+   * any in-flight recovery loop — not to an already-running attempt sequence.
+   */
+  public setAudioRecoveryPolicy(policyJson: string): void {
+    const policy = AudioRecoveryPolicy.fromJson(JSON.parse(policyJson));
+    setCurrentAudioRecoveryPolicy(policy);
+    log.info("Audio recovery policy set", policy);
   }
 
   private _publication: ReadiumPublication | undefined;

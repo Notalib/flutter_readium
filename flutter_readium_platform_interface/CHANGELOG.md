@@ -13,6 +13,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `docs/api-reference/error-codes.md`.
 - Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
   `httpStatus`.
+- `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop
+  (retry attempts, backoff, stall-watchdog timeout) shared by the
+  iOS/Android/web audio navigators; apply via
+  `FlutterReadium().setAudioRecoveryPolicy(policy)`. Defaults reproduce prior
+  recovery behaviour. Fields and semantics:
+  [`docs/api-reference/error-codes.md#audiorecoverypolicy`](../docs/api-reference/error-codes.md#audiorecoverypolicy).
 
 ### Changed
 

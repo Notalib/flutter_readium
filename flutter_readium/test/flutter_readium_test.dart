@@ -140,6 +140,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setLogLevel(LogLevel level) async {}
 
   @override
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {}
+
+  @override
   Future<String> getResourceUrl(String href) async => 'file:///tmp/$href';
 
   @override

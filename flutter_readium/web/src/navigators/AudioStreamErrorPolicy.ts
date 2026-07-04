@@ -83,16 +83,61 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
 }
 
 /**
- * Exponential backoff policy for audio stream recovery: 1s, 2s, 4s.
- * Mirrors iOS's `AudioRecoveryPolicy` / Android's `AudioRecoveryPolicy`.
+ * Configures the automatic audio-stream error recovery loop: retry attempts,
+ * exponential backoff, and stall detection. Mirrors iOS's `AudioRecoveryPolicy`
+ * / Android's `AudioRecoveryPolicy`.
+ *
+ * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
+ * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`);
+ * defaults reproduce the recovery behaviour that shipped before the policy
+ * existed. Default: 1s, 2s, 4s backoff.
  */
 export class AudioRecoveryPolicy {
-  constructor(public readonly maxAttempts: number = 3) {}
+  constructor(
+    public readonly maxAttempts: number = 3,
+    public readonly backoffBaseSeconds: number = 1.0,
+    /**
+     * How long, in seconds, playback can go without the offset advancing
+     * (while playback is intended to be running) before the stall watchdog
+     * synthesizes a retryable error and enters the recovery loop.
+     */
+    public readonly stallTimeoutSeconds: number = 20.0
+  ) {}
 
   delayMillis(forAttempt: number): number {
     const attempt = Math.max(forAttempt, 1) - 1;
-    return 1000 * Math.pow(2, attempt);
+    return this.backoffBaseSeconds * 1000 * Math.pow(2, attempt);
   }
+
+  /**
+   * Parses a JSON object (as sent over the JS interop bridge) into a policy,
+   * falling back to defaults for missing/invalid entries.
+   */
+  static fromJson(json: Record<string, unknown> | undefined | null): AudioRecoveryPolicy {
+    if (!json) return new AudioRecoveryPolicy();
+    const maxAttempts = typeof json.maxAttempts === "number" ? json.maxAttempts : 3;
+    const backoffBaseSeconds =
+      typeof json.backoffBaseSeconds === "number" ? json.backoffBaseSeconds : 1.0;
+    const stallTimeoutSeconds =
+      typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 20.0;
+    return new AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds);
+  }
+}
+
+/**
+ * Currently configured recovery policy, set via `ReadiumReader.setAudioRecoveryPolicy`.
+ * Read by `FlutterAudioNavigator.create` when constructing a session's
+ * `AudioStreamRecoveryController` — applies to the next-opened publication and to any
+ * in-flight recovery loop, not to an already-running attempt sequence.
+ */
+let _currentRecoveryPolicy = new AudioRecoveryPolicy();
+
+export function setCurrentAudioRecoveryPolicy(policy: AudioRecoveryPolicy): void {
+  _currentRecoveryPolicy = policy;
+}
+
+export function getCurrentAudioRecoveryPolicy(): AudioRecoveryPolicy {
+  return _currentRecoveryPolicy;
 }
 
 /**
@@ -177,12 +222,16 @@ export class AudioStreamRecoveryController {
         return;
       case "retry":
         if (this.recovering) return; // recovery already in progress
-        void this.startRecovery(message, resumeHref);
+        // AudioStreamNetworkError: the only retryable classification is a
+        // network-class failure (browser MediaError has no HTTP status to
+        // distinguish auth/HTTP from generic network failures), so that's the
+        // honest terminal code if recovery exhausts its attempts.
+        void this.startRecovery(message, resumeHref, "AudioStreamNetworkError");
         return;
     }
   }
 
-  private async startRecovery(message: string, href: string): Promise<void> {
+  private async startRecovery(message: string, href: string, terminalCode: string): Promise<void> {
     this.recovering = true;
     try {
       for (let attempt = 1; attempt <= this.policy.maxAttempts; attempt++) {
@@ -198,7 +247,7 @@ export class AudioStreamRecoveryController {
         const recovered = await this.hooks.rebuildAndVerify(href);
         if (recovered) return; // regular state emissions resume
       }
-      this.enterTerminalFailure(message, "AudioStreamFailed", href);
+      this.enterTerminalFailure(message, terminalCode, href);
     } finally {
       this.recovering = false;
     }

@@ -3,6 +3,7 @@
 package dk.nota.flutterreadium
 
 import dk.nota.flutterreadium.models.TextSearchResult
+import dk.nota.flutterreadium.navigators.AudioRecoveryPolicy
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +93,12 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 val httpHeaders = args["httpHeaders"] ?: emptyMap()
 
                 ReadiumReader.setDefaultHttpHeaders(httpHeaders)
+                return Try.success(null)
+            }
+
+            "setAudioRecoveryPolicy" -> {
+                val args = arguments as? Map<*, *>
+                ReadiumReader.audioRecoveryPolicy = AudioRecoveryPolicy.fromMap(args)
                 return Try.success(null)
             }
 

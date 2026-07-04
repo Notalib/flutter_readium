@@ -551,4 +551,60 @@ void main() {
       expect(prefs.toJson()['fontSize'], closeTo(2.5, 1e-9));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // AudioRecoveryPolicy
+  // ---------------------------------------------------------------------------
+  group('AudioRecoveryPolicy', () {
+    test('defaults reproduce prior hardcoded recovery behaviour', () {
+      const policy = AudioRecoveryPolicy();
+      expect(policy.maxAttempts, 3);
+      expect(policy.backoffBaseSeconds, 1.0);
+      expect(policy.stallTimeoutSeconds, 20.0);
+    });
+
+    test('toJson emits a flat map (not nested/JSON-encoded)', () {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 5,
+        backoffBaseSeconds: 2.0,
+        stallTimeoutSeconds: 15.0,
+      );
+      expect(policy.toJson(), {
+        'maxAttempts': 5,
+        'backoffBaseSeconds': 2.0,
+        'stallTimeoutSeconds': 15.0,
+      });
+    });
+
+    test('fromJson round-trips toJson', () {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 4,
+        backoffBaseSeconds: 1.5,
+        stallTimeoutSeconds: 30.0,
+      );
+      final restored = AudioRecoveryPolicy.fromJson(policy.toJson());
+      expect(restored, policy);
+    });
+
+    test('fromJson falls back to defaults for missing fields', () {
+      final policy = AudioRecoveryPolicy.fromJson({});
+      expect(policy, const AudioRecoveryPolicy());
+    });
+
+    test('copyWith overrides only the given fields', () {
+      const policy = AudioRecoveryPolicy();
+      final updated = policy.copyWith(stallTimeoutSeconds: 10.0);
+      expect(updated.maxAttempts, 3);
+      expect(updated.backoffBaseSeconds, 1.0);
+      expect(updated.stallTimeoutSeconds, 10.0);
+    });
+
+    test('equality is value-based', () {
+      expect(const AudioRecoveryPolicy(), const AudioRecoveryPolicy());
+      expect(
+        const AudioRecoveryPolicy(maxAttempts: 5),
+        isNot(const AudioRecoveryPolicy()),
+      );
+    });
+  });
 }

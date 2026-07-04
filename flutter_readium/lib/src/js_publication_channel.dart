@@ -19,6 +19,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
   external void closePublication();
   external void setEPUBPreferences(JSString newPreferencesString);
   external void setLogLevel(JSNumber level);
+  external void setAudioRecoveryPolicy(JSString policyJson);
   external void applyDecorations(JSString group, JSString decorationsJson);
   external void setDecorationStyle(
     JSString? utteranceStyleJson,
@@ -82,6 +83,10 @@ class JsPublicationChannel {
 
   static void setLogLevel(LogLevel level) {
     _readiumReader.setLogLevel(level.index.toJS);
+  }
+
+  static void setAudioRecoveryPolicy(String policyJson) {
+    _readiumReader.setAudioRecoveryPolicy(policyJson.toJS);
   }
 
   Future<void> openPublication(

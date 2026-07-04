@@ -13,6 +13,7 @@ import {
   AudioStreamErrorAction,
   AudioStreamRecoveryController,
   classifyAudioStreamError,
+  getCurrentAudioRecoveryPolicy,
   MEDIA_ERR_ABORTED,
   MEDIA_ERR_DECODE,
   MediaErrorLike,
@@ -605,6 +606,39 @@ export class FlutterAudioNavigator {
     let nav: AudioNavigator;
     let lastPositionLogKey = "";
 
+    const recoveryPolicy = getCurrentAudioRecoveryPolicy();
+    // Stall watchdog state: the browser's own `stalled` event fires quickly (~3s) and is
+    // only an early *detection* signal that data stopped flowing — not the escalation
+    // threshold. Mirrors iOS/Android: escalation waits for the full `stallTimeoutSeconds`
+    // of the offset genuinely not advancing while playback is intended, so all three
+    // platforms present a consistent ~stallTimeout × maxAttempts UX bar.
+    let stallWatchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastAdvanceOffset: number | undefined;
+
+    function clearStallWatchdog(): void {
+      if (stallWatchdogTimer !== undefined) {
+        clearTimeout(stallWatchdogTimer);
+        stallWatchdogTimer = undefined;
+      }
+    }
+
+    /** (Re)arms the watchdog: fires after `stallTimeoutSeconds` unless reset first by another offset advance. */
+    function armStallWatchdog(onStalled: () => void): void {
+      clearStallWatchdog();
+      stallWatchdogTimer = setTimeout(onStalled, recoveryPolicy.stallTimeoutSeconds * 1000);
+    }
+
+    /**
+     * Called on every `timeupdate`-driven position change while playback is intended: resets
+     * the watchdog whenever the offset actually moves, and arms it on the first observation.
+     */
+    function noteOffsetAdvance(currentOffset: number, onStalled: () => void): void {
+      if (lastAdvanceOffset === undefined || currentOffset > lastAdvanceOffset + 0.1) {
+        lastAdvanceOffset = currentOffset;
+        armStallWatchdog(onStalled);
+      }
+    }
+
     // Recovery is only wired for the plain audiobook path. Media Overlay/TTS
     // sessions (locatorMapper present) are out of scope for this parity pass —
     // rebuilding mid-sync-narration would require re-deriving the mapper's
@@ -612,27 +646,30 @@ export class FlutterAudioNavigator {
     // not expose a way to resume.
     let recovery: AudioStreamRecoveryController | undefined;
     if (!locatorMapper && bridge) {
-      recovery = new AudioStreamRecoveryController({
-        emitError: (message, code, data) => bridge.emitError(message, code, data),
-        setPinnedState: (state) => {
-          window.updateTimebasedPlayerState?.(buildStatePayload(state, nav));
+      recovery = new AudioStreamRecoveryController(
+        {
+          emitError: (message, code, data) => bridge.emitError(message, code, data),
+          setPinnedState: (state) => {
+            window.updateTimebasedPlayerState?.(buildStatePayload(state, nav));
+          },
+          stopPlayback: () => {
+            nav.stop();
+          },
+          delay: sleep,
+          rebuildAndVerify: (href) =>
+            rebuildAndVerifyPlayback(
+              href,
+              publication,
+              () => nav.currentLocator,
+              preferencesJsonString,
+              setNav,
+              pollIntervalOverrideMs,
+              bridge,
+              (n) => { nav = n; }
+            ),
         },
-        stopPlayback: () => {
-          nav.stop();
-        },
-        delay: sleep,
-        rebuildAndVerify: (href) =>
-          rebuildAndVerifyPlayback(
-            href,
-            publication,
-            () => nav.currentLocator,
-            preferencesJsonString,
-            setNav,
-            pollIntervalOverrideMs,
-            bridge,
-            (n) => { nav = n; }
-          ),
-      });
+        getCurrentAudioRecoveryPolicy()
+      );
       FlutterAudioNavigator._recovery = recovery;
     }
 
@@ -678,6 +715,23 @@ export class FlutterAudioNavigator {
             log.debug("positionChanged", locator.href, `t=${time.toFixed(2)}`, nav.isPlaying ? "playing" : "paused");
           }
           emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
+
+          if (recovery && !recovery.isSuppressed()) {
+            if (nav.isPlaying) {
+              noteOffsetAdvance(time, () => {
+                if (recovery!.isSuppressed()) return;
+                log.warn(`Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s`);
+                recovery!.handle(
+                  `Playback stalled (offset frozen for ${recoveryPolicy.stallTimeoutSeconds}s)`,
+                  AudioStreamErrorAction.retry(),
+                  locator.href
+                );
+              });
+            } else {
+              clearStallWatchdog();
+              lastAdvanceOffset = undefined;
+            }
+          }
         },
         timelineItemChanged: (item) => {
           if (timeline && item) {
@@ -692,6 +746,8 @@ export class FlutterAudioNavigator {
         },
         pause: (locator) => {
           log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
+          clearStallWatchdog();
+          lastAdvanceOffset = undefined;
           emit("paused", locator, false);
         },
         trackEnded: (locator) => {
@@ -700,6 +756,8 @@ export class FlutterAudioNavigator {
           // would cause Dart-side to close the player prematurely.
           if (!nav.canGoForward) {
             log.info("Publication ended (last track)");
+            clearStallWatchdog();
+            lastAdvanceOffset = undefined;
             emit("ended", locator, false);
           } else {
             log.debug("Track ended, auto-advancing to next track");
@@ -715,6 +773,8 @@ export class FlutterAudioNavigator {
         },
         error: (mediaError, locator) => {
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
+          clearStallWatchdog();
+          lastAdvanceOffset = undefined;
           if (!recovery) {
             // No recovery wired (Media Overlay/TTS session): fall back to the
             // previous unconditional "failure" emission.

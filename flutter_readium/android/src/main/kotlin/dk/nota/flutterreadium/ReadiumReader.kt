@@ -17,6 +17,7 @@ import dk.nota.flutterreadium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutterreadium.events.TextLocatorEventChannel
 import dk.nota.flutterreadium.events.TimedBasedStateEventChannel
 import dk.nota.flutterreadium.models.ReadiumTimebasedState
+import dk.nota.flutterreadium.navigators.AudioRecoveryPolicy
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
 import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
@@ -527,6 +528,14 @@ object ReadiumReader :
         defaultHttpHeaders.clear()
         defaultHttpHeaders.putAll(headers)
     }
+
+    /**
+     * Policy for the audio-stream error recovery loop (retry attempts, backoff, stall
+     * detection). Read by [dk.nota.flutterreadium.navigators.AudiobookNavigator] at
+     * construction time — applies to the next-opened publication and to any in-flight
+     * recovery loop, not to an already-running attempt sequence.
+     */
+    var audioRecoveryPolicy: AudioRecoveryPolicy = AudioRecoveryPolicy()
 
     private suspend fun assetToPublication(
         asset: Asset,

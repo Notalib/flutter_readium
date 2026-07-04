@@ -210,6 +210,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       sharedReadium.setAdditionalHeaders(httpHeaders)
       result(nil)
+    case "setAudioRecoveryPolicy":
+      let args = call.arguments as? [String: Any]
+      AudioRecoveryPolicy.current = AudioRecoveryPolicy.fromMap(args)
+      result(nil)
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {

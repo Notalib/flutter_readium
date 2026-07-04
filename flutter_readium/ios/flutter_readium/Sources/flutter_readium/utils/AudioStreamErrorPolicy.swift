@@ -56,11 +56,40 @@ extension ReadError {
   }
 }
 
-/// Exponential backoff policy for audio stream recovery: 1s, 2s, 4s.
+/// Configures the automatic audio-stream error recovery loop: retry attempts,
+/// exponential backoff, and stall detection. Mirrors Android's
+/// `AudioRecoveryPolicy` / web's `AudioRecoveryPolicy`.
+///
+/// Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
+/// (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`);
+/// defaults reproduce the recovery behaviour that shipped before the policy
+/// existed. Default: 1s, 2s, 4s backoff.
 struct AudioRecoveryPolicy {
   var maxAttempts: Int = 3
+  var backoffBaseSeconds: TimeInterval = 1.0
+  /// How long, in seconds, playback can go without the offset advancing
+  /// (while playback is intended to be running) before the stall watchdog
+  /// synthesizes a retryable error and enters the recovery loop.
+  var stallTimeoutSeconds: TimeInterval = 20.0
 
   func delay(forAttempt attempt: Int) -> TimeInterval {
-    pow(2.0, Double(max(attempt, 1) - 1))
+    backoffBaseSeconds * pow(2.0, Double(max(attempt, 1) - 1))
+  }
+
+  /// Currently configured policy, set via `setAudioRecoveryPolicy`. Read by
+  /// `FlutterAudioNavigator` at construction time - applies to the
+  /// next-opened publication and to any in-flight recovery loop, not to an
+  /// already-running attempt sequence.
+  static var current: AudioRecoveryPolicy = AudioRecoveryPolicy()
+
+  /// Parses a flat `[String: Any]` map (as sent over the method channel) into
+  /// a policy, falling back to defaults for missing/invalid entries.
+  static func fromMap(_ map: [String: Any]?) -> AudioRecoveryPolicy {
+    guard let map else { return AudioRecoveryPolicy() }
+    return AudioRecoveryPolicy(
+      maxAttempts: (map["maxAttempts"] as? NSNumber)?.intValue ?? 3,
+      backoffBaseSeconds: (map["backoffBaseSeconds"] as? NSNumber)?.doubleValue ?? 1.0,
+      stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0
+    )
   }
 }

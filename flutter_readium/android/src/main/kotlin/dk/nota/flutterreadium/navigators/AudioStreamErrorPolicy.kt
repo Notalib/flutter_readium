@@ -66,15 +66,37 @@ private tailrec fun Error.findHttpError(): HttpError? =
     }
 
 /**
- * Exponential backoff policy for audio stream recovery: 1s, 2s, 4s.
+ * Configures the automatic audio-stream error recovery loop: retry attempts,
+ * exponential backoff, and stall detection. Mirrors iOS's `AudioRecoveryPolicy`
+ * / web's `AudioRecoveryPolicy`.
  *
- * Mirrors iOS's `AudioRecoveryPolicy`.
+ * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
+ * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`); defaults
+ * reproduce the recovery behaviour that shipped before the policy existed.
  */
 data class AudioRecoveryPolicy(
     val maxAttempts: Int = 3,
+    val backoffBaseSeconds: Double = 1.0,
+    /**
+     * How long, in seconds, playback can go without the offset advancing
+     * (while playback is intended to be running) before the stall watchdog
+     * synthesizes a retryable error and enters the recovery loop.
+     */
+    val stallTimeoutSeconds: Double = 20.0,
 ) {
     fun delayMillis(forAttempt: Int): Long {
         val attempt = maxOf(forAttempt, 1) - 1
-        return (1000L shl attempt)
+        return (backoffBaseSeconds * 1000L * (1 shl attempt)).toLong()
+    }
+
+    companion object {
+        /** Parses a flat `Map` (as sent over the method channel) into a policy, falling back to defaults for missing/invalid entries. */
+        fun fromMap(map: Map<*, *>?): AudioRecoveryPolicy {
+            if (map == null) return AudioRecoveryPolicy()
+            val maxAttempts = (map["maxAttempts"] as? Number)?.toInt() ?: 3
+            val backoffBaseSeconds = (map["backoffBaseSeconds"] as? Number)?.toDouble() ?: 1.0
+            val stallTimeoutSeconds = (map["stallTimeoutSeconds"] as? Number)?.toDouble() ?: 20.0
+            return AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds)
+        }
     }
 }

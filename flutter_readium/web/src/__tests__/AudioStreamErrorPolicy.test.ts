@@ -81,6 +81,34 @@ describe("AudioRecoveryPolicy", () => {
     const policy = new AudioRecoveryPolicy(5);
     expect(policy.maxAttempts).toBe(5);
   });
+
+  it("defaults stallTimeoutSeconds to 20", () => {
+    expect(new AudioRecoveryPolicy().stallTimeoutSeconds).toBe(20.0);
+  });
+
+  it("honors a custom backoffBaseSeconds", () => {
+    const policy = new AudioRecoveryPolicy(3, 2.0);
+    expect(policy.delayMillis(1)).toBe(2000);
+    expect(policy.delayMillis(2)).toBe(4000);
+    expect(policy.delayMillis(3)).toBe(8000);
+  });
+
+  it("fromJson parses all fields", () => {
+    const policy = AudioRecoveryPolicy.fromJson({
+      maxAttempts: 5,
+      backoffBaseSeconds: 2.0,
+      stallTimeoutSeconds: 30.0,
+    });
+    expect(policy.maxAttempts).toBe(5);
+    expect(policy.backoffBaseSeconds).toBe(2.0);
+    expect(policy.stallTimeoutSeconds).toBe(30.0);
+  });
+
+  it("fromJson falls back to defaults for missing/null input", () => {
+    expect(AudioRecoveryPolicy.fromJson(undefined)).toEqual(new AudioRecoveryPolicy());
+    expect(AudioRecoveryPolicy.fromJson(null)).toEqual(new AudioRecoveryPolicy());
+    expect(AudioRecoveryPolicy.fromJson({})).toEqual(new AudioRecoveryPolicy());
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -204,7 +232,7 @@ describe("AudioStreamRecoveryController", () => {
       "delay(4000)",
       "rebuildAndVerify(chap1.mp3)",
       "stopPlayback()",
-      `emitError(AudioStreamFailed, ${JSON.stringify({ href: "chap1.mp3" })})`,
+      `emitError(AudioStreamNetworkError, ${JSON.stringify({ href: "chap1.mp3" })})`,
       "setPinnedState(failure)",
     ]);
     expect(controller.isTerminallyFailed()).toBe(true);
