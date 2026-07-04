@@ -20,19 +20,6 @@ sealed class AudioStreamErrorAction {
     data class Fail(
         val code: String,
     ) : AudioStreamErrorAction()
-
-    override fun equals(other: Any?): Boolean =
-        when {
-            this === other -> true
-            this is Fail && other is Fail -> code == other.code
-            else -> this::class == other?.let { it::class }
-        }
-
-    override fun hashCode(): Int =
-        when (this) {
-            is Fail -> code.hashCode()
-            else -> this::class.hashCode()
-        }
 }
 
 /**
