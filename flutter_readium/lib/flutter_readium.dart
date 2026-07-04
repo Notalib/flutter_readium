@@ -204,7 +204,7 @@ class FlutterReadium {
       (final link) => link.title?.toLowerCase() == pageIndex,
     );
     if (pageLink == null) {
-      throw const ReadiumException('Page link not found');
+      throw ReadiumException(ReadiumError('Page link not found'));
     }
 
     return goByLink(pageLink, pub);
@@ -221,7 +221,7 @@ class FlutterReadium {
     _log.d(locator);
 
     if (locator == null) {
-      throw const ReadiumException('Link could not be resolved to locator');
+      throw ReadiumException(ReadiumError('Link could not be resolved to locator'));
     }
 
     return goToLocator(locator);
@@ -274,10 +274,10 @@ class FlutterReadium {
 
     // Throws exceptions so that they can either be handled to send a message to user or ignored
     if (curIndex == -1) {
-      throw const ReadiumException('Could not find current toc index');
+      throw ReadiumException(ReadiumError('Could not find current toc index'));
     }
     if (direction == 1 && curIndex == toc.length - 1) {
-      throw const ReadiumException('At the last chapter');
+      throw ReadiumException(ReadiumError('At the last chapter'));
     }
 
     final newIndex = (curIndex + direction).clamp(0, toc.length - 1);

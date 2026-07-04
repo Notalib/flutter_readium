@@ -148,13 +148,13 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
       final errorElement = web.HTMLDivElement()
         ..textContent = 'Something went wrong opening the publication'
         ..style.fontSize = '24px'
-        ..className = 'OpeningReadiumException'
+        ..className = 'ReadiumOpenError'
         ..style.margin = '25% auto'
         ..style.textAlign = 'center';
 
       htmlElement.append(errorElement);
 
-      throw OpeningReadiumException(e.toString(), type: null);
+      throw ReadiumException.fromError(e);
     }
   }
 

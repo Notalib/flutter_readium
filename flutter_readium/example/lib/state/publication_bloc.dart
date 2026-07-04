@@ -89,8 +89,8 @@ class PublicationState {
 
   String errorDebugDescription() {
     if (error is ReadiumException) {
-      ReadiumException re = error as ReadiumException;
-      return '${re.type}: ${re.message}';
+      final re = error as ReadiumException;
+      return '${re.code ?? re.codeEnum.name}: ${re.message}';
     } else {
       return error.toString();
     }
@@ -182,7 +182,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
       } on Exception catch (error) {
         if (error is ReadiumException) {
           _log.severe(
-            'ReadiumException on opening publication: ${error.type} - ${error.message}',
+            'ReadiumException on opening publication: ${error.code ?? error.codeEnum.name} - ${error.message}',
           );
         } else {
           _log.severe(

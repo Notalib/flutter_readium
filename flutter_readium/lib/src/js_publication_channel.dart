@@ -105,15 +105,7 @@ class JsPublicationChannel {
           )
           .toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
@@ -124,16 +116,7 @@ class JsPublicationChannel {
 
       return publicationString;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
@@ -143,39 +126,54 @@ class JsPublicationChannel {
     return match != null ? int.parse(match.group(1)!) : null;
   }
 
-  static String _convertToNativeCode(int? statusCode) {
+  static String _convertToNativeCode(int? statusCode, String errorMessage) {
+    final lowerMessage = errorMessage.toLowerCase();
+    if (lowerMessage.contains('scheme not supported')) {
+      return ReadiumErrorCode.unsupportedScheme.name;
+    }
     switch (statusCode) {
       case 415:
-        return '0';
+        return ReadiumErrorCode.formatNotSupported.name;
       case 404:
-        return '1';
+        return ReadiumErrorCode.notFound.name;
       case 400:
-        return '2';
+        return ReadiumErrorCode.readingError.name;
       case 403:
-        return '3';
+        return ReadiumErrorCode.forbidden.name;
       case 500:
-        return '4';
+        return ReadiumErrorCode.unavailable.name;
       case 401:
-        return '5';
+        return ReadiumErrorCode.incorrectCredentials.name;
       default:
-        return '';
+        return ReadiumErrorCode.unknown.name;
     }
+  }
+
+  static PlatformException _platformExceptionForJsError(
+    Object jsError,
+    StackTrace stackTrace,
+  ) {
+    final errorString = describeJsError(jsError);
+    final statusCode = _extractStatusCode(errorString);
+    final nativeCode = _convertToNativeCode(statusCode, errorString);
+    final details = <String, Object?>{'message': errorString};
+    if (statusCode != null) {
+      details['httpStatus'] = statusCode;
+    }
+
+    return PlatformException(
+      code: nativeCode,
+      message: errorString,
+      details: details,
+      stacktrace: stackTrace.toString(),
+    );
   }
 
   static Future<void> goToLocator(String locatorJson) async {
     try {
       await _readiumReader.goTo(locatorJson.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
@@ -237,13 +235,10 @@ class JsPublicationChannel {
     try {
       return (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
       throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
+        code: ReadiumErrorCode.unknown.name,
+        message: describeJsError(jsError),
+        details: {'message': describeJsError(jsError)},
         stacktrace: stackTrace.toString(),
       );
     }
@@ -256,15 +251,7 @@ class JsPublicationChannel {
     try {
       await _readiumReader.ttsEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
@@ -283,15 +270,7 @@ class JsPublicationChannel {
     try {
       await _readiumReader.audioEnable(prefsJson.toJS, fromLocatorJson?.toJS).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
@@ -303,6 +282,7 @@ class JsPublicationChannel {
       throw PlatformException(
         code: 'ResourceReadError',
         message: errorString,
+        details: {'message': errorString},
         stacktrace: stackTrace.toString(),
       );
     }
@@ -317,16 +297,7 @@ class JsPublicationChannel {
         _log.w('ReadiumReader is not ready yet, skipping setEPUBPreferences');
       }
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      final statusCode = _extractStatusCode(errorString);
-      final nativeCode = _convertToNativeCode(statusCode);
-
-      throw PlatformException(
-        code: nativeCode,
-        message: errorString,
-        details: statusCode,
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 
