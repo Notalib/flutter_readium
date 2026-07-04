@@ -15,15 +15,23 @@ RESOURCES_CHECKOUT="${1:?Usage: bin/build_test_fixtures <test-resources-checkout
 PUBS_DIR="$REPO_ROOT/flutter_readium/example/assets/pubs"
 WEB_DIR="$REPO_ROOT/flutter_readium/example/web"
 
-bash "$RESOURCES_CHECKOUT/bin/build-publications.sh" build "$PUBS_DIR"
+bash "$RESOURCES_CHECKOUT/bin/build_publications.sh" build "$PUBS_DIR"
 
 echo "Deriving example/web/ test fixtures…"
 trim() {
   if [ -n "${3:-}" ]; then
-    python3 "$REPO_ROOT/bin/trim_web_fixture.py" "$PUBS_DIR/$1" "$WEB_DIR/$2" "$3"
+    python3 "$RESOURCES_CHECKOUT/bin/trim_webpub.py" "$PUBS_DIR/$1" "$WEB_DIR/$2" "$3"
   else
-    python3 "$REPO_ROOT/bin/trim_web_fixture.py" "$PUBS_DIR/$1" "$WEB_DIR/$2"
+    python3 "$RESOURCES_CHECKOUT/bin/trim_webpub.py" "$PUBS_DIR/$1" "$WEB_DIR/$2"
   fi
+}
+
+# Remote-manifest fixtures host their audio remotely, so there is nothing to
+# package or trim — just serve the manifest.json at the fixture origin.
+copy_manifest() {
+  rm -rf "$WEB_DIR/$2"
+  mkdir -p "$WEB_DIR/$2"
+  python3 "$RESOURCES_CHECKOUT/bin/validate_remote_manifest.py" --fix "$PUBS_DIR/$1" > "$WEB_DIR/$2/manifest.json"
 }
 
 trim 38533_overlay_preview.webpub               test-fixtures/overlay            4
@@ -32,6 +40,6 @@ trim 38533_guided_navigation_preview.webpub     test-fixtures/guided-navigation 
 trim 50272-nota-comics.webpub                   test-fixtures/comic
 trim 50272-nota-comics.divina                   test-fixtures/divina
 trim 712199_ebook.webpub                        test-fixtures/ebook
-trim flatland_remote.audiobook                  test-fixtures/audiobook-remote
+copy_manifest flatland.json                     test-fixtures/audiobook-remote
 trim test-fixed-layout.webpub                   test-fixtures/fixed-layout
 trim test-peter-rabbit.webpub                   test-fixtures/peter-rabbit

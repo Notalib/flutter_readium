@@ -27,6 +27,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `ReadiumError.codeEnum` (`ReadiumErrorCode`); see
   [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
+### Fixed
+
+- **Android: Fixed-layout books can now navigate** —
+  Previously navigating in an FXL publication was a no-op.
+- **iOS: audiobooks now reliably emit `TimebasedState.ended` at end of book** —
+  the end-of-book heuristic compared playback progress against `1.0`, but AVPlayer's
+  reported position at end-of-track rarely lines up with duration, so `.ended` was never emitted.
+  We now derive from the navigator's own "resource finished" signal instead.
+- **Android: audiobook `goToLocator` now waits for the seek to take effect** —
+  previously it could return before the player had moved, so a following `play()`
+  resumed from the old position (e.g. jumping to a bookmark and playing could start from the wrong place).
+
 ## [0.2.0] - 2026-07-02
 
 ### Added

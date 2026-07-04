@@ -19,19 +19,30 @@ Future<Map<String, String>> loadFixturePaths() async {
     // Synthetic single-page webpub used to warm up the reader platform view.
     'test-peter-rabbit.webpub': '/test-fixtures/peter-rabbit/manifest.json',
 
+    // Same synthetic Peter Rabbit fixture, addressed by the illustrated native
+    // EPUB key for shared resource API tests.
+    'peter_rabbit.epub': '/test-fixtures/peter-rabbit/manifest.json',
+
     // EPUB with media overlays (trimmed, local) — synced audio + text.
     '38533_overlay_preview.webpub': '/test-fixtures/overlay/manifest.json',
 
     // Audiobook (trimmed, local) — audio-only playback.
     '38533.audiobook': '/test-fixtures/audiobook/manifest.json',
 
+    // Remote audiobook manifest. The manifest is local, but its media links are
+    // intentionally absolute remote URLs; keep playback out of deterministic CI.
+    'flatland.json': '/test-fixtures/audiobook-remote/manifest.json',
+
+    // DiViNa image publication (local exploded manifest + images).
+    '50272-nota-comics.divina': '/test-fixtures/divina/manifest.json',
+
     // Fixed-layout EPUB (local) — authored public-domain FXL test book.
-    'fixed_layout.webpub': '/test-fixtures/fixed-layout/manifest.json',
+    'test-fixed-layout.webpub': '/test-fixtures/fixed-layout/manifest.json',
 
     // Guided-navigation publication (local) — narration synced to text.
-    'guided_navigation.webpub': '/test-fixtures/guided-navigation/manifest.json',
+    '38533_guided_navigation_preview.webpub': '/test-fixtures/guided-navigation/manifest.json',
 
     // Nota comic-book media-overlay EPUB (local).
-    'comic.webpub': '/test-fixtures/comic/manifest.json',
+    '50272-nota-comics.webpub': '/test-fixtures/comic/manifest.json',
   };
 }

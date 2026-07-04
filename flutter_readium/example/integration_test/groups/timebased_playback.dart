@@ -1,0 +1,217 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../readium_integration_harness.dart';
+import '../test_fixtures.dart';
+
+void defineTimebasedPlaybackTests(ReadiumIntegrationHarness harness) {
+  group('Timebased playback', () {
+    test(
+      'EPUB TTS reaches playing with a current locator',
+      skip: kIsWeb ? 'Web Speech API unavailable in the web test harness' : false,
+      () async {
+        final path = harness.fixturePath(
+          FixtureKeys.reflowableEpub,
+          reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
+        );
+
+        await harness.readium.openPublication(path);
+
+        await exerciseAudioPlayback(
+          harness.readium,
+          enable: () => harness.readium.ttsEnable(TTSPreferences(speed: 1.0)),
+          timeout: const Duration(seconds: 60),
+        );
+      },
+    );
+
+    test('media-overlay WebPub opens and plays audio on native', () async {
+      final path = harness.fixturePath(
+        FixtureKeys.overlayWebpub,
+        reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
+      );
+
+      final pub = await harness.readium.openPublication(path);
+
+      expect(pub.readingOrder, isNotEmpty);
+      expect(pub.containsMediaOverlays, isTrue, reason: 'Overlay webpub should report media overlays');
+
+      if (!kIsWeb) {
+        await exerciseAudioPlayback(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+        );
+      }
+    });
+
+    test('audiobook opens and plays audio on native', () async {
+      final path = harness.fixturePath(
+        FixtureKeys.audiobook,
+        reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+      );
+
+      final pub = await harness.readium.openPublication(path);
+
+      expect(pub.readingOrder, isNotEmpty);
+      expect(
+        pub.conformsToReadiumAudiobook,
+        isTrue,
+        reason: 'Audiobook fixture should conform to the Readium audiobook profile',
+      );
+
+      if (!kIsWeb) {
+        await exerciseAudioPlayback(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+        );
+      }
+    });
+
+    group(
+      'native audio controls',
+      skip: kIsWeb ? 'Real audio playback is not available in the web test harness' : null,
+      () {
+        test('audiobook pause then resume cycles through state transitions', () async {
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+
+          await harness.readium.openPublication(path);
+
+          final states = <ReadiumTimebasedState>[];
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          addTearDown(sub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.play(null);
+
+          await waitUntil(
+            () => states.any((s) => s.state == TimebasedState.playing),
+            timeout: const Duration(seconds: 10),
+            reason: 'Never reached initial playing state',
+          );
+
+          await harness.readium.pause();
+          await waitUntil(
+            () => states.last.state == TimebasedState.paused,
+            timeout: const Duration(seconds: 10),
+            reason: 'pause() did not produce a paused state',
+          );
+
+          await harness.readium.resume();
+          await waitUntil(
+            () => states.last.state == TimebasedState.playing,
+            timeout: const Duration(seconds: 10),
+            reason: 'resume() did not return to playing state',
+          );
+
+          await harness.readium.pause();
+        });
+
+        test('audioSeekBy advances the timebased position', () async {
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+
+          await harness.readium.openPublication(path);
+
+          final states = <ReadiumTimebasedState>[];
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          addTearDown(sub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.play(null);
+
+          await waitUntil(
+            () => states.any((s) => s.state == TimebasedState.playing && s.currentOffset != null),
+            timeout: const Duration(seconds: 20),
+            reason: 'Never reached playing state with an offset',
+          );
+
+          final beforeSeek = states.last.currentOffset!;
+          final seekDuration = const Duration(seconds: 5);
+          final tolerance = const Duration(milliseconds: 500);
+          final expectedMinOffset = beforeSeek + seekDuration - tolerance;
+
+          await harness.readium.audioSeekBy(seekDuration);
+          await harness.readium.resume();
+
+          await waitUntil(
+            () => states.last.currentOffset != null && states.last.currentOffset! >= expectedMinOffset,
+            timeout: const Duration(seconds: 10),
+            reason: 'currentOffset did not advance after audioSeekBy($seekDuration)',
+          );
+
+          expect(
+            states.last.currentOffset! - beforeSeek,
+            greaterThanOrEqualTo(seekDuration - tolerance),
+            reason: 'audioSeekBy() should have advanced offset by ~seekDuration',
+          );
+        });
+
+        test('audiobook emits ended state when playback reaches end of book', () async {
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+
+          final pub = await harness.readium.openPublication(path);
+          expect(pub.readingOrder, isNotEmpty);
+
+          final lastIndex = pub.readingOrder.length - 1;
+          final lastLink = pub.readingOrder[lastIndex];
+          final lastDuration = lastLink.duration;
+          expect(
+            lastDuration != null && lastDuration.isFinite && lastDuration > 3,
+            isTrue,
+            reason:
+                'Test requires the last resource to have a finite duration > 3s '
+                '(got $lastDuration) to seek near its end',
+          );
+          final beginSeconds = lastDuration! - 2;
+
+          final states = <ReadiumTimebasedState>[];
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          addTearDown(sub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+
+          final endLocator = Locator(
+            href: lastLink.href,
+            type: lastLink.type ?? 'audio/mpeg',
+            locations: Locations(
+              position: pub.readingOrder.length,
+              fragments: ['t=$beginSeconds'],
+            ),
+          );
+          final navigated = await harness.readium.goToLocator(endLocator);
+          expect(navigated, isTrue, reason: 'goToLocator to end of last resource should succeed');
+
+          await harness.readium.play(null);
+
+          await waitUntil(
+            () => states.any((s) => s.state == TimebasedState.ended),
+            timeout: const Duration(seconds: 30),
+            reason:
+                'Playback reached end of book but no TimebasedState.ended was emitted. '
+                'Last state seen: ${states.isEmpty ? "<none>" : states.last.state}',
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          expect(
+            states.last.state,
+            equals(TimebasedState.ended),
+            reason:
+                'ended was reported but a later state overwrote it as the last emission: '
+                '${states.last.state}',
+          );
+
+          await harness.readium.pause();
+        });
+      },
+    );
+  });
+}
