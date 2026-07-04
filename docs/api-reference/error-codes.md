@@ -1,0 +1,50 @@
+# Error codes
+
+`ReadiumErrorCode` (platform interface) is a typed classification of the wire `code` string carried by two distinct error paths — see [streams-events.md](./streams-events.md#onerrorevent) for `ReadiumError` and `readium_exceptions.dart` for `OpeningReadiumException`. It never replaces the raw string fields (`ReadiumError.code`, `OpeningReadiumException.type`); parsing is additive and non-breaking.
+
+```dart
+reader.onErrorEvent.listen((error) {
+  switch (error.codeEnum.category) {
+    case ReadiumErrorCategory.audioStream:
+      if (error.codeEnum.isInformational) {
+        showRetryBanner(); // AudioStreamRetry: automatic recovery in progress
+      } else {
+        showAudioErrorDialog(error.codeEnum);
+      }
+    case ReadiumErrorCategory.tts:
+    case ReadiumErrorCategory.navigator:
+    case ReadiumErrorCategory.opening:
+    case ReadiumErrorCategory.unknown:
+      log('Reader error [${error.code}]: ${error.message}');
+  }
+});
+```
+
+`ReadiumErrorCode.fromWire(String?)` parses case-insensitively and never throws — an unrecognised or missing code maps to `unknown`.
+
+## Vocabulary
+
+| `ReadiumErrorCode` | Wire string(s) | Platforms | Category | Fatal? | Meaning |
+|---|---|---|---|---|---|
+| `formatNotSupported` | `formatNotSupported` | iOS, Android, web | opening | fatal | Publication format not supported by the toolkit |
+| `unsupportedScheme` | `unsupportedScheme` | iOS, Android, web | opening | fatal | URL scheme not supported when opening |
+| `readingError` | `readingError` | iOS, Android, web | opening | fatal | Generic read failure while opening a publication |
+| `notFound` | `notFound` | iOS, Android, web | opening | fatal | Publication resource not found |
+| `forbidden` | `forbidden` | iOS, Android, web | opening | fatal | Access to the publication resource is forbidden |
+| `unavailable` | `unavailable` | iOS, Android, web | opening | fatal | Publication temporarily unavailable |
+| `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
+| `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error; playback state pinned to loading |
+| `audioStreamFailed` | `AudioStreamFailed` | iOS, Android | audioStream | fatal | Recovery exhausted its retry budget; call `play()` to retry manually |
+| `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
+| `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
+| `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio |
+| `audioStreamFileError` | `AudioStreamFileError` | iOS | audioStream | fatal | Local filesystem error reading an audio resource |
+| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure |
+| `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS | tts | fatal | A single TTS utterance failed to synthesize/play |
+| `timeBasedNavigatorError` | `TimeBasedNavigatorError` | iOS | navigator | fatal | Generic time-based (audio/TTS) navigator failure not covered by a more specific code |
+| `didFailToLoadResource` | `DidFailToLoadResource` | iOS | navigator | fatal | Visual reader (EPUB/PDF) failed to load a resource |
+| `unknown` | any unrecognised string, or missing `code` | all | unknown | fatal | Fallback — includes Android's `Throwable::class.simpleName`, which is not an enumerable vocabulary |
+
+Android does not currently emit `AudioStreamFailed` failures beyond backoff, `AudioStreamFileError`, or `AudioStreamError` — its ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network); anything else falls back to `AudioStreamNetworkError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone and falls back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
+
+`isFatal` and `isInformational` are exact complements — `isInformational` is `true` only for `audioStreamRetry`.

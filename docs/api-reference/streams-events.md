@@ -71,6 +71,8 @@ reader.onErrorEvent.listen((error) {
 
 > **Android note:** The Android implementation does not currently emit errors automatically. Subscribe anyway for forward compatibility.
 
+See [Error Codes](./error-codes.md) for the full `ReadiumErrorCode` vocabulary and severity/category classification.
+
 ## Best practices
 
 - Always cancel subscriptions in `dispose()`:

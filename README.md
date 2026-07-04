@@ -155,7 +155,7 @@ Full documentation is in [docs/](docs/):
 
 - **Getting Started** — [Installation](docs/getting-started/installation.md) · [Quick Start](docs/getting-started/quick-start.md) · [Core Concepts](docs/getting-started/concepts.md)
 - **Guides** — [EPUB Reading](docs/guides/epub-reading.md) · [Audiobook Playback](docs/guides/audiobook-playback.md) · [Text-to-Speech](docs/guides/text-to-speech.md) · [Preferences](docs/guides/preferences.md) · [Highlights & Annotations](docs/guides/highlights-annotations.md) · [Search](docs/guides/search.md) · [Custom HTTP Headers](docs/guides/http-headers.md) · [Saving Progress](docs/guides/saving-progress.md) · [Error Handling](docs/guides/error-handling.md)
-- **API Reference** — [FlutterReadium class](docs/api-reference/flutter-readium.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Publication](docs/api-reference/publication.md)
+- **API Reference** — [FlutterReadium class](docs/api-reference/flutter-readium.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Error Codes](docs/api-reference/error-codes.md) · [Publication](docs/api-reference/publication.md)
 - **Architecture** — [Overview](docs/architecture.md)
 - **Troubleshooting** — [Troubleshooting](docs/troubleshooting.md)
 
