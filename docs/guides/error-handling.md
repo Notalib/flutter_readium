@@ -44,30 +44,44 @@ failures during remote playback are recoverable and have their own flow — see
 
 Always cancel this subscription in `dispose()`.
 
-## Sentry
+## Crash and error reporting
 
-For awaited calls, capture the Dart callsite stack:
+For awaited calls, report the thrown `ReadiumException` with the Dart callsite
+stack from the `catch` block. This stack is usually the most useful application
+context: it shows where the client app called the plugin.
 
 ```dart
 try {
   await reader.openPublication(url);
 } on ReadiumException catch (e, st) {
-  await Sentry.captureException(e, stackTrace: st);
+  await crashReporter.captureException(e, stackTrace: st);
 }
 ```
 
-For stream events, record the `ReadiumError` payload as context:
+For stream events, no exception is thrown. Record terminal/fatal events as a
+message or synthetic exception, and attach `error.toJson()` as structured
+context.
 
 ```dart
 reader.onErrorEvent.listen((error) {
-  Sentry.captureMessage(
-    'Readium error event',
-    withScope: (scope) {
-      scope.setContexts('readiumError', error.toJson());
-    },
-  );
+  if (error.isFatal) {
+    crashReporter.captureMessage(
+      'Readium error event',
+      context: {'readiumError': error.toJson()},
+    );
+  }
 });
 ```
+
+Native crashes are handled by the client application's normal iOS/Android crash
+reporting setup. Make sure native symbols are uploaded according to your crash
+reporting provider's instructions.
+
+Handled native failures, such as a failed HTTP request while streaming remote
+audio, are not native crashes. The plugin converts them into `ReadiumException`
+or `ReadiumError` values. Native stack traces stay in the platform logs; the
+wire payload carries stable diagnostic fields such as `code`, `href`,
+`httpStatus`, `attempt`, `maxAttempts`, and `message`.
 
 ## Navigation errors
 
