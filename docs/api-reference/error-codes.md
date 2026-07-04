@@ -38,6 +38,7 @@ reader.onErrorEvent.listen((error) {
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
 | `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
 | `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio |
+| `audioStreamRangeNotSupported` | `AudioStreamRangeNotSupported` | iOS | audioStream | fatal | The server rejected byte-range streaming for an audio resource |
 | `audioStreamFileError` | `AudioStreamFileError` | iOS | audioStream | fatal | Local filesystem error reading an audio resource |
 | `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure |
 | `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS | tts | fatal | A single TTS utterance failed to synthesize/play |
@@ -45,7 +46,7 @@ reader.onErrorEvent.listen((error) {
 | `didFailToLoadResource` | `DidFailToLoadResource` | iOS | navigator | fatal | Visual reader (EPUB/PDF) failed to load a resource |
 | `unknown` | any unrecognised string, or missing `code` | all | unknown | fatal | Fallback — includes Android's `Throwable::class.simpleName`, which is not an enumerable vocabulary |
 
-Android does not currently emit `AudioStreamFailed` failures beyond backoff, `AudioStreamFileError`, or `AudioStreamError` — its ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network); anything else falls back to `AudioStreamNetworkError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone and falls back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
+Android does not currently emit `AudioStreamFailed` failures beyond backoff, `AudioStreamRangeNotSupported`, `AudioStreamFileError`, or `AudioStreamError` — its ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network); anything else falls back to `AudioStreamNetworkError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone and falls back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
 
 `isFatal` and `isInformational` are exact complements — `isInformational` is `true` only for `audioStreamRetry`.
 

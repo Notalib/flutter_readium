@@ -46,6 +46,7 @@ enum ReadiumErrorCode {
   audioStreamAuthError,
   audioStreamHttpError,
   audioStreamNetworkError,
+  audioStreamRangeNotSupported,
   audioStreamFileError,
   audioStreamError,
 
@@ -76,6 +77,7 @@ enum ReadiumErrorCode {
     ReadiumErrorCode.audioStreamAuthError: ['AudioStreamAuthError'],
     ReadiumErrorCode.audioStreamHttpError: ['AudioStreamHTTPError'],
     ReadiumErrorCode.audioStreamNetworkError: ['AudioStreamNetworkError'],
+    ReadiumErrorCode.audioStreamRangeNotSupported: ['AudioStreamRangeNotSupported'],
     ReadiumErrorCode.audioStreamFileError: ['AudioStreamFileError'],
     ReadiumErrorCode.audioStreamError: ['AudioStreamError'],
     ReadiumErrorCode.ttsUtteranceFailed: ['TTSUtteranceFailed'],
@@ -122,6 +124,7 @@ enum ReadiumErrorCode {
       case ReadiumErrorCode.audioStreamAuthError:
       case ReadiumErrorCode.audioStreamHttpError:
       case ReadiumErrorCode.audioStreamNetworkError:
+      case ReadiumErrorCode.audioStreamRangeNotSupported:
       case ReadiumErrorCode.audioStreamFileError:
       case ReadiumErrorCode.audioStreamError:
         return ReadiumErrorCategory.audioStream;

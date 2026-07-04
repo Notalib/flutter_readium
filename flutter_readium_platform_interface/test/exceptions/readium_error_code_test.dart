@@ -20,6 +20,7 @@ void main() {
         'AudioStreamAuthError': ReadiumErrorCode.audioStreamAuthError,
         'AudioStreamHTTPError': ReadiumErrorCode.audioStreamHttpError,
         'AudioStreamNetworkError': ReadiumErrorCode.audioStreamNetworkError,
+        'AudioStreamRangeNotSupported': ReadiumErrorCode.audioStreamRangeNotSupported,
         'AudioStreamFileError': ReadiumErrorCode.audioStreamFileError,
         'AudioStreamError': ReadiumErrorCode.audioStreamError,
         // TTS / navigator / resource-loading (iOS-only today).

@@ -48,6 +48,7 @@ _errorSub = FlutterReadium().onErrorEvent.listen((error) {
     showFailureDialog(
       message: switch (error.codeEnum) {
         ReadiumErrorCode.audioStreamAuthError => 'Authentication error, login may have expired.',
+        ReadiumErrorCode.audioStreamRangeNotSupported => 'This server does not support audio seeking.',
         _ => 'There was a problem with your connection.',
       },
       onRetry: () => FlutterReadium().play(), // resumes from the last position
@@ -93,3 +94,5 @@ Supported on iOS, Android, and Web. On Web the browser does not expose HTTP stat
 for media loads, so auth/HTTP classification relies on a short diagnostic fetch probe;
 when it is inconclusive the failure surfaces as `AudioStreamNetworkError` rather than a
 more specific code. Detail: [error-codes.md](../api-reference/error-codes.md).
+iOS audio streaming requires byte-range support from the remote audio server; if a range
+request is rejected, the terminal error is `AudioStreamRangeNotSupported`.
