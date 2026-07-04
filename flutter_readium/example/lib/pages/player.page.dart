@@ -38,24 +38,64 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     super.dispose();
   }
 
-  /// Popup on terminal audio-stream failures; AudioStreamRetry is informational.
+  /// Reference consumer for the typed error surface (see
+  /// `docs/api-reference/error-codes.md`): a transient snackbar for the
+  /// informational `audioStreamRetry` event, an actionable dialog for
+  /// terminal audio-stream failures, and log-only for every other category.
   void _onReadiumError(final ReadiumError error) {
-    final code = error.code;
-    if (code == null || !code.startsWith('AudioStream') || code == 'AudioStreamRetry') {
+    if (error.codeEnum.category != ReadiumErrorCategory.audioStream) {
+      ReadiumLog.d('Reader error [${error.code}]: ${error.message}');
       return;
     }
+
     if (!mounted) {
       return;
     }
+
+    if (error.codeEnum.isInformational) {
+      _showRetrySnackBar(error);
+    } else {
+      _showAudioStreamFailureDialog(error);
+    }
+  }
+
+  void _showRetrySnackBar(final ReadiumError error) {
+    final attempt = error.attempt;
+    final maxAttempts = error.maxAttempts;
+    final message = attempt != null && maxAttempts != null
+        ? 'Connection problem — retrying ($attempt/$maxAttempts)…'
+        : 'Connection problem — retrying…';
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), duration: const Duration(seconds: 3)));
+  }
+
+  void _showAudioStreamFailureDialog(final ReadiumError error) {
+    final String message = switch (error.codeEnum) {
+      ReadiumErrorCode.audioStreamAuthError => 'There was a problem signing you in. Please try again.',
+      ReadiumErrorCode.audioStreamNetworkError ||
+      ReadiumErrorCode.audioStreamHttpError ||
+      ReadiumErrorCode.audioStreamFailed => 'There was a problem with your connection. Please try again.',
+      _ => 'Audio playback failed. Please try again.',
+    };
+
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Audio playback failed ($code)'),
-        content: Text(error.message),
+        title: const Text('Audio playback failed'),
+        content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<PlayerControlsBloc>().add(Play());
+            },
+            child: const Text('Retry'),
           ),
         ],
       ),
