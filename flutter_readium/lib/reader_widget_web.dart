@@ -85,7 +85,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       throw ReadiumError(
         'Error when navigating to locator: ${e.message}',
         code: e.code,
-        data: 'publication id: $pubID. locator: $locator',
+        details: {'message': 'publication id: $pubID. locator: $locator'},
         stackTrace: stackTrace,
       );
     }

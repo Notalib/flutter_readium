@@ -95,6 +95,14 @@ class ReadiumError implements Error {
     );
   }
 
+  ReadiumError(
+    this.message, {
+    this.code,
+    this.details,
+    final StackTrace? stackTrace,
+  }) : codeEnum = ReadiumErrorCode.fromWire(code),
+       stackTrace = stackTrace ?? StackTrace.current;
+
   /// Tolerates a stale native side still sending `data` as a freeform
   /// string (pre-R2 wire format) by wrapping it as `{"message": <string>}`,
   /// so the stream decoder never crashes on a legacy payload.
@@ -104,14 +112,6 @@ class ReadiumError implements Error {
     if (rawData is Map) return Map<String, dynamic>.from(rawData);
     return {'message': rawData.toString()};
   }
-
-  ReadiumError(
-    this.message, {
-    this.code,
-    this.details,
-    final StackTrace? stackTrace,
-  }) : codeEnum = ReadiumErrorCode.fromWire(code),
-       stackTrace = stackTrace ?? StackTrace.current;
 
   final String message;
 
@@ -132,18 +132,18 @@ class ReadiumError implements Error {
 
   /// The resource href the error relates to, if any (e.g. the audio
   /// resource being streamed).
-  String? get href => details == null ? null : details.optNullableString('href');
+  String? get href => details?.optNullableString('href');
 
   /// The current retry attempt number, for informational recovery events
   /// (e.g. `audioStreamRetry`).
-  int? get attempt => details == null ? null : details.optNullableInt('attempt');
+  int? get attempt => details?.optNullableInt('attempt');
 
   /// The maximum number of retry attempts, for informational recovery
   /// events (e.g. `audioStreamRetry`).
-  int? get maxAttempts => details == null ? null : details.optNullableInt('maxAttempts');
+  int? get maxAttempts => details?.optNullableInt('maxAttempts');
 
   /// The HTTP status code that triggered the error, when known.
-  int? get httpStatus => details == null ? null : details.optNullableInt('httpStatus');
+  int? get httpStatus => details?.optNullableInt('httpStatus');
 
   @override
   final StackTrace? stackTrace;
