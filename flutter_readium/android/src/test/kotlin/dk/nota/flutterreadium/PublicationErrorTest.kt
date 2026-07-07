@@ -95,4 +95,57 @@ internal class PublicationErrorTest {
         assertEquals(PublicationError.ReadiumExceptionType.READING_ERROR, error.errorCode)
         assertNull(error.toMethodChannelDetails()?.get("httpStatus"))
     }
+
+    @Test
+    fun `InvalidArgument uses the wire string Dart special-cases as a raw PlatformException`() {
+        val error = PublicationError.InvalidArgument("bad arg")
+
+        assertEquals("InvalidArgument", error.errorCode.wireValue)
+    }
+
+    @Test
+    fun `NoPublicationOpened maps to the NoPublication wire code`() {
+        assertEquals(
+            "NoPublication",
+            PublicationError.NoPublicationOpened().errorCode.wireValue,
+        )
+    }
+
+    @Test
+    fun `Search maps to the SearchError wire code`() {
+        assertEquals(
+            "SearchError",
+            PublicationError.Search("query failed").errorCode.wireValue,
+        )
+    }
+
+    @Test
+    fun `TTSFailure maps to the TTSError wire code`() {
+        assertEquals(
+            "TTSError",
+            PublicationError.TTSFailure("tts failed").errorCode.wireValue,
+        )
+    }
+
+    @Test
+    fun `TTSUtteranceFailure maps to the TTSUtteranceFailed wire code`() {
+        assertEquals(
+            "TTSUtteranceFailed",
+            PublicationError.TTSUtteranceFailure("utterance failed").errorCode.wireValue,
+        )
+    }
+
+    @Test
+    fun `ResourceRead surfaces its reason as the sole details entry`() {
+        val error = PublicationError.ResourceRead("no resource", reason = "notFound")
+
+        assertEquals(mapOf("reason" to "notFound"), error.toMethodChannelDetails())
+    }
+
+    @Test
+    fun `ResourceRead without a reason has no structured details`() {
+        val error = PublicationError.ResourceRead("read failed")
+
+        assertNull(error.toMethodChannelDetails())
+    }
 }

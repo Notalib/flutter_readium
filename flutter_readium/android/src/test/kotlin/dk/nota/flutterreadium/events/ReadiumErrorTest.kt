@@ -28,7 +28,7 @@ internal class ReadiumErrorTest {
 
     @Test
     fun `data is omitted when null`() {
-        val error = ReadiumError(message = "boom", code = "AudioStreamFailed")
+        val error = ReadiumError(message = "boom", code = "AudioStreamError")
 
         val json = Json.encodeToString(ReadiumError.serializer(), error)
 

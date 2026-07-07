@@ -51,6 +51,43 @@ sealed class PublicationError(
         message: String = "Unknown error",
     ) : PublicationError(ReadiumExceptionType.UNKNOWN, message)
 
+    /** Caller misuse: malformed/missing/wrong-typed method-channel arguments. */
+    class InvalidArgument(
+        message: String,
+    ) : PublicationError(ReadiumExceptionType.INVALID_ARGUMENT, message)
+
+    /** Navigator operation attempted with no publication currently open. */
+    class NoPublicationOpened(
+        message: String = "No publication currently open",
+    ) : PublicationError(ReadiumExceptionType.NO_PUBLICATION_OPENED, message)
+
+    /**
+     * A publication resource failed to load/serve (e.g. `getResourceUrl`). [reason] is an
+     * optional short discriminator surfaced in the method-channel `details` map (e.g.
+     * `"notFound"`, `"cache"`) - mirrors iOS's `ResourceReadError` details.
+     */
+    class ResourceRead(
+        message: String,
+        val reason: String? = null,
+    ) : PublicationError(ReadiumExceptionType.RESOURCE_READ_ERROR, message)
+
+    /** Full-text search failed. */
+    class Search(
+        message: String,
+    ) : PublicationError(ReadiumExceptionType.SEARCH_ERROR, message)
+
+    /** Generic TTS synthesis/playback failure not covered by a more specific code. */
+    class TTSFailure(
+        message: String,
+        cause: Error? = null,
+    ) : PublicationError(ReadiumExceptionType.TTS_ERROR, message, cause)
+
+    /** A single TTS utterance failed to synthesize/play (ambient error-channel event). */
+    class TTSUtteranceFailure(
+        message: String,
+        cause: Error? = null,
+    ) : PublicationError(ReadiumExceptionType.TTS_UTTERANCE_FAILED, message, cause)
+
     enum class ReadiumExceptionType(
         val wireValue: String,
     ) {
@@ -62,6 +99,17 @@ sealed class PublicationError(
         UNAVAILABLE("unavailable"),
         INCORRECT_CREDENTIALS("incorrectCredentials"),
         UNKNOWN("unknown"),
+
+        // Caller misuse - deliberately NOT part of the Dart `ReadiumErrorCode` vocabulary.
+        // `_readiumCall` passes this wire string through as a raw `PlatformException` instead
+        // of wrapping it in `ReadiumException`. See flutter_readium.dart.
+        INVALID_ARGUMENT("InvalidArgument"),
+
+        SEARCH_ERROR("SearchError"),
+        NO_PUBLICATION_OPENED("NoPublication"),
+        RESOURCE_READ_ERROR("ResourceReadError"),
+        TTS_ERROR("TTSError"),
+        TTS_UTTERANCE_FAILED("TTSUtteranceFailed"),
     }
 
     companion object {
@@ -115,13 +163,18 @@ sealed class PublicationError(
                 -> Unexpected(error)
             }
 
+        // TtsNavigator surfaces this via TTSNavigator.onPlaybackStateChanged's
+        // State.Failure branch, which is an ambient error-channel event mid-utterance
+        // (mirrors iOS's AVSpeechSynthesizer utterance-failure callback), not a
+        // method-channel result - so both variants map to TTSUtteranceFailed rather than
+        // a generic/opening code.
         operator fun invoke(error: TtsNavigator.Error): PublicationError =
             when (error) {
                 is TtsNavigator.Error.EngineError<*>,
-                -> Unexpected(error)
+                -> TTSUtteranceFailure(error.cause.message, error.cause)
 
                 is TtsNavigator.Error.ContentError,
-                -> FormatNotSupported(error)
+                -> TTSUtteranceFailure(error.cause.message, error.cause)
             }
     }
 }
@@ -154,8 +207,15 @@ fun PublicationError.toReadiumErrorDetails(): ReadiumErrorDetails? {
     return cause?.message?.let { ReadiumErrorDetails(message = it, httpStatus = httpStatus) }
 }
 
-fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? =
-    toReadiumErrorDetails()?.let { details ->
+fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? {
+    // Short discriminator for a ResourceRead failure (e.g. "notFound", "cache") - mirrors
+    // iOS's ResourceReadError `details: ["reason": ...]`. Not part of ReadiumErrorDetails
+    // since it's specific to this one error code.
+    if (this is PublicationError.ResourceRead && reason != null) {
+        return mapOf("reason" to reason)
+    }
+
+    return toReadiumErrorDetails()?.let { details ->
         buildMap {
             details.href?.let { put("href", it) }
             details.attempt?.let { put("attempt", it) }
@@ -164,3 +224,4 @@ fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? =
             details.message?.let { put("message", it) }
         }.takeIf { it.isNotEmpty() }
     }
+}

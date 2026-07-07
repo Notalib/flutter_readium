@@ -171,7 +171,11 @@ class ReadiumReaderWidget(
             } catch (e: Exception) {
                 PluginLog.e(TAG, "::init - visualEnable failed: ${e.message}", e)
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
-                ReadiumReader.emitError(ReadiumError(e))
+                // Heterogeneous failure surface (fragment/navigator-creation errors from
+                // kotlin-toolkit) with no single vocabulary code that fits - "unknown" is
+                // itself a vocabulary member, unlike the raw exception class name the
+                // Throwable overload of ReadiumError(...) would otherwise emit.
+                ReadiumReader.emitError(ReadiumError(PublicationError.Unknown(e.message ?: e.toString())))
             }
         }
     }
@@ -333,7 +337,7 @@ class ReadiumReaderWidget(
                         val prefsMap =
                             call.arguments as? Map<String, Any> ?: run {
                                 result.error(
-                                    "FlutterReadium",
+                                    "InvalidArgument",
                                     "Failed to set preferences",
                                     "Invalid argument",
                                 )
@@ -355,7 +359,10 @@ class ReadiumReaderWidget(
                         }
                         result.success(null)
                     } catch (ex: Exception) {
-                        result.error("FlutterReadium", "Failed to set preferences", ex.message)
+                        // Preferences are deserialized from caller-supplied data
+                        // (FlutterEpubPreferences.fromMap); treat failures here as
+                        // caller-misuse rather than a generic/unmapped code.
+                        result.error("InvalidArgument", "Failed to set preferences", ex.message)
                     }
                 }
 

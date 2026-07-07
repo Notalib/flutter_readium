@@ -684,8 +684,8 @@ open class AudiobookNavigator(
      *
      * @param terminalCode Code to use if recovery exhausts its attempts, carried through
      * from how [error] was originally classified (e.g. `AudioStreamNetworkError` for a
-     * classified network error, or a stall-specific code) - not the generic
-     * `AudioStreamFailed` fallback.
+     * classified network error, or a stall-specific code) - not a generic
+     * `AudioStreamError` fallback.
      */
     private fun startRecovery(
         error: Error,
