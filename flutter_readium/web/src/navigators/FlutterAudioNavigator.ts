@@ -873,10 +873,8 @@ export class FlutterAudioNavigator {
         } catch (destroyError) {
           log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
         }
-        if (timedOut && emitCreateTimeoutError && !locatorMapper && bridge) {
-          bridge.emitError("Timed out preparing audio playback", "AudioStreamNetworkError", {
-            href: initialPosition?.href,
-          });
+        if (timedOut && emitCreateTimeoutError && !locatorMapper) {
+          log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
         }
       }
       throw error;

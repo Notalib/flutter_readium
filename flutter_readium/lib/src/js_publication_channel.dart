@@ -131,6 +131,9 @@ class JsPublicationChannel {
     if (lowerMessage.contains('scheme not supported')) {
       return ReadiumErrorCode.unsupportedScheme.name;
     }
+    if (lowerMessage.contains('timed out preparing audio playback')) {
+      return ReadiumErrorCode.audioStreamNetworkError.name;
+    }
     switch (statusCode) {
       case 415:
         return ReadiumErrorCode.formatNotSupported.name;

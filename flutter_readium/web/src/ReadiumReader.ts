@@ -98,6 +98,8 @@ class _ReadiumReader {
   private _audioNav: AudioNavigator | undefined;
   /** Last audiobook locator selected while audio is stopped/destructed. */
   private _stoppedAudioLocator: Locator | undefined;
+  /** Last audio preferences JSON used to create an audio navigator. */
+  private _activeAudioPreferencesJson = "{}";
   private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
   private _positions: Locator[] = [];
@@ -335,6 +337,7 @@ class _ReadiumReader {
     this._syncItems = [];
     this._positions = [];
     this._stoppedAudioLocator = undefined;
+    this._activeAudioPreferencesJson = "{}";
     this._lastDeferredSyncLocator = null;
     this._lastDeferredSyncDurationMs = undefined;
     this._narrationSyncEnabled = true;
@@ -345,6 +348,7 @@ class _ReadiumReader {
 
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
+        this._activeAudioPreferencesJson = preferencesJsonString;
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await FlutterAudioNavigator.create(
           this._publication,
@@ -428,8 +432,6 @@ class _ReadiumReader {
       }
     } catch (error) {
       log.error("Failed to open publication:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this._bridge.emitError("Failed to open publication: " + errorMessage);
       this.closePublication(error);
       throw error;
     }
@@ -689,7 +691,7 @@ class _ReadiumReader {
       void FlutterAudioNavigator.create(
         this._publication as ReadiumPublication,
         resumeLocator,
-        "{}",
+        this._activeAudioPreferencesJson,
         (nav) => {
           this._audioNav = nav;
           nav.play();
@@ -1149,6 +1151,9 @@ class _ReadiumReader {
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
+    const preferencesJsonString =
+      !prefsJson || prefsJson === "null" ? "{}" : prefsJson;
+    this._activeAudioPreferencesJson = preferencesJsonString;
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : this._visualNav?.currentLocator;
@@ -1176,7 +1181,7 @@ class _ReadiumReader {
         await initializeGuidedNavigationNavigator(
           this._publication,
           fromLocator,
-          prefsJson,
+          preferencesJsonString,
           (nav, items) => { this._audioNav = nav; this._syncItems = items; },
           (textLocator, _durationMs) => this._syncDivinaToMediaOverlayLocator(textLocator)
         );
@@ -1185,7 +1190,7 @@ class _ReadiumReader {
         await initializeGuidedNavigationNavigator(
           this._publication,
           fromLocator,
-          prefsJson,
+          preferencesJsonString,
           (nav, items) => { this._audioNav = nav; this._syncItems = items; },
           (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
         );
@@ -1228,8 +1233,12 @@ class _ReadiumReader {
       await FlutterAudioNavigator.create(
         this._publication,
         fromLocator,
-        prefsJson,
-        (nav) => { this._audioNav = nav; }
+        preferencesJsonString,
+        (nav) => { this._audioNav = nav; },
+        undefined,
+        undefined,
+        undefined,
+        this._bridge
       );
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
@@ -1245,7 +1254,10 @@ class _ReadiumReader {
   public setAudioPreferences(preferencesJson: string): void {
     log.debug("setAudioPreferences");
     if (!this._audioNav) return;
-    applyAudioPreferences(this._audioNav, preferencesJson);
+    const preferencesJsonString =
+      !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
+    this._activeAudioPreferencesJson = preferencesJsonString;
+    applyAudioPreferences(this._audioNav, preferencesJsonString);
   }
 }
 

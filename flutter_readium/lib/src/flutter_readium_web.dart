@@ -223,6 +223,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
             defaultPreferences?.toJson() ?? <String, dynamic>{},
           ),
         );
+      } on PlatformException catch (e) {
+        throw ReadiumException.fromPlatformException(e);
       } on Exception catch (e) {
         throw ReadiumException(ReadiumError('Exception opening audiobook on web: $e'));
       }
