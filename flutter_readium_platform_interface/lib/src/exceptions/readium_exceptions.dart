@@ -72,14 +72,18 @@ class ReadiumError {
   ReadiumError(
     this.message, {
     this.code,
-    this.details,
-  }) : codeEnum = ReadiumErrorCode.fromWire(code);
+    Map<String, dynamic>? details,
+  }) : details = details == null ? null : Map.unmodifiable(details),
+       codeEnum = ReadiumErrorCode.fromWire(code);
 
   static const _detailsEquality = DeepCollectionEquality();
 
   /// Tolerates a stale native side still sending `data` as a freeform
   /// string (pre-R2 wire format) by wrapping it as `{"message": <string>}`,
   /// so the stream decoder never crashes on a legacy payload.
+  ///
+  /// The constructor makes the result unmodifiable, so this only needs to
+  /// return a plain map.
   static Map<String, dynamic>? _detailsFromWire(Object? rawData) {
     if (rawData == null) return null;
     if (rawData is Map<String, dynamic>) return rawData;
@@ -110,6 +114,9 @@ class ReadiumError {
   /// specific — see `docs/api-reference/error-codes.md`. Prefer the typed
   /// getters ([href], [attempt], [maxAttempts], [httpStatus]) over reading
   /// this map directly.
+  ///
+  /// Unmodifiable: the constructor copies the caller's map so post-construction
+  /// mutation can't silently break `==`/`hashCode`, which are computed over it.
   final Map<String, dynamic>? details;
 
   /// The resource href the error relates to, if any (e.g. the audio

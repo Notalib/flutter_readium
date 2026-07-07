@@ -172,6 +172,17 @@ class JsPublicationChannel {
     );
   }
 
+  /// Runs a synchronous call into the JS bundle, converting any thrown JS
+  /// error into a [PlatformException] via [_platformExceptionForJsError] so
+  /// it isn't leaked to callers unconverted.
+  static T _guardJsCall<T>(T Function() call) {
+    try {
+      return call();
+    } on Object catch (jsError, stackTrace) {
+      throw _platformExceptionForJsError(jsError, stackTrace);
+    }
+  }
+
   static Future<void> goToLocator(String locatorJson) async {
     try {
       await _readiumReader.goTo(locatorJson.toJS).toDart;
@@ -181,11 +192,11 @@ class JsPublicationChannel {
   }
 
   static void goBackward() {
-    _readiumReader.goBackward();
+    _guardJsCall(() => _readiumReader.goBackward());
   }
 
   static void goForward() {
-    _readiumReader.goForward();
+    _guardJsCall(() => _readiumReader.goForward());
   }
 
   void closePublication() {
@@ -197,41 +208,42 @@ class JsPublicationChannel {
   }
 
   static void playAudio({String? locatorJson}) {
-    _readiumReader.play(locatorJson?.toJS);
+    _guardJsCall(() => _readiumReader.play(locatorJson?.toJS));
   }
 
   static void pauseAudio() {
-    _readiumReader.pause();
+    _guardJsCall(() => _readiumReader.pause());
   }
 
   static void resumeAudio() {
-    _readiumReader.resume();
+    _guardJsCall(() => _readiumReader.resume());
   }
 
   static void stopAudio() {
-    _readiumReader.stop();
+    _guardJsCall(() => _readiumReader.stop());
   }
 
   static void nextAudio() {
-    _readiumReader.next();
+    _guardJsCall(() => _readiumReader.next());
   }
 
   static void previousAudio() {
-    _readiumReader.previous();
+    _guardJsCall(() => _readiumReader.previous());
   }
 
   static void seekBy(double seconds) {
-    _readiumReader.seekBy(seconds.toJS);
+    _guardJsCall(() => _readiumReader.seekBy(seconds.toJS));
   }
 
-  static bool goToProgression(double progression) => _readiumReader.goToProgression(progression.toJS).toDart;
+  static bool goToProgression(double progression) =>
+      _guardJsCall(() => _readiumReader.goToProgression(progression.toJS).toDart);
 
   static void setNarrationSyncEnabled(bool enabled) {
-    _readiumReader.setNarrationSyncEnabled(enabled.toJS);
+    _guardJsCall(() => _readiumReader.setNarrationSyncEnabled(enabled.toJS));
   }
 
   static void setAudioPreferences(String preferencesJson) {
-    _readiumReader.setAudioPreferences(preferencesJson.toJS);
+    _guardJsCall(() => _readiumReader.setAudioPreferences(preferencesJson.toJS));
   }
 
   static Future<String> ttsGetAvailableVoices() async {
@@ -259,11 +271,11 @@ class JsPublicationChannel {
   }
 
   static void ttsSetVoice(String identifier, {String? lang}) {
-    _readiumReader.ttsSetVoice(identifier.toJS, lang?.toJS);
+    _guardJsCall(() => _readiumReader.ttsSetVoice(identifier.toJS, lang?.toJS));
   }
 
   static void ttsSetPreferences(String prefsJson) {
-    _readiumReader.ttsSetPreferences(prefsJson.toJS);
+    _guardJsCall(() => _readiumReader.ttsSetPreferences(prefsJson.toJS));
   }
 
   static Future<void> audioEnable(
@@ -307,16 +319,18 @@ class JsPublicationChannel {
   void applyDecorations(String group, String decorationsJson) {
     final isReady = _readiumReader.isNavigatorReady.toDart;
     if (isReady) {
-      _readiumReader.applyDecorations(group.toJS, decorationsJson.toJS);
+      _guardJsCall(() => _readiumReader.applyDecorations(group.toJS, decorationsJson.toJS));
     } else {
       ReadiumLog.w('ReadiumReader is not ready yet, skipping applyDecorations');
     }
   }
 
   void setDecorationStyle(String? utteranceStyleJson, String? rangeStyleJson) {
-    _readiumReader.setDecorationStyle(
-      utteranceStyleJson?.toJS,
-      rangeStyleJson?.toJS,
+    _guardJsCall(
+      () => _readiumReader.setDecorationStyle(
+        utteranceStyleJson?.toJS,
+        rangeStyleJson?.toJS,
+      ),
     );
   }
 }

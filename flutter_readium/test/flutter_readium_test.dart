@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -156,7 +157,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {}
 
   @override
-  Future<String> getResourceUrl(String href) async => 'file:///tmp/$href';
+  Future<String> getResourceUrl(String href) async => _maybeThrow('getResourceUrl', 'file:///tmp/$href');
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async => [];
@@ -382,6 +383,38 @@ void main() {
       await expectLater(
         () => reader.toPhysicalPageIndex('999', pub),
         throwsA(isA<ReadiumException>()),
+      );
+    });
+  });
+
+  group('ReadiumResourceImageProvider', () {
+    test('converts platform resource-load failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'getResourceUrl'
+        ..errorToThrow = PlatformException(
+          code: 'notFound',
+          message: 'Resource not found',
+          details: {'href': 'images/cover.png'},
+        );
+
+      final provider = ReadiumResourceImageProvider('images/cover.png', platform);
+      final stream = provider.resolve(ImageConfiguration.empty);
+
+      final errorCompleter = Completer<Object>();
+      late ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (image, synchronousCall) {},
+        onError: (error, stackTrace) {
+          errorCompleter.complete(error);
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+
+      final error = await errorCompleter.future;
+      expect(
+        error,
+        isA<ReadiumException>().having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.notFound),
       );
     });
   });

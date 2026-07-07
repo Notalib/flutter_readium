@@ -12,6 +12,23 @@ import 'network_image_codec_switch.dart';
 export 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 export 'reader_widget_switch.dart';
 
+/// Converts platform/native failures into [ReadiumException] so callers never
+/// see a raw [PlatformException], except `InvalidArgument` (plugin misuse),
+/// which is left untouched for callers that specifically test for it.
+///
+/// Shared by [FlutterReadium._readiumCall] and [ReadiumResourceImageProvider]
+/// so both call paths honour the same error contract.
+Future<T> _convertReadiumErrors<T>(Future<T> Function() call) async {
+  try {
+    return await call();
+  } on ReadiumException {
+    rethrow;
+  } on PlatformException catch (err) {
+    if (err.code == 'InvalidArgument') rethrow;
+    throw ReadiumException.fromPlatformException(err);
+  }
+}
+
 /// Unified API for interacting with the Readium toolkits across platforms, providing methods for loading publications,
 /// navigating content, controlling audio and TTS playback, and receiving updates on reader status and locator changes.
 class FlutterReadium {
@@ -29,16 +46,7 @@ class FlutterReadium {
 
   static FlutterReadiumPlatform get _platform => FlutterReadiumPlatform.instance;
 
-  Future<T> _readiumCall<T>(Future<T> Function() call) async {
-    try {
-      return await call();
-    } on ReadiumException {
-      rethrow;
-    } on PlatformException catch (err) {
-      if (err.code == 'InvalidArgument') rethrow;
-      throw ReadiumException.fromPlatformException(err);
-    }
-  }
+  Future<T> _readiumCall<T>(Future<T> Function() call) => _convertReadiumErrors(call);
 
   /// Sets custom HTTP headers to be used for all network requests made by the reader.
   Future<void> setCustomHeaders(Map<String, String> headers) => _readiumCall(() => _platform.setCustomHeaders(headers));
@@ -350,7 +358,7 @@ class ReadiumResourceImageProvider extends ImageProvider<ReadiumResourceImagePro
     ReadiumResourceImageProvider key,
     ImageDecoderCallback decode,
   ) async {
-    final url = await key._platform.getResourceUrl(key.href);
+    final url = await _convertReadiumErrors(() => key._platform.getResourceUrl(key.href));
     final uri = Uri.parse(url);
     if (uri.isScheme('file')) {
       final buffer = await ui.ImmutableBuffer.fromFilePath(uri.toFilePath());
