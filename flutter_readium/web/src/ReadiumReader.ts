@@ -317,7 +317,7 @@ class _ReadiumReader {
         throw new ReadiumWebError(
           "Failed to navigate to link " + locator.href,
           ReadiumWebErrorCode.resourceReadError,
-          { reason: "navigation failed", href: locator.href }
+          { reason: "navigation", href: locator.href }
         );
       }
     });
@@ -1147,10 +1147,13 @@ class _ReadiumReader {
     }
     const link = findLinkByHref(pub.allLinks, href);
     if (!link) {
+      // A syntactically valid href with no matching manifest entry is a runtime
+      // not-found condition, not caller misuse - mirrors iOS/Android, which both
+      // classify the equivalent case as ResourceReadError(reason: "notFound").
       throw new ReadiumWebError(
         `getResourceUrl: no resource found for href: ${href}`,
-        ReadiumWebErrorCode.invalidArgument,
-        { href }
+        ReadiumWebErrorCode.resourceReadError,
+        { reason: "notFound", href }
       );
     }
     const url = link.toURL(pub.baseURL);
@@ -1158,7 +1161,7 @@ class _ReadiumReader {
       throw new ReadiumWebError(
         `getResourceUrl: could not resolve URL for href: ${href}`,
         ReadiumWebErrorCode.resourceReadError,
-        { reason: "could not resolve URL", href }
+        { reason: "urlResolution", href }
       );
     }
     return url;

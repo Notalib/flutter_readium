@@ -48,22 +48,22 @@ describe("ReadiumReader error classification at the TS boundary", () => {
       });
     });
 
-    it("throws InvalidArgument for an unknown href", async () => {
+    it("throws ResourceReadError with reason notFound for an unknown href", async () => {
       const reader = new ReadiumReader();
       (reader as any)._publication = { allLinks: [] };
       await expect(reader.getResourceUrl("images/missing.png")).rejects.toMatchObject({
-        code: ReadiumWebErrorCode.invalidArgument,
-        details: { href: "images/missing.png" },
+        code: ReadiumWebErrorCode.resourceReadError,
+        details: { reason: "notFound", href: "images/missing.png" },
       });
     });
 
-    it("throws ResourceReadError when the link cannot be resolved to a URL", async () => {
+    it("throws ResourceReadError with reason urlResolution when the link cannot be resolved to a URL", async () => {
       const reader = new ReadiumReader();
       const link = { href: "images/cover.png", toURL: () => undefined };
       (reader as any)._publication = { allLinks: [link], baseURL: undefined };
       await expect(reader.getResourceUrl("images/cover.png")).rejects.toMatchObject({
         code: ReadiumWebErrorCode.resourceReadError,
-        details: { reason: "could not resolve URL", href: "images/cover.png" },
+        details: { reason: "urlResolution", href: "images/cover.png" },
       });
     });
   });

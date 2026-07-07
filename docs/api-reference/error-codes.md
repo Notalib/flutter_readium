@@ -70,7 +70,7 @@ adding a new wire code a client would have to branch on identically anyway:
 | Code | `reason` values | Platforms |
 |---|---|---|
 | `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS only (Android doesn't reach this code; web's `AudioStreamError` is decode-only and doesn't set a reason) |
-| `resourceReadError` | `notFound`, `cache` | iOS, Android (short discriminators). Web currently sends a descriptive sentence instead of a short token (e.g. `"could not resolve URL"`, `"navigation failed"`) — treat `details.reason` as free text on web, not a fixed enum |
+| `resourceReadError` | `notFound`, `cache` | iOS, Android. Web uses `notFound` and `urlResolution` (no on-disk cache step, so no `cache` reason); its `goTo`-navigation-failure and Media Overlay manifest-deserialization sites use `navigation` and `manifestDeserialization` respectively. Short tokens, but still producer-specific — don't assume every platform sets the same set for a given code |
 
 `reason` is optional and producer-specific; treat it as a hint for logging/telemetry,
 not as a value to switch on across platforms until every producer agrees on a shared

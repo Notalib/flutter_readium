@@ -68,6 +68,13 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 // unlike the e.javaClass.toString() ad hoc code this replaces.
                 val error =
                     when (e) {
+                        // Already classified deep in a suspend fun that only had `throw`
+                        // available (no Try) - use that classification rather than
+                        // re-deriving a generic "unknown" from just the message string.
+                        is PublicationErrorException -> {
+                            e.publicationError
+                        }
+
                         is ClassCastException, is NullPointerException -> {
                             PublicationError.InvalidArgument(e.message ?: "Invalid argument for ${call.method}")
                         }

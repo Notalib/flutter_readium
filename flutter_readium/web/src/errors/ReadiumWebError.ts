@@ -28,8 +28,6 @@ export const ReadiumWebErrorCode = {
   noPublication: "NoPublication",
   /** A publication resource failed to load/resolve. Pair with `details.reason`. */
   resourceReadError: "ResourceReadError",
-  ttsError: "TTSError",
   voiceNotFound: "VoiceNotFound",
-  searchError: "SearchError",
   audioStreamNetworkError: "AudioStreamNetworkError",
 } as const;

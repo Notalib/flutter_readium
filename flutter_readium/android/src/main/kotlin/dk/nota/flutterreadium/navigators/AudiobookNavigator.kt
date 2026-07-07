@@ -6,6 +6,7 @@ import dk.nota.flutterreadium.FlutterAudioPreferences
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.PluginMediaServiceFacade
 import dk.nota.flutterreadium.PublicationError
+import dk.nota.flutterreadium.PublicationErrorException
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
@@ -191,7 +192,7 @@ open class AudiobookNavigator(
                             preferences.toExoPlayerPreferences(),
                         ).getOrElse { error ->
                             PluginLog.e(TAG, "::initNavigator - $error")
-                            throw Exception(PublicationError.invoke(error).message)
+                            throw PublicationErrorException(PublicationError.invoke(error))
                         }
                 } ?: run {
                     val href = this@AudiobookNavigator.initialLocator?.href?.toString()

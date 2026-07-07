@@ -207,6 +207,16 @@ fun PublicationError.toReadiumErrorDetails(): ReadiumErrorDetails? {
     return cause?.message?.let { ReadiumErrorDetails(message = it, httpStatus = httpStatus) }
 }
 
+/**
+ * Carries an already-classified [PublicationError] through call chains that throw rather
+ * than return [org.readium.r2.shared.util.Try] (e.g. navigator init deep inside a
+ * `suspend fun`). Callers that only have `message` to work with (like a bare `Exception`)
+ * would otherwise discard the classification and re-derive a generic "unknown" code.
+ */
+class PublicationErrorException(
+    val publicationError: PublicationError,
+) : Exception(publicationError.message)
+
 fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? {
     // Short discriminator for a ResourceRead failure (e.g. "notFound", "cache") - mirrors
     // iOS's ResourceReadError `details: ["reason": ...]`. Not part of ReadiumErrorDetails

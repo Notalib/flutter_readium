@@ -360,7 +360,7 @@ function _buildAudiobookPublication(
     throw new ReadiumWebError(
       "Failed to create new Audiobook manifest",
       ReadiumWebErrorCode.resourceReadError,
-      { reason: "manifest deserialization failed" }
+      { reason: "manifestDeserialization" }
     );
   }
 
