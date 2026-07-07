@@ -43,6 +43,7 @@ struct FlutterReadiumError {
 
 enum ReadiumError: Error {
   case formatNotSupported(String)
+  case unsupportedScheme(String)
   case readingError(Error)
   case notFound(String?)
   case forbidden(String?)
@@ -73,7 +74,7 @@ extension AssetRetrieveURLError {
     case .formatNotSupported:
       return .formatNotSupported(self.localizedDescription)
     case .schemeNotSupported(let scheme):
-      return .formatNotSupported("scheme not supported: \(scheme)")
+      return .unsupportedScheme("scheme not supported: \(scheme)")
     case .reading(let error):
       return .readingError(error)
     }
@@ -162,6 +163,12 @@ extension ReadiumError: UserErrorConvertible {
         code: "formatNotSupported",
         data: ["message": msg]
       ).toFlutterError()
+    case .unsupportedScheme(let msg):
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "unsupportedScheme",
+        data: ["message": msg]
+      ).toFlutterError()
     case .readingError(let err):
       switch err {
       case ReadiumShared.ArchiveOpenError.reading(.access(.http(let httpError))),
@@ -184,18 +191,19 @@ extension ReadiumError: UserErrorConvertible {
           }
         }()
         let message: String
-        if let status = httpError.statusCode?.rawValue {
+        let status = httpError.statusCode?.rawValue
+        if let status {
           message = "HTTPError(\(kind), status=\(status))"
         } else {
           message = "HTTPError(\(kind)): \(httpError.localizedDescription)"
         }
         var data: [String: Any] = ["message": httpError.localizedDescription]
-        if let status = httpError.statusCode?.rawValue {
+        if let status {
           data["httpStatus"] = status
         }
         return FlutterReadiumError(
           message: message,
-          code: "readingError",
+          code: Self.openingErrorCode(forHTTPStatus: status),
           data: data
         ).toFlutterError()
       case ReadiumShared.ArchiveOpenError.reading(.access(.fileSystem(let fsError))),
@@ -242,10 +250,30 @@ extension ReadiumError: UserErrorConvertible {
       ).toFlutterError()
     }
   }
+
+  private static func openingErrorCode(forHTTPStatus status: Int?) -> String {
+    switch status {
+    case 401:
+      return "incorrectCredentials"
+    case 403:
+      return "forbidden"
+    case 404:
+      return "notFound"
+    case 415:
+      return "formatNotSupported"
+    case 500:
+      return "unavailable"
+    default:
+      return "readingError"
+    }
+  }
+
   func userError() -> UserError {
     UserError(cause: self) {
       switch self {
       case .formatNotSupported:
+        return "library_error_formatNotSupported".localized
+      case .unsupportedScheme:
         return "library_error_formatNotSupported".localized
       case .notFound:
         return "library_error_bookNotFound".localized

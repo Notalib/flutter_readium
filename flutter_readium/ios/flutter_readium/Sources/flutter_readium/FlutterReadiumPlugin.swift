@@ -230,8 +230,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
-            await self.timebasedNavigator?.initNavigator()
-            result(nil)
+            do {
+              try await self.timebasedNavigator?.initNavigator()
+              result(nil)
+            } catch {
+              result(FlutterError.init(
+                code: "TTSError",
+                message: "Failed to enable TTS: \(error.localizedDescription)",
+                details: nil))
+            }
           }
         } catch {
           Task { @MainActor in
@@ -466,7 +473,19 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             audioNavigator.handleResourceReadError(href: href, error: error)
           }
         }
-        await self.timebasedNavigator?.initNavigator()
+        do {
+          try await self.timebasedNavigator?.initNavigator()
+        } catch let error as AudioNavigatorInitializationError {
+          await MainActor.run {
+            result(error.toFlutterError())
+          }
+          return
+        } catch (let err) {
+          await MainActor.run {
+            result(err.toReadiumError().toFlutterError())
+          }
+          return
+        }
 
         if self.timebasedNavigator is FlutterMediaOverlayNavigator {
           await MainActor.run {

@@ -1,8 +1,31 @@
 import Combine
+import Flutter
 import Foundation
 import MediaPlayer
 import ReadiumShared
 import ReadiumNavigator
+
+enum AudioNavigatorInitializationError: Error {
+  case timeout(href: String?, timeoutSeconds: TimeInterval)
+
+  func toFlutterError() -> FlutterError {
+    switch self {
+    case .timeout(let href, let timeoutSeconds):
+      var data: [String: Any] = [
+        "message": "Timed out preparing audio playback",
+        "timeoutSeconds": timeoutSeconds,
+      ]
+      if let href {
+        data["href"] = href
+      }
+      return FlutterReadiumError(
+        message: "Timed out preparing audio playback",
+        code: "AudioStreamNetworkError",
+        data: data
+      ).toFlutterError()
+    }
+  }
+}
 
 public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDelegate
 {
@@ -53,18 +76,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._initialLocator = resolveLocator(initialLocator)
   }
 
-  public func initNavigator() async -> Void {
+  public func initNavigator() async throws -> Void {
     let startedAt = Date()
     let navigator = makeAudioNavigator(initialLocation: initialLocator)
     if Date().timeIntervalSince(startedAt) > self._recoveryPolicy.connectionTimeoutSeconds {
       Log.navigator.error("AudioNavigator initial create exceeded \(self._recoveryPolicy.connectionTimeoutSeconds)s")
       navigator.delegate = nil
-      enterFailureState(
-        error: ReadError.access(.other(DebugError("Timed out preparing audio playback"))),
-        code: "AudioStreamNetworkError",
+      throw AudioNavigatorInitializationError.timeout(
         href: initialLocator?.href.string,
-        description: "Timed out preparing audio playback")
-      return
+        timeoutSeconds: self._recoveryPolicy.connectionTimeoutSeconds)
     }
     if _disposed {
       navigator.delegate = nil
