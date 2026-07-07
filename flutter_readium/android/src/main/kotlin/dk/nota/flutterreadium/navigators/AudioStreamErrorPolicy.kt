@@ -1,7 +1,9 @@
 package dk.nota.flutterreadium.navigators
 
+import dk.nota.flutterreadium.findHttpError
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.http.HttpError
+import kotlin.math.pow
 
 /**
  * What the audio navigator should do about a playback failure.
@@ -28,12 +30,11 @@ sealed class AudioStreamErrorAction {
  * ExoPlayer's `PlaybackException` (wrapped as `ThrowableError`) or the toolkit's
  * `ReadError.Access(HttpError)` may appear at any depth.
  *
- * Any non-HTTP error (e.g. decoding/local-file errors) is treated as an unclassifiable
- * network-adjacent failure and reported terminal, matching iOS's `.other -> .retry` /
- * default-terminal split for the audio-streaming (remote-HTTP-only) use case.
+ * Any non-HTTP error (e.g. an ExoPlayer socket error not wrapped as a toolkit [HttpError])
+ * is treated as an unclassifiable transport-level failure and retried, converging with
+ * iOS's `.other -> .retry` behaviour; it only goes terminal once recovery attempts exhaust.
  */
-fun Error.audioStreamAction(): AudioStreamErrorAction =
-    findHttpError()?.classify() ?: AudioStreamErrorAction.Fail(code = "AudioStreamNetworkError")
+fun Error.audioStreamAction(): AudioStreamErrorAction = findHttpError()?.classify() ?: AudioStreamErrorAction.Retry
 
 /**
  * The HTTP status code behind this error, if its cause chain contains an
@@ -57,12 +58,6 @@ private fun HttpError.classify(): AudioStreamErrorAction =
                 else -> AudioStreamErrorAction.Fail(code = "AudioStreamHTTPError")
             }
         }
-    }
-
-private tailrec fun Error.findHttpError(): HttpError? =
-    when (this) {
-        is HttpError -> this
-        else -> cause?.findHttpError()
     }
 
 /**
@@ -92,7 +87,7 @@ data class AudioRecoveryPolicy(
 ) {
     fun delayMillis(forAttempt: Int): Long {
         val attempt = maxOf(forAttempt, 1) - 1
-        return (backoffBaseSeconds * 1000L * (1 shl attempt)).toLong()
+        return (backoffBaseSeconds * 1000 * 2.0.pow(attempt)).toLong()
     }
 
     companion object {

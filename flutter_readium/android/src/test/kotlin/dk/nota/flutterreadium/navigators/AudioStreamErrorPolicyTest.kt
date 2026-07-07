@@ -69,9 +69,9 @@ internal class AudioStreamErrorPolicyTest {
     }
 
     @Test
-    fun `unclassifiable non-http error is terminal network error`() {
+    fun `unclassifiable non-http error is retryable`() {
         val error: Error = DebugError("mystery failure")
-        assertEquals(AudioStreamErrorAction.Fail("AudioStreamNetworkError"), error.audioStreamAction())
+        assertEquals(AudioStreamErrorAction.Retry, error.audioStreamAction())
     }
 
     @Test
@@ -122,6 +122,14 @@ internal class AudioStreamErrorPolicyTest {
         assertEquals(2000L, policy.delayMillis(forAttempt = 1))
         assertEquals(4000L, policy.delayMillis(forAttempt = 2))
         assertEquals(8000L, policy.delayMillis(forAttempt = 3))
+    }
+
+    @Test
+    fun `recovery policy backoff does not overflow for large attempt counts`() {
+        val policy = AudioRecoveryPolicy()
+        // attempt 32 exercises 2^31, which wrapped to a negative Int under the old
+        // `1 shl attempt` implementation but stays a valid positive Long via pow-based math.
+        assertEquals(2_147_483_648_000L, policy.delayMillis(forAttempt = 32))
     }
 
     @Test

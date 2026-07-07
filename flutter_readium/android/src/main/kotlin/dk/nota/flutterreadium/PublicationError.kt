@@ -14,6 +14,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.data.ReadError
+import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.streamer.PublicationOpener
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -24,7 +25,7 @@ sealed class PublicationError(
 ) : Error {
     class Reading(
         override val cause: ReadError,
-    ) : PublicationError(ReadiumExceptionType.READING_ERROR, cause.message, cause.cause)
+    ) : PublicationError(cause.readingErrorCode(), cause.message, cause.cause)
 
     class UnsupportedScheme(
         cause: Error,
@@ -125,7 +126,33 @@ sealed class PublicationError(
     }
 }
 
-fun PublicationError.toReadiumErrorDetails(): ReadiumErrorDetails? = cause?.message?.let { ReadiumErrorDetails(message = it) }
+/**
+ * Maps the HTTP status behind an opening failure to the matching [PublicationError.ReadiumExceptionType],
+ * mirroring iOS's `ReadiumError.openingErrorCode(forHTTPStatus:)`. Falls back to `READING_ERROR`
+ * for non-HTTP causes or statuses without a dedicated code.
+ */
+private fun ReadError.readingErrorCode(): PublicationError.ReadiumExceptionType =
+    when ((findHttpError() as? HttpError.ErrorResponse)?.status?.code) {
+        401 -> PublicationError.ReadiumExceptionType.INCORRECT_CREDENTIALS
+
+        403 -> PublicationError.ReadiumExceptionType.FORBIDDEN
+
+        404 -> PublicationError.ReadiumExceptionType.NOT_FOUND
+
+        415 -> PublicationError.ReadiumExceptionType.FORMAT_NOT_SUPPORTED
+
+        // iOS maps exactly 500 (not the whole 5xx range) to unavailable - keep parity.
+        500 -> PublicationError.ReadiumExceptionType.UNAVAILABLE
+
+        else -> PublicationError.ReadiumExceptionType.READING_ERROR
+    }
+
+fun PublicationError.toReadiumErrorDetails(): ReadiumErrorDetails? {
+    val httpStatus =
+        (this as? PublicationError.Reading)
+            ?.let { (it.cause.findHttpError() as? HttpError.ErrorResponse)?.status?.code }
+    return cause?.message?.let { ReadiumErrorDetails(message = it, httpStatus = httpStatus) }
+}
 
 fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? =
     toReadiumErrorDetails()?.let { details ->

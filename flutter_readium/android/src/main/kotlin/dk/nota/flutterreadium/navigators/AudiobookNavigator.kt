@@ -271,7 +271,7 @@ open class AudiobookNavigator(
         } ?: run {
             PluginLog.e(
                 TAG,
-                "::rebuildNavigator - no navigator within ${recoveryPolicy.stallTimeoutSeconds}s (timeout or create failure); attempt failed",
+                "::rebuildNavigator - no navigator within ${recoveryPolicy.connectionTimeoutSeconds}s (timeout or create failure); attempt failed",
             )
             null
         }
@@ -665,9 +665,10 @@ open class AudiobookNavigator(
 
             else -> {
                 // Suppress the rebuilt navigator's own Buffering/Ready churn while a
-                // recovery attempt is in flight - only the pinned Loading state (already
+                // recovery attempt is in flight, and any churn from a zombie navigator
+                // after a terminal failure - only the pinned Loading state (already
                 // emitted by startRecovery) should reach clients.
-                if (isRecovering) return
+                if (isRecovering || isTerminallyFailed) return
                 super.onPlaybackStateChanged(pb)
             }
         }
@@ -722,7 +723,8 @@ open class AudiobookNavigator(
                         if (navigator != null) {
                             withMainContext { navigator.play() }
 
-                            if (playbackAdvanced(navigator, withinMillis = 5_000)) {
+                            val verifyTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
+                            if (playbackAdvanced(navigator, withinMillis = verifyTimeoutMs)) {
                                 return@launch // recovered - regular state emissions resume
                             }
                         }
@@ -861,6 +863,14 @@ open class AudiobookNavigator(
             ),
         )
         timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
+
+        // Stop an in-flight recovery loop last: if this call came from startRecovery's own
+        // attempt-exhaustion path, the error + state above are already emitted, so
+        // self-cancelling here is harmless (its finally block still runs). If a fresh
+        // Failure arrived while a recovery attempt was mid-flight, this stops it rebuilding
+        // a zombie navigator after the terminal state was entered.
+        recoveryJob?.cancel()
+        recoveryJob = null
     }
 
     override fun storeState(): Bundle =
