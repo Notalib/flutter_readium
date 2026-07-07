@@ -31,3 +31,20 @@ export const ReadiumWebErrorCode = {
   voiceNotFound: "VoiceNotFound",
   audioStreamNetworkError: "AudioStreamNetworkError",
 } as const;
+
+/**
+ * `details.reason` values this module sets alongside `resourceReadError`.
+ * Producer-specific hint, not a strict cross-platform enum (see
+ * `docs/api-reference/error-codes.md#detailsreason`) — kept as constants
+ * purely so call sites aren't raw string literals a typo could slip past.
+ */
+export const ResourceReadErrorReason = {
+  /** No manifest entry matches the requested href. */
+  notFound: "notFound",
+  /** The matched link's href didn't resolve to an absolute served URL. */
+  urlResolution: "urlResolution",
+  /** `goLink` reported the navigation as unsuccessful. */
+  navigation: "navigation",
+  /** `Manifest.deserialize` returned null for a Media Overlay manifest. */
+  manifestDeserialization: "manifestDeserialization",
+} as const;

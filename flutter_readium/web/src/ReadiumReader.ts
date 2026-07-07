@@ -41,7 +41,7 @@ import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
 import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
 // Errors
-import { ReadiumWebError, ReadiumWebErrorCode } from "./errors/ReadiumWebError";
+import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "./errors/ReadiumWebError";
 
 const log = createLogger("Reader");
 
@@ -317,7 +317,7 @@ class _ReadiumReader {
         throw new ReadiumWebError(
           "Failed to navigate to link " + locator.href,
           ReadiumWebErrorCode.resourceReadError,
-          { reason: "navigation", href: locator.href }
+          { reason: ResourceReadErrorReason.navigation, href: locator.href }
         );
       }
     });
@@ -1153,7 +1153,7 @@ class _ReadiumReader {
       throw new ReadiumWebError(
         `getResourceUrl: no resource found for href: ${href}`,
         ReadiumWebErrorCode.resourceReadError,
-        { reason: "notFound", href }
+        { reason: ResourceReadErrorReason.notFound, href }
       );
     }
     const url = link.toURL(pub.baseURL);
@@ -1161,7 +1161,7 @@ class _ReadiumReader {
       throw new ReadiumWebError(
         `getResourceUrl: could not resolve URL for href: ${href}`,
         ReadiumWebErrorCode.resourceReadError,
-        { reason: "urlResolution", href }
+        { reason: ResourceReadErrorReason.urlResolution, href }
       );
     }
     return url;

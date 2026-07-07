@@ -12,7 +12,7 @@
  */
 
 import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
-import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
+import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "../errors/ReadiumWebError";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -360,7 +360,7 @@ function _buildAudiobookPublication(
     throw new ReadiumWebError(
       "Failed to create new Audiobook manifest",
       ReadiumWebErrorCode.resourceReadError,
-      { reason: "manifestDeserialization" }
+      { reason: ResourceReadErrorReason.manifestDeserialization }
     );
   }
 

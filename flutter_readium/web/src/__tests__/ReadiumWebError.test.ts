@@ -1,4 +1,4 @@
-import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
+import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "../errors/ReadiumWebError";
 import { Locator, LocatorLocations } from "@readium/shared";
 import { __testing__ } from "../ReadiumReader";
 
@@ -53,7 +53,7 @@ describe("ReadiumReader error classification at the TS boundary", () => {
       (reader as any)._publication = { allLinks: [] };
       await expect(reader.getResourceUrl("images/missing.png")).rejects.toMatchObject({
         code: ReadiumWebErrorCode.resourceReadError,
-        details: { reason: "notFound", href: "images/missing.png" },
+        details: { reason: ResourceReadErrorReason.notFound, href: "images/missing.png" },
       });
     });
 
@@ -63,7 +63,7 @@ describe("ReadiumReader error classification at the TS boundary", () => {
       (reader as any)._publication = { allLinks: [link], baseURL: undefined };
       await expect(reader.getResourceUrl("images/cover.png")).rejects.toMatchObject({
         code: ReadiumWebErrorCode.resourceReadError,
-        details: { reason: "urlResolution", href: "images/cover.png" },
+        details: { reason: ResourceReadErrorReason.urlResolution, href: "images/cover.png" },
       });
     });
   });
