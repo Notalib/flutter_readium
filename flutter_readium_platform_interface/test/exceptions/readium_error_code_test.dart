@@ -15,25 +15,17 @@ void main() {
         'incorrectCredentials': ReadiumErrorCode.incorrectCredentials,
         // Audio streaming (iOS + Android + web parity codes).
         'AudioStreamRetry': ReadiumErrorCode.audioStreamRetry,
-        'AudioStreamFailed': ReadiumErrorCode.audioStreamFailed,
         'AudioStreamAuthError': ReadiumErrorCode.audioStreamAuthError,
         'AudioStreamHTTPError': ReadiumErrorCode.audioStreamHttpError,
         'AudioStreamNetworkError': ReadiumErrorCode.audioStreamNetworkError,
-        'AudioStreamRangeNotSupported': ReadiumErrorCode.audioStreamRangeNotSupported,
-        'AudioStreamFileError': ReadiumErrorCode.audioStreamFileError,
         'AudioStreamError': ReadiumErrorCode.audioStreamError,
         // TTS / navigator / resource-loading (iOS-only today).
-        'TimeBasedNavigatorError': ReadiumErrorCode.timeBasedNavigatorError,
         'TTSUtteranceFailed': ReadiumErrorCode.ttsUtteranceFailed,
-        'DidFailToLoadResource': ReadiumErrorCode.didFailToLoadResource,
         'VoiceNotFound': ReadiumErrorCode.voiceNotFound,
         'TTSError': ReadiumErrorCode.ttsError,
         'SearchError': ReadiumErrorCode.searchError,
         'NoPublication': ReadiumErrorCode.noPublicationOpened,
-        // resourceReadError has multiple wire aliases; each is checked below.
         'ResourceReadError': ReadiumErrorCode.resourceReadError,
-        'ResourceNotFound': ReadiumErrorCode.resourceReadError,
-        'ResourceCacheError': ReadiumErrorCode.resourceReadError,
       };
 
       for (final entry in expected.entries) {
@@ -47,7 +39,7 @@ void main() {
 
     test('parsing is case-insensitive', () {
       expect(ReadiumErrorCode.fromWire('audiostreamretry'), ReadiumErrorCode.audioStreamRetry);
-      expect(ReadiumErrorCode.fromWire('AUDIOSTREAMFAILED'), ReadiumErrorCode.audioStreamFailed);
+      expect(ReadiumErrorCode.fromWire('AUDIOSTREAMERROR'), ReadiumErrorCode.audioStreamError);
       expect(ReadiumErrorCode.fromWire('NOTFOUND'), ReadiumErrorCode.notFound);
       expect(ReadiumErrorCode.fromWire('voicenotfound'), ReadiumErrorCode.voiceNotFound);
       expect(ReadiumErrorCode.fromWire('RESOURCEREADERROR'), ReadiumErrorCode.resourceReadError);
@@ -82,12 +74,9 @@ void main() {
     test('maps audio streaming codes to ReadiumErrorCategory.audioStream', () {
       for (final code in [
         ReadiumErrorCode.audioStreamRetry,
-        ReadiumErrorCode.audioStreamFailed,
         ReadiumErrorCode.audioStreamAuthError,
         ReadiumErrorCode.audioStreamHttpError,
         ReadiumErrorCode.audioStreamNetworkError,
-        ReadiumErrorCode.audioStreamRangeNotSupported,
-        ReadiumErrorCode.audioStreamFileError,
         ReadiumErrorCode.audioStreamError,
       ]) {
         expect(code.category, ReadiumErrorCategory.audioStream);
@@ -101,8 +90,6 @@ void main() {
     });
 
     test('maps navigator/resource codes to ReadiumErrorCategory.navigator', () {
-      expect(ReadiumErrorCode.timeBasedNavigatorError.category, ReadiumErrorCategory.navigator);
-      expect(ReadiumErrorCode.didFailToLoadResource.category, ReadiumErrorCategory.navigator);
       expect(ReadiumErrorCode.searchError.category, ReadiumErrorCategory.navigator);
       expect(ReadiumErrorCode.noPublicationOpened.category, ReadiumErrorCategory.navigator);
       expect(ReadiumErrorCode.resourceReadError.category, ReadiumErrorCategory.navigator);

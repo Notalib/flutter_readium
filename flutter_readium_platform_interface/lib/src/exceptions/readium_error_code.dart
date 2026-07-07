@@ -41,12 +41,9 @@ enum ReadiumErrorCode {
 
   // Audio streaming (iOS + Android + web parity codes).
   audioStreamRetry,
-  audioStreamFailed,
   audioStreamAuthError,
   audioStreamHttpError,
   audioStreamNetworkError,
-  audioStreamRangeNotSupported,
-  audioStreamFileError,
   audioStreamError,
 
   // TTS.
@@ -55,8 +52,6 @@ enum ReadiumErrorCode {
   ttsError,
 
   // Time-based navigator / resource loading (iOS-only today).
-  timeBasedNavigatorError,
-  didFailToLoadResource,
   searchError,
   noPublicationOpened,
   resourceReadError,
@@ -77,21 +72,16 @@ enum ReadiumErrorCode {
     ReadiumErrorCode.unavailable: ['unavailable'],
     ReadiumErrorCode.incorrectCredentials: ['incorrectCredentials'],
     ReadiumErrorCode.audioStreamRetry: ['AudioStreamRetry'],
-    ReadiumErrorCode.audioStreamFailed: ['AudioStreamFailed'],
     ReadiumErrorCode.audioStreamAuthError: ['AudioStreamAuthError'],
     ReadiumErrorCode.audioStreamHttpError: ['AudioStreamHTTPError'],
     ReadiumErrorCode.audioStreamNetworkError: ['AudioStreamNetworkError'],
-    ReadiumErrorCode.audioStreamRangeNotSupported: ['AudioStreamRangeNotSupported'],
-    ReadiumErrorCode.audioStreamFileError: ['AudioStreamFileError'],
     ReadiumErrorCode.audioStreamError: ['AudioStreamError'],
     ReadiumErrorCode.ttsUtteranceFailed: ['TTSUtteranceFailed'],
     ReadiumErrorCode.voiceNotFound: ['VoiceNotFound'],
     ReadiumErrorCode.ttsError: ['TTSError'],
-    ReadiumErrorCode.timeBasedNavigatorError: ['TimeBasedNavigatorError'],
-    ReadiumErrorCode.didFailToLoadResource: ['DidFailToLoadResource'],
     ReadiumErrorCode.searchError: ['SearchError'],
     ReadiumErrorCode.noPublicationOpened: ['NoPublication'],
-    ReadiumErrorCode.resourceReadError: ['ResourceReadError', 'ResourceNotFound', 'ResourceCacheError'],
+    ReadiumErrorCode.resourceReadError: ['ResourceReadError'],
   };
 
   static final Map<String, ReadiumErrorCode> _byLowerWireValue = {
@@ -129,20 +119,15 @@ enum ReadiumErrorCode {
       case ReadiumErrorCode.incorrectCredentials:
         return ReadiumErrorCategory.opening;
       case ReadiumErrorCode.audioStreamRetry:
-      case ReadiumErrorCode.audioStreamFailed:
       case ReadiumErrorCode.audioStreamAuthError:
       case ReadiumErrorCode.audioStreamHttpError:
       case ReadiumErrorCode.audioStreamNetworkError:
-      case ReadiumErrorCode.audioStreamRangeNotSupported:
-      case ReadiumErrorCode.audioStreamFileError:
       case ReadiumErrorCode.audioStreamError:
         return ReadiumErrorCategory.audioStream;
       case ReadiumErrorCode.ttsUtteranceFailed:
       case ReadiumErrorCode.voiceNotFound:
       case ReadiumErrorCode.ttsError:
         return ReadiumErrorCategory.tts;
-      case ReadiumErrorCode.timeBasedNavigatorError:
-      case ReadiumErrorCode.didFailToLoadResource:
       case ReadiumErrorCode.searchError:
       case ReadiumErrorCode.noPublicationOpened:
       case ReadiumErrorCode.resourceReadError:

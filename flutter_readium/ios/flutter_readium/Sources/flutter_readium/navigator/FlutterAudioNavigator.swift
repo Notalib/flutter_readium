@@ -517,10 +517,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     case .ignore:
       Log.navigator.debug("Ignoring audio resource read error for \(href): \(error)")
       return
-    case let .fail(code):
+    case let .fail(code, reason):
       Log.navigator.warn("Audio resource read error classified as terminal [\(code)] for \(href): \(error)")
       enterFailureState(
-        error: error, code: code, href: href.string, httpStatus: error.httpStatus,
+        error: error, code: code, href: href.string, httpStatus: error.httpStatus, reason: reason,
         description: "Resource read failed: \(href)")
     case .retry:
       Log.navigator.warn("Audio resource read error classified as retryable for \(href): \(error)")
@@ -531,7 +531,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// - Parameter terminalCode: Code to use if recovery exhausts its attempts, carried
   ///   through from how `error` was originally classified (e.g. `AudioStreamNetworkError`
   ///   for a classified network error, or a stall-specific code) — not the generic
-  ///   `AudioStreamFailed` fallback.
+  ///   `AudioStreamError` fallback.
   @MainActor
   private func startRecovery(href: AnyURL, error: Error, terminalCode: String) {
     guard !_disposed else {
@@ -688,7 +688,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   @MainActor
   internal func enterFailureState(
-    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, description: String
+    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, reason: String? = nil, description: String
   ) {
     Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
     _hasFailed = true
@@ -704,6 +704,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     var data: [String: Any] = [:]
     if let href { data["href"] = href }
     if let httpStatus { data["httpStatus"] = httpStatus }
+    if let reason { data["reason"] = reason }
     sendErrorEvent(code: code, message: error.localizedDescription, data: data)
     submitRecoveryState(.failure, locator: audioLocator)
   }

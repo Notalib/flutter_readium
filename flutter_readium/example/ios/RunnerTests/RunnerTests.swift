@@ -86,10 +86,10 @@ final class AudioStreamErrorPolicyTests: XCTestCase {
     XCTAssertEqual(ReadError.access(.http(.unreachable(nil))).audioStreamAction, .retry)
   }
 
-  func testRangeNotSupportedIsTerminalWithRangeCode() {
+  func testRangeNotSupportedIsTerminalWithRangeNotSupportedReason() {
     XCTAssertEqual(
       ReadError.access(.http(.rangeNotSupported)).audioStreamAction,
-      .fail(code: "AudioStreamRangeNotSupported"))
+      .fail(code: "AudioStreamError", reason: "rangeNotSupported"))
   }
 
   func testAuthErrorsAreTerminalWithAuthCode() {

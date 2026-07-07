@@ -577,9 +577,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           Log.reader.error("::getResourceUrl. Could not compute cache path for href: \(href)")
           await MainActor.run {
             result(FlutterError(
-              code: "ResourceCacheError",
+              code: "ResourceReadError",
               message: "Could not compute cache path for href: \(href)",
-              details: nil))
+              details: ["reason": "cache"]))
           }
           return
         }
@@ -595,9 +595,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           Log.reader.warn("::getResourceUrl. No link found for href: \(href)")
           await MainActor.run {
             result(FlutterError(
-              code: "ResourceNotFound",
+              code: "ResourceReadError",
               message: "No resource found for href: \(href)",
-              details: nil))
+              details: ["reason": "notFound"]))
           }
           return
         }
@@ -605,9 +605,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           Log.reader.warn("::getResourceUrl. Could not open resource for href: \(href)")
           await MainActor.run {
             result(FlutterError(
-              code: "ResourceNotFound",
+              code: "ResourceReadError",
               message: "Could not open resource for href: \(href)",
-              details: nil))
+              details: ["reason": "notFound"]))
           }
           return
         }
@@ -616,9 +616,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           Log.reader.error("::getResourceUrl. Could not open cache file for writing: \(cacheFileURL.path)")
           await MainActor.run {
             result(FlutterError(
-              code: "ResourceCacheError",
+              code: "ResourceReadError",
               message: "Could not open cache file for writing for href: \(href)",
-              details: nil))
+              details: ["reason": "cache"]))
           }
           return
         }
@@ -699,8 +699,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     Log.readium.error("TimebasedNavigator error: \(error), description: \(String(describing: description))")
-    let data: [String: Any]? = description.map { ["message": $0] }
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: data).toJsonString())
+    var data: [String: Any] = ["reason": "navigator"]
+    if let description { data["message"] = description }
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "ResourceReadError", data: data).toJsonString())
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, segmentDuration: TimeInterval?, isWordRange: Bool) {

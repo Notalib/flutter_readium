@@ -8,7 +8,9 @@ enum AudioStreamErrorAction: Equatable {
   /// Transient network-class error: attempt connection recovery.
   case retry
   /// Terminal error: emit failure state + error event with this code.
-  case fail(code: String)
+  /// `reason` carries a finer-grained classification (e.g. `"rangeNotSupported"`,
+  /// `"fileSystem"`) into the error event's `data`, without adding a wire code.
+  case fail(code: String, reason: String? = nil)
 }
 
 extension ReadError {
@@ -33,7 +35,7 @@ extension ReadError {
         case .cancelled:
           return .ignore
         case .rangeNotSupported:
-          return .fail(code: "AudioStreamRangeNotSupported")
+          return .fail(code: "AudioStreamError", reason: "rangeNotSupported")
         case .timeout, .unreachable, .offline, .redirection, .malformedResponse:
           return .retry
         case let .errorResponse(response):
@@ -49,7 +51,7 @@ extension ReadError {
           return .fail(code: "AudioStreamNetworkError")
         }
       case .fileSystem:
-        return .fail(code: "AudioStreamFileError")
+        return .fail(code: "AudioStreamError", reason: "fileSystem")
       case .other:
         /// Unknown transport-level errors are usually network glue — worth a retry.
         return .retry

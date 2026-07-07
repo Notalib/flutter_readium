@@ -263,8 +263,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     );
     if (result == null) {
       throw PlatformException(
-        code: 'ResourceNotFound',
+        code: 'ResourceReadError',
         message: 'getResourceUrl returned null for href: $href',
+        details: {'reason': 'notFound', 'href': href},
       );
     }
     return result;
