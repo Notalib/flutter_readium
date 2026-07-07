@@ -5,28 +5,6 @@ import MediaPlayer
 import ReadiumShared
 import ReadiumNavigator
 
-enum AudioNavigatorInitializationError: Error {
-  case timeout(href: String?, timeoutSeconds: TimeInterval)
-
-  func toFlutterError() -> FlutterError {
-    switch self {
-    case .timeout(let href, let timeoutSeconds):
-      var data: [String: Any] = [
-        "message": "Timed out preparing audio playback",
-        "timeoutSeconds": timeoutSeconds,
-      ]
-      if let href {
-        data["href"] = href
-      }
-      return FlutterReadiumError(
-        message: "Timed out preparing audio playback",
-        code: "AudioStreamNetworkError",
-        data: data
-      ).toFlutterError()
-    }
-  }
-}
-
 public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDelegate
 {
   internal var _publication: Publication
@@ -77,15 +55,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func initNavigator() async throws -> Void {
-    let startedAt = Date()
     let navigator = makeAudioNavigator(initialLocation: initialLocator)
-    if Date().timeIntervalSince(startedAt) > self._recoveryPolicy.connectionTimeoutSeconds {
-      Log.navigator.error("AudioNavigator initial create exceeded \(self._recoveryPolicy.connectionTimeoutSeconds)s")
-      navigator.delegate = nil
-      throw AudioNavigatorInitializationError.timeout(
-        href: initialLocator?.href.string,
-        timeoutSeconds: self._recoveryPolicy.connectionTimeoutSeconds)
-    }
     if _disposed {
       navigator.delegate = nil
       return
@@ -593,7 +563,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
           continue
         }
 
-        if await playbackAdvanced(withinSeconds: 5) {
+        // connectionTimeoutSeconds is the policy knob for how long each attempt
+        // gets to prove playback advanced (Android/web share this meaning).
+        if await playbackAdvanced(withinSeconds: self._recoveryPolicy.connectionTimeoutSeconds) {
           return  // recovered — regular state emissions resume via delegate
         }
       }
@@ -614,15 +586,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     guard !_disposed else {
       return false
     }
-    let startedAt = Date()
     _audioNavigator?.pause()
     _audioNavigator?.delegate = nil
     let navigator = makeAudioNavigator(initialLocation: locator ?? initialLocator)
-    if Date().timeIntervalSince(startedAt) > self._recoveryPolicy.connectionTimeoutSeconds {
-      Log.navigator.error("AudioNavigator rebuild exceeded \(self._recoveryPolicy.connectionTimeoutSeconds)s")
-      navigator.delegate = nil
-      return false
-    }
     guard !_disposed else {
       navigator.delegate = nil
       return false
@@ -633,9 +599,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return true
   }
 
-  /// True once [offsetAdvanced] within `timeout`. (`state == .playing` alone is
-  /// unreliable: with `automaticallyWaitsToMinimizeStalling = false` a stalled player can
-  /// report a playing timeControlStatus.)
+  /// True once [offsetAdvanced] within `timeout`. Called from `startRecovery` with
+  /// `connectionTimeoutSeconds` — the window each recovery attempt gets to prove
+  /// playback advanced. (`state == .playing` alone is unreliable: with
+  /// `automaticallyWaitsToMinimizeStalling = false` a stalled player can report a
+  /// playing timeControlStatus.)
   @MainActor
   private func playbackAdvanced(withinSeconds timeout: TimeInterval) async -> Bool {
     let startTime = playback.time

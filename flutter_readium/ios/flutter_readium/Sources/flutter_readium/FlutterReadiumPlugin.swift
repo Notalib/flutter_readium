@@ -271,6 +271,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       do {
         try ttsNavigator.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
+      } catch ReadiumError.voiceNotFound {
+        result(ReadiumError.voiceNotFound.toFlutterError())
       } catch {
         result(FlutterError.init(
           code: "TTSError",
@@ -452,7 +454,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           } catch (let err) {
             return result(FlutterError.init(
-              code: "Error",
+              code: "ResourceReadError",
               message: "Failed to reload a modifiable publication copy from: \(pubUrlStr)",
               details: err))
           }
@@ -475,11 +477,6 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
         do {
           try await self.timebasedNavigator?.initNavigator()
-        } catch let error as AudioNavigatorInitializationError {
-          await MainActor.run {
-            result(error.toFlutterError())
-          }
-          return
         } catch (let err) {
           await MainActor.run {
             result(err.toReadiumError().toFlutterError())

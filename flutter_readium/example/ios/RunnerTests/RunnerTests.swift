@@ -201,17 +201,10 @@ final class FlutterReadiumErrorTests: XCTestCase {
     XCTAssertEqual(details?["httpStatus"] as? Int, 404)
   }
 
-  func testAudioInitTimeoutFlutterErrorUsesAudioStreamCode() {
-    let flutterError = AudioNavigatorInitializationError.timeout(
-      href: "ch1.mp3",
-      timeoutSeconds: 2.0
-    ).toFlutterError()
+  func testVoiceNotFoundFlutterErrorUsesVoiceNotFoundCode() {
+    let flutterError = ReadiumError.voiceNotFound.toFlutterError()
 
-    XCTAssertEqual(flutterError.code, "AudioStreamNetworkError")
-    XCTAssertEqual(flutterError.message, "Timed out preparing audio playback")
-    let details = flutterError.details as? [String: Any]
-    XCTAssertEqual(details?["href"] as? String, "ch1.mp3")
-    XCTAssertEqual(details?["timeoutSeconds"] as? Double, 2.0)
+    XCTAssertEqual(flutterError.code, "voiceNotFound")
   }
 }
 

@@ -75,9 +75,10 @@ struct AudioRecoveryPolicy {
   /// (while playback is intended to be running) before the stall watchdog
   /// synthesizes a retryable error and enters the recovery loop.
   var stallTimeoutSeconds: TimeInterval = 20.0
-  /// How long, in seconds, a single recovery attempt may spend rebuilding the
-  /// player / reconnecting before that attempt is abandoned and the loop moves
-  /// on. Bounds a stalled connect so a dead network can't hang recovery.
+  /// How long, in seconds, a single recovery attempt has to prove playback
+  /// advanced after rebuilding the player, before that attempt is abandoned and
+  /// the loop moves on to the next one. Mirrors Android's/web's usage of the
+  /// same field name.
   var connectionTimeoutSeconds: TimeInterval = 10.0
 
   func delay(forAttempt attempt: Int) -> TimeInterval {

@@ -51,10 +51,15 @@ enum ReadiumErrorCode {
 
   // TTS.
   ttsUtteranceFailed,
+  voiceNotFound,
+  ttsError,
 
   // Time-based navigator / resource loading (iOS-only today).
   timeBasedNavigatorError,
   didFailToLoadResource,
+  searchError,
+  noPublicationOpened,
+  resourceReadError,
 
   /// Fallback for unrecognised, unmapped, or missing wire codes (e.g.
   /// Android's `Throwable::class.simpleName` fallback, which is not an
@@ -80,8 +85,13 @@ enum ReadiumErrorCode {
     ReadiumErrorCode.audioStreamFileError: ['AudioStreamFileError'],
     ReadiumErrorCode.audioStreamError: ['AudioStreamError'],
     ReadiumErrorCode.ttsUtteranceFailed: ['TTSUtteranceFailed'],
+    ReadiumErrorCode.voiceNotFound: ['VoiceNotFound'],
+    ReadiumErrorCode.ttsError: ['TTSError'],
     ReadiumErrorCode.timeBasedNavigatorError: ['TimeBasedNavigatorError'],
     ReadiumErrorCode.didFailToLoadResource: ['DidFailToLoadResource'],
+    ReadiumErrorCode.searchError: ['SearchError'],
+    ReadiumErrorCode.noPublicationOpened: ['NoPublication'],
+    ReadiumErrorCode.resourceReadError: ['ResourceReadError', 'ResourceNotFound', 'ResourceCacheError'],
   };
 
   static final Map<String, ReadiumErrorCode> _byLowerWireValue = {
@@ -128,9 +138,14 @@ enum ReadiumErrorCode {
       case ReadiumErrorCode.audioStreamError:
         return ReadiumErrorCategory.audioStream;
       case ReadiumErrorCode.ttsUtteranceFailed:
+      case ReadiumErrorCode.voiceNotFound:
+      case ReadiumErrorCode.ttsError:
         return ReadiumErrorCategory.tts;
       case ReadiumErrorCode.timeBasedNavigatorError:
       case ReadiumErrorCode.didFailToLoadResource:
+      case ReadiumErrorCode.searchError:
+      case ReadiumErrorCode.noPublicationOpened:
+      case ReadiumErrorCode.resourceReadError:
         return ReadiumErrorCategory.navigator;
       case ReadiumErrorCode.unknown:
         return ReadiumErrorCategory.unknown;

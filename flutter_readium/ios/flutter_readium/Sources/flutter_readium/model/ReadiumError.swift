@@ -48,7 +48,6 @@ enum ReadiumError: Error {
   case notFound(String?)
   case forbidden(String?)
   case publicationIsRestricted(Error)
-  case readerViewNotFound
   case voiceNotFound
   case unknown(Error?)
 }
@@ -233,11 +232,6 @@ extension ReadiumError: UserErrorConvertible {
         code: "forbidden",
         data: ["message": err.localizedDescription]
       ).toFlutterError()
-    case .readerViewNotFound:
-      return FlutterReadiumError(
-        message: self.localizedDescription,
-        code: "readerViewNotFound"
-      ).toFlutterError()
     case .voiceNotFound:
       return FlutterReadiumError(
         message: self.localizedDescription,
@@ -281,8 +275,6 @@ extension ReadiumError: UserErrorConvertible {
         return "library_error_readingError".localized
       case .forbidden(_):
         return "library_error_forbidden".localized
-      case .readerViewNotFound:
-        return "library_error_readerViewNotFound".localized
       case .voiceNotFound:
         return "library_error_voiceNotFound".localized
       case let .publicationIsRestricted(error):
