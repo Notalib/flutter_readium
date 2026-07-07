@@ -42,11 +42,16 @@ reader.onErrorEvent.listen((error) {
 | `audioStreamFileError` | `AudioStreamFileError` | iOS | audioStream | fatal | Local filesystem error reading an audio resource |
 | `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure |
 | `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS | tts | fatal | A single TTS utterance failed to synthesize/play |
+| `voiceNotFound` | `VoiceNotFound` | iOS | tts | fatal | `ttsSetVoice` was called with a voice identifier the platform doesn't have |
+| `ttsError` | `TTSError` | iOS | tts | fatal | Generic TTS synthesis/playback failure not covered by a more specific code |
 | `timeBasedNavigatorError` | `TimeBasedNavigatorError` | iOS | navigator | fatal | Generic time-based (audio/TTS) navigator failure not covered by a more specific code |
 | `didFailToLoadResource` | `DidFailToLoadResource` | iOS | navigator | fatal | Visual reader (EPUB/PDF) failed to load a resource |
+| `searchError` | `SearchError` | iOS | navigator | fatal | Full-text search failed |
+| `noPublicationOpened` | `NoPublication` | iOS | navigator | fatal | Navigator operation attempted with no publication currently open |
+| `resourceReadError` | `ResourceReadError`, `ResourceNotFound`, `ResourceCacheError` | iOS | navigator | fatal | A publication resource failed to load/decode |
 | `unknown` | any unrecognised string, or missing `code` | all | unknown | fatal | Fallback — includes Android's `Throwable::class.simpleName`, which is not an enumerable vocabulary |
 
-Android does not currently emit `AudioStreamFailed` failures beyond backoff, `AudioStreamRangeNotSupported`, `AudioStreamFileError`, or `AudioStreamError` — its ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network); anything else falls back to `AudioStreamNetworkError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone and falls back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
+Any unrecognized or non-HTTP transport error on all three platforms (e.g. an ExoPlayer socket error not wrapped as an `HttpError` on Android, an `HTMLMediaElement` error with no usable code on web, or an ad-hoc native failure on iOS) is treated as retryable rather than an immediate terminal failure, and only surfaces as the fatal `audioStreamNetworkError` fallback once recovery attempts are exhausted. Android's ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network) from that fallback, so it does not currently emit `AudioStreamFailed` beyond backoff, `AudioStreamRangeNotSupported`, `AudioStreamFileError`, or `AudioStreamError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone, falling back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
 
 `isFatal` and `isInformational` are exact complements — `isInformational` is `true` only for `audioStreamRetry`.
 
@@ -80,7 +85,7 @@ await FlutterReadium().setAudioRecoveryPolicy(
 | `maxAttempts` | `3` | Automatic recovery attempts before entering a terminal failure state |
 | `backoffBaseSeconds` | `1.0` | Base delay between attempts (`backoffBaseSeconds * 2^(attempt-1)`, i.e. 1s/2s/4s with the default) |
 | `stallTimeoutSeconds` | `20.0` | How long playback can go without its offset advancing (while intended to be playing) before a stall is treated as a retryable error |
-| `connectionTimeoutSeconds` | `10.0` | How long a single recovery attempt may spend rebuilding the player / reconnecting before that attempt is abandoned and the loop moves on (next attempt, or terminal). Bounds a stalled connect so a dead network can't hang recovery indefinitely |
+| `connectionTimeoutSeconds` | `10.0` | Budget for each phase of a single recovery attempt: on Android/web (where rebuilding the player is asynchronous) it bounds the navigator rebuild itself, and on all three platforms it separately bounds the post-rebuild window in which playback must be observed to advance before the attempt is abandoned and the loop moves on (next attempt, or terminal) |
 
 Set once — it applies to the next-opened publication and to any in-flight recovery loop, not to an already-running attempt sequence. Defaults reproduce the recovery behaviour that shipped before this policy existed, so an unconfigured consumer sees no change.
 

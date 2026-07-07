@@ -9,16 +9,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - `ReadiumErrorCode` — typed enum for error-event codes with `isFatal` /
   `isInformational` and `category` getters, parsed onto `ReadiumError.codeEnum`
-  (raw string `code` kept). Vocabulary documented in
+  (raw string `code` kept). Spans opening, audio-stream, tts (including
+  `voiceNotFound`, `ttsError`), and navigator (`timeBasedNavigatorError`,
+  `didFailToLoadResource`, `searchError`, `noPublicationOpened`,
+  `resourceReadError`) codes. Vocabulary documented in
   `docs/api-reference/error-codes.md`.
 - Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
   `httpStatus`.
 - `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop
   (retry attempts, backoff, stall-watchdog timeout, per-attempt connection
-  timeout) shared by the
-  iOS/Android/web audio navigators; apply via
-  `FlutterReadium().setAudioRecoveryPolicy(policy)`. Defaults reproduce prior
-  recovery behaviour. Fields and semantics:
+  timeout) shared by the iOS/Android/web audio navigators; apply via
+  `FlutterReadium().setAudioRecoveryPolicy(policy)`. `connectionTimeoutSeconds`
+  bounds both the (Android/web) navigator rebuild and the post-rebuild
+  playback-verification window of each recovery attempt. Defaults reproduce
+  prior recovery behaviour. Fields and semantics:
   [`docs/api-reference/error-codes.md#audiorecoverypolicy`](../docs/api-reference/error-codes.md#audiorecoverypolicy).
 
 ### Changed
@@ -31,7 +35,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `Error`, and native `stackTrace` is no longer part of the wire contract or
   `toJson()`.
 - **Breaking**: `ReadiumError.data` (freeform string) is replaced by
-  `details` (`Map<String, dynamic>?`) carrying structured fields
+  `details` (`Map<String, dynamic>?`, unmodifiable) carrying structured fields
   `{href, attempt, maxAttempts, httpStatus}`. Legacy string payloads are
   wrapped as `{"message": <string>}`.
 
