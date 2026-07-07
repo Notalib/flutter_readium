@@ -688,7 +688,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   @MainActor
   internal func enterFailureState(
-    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, reason: String? = nil, description: String
+    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, reason: ReadiumErrorReason? = nil, description: String
   ) {
     Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
     _hasFailed = true
@@ -704,7 +704,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     var data: [String: Any] = [:]
     if let href { data["href"] = href }
     if let httpStatus { data["httpStatus"] = httpStatus }
-    if let reason { data["reason"] = reason }
+    if let reason { data["reason"] = reason.rawValue }
     sendErrorEvent(code: code, message: error.localizedDescription, data: data)
     submitRecoveryState(.failure, locator: audioLocator)
   }

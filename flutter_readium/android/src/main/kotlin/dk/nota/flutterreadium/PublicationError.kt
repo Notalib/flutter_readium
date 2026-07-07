@@ -63,12 +63,12 @@ sealed class PublicationError(
 
     /**
      * A publication resource failed to load/serve (e.g. `getResourceUrl`). [reason] is an
-     * optional short discriminator surfaced in the method-channel `details` map (e.g.
-     * `"notFound"`, `"cache"`) - mirrors iOS's `ResourceReadError` details.
+     * optional short discriminator surfaced in the method-channel `details` map - mirrors
+     * iOS's `ResourceReadError` details.
      */
     class ResourceRead(
         message: String,
-        val reason: String? = null,
+        val reason: ReadiumErrorReason? = null,
     ) : PublicationError(ReadiumExceptionType.RESOURCE_READ_ERROR, message)
 
     /** Full-text search failed. */
@@ -110,6 +110,19 @@ sealed class PublicationError(
         RESOURCE_READ_ERROR("ResourceReadError"),
         TTS_ERROR("TTSError"),
         TTS_UTTERANCE_FAILED("TTSUtteranceFailed"),
+    }
+
+    /**
+     * `details.reason` values this module sets alongside [ResourceRead]. Producer-specific
+     * hint, not a strict cross-platform enum (see
+     * `docs/api-reference/error-codes.md#detailsreason`) - kept as constants purely so
+     * call sites aren't raw string literals a typo could slip past.
+     */
+    enum class ReadiumErrorReason(
+        val wireValue: String,
+    ) {
+        NOT_FOUND("notFound"),
+        CACHE("cache"),
     }
 
     companion object {
@@ -222,7 +235,7 @@ fun PublicationError.toMethodChannelDetails(): Map<String, Any?>? {
     // iOS's ResourceReadError `details: ["reason": ...]`. Not part of ReadiumErrorDetails
     // since it's specific to this one error code.
     if (this is PublicationError.ResourceRead && reason != null) {
-        return mapOf("reason" to reason)
+        return mapOf("reason" to reason.wireValue)
     }
 
     return toReadiumErrorDetails()?.let { details ->

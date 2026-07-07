@@ -579,7 +579,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             result(FlutterError(
               code: "ResourceReadError",
               message: "Could not compute cache path for href: \(href)",
-              details: ["reason": "cache"]))
+              details: ["reason": ReadiumErrorReason.cache.rawValue]))
           }
           return
         }
@@ -597,7 +597,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             result(FlutterError(
               code: "ResourceReadError",
               message: "No resource found for href: \(href)",
-              details: ["reason": "notFound"]))
+              details: ["reason": ReadiumErrorReason.notFound.rawValue]))
           }
           return
         }
@@ -607,7 +607,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             result(FlutterError(
               code: "ResourceReadError",
               message: "Could not open resource for href: \(href)",
-              details: ["reason": "notFound"]))
+              details: ["reason": ReadiumErrorReason.notFound.rawValue]))
           }
           return
         }
@@ -618,7 +618,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             result(FlutterError(
               code: "ResourceReadError",
               message: "Could not open cache file for writing for href: \(href)",
-              details: ["reason": "cache"]))
+              details: ["reason": ReadiumErrorReason.cache.rawValue]))
           }
           return
         }
@@ -699,7 +699,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     Log.readium.error("TimebasedNavigator error: \(error), description: \(String(describing: description))")
-    var data: [String: Any] = ["reason": "navigator"]
+    var data: [String: Any] = ["reason": ReadiumErrorReason.navigator.rawValue]
     if let description { data["message"] = description }
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "ResourceReadError", data: data).toJsonString())
   }

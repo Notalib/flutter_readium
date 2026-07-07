@@ -345,7 +345,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                         ?: return Try.failure(
                             PublicationError.ResourceRead(
                                 "::getResourceUrl No resource for href: $href",
-                                reason = "notFound",
+                                reason = PublicationError.ReadiumErrorReason.NOT_FOUND,
                             ),
                         )
 
@@ -374,7 +374,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                     return Try.failure(
                         PublicationError.ResourceRead(
                             "::getResourceUrl Failed writing cache file for href: $href",
-                            reason = "cache",
+                            reason = PublicationError.ReadiumErrorReason.CACHE,
                         ),
                     )
                 }

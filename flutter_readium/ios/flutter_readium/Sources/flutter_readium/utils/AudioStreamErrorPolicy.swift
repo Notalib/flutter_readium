@@ -1,6 +1,25 @@
 import Foundation
 import ReadiumShared
 
+/// `details.reason` values this module (and `FlutterReadiumPlugin`'s
+/// `getResourceUrl`/`timebasedNavigator(encounteredError:)`) set alongside a
+/// `ResourceReadError` or `AudioStreamError` code. Producer-specific hint, not
+/// a strict cross-platform enum (see `docs/api-reference/error-codes.md#detailsreason`)
+/// — kept as constants purely so call sites aren't raw string literals a typo
+/// could slip past.
+enum ReadiumErrorReason: String {
+  /// No manifest entry matches the requested href.
+  case notFound
+  /// Failed to compute/open the on-disk resource cache file.
+  case cache
+  /// Ambient failure reported via the generic `timebasedNavigator(encounteredError:)` sink.
+  case navigator
+  /// Server rejected byte-range streaming for an audio resource.
+  case rangeNotSupported
+  /// Local filesystem error reading an audio resource.
+  case fileSystem
+}
+
 /// What the audio navigator should do about a resource read error.
 enum AudioStreamErrorAction: Equatable {
   /// Not a real failure (e.g. cancelled reads during seeks/dispose).
@@ -8,9 +27,9 @@ enum AudioStreamErrorAction: Equatable {
   /// Transient network-class error: attempt connection recovery.
   case retry
   /// Terminal error: emit failure state + error event with this code.
-  /// `reason` carries a finer-grained classification (e.g. `"rangeNotSupported"`,
-  /// `"fileSystem"`) into the error event's `data`, without adding a wire code.
-  case fail(code: String, reason: String? = nil)
+  /// `reason` carries a finer-grained classification into the error event's
+  /// `data`, without adding a wire code.
+  case fail(code: String, reason: ReadiumErrorReason? = nil)
 }
 
 extension ReadError {
@@ -35,7 +54,7 @@ extension ReadError {
         case .cancelled:
           return .ignore
         case .rangeNotSupported:
-          return .fail(code: "AudioStreamError", reason: "rangeNotSupported")
+          return .fail(code: "AudioStreamError", reason: .rangeNotSupported)
         case .timeout, .unreachable, .offline, .redirection, .malformedResponse:
           return .retry
         case let .errorResponse(response):
@@ -51,7 +70,7 @@ extension ReadError {
           return .fail(code: "AudioStreamNetworkError")
         }
       case .fileSystem:
-        return .fail(code: "AudioStreamError", reason: "fileSystem")
+        return .fail(code: "AudioStreamError", reason: .fileSystem)
       case .other:
         /// Unknown transport-level errors are usually network glue — worth a retry.
         return .retry

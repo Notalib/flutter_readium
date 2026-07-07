@@ -137,7 +137,7 @@ internal class PublicationErrorTest {
 
     @Test
     fun `ResourceRead surfaces its reason as the sole details entry`() {
-        val error = PublicationError.ResourceRead("no resource", reason = "notFound")
+        val error = PublicationError.ResourceRead("no resource", reason = PublicationError.ReadiumErrorReason.NOT_FOUND)
 
         assertEquals(mapOf("reason" to "notFound"), error.toMethodChannelDetails())
     }
