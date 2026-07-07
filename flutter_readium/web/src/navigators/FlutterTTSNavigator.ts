@@ -34,6 +34,7 @@ import {
   ttsPreferencesFromJson,
 } from "../preferences/FlutterTTSPreferences";
 import { flattenToc, enrichWithTocHref } from "./locatorEnrich";
+import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
 const log = createLogger("TTS");
 
@@ -351,16 +352,25 @@ export class FlutterTTSNavigator {
   setVoice(voiceURI: string, lang?: string): void {
     const voices = speechSynthesis.getVoices();
     const matched = voices.find((v) => v.voiceURI === voiceURI) ?? null;
-    if (!matched && !lang) {
-      log.warn("Voice not found:", voiceURI);
-    } else {
-      log.debug("Voice set:", voiceURI, lang ? `(lang: ${lang})` : "");
-    }
     if (lang) {
+      // Per-language mapping: stored for lazy resolution against
+      // `speechSynthesis.getVoices()` at speak time (see `_speakElement`), not
+      // applied immediately. `speechSynthesis.getVoices()` can legitimately be
+      // empty here if the browser hasn't fired `voiceschanged` yet, so a miss
+      // now doesn't mean the voice won't resolve later — we can't honestly
+      // report VoiceNotFound for this path without false positives.
+      log.debug("Voice mapped:", voiceURI, `(lang: ${lang})`, matched ? "" : "(not yet resolvable)");
       this._langVoiceMap.set(lang, voiceURI);
-    } else {
-      this._selectedVoice = matched;
+      return;
     }
+    if (!matched) {
+      log.warn("Voice not found:", voiceURI);
+      throw new ReadiumWebError(`Voice not found: ${voiceURI}`, ReadiumWebErrorCode.voiceNotFound, {
+        voiceURI,
+      });
+    }
+    log.debug("Voice set:", voiceURI);
+    this._selectedVoice = matched;
   }
 
   destroy(): void {

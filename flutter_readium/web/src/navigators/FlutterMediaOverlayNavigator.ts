@@ -12,6 +12,7 @@
  */
 
 import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -356,7 +357,11 @@ function _buildAudiobookPublication(
 
   const manifest = Manifest.deserialize(manifestJson);
   if (!manifest) {
-    throw new Error("Failed to create new Audiobook manifest");
+    throw new ReadiumWebError(
+      "Failed to create new Audiobook manifest",
+      ReadiumWebErrorCode.resourceReadError,
+      { reason: "manifest deserialization failed" }
+    );
   }
 
   const selfLink = publication.manifest.linksWithRel("self")[0];

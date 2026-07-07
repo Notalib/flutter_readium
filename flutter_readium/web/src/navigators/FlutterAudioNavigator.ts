@@ -19,6 +19,7 @@ import {
   MediaErrorLike,
 } from "./AudioStreamErrorPolicy";
 import { probeAudioStreamHttpStatus } from "./AudioStreamHttpProbe";
+import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
 const log = createLogger("AudioNav");
 
@@ -895,6 +896,11 @@ export class FlutterAudioNavigator {
         if (timedOut && emitCreateTimeoutError && !locatorMapper) {
           log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
         }
+      }
+      // Give the timeout a typed code so Dart stops matching on the message
+      // (was previously string-matched via `_convertToNativeCode`).
+      if (timedOut) {
+        throw new ReadiumWebError((error as Error).message, ReadiumWebErrorCode.audioStreamNetworkError);
       }
       throw error;
     }

@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'js_error.dart';
@@ -152,11 +153,47 @@ class JsPublicationChannel {
     }
   }
 
+  /// Reads a typed `code` (and optional `details`) directly off a JS error
+  /// object, as emitted by the web bundle's `ReadiumWebError`
+  /// (`web/src/errors/ReadiumWebError.ts`). Returns `null` for untyped
+  /// throws (e.g. raw upstream/toolkit errors), so callers can fall back to
+  /// the string-matching heuristics below.
+  static ({String code, Map<String, Object?> details})? _extractTypedJsError(Object jsError) {
+    try {
+      final jsObj = jsError as JSObject;
+      final codeAny = jsObj.getProperty<JSAny?>('code'.toJS);
+      final code = (codeAny as JSString?)?.toDart;
+      if (code == null || code.isEmpty) return null;
+
+      final details = <String, Object?>{};
+      final detailsAny = jsObj.getProperty<JSAny?>('details'.toJS);
+      final dartifiedDetails = detailsAny?.dartify();
+      if (dartifiedDetails is Map) {
+        for (final entry in dartifiedDetails.entries) {
+          details[entry.key.toString()] = entry.value;
+        }
+      }
+      return (code: code, details: details);
+    } on Object {
+      return null;
+    }
+  }
+
   static PlatformException _platformExceptionForJsError(
     Object jsError,
     StackTrace stackTrace,
   ) {
     final errorString = describeJsError(jsError);
+    final typed = _extractTypedJsError(jsError);
+    if (typed != null) {
+      return PlatformException(
+        code: typed.code,
+        message: errorString,
+        details: {'message': errorString, ...typed.details},
+        stacktrace: stackTrace.toString(),
+      );
+    }
+
     final statusCode = _extractStatusCode(errorString);
     final nativeCode = _convertToNativeCode(statusCode, errorString);
     final details = <String, Object?>{'message': errorString};
@@ -293,13 +330,10 @@ class JsPublicationChannel {
     try {
       return (await _readiumReader.getResourceUrl(href.toJS).toDart).toDart;
     } on Object catch (jsError, stackTrace) {
-      final errorString = describeJsError(jsError);
-      throw PlatformException(
-        code: 'ResourceReadError',
-        message: errorString,
-        details: {'message': errorString},
-        stacktrace: stackTrace.toString(),
-      );
+      // TS now throws typed ReadiumWebErrors (NoPublication / InvalidArgument /
+      // ResourceReadError depending on which guard failed) — read the code
+      // instead of hardcoding ResourceReadError for every failure.
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 

@@ -40,6 +40,8 @@ import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
 import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
+// Errors
+import { ReadiumWebError, ReadiumWebErrorCode } from "./errors/ReadiumWebError";
 
 const log = createLogger("Reader");
 
@@ -206,7 +208,7 @@ class _ReadiumReader {
     const locator = Locator.deserialize(JSON.parse(locatorJson));
     if (!locator) {
       log.error("goTo: failed to parse locator JSON");
-      throw new Error("Failed to parse locator JSON");
+      throw new ReadiumWebError("Failed to parse locator JSON", ReadiumWebErrorCode.invalidArgument);
     }
 
     log.info(
@@ -268,7 +270,9 @@ class _ReadiumReader {
       const link = findLinkByHref(allLinks, locator.href);
       if (!link) {
         log.error("goTo: audio link not found:", locator.href);
-        throw new Error("Audio link not found " + locator.href);
+        throw new ReadiumWebError("Audio link not found " + locator.href, ReadiumWebErrorCode.invalidArgument, {
+          href: locator.href,
+        });
       }
       // Preserve t= fragment from the incoming locator when present.
       const audioLocator = new Locator({
@@ -303,12 +307,18 @@ class _ReadiumReader {
     const link = findLinkByHref(allLinks, locator.href);
     if (!link) {
       log.error("goTo: link not found:", locator.href);
-      throw new Error("Link not found " + locator.href);
+      throw new ReadiumWebError("Link not found " + locator.href, ReadiumWebErrorCode.invalidArgument, {
+        href: locator.href,
+      });
     }
     this._visualNav?.goLink(link, true, (ok) => {
       if (!ok) {
         log.error("goTo: failed to navigate to link:", locator.href);
-        throw new Error("Failed to navigate to link " + locator.href);
+        throw new ReadiumWebError(
+          "Failed to navigate to link " + locator.href,
+          ReadiumWebErrorCode.resourceReadError,
+          { reason: "navigation failed", href: locator.href }
+        );
       }
     });
   }
@@ -370,7 +380,9 @@ class _ReadiumReader {
         if (!container) {
           log.error("Container element #container not found in DOM");
           this._bridge.emitReaderStatus(ReadiumReaderStatus.error);
-          throw new Error("Container element not found");
+          // No navigator can be built without a render target, so this blocks
+          // opening the publication just like a missing-navigator guard.
+          throw new ReadiumWebError("Container element not found", ReadiumWebErrorCode.noPublication);
         }
         if (this._publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
@@ -440,7 +452,7 @@ class _ReadiumReader {
   public setEPUBPreferences(newPreferencesString: string) {
     if (!this._nav) {
       log.error("setEPUBPreferences: navigator is not initialized");
-      throw new Error("Navigator is not initialized");
+      throw new ReadiumWebError("Navigator is not initialized", ReadiumWebErrorCode.noPublication);
     }
     log.debug("setEPUBPreferences");
     // Track the plugin-side `disableSynchronization` preference separately from
@@ -1131,15 +1143,23 @@ class _ReadiumReader {
   public async getResourceUrl(href: string): Promise<string> {
     const pub = this._publication;
     if (!pub) {
-      throw new Error("getResourceUrl: no publication is open");
+      throw new ReadiumWebError("getResourceUrl: no publication is open", ReadiumWebErrorCode.noPublication);
     }
     const link = findLinkByHref(pub.allLinks, href);
     if (!link) {
-      throw new Error(`getResourceUrl: no resource found for href: ${href}`);
+      throw new ReadiumWebError(
+        `getResourceUrl: no resource found for href: ${href}`,
+        ReadiumWebErrorCode.invalidArgument,
+        { href }
+      );
     }
     const url = link.toURL(pub.baseURL);
     if (!url) {
-      throw new Error(`getResourceUrl: could not resolve URL for href: ${href}`);
+      throw new ReadiumWebError(
+        `getResourceUrl: could not resolve URL for href: ${href}`,
+        ReadiumWebErrorCode.resourceReadError,
+        { reason: "could not resolve URL", href }
+      );
     }
     return url;
   }
