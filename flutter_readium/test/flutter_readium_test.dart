@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -20,6 +21,16 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
   final _errorController = StreamController<ReadiumError>.broadcast();
   final _narrationSyncController = StreamController<bool>.broadcast();
+
+  String? methodToThrow;
+  Object? errorToThrow;
+
+  Future<T> _maybeThrow<T>(String method, T value) async {
+    if (methodToThrow == method && errorToThrow != null) {
+      throw errorToThrow!;
+    }
+    return value;
+  }
 
   @override
   Stream<Locator> get onTextLocatorChanged => _textLocatorController.stream;
@@ -53,10 +64,10 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   );
 
   @override
-  Future<Publication> loadPublication(String pubUrl) async => _pub('Loaded');
+  Future<Publication> loadPublication(String pubUrl) async => _maybeThrow('loadPublication', _pub('Loaded'));
 
   @override
-  Future<Publication> openPublication(String pubUrl) async => _pub('Opened');
+  Future<Publication> openPublication(String pubUrl) async => _maybeThrow('openPublication', _pub('Opened'));
 
   @override
   Future<void> closePublication() async {}
@@ -125,7 +136,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> audioEnable({
     AudioPreferences? prefs,
     Locator? fromLocator,
-  }) async {}
+  }) async {
+    await _maybeThrow('audioEnable', null);
+  }
 
   @override
   Future<void> audioSetPreferences(AudioPreferences prefs) async {}
@@ -194,6 +207,61 @@ void main() {
     test('returns a publication without side effects', () async {
       final pub = await reader.loadPublication('https://example.com/book.epub');
       expect(pub.metadata.title, 'Loaded');
+    });
+
+    test('maps platform domain failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'loadPublication'
+        ..errorToThrow = PlatformException(
+          code: 'notFound',
+          message: 'Publication not found',
+          details: {'href': '/missing.epub', 'httpStatus': 404},
+        );
+
+      await expectLater(
+        () => reader.loadPublication('https://example.com/missing.epub'),
+        throwsA(
+          isA<ReadiumException>()
+              .having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.notFound)
+              .having((e) => e.href, 'href', '/missing.epub')
+              .having((e) => e.httpStatus, 'httpStatus', 404),
+        ),
+      );
+    });
+  });
+
+  group('audioEnable', () {
+    test('maps platform domain failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'audioEnable'
+        ..errorToThrow = PlatformException(
+          code: 'AudioStreamNetworkError',
+          message: 'Timed out preparing audio playback',
+          details: {'href': '/track.mp3'},
+        );
+
+      await expectLater(
+        () => reader.audioEnable(),
+        throwsA(
+          isA<ReadiumException>()
+              .having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.audioStreamNetworkError)
+              .having((e) => e.href, 'href', '/track.mp3'),
+        ),
+      );
+    });
+
+    test('leaves InvalidArgument platform misuse as PlatformException', () async {
+      platform
+        ..methodToThrow = 'audioEnable'
+        ..errorToThrow = PlatformException(
+          code: 'InvalidArgument',
+          message: 'bad args',
+        );
+
+      await expectLater(
+        () => reader.audioEnable(),
+        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'InvalidArgument')),
+      );
     });
   });
 

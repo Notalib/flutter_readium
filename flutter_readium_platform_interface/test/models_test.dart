@@ -165,10 +165,22 @@ void main() {
   });
 
   group('ReadiumError', () {
-    test('equality is based on message and code', () {
+    test('equality is based on message, code, and details', () {
       final a = ReadiumError('oops', code: '42');
       final b = ReadiumError('oops', code: '42');
       expect(a, equals(b));
+
+      final firstRetry = ReadiumError(
+        'retrying',
+        code: 'AudioStreamRetry',
+        details: {'attempt': 1, 'maxAttempts': 3},
+      );
+      final secondRetry = ReadiumError(
+        'retrying',
+        code: 'AudioStreamRetry',
+        details: {'attempt': 2, 'maxAttempts': 3},
+      );
+      expect(firstRetry, isNot(secondRetry));
     });
 
     test('round-trips through toJson / fromJson', () {

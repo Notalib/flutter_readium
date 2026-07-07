@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 
 import '../../flutter_readium_platform_interface.dart';
@@ -74,6 +75,8 @@ class ReadiumError {
     this.details,
   }) : codeEnum = ReadiumErrorCode.fromWire(code);
 
+  static const _detailsEquality = DeepCollectionEquality();
+
   /// Tolerates a stale native side still sending `data` as a freeform
   /// string (pre-R2 wire format) by wrapping it as `{"message": <string>}`,
   /// so the stream decoder never crashes on a legacy payload.
@@ -126,10 +129,14 @@ class ReadiumError {
 
   @override
   bool operator ==(covariant final Object other) =>
-      identical(this, other) || other is ReadiumError && other.message == message && other.code == code;
+      identical(this, other) ||
+      other is ReadiumError &&
+          other.message == message &&
+          other.code == code &&
+          _detailsEquality.equals(other.details, details);
 
   @override
-  int get hashCode => message.hashCode ^ code.hashCode;
+  int get hashCode => Object.hash(message, code, _detailsEquality.hash(details));
 
   @override
   String toString() => 'ReadiumError(message: $message, code: $code, details: $details)';
