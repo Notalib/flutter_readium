@@ -4,11 +4,11 @@
  * defines the exponential backoff used to recover from it.
  *
  * Browser constraint: `HTMLMediaElement` only ever exposes a `MediaError`
- * with one of 4 generic codes — there is no HTTP status on it, so unlike
- * iOS/Android, web CANNOT distinguish 401/403 (`AudioStreamAuthError`) or
- * other 4xx (`AudioStreamHTTPError`) from a generic network failure. Do not
- * fake that distinction; `AudioStreamNetworkError` is the closest honest
- * mapping for "the browser gave up on the network fetch".
+ * with one of 4 generic codes — there is no HTTP status on it, so classification
+ * here is coarser than iOS/Android's HTTP-status-based mapping. `AudioStreamHttpProbe.ts`
+ * closes part of that gap with a best-effort follow-up fetch that can upgrade a
+ * classification to a real HTTP status (e.g. 401/403/404) when the probe is conclusive;
+ * this module's fallback mapping only applies when it isn't.
  */
 
 import { ReadiumErrorEventData } from "../bridge/ReadiumBridge";
@@ -54,16 +54,17 @@ export const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
  * listener. That listener forwards `HTMLMediaElement.error` (a `MediaError`)
  * for engine-level playback failures, but can also forward an arbitrary
  * exception thrown by the underlying `play()` call (e.g. a rejected
- * autoplay promise) — such values have no numeric `code` and are treated as
- * a non-network terminal failure, matching iOS/Android's default-terminal
- * fallback for unclassifiable errors.
+ * autoplay promise) — such values have no numeric `code` and are retried,
+ * matching iOS/Android's default-retry fallback for unclassifiable errors.
  *
  * Mapping (browser-only classes available — no HTTP status):
  *   MEDIA_ERR_ABORTED            -> ignore   (e.g. cancelled during teardown/seek)
  *   MEDIA_ERR_NETWORK            -> retry
  *   MEDIA_ERR_DECODE             -> fail(AudioStreamError)
  *   MEDIA_ERR_SRC_NOT_SUPPORTED  -> fail(AudioStreamNetworkError)
- *   anything else / no code      -> fail(AudioStreamError)
+ *   anything else / no code      -> retry (unclassifiable; goes terminal as
+ *                                   AudioStreamNetworkError once attempts
+ *                                   exhaust — matches iOS/Android)
  */
 export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction {
   const code = (error as MediaErrorLike | null | undefined)?.code;
@@ -78,7 +79,7 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
     case MEDIA_ERR_SRC_NOT_SUPPORTED:
       return AudioStreamErrorAction.fail("AudioStreamNetworkError");
     default:
-      return AudioStreamErrorAction.fail("AudioStreamError");
+      return AudioStreamErrorAction.retry();
   }
 }
 

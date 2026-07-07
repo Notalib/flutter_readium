@@ -39,23 +39,19 @@ describe("classifyAudioStreamError", () => {
     );
   });
 
-  it("an unknown numeric code is a terminal AudioStreamError (unclassifiable, matches iOS/Android default-terminal fallback)", () => {
-    expect(classifyAudioStreamError(mediaError(99))).toEqual(
-      AudioStreamErrorAction.fail("AudioStreamError")
-    );
+  it("an unknown numeric code is retryable (unclassifiable, matches iOS/Android default-retry fallback)", () => {
+    expect(classifyAudioStreamError(mediaError(99))).toEqual(AudioStreamErrorAction.retry());
   });
 
-  it("a value with no code (e.g. a rejected play() promise) is a terminal AudioStreamError", () => {
+  it("a value with no code (e.g. a rejected play() promise) is retryable", () => {
     expect(classifyAudioStreamError(new Error("NotAllowedError"))).toEqual(
-      AudioStreamErrorAction.fail("AudioStreamError")
+      AudioStreamErrorAction.retry()
     );
   });
 
-  it("null/undefined is a terminal AudioStreamError", () => {
-    expect(classifyAudioStreamError(null)).toEqual(AudioStreamErrorAction.fail("AudioStreamError"));
-    expect(classifyAudioStreamError(undefined)).toEqual(
-      AudioStreamErrorAction.fail("AudioStreamError")
-    );
+  it("null/undefined is retryable", () => {
+    expect(classifyAudioStreamError(null)).toEqual(AudioStreamErrorAction.retry());
+    expect(classifyAudioStreamError(undefined)).toEqual(AudioStreamErrorAction.retry());
   });
 });
 

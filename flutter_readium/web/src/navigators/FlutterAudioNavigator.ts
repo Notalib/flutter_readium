@@ -22,8 +22,6 @@ import { probeAudioStreamHttpStatus } from "./AudioStreamHttpProbe";
 
 const log = createLogger("AudioNav");
 
-/** Verification window for a recovery attempt: playback must advance within this time. */
-const RECOVERY_VERIFY_WINDOW_MS = 5_000;
 /** Poll interval while waiting for playback position to advance during recovery. */
 const RECOVERY_VERIFY_POLL_MS = 250;
 /** Minimum position advance (seconds) counted as "playback actually resumed". */
@@ -454,9 +452,10 @@ async function handleAudioStreamError(
  * Rebuilds the `AudioNavigator` at `href` (the ts-toolkit engine has no
  * in-place re-prepare API, so — mirroring iOS/Android — recovery tears down
  * and reconstructs it) and verifies playback position actually advances
- * within {@link RECOVERY_VERIFY_WINDOW_MS}. Being in a "ready"/"playing"
- * state alone is not a reliable recovery signal (mirrors Android's
- * `playbackAdvanced`).
+ * within `connectionTimeoutMs`. Being in a "ready"/"playing" state alone is
+ * not a reliable recovery signal (mirrors Android's `playbackAdvanced`).
+ * `connectionTimeoutMs` bounds both phases of the attempt: the rebuild itself
+ * (via `withTimeout` below) and, separately, this post-rebuild verification.
  *
  * On success, `onNavReplaced` updates the enclosing `create()` closure's
  * `nav` binding so subsequent listener callbacks (positionChanged, etc.)
@@ -466,21 +465,30 @@ async function handleAudioStreamError(
  *   from the still-live (about to be torn down) navigator at rebuild time —
  *   NOT the original `initialPosition` the session started at, which would
  *   resume at the wrong timestamp after playback has progressed.
+ * @param teardownCurrent Stops/destroys the still-live navigator being
+ *   replaced. Called after `getLastLocator()` reads it, before the
+ *   replacement is built — otherwise both elements can play concurrently.
+ * @param recoveryController The session's existing controller, threaded into
+ *   the rebuilt navigator's `create()` so its listeners share this loop's
+ *   suppression/latch state instead of getting a fresh, orphaned instance.
  */
 async function rebuildAndVerifyPlayback(
   href: string,
   publication: ReadiumPublication,
   getLastLocator: () => Locator | undefined,
+  teardownCurrent: () => void,
   preferencesJsonString: string,
   setNav: (nav: AudioNavigator) => void,
   pollIntervalOverrideMs: number | undefined,
   bridge: ReadiumBridge,
+  recoveryController: AudioStreamRecoveryController,
   onNavReplaced: (nav: AudioNavigator) => void,
   connectionTimeoutMs: number,
   isDisposed: () => boolean
 ): Promise<boolean> {
   if (isDisposed()) return false;
   const lastPosition = getLastLocator();
+  teardownCurrent();
   const resumeLocator = new Locator({
     href,
     type: "audio/mpeg",
@@ -509,7 +517,8 @@ async function rebuildAndVerifyPlayback(
         undefined,
         pollIntervalOverrideMs,
         bridge,
-        false
+        false,
+        recoveryController
       ),
       connectionTimeoutMs,
       `Timed out rebuilding audio playback after ${connectionTimeoutMs / 1000}s`
@@ -524,7 +533,7 @@ async function rebuildAndVerifyPlayback(
   rebuilt.play();
 
   const startOffset = rebuilt.currentTime;
-  const deadline = Date.now() + RECOVERY_VERIFY_WINDOW_MS;
+  const deadline = Date.now() + connectionTimeoutMs;
   while (Date.now() < deadline && !isDisposed()) {
     if (rebuilt.currentTime > startOffset + RECOVERY_VERIFY_MIN_ADVANCE_S) {
       return true;
@@ -593,7 +602,11 @@ export class FlutterAudioNavigator {
      *  `ReadiumReader` to enable retry/failure recovery for that session. */
     bridge?: ReadiumBridge,
     /** Internal: recovery rebuild timeouts are failed attempts, not initial-open errors. */
-    emitCreateTimeoutError = true
+    emitCreateTimeoutError = true,
+    /** Internal: when rebuilding during recovery, reuse the session's existing
+     *  controller instead of constructing a new one — a fresh controller would
+     *  silently replace `_recovery` and reset its attempt budget/latch. */
+    recoveryController?: AudioStreamRecoveryController
   ): Promise<void> {
     const tracks = publication.readingOrder.items.length;
     log.info(
@@ -685,9 +698,13 @@ export class FlutterAudioNavigator {
     // rebuilding mid-sync-narration would require re-deriving the mapper's
     // internal cue state, which the current AudioLocatorMapper contract does
     // not expose a way to resume.
+    //
+    // `recoveryController`, when passed (the inner call from
+    // `rebuildAndVerifyPlayback`), is reused rather than replaced — a fresh
+    // controller would silently orphan `_recovery`'s attempt budget/latch.
     let recovery: AudioStreamRecoveryController | undefined;
     if (!locatorMapper && bridge) {
-      recovery = new AudioStreamRecoveryController(
+      recovery = recoveryController ?? new AudioStreamRecoveryController(
         {
           emitError: (message, code, data) => bridge.emitError(message, code, data),
           setPinnedState: (state) => {
@@ -705,10 +722,12 @@ export class FlutterAudioNavigator {
               href,
               publication,
               () => nav?.currentLocator,
+              () => { nav?.stop(); nav?.destroy(); },
               preferencesJsonString,
               setNav,
               pollIntervalOverrideMs,
               bridge,
+              recovery!,
               (n) => { nav = n; },
               recoveryPolicy.connectionTimeoutSeconds * 1000,
               isDisposed
