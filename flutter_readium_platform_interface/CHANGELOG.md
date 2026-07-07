@@ -10,10 +10,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ReadiumErrorCode` — typed enum for error-event codes with `isFatal` /
   `isInformational` and `category` getters, parsed onto `ReadiumError.codeEnum`
   (raw string `code` kept). Spans opening, audio-stream, tts (including
-  `voiceNotFound`, `ttsError`), and navigator (`timeBasedNavigatorError`,
-  `didFailToLoadResource`, `searchError`, `noPublicationOpened`,
-  `resourceReadError`) codes. Vocabulary documented in
-  `docs/api-reference/error-codes.md`.
+  `voiceNotFound`, `ttsError`), and navigator (`searchError`,
+  `noPublicationOpened`, `resourceReadError`) codes — a client-actionable,
+  guaranteed-cross-platform set; finer distinctions (e.g. an audio-stream
+  range/filesystem failure, or a resource-read miss vs. a cache write
+  failure) are carried in `details.reason` instead of a separate wire code.
+  Vocabulary documented in `docs/api-reference/error-codes.md`.
 - Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
   `httpStatus`.
 - `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop

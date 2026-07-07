@@ -97,4 +97,4 @@ for media loads, so auth/HTTP classification relies on a short diagnostic fetch 
 when it is inconclusive the failure surfaces as `AudioStreamNetworkError` rather than a
 more specific code. Detail: [error-codes.md](../api-reference/error-codes.md).
 iOS audio streaming requires byte-range support from the remote audio server; if a range
-request is rejected, the terminal error is `AudioStreamRangeNotSupported`.
+request is rejected, the terminal error is `AudioStreamError` with `details.reason: "rangeNotSupported"`.

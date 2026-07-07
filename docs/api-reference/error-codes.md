@@ -24,7 +24,14 @@ reader.onErrorEvent.listen((error) {
 
 ## Vocabulary
 
-| `ReadiumErrorCode` | Wire string(s) | Platforms | Category | Fatal? | Meaning |
+This is a client-actionable, guaranteed-cross-platform set: every code below is either
+emitted by all three platforms, or its absence on a platform is a documented,
+honest limitation (see the Per-platform limitations section) rather than an
+oversight. Finer-grained distinctions that a client wouldn't branch on differently
+(e.g. *why* a resource read failed, *why* an audio stream errored) live in
+`details.reason` instead of a separate wire code — see below.
+
+| `ReadiumErrorCode` | Wire string | Platforms | Category | Fatal? | Meaning |
 |---|---|---|---|---|---|
 | `formatNotSupported` | `formatNotSupported` | iOS, Android, web | opening | fatal | Publication format not supported by the toolkit |
 | `unsupportedScheme` | `unsupportedScheme` | iOS, Android, web | opening | fatal | URL scheme not supported when opening |
@@ -34,24 +41,58 @@ reader.onErrorEvent.listen((error) {
 | `unavailable` | `unavailable` | iOS, Android, web | opening | fatal | Publication temporarily unavailable |
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
 | `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error, or a detected playback stall; playback state pinned to loading |
-| `audioStreamFailed` | `AudioStreamFailed` | iOS, Android | audioStream | fatal | Generic recovery-exhausted fallback; call `play()` to retry manually. Recovery carries through the originally classified code where possible (e.g. `audioStreamNetworkError`, `audioStreamAuthError`), so this is only seen for failure shapes that don't map to a more specific code |
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
 | `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
-| `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio |
-| `audioStreamRangeNotSupported` | `AudioStreamRangeNotSupported` | iOS | audioStream | fatal | The server rejected byte-range streaming for an audio resource |
-| `audioStreamFileError` | `AudioStreamFileError` | iOS | audioStream | fatal | Local filesystem error reading an audio resource |
-| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure |
-| `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS | tts | fatal | A single TTS utterance failed to synthesize/play |
-| `voiceNotFound` | `VoiceNotFound` | iOS | tts | fatal | `ttsSetVoice` was called with a voice identifier the platform doesn't have |
-| `ttsError` | `TTSError` | iOS | tts | fatal | Generic TTS synthesis/playback failure not covered by a more specific code |
-| `timeBasedNavigatorError` | `TimeBasedNavigatorError` | iOS | navigator | fatal | Generic time-based (audio/TTS) navigator failure not covered by a more specific code |
-| `didFailToLoadResource` | `DidFailToLoadResource` | iOS | navigator | fatal | Visual reader (EPUB/PDF) failed to load a resource |
-| `searchError` | `SearchError` | iOS | navigator | fatal | Full-text search failed |
-| `noPublicationOpened` | `NoPublication` | iOS | navigator | fatal | Navigator operation attempted with no publication currently open |
-| `resourceReadError` | `ResourceReadError`, `ResourceNotFound`, `ResourceCacheError` | iOS | navigator | fatal | A publication resource failed to load/decode |
-| `unknown` | any unrecognised string, or missing `code` | all | unknown | fatal | Fallback — includes Android's `Throwable::class.simpleName`, which is not an enumerable vocabulary |
+| `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio; also the Android recovery-exhausted fallback for every non-HTTP failure shape (ExoPlayer doesn't distinguish range/filesystem causes) |
+| `audioStreamError` | `AudioStreamError` | iOS, web | audioStream | fatal | Unclassified/default terminal audio streaming failure. iOS pairs this with `details.reason: "rangeNotSupported"` (server rejected byte-range streaming) or `"fileSystem"` (local filesystem error); web emits it bare for a `MEDIA_ERR_DECODE`. Not emitted by Android — see above |
+| `ttsUtteranceFailed` | `TTSUtteranceFailed` | iOS, Android | tts | fatal | A single TTS utterance failed to synthesize/play (ambient error-channel event, not a method-channel result) |
+| `voiceNotFound` | `VoiceNotFound` | iOS, web | tts | fatal | `ttsSetVoice` was called with a voice identifier the platform doesn't have. Not emitted by Android — see Per-platform limitations |
+| `ttsError` | `TTSError` | iOS, Android | tts | fatal | Generic TTS synthesis/playback failure not covered by a more specific code |
+| `searchError` | `SearchError` | iOS, Android | navigator | fatal | Full-text search failed. Not emitted by web — see Per-platform limitations |
+| `noPublicationOpened` | `NoPublication` | iOS, Android, web | navigator | fatal | Navigator operation attempted with no publication currently open |
+| `resourceReadError` | `ResourceReadError` | iOS, Android, web | navigator | fatal | A publication resource failed to load/decode. Pairs with `details.reason` — see below |
+| `unknown` | any unrecognised string, or missing `code` | all | unknown | fatal | Fallback — includes Android's `PublicationError.Unknown`, which is not an enumerable vocabulary member |
 
-Any unrecognized or non-HTTP transport error on all three platforms (e.g. an ExoPlayer socket error not wrapped as an `HttpError` on Android, an `HTMLMediaElement` error with no usable code on web, or an ad-hoc native failure on iOS) is treated as retryable rather than an immediate terminal failure, and only surfaces as the fatal `audioStreamNetworkError` fallback once recovery attempts are exhausted. Android's ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network) from that fallback, so it does not currently emit `AudioStreamFailed` beyond backoff, `AudioStreamRangeNotSupported`, `AudioStreamFileError`, or `AudioStreamError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone, falling back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
+`InvalidArgument` is deliberately **not** part of `ReadiumErrorCode`: it means the
+*caller* passed malformed/missing/wrong-typed arguments to a method-channel call
+(e.g. an unparseable locator, a missing required argument), not a Readium/domain
+failure. All three platforms emit it, and the Dart method-channel wrapper passes it
+through as a raw `PlatformException` instead of wrapping it in `ReadiumException` —
+so `e.codeEnum` is not the right tool for it; check `e.code == 'InvalidArgument'`
+directly if you need to distinguish caller bugs from domain errors.
+
+### `details.reason`
+
+Several codes above are intentionally coarse; a `reason` field in `details` (wire
+field `data.reason`) carries the finer distinction a producer *can* make without
+adding a new wire code a client would have to branch on identically anyway:
+
+| Code | `reason` values | Platforms |
+|---|---|---|
+| `audioStreamError` | `rangeNotSupported`, `fileSystem` | iOS only (Android doesn't reach this code; web's `AudioStreamError` is decode-only and doesn't set a reason) |
+| `resourceReadError` | `notFound`, `cache` | iOS, Android (short discriminators). Web currently sends a descriptive sentence instead of a short token (e.g. `"could not resolve URL"`, `"navigation failed"`) — treat `details.reason` as free text on web, not a fixed enum |
+
+`reason` is optional and producer-specific; treat it as a hint for logging/telemetry,
+not as a value to switch on across platforms until every producer agrees on a shared
+short-token set.
+
+### Per-platform limitations
+
+Some vocabulary members can't be honestly emitted on every platform given upstream
+toolkit constraints. These are documented gaps, not bugs:
+
+- **`voiceNotFound` — not emitted by Android.** Upstream `AndroidTtsEngine` silently
+  falls back to a default voice when the requested `voiceURI` doesn't resolve; there
+  is no error path to hook into. iOS resolves synchronously and can detect a miss.
+  Web's per-language voice mapping is resolved lazily against
+  `speechSynthesis.getVoices()` at speak time (the list can legitimately be empty at
+  call time before the browser fires `voiceschanged`), so a miss is only reported for
+  the immediate, non-lazy `voiceURI` path — a lazy per-language miss can't be
+  distinguished from "not loaded yet" without false positives.
+- **`searchError` — not emitted by web.** The web navigator has no full-text search
+  implementation yet; there's nothing to fail.
+
+Any unrecognized or non-HTTP transport error on all three platforms (e.g. an ExoPlayer socket error not wrapped as an `HttpError` on Android, an `HTMLMediaElement` error with no usable code on web, or an ad-hoc native failure on iOS) is treated as retryable rather than an immediate terminal failure, and only surfaces as the fatal `audioStreamNetworkError` fallback once recovery attempts are exhausted. Android's ExoPlayer-backed classifier only distinguishes HTTP-layer failures (auth/HTTP/network) from that fallback, so it never emits `audioStreamError`. Web similarly cannot distinguish `AudioStreamAuthError`/`AudioStreamHTTPError` from a generic network failure via `HTMLMediaElement` alone, falling back to `AudioStreamNetworkError` unless an HTTP probe classifies the status.
 
 `isFatal` and `isInformational` are exact complements — `isInformational` is `true` only for `audioStreamRetry`.
 
