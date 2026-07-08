@@ -79,8 +79,7 @@ sealed class PublicationError(
     /** Generic TTS synthesis/playback failure not covered by a more specific code. */
     class TTSFailure(
         message: String,
-        cause: Error? = null,
-    ) : PublicationError(ReadiumExceptionType.TTS_ERROR, message, cause)
+    ) : PublicationError(ReadiumExceptionType.TTS_ERROR, message)
 
     /** A single TTS utterance failed to synthesize/play (ambient error-channel event). */
     class TTSUtteranceFailure(
