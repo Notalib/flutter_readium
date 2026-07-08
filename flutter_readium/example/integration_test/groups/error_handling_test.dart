@@ -13,38 +13,18 @@ void main() {
   final harness = suiteHarness();
 
   group('Error handling', () {
-    test(
-      'openPublication throws ReadiumException for an invalid native path',
-      skip: kIsWeb ? 'Error path differs on web (HTTP fetch vs file I/O)' : null,
-      () async {
-        await expectLater(
-          harness.readium.openPublication('/does-not-exist/no-such.epub'),
-          throwsA(isA<ReadiumException>()),
-        );
-      },
-    );
-
-    test(
-      'onErrorEvent emits when opening an unreachable web publication',
-      skip: kIsWeb ? null : 'Web-specific HTTP error event path',
-      () async {
-        final errors = <ReadiumError>[];
-        final sub = harness.readium.onErrorEvent.listen(errors.add);
-        addTearDown(sub.cancel);
-
-        try {
-          await harness.readium.openPublication('/no-such-fixture/manifest.json');
-        } on Object {
-          // Expected: open fails; this test asserts the error event stream.
-        }
-
-        await waitUntil(
-          () => errors.isNotEmpty,
-          timeout: const Duration(seconds: 15),
-          reason: 'onErrorEvent did not emit after a failed openPublication',
-        );
-      },
-    );
+    // openPublication surfaces failures via the throw path of the unified error
+    // surface, not onErrorEvent — that channel is only for out-of-band
+    // audio-stream errors during playback (see the recovery tests below + the
+    // web jest suite). The unreachable source differs by platform: file I/O
+    // natively, an origin-relative HTTP 404 on web.
+    test('openPublication throws ReadiumException for an unreachable source', () async {
+      final badSource = kIsWeb ? '/no-such-fixture/manifest.json' : '/does-not-exist/no-such.epub';
+      await expectLater(
+        harness.readium.openPublication(badSource),
+        throwsA(isA<ReadiumException>()),
+      );
+    });
 
     // Exercises the audio-stream recovery loop's terminal path end-to-end: an
     // audiobook whose media host is unreachable can never connect, so recovery

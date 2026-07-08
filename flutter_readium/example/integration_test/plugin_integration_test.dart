@@ -24,11 +24,11 @@ import 'test_suite_setup.dart';
 void main() {
   beginAggregatedRun();
 
-  error_handling.main();
-  navigation_locator.main();
-  preferences_decorations_resources.main();
   publication_opening.main();
   reader_widget_lifecycle.main();
+  preferences_decorations_resources.main();
+  navigation_locator.main();
   search.main();
   timebased_playback.main();
+  error_handling.main();
 }
