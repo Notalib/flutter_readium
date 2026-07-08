@@ -49,13 +49,5 @@ data class ReadiumError(
                 code = error.errorCode.wireValue,
                 data = error.toReadiumErrorDetails(),
             )
-
-        operator fun invoke(error: Throwable): ReadiumError {
-            PluginLog.e("ReadiumError", "::invoke ${error.stackTraceToString()}")
-            return ReadiumError(
-                message = error.message ?: error::class.simpleName ?: "Unknown error",
-                code = error::class.simpleName,
-            )
-        }
     }
 }

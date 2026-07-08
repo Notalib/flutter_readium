@@ -287,12 +287,7 @@ class JsPublicationChannel {
     try {
       return (await _readiumReader.ttsGetAvailableVoices().toDart).toDart;
     } on Object catch (jsError, stackTrace) {
-      throw PlatformException(
-        code: ReadiumErrorCode.unknown.name,
-        message: describeJsError(jsError),
-        details: {'message': describeJsError(jsError)},
-        stacktrace: stackTrace.toString(),
-      );
+      throw _platformExceptionForJsError(jsError, stackTrace);
     }
   }
 

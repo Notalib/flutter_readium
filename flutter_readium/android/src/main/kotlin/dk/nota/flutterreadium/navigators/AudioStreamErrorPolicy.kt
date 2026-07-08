@@ -12,8 +12,8 @@ import kotlin.math.pow
  * (ios/flutter_readium/Sources/flutter_readium/utils/AudioStreamErrorPolicy.swift).
  */
 sealed class AudioStreamErrorAction {
-    /** Not a real failure worth surfacing. */
-    object Ignore : AudioStreamErrorAction()
+    // NOTE: no `Ignore` variant unlike iOS - kotlin-toolkit's HttpError has no
+    // cancelled-read case, so classification can never produce one here.
 
     /** Transient network-class error: attempt connection recovery. */
     object Retry : AudioStreamErrorAction()

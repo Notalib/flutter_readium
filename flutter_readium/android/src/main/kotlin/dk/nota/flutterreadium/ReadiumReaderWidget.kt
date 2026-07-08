@@ -173,8 +173,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
                 // Heterogeneous failure surface (fragment/navigator-creation errors from
                 // kotlin-toolkit) with no single vocabulary code that fits - "unknown" is
-                // itself a vocabulary member, unlike the raw exception class name the
-                // Throwable overload of ReadiumError(...) would otherwise emit.
+                // itself a vocabulary member, unlike a raw exception class name.
                 ReadiumReader.emitError(ReadiumError(PublicationError.Unknown(e.message ?: e.toString())))
             }
         }

@@ -698,10 +698,6 @@ open class AudiobookNavigator(
                 )
 
                 when (val action = error.audioStreamAction()) {
-                    AudioStreamErrorAction.Ignore -> {
-                        PluginLog.d(TAG, "::onPlaybackStateChanged - ignoring non-fatal audio error")
-                    }
-
                     AudioStreamErrorAction.Retry -> {
                         startRecovery(error, terminalCode = "AudioStreamNetworkError")
                     }
