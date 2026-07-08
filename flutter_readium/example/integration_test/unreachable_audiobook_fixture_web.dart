@@ -4,3 +4,7 @@
 Future<String> writeTempAudiobookManifest(String manifestJson) {
   throw UnsupportedError('writeTempAudiobookManifest is native-only');
 }
+
+Future<bool> isHostReachable(String url, {Duration timeout = const Duration(seconds: 5)}) {
+  throw UnsupportedError('isHostReachable is native-only');
+}

@@ -5,6 +5,7 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../readium_integration_harness.dart';
+import '../test_fixtures.dart';
 import '../unreachable_audiobook_fixture.dart' if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
 
 void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
@@ -133,6 +134,72 @@ void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
           terminal.codeEnum,
           ReadiumErrorCode.audioStreamNetworkError,
           reason: 'An unreachable host is a network-class failure',
+        );
+      },
+    );
+
+    // Complements the unreachable-host test above with the auth branch: the
+    // 39031_auth fixture streams from a real host (merkur.nota.dk) that returns
+    // 401 without a valid Bearer token. We deliberately open it WITHOUT a token,
+    // so the first media fetch is rejected and classified as a terminal
+    // audioStreamAuthError - the code path that drives the example app's
+    // "login may have expired" dialog. Auth failures are terminal-without-retry,
+    // so this emits fast.
+    //
+    // Native-only AND network-dependent: it hits a real host. A reachability
+    // precheck skips the test (inconclusive) when merkur is genuinely down, so a
+    // network outage doesn't fail CI. Crucially we do NOT accept
+    // audioStreamNetworkError as a pass: once the host is reachable, a
+    // network-class code here means the 401 -> auth classification regressed,
+    // which is exactly what this test must catch. No token is ever committed —
+    // its absence is the point.
+    const authMediaHost = 'https://merkur.nota.dk'; // media host for 39031_auth
+    test(
+      'audiobook with missing Bearer token surfaces a terminal audioStreamAuthError',
+      skip: kIsWeb ? 'Native-only: remote auth fixture is not in the web set' : null,
+      () async {
+        if (!await isHostReachable(authMediaHost)) {
+          markTestSkipped('$authMediaHost unreachable — auth-recovery path not exercised');
+          return;
+        }
+
+        final path = harness.fixturePath(
+          FixtureKeys.remoteAudiobookAuth,
+          reason:
+              'Fixture ${FixtureKeys.remoteAudiobookAuth} missing '
+              '(run bin/fetch_test_resources)',
+        );
+
+        final errors = <ReadiumError>[];
+        final sub = harness.readium.onErrorEvent.listen(errors.add);
+        addTearDown(sub.cancel);
+
+        // No setCustomHeaders / Bearer token — the omission is what triggers 401.
+        final pub = await harness.readium.openPublication(path);
+        expect(pub.conformsToReadiumAudiobook, isTrue);
+
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        await waitUntil(
+          () => errors.any(
+            (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+          ),
+          timeout: const Duration(seconds: 30),
+          reason:
+              'No terminal audioStream error for an unauthenticated stream '
+              '(saw: ${errors.map((e) => e.code ?? e.codeEnum.name).toList()})',
+        );
+
+        final terminal = errors.firstWhere(
+          (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+        );
+        expect(
+          terminal.codeEnum,
+          ReadiumErrorCode.audioStreamAuthError,
+          reason:
+              'A 401/403 without a Bearer token is an auth-class failure. '
+              'If this is audioStreamNetworkError, merkur.nota.dk was likely unreachable.',
         );
       },
     );

@@ -44,6 +44,14 @@ abstract final class FixtureKeys {
   /// Remote audiobook manifest (manifest-only fixture; media stays remote).
   static const remoteAudiobook = 'flatland.json';
 
+  /// Remote audiobook ("Lyra's Oxford") whose media requires a Bearer token
+  /// (set via `setCustomHeaders`) to stream from merkur.nota.dk. Opened
+  /// *without* a token by the error-handling suite to exercise the
+  /// 401 -> `audioStreamAuthError` terminal path. Native-only and
+  /// network-dependent (hits a real host), so intentionally excluded from the
+  /// `web` set and the deterministic web run.
+  static const remoteAudiobookAuth = '39031_auth.json';
+
   /// Fixed-layout EPUB. Available on native (.webpub) and web
   /// (test-fixtures/fixed-layout).
   static const fixedLayout = 'test-fixed-layout.webpub';
