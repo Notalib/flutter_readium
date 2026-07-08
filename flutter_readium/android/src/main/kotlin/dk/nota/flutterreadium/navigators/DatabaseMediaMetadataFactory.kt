@@ -10,12 +10,21 @@ import org.readium.r2.shared.extensions.toPng
 import org.readium.r2.shared.publication.LocalizedString
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.coverFitting
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(InternalReadiumApi::class)
 class DatabaseMediaMetadataFactory(
     private val publication: Publication,
     private val trackCount: Int,
     private val controlPanelInfoType: ControlPanelInfoType,
+    /**
+     * Optional cache shared across every factory instance a caller creates for the same
+     * publication (e.g. one per navigator rebuild), so a rebuild after a network failure
+     * doesn't re-fetch the cover over the same broken network. Left null for call sites that
+     * don't rebuild (e.g. [dk.nota.flutterreadium.navigators.TTSNavigator]), which then only
+     * cache within this instance's own lifetime.
+     */
+    private val coverCache: AtomicReference<ByteArray?>? = null,
 ) : MediaMetadataFactory {
     /**
      * The title of the publication.
@@ -62,7 +71,13 @@ class DatabaseMediaMetadataFactory(
     private suspend fun loadCoverImage(): ByteArray? {
         if (coverImage != null) return coverImage
 
+        coverCache?.get()?.let {
+            coverImage = it
+            return it
+        }
+
         coverImage = publication.coverFitting(Size(400, 400))?.toPng()
+        coverCache?.set(coverImage)
 
         return coverImage
     }

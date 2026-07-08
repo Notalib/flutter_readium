@@ -79,8 +79,13 @@ import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "ReadiumReader"
+
+/** [DefaultHttpClient] has no timeouts by default - a blocked socket read would hang forever. */
+private val HTTP_CONNECT_TIMEOUT = 10.seconds
+private val HTTP_READ_TIMEOUT = 30.seconds
 
 private val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
 
@@ -164,6 +169,8 @@ object ReadiumReader :
 
     private val httpClient by lazy {
         DefaultHttpClient(
+            connectTimeout = HTTP_CONNECT_TIMEOUT,
+            readTimeout = HTTP_READ_TIMEOUT,
             callback =
                 object : DefaultHttpClient.Callback {
                     override suspend fun onStartRequest(request: HttpRequest): HttpTry<HttpRequest> {
