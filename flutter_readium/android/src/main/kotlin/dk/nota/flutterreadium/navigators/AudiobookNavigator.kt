@@ -136,11 +136,8 @@ open class AudiobookNavigator(
     private var isRecovering: Boolean = false
 
     /**
-     * Monotonically increasing counter, bumped at the start of every [rebuildNavigator] call.
-     * A rebuild whose `createNavigator` is stuck (e.g. a blocking socket read past the
-     * timeout) may still resolve later once connectivity returns; comparing its captured
-     * value against the current counter tells whether a newer rebuild has since superseded
-     * it, so the stale result can be discarded instead of installed as a zombie navigator.
+     * Monotonically increasing counter identifying the latest [createNavigatorBounded]
+     * call; bumped again when a create is abandoned on timeout. See [isAbandoned].
      */
     private var rebuildEpoch = 0
 
@@ -165,6 +162,35 @@ open class AudiobookNavigator(
                 )
             }),
         )
+
+    /**
+     * Runs [create] on the main context in a detached coroutine and waits at most
+     * [AudioRecoveryPolicy.connectionTimeoutSeconds] for it, returning null on timeout.
+     *
+     * The detachment is deliberate: under a dead network, upstream `createNavigator` can sit
+     * in a blocking socket read that cooperative cancellation cannot interrupt, so a plain
+     * `withTimeoutOrNull { withMainContext { ... } }` would wait forever for the block to
+     * finish cancelling. Here the wait is simply abandoned - never joined - and the epoch is
+     * bumped so the stuck create discards itself instead of resolving later (once
+     * connectivity returns) as a zombie: [create] must check [isAbandoned] with the epoch it
+     * receives after any suspension and before installing or returning a navigator.
+     */
+    private suspend fun createNavigatorBounded(
+        create: suspend (epoch: Int) -> AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>?,
+    ): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+        val epoch = ++rebuildEpoch
+        val timeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
+        val deferred = async { withMainContext { create(epoch) } }
+
+        return withTimeoutOrNull(timeoutMs) { deferred.await() } ?: run {
+            rebuildEpoch++ // the abandoned create must fail its own isAbandoned check
+            deferred.cancel() // cooperative only; may be ignored while blocked on I/O
+            null
+        }
+    }
+
+    /** True when [dispose] ran or [epoch]'s create was superseded/abandoned - discard its result. */
+    private fun isAbandoned(epoch: Int): Boolean = disposed || epoch != rebuildEpoch
 
     override suspend fun initNavigator() {
         if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
@@ -199,41 +225,25 @@ open class AudiobookNavigator(
 
         // Bound the initial create the same way the recovery rebuild is bounded: with no
         // navigator yet the stall watchdog can't help, so opening a remote audiobook with no
-        // connectivity would otherwise suspend here forever (silent, no error). Run the create
-        // in a separate coroutine and only stop *waiting* on timeout - do not join - so a
-        // stuck create (e.g. a socket read with no timeout) can't hang this call forever. On
-        // timeout, surface a terminal error event and throw - consistent with the existing
-        // createNavigator-error path below, which already throws.
-        val connectTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
-        val epoch = ++rebuildEpoch
-        val deferred =
-            async {
-                withMainContext {
-                    val nav =
-                        navigatorFactory
-                            .createNavigator(
-                                this@AudiobookNavigator.initialLocator,
-                                preferences.toExoPlayerPreferences(),
-                            ).getOrElse { error ->
-                                PluginLog.e(TAG, "::initNavigator - $error")
-                                throw PublicationErrorException(PublicationError.invoke(error))
-                            }
-                    // Abandoned (timed out, epoch bumped) or disposed while create was stuck -
-                    // close instead of leaking a live player nobody will install.
-                    if (disposed || epoch != rebuildEpoch) {
-                        nav.close()
-                        throw CancellationException("::initNavigator - create abandoned")
-                    }
-                    nav
-                }
-            }
-
+        // connectivity would otherwise suspend here forever (silent, no error). On timeout,
+        // surface a terminal error event and throw - consistent with the create-error path.
         val newNavigator =
-            withTimeoutOrNull(connectTimeoutMs) { deferred.await() } ?: run {
-                // Bump the epoch so the stuck create discards itself if it ever completes;
-                // cancel is cooperative only and may be ignored while blocked on I/O.
-                rebuildEpoch++
-                deferred.cancel()
+            createNavigatorBounded { epoch ->
+                val nav =
+                    navigatorFactory
+                        .createNavigator(
+                            this@AudiobookNavigator.initialLocator,
+                            preferences.toExoPlayerPreferences(),
+                        ).getOrElse { error ->
+                            PluginLog.e(TAG, "::initNavigator - $error")
+                            throw PublicationErrorException(PublicationError.invoke(error))
+                        }
+                if (isAbandoned(epoch)) {
+                    nav.close() // close instead of leaking a live player nobody will install
+                    throw CancellationException("::initNavigator - create abandoned")
+                }
+                nav
+            } ?: run {
                 val href = this@AudiobookNavigator.initialLocator?.href?.toString()
                 PluginLog.e(
                     TAG,
@@ -276,58 +286,39 @@ open class AudiobookNavigator(
                 return null
             }
 
-        // Bound the rebuild: under sustained connection loss createNavigator / MediaSession
-        // re-open can suspend indefinitely waiting on connectivity (e.g. a socket read with no
-        // timeout - cooperative cancellation cannot interrupt it). Run the create in a
-        // separate coroutine and only stop *waiting* on timeout - do not join - so a stuck
-        // create can never block the recovery loop from proceeding to the next attempt. A
-        // null result (timeout or create failure) is treated as a failed attempt by the caller.
-        val epoch = ++rebuildEpoch
-        val rebuildTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
-        val deferred =
-            async {
-                withMainContext {
-                    audioNavigator?.close()
-                    mediaServiceFacade?.closeSession()
+        // Bound the rebuild so a create stuck on a dead network can never block the recovery
+        // loop from proceeding to the next attempt. A null result (timeout or create failure)
+        // is treated as a failed attempt by the caller.
+        return createNavigatorBounded { epoch ->
+            audioNavigator?.close()
+            mediaServiceFacade?.closeSession()
 
-                    val newNavigator =
-                        navigatorFactory
-                            .createNavigator(locator, preferences.toExoPlayerPreferences())
-                            .getOrElse { error ->
-                                PluginLog.e(TAG, "::rebuildNavigator - $error")
-                                null
-                            } ?: return@withMainContext null
+            val newNavigator =
+                navigatorFactory
+                    .createNavigator(locator, preferences.toExoPlayerPreferences())
+                    .getOrElse { error ->
+                        PluginLog.e(TAG, "::rebuildNavigator - $error")
+                        null
+                    } ?: return@createNavigatorBounded null
 
-                    // dispose() may have run, or a newer rebuild call may have already won,
-                    // while createNavigator suspended - do not retain a stale/fresh player
-                    // past either, or it resumes and clobbers the current navigator once
-                    // connectivity returns.
-                    if (disposed || epoch != rebuildEpoch) {
-                        newNavigator.close()
-                        return@withMainContext null
-                    }
-
-                    audioNavigator = newNavigator
-                    setupNavigatorListeners()
-
-                    try {
-                        val mediaSession =
-                            mediaServiceFacade ?: PluginMediaServiceFacade(ReadiumReader.application).also { mediaServiceFacade = it }
-                        mediaSession.openSession(newNavigator) { isPlaying -> onIsPlayingFromPlayer(isPlaying) }
-                    } catch (e: Exception) {
-                        PluginLog.e(TAG, "::rebuildNavigator - failed to reopen MediaSession: ${e.message}")
-                    }
-
-                    newNavigator
-                }
+            if (isAbandoned(epoch)) {
+                newNavigator.close() // close instead of installing a zombie navigator
+                return@createNavigatorBounded null
             }
 
-        return withTimeoutOrNull(rebuildTimeoutMs) { deferred.await() } ?: run {
-            // Bump the epoch so the abandoned create fails its own guard even if no later
-            // rebuild follows (e.g. this was the final attempt before terminal failure);
-            // cancel is cooperative only and may be ignored while blocked on I/O.
-            rebuildEpoch++
-            deferred.cancel()
+            audioNavigator = newNavigator
+            setupNavigatorListeners()
+
+            try {
+                val mediaSession =
+                    mediaServiceFacade ?: PluginMediaServiceFacade(ReadiumReader.application).also { mediaServiceFacade = it }
+                mediaSession.openSession(newNavigator) { isPlaying -> onIsPlayingFromPlayer(isPlaying) }
+            } catch (e: Exception) {
+                PluginLog.e(TAG, "::rebuildNavigator - failed to reopen MediaSession: ${e.message}")
+            }
+
+            newNavigator
+        } ?: run {
             PluginLog.e(
                 TAG,
                 "::rebuildNavigator - no navigator within ${recoveryPolicy.connectionTimeoutSeconds}s (timeout or create failure); attempt failed",
