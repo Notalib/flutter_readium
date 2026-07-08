@@ -1,6 +1,6 @@
 # Audio Recovery — Configurable Policy + Stall Watchdog
 
-Status: plan, 2026-07-04. Follow-up to the audio error-recovery work (`docs/ios-audio-error-recovery-plan.md`). Delegable to an implementation model. Manual validation delegated to the user (Link Conditioner).
+Status: plan, 2026-07-04. Follow-up to the audio error-recovery work (`docs/parity/ios-audio-error-recovery-plan.md`). Delegable to an implementation model. Manual validation delegated to the user (Link Conditioner).
 
 ## Problem
 

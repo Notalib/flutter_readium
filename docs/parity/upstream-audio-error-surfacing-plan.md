@@ -294,6 +294,6 @@ git commit -m "Update CHANGELOG"
 
 ## Follow-up (out of scope, do not implement)
 
-- flutter_readium adoption: once a swift-toolkit release ships this, bump the pin and replace the container-wrapper detection from `docs/ios-audio-error-recovery-plan.md` with the delegate callback (keep the recovery loop).
+- flutter_readium adoption: once a swift-toolkit release ships this, bump the pin and replace the container-wrapper detection from `docs/parity/ios-audio-error-recovery-plan.md` with the delegate callback (keep the recovery loop).
 - Separate upstream PR for configurable `automaticallyWaitsToMinimizeStalling`.
 - kotlin-toolkit / ts-toolkit already surface player errors; no parity work needed there.

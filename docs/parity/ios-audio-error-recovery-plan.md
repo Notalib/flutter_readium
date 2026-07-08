@@ -666,4 +666,4 @@ git commit -m "docs: changelog for iOS audio streaming error handling"
 - `FlutterMediaOverlayNavigator` (EPUB media overlays) has the same upstream blindness — not addressed here.
 - The container wrapper also observes EPUB resource reads; the handler only reacts to hrefs in the audio reading order, everything else is a no-op.
 - Rebuilding the navigator on recovery resets AVPlayer buffering; a brief gap on resume is expected.
-- Proper upstream fix (AVPlayerItem status observation in swift-toolkit) is tracked in `docs/upstream-audio-error-surfacing-plan.md`; once released, the detection half of this work can be simplified.
+- Proper upstream fix (AVPlayerItem status observation in swift-toolkit) is tracked in `docs/parity/upstream-audio-error-surfacing-plan.md`; once released, the detection half of this work can be simplified.
