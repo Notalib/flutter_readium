@@ -105,24 +105,11 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: flutter_readium/example
-          # Single aggregator entrypoint, not the folder glob: each
-          # groups/*_test.dart is its own build target (flutter/flutter#115751).
-          #
           # logcat must be captured INSIDE this action: the emulator is torn down
-          # when it ends, so a later `if: failure()` step (as on iOS) can't reach
-          # it. Clear the buffer first, then on failure dump it to a workspace
-          # file the upload step below collects. `set +e` so a test failure
-          # doesn't skip the dump; the original exit code is preserved.
+          # when it ends, so a later `if: failure()` step (as on iOS) can't reach it.
           script: |
-            set +e
             adb logcat -c || true
-            flutter test integration_test/plugin_integration_test.dart
-            TEST_EXIT=$?
-            if [ "$TEST_EXIT" -ne 0 ]; then
-              echo "Integration tests failed (exit $TEST_EXIT) — capturing logcat"
-              adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1 || true
-            fi
-            exit $TEST_EXIT
+            flutter test integration_test/plugin_integration_test.dart || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
 
       - name: Upload Android diagnostics
         if: failure()
