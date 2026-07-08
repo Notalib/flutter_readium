@@ -5,10 +5,13 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../readium_integration_harness.dart';
+import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
 import '../unreachable_audiobook_fixture.dart' if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
 
-void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
+void main() {
+  final harness = suiteHarness();
+
   group('Error handling', () {
     test(
       'openPublication throws ReadiumException for an invalid native path',
@@ -153,7 +156,7 @@ void defineErrorHandlingTests(ReadiumIntegrationHarness harness) {
     // network-class code here means the 401 -> auth classification regressed,
     // which is exactly what this test must catch. No token is ever committed —
     // its absence is the point.
-    const authMediaHost = 'https://merkur.nota.dk'; // media host for 39031_auth
+    const authMediaHost = 'https://merkur.nota.dk/health/ping'; // media host health-endpoint
     test(
       'audiobook with missing Bearer token surfaces a terminal audioStreamAuthError',
       skip: kIsWeb ? 'Native-only: remote auth fixture is not in the web set' : null,

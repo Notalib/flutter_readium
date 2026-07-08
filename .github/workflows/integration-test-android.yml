@@ -105,4 +105,6 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: flutter_readium/example
-          script: flutter test integration_test
+          # Single aggregator entrypoint, not the folder glob: each
+          # groups/*_test.dart is its own build target (flutter/flutter#115751).
+          script: flutter test integration_test/plugin_integration_test.dart

@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../readium_integration_harness.dart';
+import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
 
-void definePublicationOpeningTests(ReadiumIntegrationHarness harness) {
+void main() {
+  final harness = suiteHarness();
+
   group('Publication opening contract', () {
     test('opens EPUB successfully', () async {
       final path = harness.fixturePath(

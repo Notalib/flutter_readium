@@ -27,7 +27,7 @@ Future<bool> isHostReachable(
 }) async {
   final client = HttpClient()..connectionTimeout = timeout;
   try {
-    final request = await client.headUrl(Uri.parse(url)).timeout(timeout);
+    final request = await client.getUrl(Uri.parse(url)).timeout(timeout);
     final response = await request.close().timeout(timeout);
     await response.drain<void>();
     return true;
