@@ -5,6 +5,7 @@
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 Future<String> writeTempAudiobookManifest(String manifestJson) async {
@@ -31,7 +32,11 @@ Future<bool> isHostReachable(
     final response = await request.close().timeout(timeout);
     await response.drain<void>();
     return true;
-  } on Object {
+  } on Object catch (e) {
+    // Surface why the precheck failed so the skip reason distinguishes a DNS
+    // failure (host not resolvable — e.g. an internal host from an Android
+    // emulator) from a timeout or refused connection.
+    debugPrint('isHostReachable($url) failed: $e');
     return false;
   } finally {
     client.close(force: true);
