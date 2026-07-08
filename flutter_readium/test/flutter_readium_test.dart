@@ -153,8 +153,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   Future<void> setLogLevel(LogLevel level) async {}
 
+  AudioRecoveryPolicy? lastAudioRecoveryPolicy;
+
   @override
-  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {}
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    lastAudioRecoveryPolicy = policy;
+  }
 
   @override
   Future<String> getResourceUrl(String href) async => _maybeThrow('getResourceUrl', 'file:///tmp/$href');
@@ -194,6 +198,14 @@ void main() {
       final prefs = EPUBPreferences(fontSize: 1.5);
       reader.setDefaultPreferences(prefs);
       expect(platform.defaultPreferences, prefs);
+    });
+  });
+
+  group('setAudioRecoveryPolicy', () {
+    test('delegates the policy to the platform', () async {
+      const policy = AudioRecoveryPolicy(maxAttempts: 5, backoffBaseSeconds: 0.5);
+      await reader.setAudioRecoveryPolicy(policy);
+      expect(platform.lastAudioRecoveryPolicy, policy);
     });
   });
 
