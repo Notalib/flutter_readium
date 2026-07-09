@@ -40,6 +40,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `details` (`Map<String, dynamic>?`, unmodifiable) carrying structured fields
   `{href, attempt, maxAttempts, httpStatus}`. Legacy string payloads are
   wrapped as `{"message": <string>}`.
+  
+## [0.2.1] - 2026-07-09
 
 ### Fixed
 
