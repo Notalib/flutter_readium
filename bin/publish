@@ -6,10 +6,10 @@
 # Each package's committed analysis_options.yaml shares config via
 # `include: ../analysis_options.base.yaml`. That path is outside the package and
 # is therefore NOT in the published tarball — pub.dev's pana would lose the
-# formatter/linter config and dock the score. This wrapper inlines the effective
-# config (via bin/materialize_analysis_options) for the duration of the publish,
-# then restores the committed file. Always publish through this script, never
-# `dart pub publish` directly.
+# formatter/linter config and dock the score. This wrapper stages the package in
+# a temp dir, inlines the effective config there (via
+# bin/materialize_analysis_options), and publishes that staged copy. Always
+# publish through this script, never `dart pub publish` directly.
 #
 # Publishes in dependency order: flutter_readium_platform_interface first
 # (flutter_readium depends on it).
@@ -57,17 +57,62 @@ if [ ${#TARGETS[@]} -gt 0 ]; then
   PACKAGES=("${TARGETS[@]}")
 fi
 
-# Restore the committed config even if publish fails or is interrupted.
-MATERIALIZED_OPTS=
-MATERIALIZED_BAK=
-restore_opts() {
-  if [ -n "$MATERIALIZED_OPTS" ] && [ -f "$MATERIALIZED_BAK" ]; then
-    mv -f "$MATERIALIZED_BAK" "$MATERIALIZED_OPTS"
-  fi
-  MATERIALIZED_OPTS=
-  MATERIALIZED_BAK=
+STAGE_ROOTS=()
+cleanup_stages() {
+  for dir in "${STAGE_ROOTS[@]}"; do
+    if [ -n "$dir" ] && [ -d "$dir" ]; then
+      rm -rf "$dir"
+    fi
+  done
+  STAGE_ROOTS=()
 }
-trap restore_opts EXIT INT TERM
+trap cleanup_stages EXIT INT TERM
+
+warn_if_dirty_package() {
+  local pkg="$1"
+  local modified
+
+  modified="$(git -C "$PROJECT_ROOT" status --short --untracked-files=no -- "$pkg")"
+  if [ -n "$modified" ]; then
+    echo -e "\033[33;1mWARNING: checked-in files are modified under $pkg.\033[0m"
+    echo "Publishing will use those local modifications from the staged copy:"
+    printf '%s\n' "$modified"
+    echo ""
+  fi
+}
+
+STAGED_PKG_DIR=
+stage_package_copy() {
+  local pkg="$1"
+  local stage_root gen
+
+  stage_root="$(mktemp -d)"
+  STAGE_ROOTS+=("$stage_root")
+
+  cp -R "$PROJECT_ROOT/$pkg" "$stage_root/$pkg"
+  if [ "$pkg" = "flutter_readium" ]; then
+    cp -R "$PROJECT_ROOT/flutter_readium_platform_interface" "$stage_root/flutter_readium_platform_interface"
+  fi
+
+  gen="$(mktemp)"
+  "$PROJECT_ROOT/bin/materialize_analysis_options" "$PROJECT_ROOT/$pkg" > "$gen"
+  mv "$gen" "$stage_root/$pkg/analysis_options.yaml"
+
+  STAGED_PKG_DIR="$stage_root/$pkg"
+
+  # Publish against the same dependency graph consumers resolve from pub.dev,
+  # not the local path override used for in-repo development.
+  rm -f "$STAGED_PKG_DIR/pubspec_overrides.yaml"
+}
+
+build_staged_web_bundle() {
+  local pkg_dir="$1"
+
+  find "$pkg_dir/assets/helpers" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+  find "$pkg_dir/build" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+
+  "$PROJECT_ROOT/bin/build_js" --skip-example-copy "$pkg_dir"
+}
 
 for pkg in "${PACKAGES[@]}"; do
   if [ ! -d "$PROJECT_ROOT/$pkg" ]; then
@@ -77,28 +122,15 @@ for pkg in "${PACKAGES[@]}"; do
 
   echo -e "\033[35;1m=== publish $pkg ===\033[0m"
 
-  # Resolve deps, then inline the effective analysis config for publish.
-  (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub get)
+  warn_if_dirty_package "$pkg"
 
-  MATERIALIZED_OPTS="$PROJECT_ROOT/$pkg/analysis_options.yaml"
-  MATERIALIZED_BAK="$(mktemp)"
-  cp "$MATERIALIZED_OPTS" "$MATERIALIZED_BAK"
-  # Generate to a temp file first: materialize reads the package's own
-  # analysis_options.yaml, so writing straight to it would truncate it first.
-  _gen="$(mktemp)"
-  "$PROJECT_ROOT/bin/materialize_analysis_options" "$PROJECT_ROOT/$pkg" > "$_gen"
-  mv "$_gen" "$MATERIALIZED_OPTS"
+  stage_package_copy "$pkg"
 
   # Stats reports are local build artifacts and must not be published.
   if [ "$pkg" = "flutter_readium" ]; then
-    rm -rf "$PROJECT_ROOT/flutter_readium/assets/helpers/*"
-    rm -rf "$PROJECT_ROOT/flutter_readium/build/*"
-
-    $PROJECT_ROOT/bin/build_js
+    build_staged_web_bundle "$STAGED_PKG_DIR"
   fi
 
-  (cd "$PROJECT_ROOT/$pkg" && "${DART[@]}" pub publish "${PUBLISH_ARGS[@]}")
-
-  # Restore before the next package so its backup is the committed file.
-  restore_opts
+  (cd "$STAGED_PKG_DIR" && "${DART[@]}" pub get)
+  (cd "$STAGED_PKG_DIR" && "${DART[@]}" pub publish "${PUBLISH_ARGS[@]}")
 done
