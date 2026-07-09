@@ -18,6 +18,7 @@
 #   bin/publish                       # publish both packages (interactive)
 #   bin/publish flutter_readium       # publish one package only
 #   bin/publish --dry-run             # validate without uploading
+#   bin/publish --allow-dirty         # publish even with tracked local changes
 #   bin/publish --force               # skip the confirmation prompt
 #
 # Any --flag is passed through to `dart pub publish`; bare names select packages.
@@ -46,8 +47,10 @@ PACKAGES=(
 
 PUBLISH_ARGS=()
 TARGETS=()
+ALLOW_DIRTY=
 for arg in "$@"; do
   case "$arg" in
+    --allow-dirty) ALLOW_DIRTY=1 ;;
     --*) PUBLISH_ARGS+=("$arg") ;;
     *)   TARGETS+=("$arg") ;;
   esac
@@ -68,16 +71,26 @@ cleanup_stages() {
 }
 trap cleanup_stages EXIT INT TERM
 
-warn_if_dirty_package() {
+check_dirty_package() {
   local pkg="$1"
   local modified
 
   modified="$(git -C "$PROJECT_ROOT" status --short --untracked-files=no -- "$pkg")"
   if [ -n "$modified" ]; then
-    echo -e "\033[33;1mWARNING: checked-in files are modified under $pkg.\033[0m"
-    echo "Publishing will use those local modifications from the staged copy:"
+    if [ -n "$ALLOW_DIRTY" ]; then
+      echo -e "\033[33;1mWARNING: checked-in files are modified under $pkg.\033[0m"
+      echo "Publishing will use those local modifications from the staged copy:"
+    else
+      echo -e "\033[31;1mERROR: checked-in files are modified under $pkg.\033[0m"
+      echo "Refusing to publish from a dirty package checkout."
+      echo "Use --allow-dirty if you intentionally want to publish these local changes:"
+    fi
     printf '%s\n' "$modified"
     echo ""
+
+    if [ -z "$ALLOW_DIRTY" ]; then
+      exit 1
+    fi
   fi
 }
 
@@ -122,7 +135,7 @@ for pkg in "${PACKAGES[@]}"; do
 
   echo -e "\033[35;1m=== publish $pkg ===\033[0m"
 
-  warn_if_dirty_package "$pkg"
+  check_dirty_package "$pkg"
 
   stage_package_copy "$pkg"
 
