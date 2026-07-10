@@ -95,6 +95,10 @@ class FlutterReadium {
   /// Stream emitting the current time-based playback state (including audio Locator) during playback.
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _platform.onTimebasedPlayerStateChanged;
 
+  /// Stream emitting playback commands received from headphones, lock screen,
+  /// Control Center, or Android media-session controls.
+  Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _platform.onExternalPlaybackCommand;
+
   /// Stream emitting any errors that occur within the reader, such as failed navigation or playback errors.
   Stream<ReadiumError> get onErrorEvent => _platform.onErrorEvent;
 

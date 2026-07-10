@@ -256,6 +256,40 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
+  // ExternalPlaybackCommandAction enum
+  // ---------------------------------------------------------------------------
+  group('ReadiumExternalPlaybackCommand', () {
+    test('parses every action case-insensitively', () {
+      for (final action in ExternalPlaybackCommandAction.values) {
+        expect(
+          ExternalPlaybackCommandAction.fromString(action.name.toUpperCase()),
+          action,
+        );
+      }
+    });
+
+    test('round-trips through toJson / fromJson', () {
+      const command = ReadiumExternalPlaybackCommand(
+        action: ExternalPlaybackCommandAction.seekTo,
+        position: Duration(seconds: 42),
+      );
+
+      final restored = ReadiumExternalPlaybackCommand.fromJson(command.toJson());
+
+      expect(restored.action, ExternalPlaybackCommandAction.seekTo);
+      expect(restored.position, const Duration(seconds: 42));
+    });
+
+    test('unknown action falls back to unknown', () {
+      final command = ReadiumExternalPlaybackCommand.fromJson({
+        'action': 'definitelyNotACommand',
+      });
+
+      expect(command.action, ExternalPlaybackCommandAction.unknown);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // ReadiumReaderStatus enum
   // ---------------------------------------------------------------------------
   group('ReadiumReaderStatus', () {

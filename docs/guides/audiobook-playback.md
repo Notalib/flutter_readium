@@ -63,6 +63,34 @@ _sub = reader.onTimebasedPlayerStateChanged.listen((state) {
 });
 ```
 
+## External playback commands
+
+On Android and iOS, observe commands received from system media controls such
+as headphones, the media notification, or Control Center:
+
+```dart
+_sub = reader.onExternalPlaybackCommand.listen((command) {
+  final position = command.position;
+
+  switch (command.action) {
+    case ExternalPlaybackCommandAction.play:         // record play intent
+    case ExternalPlaybackCommandAction.pause:        // record pause intent
+    case ExternalPlaybackCommandAction.seekForward:  // record forward seek intent
+    case ExternalPlaybackCommandAction.seekBackward: // record backward seek intent
+    case ExternalPlaybackCommandAction.seekTo:       // requested position is in `position`
+    case ExternalPlaybackCommandAction.next:         // record next intent
+    case ExternalPlaybackCommandAction.previous:     // record previous intent
+    default: break;
+  }
+});
+```
+
+The native playback integration already performs the requested operation, so
+do not call `play`, `pause`, or seek methods again from this listener. For a
+`seekTo` command, `position` is relative to the configured
+`controlPanelTimebase`. The Web implementation does not currently emit these
+events.
+
 ## Saving and restoring position
 
 ```dart

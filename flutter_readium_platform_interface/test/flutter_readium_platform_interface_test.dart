@@ -17,6 +17,10 @@ void main() {
       locations: Locations(cssSelector: '#loc1'),
       text: LocatorText(before: 'a', highlight: 'b', after: 'c'),
     );
+    const testExternalPlaybackCommand = ReadiumExternalPlaybackCommand(
+      action: ExternalPlaybackCommandAction.seekTo,
+      position: Duration(seconds: 42),
+    );
 
     setUp(() async {
       methodChannelReadium = MethodChannelFlutterReadium();
@@ -61,6 +65,27 @@ void main() {
           return null;
         },
       );
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+        MethodChannel(methodChannelReadium.externalPlaybackCommandChannel.name),
+        (methodCall) async {
+          switch (methodCall.method) {
+            case 'listen':
+              await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+                methodChannelReadium.externalPlaybackCommandChannel.name,
+                methodChannelReadium.externalPlaybackCommandChannel.codec.encodeSuccessEnvelope(
+                  testExternalPlaybackCommand.toJson(),
+                ),
+                (_) {},
+              );
+              break;
+            case 'cancel':
+            default:
+              return null;
+          }
+          return null;
+        },
+      );
     });
 
     test(
@@ -86,6 +111,23 @@ void main() {
               .having((c) => c.arguments, 'arguments', policy.toJson()),
         ),
       );
+    });
+
+    test(
+      'onExternalPlaybackCommand emits the command sent from the platform',
+      () async {
+        final result = await methodChannelReadium.onExternalPlaybackCommand.first;
+        expect(result.action, testExternalPlaybackCommand.action);
+        expect(result.position, testExternalPlaybackCommand.position);
+      },
+    );
+
+    test('onExternalPlaybackCommand keeps its subscription across publication closes', () async {
+      final stream = methodChannelReadium.onExternalPlaybackCommand;
+
+      await methodChannelReadium.closePublication();
+
+      expect(methodChannelReadium.onExternalPlaybackCommand, same(stream));
     });
 
     test('setNarrationSyncEnabled invokes the channel with the bool argument', () async {

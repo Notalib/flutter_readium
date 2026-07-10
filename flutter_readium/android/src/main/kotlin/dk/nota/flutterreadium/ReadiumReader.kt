@@ -12,6 +12,8 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutterreadium.events.NarrationSyncEventChannel
 import dk.nota.flutterreadium.events.ReadiumError
 import dk.nota.flutterreadium.events.ReadiumErrorEventChannel
+import dk.nota.flutterreadium.events.ReadiumExternalPlaybackCommand
+import dk.nota.flutterreadium.events.ReadiumExternalPlaybackCommandEventChannel
 import dk.nota.flutterreadium.events.ReadiumReaderStatus
 import dk.nota.flutterreadium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutterreadium.events.TextLocatorEventChannel
@@ -129,6 +131,8 @@ object ReadiumReader :
         get() = activityRef?.get() as? FragmentActivity
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
+
+    private var externalPlaybackCommandEventChannel: ReadiumExternalPlaybackCommandEventChannel? = null
 
     private var textLocatorEventChannel: TextLocatorEventChannel? = null
 
@@ -285,6 +289,9 @@ object ReadiumReader :
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
+
+        externalPlaybackCommandEventChannel?.dispose()
+        externalPlaybackCommandEventChannel = ReadiumExternalPlaybackCommandEventChannel(messenger)
 
         textLocatorEventChannel?.dispose()
         textLocatorEventChannel = TextLocatorEventChannel(messenger)
@@ -475,6 +482,9 @@ object ReadiumReader :
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
+
+        externalPlaybackCommandEventChannel?.dispose()
+        externalPlaybackCommandEventChannel = null
 
         textLocatorEventChannel?.dispose()
         textLocatorEventChannel = null
@@ -1768,6 +1778,13 @@ object ReadiumReader :
      */
     fun emitError(error: ReadiumError) {
         errorChannel?.sendEvent(error)
+    }
+
+    /**
+     * Emit an external playback command received from system media controls.
+     */
+    fun emitExternalPlaybackCommand(command: ReadiumExternalPlaybackCommand) {
+        externalPlaybackCommandEventChannel?.sendEvent(command)
     }
 
     /**
