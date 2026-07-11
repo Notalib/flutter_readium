@@ -11,7 +11,7 @@ import '../../utils/jsonable.dart';
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
 @immutable
-class Holds with EquatableMixin implements JSONable {
+class Holds with Equatable implements JSONable {
   const Holds({this.total, this.position});
   final double? total;
   final double? position;

@@ -16,7 +16,7 @@ export 'link_list_extension.dart';
 ///
 /// See https://readium.org/webpub-manifest/schema/link.schema.json
 @immutable
-class Link with EquatableMixin implements JSONable {
+class Link with Equatable implements JSONable {
   const Link({
     required this.href,
     this.id,

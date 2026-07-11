@@ -14,7 +14,7 @@ import 'package:meta/meta.dart';
 /// Defaults reproduce the recovery behaviour that shipped before this policy
 /// existed, so an unconfigured consumer sees no change.
 @immutable
-class AudioRecoveryPolicy with EquatableMixin {
+class AudioRecoveryPolicy with Equatable {
   const AudioRecoveryPolicy({
     this.maxAttempts = 3,
     this.backoffBaseSeconds = 1.0,

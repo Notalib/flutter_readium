@@ -12,7 +12,7 @@ extension EpubMetadataExtension on Metadata {
 }
 
 @immutable
-class MetdataMediaOverlay with EquatableMixin implements JSONable {
+class MetdataMediaOverlay with Equatable implements JSONable {
   factory MetdataMediaOverlay.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return const MetdataMediaOverlay();

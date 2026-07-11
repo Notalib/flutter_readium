@@ -7,7 +7,7 @@ import 'package:meta/meta.dart';
 import '../index.dart';
 
 @immutable
-class EPUBPreferences with EquatableMixin implements JSONable {
+class EPUBPreferences with Equatable implements JSONable {
   const EPUBPreferences({
     this.backgroundColor,
     this.columnCount,

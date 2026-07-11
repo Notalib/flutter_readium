@@ -9,7 +9,7 @@ import '../../utils/jsonable.dart';
 
 /// Indicates that a resource is encrypted/obfuscated and provides relevant information for decryption.
 @immutable
-class Encryption with EquatableMixin implements JSONable {
+class Encryption with Equatable implements JSONable {
   const Encryption({
     required this.algorithm,
     this.compression,

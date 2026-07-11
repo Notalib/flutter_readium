@@ -11,7 +11,7 @@ import 'price.dart';
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlTerms with EquatableMixin implements JSONable {
+class OdlTerms with Equatable implements JSONable {
   const OdlTerms({this.checkouts, this.expires, this.concurrency, this.length});
 
   /// Maximum total checkouts allowed for this license. Null means unlimited.
@@ -52,7 +52,7 @@ class OdlTerms with EquatableMixin implements JSONable {
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlProtection with EquatableMixin implements JSONable {
+class OdlProtection with Equatable implements JSONable {
   const OdlProtection({
     this.formats = const [],
     this.devices,
@@ -115,7 +115,7 @@ class OdlProtection with EquatableMixin implements JSONable {
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlLicenseMetadata with EquatableMixin implements JSONable {
+class OdlLicenseMetadata with Equatable implements JSONable {
   const OdlLicenseMetadata({
     required this.identifier,
     required this.format,

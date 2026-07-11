@@ -14,7 +14,7 @@ import '../publication.dart';
 /// https://readium.org/webpub-manifest/schema/subcollection.schema.json
 /// Can be used as extension point in the Readium Web Publication Manifest.
 @immutable
-class PublicationCollection with EquatableMixin implements JSONable {
+class PublicationCollection with Equatable implements JSONable {
   const PublicationCollection({
     this.metadata = const {},
     this.links = const [],

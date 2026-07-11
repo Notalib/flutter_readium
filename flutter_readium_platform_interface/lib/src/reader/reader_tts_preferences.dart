@@ -24,7 +24,7 @@ enum PageBreakBehavior {
 }
 
 @immutable
-class TTSPreferences with EquatableMixin implements JSONable {
+class TTSPreferences with Equatable implements JSONable {
   factory TTSPreferences.fromJson(final Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 

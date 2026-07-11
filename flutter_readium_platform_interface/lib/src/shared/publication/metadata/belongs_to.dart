@@ -8,7 +8,7 @@ import 'base_collection.dart';
 ///
 /// https://readium.org/webpub-manifest/schema/metadata.schema.json#belongsTo
 @immutable
-class BelongsTo extends AdditionalProperties with EquatableMixin implements JSONable {
+class BelongsTo extends AdditionalProperties with Equatable implements JSONable {
   const BelongsTo({
     this.collections,
     this.journals,
