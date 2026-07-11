@@ -16,14 +16,14 @@
 
 The ts-toolkit `EpubNavigator.goTo(locator: Locator)` method accepts a full `Locator` including `locations.cssSelector` and `text.highlight`. The web implementation just needs to pass the full serialised locator instead of only the `href`.
 
-## Current state
+## State at planning time
 
 - **iOS**: `goToLocator` calls `readiumViewController.go(to: locator, ...)` with the full upstream `Locator`. File: `EPUBReaderView.swift` line 434.
 - **Android**: `ReadiumReader.visualGoToLocator(locator, animated)` forwards the full `Locator`. File: `ReadiumReaderWidget.kt` line 322.
 - **Web** (`reader_widget_web.dart` line 72–84; `flutter_readium_web.dart` line 267–279): Calls `JsPublicationChannel.goToLocation(locator.hrefPath)` — the `hrefPath` is just the resource path with no location metadata. The JS `ReadiumReader.goTo(href)` accepts only a string href.
 - `js_publication_channel.dart` line 15: The JS interop `goTo(JSString location)` receives a plain string — not a full locator.
 
-## Proposed approach
+## Landed approach
 
 1. **JS side** (`ReadiumReader.ts`): Replace `async goTo(href: string)` with `async goToLocator(locatorJson: string): Promise<void>` that deserialises the full `Locator` from JSON and calls `this._nav?.goTo(locator, true, callback)` (the ts-toolkit navigator accepts `Locator` objects directly via its `goTo` method, which resolves `cssSelector` and `text.highlight` to the exact DOM position).
 2. **JS interop** (`js_publication_channel.dart`): Add `external JSPromise goToLocator(JSString locatorJson)` to the `ReadiumReader` extension type and update `JsPublicationChannel.goToLocation` to call it with the full JSON-encoded locator. Keep backward compatibility with the existing `goTo` if needed by other callers (or remove it if unused).

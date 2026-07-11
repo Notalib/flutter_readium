@@ -2,13 +2,13 @@
 
 > **✅ Implemented** on `feat/web-feature-parity` (commit `e16e8dd8`). Comic panels pan/zoom on web via the injected helper bundle, and the spurious yellow highlight is suppressed. Retained for reference.
 
-## Problem
+## Problem at planning time
 Special "Nota" comic-book media-overlay EPUBs misbehave on **Web only**:
 1. A large **yellow highlight** rectangle is drawn over the comic frame (unwanted).
 2. **No zoom/pan** of the comic panels as audio plays — the frame just shows
    the whole page, with a yellow box where the panel `div.area` sits.
 
-## Root cause
+## Root cause identified during planning
 The comic pan/zoom logic lives in the **helper-scripts bundle**
 (`flutter_readium/assets/_helper_scripts/src/NotaComicBookPage.ts` +
 `ComicBookCalc.ts`), built to `assets/helpers/flutterReadiumTools.js`.
@@ -28,7 +28,7 @@ The web media-overlay path (`ReadiumReader._syncVisualToMediaOverlayLocator`)
 treats a comic frame like any text utterance: `nav.go(locator)` + apply a
 `media_overlay_utterance` highlight decoration.
 
-## Approach (mirror native)
+## Landed approach (mirror native)
 Inject the existing comic helper into the web navigator iframe, and special-case
 comics in the web media-overlay navigator so they pan/zoom instead of getting a
 highlight.

@@ -18,13 +18,18 @@ Of these, `offsetFirstPage` and `spread` are the most consumer-relevant: they di
 
 Note: The Android `PdfiumPreferences` (kotlin-toolkit 3.2.0) does not expose `offsetFirstPage` or `visibleScrollbar`, so these two preferences would be iOS-only. `spread` may be available on Android; verify against the `PdfiumPreferences` source during implementation.
 
-## Current state
+## Implemented outcome
+
+These PDF preference fields have since been added to the Dart/iOS surface. The sections below are
+kept as the planning snapshot and rationale for that work.
+
+## State at planning time
 
 - **Dart model** (`flutter_readium_platform_interface/lib/src/reader/reader_pdf_preferences.dart`): Four fields — `layout`, `readingProgression`, `pageSpacing`, `fit`.
 - **iOS native** (`FlutterPDFPreferences.swift`): Reads `layout`, `readingProgression`, `fit`, `pageSpacing` from the JSON map. No handling for `offsetFirstPage`, `spread`, or `visibleScrollbar`.
 - **Android** (`FlutterPdfPreferences.kt`): Maps its own set of fields; Android `PdfiumPreferences` does not include `offsetFirstPage` or `visibleScrollbar`.
 
-## Proposed approach
+## Planned approach
 
 1. **Dart model** (`reader_pdf_preferences.dart`): Add three new nullable fields — `offsetFirstPage: bool?`, `spread: bool?`, `visibleScrollbar: bool?` — with matching `toJson` / `fromJson` entries. Include doc comments noting Android support status for each.
 2. **iOS** (`FlutterPDFPreferences.swift`): Read `offsetFirstPage`, `spread`, and `visibleScrollbar` from the JSON map and set them on the `PDFNavigatorViewController.Preferences` struct.

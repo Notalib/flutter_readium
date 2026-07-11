@@ -1,5 +1,8 @@
 # iOS Audio Streaming Error Detection + Connection Recovery Implementation Plan
 
+> **✅ Implemented.** The iOS streaming-error classification, surfacing, and connection recovery
+> work described here has since landed. This file is retained as the execution record.
+
 > **For agentic workers:** Execute task-by-task in order; steps use checkbox (`- [ ]`) syntax for tracking. Commit at the end of each task as specified. **All manual smoke/validation steps are delegated to the user** — prepare the instructions, hand them off, and do not attempt to run the app yourself.
 
 **Goal:** Surface remote-audio streaming failures (bad network, missing bearer token, HTTP errors) on iOS as `TimebasedState.failure` + detailed error events, with automatic connection recovery via exponential backoff.
