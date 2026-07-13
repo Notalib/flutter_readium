@@ -51,7 +51,8 @@ enum ReadiumErrorCode {
   voiceNotFound,
   ttsError,
 
-  // Time-based navigator / resource loading (iOS-only today).
+  // Search / navigator-state / resource loading. All platforms, except
+  // searchError which is iOS+Android only (web has no search feature yet).
   searchError,
   noPublicationOpened,
   resourceReadError,

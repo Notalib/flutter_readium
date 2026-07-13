@@ -7,13 +7,14 @@ import 'package:logging/logging.dart';
 import 'groups/warm_up.dart';
 import 'readium_integration_harness.dart';
 
-// Set once by [beginAggregatedRun]; non-null means "aggregate mode" so each suite's main() reuses the shared harness.
+// Set once by [beginAggregatedRun]; each suite's main() reuses the shared harness.
 ReadiumIntegrationHarness? _aggregatedHarness;
 
 bool _logListenerAttached = false;
 
-// Route Dart-side logsto the test console. Integration tests don't run the example app's main(), which is where
-// the app normally attaches this listener — so without it, setLogLevel(debug) records are generated and then dropped.
+// Route Dart-side logs to the test console. Integration tests don't run the example app's main(),
+// which is where the app normally attaches this listener.
+// So without it, setLogLevel(debug) records are generated and then dropped.
 void _attachLogListener() {
   if (_logListenerAttached) return;
   _logListenerAttached = true;

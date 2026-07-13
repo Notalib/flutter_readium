@@ -26,6 +26,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   String? methodToThrow;
   Object? errorToThrow;
 
+  // Helper to simulate throwing an error for a specific method.
   Future<T> _maybeThrow<T>(String method, T value) async {
     if (methodToThrow == method && errorToThrow != null) {
       throw errorToThrow!;
