@@ -1,4 +1,5 @@
 import Combine
+import Flutter
 import Foundation
 import MediaPlayer
 import ReadiumShared
@@ -53,22 +54,34 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     self._initialLocator = resolveLocator(initialLocator)
   }
 
-  public func initNavigator() async -> Void {
-    _audioNavigator = AudioNavigator(
+  public func initNavigator() async throws -> Void {
+    let navigator = makeAudioNavigator(initialLocation: initialLocator)
+    if _disposed {
+      navigator.delegate = nil
+      return
+    }
+    _audioNavigator = navigator
+
+    self.setupNavigatorStateListeners()
+    self.startStallWatchdog()
+
+    Task {
+      cover = try? await publication.cover().get()
+    }
+  }
+
+  @MainActor
+  private func makeAudioNavigator(initialLocation: Locator?) -> AudioNavigator {
+    let navigator = AudioNavigator(
       publication: publication,
-      initialLocation: initialLocator,
+      initialLocation: initialLocation,
       config: AudioNavigator.Configuration(
         preferences: AudioPreferences(fromFlutterPrefs: _preferences),
         playbackRefreshInterval: _preferences.updateIntervalSecs,
       )
     )
-    _audioNavigator?.delegate = self
-
-    self.setupNavigatorStateListeners()
-
-    Task {
-      cover = try? await publication.cover().get()
-    }
+    navigator.delegate = self
+    return navigator
   }
 
   private func setupNavigatorStateListeners() {
@@ -87,6 +100,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func dispose() -> Void {
+    _disposed = true
+    _playbackIntent = false
+    _recoveryTask?.cancel()
+    _recoveryTask = nil
+    _stallWatchdogTask?.cancel()
+    _stallWatchdogTask = nil
     if (self._audioNavigator != nil) {
       self._audioNavigator?.pause()
       self._audioNavigator?.delegate = nil
@@ -99,7 +118,18 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func play(fromLocator: Locator?) async -> Void {
-    if let locator = resolveLocator(fromLocator) {
+    if _disposed {
+      return
+    }
+    _playbackIntent = true
+    if _hasFailed {
+      _hasFailed = false
+      _recoveryTask?.cancel()
+      _recoveryTask = nil
+      guard await rebuildNavigator(at: resolveLocator(fromLocator) ?? audioLocator) else {
+        return
+      }
+    } else if let locator = resolveLocator(fromLocator) {
       let _ = await seek(toLocator: locator)
     }
     _audioNavigator?.play()
@@ -112,10 +142,15 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   public func pause() async -> Void {
+    _playbackIntent = false
     _audioNavigator?.pause()
   }
 
   public func resume() async -> Void {
+    if _disposed {
+      return
+    }
+    _playbackIntent = true
     _audioNavigator?.play()
   }
 
@@ -329,6 +364,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Called when the playback updates.
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
+    if info.state == .paused,
+       info.progress >= 1.0,
+       info.resourceIndex == self.publication.manifest.readingOrder.count - 1 {
+      _playbackIntent = false
+    }
     self._nowPlayingUpdater.updatePlaybackFromInfo(info, withSpeedSetting: _audioNavigator?.settings.speed)
     self._nowPlayingUpdater.updateCommandCenterControls()
     self.playback = info
@@ -441,6 +481,252 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   // MARK: Internal AudioNavigator API
 
+  internal var _recoveryTask: Task<Void, Never>?
+  /// Snapshotted at construction time from `AudioRecoveryPolicy.current` -
+  /// per the plugin's "no mid-stream reconfiguration" contract, a policy
+  /// change via `setAudioRecoveryPolicy` only takes effect for the
+  /// next-opened publication.
+  internal let _recoveryPolicy = AudioRecoveryPolicy.current
+  /// Terminal-failure latch. Must be an explicit flag: inferring it from
+  /// `_lastTimebasedPlayerState` is unreliable, as rebuilt navigators emit
+  /// paused/loading states that would overwrite a `.failure` there.
+  internal var _hasFailed = false
+  /// Set in `dispose`; prevents recovery/rebuild from installing a fresh player
+  /// after the publication was closed.
+  internal var _disposed = false
+  /// User/app playback intent. iOS exposes only `.paused/.playing/.loading`, so
+  /// this mirrors Android's `playWhenReady` for stall-watchdog decisions.
+  internal var _playbackIntent = false
+  /// Stall watchdog task - see `startStallWatchdog`. Cancelled/restarted on rebuild.
+  internal var _stallWatchdogTask: Task<Void, Never>?
+
+  /// Entry point for resource read errors routed from the plugin.
+  @MainActor
+  public func handleResourceReadError(href: AnyURL, error: ReadError) {
+    /// Only react to failures of this publication's audio resources.
+    guard publication.readingOrder.firstWithHREF(href) != nil else {
+      Log.navigator.warn("Ignoring read error for href not in readingOrder: \(href) — \(error)")
+      return
+    }
+    /// Already in terminal failure — client must call play() to retry.
+    if _hasFailed {
+      return
+    }
+
+    switch error.audioStreamAction {
+    case .ignore:
+      Log.navigator.debug("Ignoring audio resource read error for \(href): \(error)")
+      return
+    case let .fail(code, reason):
+      Log.navigator.warn("Audio resource read error classified as terminal [\(code)] for \(href): \(error)")
+      enterFailureState(
+        error: error, code: code, href: href.string, httpStatus: error.httpStatus, reason: reason,
+        description: "Resource read failed: \(href)")
+    case .retry:
+      Log.navigator.warn("Audio resource read error classified as retryable for \(href): \(error)")
+      startRecovery(href: href, error: error, terminalCode: "AudioStreamNetworkError")
+    }
+  }
+
+  /// - Parameter terminalCode: Code to use if recovery exhausts its attempts, carried
+  ///   through from how `error` was originally classified (e.g. `AudioStreamNetworkError`
+  ///   for a classified network error, or a stall-specific code) — not the generic
+  ///   `AudioStreamError` fallback.
+  @MainActor
+  private func startRecovery(href: AnyURL, error: Error, terminalCode: String) {
+    guard !_disposed else {
+      return
+    }
+    guard _recoveryTask == nil else {
+      return  // recovery already in progress
+    }
+    let resumeLocator = (audioLocator ?? _audioNavigator?.currentLocation)?.copyWithOffset(playback.time)
+
+    _recoveryTask = Task { @MainActor in
+      defer { _recoveryTask = nil }
+
+      for attempt in 1..._recoveryPolicy.maxAttempts {
+        sendErrorEvent(
+          code: "AudioStreamRetry",
+          message: error.localizedDescription,
+          data: [
+            "href": href.string,
+            "attempt": attempt,
+            "maxAttempts": self._recoveryPolicy.maxAttempts,
+          ])
+        submitRecoveryState(.loading, locator: resumeLocator)
+
+        try? await Task.sleep(nanoseconds: UInt64(self._recoveryPolicy.delay(forAttempt: attempt) * 1_000_000_000))
+        if Task.isCancelled { return }
+
+        guard await rebuildNavigator(at: resumeLocator) else {
+          continue
+        }
+
+        // connectionTimeoutSeconds is the policy knob for how long each attempt
+        // gets to prove playback advanced (Android/web share this meaning).
+        if await playbackAdvanced(withinSeconds: self._recoveryPolicy.connectionTimeoutSeconds) {
+          return  // recovered — regular state emissions resume via delegate
+        }
+      }
+
+      enterFailureState(
+        error: error,
+        code: terminalCode,
+        href: href.string,
+        httpStatus: (error as? ReadError)?.httpStatus,
+        description: "Recovery failed after \(self._recoveryPolicy.maxAttempts) attempts: \(href)")
+    }
+  }
+
+  /// Tears down and rebuilds the upstream navigator. Required for recovery:
+  /// upstream never replaces a failed AVPlayerItem for the same resource index.
+  @MainActor
+  private func rebuildNavigator(at locator: Locator?) async -> Bool {
+    guard !_disposed else {
+      return false
+    }
+    _audioNavigator?.pause()
+    _audioNavigator?.delegate = nil
+    let navigator = makeAudioNavigator(initialLocation: locator ?? initialLocator)
+    guard !_disposed else {
+      navigator.delegate = nil
+      return false
+    }
+    _audioNavigator = navigator
+    navigator.play()
+    startStallWatchdog()
+    return true
+  }
+
+  /// True once [offsetAdvanced] within `timeout`. Called from `startRecovery` with
+  /// `connectionTimeoutSeconds` — the window each recovery attempt gets to prove
+  /// playback advanced. (`state == .playing` alone is unreliable: with
+  /// `automaticallyWaitsToMinimizeStalling = false` a stalled player can report a
+  /// playing timeControlStatus.)
+  @MainActor
+  private func playbackAdvanced(withinSeconds timeout: TimeInterval) async -> Bool {
+    let startTime = playback.time
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline, !Task.isCancelled {
+      if offsetAdvanced(sinceTime: startTime) {
+        return true
+      }
+      try? await Task.sleep(nanoseconds: 500_000_000)
+    }
+    return false
+  }
+
+  /// True when playback is `.playing` and its time has moved past `sinceTime` by more
+  /// than 0.1s. Shared by `playbackAdvanced` (post-rebuild recovery verification) and
+  /// `startStallWatchdog` (stall detection) so both agree on what "playback is actually
+  /// progressing" means.
+  @MainActor
+  private func offsetAdvanced(sinceTime: TimeInterval) -> Bool {
+    playback.state == .playing && playback.time > sinceTime + 0.1
+  }
+
+  /// Stall watchdog: today's recovery is error-driven only (resource read errors via
+  /// `handleResourceReadError`), so a *throttled* (not dropped) connection that keeps
+  /// bytes trickling in never errors and playback sits in Buffering/Loading forever.
+  /// This polls the playback offset once a second and, if playback intent is on
+  /// (`timeControlStatus`/state indicates playing) but the offset hasn't advanced within
+  /// `AudioRecoveryPolicy.stallTimeoutSeconds`, synthesizes a retryable `ReadError` into
+  /// the same `startRecovery` path a real resource read error would take.
+  ///
+  /// Skips while already recovering/terminally failed, or while playback isn't intended
+  /// (paused/ended) — those aren't stalls. Cancelled and restarted whenever the navigator
+  /// is rebuilt.
+  @MainActor
+  private func startStallWatchdog() {
+    _stallWatchdogTask?.cancel()
+    _stallWatchdogTask = Task { @MainActor in
+      var lastAdvanceTime = playback.time
+      var deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
+
+      while !Task.isCancelled {
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        if Task.isCancelled { return }
+
+        if _recoveryTask != nil || _hasFailed {
+          lastAdvanceTime = playback.time
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
+          continue
+        }
+
+        guard _playbackIntent, playback.state != .paused else {
+          // Genuinely not trying to play (paused/ended) — not a stall, reset the
+          // window. `.loading` with playback intent is NOT reset here: a network
+          // stall sits there, so it must count toward the deadline.
+          lastAdvanceTime = playback.time
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
+          continue
+        }
+
+        if offsetAdvanced(sinceTime: lastAdvanceTime) {
+          lastAdvanceTime = playback.time
+          deadline = Date().addingTimeInterval(self._recoveryPolicy.stallTimeoutSeconds)
+          continue
+        }
+
+        if Date() >= deadline {
+          Log.navigator.warn("Playback stalled: offset didn't advance within \(self._recoveryPolicy.stallTimeoutSeconds)s, synthesizing retryable error")
+          guard let href = (audioLocator ?? _audioNavigator?.currentLocation)?.href else {
+            return
+          }
+          // .other is the toolkit's documented extension point for non-toolkit-originated
+          // errors — used here for a plugin-synthesized stall, not a real read failure.
+          startRecovery(
+            href: href,
+            error: ReadError.access(.other(DebugError("Playback stalled: offset didn't advance within \(self._recoveryPolicy.stallTimeoutSeconds)s"))),
+            terminalCode: "AudioStreamNetworkError")
+          return  // startRecovery owns the retry loop; a fresh watchdog starts on rebuild
+        }
+      }
+    }
+  }
+
+  @MainActor
+  internal func enterFailureState(
+    error: Error, code: String, href: String? = nil, httpStatus: Int? = nil, reason: ReadiumErrorReason? = nil, description: String
+  ) {
+    Log.navigator.error("Audio streaming failure [\(code)]: \(description) — \(error)")
+    _hasFailed = true
+    _playbackIntent = false
+    _recoveryTask?.cancel()
+    _stallWatchdogTask?.cancel()
+    _stallWatchdogTask = nil
+    /// Tear down so the failed player stops issuing resource reads and
+    /// emitting states. play() rebuilds from the last locator.
+    _audioNavigator?.pause()
+    _audioNavigator?.delegate = nil
+    _audioNavigator = nil
+    var data: [String: Any] = [:]
+    if let href { data["href"] = href }
+    if let httpStatus { data["httpStatus"] = httpStatus }
+    if let reason { data["reason"] = reason.rawValue }
+    sendErrorEvent(code: code, message: error.localizedDescription, data: data)
+    submitRecoveryState(.failure, locator: audioLocator)
+  }
+
+  @MainActor
+  private func submitRecoveryState(_ state: TimebasedState, locator: Locator?) {
+    var locator = locator
+    if locator?.locations.position == nil {
+      locator?.locations.position = playback.resourceIndex + 1
+    }
+    let timebasedState = ReadiumTimebasedState(state: state, currentLocator: locator?.toClientFriendlyLocator())
+    if timebasedState != _lastTimebasedPlayerState {
+      _lastTimebasedPlayerState = timebasedState
+      listener?.timebasedNavigator(self, didChangeState: timebasedState)
+    }
+  }
+
+  private func sendErrorEvent(code: String, message: String, data: [String: Any]? = nil) {
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(
+      FlutterReadiumError(message: message, code: code, data: data).toJsonString())
+  }
+
   internal func submitAudioLocatorReachedToListener(_ locator: Locator) {
     var locator = locator
     if locator.locations.position == nil,
@@ -451,6 +737,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 
   internal func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
+    /// While recovery pins .loading (or after terminal failure), suppress the
+    /// rebuilt navigators' paused/loading churn — only submitRecoveryState emits.
+    if _recoveryTask != nil || _hasFailed {
+      return
+    }
+
     if let endedIndex = _endedResourceIndex {
       if info.resourceIndex == endedIndex && info.state == .paused {
         // AVPlayer settling to .paused right after we reported .ended for this resource.
@@ -537,8 +829,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       locator = locator?.toClientFriendlyLocator()
     }
 
-    /// Fetch MediaPlaybackState and convert it to TimebasedState
-    let playerState = info.state.asTimebasedState
+    /// Fetch MediaPlaybackState and convert it to TimebasedState.
+    let playerState = info.asClientTimebasedState(playbackIntent: _playbackIntent)
 
     let totalProgressDuration = makeTotalProgressDuration(locator)
     let totalDuration = makePublicationDuration()

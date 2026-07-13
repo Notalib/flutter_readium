@@ -66,6 +66,17 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
   Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
+  /// Configures the automatic audio-stream error recovery loop (retry attempts,
+  /// backoff, and stall detection).
+  ///
+  /// Applies to the next publication opened and to any in-flight recovery
+  /// loop — there is no mid-stream reconfiguration of an already-running
+  /// attempt sequence. Unconfigured, the navigators use
+  /// [AudioRecoveryPolicy]'s defaults.
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) => throw UnimplementedError(
+    'setAudioRecoveryPolicy() has not been implemented.',
+  );
+
   /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;

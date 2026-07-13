@@ -5,10 +5,56 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Audio streaming error events + connection recovery (iOS, Android, Web)** —
+  failures while streaming remote audiobook resources (network loss, HTTP/auth
+  errors, an unrecognized/non-HTTP transport error, or a throttled connection
+  that stalls without erroring) are now reported on the error stream instead
+  of being silently swallowed. Transient failures, unclassified transport
+  errors, and detected playback stalls all trigger automatic retry with
+  backoff; terminal failures emit a typed code (e.g. `AudioStreamNetworkError`
+  for the unclassified case) and `TimebasedState.failure`, after which
+  `play()` retries from the last position. `connectionTimeoutSeconds` is the
+  budget for each phase of an attempt — it bounds the (Android/web) navigator
+  rebuild and, on all three platforms, the post-rebuild window in which
+  playback must be observed to resume. The code vocabulary, the Web
+  HTTP-probe caveat, and the configurable recovery policy (retry budget,
+  backoff, stall timeout, per-attempt connection timeout) are documented in
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
+
+### Changed
+
+- **Breaking**: awaited opening/navigation failures now use the unified
+  `ReadiumException(ReadiumError)` surface across native and web transports.
+  `PlatformException.code` for Readium/domain failures now matches the shared
+  `ReadiumErrorCode` wire strings, and `details` carries the same structured
+  payload shape as error-stream events. Android opening failures now also map
+  HTTP status to that vocabulary (401/403/404/415/500 →
+  `incorrectCredentials`/`forbidden`/`notFound`/`formatNotSupported`/`unavailable`)
+  and include `httpStatus` in `details`, matching iOS/web.
+- **Breaking**: error events' `data` payload is now a structured JSON object
+  (`{href, attempt, maxAttempts, httpStatus}`, fields optional) instead of a
+  freeform string — surfaced in Dart as `ReadiumError.details` with typed
+  getters. Error codes are additionally exposed as the typed
+  `ReadiumError.codeEnum` (`ReadiumErrorCode`); see
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
+
+---
+
 ## [0.2.1] - 2026-07-09
 
 ### Fixed
 
+- **Web: audio/TTS/decoration control calls no longer leak raw JS errors** —
+  `goBackward`/`goForward`, playback controls, decoration application, and
+  TTS/audio preference and voice setters called straight into the JS bundle
+  with no error handling; a thrown JS error surfaced as an unconverted
+  exception instead of `ReadiumException`.
+- **`FlutterReadium.imageProvider(href)` now throws `ReadiumException` on
+  failure** — a failed resource load previously surfaced as a raw
+  `PlatformException` to the image's `errorBuilder`, inconsistent with every
+  other plugin call.
 - **Android: Fixed-layout books can now navigate** —
   Previously navigating in an FXL publication was a no-op.
 - **iOS: audiobooks now reliably emit `TimebasedState.ended` at end of book** —
@@ -18,6 +64,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Android: audiobook `goToLocator` now waits for the seek to take effect** —
   previously it could return before the player had moved, so a following `play()`
   resumed from the old position (e.g. jumping to a bookmark and playing could start from the wrong place).
+
+---
 
 ## [0.2.0] - 2026-07-02
 

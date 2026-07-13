@@ -4,7 +4,7 @@ import '../../flutter_readium_platform_interface.dart';
 
 /// Represents a speech language with its associated TTS voices from the Readium Speech repository.
 /// See: https://github.com/readium/speech
-class ReadiumSpeechLanguage with EquatableMixin implements JSONable {
+class ReadiumSpeechLanguage with Equatable implements JSONable {
   factory ReadiumSpeechLanguage.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final language = jsonObject.optString('language', remove: true);

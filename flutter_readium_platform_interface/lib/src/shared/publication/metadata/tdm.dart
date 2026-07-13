@@ -8,7 +8,7 @@ import '../../../../flutter_readium_platform_interface.dart';
 /// Text and data mining
 ///
 /// https://github.com/readium/webpub-manifest/tree/master/contexts/default#text-and-data-mining
-class TDM with EquatableMixin implements JSONable {
+class TDM with Equatable implements JSONable {
   const TDM({required this.reservation, this.policy});
   final TDMReservation reservation;
   final String? policy;

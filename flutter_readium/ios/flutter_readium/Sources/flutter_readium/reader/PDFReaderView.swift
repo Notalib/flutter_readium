@@ -108,7 +108,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     Log.reader.warn("didFailToLoadResourceAt: \(href). err: \(error)")
     emitReaderStatusChanged(status: ReadiumReaderStatusError)
 
-    let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
+    let payload = FlutterReadiumError(message: error.localizedDescription, code: "ResourceReadError", data: ["href": href.string])
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
 

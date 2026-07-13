@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 import '../index.dart';
 
 @immutable
-class PDFPreferences with EquatableMixin implements JSONable {
+class PDFPreferences with Equatable implements JSONable {
   const PDFPreferences({
     this.layout,
     this.readingProgression,

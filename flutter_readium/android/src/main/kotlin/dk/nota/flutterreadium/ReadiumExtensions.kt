@@ -30,8 +30,10 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
@@ -45,6 +47,18 @@ import kotlin.time.DurationUnit
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
+
+/**
+ * The [HttpError] found by unwrapping this error's cause chain, if any. Readium/ExoPlayer
+ * errors often wrap the real [HttpError] at some depth (e.g. `ReadError.Access(HttpError)`),
+ * so a simple `is HttpError` check on the top-level error misses it. Shared by audio-stream
+ * error classification and opening-error HTTP status mapping.
+ */
+internal tailrec fun Error.findHttpError(): HttpError? =
+    when (this) {
+        is HttpError -> this
+        else -> cause?.findHttpError()
+    }
 
 fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()

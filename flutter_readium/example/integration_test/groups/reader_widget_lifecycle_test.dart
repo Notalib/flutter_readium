@@ -4,9 +4,12 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../readium_integration_harness.dart';
+import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
 
-void defineReaderWidgetLifecycleTests(ReadiumIntegrationHarness harness) {
+void main() {
+  final harness = suiteHarness();
+
   group('Reader widget lifecycle', () {
     testWidgets('mounting EPUB reader emits a ready reader status', (tester) async {
       final path = harness.fixturePath(

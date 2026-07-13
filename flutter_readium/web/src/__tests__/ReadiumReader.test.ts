@@ -130,6 +130,7 @@ describe("audio stop lifecycle", () => {
         expect(stoppedAudioNav.stop).toHaveBeenCalledTimes(1);
         expect(stoppedAudioNav.destroy).toHaveBeenCalledTimes(1);
         expect(create).toHaveBeenCalledTimes(1);
+        expect(create.mock.calls[0][7]).toBeDefined();
         expect((reader as any)._audioNav).toBe(audioNav);
         expect(audioNav.play).toHaveBeenCalledTimes(1);
       } finally {
@@ -184,6 +185,7 @@ describe("audio stop lifecycle", () => {
         await reader.audioEnable("{}", undefined);
 
         expect(create).toHaveBeenCalledTimes(1);
+        expect(create.mock.calls[0][7]).toBeDefined();
         expect((reader as any)._audioNav).toBe(audioNav);
         expect((reader as any)._stoppedAudioLocator).toBeUndefined();
         expect(audioNav.play).toHaveBeenCalledTimes(1);
@@ -191,6 +193,45 @@ describe("audio stop lifecycle", () => {
         if (savedWindow === undefined) delete (globalThis as any).window;
         else (globalThis as any).window = savedWindow;
       }
+    });
+
+    it("manual retry after terminal failure reuses active audio preferences", () => {
+      const reader = new ReadiumReader();
+      const locator = new Locator({
+        href: "track.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=9"] }),
+      });
+      const audioNav = {
+        currentLocator: locator,
+        play: jest.fn(),
+      };
+      const rebuiltNav = {
+        currentLocator: locator,
+        play: jest.fn(),
+      };
+      const create = jest
+        .spyOn(FlutterAudioNavigator, "create")
+        .mockImplementation(async (_publication, _initial, _prefs, setNav) => {
+          setNav(rebuiltNav as any);
+        });
+      jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
+      const retryAfterFailure = jest
+        .spyOn(FlutterAudioNavigator, "retryAfterFailure")
+        .mockImplementation(() => {});
+
+      (reader as any)._publication = { conformsToAudiobook: true };
+      (reader as any)._audioNav = audioNav;
+      (reader as any)._activeAudioPreferencesJson = '{"volume":0.5}';
+
+      reader.play();
+
+      expect(retryAfterFailure).toHaveBeenCalledTimes(1);
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(create.mock.calls[0][2]).toBe('{"volume":0.5}');
+      expect(create.mock.calls[0][7]).toBeDefined();
+      expect((reader as any)._audioNav).toBe(rebuiltNav);
+      expect(rebuiltNav.play).toHaveBeenCalledTimes(1);
     });
   });
 

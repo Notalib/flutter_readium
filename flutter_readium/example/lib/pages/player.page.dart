@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,6 +24,82 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
   final _slideDuration = const Duration(milliseconds: 350);
   final _shouldShowControls = ValueNotifier(true);
+  StreamSubscription<ReadiumError>? _errorSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _errorSub = FlutterReadium().onErrorEvent.listen(_onReadiumError);
+  }
+
+  @override
+  void dispose() {
+    _errorSub?.cancel();
+    super.dispose();
+  }
+
+  /// Reference consumer for the typed error surface (see
+  /// `docs/api-reference/error-codes.md`): a transient snackbar for the
+  /// informational `audioStreamRetry` event, an actionable dialog for
+  /// terminal audio-stream failures, and log-only for every other category.
+  void _onReadiumError(final ReadiumError error) {
+    if (error.codeEnum.category != ReadiumErrorCategory.audioStream) {
+      ReadiumLog.d('Reader error [${error.code}]: ${error.message}');
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (error.codeEnum.isInformational) {
+      _showRetrySnackBar(error);
+    } else {
+      _showAudioStreamFailureDialog(error);
+    }
+  }
+
+  void _showRetrySnackBar(final ReadiumError error) {
+    final attempt = error.attempt;
+    final maxAttempts = error.maxAttempts;
+    final message = attempt != null && maxAttempts != null
+        ? 'Connection problem — retrying ($attempt/$maxAttempts)…'
+        : 'Connection problem — retrying…';
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message), duration: const Duration(seconds: 3)));
+  }
+
+  void _showAudioStreamFailureDialog(final ReadiumError error) {
+    final String message = switch (error.codeEnum) {
+      ReadiumErrorCode.audioStreamAuthError => 'Authentication error, login may have expired. Please try again.',
+      ReadiumErrorCode.audioStreamNetworkError ||
+      ReadiumErrorCode.audioStreamHttpError => 'There was a problem with your connection. Please try again.',
+      _ => 'Audio playback failed. Please try again.',
+    };
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Audio playback failed'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<PlayerControlsBloc>().add(Play());
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _deferWebGoToAfterRoutePop() async {
     if (!kIsWeb) {

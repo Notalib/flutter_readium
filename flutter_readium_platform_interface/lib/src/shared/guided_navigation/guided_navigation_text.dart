@@ -39,7 +39,7 @@ sealed class GuidedNavigationText implements JSONable {
 
 /// A guided navigation text represented as a plain string.
 @immutable
-final class GuidedNavigationTextString extends GuidedNavigationText with EquatableMixin {
+final class GuidedNavigationTextString extends GuidedNavigationText with Equatable {
   const GuidedNavigationTextString(this.value);
 
   final String value;
@@ -54,7 +54,7 @@ final class GuidedNavigationTextString extends GuidedNavigationText with Equatab
 /// A guided navigation text represented as a structured object with optional
 /// SSML markup and BCP 47 language tag.
 @immutable
-final class GuidedNavigationTextObject extends GuidedNavigationText with EquatableMixin {
+final class GuidedNavigationTextObject extends GuidedNavigationText with Equatable {
   const GuidedNavigationTextObject({this.plain, this.ssml, this.language});
 
   final String? plain;

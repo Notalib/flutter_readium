@@ -26,7 +26,7 @@ enum OdlLicenseStatus {
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlLoan with EquatableMixin implements JSONable {
+class OdlLoan with Equatable implements JSONable {
   const OdlLoan({required this.href, required this.id, required this.patronId, required this.expires});
 
   /// URL of the loan.
@@ -74,7 +74,7 @@ class OdlLoan with EquatableMixin implements JSONable {
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlCheckouts with EquatableMixin implements JSONable {
+class OdlCheckouts with Equatable implements JSONable {
   const OdlCheckouts({required this.left, required this.available, this.active = const []});
 
   /// Remaining checkouts allowed under this license.
@@ -113,7 +113,7 @@ class OdlCheckouts with EquatableMixin implements JSONable {
 ///
 /// https://drafts.opds.io/odl-1.0.html
 @immutable
-class OdlLicenseInfoDocument with EquatableMixin implements JSONable {
+class OdlLicenseInfoDocument with Equatable implements JSONable {
   const OdlLicenseInfoDocument({
     required this.identifier,
     required this.status,

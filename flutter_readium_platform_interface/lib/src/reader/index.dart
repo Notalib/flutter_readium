@@ -1,3 +1,4 @@
+export 'audio_recovery_policy.dart';
 export 'reader_audio_preferences.dart';
 export 'reader_decoration.dart';
 export 'reader_decoration_interaction.dart';

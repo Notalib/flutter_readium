@@ -33,7 +33,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     self._initialLocator = self.mapTextLocatorToMediaOverlayAudioLocator(initialLocator)
   }
 
-  public override func initNavigator() async -> Void {
+  public override func initNavigator() async throws -> Void {
     Log.navigator.info("Initializing MediaOverlayNavigator")
     
     let mediaOverlays = await publication.getSyncNarrationMediaOverlays()
@@ -69,7 +69,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // Save the media-overlays for later position matching.
     self.mediaOverlays = mediaOverlays
     
-    await super.initNavigator()
+    try await super.initNavigator()
   }
   
   public override func play(fromLocator: Locator?) async {

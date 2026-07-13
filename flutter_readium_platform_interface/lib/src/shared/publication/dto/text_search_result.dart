@@ -9,7 +9,7 @@ import '../index.dart';
 /// Represents a single text search result within a publication.
 /// Contains a [Locator] to the location of the search result, an optional chapter title, and optional page numbers.
 /// This class was created to provide a simpler structure rather than sending full [LocatorCollection] over the bridge.
-class TextSearchResult with EquatableMixin implements JSONable {
+class TextSearchResult with Equatable implements JSONable {
   const TextSearchResult({
     required this.locator,
     this.chapterTitle,

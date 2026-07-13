@@ -171,7 +171,10 @@ class ReadiumReaderWidget(
             } catch (e: Exception) {
                 PluginLog.e(TAG, "::init - visualEnable failed: ${e.message}", e)
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
-                ReadiumReader.emitError(ReadiumError(e))
+                // Heterogeneous failure surface (fragment/navigator-creation errors from
+                // kotlin-toolkit) with no single vocabulary code that fits - "unknown" is
+                // itself a vocabulary member, unlike a raw exception class name.
+                ReadiumReader.emitError(ReadiumError(PublicationError.Unknown(e.message ?: e.toString())))
             }
         }
     }
@@ -326,117 +329,141 @@ class ReadiumReaderWidget(
         // when affecting readerView or returning a result.
         launch {
             PluginLog.d(TAG, "::onMethodCall ${call.method}")
-            when (call.method) {
-                "setPreferences" -> {
-                    try {
-                        @Suppress("UNCHECKED_CAST")
-                        val prefsMap =
-                            call.arguments as? Map<String, Any> ?: run {
-                                result.error(
-                                    "FlutterReadium",
-                                    "Failed to set preferences",
-                                    "Invalid argument",
-                                )
-                                return@launch
-                            }
-                        when {
-                            ReadiumReader.isPdf -> {
-                                ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
-                            }
-
-                            ReadiumReader.isComic -> {
-                                // ImageNavigatorFragment has no user-configurable preferences.
-                                PluginLog.d(TAG, "::setPreferences - not supported for comic")
-                            }
-
-                            else -> {
-                                setPreferencesFromMap(prefsMap)
-                            }
-                        }
-                        result.success(null)
-                    } catch (ex: Exception) {
-                        result.error("FlutterReadium", "Failed to set preferences", ex.message)
+            try {
+                dispatchMethodCall(call, result)
+            } catch (e: Exception) {
+                PluginLog.e(TAG, "::onMethodCall - ${call.method} threw: $e")
+                // Branches below throw bare exceptions (e.g. malformed args, `!!` on a
+                // failed Locator.fromJSON) rather than calling result.error themselves -
+                // without this, the exception would escape this SupervisorJob-scoped
+                // launch uncaught and crash the app instead of surfacing to Dart.
+                val code =
+                    when (e) {
+                        is ClassCastException, is NullPointerException -> "InvalidArgument"
+                        else -> "unknown"
                     }
-                }
+                result.error(code, "Failed to handle ${call.method}", e.message)
+            }
+        }
+    }
 
-                "go" -> {
-                    val args = call.arguments as List<*>
-                    val locatorJson = JSONObject(args[0] as String)
-                    val animated = args[1] as Boolean
-                    if (locatorJson.optString("type") == "") {
-                        locatorJson.put("type", " ")
-                        PluginLog.w(
-                            TAG,
-                            "Got locator with empty type! This shouldn't happen. $locatorJson",
+    private suspend fun dispatchMethodCall(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        when (call.method) {
+            "setPreferences" -> {
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    val prefsMap =
+                        call.arguments as? Map<String, Any> ?: run {
+                            result.error(
+                                "InvalidArgument",
+                                "Failed to set preferences",
+                                "Invalid argument",
+                            )
+                            return
+                        }
+                    when {
+                        ReadiumReader.isPdf -> {
+                            ReadiumReader.pdfUpdatePreferences(FlutterPdfPreferences.fromMap(prefsMap))
+                        }
+
+                        ReadiumReader.isComic -> {
+                            // ImageNavigatorFragment has no user-configurable preferences.
+                            PluginLog.d(TAG, "::setPreferences - not supported for comic")
+                        }
+
+                        else -> {
+                            setPreferencesFromMap(prefsMap)
+                        }
+                    }
+                    result.success(null)
+                } catch (ex: Exception) {
+                    // Preferences are deserialized from caller-supplied data
+                    // (FlutterEpubPreferences.fromMap); treat failures here as
+                    // caller-misuse rather than a generic/unmapped code.
+                    result.error("InvalidArgument", "Failed to set preferences", ex.message)
+                }
+            }
+
+            "go" -> {
+                val args = call.arguments as List<*>
+                val locatorJson = JSONObject(args[0] as String)
+                val animated = args[1] as Boolean
+                if (locatorJson.optString("type") == "") {
+                    locatorJson.put("type", " ")
+                    PluginLog.w(
+                        TAG,
+                        "Got locator with empty type! This shouldn't happen. $locatorJson",
+                    )
+                }
+                val locator = Locator.fromJSON(locatorJson)!!
+                ReadiumReader.visualGoToLocator(locator, animated)
+                result.success(null)
+            }
+
+            "goBackward" -> {
+                val animated = call.arguments as Boolean
+                goBackward(animated)
+                result.success(null)
+            }
+
+            "goForward" -> {
+                val animated = call.arguments as Boolean
+                goForward(animated)
+                result.success(null)
+            }
+
+            "applyDecorations" -> {
+                if (ReadiumReader.isPdf || ReadiumReader.isComic) {
+                    // PdfNavigatorFragment and ImageNavigatorFragment do not expose a
+                    // DecorableNavigator surface in kotlin-toolkit 3.2.0.
+                    PluginLog.d(TAG, "::applyDecorations - not supported for PDF/comic")
+                    result.success(null)
+                    return
+                }
+                val args = call.arguments as List<*>
+                val groupId = args[0] as String
+
+                @Suppress("UNCHECKED_CAST")
+                val decorationListStr =
+                    args[1] as List<String>
+                val decorations = decorationListStr.mapNotNull { decorationFromJson(it) }
+
+                ReadiumReader.applyDecorations(decorations, groupId)
+                result.success(null)
+            }
+
+            "configureSelectionActions" -> {
+                @Suppress("UNCHECKED_CAST")
+                val actions = call.arguments as? List<Map<String, String>> ?: emptyList()
+                ReadiumReader.selectionActions =
+                    actions.map { map ->
+                        SelectionActionConfig(
+                            id = map["id"] ?: "",
+                            title = map["title"] ?: "",
                         )
                     }
-                    val locator = Locator.fromJSON(locatorJson)!!
-                    ReadiumReader.visualGoToLocator(locator, animated)
-                    result.success(null)
-                }
+                result.success(null)
+            }
 
-                "goBackward" -> {
-                    val animated = call.arguments as Boolean
-                    goBackward(animated)
-                    result.success(null)
-                }
+            "notifyUserNavigation" -> {
+                // User swiped or edge-tapped the reader (detected by the Flutter Listener
+                // above the platform view). Enter narration manual mode if narration is
+                // currently driving the reader; otherwise a no-op.
+                ReadiumReader.enterManualModeIfNarrating("notifyUserNavigation")
+                result.success(null)
+            }
 
-                "goForward" -> {
-                    val animated = call.arguments as Boolean
-                    goForward(animated)
-                    result.success(null)
-                }
+            "dispose" -> {
+                dispose()
+                result.success(null)
+            }
 
-                "applyDecorations" -> {
-                    if (ReadiumReader.isPdf || ReadiumReader.isComic) {
-                        // PdfNavigatorFragment and ImageNavigatorFragment do not expose a
-                        // DecorableNavigator surface in kotlin-toolkit 3.2.0.
-                        PluginLog.d(TAG, "::applyDecorations - not supported for PDF/comic")
-                        result.success(null)
-                        return@launch
-                    }
-                    val args = call.arguments as List<*>
-                    val groupId = args[0] as String
-
-                    @Suppress("UNCHECKED_CAST")
-                    val decorationListStr =
-                        args[1] as List<String>
-                    val decorations = decorationListStr.mapNotNull { decorationFromJson(it) }
-
-                    ReadiumReader.applyDecorations(decorations, groupId)
-                    result.success(null)
-                }
-
-                "configureSelectionActions" -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val actions = call.arguments as? List<Map<String, String>> ?: emptyList()
-                    ReadiumReader.selectionActions =
-                        actions.map { map ->
-                            SelectionActionConfig(
-                                id = map["id"] ?: "",
-                                title = map["title"] ?: "",
-                            )
-                        }
-                    result.success(null)
-                }
-
-                "notifyUserNavigation" -> {
-                    // User swiped or edge-tapped the reader (detected by the Flutter Listener
-                    // above the platform view). Enter narration manual mode if narration is
-                    // currently driving the reader; otherwise a no-op.
-                    ReadiumReader.enterManualModeIfNarrating("notifyUserNavigation")
-                    result.success(null)
-                }
-
-                "dispose" -> {
-                    dispose()
-                    result.success(null)
-                }
-
-                else -> {
-                    PluginLog.w(TAG, "Unhandled call ${call.method}")
-                    result.notImplemented()
-                }
+            else -> {
+                PluginLog.w(TAG, "Unhandled call ${call.method}")
+                result.notImplemented()
             }
         }
     }

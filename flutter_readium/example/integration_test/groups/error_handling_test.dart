@@ -1,0 +1,190 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_readium/flutter_readium.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../readium_integration_harness.dart';
+import '../test_suite_setup.dart';
+import '../test_fixtures.dart';
+import '../unreachable_audiobook_fixture.dart' if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
+
+void main() {
+  final harness = suiteHarness();
+
+  group('Error handling', () {
+    // openPublication surfaces failures via the throw path of the unified error
+    // surface, not onErrorEvent — that channel is only for out-of-band
+    // audio-stream errors during playback (see the recovery tests below + the
+    // web jest suite). The unreachable source differs by platform: file I/O
+    // natively, an origin-relative HTTP 404 on web.
+    test('openPublication throws ReadiumException for an unreachable source', () async {
+      final badSource = kIsWeb ? '/no-such-fixture/manifest.json' : '/does-not-exist/no-such.epub';
+      await expectLater(
+        harness.readium.openPublication(badSource),
+        throwsA(isA<ReadiumException>()),
+      );
+    });
+
+    // Exercises the audio-stream recovery loop's terminal path end-to-end: an
+    // audiobook whose media host is unreachable can never connect, so recovery
+    // runs its bounded attempts and then emits a terminal audioStream error +
+    // failure state. This covers the initNavigator-bound -> recovery -> terminal
+    // path that native unit tests can't (they don't drive a real player), and
+    // would have caught the iOS inert-timeout and web controller-clobber
+    // regressions.
+    //
+    // Native-only: forcing this deterministically on web means a browser
+    // MediaError, which is validated separately in the web jest suite. The
+    // mid-stream throttle case (retry-while-playing) still needs real network
+    // fault injection (Link Conditioner) and stays a manual check.
+    test(
+      'unreachable audiobook media surfaces a terminal audioStream error via recovery',
+      skip: kIsWeb ? 'Native-only: web audio failure path is covered by jest' : null,
+      () async {
+        // 127.0.0.1:1 refuses connections immediately and deterministically, so
+        // each recovery attempt fails fast rather than waiting out a timeout.
+        const deadHost = 'http://127.0.0.1:1/frx-recovery-test';
+        final manifest = jsonEncode({
+          '@context': 'https://readium.org/webpub-manifest/context.jsonld',
+          'metadata': {
+            '@type': 'http://schema.org/Audiobook',
+            'conformsTo': 'https://readium.org/webpub-manifest/profiles/audiobook',
+            'title': 'Unreachable audiobook (recovery test)',
+            'language': 'en',
+            'duration': 60,
+          },
+          'links': [
+            {
+              'rel': 'self',
+              'href': '$deadHost/manifest.json',
+              'type': 'application/audiobook+json',
+            },
+          ],
+          'readingOrder': [
+            {
+              'href': '$deadHost/track1.mp3',
+              'type': 'audio/mpeg',
+              'duration': 60,
+              'title': 'Track 1',
+            },
+          ],
+        });
+
+        // Bound the loop hard so the test finishes in a few seconds: 2 attempts,
+        // ~0.1s + 0.2s backoff, short connect/stall windows. The policy applies
+        // to the next-opened publication, so set it before openPublication.
+        await harness.readium.setAudioRecoveryPolicy(
+          const AudioRecoveryPolicy(
+            maxAttempts: 2,
+            backoffBaseSeconds: 0.1,
+            connectionTimeoutSeconds: 2.0,
+            stallTimeoutSeconds: 3.0,
+          ),
+        );
+        addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
+
+        final errors = <ReadiumError>[];
+        final sub = harness.readium.onErrorEvent.listen(errors.add);
+        addTearDown(sub.cancel);
+
+        final manifestPath = await writeTempAudiobookManifest(manifest);
+        final pub = await harness.readium.openPublication(manifestPath);
+        expect(
+          pub.conformsToReadiumAudiobook,
+          isTrue,
+          reason: 'Synthetic manifest should open as a Readium audiobook',
+        );
+
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        // Generous budget over the 2 bounded attempts (backoff + connect).
+        await waitUntil(
+          () => errors.any(
+            (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+          ),
+          timeout: const Duration(seconds: 30),
+          reason:
+              'Recovery never emitted a terminal audioStream error for an '
+              'unreachable media host (saw: ${errors.map((e) => e.code ?? e.codeEnum.name).toList()})',
+        );
+
+        final terminal = errors.firstWhere(
+          (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+        );
+        expect(
+          terminal.codeEnum,
+          ReadiumErrorCode.audioStreamNetworkError,
+          reason: 'An unreachable host is a network-class failure',
+        );
+      },
+    );
+
+    // Complements the unreachable-host test above with the auth branch: the
+    // 39031_auth fixture streams from a real host (merkur.nota.dk) that returns
+    // 401 without a valid Bearer token. We deliberately open it WITHOUT a token,
+    // so the first media fetch is rejected and classified as a terminal
+    // audioStreamAuthError - the code path that drives the example app's
+    // "login may have expired" dialog. Auth failures are terminal-without-retry,
+    // so this emits fast.
+    //
+    // Native-only AND network-dependent: it hits a real host. A reachability
+    // precheck skips the test (inconclusive) when merkur is genuinely down, so a
+    // network outage doesn't fail CI. Crucially we do NOT accept
+    // audioStreamNetworkError as a pass: once the host is reachable, a
+    // network-class code here means the 401 -> auth classification regressed,
+    // which is exactly what this test must catch. No token is ever committed —
+    // its absence is the point.
+    const authMediaHost = 'https://merkur.nota.dk/health/ping'; // media host health-endpoint
+    test(
+      'audiobook with missing Bearer token surfaces a terminal audioStreamAuthError',
+      skip: kIsWeb ? 'Native-only: remote auth fixture is not in the web set' : null,
+      () async {
+        if (!await isHostReachable(authMediaHost)) {
+          markTestSkipped('$authMediaHost unreachable — auth-recovery path not exercised');
+          return;
+        }
+
+        final path = harness.fixturePath(
+          FixtureKeys.remoteAudiobookAuth,
+          reason:
+              'Fixture ${FixtureKeys.remoteAudiobookAuth} missing '
+              '(run bin/fetch_test_resources)',
+        );
+
+        final errors = <ReadiumError>[];
+        final sub = harness.readium.onErrorEvent.listen(errors.add);
+        addTearDown(sub.cancel);
+
+        // No setCustomHeaders / Bearer token — the omission is what triggers 401.
+        final pub = await harness.readium.openPublication(path);
+        expect(pub.conformsToReadiumAudiobook, isTrue);
+
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        await waitUntil(
+          () => errors.any(
+            (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+          ),
+          timeout: const Duration(seconds: 30),
+          reason:
+              'No terminal audioStream error for an unauthenticated stream '
+              '(saw: ${errors.map((e) => e.code ?? e.codeEnum.name).toList()})',
+        );
+
+        final terminal = errors.firstWhere(
+          (e) => e.codeEnum.category == ReadiumErrorCategory.audioStream && e.codeEnum.isFatal,
+        );
+        expect(
+          terminal.codeEnum,
+          ReadiumErrorCode.audioStreamAuthError,
+          reason:
+              'A 401/403 without a Bearer token is an auth-class failure. '
+              'If this is audioStreamNetworkError, merkur.nota.dk was likely unreachable.',
+        );
+      },
+    );
+  });
+}

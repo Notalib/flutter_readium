@@ -71,6 +71,23 @@ void main() {
       },
     );
 
+    test('setAudioRecoveryPolicy invokes the channel with a flat map (not json-encoded)', () async {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 5,
+        backoffBaseSeconds: 2.0,
+        stallTimeoutSeconds: 15.0,
+      );
+      await methodChannelReadium.setAudioRecoveryPolicy(policy);
+      expect(
+        log,
+        contains(
+          isA<MethodCall>()
+              .having((c) => c.method, 'method', 'setAudioRecoveryPolicy')
+              .having((c) => c.arguments, 'arguments', policy.toJson()),
+        ),
+      );
+    });
+
     test('setNarrationSyncEnabled invokes the channel with the bool argument', () async {
       await methodChannelReadium.setNarrationSyncEnabled(true);
       await methodChannelReadium.setNarrationSyncEnabled(false);

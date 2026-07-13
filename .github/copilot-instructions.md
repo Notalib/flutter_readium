@@ -58,8 +58,10 @@ cd flutter_readium && flutter test test/some_test.dart
 
 # Integration tests (requires booted simulator/emulator)
 cd flutter_readium/example
-flutter test integration_test --device-id=<udid>   # iOS
-flutter test integration_test                      # Android
+# Run the aggregator entrypoint, not the folder glob (each groups/*_test.dart is
+# its own slow build target). Run one suite directly for fast iteration.
+flutter test integration_test/plugin_integration_test.dart --device-id=<udid>   # iOS
+flutter test integration_test/plugin_integration_test.dart                      # Android
 ```
 
 ## Key Conventions

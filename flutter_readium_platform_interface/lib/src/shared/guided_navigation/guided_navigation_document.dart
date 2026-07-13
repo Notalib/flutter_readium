@@ -10,7 +10,7 @@ import 'guided_navigation_object.dart';
 ///
 /// See https://readium.org/guided-navigation/schema/document.schema.json
 @immutable
-class GuidedNavigationDocument with EquatableMixin implements JSONable {
+class GuidedNavigationDocument with Equatable implements JSONable {
   const GuidedNavigationDocument({required this.guided, this.links = const []});
 
   /// Optional cross-references to related resources, using the Readium Web

@@ -12,18 +12,21 @@ import Flutter
 struct FlutterReadiumError {
   let message: String
   let code: String?
-  let data: String?
+  /// Structured supplementary payload — a JSON object, not a freeform string.
+  /// Optional fields: `href`, `attempt`, `maxAttempts`, `httpStatus`. See
+  /// `docs/api-reference/error-codes.md`.
+  let data: [String: Any]?
 
-  init(message: String, code: String? = nil, data: String? = nil) {
+  init(message: String, code: String? = nil, data: [String: Any]? = nil) {
     self.message = message
     self.code = code
     self.data = data
   }
 
   func toJsonString() -> String {
-    var map: [String: String] = ["message": message]
+    var map: [String: Any] = ["message": message]
     if let code { map["code"] = code }
-    if let data { map["data"] = data }
+    if let data, !data.isEmpty { map["data"] = data }
     guard
       let bytes = try? JSONSerialization.data(withJSONObject: map),
       let str = String(data: bytes, encoding: .utf8)
@@ -32,15 +35,19 @@ struct FlutterReadiumError {
     }
     return str
   }
+
+  func toFlutterError() -> FlutterError {
+    FlutterError(code: code ?? "unknown", message: message, details: data)
+  }
 }
 
 enum ReadiumError: Error {
   case formatNotSupported(String)
+  case unsupportedScheme(String)
   case readingError(Error)
   case notFound(String?)
   case forbidden(String?)
   case publicationIsRestricted(Error)
-  case readerViewNotFound
   case voiceNotFound
   case unknown(Error?)
 }
@@ -66,7 +73,7 @@ extension AssetRetrieveURLError {
     case .formatNotSupported:
       return .formatNotSupported(self.localizedDescription)
     case .schemeNotSupported(let scheme):
-      return .formatNotSupported("scheme not supported: \(scheme)")
+      return .unsupportedScheme("scheme not supported: \(scheme)")
     case .reading(let error):
       return .readingError(error)
     }
@@ -150,7 +157,17 @@ extension ReadiumError: UserErrorConvertible {
   func toFlutterError() -> FlutterError {
     switch self {
     case .formatNotSupported(let msg):
-      return FlutterError(code: "formatNotSupported", message: self.localizedDescription, details: msg)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "formatNotSupported",
+        data: ["message": msg]
+      ).toFlutterError()
+    case .unsupportedScheme(let msg):
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "unsupportedScheme",
+        data: ["message": msg]
+      ).toFlutterError()
     case .readingError(let err):
       switch err {
       case ReadiumShared.ArchiveOpenError.reading(.access(.http(let httpError))),
@@ -173,35 +190,84 @@ extension ReadiumError: UserErrorConvertible {
           }
         }()
         let message: String
-        if let status = httpError.statusCode?.rawValue {
+        let status = httpError.statusCode?.rawValue
+        if let status {
           message = "HTTPError(\(kind), status=\(status))"
         } else {
           message = "HTTPError(\(kind)): \(httpError.localizedDescription)"
         }
-        return FlutterError(code: "readingError", message: message, details: httpError.responseHeaders)
+        var data: [String: Any] = ["message": httpError.localizedDescription]
+        if let status {
+          data["httpStatus"] = status
+        }
+        return FlutterReadiumError(
+          message: message,
+          code: Self.openingErrorCode(forHTTPStatus: status),
+          data: data
+        ).toFlutterError()
       case ReadiumShared.ArchiveOpenError.reading(.access(.fileSystem(let fsError))),
            ReadiumShared.ReadError.access(.fileSystem(let fsError)),
            ReadiumShared.AccessError.fileSystem(let fsError):
-        return FlutterError(code: "readingError", message: "FilesystemError", details: fsError.localizedDescription)
+        return FlutterReadiumError(
+          message: "FilesystemError",
+          code: "readingError",
+          data: ["message": fsError.localizedDescription]
+        ).toFlutterError()
       default:
-        return FlutterError(code: "readingError", message: self.localizedDescription, details: err.localizedDescription)
+        return FlutterReadiumError(
+          message: self.localizedDescription,
+          code: "readingError",
+          data: ["message": err.localizedDescription]
+        ).toFlutterError()
       }
     case .notFound(let msg):
-      return FlutterError(code: "notFound", message: self.localizedDescription, details: msg)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "notFound",
+        data: msg.map { ["message": $0] }
+      ).toFlutterError()
     case .publicationIsRestricted(let err):
-      return FlutterError(code: "forbidden", message: self.localizedDescription, details: err.localizedDescription)
-    case .readerViewNotFound:
-      return FlutterError(code: "readerViewNotFound", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "forbidden",
+        data: ["message": err.localizedDescription]
+      ).toFlutterError()
     case .voiceNotFound:
-      return FlutterError(code: "voiceNotFound", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "voiceNotFound"
+      ).toFlutterError()
     default:
-      return FlutterError(code: "unknown", message: self.localizedDescription, details: nil)
+      return FlutterReadiumError(
+        message: self.localizedDescription,
+        code: "unknown"
+      ).toFlutterError()
     }
   }
+
+  private static func openingErrorCode(forHTTPStatus status: Int?) -> String {
+    switch status {
+    case 401:
+      return "incorrectCredentials"
+    case 403:
+      return "forbidden"
+    case 404:
+      return "notFound"
+    case 415:
+      return "formatNotSupported"
+    case 500:
+      return "unavailable"
+    default:
+      return "readingError"
+    }
+  }
+
   func userError() -> UserError {
     UserError(cause: self) {
       switch self {
       case .formatNotSupported:
+        return "library_error_formatNotSupported".localized
+      case .unsupportedScheme:
         return "library_error_formatNotSupported".localized
       case .notFound:
         return "library_error_bookNotFound".localized
@@ -209,8 +275,6 @@ extension ReadiumError: UserErrorConvertible {
         return "library_error_readingError".localized
       case .forbidden(_):
         return "library_error_forbidden".localized
-      case .readerViewNotFound:
-        return "library_error_readerViewNotFound".localized
       case .voiceNotFound:
         return "library_error_voiceNotFound".localized
       case let .publicationIsRestricted(error):

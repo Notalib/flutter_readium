@@ -17,7 +17,7 @@ final _hrefEnd = RegExp('[#?]');
 
 /// Holds the metadata of a Readium publication, as described in the Readium Web Publication Manifest.
 @immutable
-class Publication with EquatableMixin implements JSONable {
+class Publication with Equatable implements JSONable {
   const Publication({
     required this.metadata,
     this.context = const [],

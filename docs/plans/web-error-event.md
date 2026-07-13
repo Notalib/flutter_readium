@@ -12,14 +12,14 @@
 
 The web plugin already has a `StreamController<ReadiumError>` for timebased state and a reader status controller — the pattern for adding an error stream is already established and straightforward.
 
-## Current state
+## State at planning time
 
 - **iOS**: `errorStreamHandler` sends events via `FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(...)` in multiple places: `timebasedNavigator(_:encounteredError:)`, `navigator(_:didFailToLoadResourceAt:withError:)`, etc.
 - **Android**: `ReadiumErrorEventChannel` is registered; the `onErrorEvent` method channel name is `dk.nota.flutter_readium/error`. Note: the API reference doc (`docs/api-reference/streams-events.md`) warns that Android does not currently emit errors automatically.
 - **Web** (`flutter_readium_web.dart` lines 324–327): `get onErrorEvent` throws `UnimplementedError`.
 - The `FlutterReadiumWebPlugin` already has `StreamController`s for locator and status; the pattern for adding an error stream is identical.
 
-## Proposed approach
+## Landed approach
 
 1. **Dart web plugin** (`flutter_readium_web.dart`):
    - Add `static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();`.

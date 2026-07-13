@@ -7,7 +7,7 @@ import '../utils/readium_log.dart';
 import 'index.dart';
 
 @immutable
-class ReaderTTSVoice with EquatableMixin implements JSONable {
+class ReaderTTSVoice with Equatable implements JSONable {
   const ReaderTTSVoice._(
     this.identifier,
     this.name,

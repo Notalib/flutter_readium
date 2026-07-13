@@ -46,8 +46,9 @@ This is expected behavior on Android when the progression delta on restore is ve
 ```dart
 try {
   await reader.openPublication(url);
-} on OpeningReadiumException catch (e) {
-  print(e.type);    // notFound | formatNotSupported | forbidden | unknown
+} on ReadiumException catch (e) {
+  print(e.code);    // raw wire string, e.g. notFound | formatNotSupported | forbidden
+  print(e.codeEnum); // typed classifier
   print(e.message); // human-readable description
 }
 ```

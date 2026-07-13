@@ -28,7 +28,7 @@ import '../../../utils/jsonable.dart';
 /// @param start A serializable representation of the "start" boundary point of the DOM Range.
 /// @param end A serializable representation of the "end" boundary point of the DOM Range.
 @immutable
-class DomRange with EquatableMixin implements JSONable {
+class DomRange with Equatable implements JSONable {
   const DomRange({required this.start, this.end});
 
   /// A serializable representation of the "start" boundary point of the DOM Range.
@@ -79,7 +79,7 @@ class DomRange with EquatableMixin implements JSONable {
 ///
 /// https://github.com/readium/architecture/blob/master/models/locators/extensions/html.md#the-start-and-end-object
 @immutable
-class Point with EquatableMixin implements JSONable {
+class Point with Equatable implements JSONable {
   const Point({
     required this.cssSelector,
     required this.textNodeIndex,

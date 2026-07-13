@@ -4,9 +4,12 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../readium_integration_harness.dart';
+import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
 
-void defineNavigationLocatorTests(ReadiumIntegrationHarness harness) {
+void main() {
+  final harness = suiteHarness();
+
   group('Navigation and locator round-tripping', () {
     testWidgets('EPUB goForward emits a new textLocator', (tester) async {
       final path = harness.fixturePath(

@@ -96,6 +96,11 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    JsPublicationChannel.setAudioRecoveryPolicy(jsonEncode(policy.toJson()));
+  }
+
+  @override
   Future<void> setCustomHeaders(Map<String, String> headers) async {
     _log.w(
       'setCustomHeaders is not supported on web (browser controls HTTP headers)',
@@ -122,20 +127,14 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
       publication = Publication.fromJson(publicationJson);
       if (publication == null) {
-        throw ReadiumError('Failed to parse Publication JSON');
+        throw ReadiumException(ReadiumError('Failed to parse Publication JSON'));
       }
     } on PlatformException catch (e) {
-      final type = e.intCode;
-      throw OpeningReadiumException(
-        '${e.code}: ${e.message ?? 'Unknown `PlatformException`'}',
-        type: type == null ? null : OpeningReadiumExceptionType.values[type],
-      );
+      throw ReadiumException.fromPlatformException(e);
     } on Error catch (e) {
-      final eString = e.toString();
-      throw ReadiumError('Error in PublicationChannel web: $eString');
+      throw ReadiumException(ReadiumError('Error in PublicationChannel web: $e'));
     } on Exception catch (e) {
-      final eString = e.toString();
-      throw ReadiumError('Exception in PublicationChannel web: $eString');
+      throw ReadiumException(ReadiumError('Exception in PublicationChannel web: $e'));
     }
 
     return publication;
@@ -224,8 +223,10 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
             defaultPreferences?.toJson() ?? <String, dynamic>{},
           ),
         );
+      } on PlatformException catch (e) {
+        throw ReadiumException.fromPlatformException(e);
       } on Exception catch (e) {
-        throw ReadiumError('Exception opening audiobook on web: $e');
+        throw ReadiumException(ReadiumError('Exception opening audiobook on web: $e'));
       }
     }
 
@@ -310,14 +311,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     try {
       await JsPublicationChannel.goToLocator(json.encode(locator));
       return true;
-    } on PlatformException catch (e, stackTrace) {
-      const pubID = 'unknown';
-      throw ReadiumError(
-        'Error when navigating to locator: ${e.message}',
-        code: e.code,
-        data: 'publication id: $pubID. locator: $locator',
-        stackTrace: stackTrace,
-      );
+    } on PlatformException catch (e) {
+      throw ReadiumException.fromPlatformException(e);
     }
   }
 

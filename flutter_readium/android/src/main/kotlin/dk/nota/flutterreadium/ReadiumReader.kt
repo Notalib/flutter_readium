@@ -17,6 +17,7 @@ import dk.nota.flutterreadium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutterreadium.events.TextLocatorEventChannel
 import dk.nota.flutterreadium.events.TimedBasedStateEventChannel
 import dk.nota.flutterreadium.models.ReadiumTimebasedState
+import dk.nota.flutterreadium.navigators.AudioRecoveryPolicy
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
 import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
@@ -78,8 +79,13 @@ import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "ReadiumReader"
+
+/** [DefaultHttpClient] has no timeouts by default - a blocked socket read would hang forever. */
+private val HTTP_CONNECT_TIMEOUT = 10.seconds
+private val HTTP_READ_TIMEOUT = 30.seconds
 
 private val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
 
@@ -163,6 +169,8 @@ object ReadiumReader :
 
     private val httpClient by lazy {
         DefaultHttpClient(
+            connectTimeout = HTTP_CONNECT_TIMEOUT,
+            readTimeout = HTTP_READ_TIMEOUT,
             callback =
                 object : DefaultHttpClient.Callback {
                     override suspend fun onStartRequest(request: HttpRequest): HttpTry<HttpRequest> {
@@ -527,6 +535,14 @@ object ReadiumReader :
         defaultHttpHeaders.clear()
         defaultHttpHeaders.putAll(headers)
     }
+
+    /**
+     * Policy for the audio-stream error recovery loop (retry attempts, backoff, stall
+     * detection). Read by [dk.nota.flutterreadium.navigators.AudiobookNavigator] at
+     * construction time — applies to the next-opened publication and to any in-flight
+     * recovery loop, not to an already-running attempt sequence.
+     */
+    var audioRecoveryPolicy: AudioRecoveryPolicy = AudioRecoveryPolicy()
 
     private suspend fun assetToPublication(
         asset: Asset,

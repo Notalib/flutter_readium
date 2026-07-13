@@ -318,14 +318,22 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
     on<Play>((final event, final emit) async {
       if (!state.audioEnabled) {
-        await instance.audioEnable(
-          prefs: _buildAudioPreferences(state.audioControlPanelTimebase),
-          fromLocator: event.fromLocator,
-        );
-        await instance.play(event.fromLocator);
-        emit(
-          state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref),
-        );
+        try {
+          await instance.audioEnable(
+            prefs: _buildAudioPreferences(state.audioControlPanelTimebase),
+            fromLocator: event.fromLocator,
+          );
+          await instance.play(event.fromLocator);
+          emit(
+            state.toggleAudioEnabled(true, event.fromLocator?.locations?.tocHref),
+          );
+        } on Exception catch (e) {
+          // audioEnable / play can fail (e.g. no connectivity while preparing a
+          // remote audiobook — the native side times out and throws). The plugin
+          // also emits a terminal error on onErrorEvent, which drives the failure
+          // dialog, so just log here rather than letting it go uncaught.
+          ReadiumLog.e('Play failed: $e');
+        }
       } else {
         await instance.resume();
       }

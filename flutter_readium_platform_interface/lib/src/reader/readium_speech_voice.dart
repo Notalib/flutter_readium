@@ -4,7 +4,7 @@ import '../../flutter_readium_platform_interface.dart';
 
 /// Represents a TTS voice from the Readium Speech repository, with properties that can be used to match against available platform voices.
 /// See: https://github.com/readium/speech
-class ReadiumSpeechVoice with EquatableMixin implements JSONable {
+class ReadiumSpeechVoice with Equatable implements JSONable {
   factory ReadiumSpeechVoice.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
