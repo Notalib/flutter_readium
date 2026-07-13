@@ -66,8 +66,9 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   exit 1
 fi
 
-# Validate that publish works
-"$REPO_ROOT/bin/publish" --dry-run || {
+# Validate the unreleased lockstep package pair. The staged plugin resolves the
+# local platform interface because its matching version is not on pub.dev yet.
+"$REPO_ROOT/bin/publish" --dry-run --use-local-interface --release-version="$VERSION" || {
   echo "ERROR: dry-run publish failed. Fix the issues before preparing a release."
   exit 1
 }

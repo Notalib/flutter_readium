@@ -18,6 +18,8 @@
 #   bin/publish                       # publish both packages (interactive)
 #   bin/publish flutter_readium       # publish one package only
 #   bin/publish --dry-run             # validate without uploading
+#   bin/publish --dry-run --use-local-interface --release-version=0.3.0
+#                                       # validate an unreleased lockstep release
 #   bin/publish --allow-dirty         # publish even with tracked local changes
 #   bin/publish --force               # skip the confirmation prompt
 #
@@ -48,13 +50,32 @@ PACKAGES=(
 PUBLISH_ARGS=()
 TARGETS=()
 ALLOW_DIRTY=
+USE_LOCAL_INTERFACE=
+RELEASE_VERSION=
 for arg in "$@"; do
   case "$arg" in
     --allow-dirty) ALLOW_DIRTY=1 ;;
+    --use-local-interface) USE_LOCAL_INTERFACE=1 ;;
+    --release-version=*) RELEASE_VERSION="${arg#*=}" ;;
     --*) PUBLISH_ARGS+=("$arg") ;;
     *)   TARGETS+=("$arg") ;;
   esac
 done
+
+if [ -n "$USE_LOCAL_INTERFACE" ] && [[ " ${PUBLISH_ARGS[*]} " != *" --dry-run "* ]]; then
+  echo "ERROR: --use-local-interface is only supported with --dry-run."
+  exit 1
+fi
+
+if [ -n "$RELEASE_VERSION" ] && ! echo "$RELEASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: --release-version must be semver (e.g. 0.3.0), got: $RELEASE_VERSION"
+  exit 1
+fi
+
+if [ -n "$RELEASE_VERSION" ] && [ -z "$USE_LOCAL_INTERFACE" ]; then
+  echo "ERROR: --release-version requires --use-local-interface."
+  exit 1
+fi
 
 if [ ${#TARGETS[@]} -gt 0 ]; then
   PACKAGES=("${TARGETS[@]}")
@@ -113,9 +134,36 @@ stage_package_copy() {
 
   STAGED_PKG_DIR="$stage_root/$pkg"
 
+  if [ -n "$RELEASE_VERSION" ]; then
+    sed -i '' "s/^version: .*/version: $RELEASE_VERSION/" "$STAGED_PKG_DIR/pubspec.yaml"
+    sed -i '' "s/^## Unreleased\$/## Unreleased\n\n## [$RELEASE_VERSION]/" \
+      "$STAGED_PKG_DIR/CHANGELOG.md"
+
+    if [ "$pkg" = "flutter_readium" ]; then
+      sed -i '' "s/^version: .*/version: $RELEASE_VERSION/" \
+        "$stage_root/flutter_readium_platform_interface/pubspec.yaml"
+      sed -i '' "s/^## Unreleased\$/## Unreleased\n\n## [$RELEASE_VERSION]/" \
+        "$stage_root/flutter_readium_platform_interface/CHANGELOG.md"
+      sed -i '' -E \
+        "s|^([[:space:]]*flutter_readium_platform_interface:)[[:space:]]+\^?[0-9][0-9.]*.*$|\1 ^$RELEASE_VERSION|" \
+        "$STAGED_PKG_DIR/pubspec.yaml"
+    fi
+  fi
+
   # Publish against the same dependency graph consumers resolve from pub.dev,
   # not the local path override used for in-repo development.
   rm -f "$STAGED_PKG_DIR/pubspec_overrides.yaml"
+
+  # A lockstep release cannot resolve its new platform-interface version from
+  # pub.dev until that version has been published. Keep this override staged
+  # and dry-run-only so it never affects the published package metadata.
+  if [ "$pkg" = "flutter_readium" ] && [ -n "$USE_LOCAL_INTERFACE" ]; then
+    cat > "$STAGED_PKG_DIR/pubspec_overrides.yaml" <<'EOF'
+dependency_overrides:
+  flutter_readium_platform_interface:
+    path: ../flutter_readium_platform_interface
+EOF
+  fi
 }
 
 build_staged_web_bundle() {
