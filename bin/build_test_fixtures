@@ -27,11 +27,13 @@ trim() {
 }
 
 # Remote-manifest fixtures host their audio remotely, so there is nothing to
-# package or trim — just serve the manifest.json at the fixture origin.
+# package or trim — just serve the manifest.json verbatim at the fixture origin.
+# Hrefs are authored correctly at the source: absolute where the media is
+# cross-origin (e.g. flatland), relative + absolute self where same-origin.
 copy_manifest() {
   rm -rf "$WEB_DIR/$2"
   mkdir -p "$WEB_DIR/$2"
-  python3 "$RESOURCES_CHECKOUT/bin/validate_remote_manifest.py" --fix "$PUBS_DIR/$1" > "$WEB_DIR/$2/manifest.json"
+  cp "$PUBS_DIR/$1" "$WEB_DIR/$2/manifest.json"
 }
 
 trim 38533_overlay_preview.webpub               test-fixtures/overlay            4
