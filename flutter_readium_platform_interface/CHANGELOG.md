@@ -7,39 +7,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- `ReadiumErrorCode` — typed enum for error-event codes with `isFatal` /
-  `isInformational` and `category` getters, parsed onto `ReadiumError.codeEnum`
-  (raw string `code` kept). Spans opening, audio-stream, tts (including
-  `voiceNotFound`, `ttsError`), and navigator (`searchError`,
-  `noPublicationOpened`, `resourceReadError`) codes — a client-actionable,
-  guaranteed-cross-platform set; finer distinctions (e.g. an audio-stream
-  range/filesystem failure, or a resource-read miss vs. a cache write
-  failure) are carried in `details.reason` instead of a separate wire code.
-  Vocabulary documented in `docs/api-reference/error-codes.md`.
-- Typed getters on `ReadiumError`: `href`, `attempt`, `maxAttempts`,
-  `httpStatus`.
+- `ReadiumErrorCode` — typed, cross-platform error-code enum, exposed as
+  `ReadiumError.codeEnum`, with `isFatal`, `isInformational`, and `category`
+  getters. `ReadiumError` also adds typed `href`, `attempt`, `maxAttempts`,
+  and `httpStatus` getters. Vocabulary documented in
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 - `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop
-  (retry attempts, backoff, stall-watchdog timeout, per-attempt connection
-  timeout) shared by the iOS/Android/web audio navigators; apply via
-  `FlutterReadium().setAudioRecoveryPolicy(policy)`. `connectionTimeoutSeconds`
-  bounds both the (Android/web) navigator rebuild and the post-rebuild
-  playback-verification window of each recovery attempt. Defaults reproduce
-  prior recovery behaviour. Fields and semantics:
+  (retry attempts, backoff, stall timeout, and connection timeout); apply via
+  `FlutterReadium().setAudioRecoveryPolicy(policy)`. Defaults reproduce prior
+  recovery behaviour. Fields and semantics:
   [`docs/api-reference/error-codes.md#audiorecoverypolicy`](../docs/api-reference/error-codes.md#audiorecoverypolicy).
 
 ### Changed
 
 - **Breaking**: awaited platform failures now surface a single `ReadiumException`
   shape that wraps `ReadiumError`. The opening-specific Dart exception API
-  (`OpeningReadiumException`, `OpeningReadiumExceptionType`, and unused typed
-  subclasses) has been removed; handle failures via `e.code` / `e.codeEnum`.
-- **Breaking**: `ReadiumError` is now a plain value type instead of a Dart
-  `Error`, and native `stackTrace` is no longer part of the wire contract or
-  `toJson()`.
-- **Breaking**: `ReadiumError.data` (freeform string) is replaced by
-  `details` (`Map<String, dynamic>?`, unmodifiable) carrying structured fields
-  `{href, attempt, maxAttempts, httpStatus}`. Legacy string payloads are
-  wrapped as `{"message": <string>}`.
+  (`OpeningReadiumException`, `OpeningReadiumExceptionType`,
+  `PublicationNotSetReadiumException`, and `OfflineReadiumException`) has been
+  removed; catch `ReadiumException` and handle failures via `e.code` /
+  `e.codeEnum`.
+- **Breaking**: `ReadiumError` is now a value type rather than a Dart `Error`;
+  native `stackTrace` is removed. Its freeform `data` payload is replaced by
+  an unmodifiable structured `details` map.
   
 ## [0.2.1] - 2026-07-09
 

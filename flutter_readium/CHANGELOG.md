@@ -8,35 +8,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **Audio streaming error events + connection recovery (iOS, Android, Web)** —
-  failures while streaming remote audiobook resources (network loss, HTTP/auth
-  errors, an unrecognized/non-HTTP transport error, or a throttled connection
-  that stalls without erroring) are now reported on the error stream instead
-  of being silently swallowed. Transient failures, unclassified transport
-  errors, and detected playback stalls all trigger automatic retry with
-  backoff; terminal failures emit a typed code (e.g. `AudioStreamNetworkError`
-  for the unclassified case) and `TimebasedState.failure`, after which
-  `play()` retries from the last position. `connectionTimeoutSeconds` is the
-  budget for each phase of an attempt — it bounds the (Android/web) navigator
-  rebuild and, on all three platforms, the post-rebuild window in which
-  playback must be observed to resume. The code vocabulary, the Web
-  HTTP-probe caveat, and the configurable recovery policy (retry budget,
-  backoff, stall timeout, per-attempt connection timeout) are documented in
+  remote audiobook streaming failures, including network/auth errors and
+  stalled playback, are now reported on the error stream instead of being
+  silently swallowed. Transient failures retry automatically with backoff;
+  terminal failures emit a typed code and `TimebasedState.failure`, after
+  which `play()` retries from the last position. Configure the retry budget,
+  backoff, stall timeout, and per-attempt connection timeout with
+  `FlutterReadium().setAudioRecoveryPolicy(AudioRecoveryPolicy(...))`; its
+  defaults preserve the prior recovery behaviour. The code vocabulary and Web
+  HTTP-probe caveat are documented in
   [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
 ### Changed
 
-- **Breaking**: awaited opening/navigation failures now use the unified
-  `ReadiumException(ReadiumError)` surface across native and web transports.
-  `PlatformException.code` for Readium/domain failures now matches the shared
-  `ReadiumErrorCode` wire strings, and `details` carries the same structured
-  payload shape as error-stream events. Android opening failures now also map
-  HTTP status to that vocabulary (401/403/404/415/500 →
-  `incorrectCredentials`/`forbidden`/`notFound`/`formatNotSupported`/`unavailable`)
-  and include `httpStatus` in `details`, matching iOS/web.
-- **Breaking**: error events' `data` payload is now a structured JSON object
-  (`{href, attempt, maxAttempts, httpStatus}`, fields optional) instead of a
-  freeform string — surfaced in Dart as `ReadiumError.details` with typed
-  getters. Error codes are additionally exposed as the typed
+- **Breaking**: awaited plugin failures now use the unified
+  `ReadiumException(ReadiumError)` surface across native and web transports;
+  `InvalidArgument` validation failures remain `PlatformException`. The
+  opening-specific Dart exception API (`OpeningReadiumException`,
+  `OpeningReadiumExceptionType`, `PublicationNotSetReadiumException`, and
+  `OfflineReadiumException`) has been removed. Catch `ReadiumException` and
+  inspect `e.code` or `e.codeEnum` instead. `PlatformException.code` for
+  Readium/domain failures now matches the shared `ReadiumErrorCode` wire
+  strings.
+- **Breaking**: `ReadiumError.data` is replaced by the structured,
+  unmodifiable `ReadiumError.details` map with typed getters. `ReadiumError`
+  is now a value type rather than a Dart `Error`, and its native `stackTrace`
+  is no longer available. Error codes are additionally exposed as the typed
   `ReadiumError.codeEnum` (`ReadiumErrorCode`); see
   [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
 
