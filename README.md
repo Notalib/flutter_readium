@@ -34,9 +34,9 @@ The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`
 | Audiobook |      —       |  —  |   ✓   |           -            |
 | PDF       |      ✓       |  —  |   —   |           -            |
 | CBZ       |      ✓       |  —  |   —   |           -            |
-| DiViNa    |      ✓       |  —  |  ✓²   | ✓² (Guided Navigation) |
+| DiViNa    |      ✓       |  —  |  ✓¹   | ✓¹ (Guided Navigation) |
 
-² DiViNa audio narration is driven by a Guided Navigation document and synchronises at the page
+¹ DiViNa audio narration is driven by a Guided Navigation document and synchronises at the page
 level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
 plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
 any platform.
