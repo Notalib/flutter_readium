@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.3.0] - 2026-07-13
+
 ### Added
 
 - `ReadiumErrorCode` — typed, cross-platform error-code enum, exposed as
