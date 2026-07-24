@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- iOS build failure on newer Flutter/Xcode toolchains (e.g. Flutter 3.44):
+  `Cannot find type 'TimeInterval'` / `Cannot find 'JSONEncoder'` in
+  `EPUBReaderView+Navigation.swift`, `EPUBReaderView+Preferences.swift`, and
+  `EPUBReaderView+Decorations.swift`, caused by a missing `import Foundation`.
+
 ## [0.3.0] - 2026-07-13
 
 ### Added
