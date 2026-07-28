@@ -85,7 +85,7 @@ function defineServeConfig() {
     plugins: [
       ...sharedPlugins(true),
       postcss({ extract: false, ...postcssSassOptions }),
-      serve({ contentBase: [outDir, 'public', 'node_modules/readium-css/css/dist'], port: 4200, open: true }),
+      serve({ contentBase: [outDir, 'public', 'node_modules/@readium/css/css/dist'], port: 4200, open: true }),
       livereload(outDir),
       ...statsPlugins(),
     ],
