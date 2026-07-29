@@ -86,6 +86,8 @@ echo "==> ChromeDriver running on port 4444 (PID $CHROMEDRIVER_PID)"
 # flutter drive prints pass/fail results without it.
 echo "==> Running web integration tests..."
 cd "$EXAMPLE_DIR"
+# Single aggregator entrypoint = one build. To iterate on one suite, point
+# --target at its groups/*_test.dart file instead.
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/plugin_integration_test.dart \

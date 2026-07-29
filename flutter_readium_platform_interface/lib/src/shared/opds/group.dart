@@ -12,7 +12,7 @@ import '../opds.dart';
 import '../publication/link.dart';
 
 @immutable
-class Group with EquatableMixin implements JSONable {
+class Group with Equatable implements JSONable {
   const Group({
     required this.metadata,
     required this.links,

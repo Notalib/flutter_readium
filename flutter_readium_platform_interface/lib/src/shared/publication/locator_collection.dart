@@ -10,7 +10,7 @@ import 'locator.dart';
 ///
 /// For example, a search result or a list of positions.
 @immutable
-class LocatorCollection with EquatableMixin implements JSONable {
+class LocatorCollection with Equatable implements JSONable {
   const LocatorCollection({
     this.metadata = const LocatorCollectionMetadata(),
     this.links = const [],
@@ -83,7 +83,7 @@ class LocatorCollection with EquatableMixin implements JSONable {
 
 /// Holds the metadata of a [LocatorCollection].
 @immutable
-class LocatorCollectionMetadata extends AdditionalProperties with EquatableMixin implements JSONable {
+class LocatorCollectionMetadata extends AdditionalProperties with Equatable implements JSONable {
   const LocatorCollectionMetadata({
     this.localizedTitle,
     this.numberOfItems,

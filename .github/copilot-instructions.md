@@ -41,7 +41,6 @@ Run all scripts from the repo root unless noted.
 | `bin/format` | Check Dart formatting across all three packages. Fails on any reformatting needed. |
 | `bin/analyze` | `dart analyze --fatal-infos --fatal-warnings` across all packages. |
 | `bin/update_web_example` | Build TS → JS and copy into `example/web/`. Run after editing TypeScript. |
-| `bin/prepare-release <version>` | Bump versions, move Unreleased changelog entries, leave fresh Unreleased header. |
 
 **Run before any PR:** `bin/format && bin/analyze`
 
@@ -59,8 +58,10 @@ cd flutter_readium && flutter test test/some_test.dart
 
 # Integration tests (requires booted simulator/emulator)
 cd flutter_readium/example
-flutter test integration_test --device-id=<udid>   # iOS
-flutter test integration_test                      # Android
+# Run the aggregator entrypoint, not the folder glob (each groups/*_test.dart is
+# its own slow build target). Run one suite directly for fast iteration.
+flutter test integration_test/plugin_integration_test.dart --device-id=<udid>   # iOS
+flutter test integration_test/plugin_integration_test.dart                      # Android
 ```
 
 ## Key Conventions

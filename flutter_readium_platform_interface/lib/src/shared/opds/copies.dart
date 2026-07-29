@@ -11,7 +11,7 @@ import '../../utils/jsonable.dart';
 ///
 /// https://drafts.opds.io/schema/properties.schema.json
 @immutable
-class Copies with EquatableMixin implements JSONable {
+class Copies with Equatable implements JSONable {
   const Copies({this.total, this.available});
   final int? total;
   final int? available;

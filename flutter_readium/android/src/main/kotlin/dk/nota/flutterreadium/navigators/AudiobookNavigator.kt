@@ -6,24 +6,34 @@ import dk.nota.flutterreadium.FlutterAudioPreferences
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.PluginMediaServiceFacade
 import dk.nota.flutterreadium.PublicationError
+import dk.nota.flutterreadium.PublicationErrorException
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
 import dk.nota.flutterreadium.copyWithTocHref
+import dk.nota.flutterreadium.events.ReadiumError
+import dk.nota.flutterreadium.events.ReadiumErrorDetails
 import dk.nota.flutterreadium.flattenChildren
 import dk.nota.flutterreadium.throttleLatest
 import dk.nota.flutterreadium.time
 import dk.nota.flutterreadium.timeWithDuration
 import dk.nota.flutterreadium.withMainContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.adapter.exoplayer.audio.ExoPlayerEngineProvider
 import org.readium.adapter.exoplayer.audio.ExoPlayerNavigatorFactory
@@ -38,12 +48,25 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.util.DebugError
+import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.getOrElse
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "AudioNavigator"
+
+/** Max time [goToLocator] waits for ExoPlayer to reflect a seek before giving up. */
+private val SEEK_SETTLE_TIMEOUT = 5.seconds
+
+/**
+ * Offset tolerance when matching playback position against the seek target. ExoPlayer
+ * rarely lands exactly on the requested offset, so treat "close enough" as arrived.
+ */
+private val SEEK_MATCH_TOLERANCE = 1500.milliseconds
 
 const val CURRENT_TIMEBASE_LOCATOR_KEY = "currentTimebaseLocator"
 
@@ -70,6 +93,105 @@ open class AudiobookNavigator(
      */
     protected var mediaServiceFacade: PluginMediaServiceFacade? = null
 
+    /**
+     * Recovery loop for retryable audio streaming failures. Non-null while a recovery
+     * attempt sequence is in flight.
+     */
+    private var recoveryJob: Job? = null
+
+    /**
+     * Snapshotted at construction time from [ReadiumReader.audioRecoveryPolicy] — per the
+     * plugin's "no mid-stream reconfiguration" contract, a policy change via
+     * `setAudioRecoveryPolicy` only takes effect for the next-opened publication.
+     */
+    private val recoveryPolicy = ReadiumReader.audioRecoveryPolicy
+
+    /**
+     * Stall watchdog: fires when playback intent is on but the offset hasn't advanced
+     * within [AudioRecoveryPolicy.stallTimeoutSeconds]. Non-null whenever a navigator is
+     * active; cancelled/restarted on rebuild.
+     */
+    private var stallWatchdogJob: Job? = null
+
+    /**
+     * Explicit terminal-failure latch. Must not be inferred from the last emitted
+     * TimebasedState: state churn during a rebuild can otherwise cause a stale
+     * "not failed" read right after a terminal failure was emitted.
+     */
+    private var isTerminallyFailed: Boolean = false
+
+    /**
+     * Set once in [dispose]. Recovery/rebuild are cooperatively cancellable, so a rebuild
+     * already past its last suspension point could otherwise install a fresh player after
+     * the publication was closed. This latch makes dispose authoritative: no recovery
+     * starts and no rebuilt navigator is retained once it is set.
+     */
+    private var disposed: Boolean = false
+
+    /**
+     * While a recovery attempt is in flight, the rebuilt navigator's own Buffering/Ready
+     * state churn is suppressed - only the pinned Loading state (already emitted when the
+     * attempt started) is visible to clients.
+     */
+    private var isRecovering: Boolean = false
+
+    /**
+     * Monotonically increasing counter identifying the latest [createNavigatorBounded]
+     * call; bumped again when a create is abandoned on timeout. See [isAbandoned].
+     */
+    private var rebuildEpoch = 0
+
+    /**
+     * Cover art bytes, shared across every [DatabaseMediaMetadataFactory] this navigator
+     * constructs. A rebuild creates a fresh factory each time, so without a shared cache a
+     * retry after a network failure would re-fetch the cover over the same broken network.
+     */
+    private val coverImageCache = AtomicReference<ByteArray?>()
+
+    private fun buildNavigatorFactory(): ExoPlayerNavigatorFactory? =
+        ExoPlayerNavigatorFactory(
+            publication,
+            ExoPlayerEngineProvider(ReadiumReader.application, metadataProvider = { pub ->
+                DatabaseMediaMetadataFactory(
+                    publication = publication,
+                    trackCount = pub.readingOrder.size,
+                    controlPanelInfoType =
+                        preferences.controlPanelInfoType
+                            ?: ControlPanelInfoType.STANDARD,
+                    coverCache = coverImageCache,
+                )
+            }),
+        )
+
+    /**
+     * Runs [create] on the main context in a detached coroutine and waits at most
+     * [AudioRecoveryPolicy.connectionTimeoutSeconds] for it, returning null on timeout.
+     *
+     * The detachment is deliberate: under a dead network, upstream `createNavigator` can sit
+     * in a blocking socket read that cooperative cancellation cannot interrupt, so a plain
+     * `withTimeoutOrNull { withMainContext { ... } }` would wait forever for the block to
+     * finish cancelling. Here the wait is simply abandoned - never joined - and the epoch is
+     * bumped so the stuck create discards itself instead of resolving later (once
+     * connectivity returns) as a zombie: [create] must check [isAbandoned] with the epoch it
+     * receives after any suspension and before installing or returning a navigator.
+     */
+    private suspend fun createNavigatorBounded(
+        create: suspend (epoch: Int) -> AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>?,
+    ): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+        val epoch = ++rebuildEpoch
+        val timeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
+        val deferred = async { withMainContext { create(epoch) } }
+
+        return withTimeoutOrNull(timeoutMs) { deferred.await() } ?: run {
+            rebuildEpoch++ // the abandoned create must fail its own isAbandoned check
+            deferred.cancel() // cooperative only; may be ignored while blocked on I/O
+            null
+        }
+    }
+
+    /** True when [dispose] ran or [epoch]'s create was superseded/abandoned - discard its result. */
+    private fun isAbandoned(epoch: Int): Boolean = disposed || epoch != rebuildEpoch
+
     override suspend fun initNavigator() {
         if (!publication.conformsTo(Publication.Profile.AUDIOBOOK)) {
             PluginLog.e(
@@ -93,19 +215,7 @@ open class AudiobookNavigator(
         }
 
         // Create AudioNavigatorFactory
-        val navigatorFactory =
-            ExoPlayerNavigatorFactory(
-                publication,
-                ExoPlayerEngineProvider(ReadiumReader.application, metadataProvider = { pub ->
-                    DatabaseMediaMetadataFactory(
-                        publication = publication,
-                        trackCount = pub.readingOrder.size,
-                        controlPanelInfoType =
-                            preferences.controlPanelInfoType
-                                ?: ControlPanelInfoType.STANDARD,
-                    )
-                }),
-            )
+        val navigatorFactory = buildNavigatorFactory()
 
         if (navigatorFactory == null) {
             // TODO: Better Error handling, if the book isn't an audiobook the factory is null.
@@ -113,18 +223,107 @@ open class AudiobookNavigator(
             throw Exception("Couldn't create AudioNavigatorFactory")
         }
 
-        withMainContext {
-            audioNavigator =
-                navigatorFactory
-                    .createNavigator(
-                        this@AudiobookNavigator.initialLocator,
-                        preferences.toExoPlayerPreferences(),
-                    ).getOrElse { error ->
-                        PluginLog.e(TAG, "::initNavigator - $error")
-                        throw Exception(PublicationError.invoke(error).message)
-                    }
+        // Bound the initial create the same way the recovery rebuild is bounded: with no
+        // navigator yet the stall watchdog can't help, so opening a remote audiobook with no
+        // connectivity would otherwise suspend here forever (silent, no error). On timeout,
+        // surface a terminal error event and throw - consistent with the create-error path.
+        val newNavigator =
+            createNavigatorBounded { epoch ->
+                val nav =
+                    navigatorFactory
+                        .createNavigator(
+                            this@AudiobookNavigator.initialLocator,
+                            preferences.toExoPlayerPreferences(),
+                        ).getOrElse { error ->
+                            PluginLog.e(TAG, "::initNavigator - $error")
+                            throw PublicationErrorException(PublicationError.invoke(error))
+                        }
+                if (isAbandoned(epoch)) {
+                    nav.close() // close instead of leaking a live player nobody will install
+                    throw CancellationException("::initNavigator - create abandoned")
+                }
+                nav
+            } ?: run {
+                val href = this@AudiobookNavigator.initialLocator?.href?.toString()
+                PluginLog.e(
+                    TAG,
+                    "::initNavigator - createNavigator timed out after ${recoveryPolicy.connectionTimeoutSeconds}s",
+                )
+                ReadiumReader.emitError(
+                    ReadiumError(
+                        message = "Timed out preparing audio playback",
+                        code = "AudioStreamNetworkError",
+                        data = ReadiumErrorDetails(href = href),
+                    ),
+                )
+                throw Exception("Timed out preparing audio playback")
+            }
 
+        withMainContext {
+            if (disposed) {
+                newNavigator.close()
+                throw Exception("Publication disposed while preparing audio playback")
+            }
+
+            audioNavigator = newNavigator
             setupNavigatorListeners()
+        }
+    }
+
+    /**
+     * Tears down and rebuilds the underlying [AudioNavigator] at [locator]. Required for
+     * recovery: upstream never replaces a failed player item for the same resource index
+     * (`AudioEngine`/`AudioNavigator` expose no re-prepare API, only `close()`), so the only
+     * way to retry playback is a fresh navigator instance, per `AudioNavigatorFactory`.
+     *
+     * Returns the new navigator, or null if the factory / rebuild step failed.
+     */
+    private suspend fun rebuildNavigator(locator: Locator?): AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>? {
+        if (disposed) return null
+        val navigatorFactory =
+            buildNavigatorFactory() ?: run {
+                PluginLog.e(TAG, "::rebuildNavigator - Couldn't create AudioNavigatorFactory")
+                return null
+            }
+
+        // Bound the rebuild so a create stuck on a dead network can never block the recovery
+        // loop from proceeding to the next attempt. A null result (timeout or create failure)
+        // is treated as a failed attempt by the caller.
+        return createNavigatorBounded { epoch ->
+            audioNavigator?.close()
+            mediaServiceFacade?.closeSession()
+
+            val newNavigator =
+                navigatorFactory
+                    .createNavigator(locator, preferences.toExoPlayerPreferences())
+                    .getOrElse { error ->
+                        PluginLog.e(TAG, "::rebuildNavigator - $error")
+                        null
+                    } ?: return@createNavigatorBounded null
+
+            if (isAbandoned(epoch)) {
+                newNavigator.close() // close instead of installing a zombie navigator
+                return@createNavigatorBounded null
+            }
+
+            audioNavigator = newNavigator
+            setupNavigatorListeners()
+
+            try {
+                val mediaSession =
+                    mediaServiceFacade ?: PluginMediaServiceFacade(ReadiumReader.application).also { mediaServiceFacade = it }
+                mediaSession.openSession(newNavigator) { isPlaying -> onIsPlayingFromPlayer(isPlaying) }
+            } catch (e: Exception) {
+                PluginLog.e(TAG, "::rebuildNavigator - failed to reopen MediaSession: ${e.message}")
+            }
+
+            newNavigator
+        } ?: run {
+            PluginLog.e(
+                TAG,
+                "::rebuildNavigator - no navigator within ${recoveryPolicy.connectionTimeoutSeconds}s (timeout or create failure); attempt failed",
+            )
+            null
         }
     }
 
@@ -159,6 +358,24 @@ open class AudiobookNavigator(
     }
 
     override suspend fun play(fromLocator: Locator?) {
+        // A client-initiated retry after terminal failure: the failed player is never
+        // reusable (no re-prepare API), so rebuild fresh at the requested/last locator.
+        if (isTerminallyFailed) {
+            PluginLog.d(TAG, "::play - retrying after terminal failure")
+            isTerminallyFailed = false
+            recoveryJob?.cancel()
+            recoveryJob = null
+
+            val resumeLocator = fromLocator ?: state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator
+            val navigator =
+                rebuildNavigator(resumeLocator) ?: run {
+                    PluginLog.e(TAG, "::play - rebuild failed, cannot retry")
+                    return
+                }
+            withMainContext { navigator.play() }
+            return
+        }
+
         withMainContext {
             if (fromLocator != null) {
                 goToLocator(fromLocator)
@@ -211,30 +428,54 @@ open class AudiobookNavigator(
     override suspend fun goToLocator(locator: Locator) {
         val navigator = ensureNavigator()
 
-        withMainContext {
-            val itemIndex =
-                navigator.readingOrder.items
-                    .indexOfFirst { it.href == locator.href }
-                    .takeIf { it > -1 }
+        val targetSeek =
+            withMainContext {
+                val itemIndex =
+                    navigator.readingOrder.items
+                        .indexOfFirst { it.href == locator.href }
+                        .takeIf { it > -1 }
 
-            if (itemIndex == null) {
-                PluginLog.e(
-                    TAG,
-                    "::goToLocator - ${locator.href} not found in navigator's readingOrder",
-                )
-                return@withMainContext
-            }
+                if (itemIndex == null) {
+                    PluginLog.e(
+                        TAG,
+                        "::goToLocator - ${locator.href} not found in navigator's readingOrder",
+                    )
+                    return@withMainContext null
+                }
 
-            val item = navigator.readingOrder.items[itemIndex]
-            val timeOffset = locator.locations.timeWithDuration(item.duration)
-            if (timeOffset == null) {
-                PluginLog.w(
-                    TAG,
-                    "::goToLocator - couldn't find timeOffset from starting file over.",
-                )
-            }
-            navigator.skipTo(itemIndex, timeOffset ?: Duration.ZERO)
-            return@withMainContext
+                val item = navigator.readingOrder.items[itemIndex]
+                val timeOffset = locator.locations.timeWithDuration(item.duration)
+                if (timeOffset == null) {
+                    PluginLog.w(
+                        TAG,
+                        "::goToLocator - couldn't find timeOffset from starting file over.",
+                    )
+                }
+
+                val resolvedOffset = timeOffset ?: Duration.ZERO
+                navigator.skipTo(itemIndex, resolvedOffset)
+                itemIndex to resolvedOffset
+            } ?: return
+
+        val (targetItemIndex, targetOffset) = targetSeek
+
+        // skipTo() is fire-and-forget: ExoPlayer applies the seek asynchronously, so
+        // navigator.playback still reports the old index/offset for a short window. Block
+        // until it reflects the target before returning, so an awaited goToLocator followed
+        // by play(null) resumes from the seeked position rather than the stale one.
+        val didReachTarget =
+            withTimeoutOrNull(SEEK_SETTLE_TIMEOUT) {
+                navigator.playback.first { playback ->
+                    playback.index == targetItemIndex &&
+                        abs((playback.offset - targetOffset).inWholeMilliseconds) <= SEEK_MATCH_TOLERANCE.inWholeMilliseconds
+                }
+            } != null
+
+        if (!didReachTarget) {
+            PluginLog.w(
+                TAG,
+                "::goToLocator - timed out waiting for playback index=$targetItemIndex @ $targetOffset after skipTo(${locator.href})",
+            )
         }
     }
 
@@ -375,6 +616,8 @@ open class AudiobookNavigator(
                 return
             }
 
+        startStallWatchdog(navigator)
+
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
@@ -442,6 +685,10 @@ open class AudiobookNavigator(
     override fun onPlaybackStateChanged(pb: AudioNavigator.Playback) {
         when (pb.state) {
             is AudioNavigator.State.Failure<*> -> {
+                // Latched terminal failure: once emitted, further failures are noise
+                // from the (already torn down) navigator - ignore until play() retries.
+                if (isTerminallyFailed) return
+
                 val audioState = pb.state as AudioNavigator.State.Failure<*>
                 val error = audioState.error
 
@@ -450,16 +697,226 @@ open class AudiobookNavigator(
                     "::onPlaybackStateChanged - audio error: Message=${error.message} cause=${error.cause}",
                 )
 
-                timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
-                timebaseListener.onTimebasedPlaybackFailure(
-                    PublicationError.invoke(error),
-                )
+                when (val action = error.audioStreamAction()) {
+                    AudioStreamErrorAction.Retry -> {
+                        startRecovery(error, terminalCode = "AudioStreamNetworkError")
+                    }
+
+                    is AudioStreamErrorAction.Fail -> {
+                        val href = (state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator)?.href?.toString()
+                        enterTerminalFailure(error, code = action.code, href = href, httpStatus = error.audioStreamHttpStatus())
+                    }
+                }
             }
 
             else -> {
+                // Suppress the rebuilt navigator's own Buffering/Ready churn while a
+                // recovery attempt is in flight, and any churn from a zombie navigator
+                // after a terminal failure - only the pinned Loading state (already
+                // emitted by startRecovery) should reach clients.
+                if (isRecovering || isTerminallyFailed) return
                 super.onPlaybackStateChanged(pb)
             }
         }
+    }
+
+    /**
+     * Bounded exponential-backoff recovery loop for a retryable audio streaming failure.
+     * Mirrors iOS's `FlutterAudioNavigator._recoveryTask`: per attempt, emits an
+     * informational `AudioStreamRetry` error event and pins the timebased state to Loading,
+     * then rebuilds the navigator at the last known locator and verifies playback time
+     * actually advances (state alone is not a reliable recovery signal). Exhausting all
+     * attempts enters the terminal failure state.
+     *
+     * @param terminalCode Code to use if recovery exhausts its attempts, carried through
+     * from how [error] was originally classified (e.g. `AudioStreamNetworkError` for a
+     * classified network error, or a stall-specific code) - not a generic
+     * `AudioStreamError` fallback.
+     */
+    private fun startRecovery(
+        error: Error,
+        terminalCode: String,
+    ) {
+        if (disposed) return // publication closed - do not start recovering
+        if (recoveryJob != null) return // recovery already in progress
+
+        val resumeLocator = state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator
+        val href = resumeLocator?.href?.toString() ?: "unknown"
+
+        recoveryJob =
+            launch {
+                isRecovering = true
+                try {
+                    for (attempt in 1..recoveryPolicy.maxAttempts) {
+                        ReadiumReader.emitError(
+                            ReadiumError(
+                                message = error.message,
+                                code = "AudioStreamRetry",
+                                data =
+                                    ReadiumErrorDetails(
+                                        href = href,
+                                        attempt = attempt,
+                                        maxAttempts = recoveryPolicy.maxAttempts,
+                                    ),
+                            ),
+                        )
+                        timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Loading)
+
+                        delay(recoveryPolicy.delayMillis(forAttempt = attempt))
+                        if (!isActive) return@launch
+
+                        val navigator = rebuildNavigator(resumeLocator)
+                        if (navigator != null) {
+                            withMainContext { navigator.play() }
+
+                            val verifyTimeoutMs = (recoveryPolicy.connectionTimeoutSeconds * 1000).toLong()
+                            if (playbackAdvanced(navigator, withinMillis = verifyTimeoutMs)) {
+                                return@launch // recovered - regular state emissions resume
+                            }
+                        }
+                    }
+
+                    enterTerminalFailure(error, code = terminalCode, href = href)
+                } finally {
+                    isRecovering = false
+                    recoveryJob = null
+                }
+            }
+    }
+
+    /**
+     * True once [offsetAdvanced] within [withinMillis]. Being in a Ready/playing state
+     * alone is not a reliable recovery signal.
+     */
+    private suspend fun playbackAdvanced(
+        navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
+        withinMillis: Long,
+    ): Boolean {
+        val startOffset = navigator.playback.value.offset
+        val deadline = System.currentTimeMillis() + withinMillis
+
+        while (System.currentTimeMillis() < deadline && isActive) {
+            if (offsetAdvanced(navigator, startOffset)) return true
+            if (navigator.playback.value.state is AudioNavigator.State.Failure<*>) {
+                return false
+            }
+            delay(500)
+        }
+        return false
+    }
+
+    /**
+     * True when [navigator] is `Ready`, playback is intended (`playWhenReady`), and its
+     * offset has moved past `sinceOffset` by more than 100ms. Shared by [playbackAdvanced]
+     * (post-rebuild recovery verification) and [startStallWatchdog] (stall detection) so
+     * both agree on what "playback is actually progressing" means.
+     */
+    private fun offsetAdvanced(
+        navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
+        sinceOffset: Duration,
+    ): Boolean {
+        val playback = navigator.playback.value
+        return playback.state is AudioNavigator.State.Ready &&
+            playback.playWhenReady &&
+            playback.offset > sinceOffset + 100.milliseconds
+    }
+
+    /**
+     * Stall watchdog: today's recovery is error-driven only, so a *throttled* (not
+     * dropped) connection that keeps bytes trickling in never errors and playback sits in
+     * Buffering/Loading forever. This polls the offset once a second and, if playback
+     * intent is on (`playWhenReady`) but the offset hasn't advanced within
+     * [AudioRecoveryPolicy.stallTimeoutSeconds], synthesizes a retryable error into the
+     * same [startRecovery] path a real playback error would take.
+     *
+     * Skips while already recovering/terminally failed, or while playback isn't intended
+     * (paused/ended) - those aren't stalls. Cancelled and restarted whenever the navigator
+     * is rebuilt (called from [setupNavigatorListeners]).
+     */
+    private fun startStallWatchdog(navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>) {
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob =
+            launch {
+                var lastAdvanceOffset = navigator.playback.value.offset
+                var deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+
+                while (isActive && !disposed) {
+                    delay(1_000)
+
+                    if (isRecovering || isTerminallyFailed) {
+                        lastAdvanceOffset = navigator.playback.value.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    val playback = navigator.playback.value
+                    if (!playback.playWhenReady || playback.state is AudioNavigator.State.Ended) {
+                        // Genuinely not trying to play (paused/ended) - not a stall, reset the
+                        // window. Note: Buffering with playWhenReady is NOT reset here - a network
+                        // stall sits in Buffering (never Ready), so that is exactly what the
+                        // watchdog must count toward the deadline.
+                        lastAdvanceOffset = playback.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    if (offsetAdvanced(navigator, lastAdvanceOffset)) {
+                        lastAdvanceOffset = playback.offset
+                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        continue
+                    }
+
+                    if (System.currentTimeMillis() >= deadline) {
+                        PluginLog.w(
+                            TAG,
+                            "::startStallWatchdog - offset hasn't advanced in ${recoveryPolicy.stallTimeoutSeconds}s, synthesizing retryable error",
+                        )
+                        startRecovery(
+                            DebugError("Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s"),
+                            terminalCode = "AudioStreamNetworkError",
+                        )
+                        return@launch // startRecovery owns the retry loop; a fresh watchdog starts on rebuild
+                    }
+                }
+            }
+    }
+
+    /**
+     * Terminal failure: stop playback, emit the terminal error event + Failure state once,
+     * then latch. `isTerminallyFailed` is an explicit flag (not inferred from the last
+     * emitted state) so that state churn from a torn-down navigator can't un-latch it.
+     */
+    private fun enterTerminalFailure(
+        error: Error,
+        code: String,
+        href: String? = null,
+        httpStatus: Int? = null,
+    ) {
+        if (isTerminallyFailed) return
+        isTerminallyFailed = true
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob = null
+
+        PluginLog.e(TAG, "::enterTerminalFailure - [$code] ${error.message}")
+
+        launch { withMainContext { audioNavigator?.close() } }
+
+        ReadiumReader.emitError(
+            ReadiumError(
+                message = error.message,
+                code = code,
+                data = ReadiumErrorDetails(href = href, httpStatus = httpStatus),
+            ),
+        )
+        timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Failure)
+
+        // Stop an in-flight recovery loop last: if this call came from startRecovery's own
+        // attempt-exhaustion path, the error + state above are already emitted, so
+        // self-cancelling here is harmless (its finally block still runs). If a fresh
+        // Failure arrived while a recovery attempt was mid-flight, this stops it rebuilding
+        // a zombie navigator after the terminal state was entered.
+        recoveryJob?.cancel()
+        recoveryJob = null
     }
 
     override fun storeState(): Bundle =
@@ -476,6 +933,12 @@ open class AudiobookNavigator(
         }
 
     override fun dispose() {
+        disposed = true
+        recoveryJob?.cancel()
+        recoveryJob = null
+        stallWatchdogJob?.cancel()
+        stallWatchdogJob = null
+
         super.dispose()
 
         launch {

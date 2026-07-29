@@ -13,7 +13,7 @@ npm install
 ### Start developing and serve your app
 
 ```bash
-npm start
+npm run serve
 ```
 
 ### Build your application
@@ -22,39 +22,19 @@ npm start
 npm run build
 ```
 
-### Build Flutter helper scripts
+### Build in development mode
 
 ```bash
-npm run build:flutter
+npm run build:dev
 ```
 
 ### Build with dependency size reports
 
 ```bash
-npm run build:flutter:stats
+npm run build:stats
 ```
 
 This generates bundle analysis reports in `../helpers/`:
 
 - `stats.html` (interactive treemap)
 - `stats.json` (raw data)
-
-### Run unit tests
-
-```bash
-npm run test
-```
-
-### Run coverage
-
-```bash
-npm run coverage
-```
-
-### Docker
-
-Or simply run the example using docker:
-
-```bash
-docker-compose up
-```

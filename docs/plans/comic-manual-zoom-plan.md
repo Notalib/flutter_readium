@@ -1,5 +1,8 @@
 # Comic manual zoom/pan — implementation plan (A′ primary, A fallback)
 
+> **✅ Implemented.** Native comic manual zoom/pan and Re-sync behavior landed after this plan was
+> written. This file is retained as the original design record.
+
 ## Goal
 
 Let the user pinch-zoom (and pan) a Nota MO-comic panel while narration is playing.
@@ -21,7 +24,7 @@ single-finger horizontal page-swipe.
   pinch-zoom (Readium injects a non-scalable viewport for these reflowable EPUBs, and
   it can't be animated per cue anyway).
 
-## Current state (post-revert, starting point)
+## State at planning time (post-revert, starting point)
 
 - `NotaComicBook.#initGestureDetection()` is **detection-only**: a 2-finger
   `touchmove` fires `window.updateNarrationSync?.(false)` once per gesture.

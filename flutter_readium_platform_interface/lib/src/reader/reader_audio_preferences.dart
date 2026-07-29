@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 import '../../flutter_readium_platform_interface.dart';
 
 @immutable
-class AudioPreferences with EquatableMixin implements JSONable {
+class AudioPreferences with Equatable implements JSONable {
   factory AudioPreferences.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 

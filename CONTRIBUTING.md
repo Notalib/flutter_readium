@@ -65,6 +65,17 @@ This is a **federated Flutter plugin** with two pub packages:
 - `flutter_readium/` — app-facing package; bundles native wrappers (iOS, macOS, Android) and the web implementation
 - `flutter_readium/example/` — smoke-test app; use this to verify UI changes
 
+### Plans docs
+
+Implementation plans live under `docs/plans/` and are split by status:
+
+- `docs/plans/` — implemented or historical reference plans retained for context
+- `docs/plans/todo/` — still-actionable local plugin plans
+- `docs/plans/upstream/` — plans whose real fix belongs in an upstream toolkit
+
+When moving a plan from `todo/` to implemented reference status, keep the file if its reasoning is
+still useful and add a short implemented note near the top instead of deleting the context.
+
 ---
 
 ## Running the example app
@@ -83,7 +94,7 @@ For web, make sure you run `bin/update_web_example` after any TypeScript change.
 
 For dependency size analysis:
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:flutter:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
 - web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
 
 ---

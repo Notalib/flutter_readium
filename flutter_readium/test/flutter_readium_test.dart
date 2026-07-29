@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -20,6 +22,17 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
   final _errorController = StreamController<ReadiumError>.broadcast();
   final _narrationSyncController = StreamController<bool>.broadcast();
+
+  String? methodToThrow;
+  Object? errorToThrow;
+
+  // Helper to simulate throwing an error for a specific method.
+  Future<T> _maybeThrow<T>(String method, T value) async {
+    if (methodToThrow == method && errorToThrow != null) {
+      throw errorToThrow!;
+    }
+    return value;
+  }
 
   @override
   Stream<Locator> get onTextLocatorChanged => _textLocatorController.stream;
@@ -53,10 +66,10 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   );
 
   @override
-  Future<Publication> loadPublication(String pubUrl) async => _pub('Loaded');
+  Future<Publication> loadPublication(String pubUrl) async => _maybeThrow('loadPublication', _pub('Loaded'));
 
   @override
-  Future<Publication> openPublication(String pubUrl) async => _pub('Opened');
+  Future<Publication> openPublication(String pubUrl) async => _maybeThrow('openPublication', _pub('Opened'));
 
   @override
   Future<void> closePublication() async {}
@@ -125,7 +138,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> audioEnable({
     AudioPreferences? prefs,
     Locator? fromLocator,
-  }) async {}
+  }) async {
+    await _maybeThrow('audioEnable', null);
+  }
 
   @override
   Future<void> audioSetPreferences(AudioPreferences prefs) async {}
@@ -139,8 +154,15 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   Future<void> setLogLevel(LogLevel level) async {}
 
+  AudioRecoveryPolicy? lastAudioRecoveryPolicy;
+
   @override
-  Future<String> getResourceUrl(String href) async => 'file:///tmp/$href';
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    lastAudioRecoveryPolicy = policy;
+  }
+
+  @override
+  Future<String> getResourceUrl(String href) async => _maybeThrow('getResourceUrl', 'file:///tmp/$href');
 
   @override
   Future<List<TextSearchResult>> searchInPublication(String searchKey) async => [];
@@ -180,6 +202,14 @@ void main() {
     });
   });
 
+  group('setAudioRecoveryPolicy', () {
+    test('delegates the policy to the platform', () async {
+      const policy = AudioRecoveryPolicy(maxAttempts: 5, backoffBaseSeconds: 0.5);
+      await reader.setAudioRecoveryPolicy(policy);
+      expect(platform.lastAudioRecoveryPolicy, policy);
+    });
+  });
+
   group('openPublication', () {
     test('returns a publication with the mock title', () async {
       final pub = await reader.openPublication('https://example.com/book.epub');
@@ -191,6 +221,61 @@ void main() {
     test('returns a publication without side effects', () async {
       final pub = await reader.loadPublication('https://example.com/book.epub');
       expect(pub.metadata.title, 'Loaded');
+    });
+
+    test('maps platform domain failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'loadPublication'
+        ..errorToThrow = PlatformException(
+          code: 'notFound',
+          message: 'Publication not found',
+          details: {'href': '/missing.epub', 'httpStatus': 404},
+        );
+
+      await expectLater(
+        () => reader.loadPublication('https://example.com/missing.epub'),
+        throwsA(
+          isA<ReadiumException>()
+              .having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.notFound)
+              .having((e) => e.href, 'href', '/missing.epub')
+              .having((e) => e.httpStatus, 'httpStatus', 404),
+        ),
+      );
+    });
+  });
+
+  group('audioEnable', () {
+    test('maps platform domain failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'audioEnable'
+        ..errorToThrow = PlatformException(
+          code: 'AudioStreamNetworkError',
+          message: 'Timed out preparing audio playback',
+          details: {'href': '/track.mp3'},
+        );
+
+      await expectLater(
+        () => reader.audioEnable(),
+        throwsA(
+          isA<ReadiumException>()
+              .having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.audioStreamNetworkError)
+              .having((e) => e.href, 'href', '/track.mp3'),
+        ),
+      );
+    });
+
+    test('leaves InvalidArgument platform misuse as PlatformException', () async {
+      platform
+        ..methodToThrow = 'audioEnable'
+        ..errorToThrow = PlatformException(
+          code: 'InvalidArgument',
+          message: 'bad args',
+        );
+
+      await expectLater(
+        () => reader.audioEnable(),
+        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'InvalidArgument')),
+      );
     });
   });
 
@@ -311,6 +396,38 @@ void main() {
       await expectLater(
         () => reader.toPhysicalPageIndex('999', pub),
         throwsA(isA<ReadiumException>()),
+      );
+    });
+  });
+
+  group('ReadiumResourceImageProvider', () {
+    test('converts platform resource-load failures to ReadiumException', () async {
+      platform
+        ..methodToThrow = 'getResourceUrl'
+        ..errorToThrow = PlatformException(
+          code: 'notFound',
+          message: 'Resource not found',
+          details: {'href': 'images/cover.png'},
+        );
+
+      final provider = ReadiumResourceImageProvider('images/cover.png', platform);
+      final stream = provider.resolve(ImageConfiguration.empty);
+
+      final errorCompleter = Completer<Object>();
+      late ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (image, synchronousCall) {},
+        onError: (error, stackTrace) {
+          errorCompleter.complete(error);
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+
+      final error = await errorCompleter.future;
+      expect(
+        error,
+        isA<ReadiumException>().having((e) => e.codeEnum, 'codeEnum', ReadiumErrorCode.notFound),
       );
     });
   });

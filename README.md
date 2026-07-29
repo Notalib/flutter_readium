@@ -34,7 +34,7 @@ The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`
 | Audiobook |      —       |  —  |   ✓   |           -            |
 | PDF       |      ✓       |  —  |   —   |           -            |
 | CBZ       |      ✓       |  —  |   —   |           -            |
-| DiViNa    |      ✓       |  —  |  ✓²   | ✓² (Guided Navigation) |
+| DiViNa    |      ✓       |  —  |  ✓¹   | ✓¹ (Guided Navigation) |
 
 ² DiViNa audio narration is driven by a Guided Navigation document and synchronizes at the page
 level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
@@ -52,7 +52,7 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 | PDF reading              |    ✓    |  ✓  |     —      |
 | Audiobook playback       |    ✓    |  ✓  |     ✓      |
 | Media Overlays           |    ✓    |  ✓  |     —      |
-| Text-to-Speech           |    ✓    |  ✓  | Limited¹   |
+| Text-to-Speech           |    ✓    |  ✓  |  Limited¹  |
 | Highlights / decorations |    ✓    |  ✓  |     ✓      |
 | Reader preferences       |    ✓    |  ✓  |     ✓      |
 | PDF preferences          |    ✓    |  ✓  |     —      |
@@ -109,8 +109,8 @@ Then complete the per-platform setup below. See [docs/getting-started/installati
 The Android plugin exposes the following Gradle properties. Set them in your
 app's `android/gradle.properties` to override the defaults at build time:
 
-| Property                                      | Default | Description                                                                                                                                                                                           |
-| --------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Property | Default | Description |
+| -------- | ------- | ----------- |
 | `flutterReadium.mediaOverlayFetchConcurrency` | `8`     | Max number of media-overlay JSON files the Sync Audiobook navigator fetches in parallel. Higher values speed up opening publications with many overlays at the cost of more concurrent HTTP requests. |
 
 Example `android/gradle.properties`:
@@ -134,7 +134,6 @@ Example shape:
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
-  pod 'PromiseKit', '~> 8.1'
   # Readium pod lines: copy from flutter_readium/example/ios/Podfile
   # ...
 end
@@ -161,9 +160,29 @@ end
 
 Full documentation is in [docs/](docs/):
 
-- **Getting Started** — [Installation](docs/getting-started/installation.md) · [Quick Start](docs/getting-started/quick-start.md) · [Core Concepts](docs/getting-started/concepts.md)
-- **Guides** — [EPUB Reading](docs/guides/epub-reading.md) · [Audiobook Playback](docs/guides/audiobook-playback.md) · [Text-to-Speech](docs/guides/text-to-speech.md) · [Preferences](docs/guides/preferences.md) · [Highlights & Annotations](docs/guides/highlights-annotations.md) · [Search](docs/guides/search.md) · [Custom HTTP Headers](docs/guides/http-headers.md) · [Saving Progress](docs/guides/saving-progress.md) · [Error Handling](docs/guides/error-handling.md)
-- **API Reference** — [FlutterReadium class](docs/api-reference/flutter-readium.md) · [ReaderWidget](docs/api-reference/reader-widget.md) · [Locator](docs/api-reference/locator.md) · [Preferences](docs/api-reference/preferences.md) · [Decorations](docs/api-reference/decorations.md) · [Streams & Events](docs/api-reference/streams-events.md) · [Publication](docs/api-reference/publication.md)
+- **Getting Started**
+  - [Installation](docs/getting-started/installation.md)
+  - [Quick Start](docs/getting-started/quick-start.md)
+  - [Core Concepts](docs/getting-started/concepts.md)
+- **Guides**
+  - [EPUB Reading](docs/guides/epub-reading.md)
+  - [Audiobook Playback](docs/guides/audiobook-playback.md)
+  - [Text-to-Speech](docs/guides/text-to-speech.md)
+  - [Preferences](docs/guides/preferences.md)
+  - [Highlights & Annotations](docs/guides/highlights-annotations.md)
+  - [Search](docs/guides/search.md)
+  - [Custom HTTP Headers](docs/guides/http-headers.md)
+  - [Saving Progress](docs/guides/saving-progress.md)
+  - [Error Handling](docs/guides/error-handling.md)
+- **API Reference**
+  - [FlutterReadium class](docs/api-reference/flutter-readium.md)
+  - [ReaderWidget](docs/api-reference/reader-widget.md)
+  - [Locator](docs/api-reference/locator.md)
+  - [Preferences](docs/api-reference/preferences.md)
+  - [Decorations](docs/api-reference/decorations.md)
+  - [Streams & Events](docs/api-reference/streams-events.md)
+  - [Error Codes](docs/api-reference/error-codes.md)
+  - [Publication](docs/api-reference/publication.md)
 - **Architecture** — [Overview](docs/architecture.md)
 - **Troubleshooting** — [Troubleshooting](docs/troubleshooting.md)
 
@@ -175,9 +194,9 @@ A complete example app is available in [flutter_readium/example/](flutter_readiu
 cd flutter_readium/example && flutter run
 ```
 
-For dependency size analysis:
+### Dependency size analysis
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:flutter:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
 - web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
 
 ## Contributing

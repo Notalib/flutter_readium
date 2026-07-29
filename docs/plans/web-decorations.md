@@ -12,14 +12,14 @@
 
 The ts-toolkit EpubNavigator internally uses a `decorate` message via its frame-comms protocol (visible in `flutter_readium/web/src/helpers.ts` at `highlightSelection()`) — so the underlying machinery exists in the npm package; it just isn't wired to the Dart `applyDecorations` call.
 
-## Current state
+## State at planning time
 
 - **iOS / Android**: Fully implemented. Decorations are serialised as JSON strings per the project convention and applied via the Readium navigator's `apply(decorations:in:)` / `applyDecorations()` APIs.
 - **Web** (`flutter_readium/lib/src/flutter_readium_web.dart` line 243): `applyDecorations` logs a debug message and returns without doing anything. `reader_widget_web.dart` line 107 has the same silent no-op.
 - The `JsPublicationChannel` / `js_publication_channel.dart` has no JS interop bindings for decorations or decoration interactions; `ReadiumReader` in `ReadiumReader.ts` has no `applyDecorations` method.
 - The `onDecorationInteractionCallback` JS setter already exists in `js_publication_channel.dart` (line 37) and `readium_webview.dart` (line 88), meaning the callback plumbing to Dart is prepared — but nothing on the JS side triggers it.
 
-## Proposed approach
+## Landed approach
 
 1. **JS side** (`flutter_readium/web/src/ReadiumReader.ts`): Add a public `applyDecorations(groupId: string, decorationsJson: string): void` method that deserialises the array and calls the navigator's frame-comms `decorate` message (following the pattern already used in `helpers.ts`'s `highlightSelection()`). Add a matching method to the `ReadiumReader` JS interop extension type in `js_publication_channel.dart`.
 2. **Decoration interactions**: Wire the navigator's `decorationActivated` (or equivalent listener) to call back into Dart via `onDecorationInteractionCallback`. The `onDecorationInteractionCallback` setter and `onDecorationInteractionHandler` are already plumbed in `readium_webview.dart`.
@@ -40,7 +40,7 @@ After any TS change, run `bin/update_web_example` to rebuild and deploy.
 
 1. **Frame-comms API stability**: The `_cframes[0]?.msg.send("decorate", …)` pattern used in `helpers.ts` is an internal ts-toolkit detail, not a formally documented public API. It may change between minor versions of `@readium/navigator`. Consider filing for a stable public `applyDecorations` surface in the upstream ts-toolkit issue tracker.
 2. **Multi-resource reload**: The ts-toolkit navigator may clear decorations when it loads a new resource (chapter). If so, the Dart side needs to re-apply after each `positionChanged` event for a different `href`.
-3. **`isActive` flag**: The upstream ts-toolkit `Decoration.Style` supports an `isActive` boolean that changes the visual appearance. This is not yet in the Dart `ReaderDecorationStyle` model (also a gap in [decoration-active-flag.md](decoration-active-flag.md)).
+3. **`isActive` flag**: The upstream ts-toolkit `Decoration.Style` supports an `isActive` boolean that changes the visual appearance. The Dart/native `ReaderDecorationStyle.isActive` support landed later; if web decoration parity is revisited, confirm the web rendering keeps matching that contract.
 
 ## Verification
 

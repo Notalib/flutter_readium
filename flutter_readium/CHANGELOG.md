@@ -5,6 +5,78 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.3.1] - 2026-07-24
+
+### Fixed
+
+- iOS build failure on newer Flutter/Xcode toolchains (e.g. Flutter 3.44):
+  `Cannot find type 'TimeInterval'` / `Cannot find 'JSONEncoder'` in
+  `EPUBReaderView+Navigation.swift`, `EPUBReaderView+Preferences.swift`, and
+  `EPUBReaderView+Decorations.swift`, caused by a missing `import Foundation`.
+
+## [0.3.0] - 2026-07-13
+
+### Added
+
+- **Audio streaming error events + connection recovery (iOS, Android, Web)** —
+  remote audiobook streaming failures, including network/auth errors and
+  stalled playback, are now reported on the error stream instead of being
+  silently swallowed. Transient failures retry automatically with backoff;
+  terminal failures emit a typed code and `TimebasedState.failure`, after
+  which `play()` retries from the last position. Configure the retry budget,
+  backoff, stall timeout, and per-attempt connection timeout with
+  `FlutterReadium().setAudioRecoveryPolicy(AudioRecoveryPolicy(...))`; its
+  defaults preserve the prior recovery behaviour. The code vocabulary and Web
+  HTTP-probe caveat are documented in
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
+
+### Changed
+
+- **Breaking**: awaited plugin failures now use the unified
+  `ReadiumException(ReadiumError)` surface across native and web transports;
+  `InvalidArgument` validation failures remain `PlatformException`. The
+  opening-specific Dart exception API (`OpeningReadiumException`,
+  `OpeningReadiumExceptionType`, `PublicationNotSetReadiumException`, and
+  `OfflineReadiumException`) has been removed. Catch `ReadiumException` and
+  inspect `e.code` or `e.codeEnum` instead. `PlatformException.code` for
+  Readium/domain failures now matches the shared `ReadiumErrorCode` wire
+  strings.
+- **Breaking**: `ReadiumError.data` is replaced by the structured,
+  unmodifiable `ReadiumError.details` map with typed getters. `ReadiumError`
+  is now a value type rather than a Dart `Error`, and its native `stackTrace`
+  is no longer available. Error codes are additionally exposed as the typed
+  `ReadiumError.codeEnum` (`ReadiumErrorCode`); see
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
+
+---
+
+## [0.2.1] - 2026-07-09
+
+### Fixed
+
+- **Web: audio/TTS/decoration control calls no longer leak raw JS errors** —
+  `goBackward`/`goForward`, playback controls, decoration application, and
+  TTS/audio preference and voice setters called straight into the JS bundle
+  with no error handling; a thrown JS error surfaced as an unconverted
+  exception instead of `ReadiumException`.
+- **`FlutterReadium.imageProvider(href)` now throws `ReadiumException` on
+  failure** — a failed resource load previously surfaced as a raw
+  `PlatformException` to the image's `errorBuilder`, inconsistent with every
+  other plugin call.
+- **Android: Fixed-layout books can now navigate** —
+  Previously navigating in an FXL publication was a no-op.
+- **iOS: audiobooks now reliably emit `TimebasedState.ended` at end of book** —
+  the end-of-book heuristic compared playback progress against `1.0`, but AVPlayer's
+  reported position at end-of-track rarely lines up with duration, so `.ended` was never emitted.
+  We now derive from the navigator's own "resource finished" signal instead.
+- **Android: audiobook `goToLocator` now waits for the seek to take effect** —
+  previously it could return before the player had moved, so a following `play()`
+  resumed from the old position (e.g. jumping to a bookmark and playing could start from the wrong place).
+
+---
+
+## [0.2.0] - 2026-07-02
+
 ### Added
 
 - **EPUB image tap** — tapping an image in an EPUB now fires `onImageTapped`

@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 import '../../utils/jsonable.dart';
 
 @immutable
-class Drm with EquatableMixin implements JSONable {
+class Drm with Equatable implements JSONable {
   factory Drm.fromJson(Map<String, dynamic>? json) {
     if (json == null || json.isEmpty) {
       return lcp;

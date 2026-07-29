@@ -18,7 +18,7 @@ abstract final class FixtureKeys {
   /// workhorse for navigation / search / decoration tests. 8 small spine
   /// documents (2.5–26 KB), so pagination and cross-resource navigation are
   /// cheap — far better suited to automated tests than a single-huge-resource
-  /// book like Moby-Dick. Available on native (.epub) and web (test-fixtures/ebook).
+  /// book. Available on native (.epub) and web (test-fixtures/ebook).
   static const reflowableEpub = '712199_ebook.epub';
 
   /// Illustrated EPUB (Beatrix Potter's *The Tale of Peter Rabbit*, Project
@@ -36,22 +36,43 @@ abstract final class FixtureKeys {
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';
   static const timeMachinePdf = 'time_machine.pdf';
+  static const divinaComicCbz = 'sample_comic.cbz';
 
-  /// Fixed-layout EPUB (web-only; served as a local exploded webpub).
-  static const fixedLayout = 'fixed_layout.webpub';
+  /// DiViNa image publication (web-only; served as a local exploded manifest).
+  static const divina = '50272-nota-comics.divina';
 
-  /// Guided-navigation publication (web-only; served as a local exploded webpub).
-  static const guidedNav = 'guided_navigation.webpub';
+  /// Remote audiobook manifest (manifest-only fixture; media stays remote).
+  static const remoteAudiobook = 'flatland.json';
 
-  /// Nota comic-book media-overlay EPUB (web-only; served as a local exploded webpub).
-  static const comic = 'comic.webpub';
+  /// Remote audiobook ("Lyra's Oxford") whose media requires a Bearer token
+  /// (set via `setCustomHeaders`) to stream from merkur.nota.dk. Opened
+  /// *without* a token by the error-handling suite to exercise the
+  /// 401 -> `audioStreamAuthError` terminal path. Native-only and
+  /// network-dependent (hits a real host), so intentionally excluded from the
+  /// `web` set and the deterministic web run.
+  static const remoteAudiobookAuth = '39031_auth.json';
+
+  /// Fixed-layout EPUB. Available on native (.webpub) and web
+  /// (test-fixtures/fixed-layout).
+  static const fixedLayout = 'test-fixed-layout.webpub';
+
+  /// Guided-navigation publication. Available on native (.webpub) and web
+  /// (test-fixtures/guided-navigation).
+  static const guidedNav = '38533_guided_navigation_preview.webpub';
+
+  /// Nota comic-book media-overlay EPUB. Available on native (.webpub) and web
+  /// (test-fixtures/comic).
+  static const comic = '50272-nota-comics.webpub';
 
   /// All fixture keys that should be available on web.
   static const web = {
     reflowableEpub,
+    peterRabbitEpub,
     warmupWebpub,
     overlayWebpub,
     audiobook,
+    divina,
+    remoteAudiobook,
     fixedLayout,
     guidedNav,
     comic,

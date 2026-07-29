@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:ui' show Rect;
 
+import 'package:flutter/services.dart';
 import 'package:flutter_readium_platform_interface/flutter_readium_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -137,7 +137,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('ReadiumException', () {
     test('toString includes message', () {
-      const e = ReadiumException('something failed');
+      final e = ReadiumException(ReadiumError('something failed'));
       expect(e.toString(), contains('something failed'));
     });
 
@@ -146,39 +146,92 @@ void main() {
       expect(e, isA<ReadiumException>());
       expect(e.message, contains('boom'));
     });
-  });
 
-  group('OpeningReadiumException', () {
-    test('type is preserved', () {
-      const e = OpeningReadiumException(
-        'not found',
-        type: OpeningReadiumExceptionType.notFound,
+    test('fromPlatformException preserves structured error fields', () {
+      final e = ReadiumException.fromPlatformException(
+        PlatformException(
+          code: 'notFound',
+          message: 'Publication not found',
+          details: {'href': '/pub.epub', 'httpStatus': 404, 'message': 'native detail'},
+        ),
       );
-      expect(e.type, OpeningReadiumExceptionType.notFound);
-    });
 
-    test('toString includes type and message', () {
-      const e = OpeningReadiumException(
-        'msg',
-        type: OpeningReadiumExceptionType.forbidden,
-      );
-      expect(e.toString(), contains('forbidden'));
-      expect(e.toString(), contains('msg'));
+      expect(e.message, 'Publication not found');
+      expect(e.code, 'notFound');
+      expect(e.codeEnum, ReadiumErrorCode.notFound);
+      expect(e.href, '/pub.epub');
+      expect(e.httpStatus, 404);
     });
   });
 
   group('ReadiumError', () {
-    test('equality is based on message and code', () {
+    test('equality is based on message, code, and details', () {
       final a = ReadiumError('oops', code: '42');
       final b = ReadiumError('oops', code: '42');
       expect(a, equals(b));
+
+      final firstRetry = ReadiumError(
+        'retrying',
+        code: 'AudioStreamRetry',
+        details: {'attempt': 1, 'maxAttempts': 3},
+      );
+      final secondRetry = ReadiumError(
+        'retrying',
+        code: 'AudioStreamRetry',
+        details: {'attempt': 2, 'maxAttempts': 3},
+      );
+      expect(firstRetry, isNot(secondRetry));
     });
 
     test('round-trips through toJson / fromJson', () {
-      final error = ReadiumError('oops', code: '42', data: 'extra');
+      final error = ReadiumError(
+        'oops',
+        code: '42',
+        details: {'href': '/ch1.mp3', 'attempt': 1, 'maxAttempts': 3, 'httpStatus': 503},
+      );
       final restored = ReadiumError.fromJson(error.toJson());
       expect(restored.message, 'oops');
       expect(restored.code, '42');
+      expect(restored.href, '/ch1.mp3');
+      expect(restored.attempt, 1);
+      expect(restored.maxAttempts, 3);
+      expect(restored.httpStatus, 503);
+    });
+
+    test('details is null when omitted', () {
+      final error = ReadiumError.fromJson({'message': 'oops', 'code': '42'});
+      expect(error.details, isNull);
+      expect(error.href, isNull);
+      expect(error.attempt, isNull);
+      expect(error.maxAttempts, isNull);
+      expect(error.httpStatus, isNull);
+    });
+
+    test('tolerates a legacy freeform-string data payload by wrapping it as message', () {
+      final error = ReadiumError.fromJson({
+        'message': 'oops',
+        'code': '42',
+        'data': 'attempt=1/3 href=/ch1.mp3',
+      });
+      expect(error.details, {'message': 'attempt=1/3 href=/ch1.mp3'});
+      expect(error.href, isNull);
+    });
+
+    test('ignores legacy stackTrace payload from stale producers', () {
+      final error = ReadiumError.fromJson({
+        'message': 'oops',
+        'code': 'notFound',
+        'stackTrace': 'native stack',
+      });
+
+      expect(error.message, 'oops');
+      expect(error.code, 'notFound');
+      expect(error.toJson().containsKey('stackTrace'), isFalse);
+    });
+
+    test('toJson omits data when details is null', () {
+      final error = ReadiumError('oops', code: '42');
+      expect(error.toJson().containsKey('data'), isFalse);
     });
   });
 
@@ -517,6 +570,107 @@ void main() {
     test('toJson leaves an in-range ratio untouched', () {
       const prefs = EPUBPreferences(fontSize: 2.5);
       expect(prefs.toJson()['fontSize'], closeTo(2.5, 1e-9));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AudioRecoveryPolicy
+  // ---------------------------------------------------------------------------
+  group('AudioRecoveryPolicy', () {
+    test('defaults reproduce prior hardcoded recovery behaviour', () {
+      const policy = AudioRecoveryPolicy();
+      expect(policy.maxAttempts, 3);
+      expect(policy.backoffBaseSeconds, 1.0);
+      expect(policy.stallTimeoutSeconds, 20.0);
+      expect(policy.connectionTimeoutSeconds, 10.0);
+    });
+
+    test('toJson emits a flat map (not nested/JSON-encoded)', () {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 5,
+        backoffBaseSeconds: 2.0,
+        stallTimeoutSeconds: 15.0,
+        connectionTimeoutSeconds: 8.0,
+      );
+      expect(policy.toJson(), {
+        'maxAttempts': 5,
+        'backoffBaseSeconds': 2.0,
+        'stallTimeoutSeconds': 15.0,
+        'connectionTimeoutSeconds': 8.0,
+      });
+    });
+
+    test('fromJson round-trips toJson', () {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 4,
+        backoffBaseSeconds: 1.5,
+        stallTimeoutSeconds: 30.0,
+        connectionTimeoutSeconds: 12.0,
+      );
+      final restored = AudioRecoveryPolicy.fromJson(policy.toJson());
+      expect(restored, policy);
+    });
+
+    test('fromJson falls back to defaults for missing fields', () {
+      final policy = AudioRecoveryPolicy.fromJson({});
+      expect(policy, const AudioRecoveryPolicy());
+    });
+
+    test('copyWith overrides only the given fields', () {
+      const policy = AudioRecoveryPolicy();
+      final updated = policy.copyWith(stallTimeoutSeconds: 10.0);
+      expect(updated.maxAttempts, 3);
+      expect(updated.backoffBaseSeconds, 1.0);
+      expect(updated.stallTimeoutSeconds, 10.0);
+    });
+
+    test('equality is value-based', () {
+      expect(const AudioRecoveryPolicy(), const AudioRecoveryPolicy());
+      expect(
+        const AudioRecoveryPolicy(maxAttempts: 5),
+        isNot(const AudioRecoveryPolicy()),
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Properties serialisation
+  // ---------------------------------------------------------------------------
+  group('Properties', () {
+    test('toJson emits presentation enums as their string names', () {
+      final json = Properties(
+        orientation: PresentationOrientation.landscape,
+        layout: EpubLayout.fixed,
+        overflow: PresentationOverflow.paginated,
+        spread: PresentationSpread.both,
+      ).toJson();
+
+      expect(json['orientation'], 'landscape');
+      expect(json['layout'], 'fixed');
+      expect(json['overflow'], 'paginated');
+      expect(json['spread'], 'both');
+    });
+
+    test('toJson output is json-encodable for a fixed-layout resource', () {
+      // Regression: raw EpubLayout (and sibling enums) leaked into toJson,
+      // so jsonEncode threw for FXL publications (HydratedUnsupportedError).
+      final json = Properties(layout: EpubLayout.fixed).toJson();
+      expect(() => jsonEncode(json), returnsNormally);
+    });
+
+    test('round-trips presentation enums through toJson / fromJson', () {
+      final properties = Properties(
+        orientation: PresentationOrientation.landscape,
+        layout: EpubLayout.fixed,
+        overflow: PresentationOverflow.paginated,
+        spread: PresentationSpread.both,
+      );
+      final restored = Properties.fromJson(properties.toJson());
+
+      expect(restored.orientation, PresentationOrientation.landscape);
+      expect(restored.layout, EpubLayout.fixed);
+      expect(restored.overflow, PresentationOverflow.paginated);
+      expect(restored.spread, PresentationSpread.both);
     });
   });
 }

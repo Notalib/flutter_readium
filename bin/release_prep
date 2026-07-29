@@ -21,8 +21,8 @@
 # and seals them. It never generates entries from commits.
 #
 # Usage:
-#   bin/prepare-release <version>          # e.g. bin/prepare-release 0.0.2
-#   bin/prepare-release <version> --no-tag # commit only, skip the tag
+#   bin/release_prep <version>          # e.g. bin/release_prep 0.0.2
+#   bin/release_prep <version> --no-tag # commit only, skip the tag
 
 # Bootstrap PATH / REPO_ROOT for non-interactive shells (repo convention).
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
@@ -38,8 +38,8 @@ for arg in "$@"; do
 done
 
 if [ -z "$VERSION" ]; then
-  echo "Usage: bin/prepare-release <version> [--no-tag]"
-  echo "Example: bin/prepare-release 0.0.2"
+  echo "Usage: bin/release_prep <version> [--no-tag]"
+  echo "Example: bin/release_prep 0.0.2"
   exit 1
 fi
 
@@ -65,6 +65,13 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   git -C "$REPO_ROOT" status --short
   exit 1
 fi
+
+# Validate the unreleased lockstep package pair. The staged plugin resolves the
+# local platform interface because its matching version is not on pub.dev yet.
+"$REPO_ROOT/bin/publish" --dry-run --use-local-interface --release-version="$VERSION" || {
+  echo "ERROR: dry-run publish failed. Fix the issues before preparing a release."
+  exit 1
+}
 
 for changelog in "$PLUGIN_CHANGELOG" "$IFACE_CHANGELOG"; do
   if grep -q "^## \[$VERSION\]" "$changelog"; then

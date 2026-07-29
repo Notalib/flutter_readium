@@ -46,8 +46,9 @@ This is expected behavior on Android when the progression delta on restore is ve
 ```dart
 try {
   await reader.openPublication(url);
-} on OpeningReadiumException catch (e) {
-  print(e.type);    // notFound | formatNotSupported | forbidden | unknown
+} on ReadiumException catch (e) {
+  print(e.code);    // raw wire string, e.g. notFound | formatNotSupported | forbidden
+  print(e.codeEnum); // typed classifier
   print(e.message); // human-readable description
 }
 ```
@@ -134,4 +135,4 @@ canvas pipeline at all (e.g. a raw DOM `<img>` via a platform view, which is out
 
 ### Case study: the `EPUBReaderView` asset crash (2026-06)
 
-iOS integration tests passed locally but deterministically failed in CI; only the two pre-reader tests passed and the rest `did not complete`. Cause: the WKWebView helper assets `assets/helpers/flutterReadiumTools.{js,css}` are **gitignored build artifacts** (compiled from `assets/_helper_scripts/src` by `npm run build:flutter`, run via `bin/install`). CI never built them, so the app bundle shipped without them and `EPUBReaderView.initUserScripts` force-unwrapped a nil `Bundle.main.path(...)` the instant the first reader view mounted. Fix: build the helpers in the workflow before the app build, and load assets without force-unwrapping so a missing artifact degrades + logs instead of trapping. Every native app-building job (iOS/Android, build + integration) runs the build via the shared `build-webview-helpers` composite action (`.github/actions/build-webview-helpers`). Web does **not** use these assets: its reader loads the `lib/helpers/readiumReader.js` navigator bundle (which `index.html` serves as `/readiumReader.js`), a separate gitignored artifact built by `npm run build:dev`. The web jobs build + copy it via the `build-web-reader-bundle` action (`.github/actions/build-web-reader-bundle`) — without it the reader's custom element never registers in the browser.
+iOS integration tests passed locally but deterministically failed in CI; only the two pre-reader tests passed and the rest `did not complete`. Cause: the WKWebView helper assets `assets/helpers/flutterReadiumTools.{js,css}` are **gitignored build artifacts** (compiled from `assets/_helper_scripts/src` by `npm run build`, run via `bin/install`). CI never built them, so the app bundle shipped without them and `EPUBReaderView.initUserScripts` force-unwrapped a nil `Bundle.main.path(...)` the instant the first reader view mounted. Fix: build the helpers in the workflow before the app build, and load assets without force-unwrapping so a missing artifact degrades + logs instead of trapping. Every native app-building job (iOS/Android, build + integration) runs the build via the shared `build-webview-helpers` composite action (`.github/actions/build-webview-helpers`). Web does **not** use these assets: its reader loads the `lib/helpers/readiumReader.js` navigator bundle (which `index.html` serves as `/readiumReader.js`), a separate gitignored artifact built by `npm run build:dev`. The web jobs build + copy it via the `build-web-reader-bundle` action (`.github/actions/build-web-reader-bundle`) — without it the reader's custom element never registers in the browser.

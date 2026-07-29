@@ -14,14 +14,19 @@ The flag exists in both upstream toolkits with identical semantics:
 - **swift-toolkit**: `Decoration.Style.highlight(tint: UIColor?, isActive: Bool)` and `Decoration.Style.underline(tint: UIColor?, isActive: Bool)` — confirmed from `DecorableNavigator.swift`.
 - **kotlin-toolkit**: `Decoration.Style.Highlight(tint: Int, isActive: Boolean)` and `Decoration.Style.Underline(tint: Int, isActive: Boolean)` — confirmed from `DecorableNavigator.kt`.
 
-## Current state
+## Implemented outcome
+
+The `isActive` support described below has since landed in the plugin surface and is documented in
+the changelog. The notes that follow are retained as the original implementation rationale.
+
+## State at planning time
 
 - **Dart model** (`flutter_readium_platform_interface/lib/src/reader/reader_decoration.dart`): `ReaderDecorationStyle` has only `style: DecorationStyle` and `tint: Color`. No `isActive` field.
 - **iOS** (`EPUBReaderView.swift` line 293): `Decoration(id:locator:style:.highlight())` is called with no `isActive` argument (defaults to `false`). The serialisation path in `ReadiumExtensions.swift` (or wherever `Decoration.Style(fromMap:)` is implemented) also has no `isActive` support.
 - **Android** (`FlutterDecorationPreferences.kt`, `ReadiumExtensions.kt`): Same — no `isActive` mapping.
 - **Web**: Decorations are not yet implemented (see [web-decorations.md](web-decorations.md)).
 
-## Proposed approach
+## Planned approach
 
 1. **Dart model** (`reader_decoration.dart`): Add `isActive: bool` (defaulting to `false`) to `ReaderDecorationStyle`. Update `toJson()` to include `'isActive': isActive` and `fromJson()` to read it. This is a non-breaking change since the new field has a default value.
 2. **iOS** (`ReadiumExtensions.swift` or wherever `Decoration.Style(fromMap:)` is defined): Read `isActive` from the JSON map and pass it to the upstream `Decoration.Style` constructor.

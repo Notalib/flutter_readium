@@ -12,7 +12,7 @@ import 'guided_navigation_text.dart';
 ///
 /// See https://readium.org/guided-navigation/schema/description.schema.json
 @immutable
-class GuidedNavigationDescription with EquatableMixin implements JSONable {
+class GuidedNavigationDescription with Equatable implements JSONable {
   const GuidedNavigationDescription({
     this.audioref,
     this.imgref,

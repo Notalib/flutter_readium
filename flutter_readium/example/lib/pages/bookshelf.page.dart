@@ -82,9 +82,26 @@ class BookshelfPageState extends State<BookshelfPage> {
       'X-Custom-Header': 'MyCustomValue',
     });
 
+    final publicationEntries =
+        List.generate(
+          loadedPublications.length,
+          (index) => (publication: loadedPublications[index], url: loadedPublicationURLs[index]),
+        )..sort((left, right) {
+          final formatComparison = _bookFormatSortOrder(
+            left.publication,
+          ).compareTo(_bookFormatSortOrder(right.publication));
+          if (formatComparison != 0) {
+            return formatComparison;
+          }
+
+          return left.publication.metadata.title.compareTo(
+            right.publication.metadata.title,
+          );
+        });
+
     setState(() {
-      _testPublications = loadedPublications;
-      _testPublicationURLs = loadedPublicationURLs;
+      _testPublications = publicationEntries.map((entry) => entry.publication).toList();
+      _testPublicationURLs = publicationEntries.map((entry) => entry.url).toList();
       _isLoading = false;
     });
   }
@@ -198,6 +215,23 @@ class BookshelfPageState extends State<BookshelfPage> {
     }
   }
 
+  int _bookFormatSortOrder(Publication pub) {
+    if (pub.conformsToReadiumEbook) {
+      if (pub.isAudioBook) {
+        return 1;
+      }
+      return 0;
+    } else if (pub.conformsToReadiumAudiobook) {
+      return 2;
+    } else if (pub.conformsToReadiumPDF) {
+      return 3;
+    } else if (pub.conformsToReadiumDivina) {
+      return 4;
+    } else {
+      return 5;
+    }
+  }
+
   Widget _buildPubCard(
     final Publication publication,
     String publicationUrl,
@@ -232,19 +266,68 @@ class BookshelfPageState extends State<BookshelfPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 15.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    publication.metadata.title,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                  Text(_listAuthors(publication)),
-                  Text(_bookFormatFromConformsTo(publication)),
-                  Text(publicationUrl.split('/').last),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      publication.metadata.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _listAuthors(publication),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _bookFormatFromConformsTo(publication),
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'File: ${publicationUrl.split('/').last}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               // remove the if when books loaded from asset can be deleted
               if (!kIsWeb && !_identifiersFromAsset.contains(publication.identifier))

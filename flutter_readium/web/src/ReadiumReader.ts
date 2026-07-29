@@ -19,6 +19,7 @@ import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
 import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
+import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
 // Preferences
@@ -39,6 +40,8 @@ import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
 import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
+// Errors
+import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "./errors/ReadiumWebError";
 
 const log = createLogger("Reader");
 
@@ -75,6 +78,17 @@ class _ReadiumReader {
     log.info("Log level set to", LogLevel[mapped]);
   }
 
+  /**
+   * Configures the automatic audio-stream error recovery loop (retry attempts,
+   * backoff, stall detection). Applies to the next-opened publication and to
+   * any in-flight recovery loop — not to an already-running attempt sequence.
+   */
+  public setAudioRecoveryPolicy(policyJson: string): void {
+    const policy = AudioRecoveryPolicy.fromJson(JSON.parse(policyJson));
+    setCurrentAudioRecoveryPolicy(policy);
+    log.info("Audio recovery policy set", policy);
+  }
+
   private _publication: ReadiumPublication | undefined;
   private _nav: EpubNavigator | WebPubNavigator | undefined;
   /**
@@ -86,6 +100,8 @@ class _ReadiumReader {
   private _audioNav: AudioNavigator | undefined;
   /** Last audiobook locator selected while audio is stopped/destructed. */
   private _stoppedAudioLocator: Locator | undefined;
+  /** Last audio preferences JSON used to create an audio navigator. */
+  private _activeAudioPreferencesJson = "{}";
   private _ttsEngine: FlutterTTSNavigator | undefined;
   /** Position list for EPUB publications (used by goToProgression). */
   private _positions: Locator[] = [];
@@ -192,7 +208,7 @@ class _ReadiumReader {
     const locator = Locator.deserialize(JSON.parse(locatorJson));
     if (!locator) {
       log.error("goTo: failed to parse locator JSON");
-      throw new Error("Failed to parse locator JSON");
+      throw new ReadiumWebError("Failed to parse locator JSON", ReadiumWebErrorCode.invalidArgument);
     }
 
     log.info(
@@ -254,7 +270,9 @@ class _ReadiumReader {
       const link = findLinkByHref(allLinks, locator.href);
       if (!link) {
         log.error("goTo: audio link not found:", locator.href);
-        throw new Error("Audio link not found " + locator.href);
+        throw new ReadiumWebError("Audio link not found " + locator.href, ReadiumWebErrorCode.invalidArgument, {
+          href: locator.href,
+        });
       }
       // Preserve t= fragment from the incoming locator when present.
       const audioLocator = new Locator({
@@ -289,12 +307,18 @@ class _ReadiumReader {
     const link = findLinkByHref(allLinks, locator.href);
     if (!link) {
       log.error("goTo: link not found:", locator.href);
-      throw new Error("Link not found " + locator.href);
+      throw new ReadiumWebError("Link not found " + locator.href, ReadiumWebErrorCode.invalidArgument, {
+        href: locator.href,
+      });
     }
     this._visualNav?.goLink(link, true, (ok) => {
       if (!ok) {
         log.error("goTo: failed to navigate to link:", locator.href);
-        throw new Error("Failed to navigate to link " + locator.href);
+        throw new ReadiumWebError(
+          "Failed to navigate to link " + locator.href,
+          ReadiumWebErrorCode.resourceReadError,
+          { reason: ResourceReadErrorReason.navigation, href: locator.href }
+        );
       }
     });
   }
@@ -323,6 +347,7 @@ class _ReadiumReader {
     this._syncItems = [];
     this._positions = [];
     this._stoppedAudioLocator = undefined;
+    this._activeAudioPreferencesJson = "{}";
     this._lastDeferredSyncLocator = null;
     this._lastDeferredSyncDurationMs = undefined;
     this._narrationSyncEnabled = true;
@@ -333,6 +358,7 @@ class _ReadiumReader {
 
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
+        this._activeAudioPreferencesJson = preferencesJsonString;
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await FlutterAudioNavigator.create(
           this._publication,
@@ -341,7 +367,11 @@ class _ReadiumReader {
           (nav) => {
             this._audioNav = nav;
             this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-          }
+          },
+          undefined,
+          undefined,
+          undefined,
+          this._bridge
         );
       } else {
         // EPUB and WebPub navigators render into a DOM container.
@@ -350,7 +380,9 @@ class _ReadiumReader {
         if (!container) {
           log.error("Container element #container not found in DOM");
           this._bridge.emitReaderStatus(ReadiumReaderStatus.error);
-          throw new Error("Container element not found");
+          // No navigator can be built without a render target, so this blocks
+          // opening the publication just like a missing-navigator guard.
+          throw new ReadiumWebError("Container element not found", ReadiumWebErrorCode.noPublication);
         }
         if (this._publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
@@ -412,8 +444,6 @@ class _ReadiumReader {
       }
     } catch (error) {
       log.error("Failed to open publication:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this._bridge.emitError("Failed to open publication: " + errorMessage);
       this.closePublication(error);
       throw error;
     }
@@ -422,7 +452,7 @@ class _ReadiumReader {
   public setEPUBPreferences(newPreferencesString: string) {
     if (!this._nav) {
       log.error("setEPUBPreferences: navigator is not initialized");
-      throw new Error("Navigator is not initialized");
+      throw new ReadiumWebError("Navigator is not initialized", ReadiumWebErrorCode.noPublication);
     }
     log.debug("setEPUBPreferences");
     // Track the plugin-side `disableSynchronization` preference separately from
@@ -586,6 +616,7 @@ class _ReadiumReader {
     // publication (and the visual Media Overlay sync would run against a
     // torn-down frame).
     setAudioEmissionsEnabled(false);
+    FlutterAudioNavigator.resetRecovery();
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
     this._audioNav?.stop();
@@ -658,6 +689,33 @@ class _ReadiumReader {
       return;
     }
     if (!this._audioNav) return;
+
+    // Retrying after a terminal streaming failure: the failed navigator was
+    // already stopped by the recovery controller and is never reusable (no
+    // re-prepare API), so clear the latch and rebuild fresh at the last
+    // locator — mirrors iOS/Android's play()-after-failure contract.
+    if (FlutterAudioNavigator.isTerminallyFailed()) {
+      log.info("play: retrying after terminal audio streaming failure");
+      FlutterAudioNavigator.retryAfterFailure();
+      const resumeLocator = locatorJson
+        ? Locator.deserialize(JSON.parse(locatorJson)) ?? this._audioNav.currentLocator
+        : this._audioNav.currentLocator;
+      void FlutterAudioNavigator.create(
+        this._publication as ReadiumPublication,
+        resumeLocator,
+        this._activeAudioPreferencesJson,
+        (nav) => {
+          this._audioNav = nav;
+          nav.play();
+        },
+        undefined,
+        undefined,
+        undefined,
+        this._bridge
+      );
+      return;
+    }
+
     if (locatorJson) {
       let locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
@@ -699,6 +757,7 @@ class _ReadiumReader {
     // Keep the plugin-level stop contract aligned with native: stop tears down
     // the active timebased navigator. Clients must call audioEnable() again.
     setAudioEmissionsEnabled(false);
+    FlutterAudioNavigator.resetRecovery();
     this._stoppedAudioLocator = audioNav.currentLocator;
     log.info(
       "stop: destroying audio navigator",
@@ -1084,15 +1143,26 @@ class _ReadiumReader {
   public async getResourceUrl(href: string): Promise<string> {
     const pub = this._publication;
     if (!pub) {
-      throw new Error("getResourceUrl: no publication is open");
+      throw new ReadiumWebError("getResourceUrl: no publication is open", ReadiumWebErrorCode.noPublication);
     }
     const link = findLinkByHref(pub.allLinks, href);
     if (!link) {
-      throw new Error(`getResourceUrl: no resource found for href: ${href}`);
+      // A syntactically valid href with no matching manifest entry is a runtime
+      // not-found condition, not caller misuse - mirrors iOS/Android, which both
+      // classify the equivalent case as ResourceReadError(reason: "notFound").
+      throw new ReadiumWebError(
+        `getResourceUrl: no resource found for href: ${href}`,
+        ReadiumWebErrorCode.resourceReadError,
+        { reason: ResourceReadErrorReason.notFound, href }
+      );
     }
     const url = link.toURL(pub.baseURL);
     if (!url) {
-      throw new Error(`getResourceUrl: could not resolve URL for href: ${href}`);
+      throw new ReadiumWebError(
+        `getResourceUrl: could not resolve URL for href: ${href}`,
+        ReadiumWebErrorCode.resourceReadError,
+        { reason: ResourceReadErrorReason.urlResolution, href }
+      );
     }
     return url;
   }
@@ -1104,6 +1174,9 @@ class _ReadiumReader {
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
+    const preferencesJsonString =
+      !prefsJson || prefsJson === "null" ? "{}" : prefsJson;
+    this._activeAudioPreferencesJson = preferencesJsonString;
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : this._visualNav?.currentLocator;
@@ -1131,7 +1204,7 @@ class _ReadiumReader {
         await initializeGuidedNavigationNavigator(
           this._publication,
           fromLocator,
-          prefsJson,
+          preferencesJsonString,
           (nav, items) => { this._audioNav = nav; this._syncItems = items; },
           (textLocator, _durationMs) => this._syncDivinaToMediaOverlayLocator(textLocator)
         );
@@ -1140,7 +1213,7 @@ class _ReadiumReader {
         await initializeGuidedNavigationNavigator(
           this._publication,
           fromLocator,
-          prefsJson,
+          preferencesJsonString,
           (nav, items) => { this._audioNav = nav; this._syncItems = items; },
           (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
         );
@@ -1183,8 +1256,12 @@ class _ReadiumReader {
       await FlutterAudioNavigator.create(
         this._publication,
         fromLocator,
-        prefsJson,
-        (nav) => { this._audioNav = nav; }
+        preferencesJsonString,
+        (nav) => { this._audioNav = nav; },
+        undefined,
+        undefined,
+        undefined,
+        this._bridge
       );
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
@@ -1200,7 +1277,10 @@ class _ReadiumReader {
   public setAudioPreferences(preferencesJson: string): void {
     log.debug("setAudioPreferences");
     if (!this._audioNav) return;
-    applyAudioPreferences(this._audioNav, preferencesJson);
+    const preferencesJsonString =
+      !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
+    this._activeAudioPreferencesJson = preferencesJsonString;
+    applyAudioPreferences(this._audioNav, preferencesJsonString);
   }
 }
 

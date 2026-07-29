@@ -1,4 +1,6 @@
 import XCTest
+import ReadiumNavigator
+import ReadiumShared
 
 @testable import flutter_readium
 
@@ -54,5 +56,254 @@ class FlutterMediaOverlayItemTests: XCTestCase {
     let item = makeItem(audio: "ch1.mp3#t=5,10")
 
     XCTAssertFalse(item.isAudioInRangeOfTime(7, inHref: "other.mp3"))
+  }
+}
+
+final class AudioStreamErrorPolicyTests: XCTestCase {
+  private func httpResponse(status: Int) -> HTTPResponse {
+    let url = HTTPURL(string: "https://example.com/audio.mp3")!
+    return HTTPResponse(
+      request: HTTPRequest(url: url),
+      url: url,
+      status: HTTPStatus(rawValue: status),
+      headers: [:],
+      mediaType: nil,
+      body: nil
+    )
+  }
+
+  func testCancelledIsIgnored() {
+    XCTAssertEqual(ReadError.cancelled.audioStreamAction, .ignore)
+  }
+
+  func testHttpCancelledIsIgnored() {
+    XCTAssertEqual(ReadError.access(.http(.cancelled)).audioStreamAction, .ignore)
+  }
+
+  func testTimeoutOfflineUnreachableAreRetryable() {
+    XCTAssertEqual(ReadError.access(.http(.timeout(nil))).audioStreamAction, .retry)
+    XCTAssertEqual(ReadError.access(.http(.offline(nil))).audioStreamAction, .retry)
+    XCTAssertEqual(ReadError.access(.http(.unreachable(nil))).audioStreamAction, .retry)
+  }
+
+  func testRangeNotSupportedIsTerminalWithRangeNotSupportedReason() {
+    XCTAssertEqual(
+      ReadError.access(.http(.rangeNotSupported)).audioStreamAction,
+      .fail(code: "AudioStreamError", reason: .rangeNotSupported))
+  }
+
+  func testAuthErrorsAreTerminalWithAuthCode() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 401)))).audioStreamAction,
+      .fail(code: "AudioStreamAuthError"))
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 403)))).audioStreamAction,
+      .fail(code: "AudioStreamAuthError"))
+  }
+
+  func testServerErrorsAreRetryableClientErrorsAreNot() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 503)))).audioStreamAction,
+      .retry)
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 404)))).audioStreamAction,
+      .fail(code: "AudioStreamHTTPError"))
+  }
+
+  func testDecodingErrorIsTerminal() {
+    XCTAssertEqual(
+      ReadError.decoding("bad data").audioStreamAction,
+      .fail(code: "AudioStreamError"))
+  }
+
+  func testHttpStatusExtractsStatusFromErrorResponse() {
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 401)))).httpStatus, 401)
+    XCTAssertEqual(
+      ReadError.access(.http(.errorResponse(httpResponse(status: 503)))).httpStatus, 503)
+  }
+
+  func testHttpStatusIsNilForNonErrorResponseCases() {
+    XCTAssertNil(ReadError.access(.http(.timeout(nil))).httpStatus)
+    XCTAssertNil(ReadError.access(.http(.offline(nil))).httpStatus)
+    XCTAssertNil(ReadError.cancelled.httpStatus)
+    XCTAssertNil(ReadError.decoding("bad data").httpStatus)
+  }
+}
+
+final class AudioPlaybackStateMappingTests: XCTestCase {
+  func testPlayingAtZeroWithPlaybackIntentMapsToLoading() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: true), .loading)
+  }
+
+  func testPlayingAtZeroWithoutPlaybackIntentStaysPlaying() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: false), .playing)
+  }
+
+  func testPlayingAfterProgressStaysPlaying() {
+    let info = MediaPlaybackInfo(resourceIndex: 0, state: .playing, time: 0.01, duration: 10)
+
+    XCTAssertEqual(info.asClientTimebasedState(playbackIntent: true), .playing)
+  }
+
+  func testNonPlayingStatesPassThrough() {
+    XCTAssertEqual(
+      MediaPlaybackInfo(resourceIndex: 0, state: .loading, time: 0, duration: 10)
+        .asClientTimebasedState(playbackIntent: true),
+      .loading)
+    XCTAssertEqual(
+      MediaPlaybackInfo(resourceIndex: 0, state: .paused, time: 0, duration: 10)
+        .asClientTimebasedState(playbackIntent: true),
+      .paused)
+  }
+}
+
+final class FlutterReadiumErrorTests: XCTestCase {
+  private func decodedJSON(_ jsonString: String) -> [String: Any] {
+    let data = jsonString.data(using: .utf8)!
+    return try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+  }
+
+  func testSerializesStructuredDataObject() {
+    let error = FlutterReadiumError(
+      message: "boom", code: "AudioStreamRetry",
+      data: ["href": "ch1.mp3", "attempt": 1, "maxAttempts": 3])
+    let json = decodedJSON(error.toJsonString())
+
+    XCTAssertEqual(json["message"] as? String, "boom")
+    XCTAssertEqual(json["code"] as? String, "AudioStreamRetry")
+    let data = json["data"] as? [String: Any]
+    XCTAssertEqual(data?["href"] as? String, "ch1.mp3")
+    XCTAssertEqual(data?["attempt"] as? Int, 1)
+    XCTAssertEqual(data?["maxAttempts"] as? Int, 3)
+  }
+
+  func testOmitsDataKeyWhenNilOrEmpty() {
+    XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: nil).toJsonString())["data"])
+    XCTAssertNil(decodedJSON(FlutterReadiumError(message: "boom", code: "X", data: [:]).toJsonString())["data"])
+  }
+
+  func testToFlutterErrorPreservesCodeMessageAndStructuredDetails() {
+    let flutterError = FlutterReadiumError(
+      message: "boom",
+      code: "notFound",
+      data: ["message": "missing", "httpStatus": 404]
+    ).toFlutterError()
+
+    XCTAssertEqual(flutterError.code, "notFound")
+    XCTAssertEqual(flutterError.message, "boom")
+    let details = flutterError.details as? [String: Any]
+    XCTAssertEqual(details?["message"] as? String, "missing")
+    XCTAssertEqual(details?["httpStatus"] as? Int, 404)
+  }
+
+  func testVoiceNotFoundFlutterErrorUsesVoiceNotFoundCode() {
+    let flutterError = ReadiumError.voiceNotFound.toFlutterError()
+
+    XCTAssertEqual(flutterError.code, "voiceNotFound")
+  }
+}
+
+final class AudioRecoveryPolicyTests: XCTestCase {
+  func testExponentialBackoffDelays() {
+    let policy = AudioRecoveryPolicy()
+    XCTAssertEqual(policy.maxAttempts, 3)
+    XCTAssertEqual(policy.delay(forAttempt: 1), 1.0)
+    XCTAssertEqual(policy.delay(forAttempt: 2), 2.0)
+    XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
+  }
+}
+
+/// Resource stub whose reads always fail with the given error.
+private final class FailingResource: Resource {
+  let error: ReadError
+  init(error: ReadError) { self.error = error }
+  var sourceURL: AbsoluteURL? { nil }
+  func properties() async -> ReadResult<ResourceProperties> { .failure(error) }
+  func estimatedLength() async -> ReadResult<UInt64?> { .failure(error) }
+  func stream(range: Range<UInt64>?, consume: @escaping (Data) -> Void) async -> ReadResult<Void> {
+    .failure(error)
+  }
+}
+
+private struct SingleResourceContainer: Container {
+  let href: AnyURL
+  let resource: Resource
+  var sourceURL: AbsoluteURL? { nil }
+  var entries: Set<AnyURL> { [href] }
+  subscript(url: any URLConvertible) -> Resource? {
+    url.anyURL.normalized == href ? resource : nil
+  }
+}
+
+final class ResourceReadErrorReportingTests: XCTestCase {
+  func testStreamFailureIsReportedWithHref() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reported: (AnyURL, ReadError)?
+    observer.setHandler { reported = ($0, $1) }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.http(.timeout(nil))))),
+      observer: observer)
+
+    let result = await container[href]!.stream(range: nil, consume: { _ in })
+
+    guard case .failure = result else { return XCTFail("expected failure passthrough") }
+    XCTAssertEqual(reported?.0, href)
+    if case .access(.http(.timeout)) = reported?.1 {} else { XCTFail("wrong error: \(String(describing: reported?.1))") }
+  }
+
+  func testPropertiesFailuresAreNotReported() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reportCount = 0
+    observer.setHandler { _, _ in reportCount += 1 }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.other(DebugError("probe failed"))))),
+      observer: observer)
+
+    guard case .failure = await container[href]!.properties() else {
+      return XCTFail("expected properties failure passthrough")
+    }
+
+    XCTAssertEqual(reportCount, 0)
+  }
+
+  func testEstimatedLengthFailureIsReportedWithHref() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reported: (AnyURL, ReadError)?
+    observer.setHandler { reported = ($0, $1) }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: FailingResource(error: .access(.http(.offline(nil))))),
+      observer: observer)
+
+    guard case .failure = await container[href]!.estimatedLength() else {
+      return XCTFail("expected estimatedLength failure passthrough")
+    }
+
+    XCTAssertEqual(reported?.0, href)
+    if case .access(.http(.offline)) = reported?.1 {} else { XCTFail("wrong error: \(String(describing: reported?.1))") }
+  }
+
+  func testSuccessIsNotReported() async {
+    let href = AnyURL(string: "https://example.com/ch1.mp3")!
+    let observer = ResourceReadErrorObserver()
+    var reportCount = 0
+    observer.setHandler { _, _ in reportCount += 1 }
+
+    let container = ReadErrorReportingContainer(
+      wrapping: SingleResourceContainer(href: href, resource: DataResource(data: Data([1, 2, 3]))),
+      observer: observer)
+
+    _ = await container[href]!.read()
+    XCTAssertEqual(reportCount, 0)
   }
 }

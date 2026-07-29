@@ -199,9 +199,11 @@ jobs:
           exit 1
         working-directory: flutter_readium
 
-      - name: Build production web bundle
-        run: npm ci && npm run build
-        working-directory: flutter_readium
+      - name: Build webview helper script
+        uses: ./.github/actions/build-webview-helpers
+
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
 
       - name: Materialize self-contained analysis_options (flutter_readium)
         run: |
@@ -233,7 +235,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           draft: true
           tag_name: ${{ steps.tag.outputs.tag_name }}

@@ -16,7 +16,7 @@ import '../../utils/jsonable.dart';
 /// @param since Timestamp for the previous state change.
 /// @param until Timestamp for the next state change.
 @immutable
-class Availability with EquatableMixin implements JSONable {
+class Availability with Equatable implements JSONable {
   const Availability({required this.state, this.since, this.until});
   final AvailabilityState state;
   final DateTime? since;

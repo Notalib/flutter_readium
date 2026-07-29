@@ -42,15 +42,17 @@
       "preLaunchTask": "build_helper_scripts"
     },
     {
+      // Targeting the integration_test folder instead would build each groups/*_test.dart separately
+      // Run a single suite by pointing program at its groups/*_test.dart file, or use the per-test gutter buttons.
       "name": "integration tests (example)",
       "cwd": "flutter_readium/example",
-      "program": "integration_test",
+      "program": "integration_test/plugin_integration_test.dart",
       "request": "launch",
       "type": "dart",
       "preLaunchTask": "build_helper_scripts"
     },
     {
-      "command": "npm run start",
+      "command": "npm run serve",
       "name": "Run comicbook demo",
       "cwd": "${workspaceFolder}/flutter_readium/assets/_helper_scripts",
       "request": "launch",

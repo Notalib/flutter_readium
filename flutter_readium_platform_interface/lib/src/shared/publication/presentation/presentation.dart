@@ -30,7 +30,7 @@ import '../link.dart';
 ///     synthetic spread.
 /// @param [layout] Hints how the layout of the resource should be presented (EPUB extension).
 @immutable
-class Presentation with EquatableMixin implements JSONable {
+class Presentation with Equatable implements JSONable {
   const Presentation({
     this.layout,
     this.orientation,
