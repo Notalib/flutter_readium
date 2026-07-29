@@ -1,7 +1,7 @@
 import "./style.css";
 
 import { AudioNavigator, EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Link, Locator, Publication } from "@readium/shared";
+import { getTime, Link, Locator, Publication } from "@readium/shared";
 
 // Bridge
 import { ReadiumBridge } from "./bridge/ReadiumBridge";
@@ -991,7 +991,7 @@ class _ReadiumReader {
   private _resyncDivinaToCurrentAudioCue(): boolean {
     if (!this._comicNav || !this._audioNav || this._syncItems.length === 0) return false;
     const audioLocator = this._audioNav.currentLocator;
-    const resolvedTime = audioLocator.locations?.time() ?? this._audioNav.currentTime;
+    const resolvedTime = getTime(audioLocator.locations) ?? this._audioNav.currentTime;
     const item = findItemByAudioTime(this._syncItems, audioLocator.href, resolvedTime);
     if (!item) return false;
     // Force page sync even when the cue key equals the last emitted one.
