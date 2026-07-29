@@ -69,7 +69,7 @@ export function makeAudioTotalProgressionFn(
   );
   if (missing) {
     log.warn(
-      "Cannot compute audio totalProgression: one or more readingOrder items missing duration"
+      "Cannot compute audio totalProgression: one or more readingOrder items missing duration",
     );
     return () => undefined;
   }
