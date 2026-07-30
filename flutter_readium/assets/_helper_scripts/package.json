@@ -33,10 +33,10 @@
     "typescript": "^6.0.0"
   },
   "scripts": {
-    "build": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=production",
-    "build:stats": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=production,STATS",
-    "build:dev": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD=development",
-    "serve": "rollup -c rollup.config.mjs --configPlugin typescript --watch --environment SERVE,BUILD=development"
+    "build": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD:production",
+    "build:stats": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD:production,STATS",
+    "build:dev": "rollup -c rollup.config.mjs --configPlugin typescript --environment BUILD:development",
+    "serve": "rollup -c rollup.config.mjs --configPlugin typescript --watch --environment SERVE,BUILD:development"
   },
   "dependencies": {
     "@readium/css": "^2.0.5",
