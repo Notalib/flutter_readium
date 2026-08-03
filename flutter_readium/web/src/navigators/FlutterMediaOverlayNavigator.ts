@@ -11,7 +11,7 @@
  *     state/locator events matching iOS/Android behaviour.
  */
 
-import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { getTime, Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
 import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "../errors/ReadiumWebError";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
@@ -136,7 +136,7 @@ async function _initializeFromItems(
   let lastPublicTextLocatorKey: string | undefined;
 
   const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
-    const resolvedTime = audioLocator.locations?.time() ?? _nav.currentTime;
+    const resolvedTime = getTime(audioLocator.locations) ?? _nav.currentTime;
     const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
     if (item) {
       const detailedTextLocator = textLocatorForItem(item);

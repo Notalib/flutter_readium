@@ -2,9 +2,8 @@ import {
   AudioNavigator,
   AudioNavigatorConfiguration,
   AudioNavigatorListeners,
-  IAudioPreferences,
 } from "@readium/navigator";
-import { Locator, LocatorLocations, Timeline } from "@readium/shared";
+import { getTime, Locator, LocatorLocations, Timeline } from "@readium/shared";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { ReadiumPublication, findLinkByHref } from "../utils/ReadiumExtensions";
 import { audioPreferencesFromJson } from "../preferences/FlutterAudioPreferences";
@@ -70,7 +69,7 @@ export function makeAudioTotalProgressionFn(
   );
   if (missing) {
     log.warn(
-      "Cannot compute audio totalProgression: one or more readingOrder items missing duration"
+      "Cannot compute audio totalProgression: one or more readingOrder items missing duration",
     );
     return () => undefined;
   }
@@ -85,7 +84,7 @@ export function makeAudioTotalProgressionFn(
     const bareHref = locator.href.split("#")[0];
     const idx = items.findIndex((i) => i.href === bareHref);
     if (idx < 0) return undefined;
-    const time = locator.locations?.time?.() ?? 0;
+    const time = getTime(locator.locations) ?? 0;
     const value = (cumulative[idx] + time) / total;
     return Math.min(1, Math.max(0, value));
   };
@@ -249,7 +248,7 @@ function isAlreadyAtPosition(
   const targetHref = audioLocator.href.split("#")[0];
   const currentHref = nav.currentLocator.href.split("#")[0];
   if (targetHref !== currentHref) return false;
-  const targetTime = audioLocator.locations?.time();
+  const targetTime = getTime(audioLocator.locations);
   if (targetTime === undefined) return false;
   return Math.abs(targetTime - nav.currentTime) <= SAME_POSITION_EPSILON_S;
 }
@@ -784,7 +783,7 @@ export class FlutterAudioNavigator {
         },
         positionChanged: (locator) => {
           if (!nav) return;
-          const time = locator.locations?.time?.() ?? nav.currentTime;
+          const time = getTime(locator.locations) ?? nav.currentTime;
           const key = `${locator.href}#${Math.floor(time)}`;
           if (key !== lastPositionLogKey) {
             lastPositionLogKey = key;

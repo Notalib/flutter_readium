@@ -19,7 +19,5 @@ runs:
         cache-dependency-path: flutter_readium/package-lock.json
     - name: Build & copy web reader bundle
       shell: bash
-      run: >
-        npm ci --ignore-scripts
-        npm run build
+      run: npm ci --ignore-scripts && npm run build
       working-directory: flutter_readium

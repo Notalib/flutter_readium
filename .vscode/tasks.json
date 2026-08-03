@@ -3,7 +3,7 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "build:helpers",
+			"script": "build:helpers:dev",
 			"path": "flutter_readium",
 			"group": "build",
 			"problemMatcher": [],
