@@ -12,7 +12,7 @@ import {
   FrameManager,
   FXLFrameManager,
 } from "@readium/navigator";
-import { Locator, LocatorLocations, Link } from "@readium/shared";
+import { Locator, LocatorLocations, Link, TimelineItem } from "@readium/shared";
 import Peripherals from "../utils/Peripherals";
 import {
   defaults,
@@ -130,7 +130,7 @@ export class FlutterEpubNavigator {
     };
 
     const listeners: EpubNavigatorListeners = {
-      scroll: function (_amount: number): void {},
+      scroll: function (_amount: number): void { },
       frameLoaded: function (_wnd: Window): void {
         nav._cframes.forEach(
           (frameManager: FrameManager | FXLFrameManager | undefined) => {
@@ -161,21 +161,24 @@ export class FlutterEpubNavigator {
       },
       tap: handleImageTapEvent,
       click: handleImageTapEvent,
-      zoom: function (_scale: number): void {},
-      miscPointer: function (_amount: number): void {},
-      customEvent: function (_key: string, _data: unknown): void {},
+      zoom: function (_scale: number): void { },
+      miscPointer: function (_amount: number): void { },
+      customEvent: function (_key: string, _data: unknown): void { },
       handleLocator: function (locator: Locator): boolean {
         handleExternalLocator(locator.href);
         return false;
       },
-      contentProtection: function (_type: string, _data: any): void {},
-      peripheral: function (_data: KeyboardPeripheralEventData): void {},
-      contextMenu: function (_data: ContextMenuEvent): void {},
+      contentProtection: function (_type: string, _data: any): void { },
+      peripheral: function (_data: KeyboardPeripheralEventData): void { },
+      contextMenu: function (_data: ContextMenuEvent): void { },
       textSelected: function (_selection: BasicTextSelection): void {
         window.onTextSelectedCallback?.(
           buildTextSelectionPayload(nav.currentLocator, _selection)
         );
       },
+      timelineItemChanged: function (item: TimelineItem | undefined): void {
+        log.debug("timelineItemChanged", item);
+      }
     };
 
     // Resolve position-less initial locator (e.g. from sync-narration).
