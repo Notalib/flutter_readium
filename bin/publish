@@ -173,6 +173,12 @@ build_staged_web_bundle() {
   find "$pkg_dir/build" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
 
   "$PROJECT_ROOT/bin/build_js" --skip-example-copy "$pkg_dir"
+
+  # Build helpers (web/TS source is gitignored; compiled output goes into assets/helpers/)
+  if [ ! -d "$pkg_dir/assets/_helper_scripts/node_modules" ]; then
+    npm ci --prefix "$pkg_dir/assets/_helper_scripts"
+  fi
+  npm run build:helpers --prefix "$pkg_dir"
 }
 
 for pkg in "${PACKAGES[@]}"; do
