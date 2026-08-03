@@ -7,7 +7,19 @@ PODS:
   - DifferenceKit/UIKitExtension (1.3.0):
     - DifferenceKit/Core
   - Flutter (1.0.0)
+  - flutter_readium (0.0.1):
+    - Flutter
+    - ReadiumNavigator (~> 3.9.0)
+    - ReadiumOPDS (~> 3.9.0)
+    - ReadiumShared (~> 3.9.0)
+    - ReadiumStreamer (~> 3.9.0)
+  - integration_test (0.0.1):
+    - Flutter
   - Minizip (1.0.0)
+  - package_info_plus (0.4.5):
+    - Flutter
+  - pointer_interceptor_ios (0.0.1):
+    - Flutter
   - ReadiumFuzi (4.0.0)
   - ReadiumInternal (3.9.0)
   - ReadiumNavigator (3.9.0):
@@ -32,15 +44,22 @@ PODS:
     - ReadiumShared (~> 3.9.0)
   - ReadiumZIPFoundation (3.0.1)
   - SwiftSoup (2.11.3)
+  - wakelock_plus (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_readium (from `.symlinks/plugins/flutter_readium/ios`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
+  - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
   - ReadiumInternal (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec`)
   - ReadiumNavigator (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec`)
   - ReadiumOPDS (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec`)
   - ReadiumShared (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec`)
   - ReadiumStreamer (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec`)
   - ReadiumZIPFoundation (from `https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec`)
+  - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
   trunk:
@@ -53,6 +72,14 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_readium:
+    :path: ".symlinks/plugins/flutter_readium/ios"
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  package_info_plus:
+    :path: ".symlinks/plugins/package_info_plus/ios"
+  pointer_interceptor_ios:
+    :path: ".symlinks/plugins/pointer_interceptor_ios/ios"
   ReadiumInternal:
     :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec
   ReadiumNavigator:
@@ -65,12 +92,18 @@ EXTERNAL SOURCES:
     :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec
   ReadiumZIPFoundation:
     :podspec: https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec
+  wakelock_plus:
+    :path: ".symlinks/plugins/wakelock_plus/ios"
 
 SPEC CHECKSUMS:
   CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_readium: 8de113dbcb83268e6d978750cc9cb3cb24034732
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
   ReadiumFuzi: 888d023b862f524e314f85925c94768a501f05c0
   ReadiumInternal: 44ae41c0487eb56cd5bbeded3d8a6c86351fa0a0
   ReadiumNavigator: 3bac1f518748845913a9fbcf292cb8204aa460e5
@@ -79,6 +112,7 @@ SPEC CHECKSUMS:
   ReadiumStreamer: cddfb21ed01a48a4c6dccfc133aefaea78630e4d
   ReadiumZIPFoundation: 2f3e19e361f1b7751ecf37a88c754287692c12c2
   SwiftSoup: 959c9ac70d7053fbf476341bfac90ab228523f2a
+  wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
 PODFILE CHECKSUM: 894bc4dbb676e55d1a69180023df51e183cd49ec
 
