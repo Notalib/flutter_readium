@@ -2,7 +2,7 @@ name: flutter_readium
 description: >-
   Flutter plugin for reading EPUB, audiobook, and WebPub publications. Wraps
   the Readium toolkits on iOS, Android, and Web.
-version: 0.3.1
+version: 0.3.2
 homepage: https://github.com/notalib/flutter_readium
 repository: https://github.com/notalib/flutter_readium
 issue_tracker: https://github.com/notalib/flutter_readium/issues
@@ -39,7 +39,7 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
-  flutter_readium_platform_interface: ^0.3.1
+  flutter_readium_platform_interface: ^0.3.2
   wakelock_plus: ^1.4.0
   web: ^1.1.1
   collection: ^1.19.1
