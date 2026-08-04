@@ -3,7 +3,7 @@ description: >-
   Platform interface for the flutter_readium plugin. Provides shared Dart
   models, the method-channel contract, and the reader API surface used by
   native implementations.
-version: 0.3.2
+version: 0.3.3
 homepage: https://github.com/notalib/flutter_readium
 repository: https://github.com/notalib/flutter_readium
 issue_tracker: https://github.com/notalib/flutter_readium/issues
