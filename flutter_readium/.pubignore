@@ -3,6 +3,8 @@ web/
 
 # TypeScript helper scripts source and toolchain (including node_modules)
 assets/_helper_scripts/
+!assets/helpers/**/*
+!lib/helpers/**/*
 
 # Large binary publication files used only by the example smoke-test
 example/assets/pubs/
@@ -33,3 +35,4 @@ CONTRIBUTING.md
 PLAN.md
 package.json
 package-lock.json
+rollup.config.mjs
