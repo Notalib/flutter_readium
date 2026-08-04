@@ -129,7 +129,7 @@ jobs:
       # falls back to interactive OAuth and hangs in CI. Runs BEFORE flutter-action
       # so flutter's `dart` ends up first on PATH for the publish, while the token
       # configured here is still used (mirrors dart-lang's reusable publish.yml).
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@v1.7.2
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
