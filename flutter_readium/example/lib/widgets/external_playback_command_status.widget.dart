@@ -59,7 +59,7 @@ class _ExternalPlaybackCommandStatusState extends State<ExternalPlaybackCommandS
                   color: _actionColor,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(_label)
+                child: Text(_label),
               ),
       ],
     );
