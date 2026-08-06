@@ -147,11 +147,12 @@ void main() {
         reason: 'goForward() did not produce a new locator',
       );
 
+      final locatorCount = locators.length;
       final ok = await harness.readium.goToLocator(savedLocator);
       expect(ok, isTrue, reason: 'goToLocator should report success');
       await waitWithPump(
         tester,
-        () => locators.last.href == savedLocator.href,
+        () => locators.length > locatorCount && locators.last.href == savedLocator.href,
         timeout: const Duration(seconds: 30),
         reason: 'goToLocator() did not return to the saved resource',
       );
