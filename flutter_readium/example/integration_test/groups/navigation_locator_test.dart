@@ -146,6 +146,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'goForward() did not produce a new locator',
       );
+      await waitForListStable(tester, locators);
 
       final locatorCount = locators.length;
       final ok = await harness.readium.goToLocator(savedLocator);
@@ -156,6 +157,7 @@ void main() {
         timeout: const Duration(seconds: 30),
         reason: 'goToLocator() did not return to the saved resource',
       );
+      await waitForListStable(tester, locators);
       expect(locators.last.href, equals(savedLocator.href));
 
       if (savedCssSelector != null) {
