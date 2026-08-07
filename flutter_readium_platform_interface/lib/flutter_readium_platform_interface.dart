@@ -70,13 +70,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// in addition to the built-in `flutterReadiumTools.css`.
   /// Call before opening a publication so the injections are in effect when the reader view is created.
   Future<void> setCssInjections(List<InjectionAsset> injections) =>
-    throw UnimplementedError('setCssInjections() has not been implemented.');
+      throw UnimplementedError('setCssInjections() has not been implemented.');
 
   /// Registers extra JavaScript assets to inject into every EPUB HTML resource,
   /// in addition to the built-in `flutterReadiumTools.js`.
   /// Call before opening a publication so the injections are in effect when the reader view is created.
   Future<void> setJavaScriptInjections(List<InjectionAsset> injections) =>
-    throw UnimplementedError('setJavaScriptInjections() has not been implemented.');
+      throw UnimplementedError('setJavaScriptInjections() has not been implemented.');
 
   /// Configures the automatic audio-stream error recovery loop (retry attempts,
   /// backoff, and stall detection).
