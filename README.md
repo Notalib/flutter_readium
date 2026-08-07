@@ -4,7 +4,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
-- **swift-toolkit 3.9.0** on iOS
+- **swift-toolkit 3.11.0** on iOS
 - **kotlin-toolkit 3.2.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 

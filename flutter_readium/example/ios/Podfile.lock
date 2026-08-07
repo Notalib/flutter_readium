@@ -1,5 +1,5 @@
 PODS:
-  - CryptoSwift (1.8.4)
+  - CryptoSwift (1.10.0)
   - DifferenceKit (1.3.0):
     - DifferenceKit/Core (= 1.3.0)
     - DifferenceKit/UIKitExtension (= 1.3.0)
@@ -9,10 +9,10 @@ PODS:
   - Flutter (1.0.0)
   - flutter_readium (0.0.1):
     - Flutter
-    - ReadiumNavigator (~> 3.9.0)
-    - ReadiumOPDS (~> 3.9.0)
-    - ReadiumShared (~> 3.9.0)
-    - ReadiumStreamer (~> 3.9.0)
+    - ReadiumNavigator (~> 3.11.0)
+    - ReadiumOPDS (~> 3.11.0)
+    - ReadiumShared (~> 3.11.0)
+    - ReadiumStreamer (~> 3.11.0)
   - integration_test (0.0.1):
     - Flutter
   - Minizip (1.0.0)
@@ -21,27 +21,27 @@ PODS:
   - pointer_interceptor_ios (0.0.1):
     - Flutter
   - ReadiumFuzi (4.0.0)
-  - ReadiumInternal (3.9.0)
-  - ReadiumNavigator (3.9.0):
+  - ReadiumInternal (3.11.0)
+  - ReadiumNavigator (3.11.0):
     - DifferenceKit (~> 1.0)
-    - ReadiumInternal (~> 3.9.0)
-    - ReadiumShared (~> 3.9.0)
+    - ReadiumInternal (~> 3.11.0)
+    - ReadiumShared (~> 3.11.0)
     - SwiftSoup (~> 2.11.0)
-  - ReadiumOPDS (3.9.0):
+  - ReadiumOPDS (3.11.0):
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.9.0)
-    - ReadiumShared (~> 3.9.0)
-  - ReadiumShared (3.9.0):
+    - ReadiumInternal (~> 3.11.0)
+    - ReadiumShared (~> 3.11.0)
+  - ReadiumShared (3.11.0):
     - Minizip (~> 1.0.0)
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.9.0)
+    - ReadiumInternal (~> 3.11.0)
     - ReadiumZIPFoundation (~> 3.0.1)
     - SwiftSoup (~> 2.11.0)
-  - ReadiumStreamer (3.9.0):
-    - CryptoSwift (~> 1.8.0)
+  - ReadiumStreamer (3.11.0):
+    - CryptoSwift (~> 1.10.0)
     - ReadiumFuzi (~> 4.0.0)
-    - ReadiumInternal (~> 3.9.0)
-    - ReadiumShared (~> 3.9.0)
+    - ReadiumInternal (~> 3.11.0)
+    - ReadiumShared (~> 3.11.0)
   - ReadiumZIPFoundation (3.0.1)
   - SwiftSoup (2.11.3)
   - wakelock_plus (0.0.1):
@@ -53,11 +53,11 @@ DEPENDENCIES:
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
-  - ReadiumInternal (~> 3.9.0)
-  - ReadiumNavigator (~> 3.9.0)
-  - ReadiumOPDS (~> 3.9.0)
-  - ReadiumShared (~> 3.9.0)
-  - ReadiumStreamer (~> 3.9.0)
+  - ReadiumInternal (~> 3.11.0)
+  - ReadiumNavigator (~> 3.11.0)
+  - ReadiumOPDS (~> 3.11.0)
+  - ReadiumShared (~> 3.11.0)
+  - ReadiumStreamer (~> 3.11.0)
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
@@ -90,24 +90,24 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/wakelock_plus/ios"
 
 SPEC CHECKSUMS:
-  CryptoSwift: e64e11850ede528a02a0f3e768cec8e9d92ecb90
+  CryptoSwift: e2e7776512f250e66205955da748e7a4e4abffe0
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_readium: 8de113dbcb83268e6d978750cc9cb3cb24034732
+  flutter_readium: a4b23fa14c9f8a0c3c903119b3244810b2d1e837
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
   ReadiumFuzi: fb19b82ff8f089b27c735c216c877666cd84d70f
-  ReadiumInternal: d8bc76e0305f9db2b7c95088214c5b4839597c5c
-  ReadiumNavigator: f625f4001d34fd5a9731b2a0a7ebf63c0b32a15e
-  ReadiumOPDS: 2a1a665a8f8f355118abfeb5d995300f3648b1cd
-  ReadiumShared: 822f70c5690e6f87bea7bc0b4c42f31482f639f7
-  ReadiumStreamer: 919eecd09e1ec130ca023fd70a65d6cdd2be6db3
+  ReadiumInternal: 98d4abbdc4061946b4aa7b1edd4b8a0596b8dab4
+  ReadiumNavigator: 35ff2a44cd012f04bab7221bdf3b684003e0b549
+  ReadiumOPDS: ed24434a6f13f4c1197602c3d5666c33c26980cd
+  ReadiumShared: 3c7ab177aeb917cd4bc3543db908a1ca0db7ea4b
+  ReadiumStreamer: 2bd80a6825ab623dc06a578eb629c54714fa3d67
   ReadiumZIPFoundation: 4009f635ebc718cc113a388ecb33c773f00639ca
   SwiftSoup: 959c9ac70d7053fbf476341bfac90ab228523f2a
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
-PODFILE CHECKSUM: d7748d342b75d471dfcf2f4f1b4c9d13ed5866b8
+PODFILE CHECKSUM: 2f4fb5dcab74326e2b88472463efb20c7535dda1
 
 COCOAPODS: 1.16.2
