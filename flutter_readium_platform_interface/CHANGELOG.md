@@ -11,6 +11,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   platform interface for distinguishing system media-control commands from
   ordinary playback state changes.
 
+## [0.3.3] - 2026-08-04
+
 ## [0.3.2] - 2026-08-03
 
 ## [0.3.1] - 2026-07-24

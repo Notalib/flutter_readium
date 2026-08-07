@@ -9,7 +9,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
-- **swift-toolkit 3.9.0** on iOS
+- **swift-toolkit 3.11.0** on iOS
 - **kotlin-toolkit 3.2.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
@@ -64,7 +64,7 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.32.0+                |
+| Flutter     | 3.44.4+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
@@ -94,23 +94,28 @@ Then complete the per-platform setup below. See the [installation guide](https:/
 
 ### iOS
 
-Add the Readium pods to your `ios/Podfile`. The pod URLs must match the version pinned in
+Add the Readium pods to your `ios/Podfile`. The versions must match the ones pinned in
 `ios/flutter_readium.podspec`. The `example/ios/Podfile` is the source-of-truth for app
 integration — copy these lines into your own `Podfile`:
 
 ```ruby
+source 'https://github.com/readium/podspecs'
+source 'https://cdn.cocoapods.org/'
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec'
-  pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec'
-  pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec'
-  pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec'
-  pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec'
-  pod 'ReadiumZIPFoundation', podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
+  pod 'ReadiumShared', '~> 3.11.0'
+  pod 'ReadiumInternal', '~> 3.11.0'
+  pod 'ReadiumStreamer', '~> 3.11.0'
+  pod 'ReadiumNavigator', '~> 3.11.0'
+  pod 'ReadiumOPDS', '~> 3.11.0'
 end
 ```
+
+The `readium/podspecs` source is hosted at https://github.com/readium/podspecs. To use
+a specific version, change the `~>` constraint accordingly (e.g. `~> 3.10.0`).
 
 ### Web
 

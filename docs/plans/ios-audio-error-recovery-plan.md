@@ -9,12 +9,12 @@
 
 **Architecture:** Upstream swift-toolkit `AudioNavigator` swallows all AVPlayer/resource errors (no `.failed` state, no delegate error calls). We cannot observe its private `AVPlayer`, so we intercept one layer down: wrap the publication's `Container` at open time (via the `onCreatePublication` transform the plugin already uses) so every `Resource` read failure is reported to an observer. The plugin routes those failures to `FlutterAudioNavigator`, which classifies them (retryable vs terminal), runs a bounded backoff recovery loop (tear down and rebuild the internal `AudioNavigator` at the last known locator — required because upstream never replaces a failed `AVPlayerItem` for the same resource index), and emits `failure` state + error events when recovery is exhausted.
 
-**Tech Stack:** Swift 5.x, swift-toolkit 3.9.0 (`ReadiumShared`, `ReadiumNavigator`), XCTest (host: `RunnerTests` in `flutter_readium/example/ios`).
+**Tech Stack:** Swift 5.x, swift-toolkit (`ReadiumShared`, `ReadiumNavigator`), XCTest (host: `RunnerTests` in `flutter_readium/example/ios`).
 
 ## Global Constraints
 
 - Working dir is the repo root (`flutter_readium/` is the app package inside it). All paths below are repo-relative.
-- swift-toolkit pin is **3.9.0** — verify any upstream API against that tag, not `develop`.
+- swift-toolkit pin is current — verify any upstream API against the pinned version, not `develop`.
 - Build with `fvm flutter` (respects `.fvmrc`), never bare `flutter`.
 - **Do NOT add new files to `flutter_readium/example/ios/RunnerTests/`** — the Xcode target lists files explicitly in `project.pbxproj`. Append new `XCTestCase` classes to the existing `RunnerTests.swift` instead.
 - New plugin source files under `flutter_readium/ios/flutter_readium/Sources/flutter_readium/` are picked up automatically (SPM/podspec glob) — no project-file edits needed.

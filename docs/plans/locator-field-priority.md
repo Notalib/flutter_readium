@@ -14,7 +14,7 @@ swift-toolkit does **not** use `locations.cssSelector` at all:
 | Toolkit | Source | Priority order | Honors `cssSelector`? |
 |---|---|---|---|
 | **kotlin** 3.2.0 | `scrollToLocator` (`navigator/.../_scripts/src/utils.js`) | `text.highlight` → **`cssSelector`** → `fragments` → `progression` (never referenced) | ✅ |
-| **swift** 3.9.0 | `EPUBReflowableSpreadView.go(to:)` | `text.highlight` → **`fragments.first`** (used as a DOM tag id via `scroll(toTagID:)`) → `progression` | ❌ |
+| **swift** 3.11.0 | `EPUBReflowableSpreadView.go(to:)` | `text.highlight` → **`fragments.first`** (used as a DOM tag id via `scroll(toTagID:)`) → `progression` | ❌ |
 | **web** (ts-toolkit) | `EpubNavigator.goTo(locator)` | resolves `cssSelector` / `text.highlight` (see [web-goto-locator-precision.md](web-goto-locator-precision.md)) | ✅ (verify when touching) |
 
 ### Consequence
@@ -69,6 +69,6 @@ overrides `currentLocator` with the combined locator, bypassing it.
 ## Gotcha for future work
 
 Don't "simplify" the promotion/hardening away on the assumption that `cssSelector` is honored
-everywhere — it is not honored by swift-toolkit 3.9.0. If a future swift-toolkit upgrade
+everywhere — it is not honored by swift-toolkit 3.11.0. If a future swift-toolkit upgrade
 starts resolving `cssSelector` in `EPUBReflowableSpreadView.go(to:)`, this compensation
 becomes redundant and can be removed; verify against that version's `go(to:)` first.

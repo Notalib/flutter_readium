@@ -131,6 +131,7 @@ async function _parseReadingOrderAlternates(
   publication: ReadiumPublication
 ): Promise<SyncNarrationItem[]> {
   const result: SyncNarrationItem[] = [];
+  const seenHrefs = new Set<string>();
 
   for (let i = 0; i < publication.readingOrder.items.length; i++) {
     const roLink = publication.readingOrder.items[i];
@@ -138,6 +139,8 @@ async function _parseReadingOrderAlternates(
     if (!alternates) continue;
     const gnLink = alternates.findWithMediaType(GUIDED_NAVIGATION_MEDIA_TYPE);
     if (!gnLink) continue;
+    if (seenHrefs.has(gnLink.href)) continue;
+    seenHrefs.add(gnLink.href);
 
     let document: GuidedNavigationDocument | null = null;
     try {
@@ -154,10 +157,8 @@ async function _parseReadingOrderAlternates(
       continue;
     }
 
-    const position = i + 1;
-    const readingOrderDuration = roLink.duration;
     for (const obj of document.guided) {
-      _flattenWithFixedPosition(obj, position, readingOrderDuration, result);
+      _flattenWithReadingOrderLookup(obj, result, publication);
     }
   }
 
@@ -169,9 +170,9 @@ async function _parseReadingOrderAlternates(
 // ---------------------------------------------------------------------------
 
 /**
- * Strategy 1 flatten: position is derived per item by matching the textref's
- * file path against the publication's reading order — 1-based index when
- * matched, 0 when unmatched. The matched reading-order link's `duration`
+ * Flatten helper used by both strategies: position is derived per item by matching
+ * the textref's file path against the publication's reading order — 1-based index
+ * when matched, 0 when unmatched. The matched reading-order link's `duration`
  * (when declared) is attached to the item as `readingOrderDuration`.
  * Mirrors iOS: `(roEntry?.offset ?? -1) + 1` and `roEntry?.element.duration`.
  */
@@ -192,25 +193,6 @@ function _flattenWithReadingOrderLookup(
   }
   for (const child of obj.children) {
     _flattenWithReadingOrderLookup(child, out, publication);
-  }
-}
-
-/**
- * Strategy 2 flatten: position is fixed (readingOrderIndex + 1) for every item
- * in this document, because the document is itself attached to that reading-order
- * entry. The reading-order entry's duration is propagated to every item.
- */
-function _flattenWithFixedPosition(
-  obj: GuidedNavigationObject,
-  position: number,
-  readingOrderDuration: number | undefined,
-  out: SyncNarrationItem[]
-): void {
-  if (obj.audioref !== undefined && obj.textref !== undefined) {
-    out.push(_buildItem(obj.audioref, obj.textref, obj.imgref, position, readingOrderDuration));
-  }
-  for (const child of obj.children) {
-    _flattenWithFixedPosition(child, position, readingOrderDuration, out);
   }
 }
 
