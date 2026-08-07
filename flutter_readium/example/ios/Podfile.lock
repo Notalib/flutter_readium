@@ -53,20 +53,26 @@ DEPENDENCIES:
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
-  - ReadiumInternal (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec`)
-  - ReadiumNavigator (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec`)
-  - ReadiumOPDS (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec`)
-  - ReadiumShared (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec`)
-  - ReadiumStreamer (from `https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec`)
-  - ReadiumZIPFoundation (from `https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec`)
+  - ReadiumInternal (~> 3.9.0)
+  - ReadiumNavigator (~> 3.9.0)
+  - ReadiumOPDS (~> 3.9.0)
+  - ReadiumShared (~> 3.9.0)
+  - ReadiumStreamer (~> 3.9.0)
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
 
 SPEC REPOS:
+  https://github.com/readium/podspecs:
+    - ReadiumFuzi
+    - ReadiumInternal
+    - ReadiumNavigator
+    - ReadiumOPDS
+    - ReadiumShared
+    - ReadiumStreamer
+    - ReadiumZIPFoundation
   trunk:
     - CryptoSwift
     - DifferenceKit
     - Minizip
-    - ReadiumFuzi
     - SwiftSoup
 
 EXTERNAL SOURCES:
@@ -80,18 +86,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/package_info_plus/ios"
   pointer_interceptor_ios:
     :path: ".symlinks/plugins/pointer_interceptor_ios/ios"
-  ReadiumInternal:
-    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec
-  ReadiumNavigator:
-    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec
-  ReadiumOPDS:
-    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec
-  ReadiumShared:
-    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec
-  ReadiumStreamer:
-    :podspec: https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec
-  ReadiumZIPFoundation:
-    :podspec: https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec
   wakelock_plus:
     :path: ".symlinks/plugins/wakelock_plus/ios"
 
@@ -104,16 +98,16 @@ SPEC CHECKSUMS:
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
-  ReadiumFuzi: 888d023b862f524e314f85925c94768a501f05c0
-  ReadiumInternal: 44ae41c0487eb56cd5bbeded3d8a6c86351fa0a0
-  ReadiumNavigator: 3bac1f518748845913a9fbcf292cb8204aa460e5
-  ReadiumOPDS: dc15e9a5d68cf54b4e9c1f1f1a11184d83b51208
-  ReadiumShared: a5b262285fc06e8eb45db23c64c485fae5e7a54b
-  ReadiumStreamer: cddfb21ed01a48a4c6dccfc133aefaea78630e4d
-  ReadiumZIPFoundation: 2f3e19e361f1b7751ecf37a88c754287692c12c2
+  ReadiumFuzi: fb19b82ff8f089b27c735c216c877666cd84d70f
+  ReadiumInternal: d8bc76e0305f9db2b7c95088214c5b4839597c5c
+  ReadiumNavigator: f625f4001d34fd5a9731b2a0a7ebf63c0b32a15e
+  ReadiumOPDS: 2a1a665a8f8f355118abfeb5d995300f3648b1cd
+  ReadiumShared: 822f70c5690e6f87bea7bc0b4c42f31482f639f7
+  ReadiumStreamer: 919eecd09e1ec130ca023fd70a65d6cdd2be6db3
+  ReadiumZIPFoundation: 4009f635ebc718cc113a388ecb33c773f00639ca
   SwiftSoup: 959c9ac70d7053fbf476341bfac90ab228523f2a
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
 
-PODFILE CHECKSUM: 894bc4dbb676e55d1a69180023df51e183cd49ec
+PODFILE CHECKSUM: d7748d342b75d471dfcf2f4f1b4c9d13ed5866b8
 
 COCOAPODS: 1.16.2

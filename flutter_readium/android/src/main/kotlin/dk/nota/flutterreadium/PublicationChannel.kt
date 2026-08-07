@@ -3,6 +3,7 @@
 package dk.nota.flutterreadium
 
 import dk.nota.flutterreadium.models.TextSearchResult
+import dk.nota.flutterreadium.navigators.AudioRecoveryPolicy
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
@@ -18,8 +19,13 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.getOrElse
+import java.io.FileOutputStream
+import java.io.IOException
 
 private const val TAG = "PublicationChannel"
+
+/** Window size used when streaming a resource to a cache file in `getResourceUrl`. */
+private const val RESOURCE_CACHE_CHUNK_SIZE = 1L * 1024 * 1024
 
 internal val publicationChannelName = "dk.nota.flutter_readium/main"
 
@@ -55,12 +61,29 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 PluginLog.e(TAG, "Exception: $e")
                 PluginLog.e(TAG, "${e.stackTrace}")
 
-                // TODO: Handle unknown errors better.
-                result.error(
-                    e.javaClass.toString(),
-                    e.toString(),
-                    e.stackTraceToString(),
-                )
+                // handleMethodCallsQueue's `arguments as ...` casts throw ClassCastException /
+                // NullPointerException for a malformed/missing argument from Dart rather than
+                // returning Try.failure - classify those as caller misuse. Anything else is a
+                // genuinely unclassified failure; "unknown" is itself a vocabulary member,
+                // unlike the e.javaClass.toString() ad hoc code this replaces.
+                val error =
+                    when (e) {
+                        // Already classified deep in a suspend fun that only had `throw`
+                        // available (no Try) - use that classification rather than
+                        // re-deriving a generic "unknown" from just the message string.
+                        is PublicationErrorException -> {
+                            e.publicationError
+                        }
+
+                        is ClassCastException, is NullPointerException -> {
+                            PublicationError.InvalidArgument(e.message ?: "Invalid argument for ${call.method}")
+                        }
+
+                        else -> {
+                            PublicationError.Unknown(e.message ?: e.toString())
+                        }
+                    }
+                result.publicationError(call.method, error)
             }
         }
     }
@@ -89,6 +112,12 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 ReadiumReader.setDefaultHttpHeaders(httpHeaders)
                 return Try.success(null)
             }
+
+             "setAudioRecoveryPolicy" -> {
+                 val args = arguments as? Map<*, *>
+                 ReadiumReader.audioRecoveryPolicy = AudioRecoveryPolicy.fromMap(args)
+                 return Try.success(null)
+             }
 
             "setCssInjections" -> {
                 @Suppress("UNCHECKED_CAST")
@@ -222,7 +251,11 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                     }
 
                 if (locator == null) {
-                    throw Exception("goToLocator: failed to go to locator. Missing locator: ${args[0]} ")
+                    return Try.failure(
+                        PublicationError.InvalidArgument(
+                            "goToLocator: failed to go to locator. Missing locator: ${args[0]} ",
+                        ),
+                    )
                 }
 
                 ReadiumReader.goToLocator(locator)
@@ -266,13 +299,13 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
 
             "searchInPublication" -> {
                 ReadiumReader.currentPublication ?: return Try.failure(
-                    PublicationError.Unavailable(),
+                    PublicationError.NoPublicationOpened(),
                 )
                 val query = arguments as String
                 val searchResult =
                     ReadiumReader.searchInPublication(query).getOrElse {
                         return Try.failure(
-                            PublicationError.Unknown(
+                            PublicationError.Search(
                                 message = it.message ?: "Search failed",
                             ),
                         )
@@ -298,7 +331,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                     ReadiumReader.goToProgression(duration)
                     return Try.success(true)
                 } else {
-                    return Try.failure(PublicationError.Unknown("Missing or invalid duration argument: $arguments"))
+                    return Try.failure(PublicationError.InvalidArgument("Missing or invalid duration argument: $arguments"))
                 }
             }
 
@@ -308,36 +341,71 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.success(null)
             }
 
-            "getResourceBytes" -> {
+            "getResourceUrl" -> {
                 @Suppress("UNCHECKED_CAST")
                 val args = arguments as? Map<String, Any?>
                 val href =
                     args?.get("href") as? String
                         ?: return Try.failure(
-                            PublicationError.Unknown("::getResourceBytes requires a 'href' string argument"),
+                            PublicationError.InvalidArgument("::getResourceUrl requires a 'href' string argument"),
                         )
                 val publication =
                     ReadiumReader.currentPublication
                         ?: return Try.failure(
-                            PublicationError.Unavailable("::getResourceBytes No publication open"),
+                            PublicationError.NoPublicationOpened("::getResourceUrl No publication open"),
                         )
+
+                val cacheFile = ResourceFileCache.fileFor(href)
+                if (cacheFile.exists()) {
+                    PluginLog.d(TAG, "::getResourceUrl. href=$href reused cache file")
+                    return Try.success(cacheFile.toURI().toString())
+                }
+
                 val url =
                     Url(href)
                         ?: return Try.failure(
-                            PublicationError.Unknown("::getResourceBytes Invalid href: $href"),
+                            PublicationError.InvalidArgument("::getResourceUrl Invalid href: $href"),
                         )
                 val resource =
                     publication.get(url)
                         ?: return Try.failure(
-                            PublicationError.InvalidPublicationUrl("::getResourceBytes No resource for href: $href"),
+                            PublicationError.ResourceRead(
+                                "::getResourceUrl No resource for href: $href",
+                                reason = PublicationError.ReadiumErrorReason.NOT_FOUND,
+                            ),
                         )
-                val bytes =
-                    resource.read().getOrElse { readError ->
-                        PluginLog.w(TAG, "::getResourceBytes. Read failed for href: $href. ${readError.message}")
-                        return Try.failure(PublicationError.Reading(readError))
+
+                try {
+                    FileOutputStream(cacheFile).use { out ->
+                        var offset = 0L
+                        while (true) {
+                            val chunk =
+                                resource.read(offset until offset + RESOURCE_CACHE_CHUNK_SIZE).getOrElse { readError ->
+                                    PluginLog.w(TAG, "::getResourceUrl. Read failed for href: $href. ${readError.message}")
+                                    return Try.failure(
+                                        PublicationError.ResourceRead(
+                                            "::getResourceUrl Read failed for href: $href. ${readError.message}",
+                                        ),
+                                    )
+                                }
+                            if (chunk.isEmpty()) break
+                            out.write(chunk)
+                            offset += chunk.size
+                            if (chunk.size < RESOURCE_CACHE_CHUNK_SIZE) break
+                        }
                     }
-                PluginLog.d(TAG, "::getResourceBytes. href=$href bytes=${bytes.size}")
-                return Try.success(bytes)
+                } catch (e: IOException) {
+                    cacheFile.delete()
+                    PluginLog.w(TAG, "::getResourceUrl. Failed writing cache file for href: $href. ${e.message}")
+                    return Try.failure(
+                        PublicationError.ResourceRead(
+                            "::getResourceUrl Failed writing cache file for href: $href",
+                            reason = PublicationError.ReadiumErrorReason.CACHE,
+                        ),
+                    )
+                }
+                PluginLog.d(TAG, "::getResourceUrl. href=$href cached to ${cacheFile.path}")
+                return Try.success(cacheFile.toURI().toString())
             }
 
             else -> {
@@ -408,10 +476,17 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
     private suspend fun ttsEnable(prefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable(),
+            PublicationError.NoPublicationOpened(),
         )
 
-        ReadiumReader.ttsEnable(prefs)
+        try {
+            ReadiumReader.ttsEnable(prefs)
+        } catch (e: Exception) {
+            // Generic TTS-navigator-creation failure (kotlin-toolkit's TtsNavigatorFactory
+            // rejecting the publication, engine init, etc.) - not caller misuse, so
+            // TTSError rather than InvalidArgument.
+            return Try.failure(PublicationError.TTSFailure(e.message ?: "Failed to enable TTS"))
+        }
         return Try.success(null)
     }
 
@@ -421,10 +496,14 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
     private suspend fun ttsSetPreferences(ttsPrefs: FlutterTtsPreferences): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable(),
+            PublicationError.NoPublicationOpened(),
         )
 
-        ReadiumReader.ttsSetPreferences(ttsPrefs)
+        try {
+            ReadiumReader.ttsSetPreferences(ttsPrefs)
+        } catch (e: Exception) {
+            return Try.failure(PublicationError.TTSFailure(e.message ?: "Failed to update TTS preferences"))
+        }
         return Try.success(null)
     }
 
@@ -475,7 +554,7 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
     ): Try<Any?, PublicationError> {
         // This only makes sense if a publication is open.
         ReadiumReader.currentPublication ?: return Try.failure(
-            PublicationError.Unavailable(),
+            PublicationError.NoPublicationOpened(),
         )
 
         ReadiumReader.audioEnable(locator, preferences)
@@ -498,6 +577,6 @@ fun MethodChannel.Result.publicationError(
     this.error(
         error.errorCode.wireValue,
         error.message,
-        error.cause,
+        error.toMethodChannelDetails(),
     )
 }

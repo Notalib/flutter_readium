@@ -2,14 +2,50 @@ import {
   AudioNavigator,
   AudioNavigatorConfiguration,
   AudioNavigatorListeners,
-  IAudioPreferences,
 } from "@readium/navigator";
-import { Locator, LocatorLocations, Timeline } from "@readium/shared";
+import { getTime, Locator, LocatorLocations, Timeline } from "@readium/shared";
 import { createLogger } from "../utils/ReadiumPluginLogger";
-import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import { ReadiumPublication, findLinkByHref } from "../utils/ReadiumExtensions";
 import { audioPreferencesFromJson } from "../preferences/FlutterAudioPreferences";
+import { ReadiumBridge } from "../bridge/ReadiumBridge";
+import {
+  AudioStreamErrorAction,
+  AudioStreamRecoveryController,
+  classifyAudioStreamError,
+  getCurrentAudioRecoveryPolicy,
+  MEDIA_ERR_ABORTED,
+  MEDIA_ERR_DECODE,
+  MediaErrorLike,
+} from "./AudioStreamErrorPolicy";
+import { probeAudioStreamHttpStatus } from "./AudioStreamHttpProbe";
+import { ReadiumWebError, ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 
 const log = createLogger("AudioNav");
+
+/** Poll interval while waiting for playback position to advance during recovery. */
+const RECOVERY_VERIFY_POLL_MS = 250;
+/** Minimum position advance (seconds) counted as "playback actually resumed". */
+const RECOVERY_VERIFY_MIN_ADVANCE_S = 0.1;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class TimeoutError extends Error {}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  message: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new TimeoutError(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
 
 /**
  * Builds a function that computes publication-wide `totalProgression` for an
@@ -33,7 +69,7 @@ export function makeAudioTotalProgressionFn(
   );
   if (missing) {
     log.warn(
-      "Cannot compute audio totalProgression: one or more readingOrder items missing duration"
+      "Cannot compute audio totalProgression: one or more readingOrder items missing duration",
     );
     return () => undefined;
   }
@@ -48,7 +84,7 @@ export function makeAudioTotalProgressionFn(
     const bareHref = locator.href.split("#")[0];
     const idx = items.findIndex((i) => i.href === bareHref);
     if (idx < 0) return undefined;
-    const time = locator.locations?.time?.() ?? 0;
+    const time = getTime(locator.locations) ?? 0;
     const value = (cumulative[idx] + time) / total;
     return Math.min(1, Math.max(0, value));
   };
@@ -212,7 +248,7 @@ function isAlreadyAtPosition(
   const targetHref = audioLocator.href.split("#")[0];
   const currentHref = nav.currentLocator.href.split("#")[0];
   if (targetHref !== currentHref) return false;
-  const targetTime = audioLocator.locations?.time();
+  const targetTime = getTime(audioLocator.locations);
   if (targetTime === undefined) return false;
   return Math.abs(targetTime - nav.currentTime) <= SAME_POSITION_EPSILON_S;
 }
@@ -358,10 +394,194 @@ function _emitState(
   }
 }
 
+/**
+ * Resolves the absolute URL ts-toolkit's `AudioNavigator` assigned to
+ * `mediaElement.src` for `href`, for use as the HTTP probe target. Reuses the
+ * same `findLinkByHref` + `Link.toURL(baseURL)` pattern as
+ * `ReadiumReader.getResourceUrl` — the only other place this plugin resolves
+ * a publication-relative href to an absolute resource URL.
+ *
+ * Returns `undefined` when no matching link exists or it has no resolvable
+ * URL (e.g. malformed manifest) — callers should skip the probe in that case.
+ */
+function resolveAudioResourceUrl(
+  publication: ReadiumPublication,
+  href: string
+): string | undefined {
+  const link = findLinkByHref(publication.allLinks, href);
+  return link?.toURL(publication.baseURL) ?? undefined;
+}
+
+/**
+ * Runs the HTTP diagnostic probe (see `AudioStreamHttpProbe.ts`) ahead of
+ * classification-based dispatch, then hands off to
+ * `AudioStreamRecoveryController.handle`.
+ *
+ * The probe only runs when it could change the outcome: skipped entirely for
+ * `MEDIA_ERR_ABORTED` (already `ignore`, and firing a CORS fetch during
+ * teardown/seek would be pure overhead) and `MEDIA_ERR_DECODE` (already a
+ * conclusive terminal failure — a bad HTTP status can't explain a decode
+ * error, and a *good* status would be misleading: the file is reachable but
+ * still unplayable). For every other code the probe result — when conclusive
+ * — supersedes the MediaError-only classification; an inconclusive probe
+ * (timeout/thrown-while-online/opaque) falls back to it unchanged.
+ */
+async function handleAudioStreamError(
+  mediaError: unknown,
+  href: string,
+  publication: ReadiumPublication,
+  recovery: AudioStreamRecoveryController,
+  message: string
+): Promise<void> {
+  const fallback = classifyAudioStreamError(mediaError);
+  const code = (mediaError as MediaErrorLike | null | undefined)?.code;
+
+  let action: AudioStreamErrorAction = fallback;
+  if (code !== MEDIA_ERR_ABORTED && code !== MEDIA_ERR_DECODE) {
+    const url = resolveAudioResourceUrl(publication, href);
+    if (url) {
+      const probed = await probeAudioStreamHttpStatus(url);
+      if (probed) action = probed;
+    }
+  }
+
+  recovery.handle(message, action, href);
+}
+
+/**
+ * Rebuilds the `AudioNavigator` at `href` (the ts-toolkit engine has no
+ * in-place re-prepare API, so — mirroring iOS/Android — recovery tears down
+ * and reconstructs it) and verifies playback position actually advances
+ * within `connectionTimeoutMs`. Being in a "ready"/"playing" state alone is
+ * not a reliable recovery signal (mirrors Android's `playbackAdvanced`).
+ * `connectionTimeoutMs` bounds both phases of the attempt: the rebuild itself
+ * (via `withTimeout` below) and, separately, this post-rebuild verification.
+ *
+ * On success, `onNavReplaced` updates the enclosing `create()` closure's
+ * `nav` binding so subsequent listener callbacks (positionChanged, etc.)
+ * operate on the freshly-built navigator.
+ *
+ * @param getLastLocator Reads the *current* locator (with its time fragment)
+ *   from the still-live (about to be torn down) navigator at rebuild time —
+ *   NOT the original `initialPosition` the session started at, which would
+ *   resume at the wrong timestamp after playback has progressed.
+ * @param teardownCurrent Stops/destroys the still-live navigator being
+ *   replaced. Called after `getLastLocator()` reads it, before the
+ *   replacement is built — otherwise both elements can play concurrently.
+ * @param recoveryController The session's existing controller, threaded into
+ *   the rebuilt navigator's `create()` so its listeners share this loop's
+ *   suppression/latch state instead of getting a fresh, orphaned instance.
+ */
+async function rebuildAndVerifyPlayback(
+  href: string,
+  publication: ReadiumPublication,
+  getLastLocator: () => Locator | undefined,
+  teardownCurrent: () => void,
+  preferencesJsonString: string,
+  setNav: (nav: AudioNavigator) => void,
+  pollIntervalOverrideMs: number | undefined,
+  bridge: ReadiumBridge,
+  recoveryController: AudioStreamRecoveryController,
+  onNavReplaced: (nav: AudioNavigator) => void,
+  connectionTimeoutMs: number,
+  isDisposed: () => boolean
+): Promise<boolean> {
+  if (isDisposed()) return false;
+  const lastPosition = getLastLocator();
+  teardownCurrent();
+  const resumeLocator = new Locator({
+    href,
+    type: "audio/mpeg",
+    locations: lastPosition?.locations,
+  });
+
+  let rebuilt: AudioNavigator | undefined;
+  let attemptCancelled = false;
+  try {
+    await withTimeout(
+      FlutterAudioNavigator.create(
+        publication,
+        resumeLocator,
+        preferencesJsonString,
+        (n) => {
+          if (attemptCancelled || isDisposed()) {
+            n.stop();
+            n.destroy();
+            return;
+          }
+          rebuilt = n;
+          onNavReplaced(n);
+          setNav(n);
+        },
+        undefined,
+        undefined,
+        pollIntervalOverrideMs,
+        bridge,
+        false,
+        recoveryController
+      ),
+      connectionTimeoutMs,
+      `Timed out rebuilding audio playback after ${connectionTimeoutMs / 1000}s`
+    );
+  } catch (e) {
+    attemptCancelled = true;
+    log.error("rebuildAndVerifyPlayback: rebuild failed", e);
+    return false;
+  }
+  if (!rebuilt || isDisposed()) return false;
+
+  rebuilt.play();
+
+  const startOffset = rebuilt.currentTime;
+  const deadline = Date.now() + connectionTimeoutMs;
+  while (Date.now() < deadline && !isDisposed()) {
+    if (rebuilt.currentTime > startOffset + RECOVERY_VERIFY_MIN_ADVANCE_S) {
+      return true;
+    }
+    await sleep(RECOVERY_VERIFY_POLL_MS);
+  }
+  return false;
+}
+
 export class FlutterAudioNavigator {
   // This class is a static factory only. The constructed navigator is delivered
   // via the `setNav` callback so that ReadiumReader can hold it as the raw
   // upstream type (AudioNavigator) without wrapping.
+
+  /**
+   * Recovery controller for the current plain-audiobook session, if any.
+   * Scoped module-level (mirroring `_emissionsEnabled`) rather than per-`create()`
+   * closure so `retryAfterFailure` can reach it after a rebuild has replaced
+   * the in-flight `create()` call's local state.
+   *
+   * Only wired for the plain audiobook path (no `locatorMapper`) — Media
+   * Overlay / TTS sessions are out of scope for this parity pass.
+   */
+  private static _recovery: AudioStreamRecoveryController | undefined;
+  /** Incremented on close/stop so stale async callbacks can self-suppress. */
+  private static _sessionGeneration = 0;
+
+  /**
+   * Clears the terminal-failure latch and rebuilds playback at the last known
+   * locator. Mirrors iOS/Android's `play()`-after-failure contract. No-ops if
+   * there is no active recovery controller or it isn't currently latched.
+   */
+  static retryAfterFailure(): void {
+    this._recovery?.clearFailure();
+  }
+
+  /** True while the current audiobook session is latched in terminal failure. */
+  static isTerminallyFailed(): boolean {
+    return this._recovery?.isTerminallyFailed() ?? false;
+  }
+
+  /** Clears any recovery state. Call when a session ends (stop/closePublication)
+   *  so a stale latch/controller can't leak into the next audiobook session. */
+  static resetRecovery(): void {
+    this._sessionGeneration += 1;
+    this._recovery?.dispose();
+    this._recovery = undefined;
+  }
 
   // See Readium's guide on ts-toolkit AudioNavigator configuration:
   // https://github.com/readium/ts-toolkit/blob/develop/navigator/docs/audio/ConfiguringAudioNavigator.md
@@ -376,7 +596,17 @@ export class FlutterAudioNavigator {
      *  overlay sessions where cue synchronisation requires much finer granularity
      *  than the Dart-side `updateIntervalSecs` preference (which controls the
      *  progress bar, not cue timing). */
-    pollIntervalOverrideMs?: number
+    pollIntervalOverrideMs?: number,
+    /** Bridge used to emit streaming-failure error events. Only consulted on
+     *  the plain audiobook path (no `locatorMapper`) — pass it from
+     *  `ReadiumReader` to enable retry/failure recovery for that session. */
+    bridge?: ReadiumBridge,
+    /** Internal: recovery rebuild timeouts are failed attempts, not initial-open errors. */
+    emitCreateTimeoutError = true,
+    /** Internal: when rebuilding during recovery, reuse the session's existing
+     *  controller instead of constructing a new one — a fresh controller would
+     *  silently replace `_recovery` and reset its attempt budget/latch. */
+    recoveryController?: AudioStreamRecoveryController
   ): Promise<void> {
     const tracks = publication.readingOrder.items.length;
     log.info(
@@ -390,7 +620,10 @@ export class FlutterAudioNavigator {
 
     // A fresh session: re-enable emissions (closePublication disables them to
     // suppress post-close stragglers from a previous navigator).
+    const sessionGeneration = FlutterAudioNavigator._sessionGeneration;
     _emissionsEnabled = true;
+    const isDisposed = () =>
+      FlutterAudioNavigator._sessionGeneration !== sessionGeneration || !_emissionsEnabled;
 
     const basePrefs = audioPreferencesFromJson(preferencesJsonString);
     if (pollIntervalOverrideMs != null) {
@@ -421,10 +654,89 @@ export class FlutterAudioNavigator {
     let currentTocHref: string | undefined;
     const getTocHref = timeline ? () => currentTocHref : undefined;
 
-    // nav is used inside the closure before assignment; TypeScript is fine with
-    // this because the listeners are only called after `nav` is assigned below.
-    let nav: AudioNavigator;
+    // Assigned after listener construction. Some timeout/error paths can run
+    // before assignment, so cleanup guards every direct use.
+    let nav: AudioNavigator | undefined;
+    let createCancelled = false;
     let lastPositionLogKey = "";
+
+    const recoveryPolicy = getCurrentAudioRecoveryPolicy();
+    // Stall watchdog state: the browser's own `stalled` event fires quickly (~3s) and is
+    // only an early *detection* signal that data stopped flowing — not the escalation
+    // threshold. Mirrors iOS/Android: escalation waits for the full `stallTimeoutSeconds`
+    // of the offset genuinely not advancing while playback is intended, so all three
+    // platforms present a consistent ~stallTimeout × maxAttempts UX bar.
+    let stallWatchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastAdvanceOffset: number | undefined;
+
+    function clearStallWatchdog(): void {
+      if (stallWatchdogTimer !== undefined) {
+        clearTimeout(stallWatchdogTimer);
+        stallWatchdogTimer = undefined;
+      }
+    }
+
+    /** (Re)arms the watchdog: fires after `stallTimeoutSeconds` unless reset first by another offset advance. */
+    function armStallWatchdog(onStalled: () => void): void {
+      clearStallWatchdog();
+      stallWatchdogTimer = setTimeout(onStalled, recoveryPolicy.stallTimeoutSeconds * 1000);
+    }
+
+    /**
+     * Called on every `timeupdate`-driven position change while playback is intended: resets
+     * the watchdog whenever the offset actually moves, and arms it on the first observation.
+     */
+    function noteOffsetAdvance(currentOffset: number, onStalled: () => void): void {
+      if (lastAdvanceOffset === undefined || currentOffset > lastAdvanceOffset + 0.1) {
+        lastAdvanceOffset = currentOffset;
+        armStallWatchdog(onStalled);
+      }
+    }
+
+    // Recovery is only wired for the plain audiobook path. Media Overlay/TTS
+    // sessions (locatorMapper present) are out of scope for this parity pass —
+    // rebuilding mid-sync-narration would require re-deriving the mapper's
+    // internal cue state, which the current AudioLocatorMapper contract does
+    // not expose a way to resume.
+    //
+    // `recoveryController`, when passed (the inner call from
+    // `rebuildAndVerifyPlayback`), is reused rather than replaced — a fresh
+    // controller would silently orphan `_recovery`'s attempt budget/latch.
+    let recovery: AudioStreamRecoveryController | undefined;
+    if (!locatorMapper && bridge) {
+      recovery = recoveryController ?? new AudioStreamRecoveryController(
+        {
+          emitError: (message, code, data) => bridge.emitError(message, code, data),
+          setPinnedState: (state) => {
+            if (isDisposed()) return;
+            if (!nav) return;
+            window.updateTimebasedPlayerState?.(buildStatePayload(state, nav));
+          },
+          stopPlayback: () => {
+            if (isDisposed()) return;
+            nav?.stop();
+          },
+          delay: sleep,
+          rebuildAndVerify: (href) =>
+            rebuildAndVerifyPlayback(
+              href,
+              publication,
+              () => nav?.currentLocator,
+              () => { nav?.stop(); nav?.destroy(); },
+              preferencesJsonString,
+              setNav,
+              pollIntervalOverrideMs,
+              bridge,
+              recovery!,
+              (n) => { nav = n; },
+              recoveryPolicy.connectionTimeoutSeconds * 1000,
+              isDisposed
+            ),
+        },
+        getCurrentAudioRecoveryPolicy()
+      );
+      FlutterAudioNavigator._recovery = recovery;
+    }
 
     // Local emit shorthand — captures the 5 context args so each listener
     // only names the state, locator, and alsoText flag it actually varies.
@@ -432,7 +744,8 @@ export class FlutterAudioNavigator {
       state: string,
       locator: Locator | undefined,
       alsoText: boolean
-    ) =>
+    ) => {
+      if (!nav) return;
       _emitState(
         state,
         nav,
@@ -444,6 +757,7 @@ export class FlutterAudioNavigator {
         onTextLocatorChanged,
         getTocHref
       );
+    };
 
     // Promise that resolves once the first track is loaded and the navigator is
     // ready for playback. Callers awaiting create() will block until this point,
@@ -453,6 +767,13 @@ export class FlutterAudioNavigator {
 
       const listeners: AudioNavigatorListeners = {
         trackLoaded: (_media) => {
+          if (createCancelled || isDisposed()) {
+            nav?.stop();
+            nav?.destroy();
+            resolve();
+            return;
+          }
+          if (!nav) return;
           if (!resolved) {
             resolved = true;
             log.info("AudioNavigator ready (first track loaded)");
@@ -461,13 +782,31 @@ export class FlutterAudioNavigator {
           }
         },
         positionChanged: (locator) => {
-          const time = locator.locations?.time?.() ?? nav.currentTime;
+          if (!nav) return;
+          const time = getTime(locator.locations) ?? nav.currentTime;
           const key = `${locator.href}#${Math.floor(time)}`;
           if (key !== lastPositionLogKey) {
             lastPositionLogKey = key;
             log.debug("positionChanged", locator.href, `t=${time.toFixed(2)}`, nav.isPlaying ? "playing" : "paused");
           }
           emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
+
+          if (recovery && !recovery.isSuppressed()) {
+            if (nav.isPlaying) {
+              noteOffsetAdvance(time, () => {
+                if (recovery!.isSuppressed()) return;
+                log.warn(`Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s`);
+                recovery!.handle(
+                  `Playback stalled (offset frozen for ${recoveryPolicy.stallTimeoutSeconds}s)`,
+                  AudioStreamErrorAction.retry(),
+                  locator.href
+                );
+              });
+            } else {
+              clearStallWatchdog();
+              lastAdvanceOffset = undefined;
+            }
+          }
         },
         timelineItemChanged: (item) => {
           if (timeline && item) {
@@ -482,26 +821,47 @@ export class FlutterAudioNavigator {
         },
         pause: (locator) => {
           log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
+          clearStallWatchdog();
+          lastAdvanceOffset = undefined;
           emit("paused", locator, false);
         },
         trackEnded: (locator) => {
+          if (!nav) return;
           // Only emit "ended" when the publication is truly finished (last track).
           // Intermediate track-ends are followed by auto-advance; emitting "ended"
           // would cause Dart-side to close the player prematurely.
           if (!nav.canGoForward) {
             log.info("Publication ended (last track)");
+            clearStallWatchdog();
+            lastAdvanceOffset = undefined;
             emit("ended", locator, false);
           } else {
             log.debug("Track ended, auto-advancing to next track");
           }
         },
         stalled: (isStalled) => {
+          if (!nav) return;
+          // Suppress the underlying navigator's own loading/playing/paused churn
+          // while a recovery attempt is in flight — only the pinned "loading"
+          // state (emitted by the recovery controller) should reach the bridge.
+          if (recovery?.isSuppressed()) return;
           log.debug(isStalled ? "Playback stalled (buffering)" : "Stall resolved");
           emit(isStalled ? "loading" : nav.isPlaying ? "playing" : "paused", undefined, false);
         },
-        error: (_error, locator) => {
-          log.error("AudioNavigator error:", _error, "locator:", locator?.href);
-          emit("failure", locator, false);
+        error: (mediaError, locator) => {
+          if (!nav) return;
+          log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
+          clearStallWatchdog();
+          lastAdvanceOffset = undefined;
+          if (!recovery) {
+            // No recovery wired (Media Overlay/TTS session): fall back to the
+            // previous unconditional "failure" emission.
+            emit("failure", locator, false);
+            return;
+          }
+          const href = (locator ?? nav.currentLocator).href;
+          const message = `AudioNavigator error (code=${(mediaError as { code?: number })?.code ?? "unknown"})`;
+          void handleAudioStreamError(mediaError, href, publication, recovery, message);
         },
         metadataLoaded: (_metadata) => {},
         seeking: (_isSeeking) => {},
@@ -515,7 +875,34 @@ export class FlutterAudioNavigator {
       nav = new AudioNavigator(publication, listeners, initialPosition, configuration);
     });
 
-    return await ready;
+    try {
+      return await withTimeout(
+        ready,
+        recoveryPolicy.connectionTimeoutSeconds * 1000,
+        `Timed out preparing audio playback after ${recoveryPolicy.connectionTimeoutSeconds}s`
+      );
+    } catch (error) {
+      const timedOut = error instanceof TimeoutError;
+      createCancelled = true;
+      clearStallWatchdog();
+      if (!isDisposed()) {
+        try {
+          nav?.stop();
+          nav?.destroy();
+        } catch (destroyError) {
+          log.warn("AudioNavigator cleanup after create timeout failed", destroyError);
+        }
+        if (timedOut && emitCreateTimeoutError && !locatorMapper) {
+          log.warn("AudioNavigator initial create timed out", initialPosition?.href ?? "(initial track)");
+        }
+      }
+      // Give the timeout a typed code so Dart stops matching on the message
+      // (was previously string-matched via `_convertToNativeCode`).
+      if (timedOut) {
+        throw new ReadiumWebError((error as Error).message, ReadiumWebErrorCode.audioStreamNetworkError);
+      }
+      throw error;
+    }
   }
 }
 

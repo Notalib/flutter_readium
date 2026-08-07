@@ -58,7 +58,7 @@ extension DoubleCheck on double {
 ///
 /// https://github.com/readium/architecture/tree/master/models/locators
 @immutable
-class Locator extends AdditionalProperties with EquatableMixin implements JSONable {
+class Locator extends AdditionalProperties with Equatable implements JSONable {
   const Locator({
     required this.href,
     required this.type,
@@ -240,7 +240,7 @@ class Locator extends AdditionalProperties with EquatableMixin implements JSONab
 ///        and 1).
 /// @param otherLocations Additional locations for extensions.
 @immutable
-class Locations extends AdditionalProperties with EquatableMixin implements JSONable {
+class Locations extends AdditionalProperties with Equatable implements JSONable {
   const Locations({
     this.position,
     this.progression,
@@ -385,7 +385,7 @@ class Locations extends AdditionalProperties with EquatableMixin implements JSON
 /// @param highlight The text at the locator.
 /// @param after The text after the locator.
 @immutable
-class LocatorText with EquatableMixin implements JSONable {
+class LocatorText with Equatable implements JSONable {
   factory LocatorText.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return const LocatorText();

@@ -6,6 +6,8 @@ export 'facet.dart';
 export 'feed.dart';
 export 'group.dart';
 export 'holds.dart';
+export 'odl_license_info_document.dart';
+export 'odl_license_metadata.dart';
 export 'opds_authentication.dart';
 export 'opds_metadata.dart';
 export 'opds_publication.dart';

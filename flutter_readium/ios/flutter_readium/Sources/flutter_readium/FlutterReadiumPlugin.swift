@@ -21,6 +21,12 @@ struct InjectionAsset {
   }
 }
 
+/// Reports resource read failures during publication open (audio streaming
+/// errors are otherwise swallowed inside upstream AudioNavigator — no handler
+/// set means no-op). Module scope: installed in `openPublication` before the
+/// audio navigator that will register a handler for it even exists.
+internal let resourceReadErrorObserver = ResourceReadErrorObserver()
+
 public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.WarningLogger, TimebasedListener {
 
   static var registrar: FlutterPluginRegistrar? = nil
@@ -234,6 +240,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       }
       sharedReadium.setAdditionalHeaders(httpHeaders)
       result(nil)
+    case "setAudioRecoveryPolicy":
+      let args = call.arguments as? [String: Any]
+      AudioRecoveryPolicy.current = AudioRecoveryPolicy.fromMap(args)
+      result(nil)
     case "ttsEnable":
       Task.detached(priority: .high) {
         do {
@@ -250,8 +260,15 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let currentLocation = self.currentReaderView?.getCurrentLocation()
             self.timebasedNavigator = FlutterTTSNavigator(publication: publication, preferences: ttsPrefs, initialLocator: currentLocation)
             self.timebasedNavigator?.listener = self
-            await self.timebasedNavigator?.initNavigator()
-            result(nil)
+            do {
+              try await self.timebasedNavigator?.initNavigator()
+              result(nil)
+            } catch {
+              result(FlutterError.init(
+                code: "TTSError",
+                message: "Failed to enable TTS: \(error.localizedDescription)",
+                details: nil))
+            }
           }
         } catch {
           Task { @MainActor in
@@ -284,6 +301,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
       do {
         try ttsNavigator.ttsSetVoice(voiceIdentifier: voiceIdentifier)
         result(nil)
+      } catch ReadiumError.voiceNotFound {
+        result(ReadiumError.voiceNotFound.toFlutterError())
       } catch {
         result(FlutterError.init(
           code: "TTSError",
@@ -465,7 +484,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           } catch (let err) {
             return result(FlutterError.init(
-              code: "Error",
+              code: "ResourceReadError",
               message: "Failed to reload a modifiable publication copy from: \(pubUrlStr)",
               details: err))
           }
@@ -480,7 +499,20 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
 
         self.timebasedNavigator?.listener = self
-        await self.timebasedNavigator?.initNavigator()
+        resourceReadErrorObserver.setHandler { [weak self] href, error in
+          Task { @MainActor in
+            guard let audioNavigator = self?.timebasedNavigator as? FlutterAudioNavigator else { return }
+            audioNavigator.handleResourceReadError(href: href, error: error)
+          }
+        }
+        do {
+          try await self.timebasedNavigator?.initNavigator()
+        } catch (let err) {
+          await MainActor.run {
+            result(err.toReadiumError().toFlutterError())
+          }
+          return
+        }
 
         if self.timebasedNavigator is FlutterMediaOverlayNavigator {
           await MainActor.run {
@@ -555,7 +587,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             }
           }
 
-    case "getResourceBytes":
+    case "getResourceUrl":
       guard let publication = getCurrentPublication() else {
         return result(FlutterError(
           code: "NoPublication",
@@ -566,44 +598,77 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
             let href = args["href"] as? String else {
         return result(FlutterError(
           code: "InvalidArgument",
-          message: "getResourceBytes requires a 'href' string argument",
+          message: "getResourceUrl requires a 'href' string argument",
           details: nil))
       }
-      Log.reader.debug("::getResourceBytes. href=\(href)")
+      Log.reader.debug("::getResourceUrl. href=\(href)")
       Task.detached(priority: .userInitiated) {
-        guard let relativeURL = RelativeURL(string: href),
-              let link = publication.linkWithHREF(relativeURL) else {
-          Log.reader.warn("::getResourceBytes. No link found for href: \(href)")
+        guard let cacheFileURL = try? ResourceFileCache.fileURL(forHref: href) else {
+          Log.reader.error("::getResourceUrl. Could not compute cache path for href: \(href)")
           await MainActor.run {
             result(FlutterError(
-              code: "ResourceNotFound",
+              code: "ResourceReadError",
+              message: "Could not compute cache path for href: \(href)",
+              details: ["reason": ReadiumErrorReason.cache.rawValue]))
+          }
+          return
+        }
+        if FileManager.default.fileExists(atPath: cacheFileURL.path) {
+          Log.reader.debug("::getResourceUrl. href=\(href) reused cache file")
+          await MainActor.run {
+            result(cacheFileURL.absoluteString)
+          }
+          return
+        }
+        guard let relativeURL = RelativeURL(string: href),
+              let link = publication.linkWithHREF(relativeURL) else {
+          Log.reader.warn("::getResourceUrl. No link found for href: \(href)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceReadError",
               message: "No resource found for href: \(href)",
-              details: nil))
+              details: ["reason": ReadiumErrorReason.notFound.rawValue]))
           }
           return
         }
         guard let resource = publication.get(link) else {
-          Log.reader.warn("::getResourceBytes. Could not open resource for href: \(href)")
-          await MainActor.run {
-            result(FlutterError(
-              code: "ResourceNotFound",
-              message: "Could not open resource for href: \(href)",
-              details: nil))
-          }
-          return
-        }
-        switch await resource.read() {
-        case .success(let bytes):
-          Log.reader.debug("::getResourceBytes. href=\(href) bytes=\(bytes.count)")
-          await MainActor.run {
-            result(FlutterStandardTypedData(bytes: bytes))
-          }
-        case .failure(let error):
-          Log.reader.error("::getResourceBytes. Read failed for href: \(href). \(error.localizedDescription)")
+          Log.reader.warn("::getResourceUrl. Could not open resource for href: \(href)")
           await MainActor.run {
             result(FlutterError(
               code: "ResourceReadError",
-              message: "Failed to read resource bytes for href: \(href). \(error.localizedDescription)",
+              message: "Could not open resource for href: \(href)",
+              details: ["reason": ReadiumErrorReason.notFound.rawValue]))
+          }
+          return
+        }
+        FileManager.default.createFile(atPath: cacheFileURL.path, contents: nil)
+        guard let fileHandle = try? FileHandle(forWritingTo: cacheFileURL) else {
+          Log.reader.error("::getResourceUrl. Could not open cache file for writing: \(cacheFileURL.path)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceReadError",
+              message: "Could not open cache file for writing for href: \(href)",
+              details: ["reason": ReadiumErrorReason.cache.rawValue]))
+          }
+          return
+        }
+        let streamResult = await resource.stream { chunk in
+          fileHandle.write(chunk)
+        }
+        try? fileHandle.close()
+        switch streamResult {
+        case .success:
+          Log.reader.debug("::getResourceUrl. href=\(href) cached to \(cacheFileURL.path)")
+          await MainActor.run {
+            result(cacheFileURL.absoluteString)
+          }
+        case .failure(let error):
+          try? FileManager.default.removeItem(at: cacheFileURL)
+          Log.reader.error("::getResourceUrl. Read failed for href: \(href). \(error.localizedDescription)")
+          await MainActor.run {
+            result(FlutterError(
+              code: "ResourceReadError",
+              message: "Failed to read resource for href: \(href). \(error.localizedDescription)",
               details: nil))
           }
         }
@@ -664,7 +729,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, encounteredError error: any Error, withDescription description: String?) {
     Log.readium.error("TimebasedNavigator error: \(error), description: \(String(describing: description))")
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TimeBasedNavigatorError", data: description).toJsonString())
+    var data: [String: Any] = ["reason": ReadiumErrorReason.navigator.rawValue]
+    if let description { data["message"] = description }
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "ResourceReadError", data: data).toJsonString())
   }
 
   public func timebasedNavigator(_: any FlutterTimebasedNavigator, reachedLocator locator: ReadiumShared.Locator, segmentDuration: TimeInterval?, isWordRange: Bool) {
@@ -760,7 +827,11 @@ extension FlutterReadiumPlugin {
       let publication = try await sharedReadium.publicationOpener!.open(
         asset: asset,
         allowUserInteraction: allowUserInteraction,
-        onCreatePublication: { manifest, _, services in
+        onCreatePublication: { manifest, container, services in
+          /// Report resource read failures (audio streaming errors are otherwise
+          /// swallowed inside upstream AudioNavigator — no handler set means no-op).
+          container = ReadErrorReportingContainer(wrapping: container, observer: resourceReadErrorObserver)
+
           if manifest.conforms(to: .epub) {
             let factory = PageBreakSkippingContentIteratorFactory()
             self.pageBreakIteratorFactory = factory
@@ -811,11 +882,13 @@ extension FlutterReadiumPlugin {
     Log.readium.info("closePublication: disposing timebased navigator and current publication")
     self.timebasedNavigator?.dispose()
     self.timebasedNavigator = nil
+    resourceReadErrorObserver.setHandler(nil)
     currentPublication?.close()
     currentPublication = nil
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
     pageBreakIteratorFactory = nil
+    ResourceFileCache.purgeAll()
     // Clear the stream buffers so that a subscriber opening the next publication
     // never receives a stale locator or status from this closed publication.
     textLocatorStreamHandler?.clearBuffer()

@@ -12,7 +12,7 @@ import '../mediatype/mediatype.dart';
 ///
 /// https://drafts.opds.io/schema/acquisition-object.schema.json
 @immutable
-class Acquisition with EquatableMixin implements JSONable {
+class Acquisition with Equatable implements JSONable {
   const Acquisition({required this.type, this.children = const []});
 
   final String type;

@@ -11,7 +11,7 @@ import '../publication/link.dart';
 ///
 /// NYPL extensions: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions
 @immutable
-class OpdsAuthentication extends AdditionalProperties with EquatableMixin implements JSONable {
+class OpdsAuthentication extends AdditionalProperties with Equatable implements JSONable {
   factory OpdsAuthentication.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -272,7 +272,7 @@ class OpdsAuthentication extends AdditionalProperties with EquatableMixin implem
 }
 
 @immutable
-class OpdsAuthenticationFlow with EquatableMixin implements JSONable {
+class OpdsAuthenticationFlow with Equatable implements JSONable {
   factory OpdsAuthenticationFlow.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -309,7 +309,7 @@ class OpdsAuthenticationFlow with EquatableMixin implements JSONable {
 }
 
 @immutable
-class OpdsAuthenticationLabels with EquatableMixin implements JSONable {
+class OpdsAuthenticationLabels with Equatable implements JSONable {
   factory OpdsAuthenticationLabels.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -340,7 +340,7 @@ class OpdsAuthenticationLabels with EquatableMixin implements JSONable {
 /// Announcement object
 /// See: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions#sitewide-announcements
 @immutable
-class Announcement extends AdditionalProperties with EquatableMixin implements JSONable {
+class Announcement extends AdditionalProperties with Equatable implements JSONable {
   factory Announcement.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -424,7 +424,7 @@ enum Audience {
 /// FeatureFlags class
 /// See: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions#feature-flags
 @immutable
-class FeatureFlags with EquatableMixin implements JSONable {
+class FeatureFlags with Equatable implements JSONable {
   factory FeatureFlags.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -467,7 +467,7 @@ class FeatureFlags with EquatableMixin implements JSONable {
 }
 
 @immutable
-class InputField with EquatableMixin implements JSONable {
+class InputField with Equatable implements JSONable {
   factory InputField.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -517,7 +517,7 @@ enum KeyboardType {
 }
 
 @immutable
-class LoginInputField extends InputField with EquatableMixin {
+class LoginInputField extends InputField with Equatable {
   factory LoginInputField.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -570,7 +570,7 @@ class LoginInputField extends InputField with EquatableMixin {
 }
 
 @immutable
-class InputData with EquatableMixin implements JSONable {
+class InputData with Equatable implements JSONable {
   factory InputData.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -610,7 +610,7 @@ class InputData with EquatableMixin implements JSONable {
 /// If your OPDS server needs to receive cryptographically signed messages (e.g. to set up shared secrets with other servers),
 /// you can publish your public key in the authentication document.
 @immutable
-class PublicKeyData with EquatableMixin implements JSONable {
+class PublicKeyData with Equatable implements JSONable {
   factory PublicKeyData.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final type = jsonObject.optString('type', remove: true);
@@ -641,7 +641,7 @@ class PublicKeyData with EquatableMixin implements JSONable {
 /// Web color scheme.
 /// See: https://github.com/NYPL-Simplified/Simplified/wiki/Authentication-For-OPDS-Extensions#web-color-scheme
 @immutable
-class WebColor with EquatableMixin implements JSONable {
+class WebColor with Equatable implements JSONable {
   factory WebColor.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
     final primary = jsonObject.optNullableString('primary', remove: true) ?? '';

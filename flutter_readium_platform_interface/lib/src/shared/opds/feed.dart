@@ -10,7 +10,7 @@ import 'package:meta/meta.dart';
 import '../../../flutter_readium_platform_interface.dart';
 
 @immutable
-class Feed extends AdditionalProperties with EquatableMixin implements JSONable {
+class Feed extends AdditionalProperties with Equatable implements JSONable {
   const Feed({
     this.metadata = const OpdsMetadata(localizedTitle: LocalizedString()),
     this.links = const [],

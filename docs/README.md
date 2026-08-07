@@ -18,6 +18,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 - [Search](guides/search.md) — full-text search in an open publication
 - [Custom HTTP Headers](guides/http-headers.md) — authenticate publication & resource fetches
 - [Error Handling](guides/error-handling.md) — exception hierarchy, error stream, logging
+- [Audio Network Recovery](guides/audio-network-recovery.md) — streaming failures, automatic retry, `AudioRecoveryPolicy`
 - [Saving Progress](guides/saving-progress.md) — persist and restore reading positions
 
 ### API Reference

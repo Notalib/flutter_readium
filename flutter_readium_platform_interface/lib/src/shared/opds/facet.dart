@@ -11,7 +11,7 @@ import '../opds.dart' show OpdsMetadata;
 import '../publication/link.dart' show Link;
 
 @immutable
-class Facet with EquatableMixin implements JSONable {
+class Facet with Equatable implements JSONable {
   const Facet({required this.metadata, required this.links});
 
   final OpdsMetadata metadata;

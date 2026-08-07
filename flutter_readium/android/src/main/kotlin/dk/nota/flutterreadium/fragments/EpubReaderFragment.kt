@@ -19,6 +19,7 @@ import dk.nota.flutterreadium.isFixed
 import dk.nota.flutterreadium.models.EpubReaderViewModel
 import dk.nota.flutterreadium.models.ViewPortSize
 import dk.nota.flutterreadium.progression
+import dk.nota.flutterreadium.requireOrLog
 import dk.nota.flutterreadium.withMainContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.util.AbsoluteUrl
 
@@ -148,12 +150,27 @@ class EpubReaderFragment :
         )
     }
 
+    private fun readingOrderPositionOrLog(
+        publication: Publication,
+        locator: Locator,
+    ): Int? {
+        val position =
+            publication.readingOrder.indexOfFirst {
+                it.href.resolve().isEquivalent(locator.href)
+            }
+        if (position < 0) {
+            PluginLog.e(
+                TAG,
+                "::readingOrderPositionOrLog - current reading order item not from {${locator.href}}",
+            )
+            return null
+        }
+        return position
+    }
+
     suspend fun firstVisibleElementLocator(): Locator? {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::firstVisibleElementLocator. Navigator not ready.")
-                return null
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return null
 
         return withMainContext {
             navigator.firstVisibleElementLocator()
@@ -165,10 +182,7 @@ class EpubReaderFragment :
         group: String,
     ) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::applyDecorations. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
 
         return withMainContext {
             navigator.applyDecorations(decorations, group)
@@ -180,10 +194,7 @@ class EpubReaderFragment :
         listener: org.readium.r2.navigator.DecorableNavigator.Listener,
     ) {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.w(TAG, "::addDecorationListener. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
         navigator.addDecorationListener(group, listener)
     }
 
@@ -193,10 +204,7 @@ class EpubReaderFragment :
      */
     suspend fun evaluateJavascript(script: String): String? {
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::evaluateJavascript. Navigator not ready.")
-                return null
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return null
 
         return withMainContext {
             return@withMainContext navigator.evaluateJavascript(script)
@@ -208,18 +216,12 @@ class EpubReaderFragment :
      */
     suspend fun updatePreferences(preferences: FlutterEpubPreferences) {
         val model =
-            epubVm ?: run {
-                PluginLog.w(TAG, "::updatePreferences - No epubVm available, how did this happen?")
-                return
-            }
+            requireOrLog(TAG, epubVm, "No epubVm available.") ?: return
 
         model.preferences = preferences
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::updatePreferences. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
 
         return withMainContext {
             PluginLog.d(TAG, "::updatePreferences: $preferences")
@@ -231,10 +233,7 @@ class EpubReaderFragment :
 
     suspend fun applyCustomCssVariables() {
         val model =
-            epubVm ?: run {
-                PluginLog.w(TAG, "::applyCustomCssVariables - No epubVm available, how did this happen?")
-                return
-            }
+            requireOrLog(TAG, epubVm, "No epubVm available.") ?: return
 
         PluginLog.d(TAG, "::applyCustomCssVariables - layoutMode:$layoutMode")
 
@@ -255,10 +254,13 @@ class EpubReaderFragment :
     suspend fun goBackward(animated: Boolean) {
         PluginLog.d(TAG, "::goBackward")
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::goBackward. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+
+        if (layoutMode.isFixed) {
+            PluginLog.d(TAG, "::goBackward - fixed layout mode")
+            goBackwardFixed(animated)
+            return
+        }
 
         if (!layoutMode.isFixed && scrollMode) {
             goBackwardVertical(animated)
@@ -275,6 +277,18 @@ class EpubReaderFragment :
     }
 
     /**
+     * Go backward one reading-order item in fixed-layout mode.
+     */
+    private suspend fun goBackwardFixed(animated: Boolean) =
+        goFixedByReadingOrderOffset(
+            offset = -1,
+            animated = animated,
+            boundaryMessage = "reached the beginning.",
+            successMessage = "Went back to",
+            failureMessage = "Couldn't go back to",
+        )
+
+    /**
      * Go backwards in vertical scroll mode.
      */
     private suspend fun goBackwardVertical(animated: Boolean) {
@@ -283,43 +297,20 @@ class EpubReaderFragment :
         }
 
         val locator =
-            currentLocator?.value ?: run {
-                PluginLog.e(TAG, "::goBackwardVertical - no current locator")
-                return
-            }
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::goBackwardVertical. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
 
         val viewPortSize =
-            currentViewPortSize() ?: run {
-                PluginLog.e(TAG, "::goBackwardVertical - failed to load view port size")
-                return
-            }
+            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return
 
         val publication =
-            ReadiumReader.currentPublication ?: run {
-                PluginLog.e(TAG, "::goBackwardVertical - no current publication?")
-                return
-            }
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
 
         val prevProgression = viewPortSize.prevProgression
         if (viewPortSize.progression <= 0.0 && prevProgression <= 0.0) {
-            val position =
-                publication.readingOrder.indexOfFirst {
-                    it.href.resolve().isEquivalent(locator.href)
-                }
-
-            if (position < 0) {
-                PluginLog.e(
-                    TAG,
-                    "::goBackwardVertical - current reading order item not from {${locator.href}}",
-                )
-                return
-            }
+            val position = readingOrderPositionOrLog(publication, locator) ?: return
 
             // Current progress is already at the top and prevProgression is <= 0.0,
             // We need to go to the previous file in the readingOrder.
@@ -332,18 +323,16 @@ class EpubReaderFragment :
 
             PluginLog.d(TAG, "::goBackwardVertical go to previous chapter, progression:$prevProgression")
             val prevLink =
-                publication.readingOrder.getOrNull(prevPosition) ?: run {
-                    PluginLog.d(TAG, "::goBackwardVertical - reached the beginning.")
-                    return
-                }
+                requireOrLog(TAG, publication.readingOrder.getOrNull(prevPosition), "Reached the beginning.") ?: return
             val prevLocator =
-                publication.locatorFromLink(prevLink)?.copyWithLocations(
-                    progression = 1.0,
-                    totalProgression = null,
-                ) ?: run {
-                    PluginLog.d(TAG, "::goBackwardVertical - failed to make locator from link")
-                    return
-                }
+                requireOrLog(
+                    TAG,
+                    publication.locatorFromLink(prevLink)?.copyWithLocations(
+                        progression = 1.0,
+                        totalProgression = null,
+                    ),
+                    "Failed to make locator from link.",
+                ) ?: return
 
             return withMainContext {
                 navigator.go(prevLocator, animated)
@@ -360,13 +349,16 @@ class EpubReaderFragment :
     suspend fun goForward(animated: Boolean) {
         PluginLog.d(TAG, "::goForward")
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::goForward. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
 
         if (!layoutMode.isFixed && scrollMode) {
             goForwardVertical(animated)
+            return
+        }
+
+        if (layoutMode.isFixed) {
+            PluginLog.d(TAG, "::goForward - fixed layout mode")
+            goForwardFixed(animated)
             return
         }
 
@@ -380,6 +372,63 @@ class EpubReaderFragment :
     }
 
     /**
+     * Go forward one reading-order item in fixed-layout mode.
+     */
+    private suspend fun goForwardFixed(animated: Boolean) =
+        goFixedByReadingOrderOffset(
+            offset = 1,
+            animated = animated,
+            boundaryMessage = "reached end.",
+            successMessage = "Went forward to",
+            failureMessage = "Couldn't go forward to",
+        )
+
+    /**
+     * Go one reading-order item forward or backward in fixed-layout mode.
+     */
+    private suspend fun goFixedByReadingOrderOffset(
+        offset: Int,
+        animated: Boolean,
+        boundaryMessage: String,
+        successMessage: String,
+        failureMessage: String,
+    ) {
+        val locator =
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
+        PluginLog.d(TAG, "::goFixedByReadingOrderOffset - current locator: $locator")
+
+        val navigator =
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
+
+        val publication =
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
+
+        val position = readingOrderPositionOrLog(publication, locator) ?: return
+        PluginLog.d(
+            TAG,
+            "::goFixedByReadingOrderOffset - resolved reading-order position: $position of ${publication.readingOrder.size}",
+        )
+
+        val targetLink =
+            requireOrLog(TAG, publication.readingOrder.getOrNull(position + offset), boundaryMessage) ?: return
+
+        val targetLocator =
+            requireOrLog(TAG, publication.locatorFromLink(targetLink), "Failed to make locator from link.") ?: return
+        PluginLog.d(TAG, "::goFixedByReadingOrderOffset - target link: ${targetLink.href}")
+        PluginLog.d(TAG, "::goFixedByReadingOrderOffset - target locator: $targetLocator")
+
+        return withMainContext {
+            val moved = navigator.go(targetLocator, animated)
+            PluginLog.d(TAG, "::goFixedByReadingOrderOffset - navigator.go returned $moved")
+            if (moved) {
+                PluginLog.d(TAG, "::goFixedByReadingOrderOffset - $successMessage ${targetLink.href}.")
+            } else {
+                PluginLog.d(TAG, "::goFixedByReadingOrderOffset - $failureMessage ${targetLink.href}.")
+            }
+        }
+    }
+
+    /**
      * Go forward in vertical scroll mode
      */
     private suspend fun goForwardVertical(animated: Boolean) {
@@ -388,45 +437,22 @@ class EpubReaderFragment :
         }
 
         val locator =
-            currentLocator?.value ?: run {
-                PluginLog.e(TAG, "::goForwardVertical - no current locator")
-                return
-            }
+            requireOrLog(TAG, currentLocator?.value, "No current locator.") ?: return
 
         val navigator =
-            epubNavigator ?: run {
-                PluginLog.d(TAG, "::goForwardVertical. Navigator not ready.")
-                return
-            }
+            requireOrLog(TAG, epubNavigator, "Navigator not ready.") ?: return
 
         val viewPortSize =
-            currentViewPortSize() ?: run {
-                PluginLog.e(TAG, "::goForwardVertical - failed to load view port size")
-                return
-            }
+            requireOrLog(TAG, currentViewPortSize(), "Failed to load view port size.") ?: return
 
         val publication =
-            ReadiumReader.currentPublication ?: run {
-                PluginLog.e(TAG, "::goForwardVertical - no current publication?")
-                return
-            }
+            requireOrLog(TAG, ReadiumReader.currentPublication, "No current publication.") ?: return
 
         val endProgression = viewPortSize.endProgression
         val nextProgression = viewPortSize.nextProgression
 
         if (nextProgression >= 1.0 && endProgression >= 1.0) {
-            val position =
-                publication.readingOrder.indexOfFirst {
-                    it.href.resolve().isEquivalent(locator.href)
-                }
-
-            if (position < 0) {
-                PluginLog.e(
-                    TAG,
-                    "::goForwardVertical - current reading order item not from {${locator.href}}",
-                )
-                return
-            }
+            val position = readingOrderPositionOrLog(publication, locator) ?: return
 
             // Attempted to over the end of the current file.
             val nextPosition = position + 1
@@ -437,10 +463,7 @@ class EpubReaderFragment :
 
             PluginLog.d(TAG, "::goForwardVertical. load next chapter, progression:$nextProgression")
             val nextLink =
-                publication.readingOrder.getOrNull(nextPosition) ?: run {
-                    PluginLog.d(TAG, "::goForwardVertical - reached end.")
-                    return
-                }
+                requireOrLog(TAG, publication.readingOrder.getOrNull(nextPosition), "Reached end.") ?: return
             return withMainContext { navigator.go(nextLink, animated) }
         }
 

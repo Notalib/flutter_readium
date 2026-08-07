@@ -17,6 +17,7 @@ import dk.nota.flutterreadium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutterreadium.events.TextLocatorEventChannel
 import dk.nota.flutterreadium.events.TimedBasedStateEventChannel
 import dk.nota.flutterreadium.models.ReadiumTimebasedState
+import dk.nota.flutterreadium.navigators.AudioRecoveryPolicy
 import dk.nota.flutterreadium.navigators.AudiobookNavigator
 import dk.nota.flutterreadium.navigators.ComicNavigator
 import dk.nota.flutterreadium.navigators.EpubNavigator
@@ -78,8 +79,13 @@ import org.readium.r2.streamer.PublicationOpener.OpenError
 import org.readium.r2.streamer.parser.DefaultPublicationParser
 import java.lang.ref.WeakReference
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private const val TAG = "ReadiumReader"
+
+/** [DefaultHttpClient] has no timeouts by default - a blocked socket read would hang forever. */
+private val HTTP_CONNECT_TIMEOUT = 10.seconds
+private val HTTP_READ_TIMEOUT = 30.seconds
 
 private const val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
 
@@ -163,6 +169,8 @@ object ReadiumReader :
 
     private val httpClient by lazy {
         DefaultHttpClient(
+            connectTimeout = HTTP_CONNECT_TIMEOUT,
+            readTimeout = HTTP_READ_TIMEOUT,
             callback =
                 object : DefaultHttpClient.Callback {
                     override suspend fun onStartRequest(request: HttpRequest): HttpTry<HttpRequest> {
@@ -196,14 +204,14 @@ object ReadiumReader :
     private var audiobookNavigator: AudiobookNavigator? = null
     private var syncAudiobookNavigator: SyncAudiobookNavigator? = null
 
-    /** TTS-only: handles page-break elements during content iteration. Not [_preventMOColumnBreaks] (MO-only). */
+    /** TTS-only: handles page-break elements during content iteration. Not [preventMOColumnBreaksActive] (MO-only). */
     private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory? = null
 
     /**
      * Mirrors `EPUBPreferences.preventMOColumnBreaks`. Defaults to `true`.
      * Consumer can opt out via preferences.
      */
-    private var _preventMOColumnBreaks: Boolean = true
+    private var preventMOColumnBreaksActive: Boolean = true
 
     /** True when a Media Overlay (sync-narration) navigator is active. */
     val isMOActive: Boolean
@@ -211,7 +219,7 @@ object ReadiumReader :
 
     /** Whether MO page-change reinjection should run for the current reader state. */
     internal val shouldInjectMOColumnBreakCssOnPageChange: Boolean
-        get() = shouldInjectMOColumnBreakCss(isMOActive, _preventMOColumnBreaks)
+        get() = shouldInjectMOColumnBreakCss(isMOActive, preventMOColumnBreaksActive)
 
     private val timebasedNavigator: TimebasedNavigator<*>?
         get() = audiobookNavigator ?: syncAudiobookNavigator ?: ttsNavigator
@@ -534,6 +542,14 @@ object ReadiumReader :
         defaultHttpHeaders.putAll(headers)
     }
 
+    /**
+     * Policy for the audio-stream error recovery loop (retry attempts, backoff, stall
+     * detection). Read by [dk.nota.flutterreadium.navigators.AudiobookNavigator] at
+     * construction time — applies to the next-opened publication and to any in-flight
+     * recovery loop, not to an already-running attempt sequence.
+     */
+    var audioRecoveryPolicy: AudioRecoveryPolicy = AudioRecoveryPolicy()
+
     private suspend fun assetToPublication(
         asset: Asset,
         transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null,
@@ -774,6 +790,7 @@ object ReadiumReader :
         _currentPublication = null
         pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
+        ResourceFileCache.purgeAll()
 
         state.clear()
     }
@@ -1383,11 +1400,16 @@ object ReadiumReader :
         val toLocator = publication.normalizeLocator(locator)
         timebasedNavigator?.let { navigator ->
             PluginLog.d(TAG, "::goToLocator - timebased $toLocator")
-            navigator.goToLocator(
+            val narrationLocator =
                 toLocator.copy(
                     text = Locator.Text(),
-                ),
-            )
+                )
+            navigator.goToLocator(narrationLocator)
+            // navigator.goToLocator blocks until the seek lands (see AudiobookNavigator),
+            // so reflect the confirmed position in state before returning. This is what a
+            // subsequent play(null) reads to resume from, closing the seek→play race.
+            currentReadiumTimebasedState.value =
+                currentReadiumTimebasedState.value.copyWith(currentLocator = narrationLocator)
 
             return
         }
@@ -1504,7 +1526,7 @@ object ReadiumReader :
                 ).apply {
                     initNavigator()
                 }
-            if (_preventMOColumnBreaks) {
+            if (preventMOColumnBreaksActive) {
                 epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
             }
             currentTimebasedPublicationDurationMs = computePublicationDurationMs(ap.readingOrder.map { it.duration })
@@ -1587,14 +1609,14 @@ object ReadiumReader :
             }
 
         val newPreventBreaks = preferences.preventMOColumnBreaks ?: true
-        if (isMOActive && newPreventBreaks != _preventMOColumnBreaks) {
+        if (isMOActive && newPreventBreaks != preventMOColumnBreaksActive) {
             if (newPreventBreaks) {
                 epubEvaluateJavascript("window.flutterReadium.injectMOBreakCSS()")
             } else {
                 epubEvaluateJavascript("window.flutterReadium.removeMOBreakCSS()")
             }
         }
-        _preventMOColumnBreaks = newPreventBreaks
+        preventMOColumnBreaksActive = newPreventBreaks
 
         navigator.updatePreferences(preferences)
     }

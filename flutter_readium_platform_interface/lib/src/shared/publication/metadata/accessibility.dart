@@ -10,7 +10,7 @@ import '../../../utils/readium_log.dart';
 ///
 /// https://readium.org/webpub-manifest/schema/a11y.schema.json
 @immutable
-class Accessibility with EquatableMixin implements JSONable {
+class Accessibility with Equatable implements JSONable {
   factory Accessibility.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 
@@ -182,7 +182,7 @@ enum AccessibilityAccessMode {
 
 /// Represents a sufficient access mode, which can be a single mode or a list of modes.
 @immutable
-class AccessibilityAccessModeSufficient with EquatableMixin {
+class AccessibilityAccessModeSufficient with Equatable {
   factory AccessibilityAccessModeSufficient.fromJson(dynamic json) {
     if (json == null) {
       return AccessibilityAccessModeSufficient([]);
@@ -337,7 +337,7 @@ enum AccessibilityHazard {
 }
 
 @immutable
-class AccessibilityCertification with EquatableMixin implements JSONable {
+class AccessibilityCertification with Equatable implements JSONable {
   factory AccessibilityCertification.fromJson(Map<String, dynamic> json) {
     final jsonObject = Map<String, dynamic>.of(json);
 

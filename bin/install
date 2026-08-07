@@ -2,31 +2,22 @@
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-"$REPO_ROOT/bin/forAll" flutter pub get
-
-if [ "$(uname)" = "Darwin" ]; then
-  ( cd "$REPO_ROOT/flutter_readium/example/ios" && pod update && pod install --repo-update )
-fi
-
 # npm <11.15.0 rejects min-release-age + --before together (fixed in npm/cli#9339).
 _npm_ver="$(npm --version)"; _npm_major="${_npm_ver%%.*}"; _npm_minor="${_npm_ver#*.}"; _npm_minor="${_npm_minor%%.*}"
 if [ "$_npm_major" -lt 11 ] || { [ "$_npm_major" -eq 11 ] && [ "$_npm_minor" -lt 15 ]; }; then
-  echo "error: npm $_npm_ver is too old — upgrade to 11.15.0+ (e.g. nvm install <node/24/lts>)" >&2
+  echo "error: npm $_npm_ver is too old — upgrade to 11.15.0+ (e.g. nvm install --lts)" >&2
   exit 1
 fi
 
+"$REPO_ROOT/bin/forAll" flutter pub get
+
 # Install helper-script dependencies (used by example/lib/flutter_readium:copy_js_file)
-(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm install --ignore-scripts)
+(cd "$REPO_ROOT/flutter_readium/assets/_helper_scripts" && npm ci --ignore-scripts && npm run build:dev)
 
 # Make sure web dependencies are installed (package.json lives at the plugin root)
 (cd "$REPO_ROOT/flutter_readium" && (npm ci --ignore-scripts && npm run build:dev))
 
-# Fetch test publications from the external test-resources repo.
-echo "Fetching test publications from readium-test-resources…"
-_tmp_res="$(mktemp -d)"
-git clone --depth=1 git@github.com:Notalib/readium-test-resources.git "$_tmp_res"
-bash "$_tmp_res/bin/build-publications.sh" build "$REPO_ROOT/flutter_readium/example/assets/pubs"
-rm -rf "$_tmp_res"
+"$REPO_ROOT/bin/fetch_test_resources"
 
 # Optional: AI code-search index (tokensave, https://github.com/aovestdipaperino/tokensave).
 # Entirely no-op for anyone who doesn't have the tokensave CLI installed.

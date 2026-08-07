@@ -90,12 +90,12 @@ extension EPUBReaderView {
   /// Loads a bundled Flutter asset's bytes, returning nil (and logging) instead of
   /// trapping when the asset is absent. The webview helper assets
   /// `assets/helpers/flutterReadiumTools.{js,css}` are gitignored build artifacts
-  /// (compiled from assets/_helper_scripts/src via `npm run build:flutter` /
+  /// (compiled from assets/_helper_scripts/src via `npm run build` /
   /// `bin/install`); when an app is built without generating them, the reader now
   /// degrades — no helper injection — rather than crashing. See docs/troubleshooting.md.
   private func loadBundledAsset(_ assetKey: String) -> Data? {
     guard let path = Bundle.main.path(forResource: assetKey, ofType: nil) else {
-      Log.reader.error("Missing bundled asset '\(assetKey)' — were the webview helpers built? (npm run build:flutter / bin/install)")
+      Log.reader.error("Missing bundled asset '\(assetKey)' — were the webview helpers built? (npm run build / bin/install)")
       return nil
     }
     guard let data = FileManager().contents(atPath: path) else {

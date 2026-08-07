@@ -5,7 +5,7 @@ import '../../../flutter_readium_platform_interface.dart';
 
 /// Readium's positions list: see https://github.com/readium/architecture/tree/master/models/locators/positions
 @immutable
-class PositionsList with EquatableMixin implements JSONable {
+class PositionsList with Equatable implements JSONable {
   PositionsList({required this.total, required this.positions});
 
   final int total;

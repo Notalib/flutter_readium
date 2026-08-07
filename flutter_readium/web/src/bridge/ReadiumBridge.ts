@@ -13,6 +13,19 @@
 import { Locator } from "@readium/shared";
 import { ReadiumReaderStatus } from "../model/ReadiumReaderStatus";
 
+/**
+ * Structured supplementary payload for a bridge error event — a JSON object,
+ * not a freeform string. All fields optional per producer; mirrors
+ * `ReadiumError.details` on the Dart side. See
+ * `docs/api-reference/error-codes.md`.
+ */
+export interface ReadiumErrorEventData {
+  href?: string;
+  attempt?: number;
+  maxAttempts?: number;
+  httpStatus?: number;
+}
+
 export class ReadiumBridge {
   /** Emit the current reader status to Flutter. */
   emitReaderStatus(status: ReadiumReaderStatus): void {
@@ -47,9 +60,16 @@ export class ReadiumBridge {
    * Emit a non-fatal error to Flutter.
    * @param message Human-readable error description.
    * @param code    Optional machine-readable error code.
+   * @param data    Optional structured supplementary payload. Mirrors
+   *                `ReadiumError.details` on the Dart side (see
+   *                `ReadiumError.fromJson`). Fields are all optional; omit
+   *                the whole object when nothing applies.
    */
-  emitError(message: string, code?: string): void {
-    window.onErrorCallback?.(JSON.stringify({ message, ...(code ? { code } : {}) }));
+  emitError(message: string, code?: string, data?: ReadiumErrorEventData): void {
+    const hasData = data && Object.values(data).some((v) => v !== undefined);
+    window.onErrorCallback?.(
+      JSON.stringify({ message, ...(code ? { code } : {}), ...(hasData ? { data } : {}) })
+    );
   }
 
   /**

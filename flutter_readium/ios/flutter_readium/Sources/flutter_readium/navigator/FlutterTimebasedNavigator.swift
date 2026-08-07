@@ -20,7 +20,7 @@ public protocol FlutterTimebasedNavigator
   var currentLocator: Locator? { get }
   var listener: TimebasedListener? { get set }
   
-  func initNavigator() async -> Void
+  func initNavigator() async throws -> Void
   @MainActor
   func dispose() -> Void
   @MainActor

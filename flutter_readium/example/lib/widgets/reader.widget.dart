@@ -71,7 +71,7 @@ class ReaderWidget extends StatelessWidget {
                   }
                 },
                 onImageTapped: (event) {
-                  debugPrint('[ImageTap] href=${event.href} srcUrl=${event.srcUrl}');
+                  debugPrint('[ImageTap] href=${event.href}');
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => FullScreenImageView(event: event),

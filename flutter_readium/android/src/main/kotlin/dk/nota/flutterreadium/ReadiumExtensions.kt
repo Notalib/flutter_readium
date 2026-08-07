@@ -30,8 +30,10 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.publication.services.content.content
+import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.Try
 import org.readium.r2.shared.util.Url
+import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
@@ -45,6 +47,18 @@ import kotlin.time.DurationUnit
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
+
+/**
+ * The [HttpError] found by unwrapping this error's cause chain, if any. Readium/ExoPlayer
+ * errors often wrap the real [HttpError] at some depth (e.g. `ReadError.Access(HttpError)`),
+ * so a simple `is HttpError` check on the top-level error misses it. Shared by audio-stream
+ * error classification and opening-error HTTP status mapping.
+ */
+internal tailrec fun Error.findHttpError(): HttpError? =
+    when (this) {
+        is HttpError -> this
+        else -> cause?.findHttpError()
+    }
 
 fun readiumColorFromCSS(cssColor: String): ReadiumColor {
     val color = cssColor.toColorInt()
@@ -401,19 +415,19 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     }
 
     // Strategy 2: per-item alternates in reading order.
-    val hasGuidedNav =
-        readingOrder.any { r -> r.alternates.any { it.mediaType == guidedNavigationMediaType } }
-    if (!hasGuidedNav) return null
+    // Deduplicate: several readingOrder items may reference the same guided-navigation document.
+    val guidedLinks =
+        readingOrder
+            .mapNotNull { roLink -> roLink.alternates.find { it.mediaType == guidedNavigationMediaType } }
+            .distinctBy { it.href }
+    if (guidedLinks.isEmpty()) return null
 
     val parsed: List<List<FlutterMediaOverlay>?> =
         coroutineScope {
             val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
-            readingOrder
-                .mapIndexed { index, roLink ->
+            guidedLinks
+                .map { guidedLink ->
                     async(Dispatchers.IO) {
-                        val guidedLink =
-                            roLink.alternates.find { it.mediaType == guidedNavigationMediaType }
-                                ?: return@async null
                         gate.withPermit {
                             val jsonString =
                                 get(guidedLink)?.read()?.getOrNull()?.let { String(it) }
@@ -427,10 +441,27 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                             val document =
                                 GuidedNavigationDocument.fromJSON(jsonString)
                                     ?: return@withPermit null
-                            document.toMediaOverlays(
-                                position = index + 1,
-                                readiumOrderItemDuration = roLink.duration ?: 0.0,
-                            )
+                            document.toMediaOverlays().mapNotNull { overlay ->
+                                val textFile =
+                                    overlay.items.firstOrNull()?.textFile
+                                        ?: return@mapNotNull null
+                                val roEntry =
+                                    readingOrder.withIndex().firstOrNull { (_, link) ->
+                                        Url
+                                            .invoke(textFile)
+                                            ?.let { link.href.resolve().isEquivalent(it) } == true
+                                    }
+                                val position = (roEntry?.index ?: -1) + 1
+                                val duration = roEntry?.value?.duration ?: 0.0
+                                FlutterMediaOverlay(
+                                    overlay.items.map { item ->
+                                        item.copy(
+                                            position = position,
+                                            readingOrderItemDuration = duration,
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }.awaitAll()

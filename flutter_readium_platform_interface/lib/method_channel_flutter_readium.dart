@@ -155,6 +155,11 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   }
 
   @override
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
+    await methodChannel.invokeMethod<void>('setAudioRecoveryPolicy', policy.toJson());
+  }
+
+  @override
   Future<Publication> openPublication(String pubUrl) async {
     final publicationString = await methodChannel
         .invokeMethod<String>('openPublication', [pubUrl])
@@ -267,15 +272,16 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Future<void> audioSeekBy(Duration offset) => methodChannel.invokeMethod('audioSeekBy', offset.inSeconds);
 
   @override
-  Future<Uint8List> getResourceBytes(String href) async {
-    final result = await methodChannel.invokeMethod<Uint8List>(
-      'getResourceBytes',
+  Future<String> getResourceUrl(String href) async {
+    final result = await methodChannel.invokeMethod<String>(
+      'getResourceUrl',
       {'href': href},
     );
     if (result == null) {
       throw PlatformException(
-        code: 'ResourceNotFound',
-        message: 'getResourceBytes returned null for href: $href',
+        code: 'ResourceReadError',
+        message: 'getResourceUrl returned null for href: $href',
+        details: {'reason': 'notFound', 'href': href},
       );
     }
     return result;

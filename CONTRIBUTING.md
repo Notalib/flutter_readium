@@ -33,8 +33,27 @@ Setup script `bin/install` does the following in order:
 2. `pod update && pod install` for the iOS example app
 3. Builds the `assets/_helper_scripts` TypeScript bundle
 4. Builds the web JS bundle and copies it into `example/web/`
+5. Fetches test fixtures via `bin/fetch_test_resources` (see [Test fixtures](#test-fixtures))
 
 If you only change Dart code you can skip the full install and just run `flutter pub get` in the affected package.
+
+---
+
+## Test fixtures
+
+Test publications are **not committed** to this repo. They are generated from the
+[`readium-test-resources`](https://github.com/Notalib/readium-test-resources) repo,
+which holds the unpackaged source publications (the single source of truth).
+
+- `bin/fetch_test_resources` clones that repo and runs `bin/build_test_fixtures`, which:
+  - packages native fixtures into `flutter_readium/example/assets/pubs/` (`.epub` / `.webpub` / `.audiobook` / `.pdf` / …); and
+  - explodes/trims a subset into web fixtures under `flutter_readium/example/web/test-fixtures/<scenario>/` (via `bin/trim_web_fixture.py`), each served at `/test-fixtures/<scenario>/manifest.json` during `flutter drive -d chrome`.
+- Both output locations are gitignored. `bin/install` runs the fetch; CI uses the `fetch-test-resources` action before every integration-test job.
+- The web-fixture scenario → source mapping lives in `bin/build_test_fixtures`; the served paths are referenced from `integration_test/test_fixtures_web.dart` (automated) and `example/assets/webManifestList.json` (interactive bookshelf).
+
+**To add or change a fixture:** edit the source in `readium-test-resources` (add a
+new one there if none fits), then add/adjust the matching `trim` line in
+`bin/build_test_fixtures` and re-run `bin/fetch_test_resources`.
 
 ---
 
@@ -45,6 +64,17 @@ This is a **federated Flutter plugin** with two pub packages:
 - `flutter_readium_platform_interface/` — shared Dart models, method-channel contract, and platform API surface
 - `flutter_readium/` — app-facing package; bundles native wrappers (iOS, macOS, Android) and the web implementation
 - `flutter_readium/example/` — smoke-test app; use this to verify UI changes
+
+### Plans docs
+
+Implementation plans live under `docs/plans/` and are split by status:
+
+- `docs/plans/` — implemented or historical reference plans retained for context
+- `docs/plans/todo/` — still-actionable local plugin plans
+- `docs/plans/upstream/` — plans whose real fix belongs in an upstream toolkit
+
+When moving a plan from `todo/` to implemented reference status, keep the file if its reasoning is
+still useful and add a short implemented note near the top instead of deleting the context.
 
 ---
 
@@ -64,7 +94,7 @@ For web, make sure you run `bin/update_web_example` after any TypeScript change.
 
 For dependency size analysis:
 
-- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:flutter:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
+- helper scripts: `cd flutter_readium/assets/_helper_scripts && npm run build:stats` (outputs `flutter_readium/assets/helpers/stats.html` and `flutter_readium/assets/helpers/stats.json`)
 - web bundle: `cd flutter_readium && npm run build:stats` (outputs `flutter_readium/build/rollup-stats.html` and `flutter_readium/build/rollup-stats.json`)
 
 ---

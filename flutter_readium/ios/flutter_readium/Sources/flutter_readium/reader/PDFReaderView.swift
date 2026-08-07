@@ -108,7 +108,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     Log.reader.warn("didFailToLoadResourceAt: \(href). err: \(error)")
     emitReaderStatusChanged(status: ReadiumReaderStatusError)
 
-    let payload = FlutterReadiumError(message: error.localizedDescription, code: "DidFailToLoadResource", data: href.string)
+    let payload = FlutterReadiumError(message: error.localizedDescription, code: "ResourceReadError", data: ["href": href.string])
     FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(payload.toJsonString())
   }
 
@@ -300,6 +300,20 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
           details: nil))
       }
       applyDecorations(decorations, forGroup: identifier)
+      result(nil)
+    case "configureSelectionActions":
+      // ReaderWidget calls this unconditionally on every reader (see
+      // reader_widget.dart), but PDF has no custom selection-action UI to
+      // configure. No-op rather than let it fall through to `default` and
+      // surface as a MissingPluginException on the Dart side.
+      Log.reader.warn("configureSelectionActions: not supported for PDF")
+      result(nil)
+    case "notifyUserNavigation":
+      // Also called unconditionally on every user tap/swipe (see
+      // reader_widget.dart's `_onInteraction`), to let narration-driven
+      // readers detect manual navigation and exit sync mode. PDF has no
+      // narration/Media Overlay concept, so this is a no-op here too.
+      Log.reader.warn("notifyUserNavigation: not supported for PDF")
       result(nil)
     case "dispose":
       Log.reader.info("Disposing pdfViewController")

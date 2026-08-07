@@ -43,6 +43,17 @@ fun <T : Any, U : Any> letIfBothNotNull(
     return Pair(t, u)
 }
 
+fun <T> requireOrLog(
+    tag: String,
+    value: T?,
+    message: String,
+): T? {
+    if (value == null) {
+        PluginLog.d(tag, "::requireOrLog - $message")
+    }
+    return value
+}
+
 fun jsonDecode(json: String): Any = JSONArray("[$json]")[0]
 
 /**

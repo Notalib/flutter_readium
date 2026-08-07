@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
+SKIP_EXAMPLE_COPY=
+TARGET_DIR=
+
+for arg in "$@"; do
+  case "$arg" in
+    --skip-example-copy) SKIP_EXAMPLE_COPY=1 ;;
+    *)
+      if [ -n "$TARGET_DIR" ]; then
+        echo "Usage: bin/build_js [--skip-example-copy] [package-dir]"
+        exit 1
+      fi
+      TARGET_DIR="$arg"
+      ;;
+  esac
+done
+
+TARGET_DIR="${TARGET_DIR:-$REPO_ROOT/flutter_readium}"
+TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
+
 # Build the flutter_readium web bundle (lib/helpers/readiumReader.js).
-echo "Building flutter_readium web"
-cd "$REPO_ROOT/flutter_readium"
+echo "Building flutter_readium web in $TARGET_DIR"
+cd "$TARGET_DIR" || exit 1
 
 # Install deps deterministically, and skip the (slow) reinstall when already
 # present — a bare `npm i` on every build reads as a hang in agent sandboxes
@@ -12,5 +31,9 @@ if [ ! -d node_modules ]; then
   npm ci
 fi
 
-npm run build
+if [ -n "$SKIP_EXAMPLE_COPY" ]; then
+  BUILD=production npm run build:web:bundle
+else
+  npm run build
+fi
 ### this is for when production build is ready

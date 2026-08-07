@@ -16,7 +16,7 @@ extension EncryptionPropertiesExtension on Properties {
 }
 
 @immutable
-class EncryptedProperties with EquatableMixin implements JSONable {
+class EncryptedProperties with Equatable implements JSONable {
   const EncryptedProperties({
     required this.algorithm,
     this.compression,

@@ -1,10 +1,13 @@
 {
   "dependencies": {
-    "@readium/navigator": "^2.6.0",
-    "@readium/navigator-html-injectables": "^2.5.0",
-    "@readium/shared": "^2.2.2"
+    "@readium/navigator": "^2.8.1",
+    "@readium/navigator-html-injectables": "^2.6.3",
+    "@readium/shared": "^2.4.0"
   },
   "devDependencies": {
+    "@babel/core": "^8.0.1",
+    "@babel/preset-env": "^8.0.2",
+    "@babel/preset-typescript": "^8.0.1",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
@@ -13,22 +16,25 @@
     "@types/jest": "^30.0.0",
     "cross-env": "^10.1.0",
     "jest": "^30.4.2",
-    "postcss": "^8.5.15",
-    "rollup": "^4.62.2",
+    "js-yaml": "3.15",
+    "postcss": "^8.5.24",
+    "rollup": "^4.62.3",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-visualizer": "^7.0.1",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.12",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3"
   },
   "scripts": {
     "copy_example_js": "cd example && dart run flutter_readium:copy_js_file web dev",
-    "build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.mjs && npm run copy_example_js",
-    "build:dev:stats": "STATS=1 npm run build:dev",
-    "build": "cross-env NODE_ENV=production rollup -c rollup.config.mjs",
-    "build:stats": "STATS=1 npm run build:dev",
-    "build:helpers": "cd assets/_helper_scripts && npm run build:flutter",
-    "build:helpers:stats": "cd assets/_helper_scripts && npm run build:flutter:stats",
+    "build:web:bundle": "rollup -c rollup.config.mjs",
+    "build:web": "npm run build:web:bundle && npm run copy_example_js",
+    "build:dev": "cross-env BUILD=development npm run build:web",
+    "build": "cross-env BUILD=production npm run build:web",
+    "build:stats": "rollup -c rollup.config.mjs --environment BUILD:production,STATS",
+    "build:helpers": "cd assets/_helper_scripts && npm run build",
+    "build:helpers:dev": "cd assets/_helper_scripts && npm run build:dev",
+    "build:helpers:stats": "cd assets/_helper_scripts && npm run build:stats",
     "typecheck": "tsc --noEmit -p web/src/tsconfig.test.json",
     "test": "jest --config web/src/jest.config.js"
   }

@@ -122,7 +122,6 @@ export function tryBuildImageTapPayload(
       rect,
       ...(naturalWidth !== undefined && { pixelWidth: naturalWidth }),
       ...(naturalHeight !== undefined && { pixelHeight: naturalHeight }),
-      ...(srcUrl && { srcUrl }),
     };
 
     log.debug("Image tap detected: href=", href, "srcUrl=", srcUrl);

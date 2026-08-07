@@ -254,9 +254,10 @@ public class FlutterTTSNavigator: FlutterTimebasedNavigator, PublicationSpeechSy
   public func publicationSpeechSynthesizer(_ synthesizer: ReadiumNavigator.PublicationSpeechSynthesizer, utterance: ReadiumNavigator.PublicationSpeechSynthesizer.Utterance, didFailWithError error: ReadiumNavigator.PublicationSpeechSynthesizer.Error) {
     Log.navigator.error("SpeechSynthesizer failed with error: \(error)")
 
-    self.listener?.timebasedNavigator(self, encounteredError: error, withDescription: "TTSUtteranceFailed")
-
-    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: utterance.text).toJsonString())
+    // Emits the specific TTSUtteranceFailed code directly rather than routing through
+    // the generic timebasedNavigator(encounteredError:) sink, which would additionally
+    // emit a duplicate, misclassified ResourceReadError event for the same failure.
+    FlutterReadiumPlugin.instance?.errorStreamHandler?.sendEvent(FlutterReadiumError(message: error.localizedDescription, code: "TTSUtteranceFailed", data: ["message": utterance.text]).toJsonString())
   }
 
   // MARK: AVTTSEngineDelegate

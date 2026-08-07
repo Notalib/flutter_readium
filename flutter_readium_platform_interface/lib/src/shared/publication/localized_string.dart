@@ -31,7 +31,7 @@ class Translation {
 ///
 /// The translations are indexed by a BCP 47 language tag.
 @immutable
-class LocalizedString with EquatableMixin implements JSONable {
+class LocalizedString with Equatable implements JSONable {
   const LocalizedString({this.translations = const {}});
 
   factory LocalizedString.fromJson(Map<String, dynamic> json) {

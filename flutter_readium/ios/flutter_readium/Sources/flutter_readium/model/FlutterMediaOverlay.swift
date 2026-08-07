@@ -149,7 +149,9 @@ struct FlutterMediaOverlayItem {
       return false
     }
     guard let start = audioStart else { return false }
-    guard let end = audioEnd else { return time >= start }
+    // A reversed or non-finite end (malformed `t=start,end` fragment) would trap
+    // `start...end`; treat it as open-ended from `start`, mirroring the no-end case.
+    guard let end = audioEnd, end >= start else { return time >= start }
     return (start...end).contains(time)
   }
   

@@ -10,7 +10,7 @@ import {
   WebPubNavigatorConfiguration,
   WebPubNavigatorListeners,
 } from "@readium/navigator";
-import { Locator } from "@readium/shared";
+import { Locator, TimelineItem } from "@readium/shared";
 import Peripherals from "../utils/Peripherals";
 import {
   defaults,
@@ -84,7 +84,7 @@ export class FlutterWebPubNavigator {
     });
 
     const listeners: WebPubNavigatorListeners = {
-      scroll: function (_amount: number): void {},
+      scroll: function (_amount: number): void { },
       frameLoaded: function (_wnd: Window): void {
         nav._cframes.forEach((frameManager: WebPubFrameManager | undefined) => {
           if (frameManager) {
@@ -105,20 +105,23 @@ export class FlutterWebPubNavigator {
         log.debug("click event");
         return false;
       },
-      zoom: function (_scale: number): void {},
-      customEvent: function (_key: string, _data: unknown): void {},
+      zoom: function (_scale: number): void { },
+      customEvent: function (_key: string, _data: unknown): void { },
       handleLocator: function (locator: Locator): boolean {
         handleExternalLocator(locator.href);
         return false;
       },
-      contentProtection: function (_type: string, _data: any): void {},
-      peripheral: function (_data: KeyboardPeripheralEventData): void {},
-      contextMenu: function (_data: ContextMenuEvent): void {},
+      contentProtection: function (_type: string, _data: any): void { },
+      peripheral: function (_data: KeyboardPeripheralEventData): void { },
+      contextMenu: function (_data: ContextMenuEvent): void { },
       textSelected: function (_selection: BasicTextSelection): void {
         window.onTextSelectedCallback?.(
           buildTextSelectionPayload(nav.currentLocator, _selection)
         );
       },
+      timelineItemChanged: function (item: TimelineItem | undefined): void {
+        log.debug("timelineItemChanged", item);
+      }
     };
 
     const nav = new WebPubNavigator(

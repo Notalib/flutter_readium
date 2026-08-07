@@ -12,10 +12,12 @@ description: >
 runs:
   using: composite
   steps:
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: 24
+        node-version: lts/*
+        cache: npm
+        cache-dependency-path: flutter_readium/assets/_helper_scripts/package-lock.json
     - name: Build webview helper assets
       shell: bash
-      run: npm ci --ignore-scripts && npm run build:flutter
+      run: npm ci --ignore-scripts && npm run build
       working-directory: flutter_readium/assets/_helper_scripts

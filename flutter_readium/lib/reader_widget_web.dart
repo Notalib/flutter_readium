@@ -80,14 +80,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   }) async {
     try {
       await JsPublicationChannel.goToLocator(json.encode(locator));
-    } on PlatformException catch (e, stackTrace) {
-      final pubID = widget.publication.metadata.identifier;
-      throw ReadiumError(
-        'Error when navigating to locator: ${e.message}',
-        code: e.code,
-        data: 'publication id: $pubID. locator: $locator',
-        stackTrace: stackTrace,
-      );
+    } on PlatformException catch (e) {
+      throw ReadiumException.fromPlatformException(e);
     }
   }
 

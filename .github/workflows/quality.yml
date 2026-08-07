@@ -90,5 +90,26 @@ jobs:
           mv "$gen" "${{ matrix.package }}/analysis_options.yaml"
 
       - name: Run pana (${{ matrix.package }})
-        run: dart pub global run pana --no-warning .
+        run: dart pub global run pana --no-warning --json . > "$RUNNER_TEMP/pana.json"
         working-directory: ${{ matrix.package }}
+
+      # Surface the score in the run's Summary tab; raw pana output otherwise
+      # only lives in the collapsed log. Step summary needs no extra permissions
+      # and works on fork PRs.
+      - name: Report pana score (${{ matrix.package }})
+        if: always()
+        run: |
+          json="$RUNNER_TEMP/pana.json"
+          if [ ! -s "$json" ]; then
+            echo "### pana score — ${{ matrix.package }}: run failed, no report" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          granted=$(jq -r '.scores.grantedPoints' "$json")
+          max=$(jq -r '.scores.maxPoints' "$json")
+          {
+            echo "### pana score — \`${{ matrix.package }}\`: ${granted} / ${max} points"
+            echo ""
+            echo "| Section | Points |"
+            echo "| --- | --- |"
+            jq -r '.report.sections[] | "| \(.title) | \(.grantedPoints)/\(.maxPoints) |"' "$json"
+          } >> "$GITHUB_STEP_SUMMARY"

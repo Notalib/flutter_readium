@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -67,17 +66,28 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Sets the log verbosity of the plugin's internal logging system, for both Dart and native code.
   Future<void> setLogLevel(LogLevel level) => throw UnimplementedError('setLogLevel() has not been implemented.');
 
-    /// Registers extra CSS assets to inject into every EPUB HTML resource,
-    /// in addition to the built-in `flutterReadiumTools.css`.
-    /// Call before opening a publication so the injections are in effect when the reader view is created.
-    Future<void> setCssInjections(List<InjectionAsset> injections) =>
-      throw UnimplementedError('setCssInjections() has not been implemented.');
+  /// Registers extra CSS assets to inject into every EPUB HTML resource,
+  /// in addition to the built-in `flutterReadiumTools.css`.
+  /// Call before opening a publication so the injections are in effect when the reader view is created.
+  Future<void> setCssInjections(List<InjectionAsset> injections) =>
+    throw UnimplementedError('setCssInjections() has not been implemented.');
 
-    /// Registers extra JavaScript assets to inject into every EPUB HTML resource,
-    /// in addition to the built-in `flutterReadiumTools.js`.
-    /// Call before opening a publication so the injections are in effect when the reader view is created.
-    Future<void> setJavaScriptInjections(List<InjectionAsset> injections) =>
-      throw UnimplementedError('setJavaScriptInjections() has not been implemented.');
+  /// Registers extra JavaScript assets to inject into every EPUB HTML resource,
+  /// in addition to the built-in `flutterReadiumTools.js`.
+  /// Call before opening a publication so the injections are in effect when the reader view is created.
+  Future<void> setJavaScriptInjections(List<InjectionAsset> injections) =>
+    throw UnimplementedError('setJavaScriptInjections() has not been implemented.');
+
+  /// Configures the automatic audio-stream error recovery loop (retry attempts,
+  /// backoff, and stall detection).
+  ///
+  /// Applies to the next publication opened and to any in-flight recovery
+  /// loop — there is no mid-stream reconfiguration of an already-running
+  /// attempt sequence. Unconfigured, the navigators use
+  /// [AudioRecoveryPolicy]'s defaults.
+  Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) => throw UnimplementedError(
+    'setAudioRecoveryPolicy() has not been implemented.',
+  );
 
   /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
@@ -239,14 +249,23 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     throw UnimplementedError('onErrorEvent stream has not been implemented.');
   }
 
-  /// Reads the raw bytes of a publication resource identified by its [href].
+  /// Resolves a publication resource identified by its [href] to a loadable
+  /// URL.
   ///
   /// The [href] should match a resource in the current publication's reading
   /// order or resources manifest (e.g. an image link from [ImageTapEvent.href]).
+  /// On iOS/Android the resource is fetched natively and cached to an
+  /// app-owned file, returning a `file://` URL; on Web it returns the
+  /// resource's served URL directly.
+  ///
+  /// **Web caveat**: loading the returned URL as an image requires the
+  /// resource's server to send `Access-Control-Allow-Origin` — CanvasKit
+  /// always needs CORS to decode an image on Web, even just for display.
+  /// This is a browser/renderer constraint, not fixable client-side.
   ///
   /// Throws [PlatformException] if the resource is not found or cannot be read.
   /// Implemented on iOS, Android, and Web.
-  Future<Uint8List> getResourceBytes(String href) => throw UnimplementedError(
-    'getResourceBytes(href) has not been implemented.',
+  Future<String> getResourceUrl(String href) => throw UnimplementedError(
+    'getResourceUrl(href) has not been implemented.',
   );
 }

@@ -30,7 +30,7 @@ The release workflow supports both tag-push and `workflow_dispatch` triggers. On
 
 ## Release preparation
 
-Use `bin/prepare-release <version>` before tagging. It:
+Use `bin/release_prep <version>` before tagging. It:
 1. Bumps `version:` in both pubspec files
 2. Moves `## Unreleased` content into a dated `## [x.y.z] - YYYY-MM-DD` section
 3. Leaves a fresh `## Unreleased` header

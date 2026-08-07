@@ -5,19 +5,69 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.3.3] - 2026-08-04
+
+## [0.3.2] - 2026-08-03
+
+## [0.3.1] - 2026-07-24
+
+No changes — version bumped to stay in lockstep with `flutter_readium`.
+
+## [0.3.0] - 2026-07-13
+
+### Added
+
+- `ReadiumErrorCode` — typed, cross-platform error-code enum, exposed as
+  `ReadiumError.codeEnum`, with `isFatal`, `isInformational`, and `category`
+  getters. `ReadiumError` also adds typed `href`, `attempt`, `maxAttempts`,
+  and `httpStatus` getters. Vocabulary documented in
+  [`docs/api-reference/error-codes.md`](../docs/api-reference/error-codes.md).
+- `AudioRecoveryPolicy` — configures the automatic audio-stream recovery loop
+  (retry attempts, backoff, stall timeout, and connection timeout); apply via
+  `FlutterReadium().setAudioRecoveryPolicy(policy)`. Defaults reproduce prior
+  recovery behaviour. Fields and semantics:
+  [`docs/api-reference/error-codes.md#audiorecoverypolicy`](../docs/api-reference/error-codes.md#audiorecoverypolicy).
+
+### Changed
+
+- **Breaking**: awaited platform failures now surface a single `ReadiumException`
+  shape that wraps `ReadiumError`. The opening-specific Dart exception API
+  (`OpeningReadiumException`, `OpeningReadiumExceptionType`,
+  `PublicationNotSetReadiumException`, and `OfflineReadiumException`) has been
+  removed; catch `ReadiumException` and handle failures via `e.code` /
+  `e.codeEnum`.
+- **Breaking**: `ReadiumError` is now a value type rather than a Dart `Error`;
+  native `stackTrace` is removed. Its freeform `data` payload is replaced by
+  an unmodifiable structured `details` map.
+  
+## [0.2.1] - 2026-07-09
+
+### Fixed
+
+- `Properties.toJson()` emitted the `orientation`, `layout`, `overflow` and `spread`
+  presentation hints as raw enum instances instead of their string names, so
+  `jsonEncode`-ing a serialized `Publication` threw for fixed-layout (FXL) resources
+  (e.g. `Converting object to an encodable object failed: Instance of 'EpubLayout'`).
+  They now serialize as strings and round-trip through `fromJson`.
+
+## [0.2.0] - 2026-07-02
+
 ### Added
 
 - `ImageTapEvent` — model for an EPUB image tap, carrying the publication-relative
-  `href`, optional `caption` / `alt`, an on-screen `rect` (`dart:ui` `Rect`),
-  natural `pixelWidth` / `pixelHeight`, and a Web-only absolute `srcUrl`, with
-  hand-written `toJson` / `fromJson`.
-- `getResourceBytes(String href)` — reads the raw bytes of any publication
-  resource (e.g. an image link from `ImageTapEvent.href`) over the method channel.
-  Throws `PlatformException` when the resource is missing or unreadable.
+  `href`, optional `caption` / `alt`, an on-screen `rect` (`dart:ui` `Rect`), and
+  natural `pixelWidth` / `pixelHeight`, with hand-written `toJson` / `fromJson`.
+- `getResourceUrl(String href)` — resolves any publication resource (e.g. an image
+  link from `ImageTapEvent.href`) to a loadable URL over the method channel: a
+  native-cached `file://` URL on iOS/Android, or the served resource URL on Web.
+  Throws `PlatformException` when the resource is missing or unreadable. On Web,
+  loading the resolved URL as an image requires the server to send
+  `Access-Control-Allow-Origin` — a CanvasKit/browser constraint, not fixable
+  client-side.
 - `Publication.conformsToReadiumDivina` — convenience getter mirroring the existing
   `conformsToReadiumPDF/Ebook/Audiobook` helpers; returns `true` for CBZ comics and other
   image-based publications whose `metadata.conformsTo` includes the DiViNa profile URI.
-- **`TTSPreferences.pageBreakBehavior`** (`PageBreakBehavior?`) — controls how EPUB page-break
+- `TTSPreferences.pageBreakBehavior` (`PageBreakBehavior?`) — controls how EPUB page-break
   elements are handled during TTS playback. Values: `readAsIs` (default — raw label spoken as-is),
   `prefixLabel` (label rewritten with a localized prefix, e.g. "Page 42"), `skip` (element
   filtered out entirely).

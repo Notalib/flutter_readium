@@ -11,7 +11,8 @@
  *     state/locator events matching iOS/Android behaviour.
  */
 
-import { Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { getTime, Link, Locator, LocatorLocations, Manifest, Profile } from "@readium/shared";
+import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "../errors/ReadiumWebError";
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
@@ -135,7 +136,7 @@ async function _initializeFromItems(
   let lastPublicTextLocatorKey: string | undefined;
 
   const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
-    const resolvedTime = audioLocator.locations?.time() ?? _nav.currentTime;
+    const resolvedTime = getTime(audioLocator.locations) ?? _nav.currentTime;
     const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
     if (item) {
       const detailedTextLocator = textLocatorForItem(item);
@@ -303,10 +304,10 @@ function _buildAudioReadingOrder(
 
   // Absolutize the self link against the document origin before deriving the
   // base URL. If the manifest's self link is relative/root-relative (e.g. a
-  // publication served at "/test-overlay/manifest.json"), a non-absolute base
-  // produces non-absolute audio hrefs, which the upstream AudioNavigator then
+  // publication served at "/test-fixtures/overlay/manifest.json"), a non-absolute
+  // base produces non-absolute audio hrefs, which the upstream AudioNavigator then
   // resolves a *second* time against the publication base — doubling the
-  // sub-path (".../test-overlay/test-overlay/01.mp3" → 404). Fully-qualifying
+  // sub-path (".../overlay/overlay/01.mp3" → 404). Fully-qualifying
   // here makes the synthetic hrefs absolute so upstream leaves them untouched.
   // Already-absolute self links (e.g. remote "https://…/manifest.json") are
   // returned unchanged by `new URL`.
@@ -356,7 +357,11 @@ function _buildAudiobookPublication(
 
   const manifest = Manifest.deserialize(manifestJson);
   if (!manifest) {
-    throw new Error("Failed to create new Audiobook manifest");
+    throw new ReadiumWebError(
+      "Failed to create new Audiobook manifest",
+      ReadiumWebErrorCode.resourceReadError,
+      { reason: ResourceReadErrorReason.manifestDeserialization }
+    );
   }
 
   const selfLink = publication.manifest.linksWithRel("self")[0];
