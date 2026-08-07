@@ -16,12 +16,12 @@ topics:
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
-  flutter: ">=3.32.0"
+  flutter: ">=3.44.8"
 
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.16.0
+  meta: ^1.18.0
   plugin_platform_interface: ^2.1.8
   dartx: ^1.2.0
   dfunc: ^0.10.0

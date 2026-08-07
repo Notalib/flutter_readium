@@ -64,7 +64,7 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.32.0+                |
+| Flutter     | 3.44.4+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |

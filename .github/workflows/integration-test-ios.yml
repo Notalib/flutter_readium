@@ -52,12 +52,14 @@ jobs:
           # Keyed on the runner image, not runner.os ("macOS" is identical
           # across macos-15/26): DerivedData is Xcode-version-specific, so a
           # cache from an older image must not be restored onto a newer Xcode.
-          # Also hash anything embedded into the built app — the Flutter pin,
-          # example deps, and the webview helper sources — so a restored
-          # DerivedData can't serve a Runner.app whose flutter_assets are stale.
-          key: xcode-deriveddata-macos26-${{ hashFiles('.flutter-version', 'flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
+          # The Flutter pin is in the key *prefix*, not the hash, so restore-keys
+          # can never fall back across engine versions: the cached bridging-header
+          # .pch is built against that engine's Flutter.framework headers, and a
+          # mismatch is a hard build failure ("has been modified since the
+          # precompiled header was built"), not just stale flutter_assets.
+          key: xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
           restore-keys: |
-            xcode-deriveddata-macos26-
+            xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-
 
       # Diagnostic: the dominant iOS-CI time sinks are cold caches (full pod install
       # + full Xcode rebuild) and underpowered runners. Surface both up front so a
@@ -140,7 +142,7 @@ jobs:
         # Run the single aggregator entrypoint, not the folder glob: each
         # groups/*_test.dart is its own build target (flutter/flutter#115751), so
         # the glob would rebuild the app per suite.
-        run: flutter test integration_test/plugin_integration_test.dart --reporter expanded --device-id="$IOS_SIMULATOR_UDID"
+        run: flutter test integration_test/plugin_integration_test.dart --reporter expanded --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
 
       # Diagnostic: confirm the integration build ran the host-native arch and not

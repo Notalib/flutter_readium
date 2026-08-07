@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Update the Flutter SDK minimum version across the repo.
+#
+# Updates:
+#   1. `.flutter-version` — CI source of truth (single-line version number)
+#   2. `.fvmrc`           — FVM config (JSON flutter key)
+#   3. `flutter_readium/pubspec.yaml`     — environment.flutter constraint
+#   4. `flutter_readium_platform_interface/pubspec.yaml` — same
+#
+# Usage:
+#   bin/update_flutter_version <version>    # e.g. bin/update_flutter_version 3.45.0
+
+# Bootstrap PATH / REPO_ROOT for non-interactive shells (repo convention).
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+VERSION="${1:-}"
+
+if [ -z "$VERSION" ]; then
+  echo "Usage: bin/update_flutter_version <version>"
+  echo "Example: bin/update_flutter_version 3.45.0"
+  exit 1
+fi
+
+if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: version must be semver (e.g. 3.45.0), got: $VERSION"
+  exit 1
+fi
+
+FLUTTER_VERSION_FILE="$REPO_ROOT/.flutter-version"
+FVMRC_FILE="$REPO_ROOT/.fvmrc"
+PLUGIN_PUBSPEC="$REPO_ROOT/flutter_readium/pubspec.yaml"
+IFACE_PUBSPEC="$REPO_ROOT/flutter_readium_platform_interface/pubspec.yaml"
+
+# --- Update .flutter-version ------------------------------------------------
+echo "$VERSION" > "$FLUTTER_VERSION_FILE"
+if [ "$(cat "$FLUTTER_VERSION_FILE")" != "$VERSION" ]; then
+  echo "ERROR: failed to write $FLUTTER_VERSION_FILE"
+  exit 1
+fi
+echo "  $FLUTTER_VERSION_FILE → $VERSION"
+
+# --- Update .fvmrc ----------------------------------------------------------
+sed -i '' -E "s/(\"flutter\":[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")/\1${VERSION}\2/" "$FVMRC_FILE"
+if ! grep -q "\"flutter\": \"${VERSION}\"" "$FVMRC_FILE"; then
+  echo "ERROR: failed to update flutter version in $FVMRC_FILE"
+  exit 1
+fi
+echo "  $FVMRC_FILE → $VERSION"
+
+# --- Update pubspec flutter constraints -------------------------------------
+for pubspec in "$PLUGIN_PUBSPEC" "$IFACE_PUBSPEC"; do
+  sed -i '' -E \
+    "s/(flutter:[[:space:]]*[\"']?)(>=)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1>=${VERSION}\3/" \
+    "$pubspec"
+  if ! grep -q "flutter:.*>=${VERSION}" "$pubspec"; then
+    echo "ERROR: failed to update flutter constraint in $pubspec"
+    exit 1
+  fi
+  echo "  $pubspec → flutter: >=${VERSION}"
+done
+
+echo ""
+echo "Flutter version updated to $VERSION"
+echo "Don't forget to run 'bin/install' to fetch updated dependencies."

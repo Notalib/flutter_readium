@@ -109,7 +109,7 @@ jobs:
           # when it ends, so a later `if: failure()` step (as on iOS) can't reach it.
           script: |
             adb logcat -c || true
-            flutter test integration_test/plugin_integration_test.dart || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
+            flutter test integration_test/plugin_integration_test.dart --dart-define=READIUM_TEST_SKIP_LOGS=true || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
 
       - name: Upload Android diagnostics
         if: failure()
