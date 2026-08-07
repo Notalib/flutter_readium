@@ -15,7 +15,7 @@
 - Non-breaking API only: new delegate requirements must have default implementations in a protocol extension.
 - Match upstream code style exactly (4-space indent, `log(.error, …)`, doc comments on public API).
 - **STOP and confirm with the user before pushing the fork branch or opening the issue/PR** (outward-facing actions).
-- Written against tag `3.9.0` line numbers; rebase mentally onto `develop` — if the touched code moved, adapt but keep the design.
+- Originally written against tag `3.9.0`; rebase mentally onto current `develop` — if the touched code moved, adapt but keep the design.
 
 ---
 

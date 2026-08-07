@@ -8,7 +8,7 @@
 
 ## Context
 
-The iOS `PDFNavigatorViewController.Preferences` struct in swift-toolkit 3.9.0 exposes nine configurable properties. The current `PDFPreferences` Dart model covers four of them (via the unified `layout`, `readingProgression`, `pageSpacing`, and `fit` fields). Three additional properties from the upstream iOS struct are not yet surfaced to Dart:
+The iOS `PDFNavigatorViewController.Preferences` struct in swift-toolkit exposes nine configurable properties. The current `PDFPreferences` Dart model covers four of them (via the unified `layout`, `readingProgression`, `pageSpacing`, and `fit` fields). Three additional properties from the upstream iOS struct are not yet surfaced to Dart:
 
 - **`offsetFirstPage`** (`Bool?`) — When `true`, the first page is displayed alone (not paired with a second page in two-up mode). Useful for the common case where the cover occupies the first page and the remaining pages begin on the right.
 - **`spread`** (`Spread?` / `Bool?`) — Whether the publication should be rendered with a synthetic spread (dual-page view). This is distinct from `layout` and controls pairing, not scroll axis.

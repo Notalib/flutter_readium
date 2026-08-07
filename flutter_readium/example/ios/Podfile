@@ -34,12 +34,11 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  pod 'ReadiumShared', '~> 3.9.0'
-  pod 'ReadiumShared', '~> 3.9.0'
-  pod 'ReadiumInternal', '~> 3.9.0'
-  pod 'ReadiumStreamer', '~> 3.9.0'
-  pod 'ReadiumNavigator', '~> 3.9.0'
-  pod 'ReadiumOPDS', '~> 3.9.0'
+  pod 'ReadiumShared', '~> 3.11.0'
+  pod 'ReadiumInternal', '~> 3.11.0'
+  pod 'ReadiumStreamer', '~> 3.11.0'
+  pod 'ReadiumNavigator', '~> 3.11.0'
+  pod 'ReadiumOPDS', '~> 3.11.0'
   # pod 'ReadiumZIPFoundation', podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
