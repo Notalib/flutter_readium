@@ -94,6 +94,26 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium
 
+      # Build gitignored web assets so the dry-run exercises the actual packaged
+      # contents (catches missing JS/CSS before approval).
+      - name: Build webview helper assets
+        uses: ./.github/actions/build-webview-helpers
+
+      - name: Build web reader bundle
+        uses: ./.github/actions/build-web-reader-bundle
+
+      - name: Verify built web assets exist
+        run: |
+          for f in \
+            flutter_readium/assets/helpers/flutterReadiumTools.js \
+            flutter_readium/assets/helpers/flutterReadiumTools.css \
+            flutter_readium/lib/helpers/readiumReader.js; do
+            if [ ! -f "$f" ]; then
+              echo "ERROR: Expected asset not found: $f"
+              exit 1
+            fi
+          done
+
       # Strict gate: packaging errors fail here, before the approval step. Runs on
       # the clean committed tree (no materialize), so the only non-error note is
       # the plugin's dependency-override hint, which does not fail a dry-run.
