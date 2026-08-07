@@ -16,10 +16,10 @@ A new Flutter plugin project.
   s.source_files     = 'flutter_readium/Sources/flutter_readium/**/*.swift'
   s.resource_bundles = {'flutter_readium_privacy' => ['flutter_readium/Sources/flutter_readium/PrivacyInfo.xcprivacy']}
   s.dependency 'Flutter'
-  s.dependency 'ReadiumShared', '~> 3.9.0'
-  s.dependency 'ReadiumStreamer', '~> 3.9.0'
-  s.dependency 'ReadiumNavigator', '~> 3.9.0'
-  s.dependency 'ReadiumOPDS', '~> 3.9.0'
+  s.dependency 'ReadiumShared', '~> 3.11.0'
+  s.dependency 'ReadiumStreamer', '~> 3.11.0'
+  s.dependency 'ReadiumNavigator', '~> 3.11.0'
+  s.dependency 'ReadiumOPDS', '~> 3.11.0'
   # s.dependency 'ReadiumLCP', '~> 3.5.0'
 
   s.platform = :ios, '15.0'

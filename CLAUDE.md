@@ -23,6 +23,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 ## Workflow
 
 - `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
+- `bin/update_flutter_version <version>` — update the Flutter SDK minimum version across `.flutter-version` and both pubspecs.
 - **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
 - **Before declaring any Swift changes done:** run `flutter build ios --no-codesign` in `flutter_readium/example` and fix all errors.
 - **Before declaring any Kotlin changes done:** run `./gradlew :flutter_readium:compileDebugKotlin` in `flutter_readium/example/android/` and fix all errors.
@@ -61,10 +62,11 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 ## Build / toolchain facts
 
-- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.32.0`.
+- Dart SDK: `>=3.8.0 <4.0.0`, Flutter `>=3.32.0` (pinned in `.flutter-version`, synced to pubspecs via `bin/update_flutter_version`).
 - Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
 - iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
 - Web: webpack 5, TypeScript 5.7+.
+- **Flutter version updates**: always update `.flutter-version`, `.fvmrc`, and both pubspec.yaml files (`flutter_readium/pubspec.yaml`, `flutter_readium_platform_interface/pubspec.yaml`) together via `bin/update_flutter_version <version>`. Never change one without the others — divergence causes build failures.
 
 ## Gotchas
 

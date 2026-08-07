@@ -149,11 +149,18 @@ void main() {
 
       final ok = await harness.readium.goToLocator(savedLocator);
       expect(ok, isTrue, reason: 'goToLocator should report success');
+      // Wait on the cssSelector too, not just the href: onTextLocatorChanged has two
+      // producers — the raw navigator location and the enriched page-changed locator,
+      // and only the latter carries cssSelector. Settling on href alone can read the
+      // raw one and see a null selector before the enriched emission lands.
       await waitWithPump(
         tester,
-        () => locators.last.href == savedLocator.href,
+        () =>
+            locators.last.href == savedLocator.href &&
+            (savedCssSelector == null || locators.last.locations?.cssSelector == savedCssSelector),
         timeout: const Duration(seconds: 30),
-        reason: 'goToLocator() did not return to the saved resource',
+        reason: 'goToLocator() did not return to the saved resource with its cssSelector',
+        diagnostics: () => 'last=${locators.last}',
       );
       expect(locators.last.href, equals(savedLocator.href));
 

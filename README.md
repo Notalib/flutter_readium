@@ -4,7 +4,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
-- **swift-toolkit 3.9.0** on iOS
+- **swift-toolkit 3.11.0** on iOS
 - **kotlin-toolkit 3.2.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
@@ -36,7 +36,7 @@ The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`
 | CBZ       |      ✓       |  —  |   —   |           -            |
 | DiViNa    |      ✓       |  —  |  ✓¹   | ✓¹ (Guided Navigation) |
 
-¹ DiViNa audio narration is driven by a Guided Navigation document and synchronises at the page
+¹ DiViNa audio narration is driven by a Guided Navigation document and synchronizes at the page
 level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
 plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
 any platform.
@@ -68,10 +68,18 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.32.0+                |
+| Flutter     | see `.flutter-version` |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
+
+The Flutter version is pinned in `.flutter-version`. To update it, run:
+
+```bash
+bin/update_flutter_version <version>   # e.g. bin/update_flutter_version 3.45.0
+```
+
+This syncs the version to `.flutter-version` and both pubspec files, then run `bin/install` to fetch updated dependencies.
 
 ## Getting started
 
