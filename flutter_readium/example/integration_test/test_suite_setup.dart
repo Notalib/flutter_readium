@@ -12,6 +12,10 @@ ReadiumIntegrationHarness? _aggregatedHarness;
 
 bool _logListenerAttached = false;
 
+// CI passes --dart-define=READIUM_TEST_SKIP_LOGS=true. Locally (VSCode launch configs,
+// per-test gutter buttons) it stays false, so debug output prints as before.
+const _skipLogs = bool.fromEnvironment('READIUM_TEST_SKIP_LOGS');
+
 // Route Dart-side logs to the test console. Integration tests don't run the example app's main(),
 // which is where the app normally attaches this listener.
 // So without it, setLogLevel(debug) records are generated and then dropped.
@@ -19,7 +23,13 @@ void _attachLogListener() {
   if (_logListenerAttached) return;
   _logListenerAttached = true;
   Logger.root.level = Level.ALL;
-  Logger.root.onRecord.listen((record) => debugPrint(ReadiumLog.format(record, colored: !kIsWeb)));
+  Logger.root.onRecord.listen((record) {
+    // Filter here rather than via Logger.root.level: setLogLevel(debug) turns on
+    // hierarchical logging and sets the flutter_readium logger's own level, after which
+    // the root level no longer gates its records.
+    if (_skipLogs && record.level < Level.WARNING) return;
+    debugPrint(ReadiumLog.format(record, colored: !kIsWeb));
+  });
 }
 
 /// Wires a single shared harness (fixtures, teardown, once-first warm-up) for an aggregated run.

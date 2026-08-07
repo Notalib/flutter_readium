@@ -50,4 +50,5 @@ jobs:
           flutter drive \
             --driver=test_driver/integration_test.dart \
             --target=integration_test/plugin_integration_test.dart \
+            --dart-define=READIUM_TEST_SKIP_LOGS=true \
             -d chrome
