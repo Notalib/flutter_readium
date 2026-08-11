@@ -69,6 +69,7 @@ class _ExternalPlaybackCommandStatusState extends State<ExternalPlaybackCommandS
     return switch (_command?.action) {
       ExternalPlaybackCommandAction.pause => Colors.yellow[600],
       ExternalPlaybackCommandAction.play => Colors.lightGreen,
+      ExternalPlaybackCommandAction.togglePlayPause => Colors.orange,
 
       ExternalPlaybackCommandAction.previous => Colors.blue[300],
       ExternalPlaybackCommandAction.next => Colors.blue[300],
