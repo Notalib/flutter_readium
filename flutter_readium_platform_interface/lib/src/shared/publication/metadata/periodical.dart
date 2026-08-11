@@ -66,6 +66,8 @@ class Periodical extends BaseCollection {
     super.additionalProperties,
   });
 
+  static const _unset = Object();
+
   final List<Issue> issues;
   final List<Volume> volumes;
 
@@ -91,29 +93,35 @@ class Periodical extends BaseCollection {
   }
 
   Periodical copyWith({
-    double? position,
-    LocalizedString? localizedName,
-    String? identifier,
-    List<AltIdentifier>? altIdentifiers,
-    LocalizedString? localizedSortAs,
-    List<Link>? links,
-    List<Issue>? issues,
-    List<Volume>? volumes,
-    Map<String, dynamic>? additionalProperties,
+    Object? position = _unset,
+    Object? localizedName = _unset,
+    Object? identifier = _unset,
+    Object? altIdentifiers = _unset,
+    Object? localizedSortAs = _unset,
+    Object? links = _unset,
+    Object? issues = _unset,
+    Object? volumes = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Periodical(
-      position: position ?? this.position,
-      localizedName: localizedName ?? this.localizedName,
-      identifier: identifier ?? this.identifier,
-      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
-      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      links: links ?? this.links,
-      issues: issues ?? this.issues,
-      volumes: volumes ?? this.volumes,
+      position: identical(position, _unset) ? this.position : (position as double?)!,
+      localizedName: identical(localizedName, _unset) ? this.localizedName : (localizedName as LocalizedString?)!,
+      identifier: identical(identifier, _unset) ? this.identifier : (identifier as String?)!,
+      altIdentifiers: identical(altIdentifiers, _unset)
+          ? this.altIdentifiers
+          : (altIdentifiers as List<AltIdentifier>?)!,
+      localizedSortAs: identical(localizedSortAs, _unset)
+          ? this.localizedSortAs
+          : (localizedSortAs as LocalizedString?)!,
+      links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
+      issues: identical(issues, _unset) ? this.issues : (issues as List<Issue>?)!,
+      volumes: identical(volumes, _unset) ? this.volumes : (volumes as List<Volume>?)!,
       additionalProperties: mergeProperties,
     );
   }

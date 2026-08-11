@@ -28,6 +28,8 @@ class Publication with Equatable implements JSONable {
     this.subCollections = const {},
   });
 
+  static const _unset = Object();
+
   /// JSON-LD context URIs declaring the vocabulary used by this manifest.
   final List<String> context;
 
@@ -61,21 +63,23 @@ class Publication with Equatable implements JSONable {
 
   /// Returns a copy of this publication with the given fields replaced.
   Publication copyWith({
-    List<String>? context,
-    Metadata? metadata,
-    List<Link>? links,
-    List<Link>? readingOrder,
-    List<Link>? resources,
-    List<Link>? tableOfContents,
-    Map<String, List<PublicationCollection>>? subCollections,
+    Object? context = _unset,
+    Object? metadata = _unset,
+    Object? links = _unset,
+    Object? readingOrder = _unset,
+    Object? resources = _unset,
+    Object? tableOfContents = _unset,
+    Object? subCollections = _unset,
   }) => Publication(
-    context: context ?? this.context,
-    metadata: metadata ?? this.metadata,
-    links: links ?? this.links,
-    readingOrder: readingOrder ?? this.readingOrder,
-    resources: resources ?? this.resources,
-    tableOfContents: tableOfContents ?? this.tableOfContents,
-    subCollections: subCollections ?? this.subCollections,
+    context: identical(context, _unset) ? this.context : (context as List<String>?)!,
+    metadata: identical(metadata, _unset) ? this.metadata : (metadata as Metadata?)!,
+    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
+    readingOrder: identical(readingOrder, _unset) ? this.readingOrder : (readingOrder as List<Link>?)!,
+    resources: identical(resources, _unset) ? this.resources : (resources as List<Link>?)!,
+    tableOfContents: identical(tableOfContents, _unset) ? this.tableOfContents : (tableOfContents as List<Link>?)!,
+    subCollections: identical(subCollections, _unset)
+        ? this.subCollections
+        : (subCollections as Map<String, List<PublicationCollection>>?)!,
   );
 
   @override

@@ -76,33 +76,41 @@ class Issue extends BaseCollection {
     super.additionalProperties,
   });
 
+  static const _unset = Object();
+
   final List<Article> articles;
   final List<Chapter> chapters;
 
   Issue copyWith({
-    double? position,
-    LocalizedString? localizedName,
-    String? identifier,
-    List<AltIdentifier>? altIdentifiers,
-    LocalizedString? localizedSortAs,
-    List<Link>? links,
-    List<Article>? articles,
-    List<Chapter>? chapters,
-    Map<String, dynamic>? additionalProperties,
+    Object? position = _unset,
+    Object? localizedName = _unset,
+    Object? identifier = _unset,
+    Object? altIdentifiers = _unset,
+    Object? localizedSortAs = _unset,
+    Object? links = _unset,
+    Object? articles = _unset,
+    Object? chapters = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Issue(
-      position: position ?? this.position,
-      localizedName: localizedName ?? this.localizedName,
-      identifier: identifier ?? this.identifier,
-      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
-      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      links: links ?? this.links,
-      articles: articles ?? this.articles,
-      chapters: chapters ?? this.chapters,
+      position: identical(position, _unset) ? this.position : (position as double?)!,
+      localizedName: identical(localizedName, _unset) ? this.localizedName : (localizedName as LocalizedString?)!,
+      identifier: identical(identifier, _unset) ? this.identifier : (identifier as String?)!,
+      altIdentifiers: identical(altIdentifiers, _unset)
+          ? this.altIdentifiers
+          : (altIdentifiers as List<AltIdentifier>?)!,
+      localizedSortAs: identical(localizedSortAs, _unset)
+          ? this.localizedSortAs
+          : (localizedSortAs as LocalizedString?)!,
+      links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
+      articles: identical(articles, _unset) ? this.articles : (articles as List<Article>?)!,
+      chapters: identical(chapters, _unset) ? this.chapters : (chapters as List<Chapter>?)!,
       additionalProperties: mergeProperties,
     );
   }

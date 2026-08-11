@@ -18,6 +18,8 @@ class ReaderTTSVoice with Equatable implements JSONable {
     this.active,
   );
 
+  static const _unset = Object();
+
   factory ReaderTTSVoice({
     required String identifier,
     required String name,
@@ -119,20 +121,20 @@ class ReaderTTSVoice with Equatable implements JSONable {
   ];
 
   ReaderTTSVoice copyWith({
-    String? identifier,
-    String? name,
-    String? language,
-    bool? networkRequired,
-    TTSVoiceGender? gender,
-    TTSVoiceQuality? quality,
-    bool? active,
+    Object? identifier = _unset,
+    Object? name = _unset,
+    Object? language = _unset,
+    Object? networkRequired = _unset,
+    Object? gender = _unset,
+    Object? quality = _unset,
+    Object? active = _unset,
   }) => ReaderTTSVoice(
-    identifier: identifier ?? this.identifier,
-    name: name ?? this.name,
-    language: language ?? this.language,
-    networkRequired: networkRequired ?? this.networkRequired,
-    gender: gender ?? this.gender,
-    quality: quality ?? this.quality,
-    active: active ?? this.active,
+    identifier: identical(identifier, _unset) ? this.identifier : (identifier as String?)!,
+    name: identical(name, _unset) ? this.name : (name as String?)!,
+    language: identical(language, _unset) ? this.language : (language as String?)!,
+    networkRequired: identical(networkRequired, _unset) ? this.networkRequired : (networkRequired as bool),
+    gender: identical(gender, _unset) ? this.gender : (gender as TTSVoiceGender),
+    quality: identical(quality, _unset) ? this.quality : (quality as TTSVoiceQuality?),
+    active: identical(active, _unset) ? this.active : (active as bool?),
   );
 }

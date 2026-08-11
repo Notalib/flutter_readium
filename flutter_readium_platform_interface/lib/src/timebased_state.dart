@@ -16,6 +16,8 @@ class ReadiumTimebasedState implements JSONable {
     this.currentLocator,
   });
 
+  static const _unset = Object();
+
   factory ReadiumTimebasedState.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
 
@@ -116,20 +118,22 @@ class ReadiumTimebasedState implements JSONable {
     ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
-    TimebasedState? state,
-    Duration? currentOffset,
-    Duration? currentBuffered,
-    Duration? currentDuration,
-    Duration? totalProgressDuration,
-    Duration? totalDuration,
-    Locator? currentLocator,
+    Object? state = _unset,
+    Object? currentOffset = _unset,
+    Object? currentBuffered = _unset,
+    Object? currentDuration = _unset,
+    Object? totalProgressDuration = _unset,
+    Object? totalDuration = _unset,
+    Object? currentLocator = _unset,
   }) => ReadiumTimebasedState(
-    state: state ?? this.state,
-    currentOffset: currentOffset ?? this.currentOffset,
-    currentBuffered: currentBuffered ?? this.currentBuffered,
-    currentDuration: currentDuration ?? this.currentDuration,
-    totalProgressDuration: totalProgressDuration ?? this.totalProgressDuration,
-    totalDuration: totalDuration ?? this.totalDuration,
-    currentLocator: currentLocator ?? this.currentLocator,
+    state: identical(state, _unset) ? this.state : (state as TimebasedState?)!,
+    currentOffset: identical(currentOffset, _unset) ? this.currentOffset : (currentOffset as Duration?)!,
+    currentBuffered: identical(currentBuffered, _unset) ? this.currentBuffered : (currentBuffered as Duration?)!,
+    currentDuration: identical(currentDuration, _unset) ? this.currentDuration : (currentDuration as Duration?)!,
+    totalProgressDuration: identical(totalProgressDuration, _unset)
+        ? this.totalProgressDuration
+        : (totalProgressDuration as Duration?)!,
+    totalDuration: identical(totalDuration, _unset) ? this.totalDuration : (totalDuration as Duration?)!,
+    currentLocator: identical(currentLocator, _unset) ? this.currentLocator : (currentLocator as Locator?)!,
   );
 }

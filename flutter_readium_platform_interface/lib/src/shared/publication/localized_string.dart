@@ -143,8 +143,11 @@ class LocalizedString with Equatable implements JSONable {
     ),
   );
 
-  LocalizedString copyWith({Map<String?, Translation>? translations}) =>
-      LocalizedString(translations: translations ?? {});
+  static const _unset = Object();
+
+  LocalizedString copyWith({Map<String?, Translation>? translations}) => LocalizedString(
+    translations: identical(translations, _unset) ? const {} : (translations ?? const {}) as Map<String?, Translation>,
+  );
 
   /// Serializes a [LocalizedString] to its RWPM JSON representation.
   @override

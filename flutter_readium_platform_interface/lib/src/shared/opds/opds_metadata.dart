@@ -26,6 +26,8 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
     super.additionalProperties,
   });
 
+  static const _unset = Object();
+
   final String? identifier;
 
   final LocalizedString localizedTitle;
@@ -55,33 +57,37 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
   ];
 
   OpdsMetadata copyWith({
-    LocalizedString? localizedTitle,
-    LocalizedString? localizedSubtitle,
-    String? identifier,
-    String? description,
-    int? numberOfItems,
-    int? itemsPerPage,
-    int? currentPage,
-    DateTime? modified,
-    double? position,
-    String? rdfType,
-    Map<String, dynamic>? additionalProperties,
+    Object? localizedTitle = _unset,
+    Object? localizedSubtitle = _unset,
+    Object? identifier = _unset,
+    Object? description = _unset,
+    Object? numberOfItems = _unset,
+    Object? itemsPerPage = _unset,
+    Object? currentPage = _unset,
+    Object? modified = _unset,
+    Object? position = _unset,
+    Object? rdfType = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return OpdsMetadata(
-      localizedTitle: localizedTitle ?? this.localizedTitle,
-      localizedSubtitle: localizedSubtitle ?? this.localizedSubtitle,
-      identifier: identifier ?? this.identifier,
-      description: description ?? this.description,
-      numberOfItems: numberOfItems ?? this.numberOfItems,
-      itemsPerPage: itemsPerPage ?? this.itemsPerPage,
-      currentPage: currentPage ?? this.currentPage,
-      modified: modified ?? this.modified,
-      position: position ?? this.position,
-      rdfType: rdfType ?? this.rdfType,
+      localizedTitle: identical(localizedTitle, _unset) ? this.localizedTitle : (localizedTitle as LocalizedString?)!,
+      localizedSubtitle: identical(localizedSubtitle, _unset)
+          ? this.localizedSubtitle
+          : localizedSubtitle as LocalizedString?,
+      identifier: identical(identifier, _unset) ? this.identifier : identifier as String?,
+      description: identical(description, _unset) ? this.description : description as String?,
+      numberOfItems: identical(numberOfItems, _unset) ? this.numberOfItems : numberOfItems as int?,
+      itemsPerPage: identical(itemsPerPage, _unset) ? this.itemsPerPage : itemsPerPage as int?,
+      currentPage: identical(currentPage, _unset) ? this.currentPage : currentPage as int?,
+      modified: identical(modified, _unset) ? this.modified : modified as DateTime?,
+      position: identical(position, _unset) ? this.position : position as double?,
+      rdfType: identical(rdfType, _unset) ? this.rdfType : rdfType as String?,
       additionalProperties: mergeProperties,
     );
   }

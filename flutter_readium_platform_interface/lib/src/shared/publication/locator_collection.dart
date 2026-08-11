@@ -17,6 +17,8 @@ class LocatorCollection with Equatable implements JSONable {
     this.locators = const [],
   });
 
+  static const _unset = Object();
+
   final LocatorCollectionMetadata metadata;
   final List<Link> links;
   final List<Locator> locators;
@@ -65,13 +67,13 @@ class LocatorCollection with Equatable implements JSONable {
   }
 
   LocatorCollection copyWith({
-    LocatorCollectionMetadata? metadata,
-    List<Link>? links,
-    List<Locator>? locators,
+    Object? metadata = _unset,
+    Object? links = _unset,
+    Object? locators = _unset,
   }) => LocatorCollection(
-    metadata: metadata ?? this.metadata,
-    links: links ?? this.links,
-    locators: locators ?? this.locators,
+    metadata: identical(metadata, _unset) ? this.metadata : (metadata as LocatorCollectionMetadata?)!,
+    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
+    locators: identical(locators, _unset) ? this.locators : (locators as List<Locator>?)!,
   );
 
   @override
@@ -89,6 +91,8 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
     this.numberOfItems,
     super.additionalProperties,
   });
+
+  static const _unset = Object();
 
   /// The localized title. Can be a simple string or a map of language codes to strings.
   final dynamic localizedTitle;
@@ -154,13 +158,15 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
   }
 
   LocatorCollectionMetadata copyWith({
-    dynamic localizedTitle,
-    int? numberOfItems,
-    Map<String, dynamic>? additionalProperties,
+    Object? localizedTitle = _unset,
+    Object? numberOfItems = _unset,
+    Object? additionalProperties = _unset,
   }) => LocatorCollectionMetadata(
-    localizedTitle: localizedTitle ?? this.localizedTitle,
-    numberOfItems: numberOfItems ?? this.numberOfItems,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
+    localizedTitle: identical(localizedTitle, _unset) ? this.localizedTitle : localizedTitle,
+    numberOfItems: identical(numberOfItems, _unset) ? this.numberOfItems : (numberOfItems as int?)!,
+    additionalProperties: identical(additionalProperties, _unset) || additionalProperties == null
+        ? this.additionalProperties
+        : (additionalProperties as Map<String, dynamic>),
   );
 
   @override

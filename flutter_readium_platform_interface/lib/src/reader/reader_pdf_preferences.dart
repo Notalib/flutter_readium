@@ -15,6 +15,8 @@ class PDFPreferences with Equatable implements JSONable {
     this.visibleScrollbar,
   });
 
+  static const _unset = Object();
+
   factory PDFPreferences.fromJson(Map<String, dynamic> json) {
     final layoutStr = json['layout'] as String?;
     final rpStr = json['readingProgression'] as String?;
@@ -84,21 +86,23 @@ class PDFPreferences with Equatable implements JSONable {
     ..putOpt('visibleScrollbar', visibleScrollbar);
 
   PDFPreferences copyWith({
-    PDFLayout? layout,
-    PDFReadingProgression? readingProgression,
-    double? pageSpacing,
-    PDFFit? fit,
-    bool? offsetFirstPage,
-    PDFSpread? spread,
-    bool? visibleScrollbar,
+    Object? layout = _unset,
+    Object? readingProgression = _unset,
+    Object? pageSpacing = _unset,
+    Object? fit = _unset,
+    Object? offsetFirstPage = _unset,
+    Object? spread = _unset,
+    Object? visibleScrollbar = _unset,
   }) => PDFPreferences(
-    layout: layout ?? this.layout,
-    readingProgression: readingProgression ?? this.readingProgression,
-    pageSpacing: pageSpacing ?? this.pageSpacing,
-    fit: fit ?? this.fit,
-    offsetFirstPage: offsetFirstPage ?? this.offsetFirstPage,
-    spread: spread ?? this.spread,
-    visibleScrollbar: visibleScrollbar ?? this.visibleScrollbar,
+    layout: identical(layout, _unset) ? this.layout : (layout as PDFLayout?)!,
+    readingProgression: identical(readingProgression, _unset)
+        ? this.readingProgression
+        : (readingProgression as PDFReadingProgression?)!,
+    pageSpacing: identical(pageSpacing, _unset) ? this.pageSpacing : (pageSpacing as double?)!,
+    fit: identical(fit, _unset) ? this.fit : (fit as PDFFit?)!,
+    offsetFirstPage: identical(offsetFirstPage, _unset) ? this.offsetFirstPage : (offsetFirstPage as bool?),
+    spread: identical(spread, _unset) ? this.spread : (spread as PDFSpread?),
+    visibleScrollbar: identical(visibleScrollbar, _unset) ? this.visibleScrollbar : (visibleScrollbar as bool?),
   );
 
   @override

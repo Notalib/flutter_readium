@@ -75,6 +75,8 @@ class AudioPreferences with Equatable implements JSONable {
     this.updateIntervalSecs,
   });
 
+  static const _unset = Object();
+
   /// The volume for audio playback.
   final double? volume;
 
@@ -132,25 +134,31 @@ class AudioPreferences with Equatable implements JSONable {
   ];
 
   AudioPreferences copyWith({
-    double? volume,
-    double? speed,
-    double? pitch,
-    double? seekInterval,
-    bool? continuousSeeking,
-    bool? allowExternalSeeking,
-    double? updateIntervalSecs,
-    ControlPanelInfoType? controlPanelInfoType,
-    ControlPanelTimebase? controlPanelTimebase,
+    Object? volume = _unset,
+    Object? speed = _unset,
+    Object? pitch = _unset,
+    Object? seekInterval = _unset,
+    Object? continuousSeeking = _unset,
+    Object? allowExternalSeeking = _unset,
+    Object? updateIntervalSecs = _unset,
+    Object? controlPanelInfoType = _unset,
+    Object? controlPanelTimebase = _unset,
   }) => AudioPreferences(
-    volume: volume ?? this.volume,
-    speed: speed ?? this.speed,
-    pitch: pitch ?? this.pitch,
-    seekInterval: seekInterval ?? this.seekInterval,
-    continuousSeeking: continuousSeeking ?? this.continuousSeeking,
-    allowExternalSeeking: allowExternalSeeking ?? this.allowExternalSeeking,
-    updateIntervalSecs: updateIntervalSecs ?? this.updateIntervalSecs,
-    controlPanelInfoType: controlPanelInfoType ?? this.controlPanelInfoType,
-    controlPanelTimebase: controlPanelTimebase ?? this.controlPanelTimebase,
+    volume: identical(volume, _unset) ? this.volume : (volume as double?)!,
+    speed: identical(speed, _unset) ? this.speed : (speed as double?)!,
+    pitch: identical(pitch, _unset) ? this.pitch : (pitch as double?)!,
+    seekInterval: identical(seekInterval, _unset) ? this.seekInterval : (seekInterval as double?)!,
+    continuousSeeking: identical(continuousSeeking, _unset) ? this.continuousSeeking : (continuousSeeking as bool?),
+    allowExternalSeeking: identical(allowExternalSeeking, _unset) ? this.allowExternalSeeking : (allowExternalSeeking as bool?),
+    updateIntervalSecs: identical(updateIntervalSecs, _unset)
+        ? this.updateIntervalSecs
+        : (updateIntervalSecs as double?)!,
+    controlPanelInfoType: identical(controlPanelInfoType, _unset)
+        ? this.controlPanelInfoType
+        : (controlPanelInfoType as ControlPanelInfoType?)!,
+    controlPanelTimebase: identical(controlPanelTimebase, _unset)
+        ? this.controlPanelTimebase
+        : (controlPanelTimebase as ControlPanelTimebase?)!,
   );
 }
 

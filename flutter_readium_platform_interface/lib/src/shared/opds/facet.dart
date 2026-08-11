@@ -14,6 +14,8 @@ import '../publication/link.dart' show Link;
 class Facet with Equatable implements JSONable {
   const Facet({required this.metadata, required this.links});
 
+  static const _unset = Object();
+
   final OpdsMetadata metadata;
   final List<Link> links;
 
@@ -23,8 +25,13 @@ class Facet with Equatable implements JSONable {
   @override
   String toString() => 'Facet{metadata: $metadata, links: $links}';
 
-  Facet copyWith({OpdsMetadata? metadata, List<Link>? links}) =>
-      Facet(metadata: metadata ?? this.metadata, links: links ?? this.links);
+  Facet copyWith({
+    Object? metadata = _unset,
+    Object? links = _unset,
+  }) => Facet(
+    metadata: identical(metadata, _unset) ? this.metadata : (metadata as OpdsMetadata)!,
+    links: identical(links, _unset) ? this.links : (links as List<Link>)!,
+  );
 
   @override
   Map<String, dynamic> toJson() {

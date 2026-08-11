@@ -22,6 +22,8 @@ class AudioRecoveryPolicy with Equatable {
     this.connectionTimeoutSeconds = 10.0,
   });
 
+  static const _unset = Object();
+
   factory AudioRecoveryPolicy.fromJson(Map<String, dynamic> json) => AudioRecoveryPolicy(
     maxAttempts: (json['maxAttempts'] as num?)?.toInt() ?? 3,
     backoffBaseSeconds: (json['backoffBaseSeconds'] as num?)?.toDouble() ?? 1.0,
@@ -59,15 +61,17 @@ class AudioRecoveryPolicy with Equatable {
   };
 
   AudioRecoveryPolicy copyWith({
-    int? maxAttempts,
-    double? backoffBaseSeconds,
-    double? stallTimeoutSeconds,
-    double? connectionTimeoutSeconds,
+    Object? maxAttempts = _unset,
+    Object? backoffBaseSeconds = _unset,
+    Object? stallTimeoutSeconds = _unset,
+    Object? connectionTimeoutSeconds = _unset,
   }) => AudioRecoveryPolicy(
-    maxAttempts: maxAttempts ?? this.maxAttempts,
-    backoffBaseSeconds: backoffBaseSeconds ?? this.backoffBaseSeconds,
-    stallTimeoutSeconds: stallTimeoutSeconds ?? this.stallTimeoutSeconds,
-    connectionTimeoutSeconds: connectionTimeoutSeconds ?? this.connectionTimeoutSeconds,
+    maxAttempts: identical(maxAttempts, _unset) ? this.maxAttempts : (maxAttempts as int),
+    backoffBaseSeconds: identical(backoffBaseSeconds, _unset) ? this.backoffBaseSeconds : (backoffBaseSeconds as double),
+    stallTimeoutSeconds: identical(stallTimeoutSeconds, _unset) ? this.stallTimeoutSeconds : (stallTimeoutSeconds as double),
+    connectionTimeoutSeconds: identical(connectionTimeoutSeconds, _unset)
+        ? this.connectionTimeoutSeconds
+        : (connectionTimeoutSeconds as double),
   );
 
   @override

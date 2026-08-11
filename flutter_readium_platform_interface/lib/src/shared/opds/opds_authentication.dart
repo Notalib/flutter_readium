@@ -142,6 +142,8 @@ class OpdsAuthentication extends AdditionalProperties with Equatable implements 
     super.additionalProperties = const {},
   });
 
+  static const _unset = Object();
+
   /// Title of the Catalog being accessed
   final String type;
 
@@ -211,41 +213,45 @@ class OpdsAuthentication extends AdditionalProperties with Equatable implements 
     ..putJSONableIfNotEmpty('web_color_scheme', webColorScheme);
 
   OpdsAuthentication copyWith({
-    String? type,
-    String? id,
-    String? description,
-    List<Link>? links,
-    List<Announcement>? announcements,
-    List<Audience>? audiences,
-    Map<String, int>? collectionSize,
-    String? colorScheme,
-    FeatureFlags? featureFlags,
-    InputData? inputs,
-    Map<String, String>? labels,
-    PublicKeyData? publicKey,
-    String? serviceDescription,
-    WebColor? webColorScheme,
-    Map<String, dynamic>? additionalProperties,
+    Object? type = _unset,
+    Object? id = _unset,
+    Object? description = _unset,
+    Object? links = _unset,
+    Object? announcements = _unset,
+    Object? audiences = _unset,
+    Object? collectionSize = _unset,
+    Object? colorScheme = _unset,
+    Object? featureFlags = _unset,
+    Object? inputs = _unset,
+    Object? labels = _unset,
+    Object? publicKey = _unset,
+    Object? serviceDescription = _unset,
+    Object? webColorScheme = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return OpdsAuthentication(
-      type: type ?? this.type,
-      id: id ?? this.id,
-      links: links ?? this.links,
-      description: description ?? this.description,
-      announcements: announcements ?? this.announcements,
-      audiences: audiences ?? this.audiences,
-      collectionSize: collectionSize ?? this.collectionSize,
-      colorScheme: colorScheme ?? this.colorScheme,
-      featureFlags: featureFlags ?? this.featureFlags,
-      inputs: inputs ?? this.inputs,
-      labels: labels ?? this.labels,
-      publicKey: publicKey ?? this.publicKey,
-      serviceDescription: serviceDescription ?? this.serviceDescription,
-      webColorScheme: webColorScheme ?? this.webColorScheme,
+      type: identical(type, _unset) ? this.type : (type as String?)!,
+      id: identical(id, _unset) ? this.id : (id as String?)!,
+      links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
+      description: identical(description, _unset) ? this.description : description as String?,
+      announcements: identical(announcements, _unset) ? this.announcements : (announcements as List<Announcement>?)!,
+      audiences: identical(audiences, _unset) ? this.audiences : (audiences as List<Audience>?)!,
+      collectionSize: identical(collectionSize, _unset) ? this.collectionSize : (collectionSize as Map<String, int>?)!,
+      colorScheme: identical(colorScheme, _unset) ? this.colorScheme : colorScheme as String?,
+      featureFlags: identical(featureFlags, _unset) ? this.featureFlags : (featureFlags as FeatureFlags?)!,
+      inputs: identical(inputs, _unset) ? this.inputs : (inputs as InputData?)!,
+      labels: identical(labels, _unset) ? this.labels : (labels as Map<String, String>?)!,
+      publicKey: identical(publicKey, _unset) ? this.publicKey : (publicKey as PublicKeyData?)!,
+      serviceDescription: identical(serviceDescription, _unset)
+          ? this.serviceDescription
+          : serviceDescription as String?,
+      webColorScheme: identical(webColorScheme, _unset) ? this.webColorScheme : (webColorScheme as WebColor?)!,
       additionalProperties: mergeProperties,
     );
   }
@@ -291,6 +297,7 @@ class OpdsAuthenticationFlow with Equatable implements JSONable {
   }
 
   const OpdsAuthenticationFlow({required this.type, this.links = const []});
+  static const _unset = Object();
   final String type;
   final List<Link> links;
 
@@ -299,9 +306,9 @@ class OpdsAuthenticationFlow with Equatable implements JSONable {
     ..put('type', type)
     ..putIterableIfNotEmpty('links', links);
 
-  OpdsAuthenticationFlow copyWith({String? type, List<Link>? links}) => OpdsAuthenticationFlow(
-    type: type ?? this.type,
-    links: links ?? this.links,
+  OpdsAuthenticationFlow copyWith({Object? type = _unset, Object? links = _unset}) => OpdsAuthenticationFlow(
+    type: identical(type, _unset) ? this.type : (type as String?)!,
+    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
   );
 
   @override
@@ -320,6 +327,8 @@ class OpdsAuthenticationLabels with Equatable implements JSONable {
   }
   const OpdsAuthenticationLabels({this.login, this.password});
 
+  static const _unset = Object();
+
   final String? login;
   final String? password;
 
@@ -328,9 +337,9 @@ class OpdsAuthenticationLabels with Equatable implements JSONable {
     ..putOpt('login', login)
     ..putOpt('password', password);
 
-  OpdsAuthenticationLabels copyWith({String? login, String? password}) => OpdsAuthenticationLabels(
-    login: login ?? this.login,
-    password: password ?? this.password,
+  OpdsAuthenticationLabels copyWith({Object? login = _unset, Object? password = _unset}) => OpdsAuthenticationLabels(
+    login: identical(login, _unset) ? this.login : (login as String?)!,
+    password: identical(password, _unset) ? this.password : (password as String?)!,
   );
 
   @override
@@ -367,18 +376,22 @@ class Announcement extends AdditionalProperties with Equatable implements JSONab
     ..put('id', id)
     ..put('content', content);
 
+  static const _unset = Object();
+
   Announcement copyWith({
-    String? id,
-    String? content,
-    Map<String, dynamic>? additionalProperties,
+    Object? id = _unset,
+    Object? content = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Announcement(
-      id: id ?? this.id,
-      content: content ?? this.content,
+      id: identical(id, _unset) ? this.id : (id as String?)!,
+      content: identical(content, _unset) ? this.content : (content as String?)!,
       additionalProperties: mergeProperties,
     );
   }
@@ -457,9 +470,11 @@ class FeatureFlags with Equatable implements JSONable {
     ..putIterableIfNotEmpty('enabled', enabled)
     ..putIterableIfNotEmpty('disabled', disabled);
 
-  FeatureFlags copyWith({List<String>? enabled, List<String>? disabled}) => FeatureFlags(
-    enabled: enabled ?? this.enabled,
-    disabled: disabled ?? this.disabled,
+  static const _unset = Object();
+
+  FeatureFlags copyWith({Object? enabled = _unset, Object? disabled = _unset}) => FeatureFlags(
+    enabled: identical(enabled, _unset) ? this.enabled : (enabled as List<String>?)!,
+    disabled: identical(disabled, _unset) ? this.disabled : (disabled as List<String>?)!,
   );
 
   @override
@@ -487,14 +502,16 @@ class InputField with Equatable implements JSONable {
   final KeyboardType? keyboard;
   final int? maximumLength;
 
+  static const _unset = Object();
+
   @override
   Map<String, dynamic> toJson() => {}
     ..putOpt('keyboard', keyboard?.name)
     ..putOpt('maximum_length', maximumLength);
 
-  InputField copyWith({KeyboardType? keyboard, int? maximumLength}) => InputField(
-    keyboard: keyboard ?? this.keyboard,
-    maximumLength: maximumLength ?? this.maximumLength,
+  InputField copyWith({Object? keyboard = _unset, Object? maximumLength = _unset}) => InputField(
+    keyboard: identical(keyboard, _unset) ? this.keyboard : keyboard as KeyboardType?,
+    maximumLength: identical(maximumLength, _unset) ? this.maximumLength : maximumLength as int?,
   );
 
   @override
@@ -554,15 +571,17 @@ class LoginInputField extends InputField with Equatable {
   @override
   Map<String, dynamic> toJson() => super.toJson()..putOpt('barcode_format', barcodeFormat);
 
+  static const _unset = Object();
+
   @override
   LoginInputField copyWith({
-    String? barcodeFormat,
-    KeyboardType? keyboard,
-    int? maximumLength,
+    Object? barcodeFormat = _unset,
+    Object? keyboard = _unset,
+    Object? maximumLength = _unset,
   }) => LoginInputField(
-    barcodeFormat: barcodeFormat ?? this.barcodeFormat,
-    keyboard: keyboard ?? this.keyboard,
-    maximumLength: maximumLength ?? this.maximumLength,
+    barcodeFormat: identical(barcodeFormat, _unset) ? this.barcodeFormat : barcodeFormat as String?,
+    keyboard: identical(keyboard, _unset) ? this.keyboard : keyboard as KeyboardType?,
+    maximumLength: identical(maximumLength, _unset) ? this.maximumLength : maximumLength as int?,
   );
 
   @override
@@ -598,9 +617,11 @@ class InputData with Equatable implements JSONable {
     ..put('login', login)
     ..put('password', password);
 
-  InputData copyWith({LoginInputField? login, InputField? password}) => InputData(
-    login: login ?? this.login,
-    password: password ?? this.password,
+  static const _unset = Object();
+
+  InputData copyWith({Object? login = _unset, Object? password = _unset}) => InputData(
+    login: identical(login, _unset) ? this.login : (login as LoginInputField?)!,
+    password: identical(password, _unset) ? this.password : (password as InputField?)!,
   );
 
   @override
@@ -631,8 +652,12 @@ class PublicKeyData with Equatable implements JSONable {
     ..put('type', type)
     ..put('value', value);
 
-  PublicKeyData copyWith({String? type, String? value}) =>
-      PublicKeyData(type: type ?? this.type, value: value ?? this.value);
+  static const _unset = Object();
+
+  PublicKeyData copyWith({Object? type = _unset, Object? value = _unset}) => PublicKeyData(
+    type: identical(type, _unset) ? this.type : (type as String?)!,
+    value: identical(value, _unset) ? this.value : (value as String?)!,
+  );
 
   @override
   List<Object?> get props => [type, value];
@@ -671,9 +696,11 @@ class WebColor with Equatable implements JSONable {
     ..putOpt('primary', primary)
     ..putOpt('secondary', secondary);
 
-  WebColor copyWith({String? primary, String? secondary}) => WebColor(
-    primary: primary ?? this.primary,
-    secondary: secondary ?? this.secondary,
+  static const _unset = Object();
+
+  WebColor copyWith({Object? primary = _unset, Object? secondary = _unset}) => WebColor(
+    primary: identical(primary, _unset) ? this.primary : (primary as String?)!,
+    secondary: identical(secondary, _unset) ? this.secondary : (secondary as String?)!,
   );
 
   @override

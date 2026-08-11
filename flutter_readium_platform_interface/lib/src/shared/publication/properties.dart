@@ -31,6 +31,8 @@ class Properties extends AdditionalProperties with Equatable implements JSONable
     super.additionalProperties,
   });
 
+  static const _unset = Object();
+
   /// (Nullable) Indicates how the linked resource should be displayed in a
   /// reading environment that displays synthetic spreads.
   final PresentationPage? page;
@@ -78,27 +80,29 @@ class Properties extends AdditionalProperties with Equatable implements JSONable
     ..putOpt('encryption', encryption);
 
   Properties copyWith({
-    PresentationPage? page,
-    List<String>? contains,
-    PresentationOrientation? orientation,
-    EpubLayout? layout,
-    PresentationOverflow? overflow,
-    PresentationSpread? spread,
-    Encryption? encryption,
-    Map<String, dynamic>? additionalProperties,
+    Object? page = _unset,
+    Object? contains = _unset,
+    Object? orientation = _unset,
+    Object? layout = _unset,
+    Object? overflow = _unset,
+    Object? spread = _unset,
+    Object? encryption = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Properties(
-      page: page ?? this.page,
-      contains: contains?.toSet().toList() ?? this.contains,
-      orientation: orientation ?? this.orientation,
-      layout: layout ?? this.layout,
-      overflow: overflow ?? this.overflow,
-      spread: spread ?? this.spread,
-      encryption: encryption ?? this.encryption,
+      page: identical(page, _unset) ? this.page : (page as PresentationPage?)!,
+      contains: identical(contains, _unset) ? this.contains : (contains as List<String>?)?.toSet().toList(),
+      orientation: identical(orientation, _unset) ? this.orientation : (orientation as PresentationOrientation?)!,
+      layout: identical(layout, _unset) ? this.layout : (layout as EpubLayout?)!,
+      overflow: identical(overflow, _unset) ? this.overflow : (overflow as PresentationOverflow?)!,
+      spread: identical(spread, _unset) ? this.spread : (spread as PresentationSpread?)!,
+      encryption: identical(encryption, _unset) ? this.encryption : (encryption as Encryption?)!,
       additionalProperties: mergeProperties,
     );
   }

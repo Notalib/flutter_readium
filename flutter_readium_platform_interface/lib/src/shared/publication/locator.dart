@@ -68,6 +68,8 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
     super.additionalProperties,
   }) : super();
 
+  static const _unset = Object();
+
   /// The URI of the resource that the Locator Object points to.
   final String href;
 
@@ -152,41 +154,45 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
     ..putJSONableIfNotEmpty('text', text);
 
   Locator copyWith({
-    String? href,
-    String? type,
-    String? title,
-    Locations? locations,
-    LocatorText? text,
-    Map<String, dynamic>? additionalProperties,
+    Object? href = _unset,
+    Object? type = _unset,
+    Object? title = _unset,
+    Object? locations = _unset,
+    Object? text = _unset,
+    Object? additionalProperties = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Locator(
-      href: href ?? this.href,
-      type: type ?? this.type,
-      title: title ?? this.title,
-      locations: locations ?? this.locations,
-      text: text ?? this.text,
+      href: identical(href, _unset) ? this.href : (href as String?)!,
+      type: identical(type, _unset) ? this.type : (type as String?)!,
+      title: identical(title, _unset) ? this.title : title as String?,
+      locations: identical(locations, _unset) ? this.locations : (locations as Locations?)!,
+      text: identical(text, _unset) ? this.text : (text as LocatorText?)!,
       additionalProperties: mergeProperties,
     );
   }
 
   /// Shortcut to get a copy of the [Locator] with different [Locations] sub-properties.
   Locator copyWithLocations({
-    List<String>? fragments,
-    double? progression = _emptyDoubleValue,
-    int? position = _emptyIntValue,
-    double? totalProgression = _emptyDoubleValue,
-    Map<String, dynamic>? otherLocations,
+    Object? fragments = _unset,
+    Object? progression = _unset,
+    Object? position = _unset,
+    Object? totalProgression = _unset,
+    Object? otherLocations = _unset,
   }) => copyWith(
     locations: (locations ?? Locations()).copyWith(
-      fragments: fragments ?? locations?.fragments,
-      progression: progression.check(locations?.progression),
-      position: position.check(locations?.position),
-      totalProgression: totalProgression.check(locations?.totalProgression),
-      additionalProperties: otherLocations ?? locations?.additionalProperties,
+      fragments: identical(fragments, _unset) ? this.locations?.fragments : (fragments as List<String>?)!,
+      progression: identical(progression, _unset) ? null : (progression as double?),
+      position: identical(position, _unset) ? null : (position as int?),
+      totalProgression: identical(totalProgression, _unset) ? null : (totalProgression as double?),
+      additionalProperties: identical(otherLocations, _unset) || otherLocations == null
+          ? locations?.additionalProperties
+          : (otherLocations as Map<String, dynamic>?),
     ),
   );
 
@@ -252,6 +258,8 @@ class Locations extends AdditionalProperties with Equatable implements JSONable 
     super.additionalProperties,
   });
 
+  static const _unset = Object();
+
   factory Locations.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return Locations();
@@ -312,27 +320,29 @@ class Locations extends AdditionalProperties with Equatable implements JSONable 
   final String? partialCfi;
 
   Locations copyWith({
-    int? position = _emptyIntValue,
-    double? progression = _emptyDoubleValue,
-    double? totalProgression = _emptyDoubleValue,
-    List<String>? fragments,
-    Map<String, dynamic>? additionalProperties,
-    String? cssSelector,
-    DomRange? domRange,
-    String? partialCfi,
+    Object? position = _unset,
+    Object? progression = _unset,
+    Object? totalProgression = _unset,
+    Object? fragments = _unset,
+    Object? additionalProperties = _unset,
+    Object? cssSelector = _unset,
+    Object? domRange = _unset,
+    Object? partialCfi = _unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
+        ? Map<String, dynamic>.of(this.additionalProperties)
+        : Map<String, dynamic>.of(this.additionalProperties)
+            ..addAll(additionalProperties as Map<String, dynamic>)
+            ..removeWhere((key, value) => value == null);
 
     return Locations(
-      progression: progression.check(this.progression),
-      position: position.check(this.position),
-      totalProgression: totalProgression.check(this.totalProgression),
-      fragments: fragments ?? this.fragments,
-      cssSelector: cssSelector ?? this.cssSelector,
-      domRange: domRange ?? this.domRange,
-      partialCfi: partialCfi ?? this.partialCfi,
+      progression: identical(progression, _unset) ? this.progression : (progression as double?)!,
+      position: identical(position, _unset) ? this.position : (position as int?)!,
+      totalProgression: identical(totalProgression, _unset) ? this.totalProgression : (totalProgression as double?)!,
+      fragments: identical(fragments, _unset) ? this.fragments : (fragments as List<String>?)!,
+      cssSelector: identical(cssSelector, _unset) ? this.cssSelector : (cssSelector as String?)!,
+      domRange: identical(domRange, _unset) ? this.domRange : (domRange as DomRange?)!,
+      partialCfi: identical(partialCfi, _unset) ? this.partialCfi : (partialCfi as String?)!,
       additionalProperties: mergeProperties,
     );
   }
