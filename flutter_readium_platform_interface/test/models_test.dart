@@ -56,6 +56,33 @@ void main() {
       expect(restored?.href, '/ch.xhtml');
       expect(restored?.type, 'application/xhtml+xml');
     });
+
+    test('copyWith() with no args preserves all fields', () {
+      final locator = Locator(
+        href: '/ch.xhtml',
+        type: 'application/xhtml+xml',
+        title: 'Chapter 1',
+        locations: Locations(progression: 0.5),
+        text: LocatorText(before: 'a', highlight: 'b', after: 'c'),
+      );
+      final copied = locator.copyWith();
+      expect(copied.href, '/ch.xhtml');
+      expect(copied.type, 'application/xhtml+xml');
+      expect(copied.title, 'Chapter 1');
+      expect(copied.locations?.progression, closeTo(0.5, 1e-6));
+      expect(copied.text?.before, 'a');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final locator = Locator(
+        href: '/ch.xhtml',
+        type: 'application/xhtml+xml',
+        title: 'Chapter 1',
+      );
+      final updated = locator.copyWith(title: 'Updated');
+      expect(updated.href, '/ch.xhtml');
+      expect(updated.title, 'Updated');
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -98,6 +125,26 @@ void main() {
       expect(copied.preventMOColumnBreaks, isTrue);
     });
 
+    test('copyWith() with no args preserves all fields', () {
+      const prefs = EPUBPreferences(
+        preventMOColumnBreaks: true,
+        spread: 'both',
+      );
+      final copied = prefs.copyWith();
+      expect(copied.preventMOColumnBreaks, isTrue);
+      expect(copied.spread, 'both');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      const prefs = EPUBPreferences(
+        preventMOColumnBreaks: false,
+        spread: 'both',
+      );
+      final updated = prefs.copyWith(preventMOColumnBreaks: true);
+      expect(updated.preventMOColumnBreaks, isTrue);
+      expect(updated.spread, 'both');
+    });
+
     test('equality distinguishes preventMOColumnBreaks values', () {
       const a = EPUBPreferences(preventMOColumnBreaks: true);
       const b = EPUBPreferences(preventMOColumnBreaks: false);
@@ -129,6 +176,30 @@ void main() {
       expect(restored.readingProgression, PDFReadingProgression.ltr);
       expect(restored.pageSpacing, 8.0);
       expect(restored.fit, PDFFit.auto);
+    });
+
+    test('copyWith() with no args preserves all fields', () {
+      const prefs = PDFPreferences(
+        layout: PDFLayout.scrollVertical,
+        readingProgression: PDFReadingProgression.rtl,
+        pageSpacing: 12.5,
+        fit: PDFFit.page,
+      );
+      final copied = prefs.copyWith();
+      expect(copied.layout, PDFLayout.scrollVertical);
+      expect(copied.readingProgression, PDFReadingProgression.rtl);
+      expect(copied.pageSpacing, 12.5);
+      expect(copied.fit, PDFFit.page);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      const prefs = PDFPreferences(
+        layout: PDFLayout.scrollVertical,
+        pageSpacing: 12.5,
+      );
+      final updated = prefs.copyWith(pageSpacing: 20.0);
+      expect(updated.layout, PDFLayout.scrollVertical);
+      expect(updated.pageSpacing, 20.0);
     });
   });
 
@@ -624,12 +695,932 @@ void main() {
       expect(updated.stallTimeoutSeconds, 10.0);
     });
 
+    test('copyWith() with no args preserves all fields', () {
+      const policy = AudioRecoveryPolicy(
+        maxAttempts: 5,
+        backoffBaseSeconds: 2.0,
+        stallTimeoutSeconds: 30.0,
+        connectionTimeoutSeconds: 10.0,
+      );
+      final copied = policy.copyWith();
+      expect(copied.maxAttempts, 5);
+      expect(copied.backoffBaseSeconds, 2.0);
+      expect(copied.stallTimeoutSeconds, 30.0);
+      expect(copied.connectionTimeoutSeconds, 10.0);
+    });
+
     test('equality is value-based', () {
       expect(const AudioRecoveryPolicy(), const AudioRecoveryPolicy());
       expect(
         const AudioRecoveryPolicy(maxAttempts: 5),
         isNot(const AudioRecoveryPolicy()),
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ReaderTTSVoice copyWith
+  // ---------------------------------------------------------------------------
+  group('ReaderTTSVoice', () {
+    test('copyWith() with no args preserves all fields', () {
+      final voice = ReaderTTSVoice(
+        identifier: 'voice1',
+        name: 'Test Voice',
+        language: 'en-US',
+        networkRequired: false,
+        gender: TTSVoiceGender.unspecified,
+        quality: TTSVoiceQuality.normal,
+        active: true,
+      );
+      final copied = voice.copyWith();
+      expect(copied.identifier, 'voice1');
+      expect(copied.name, 'Test Voice');
+      expect(copied.language, 'en-US');
+      expect(copied.networkRequired, isFalse);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final voice = ReaderTTSVoice(
+        identifier: 'voice1',
+        name: 'Test Voice',
+        language: 'en-US',
+        networkRequired: false,
+        gender: TTSVoiceGender.unspecified,
+        quality: TTSVoiceQuality.normal,
+        active: true,
+      );
+      final updated = voice.copyWith(name: 'Updated Voice');
+      expect(updated.identifier, 'voice1');
+      expect(updated.name, 'Updated Voice');
+    });
+
+    test('equality is value-based', () {
+      final a = ReaderTTSVoice(
+        identifier: 'v1',
+        name: 'A',
+        language: 'en',
+        networkRequired: false,
+        gender: TTSVoiceGender.unspecified,
+        quality: TTSVoiceQuality.normal,
+        active: true,
+      );
+      final b = ReaderTTSVoice(
+        identifier: 'v1',
+        name: 'A',
+        language: 'en',
+        networkRequired: false,
+        gender: TTSVoiceGender.unspecified,
+        quality: TTSVoiceQuality.normal,
+        active: true,
+      );
+      expect(a, equals(b));
+
+      final c = ReaderTTSVoice(
+        identifier: 'v1',
+        name: 'B',
+        language: 'en',
+        networkRequired: false,
+        gender: TTSVoiceGender.unspecified,
+        quality: TTSVoiceQuality.normal,
+        active: true,
+      );
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ReaderDecoration copyWith
+  // ---------------------------------------------------------------------------
+  group('ReaderDecoration', () {
+    test('copyWith() with no args preserves all fields', () {
+      final decoration = ReaderDecoration(
+        id: 'deco1',
+        locator: const Locator(href: '/ch.xhtml', type: 'application/xhtml+xml'),
+        style: const ReaderDecorationStyle(style: DecorationStyle.highlight),
+      );
+      final copied = decoration.copyWith();
+      expect(copied.id, 'deco1');
+      expect(copied.locator.href, '/ch.xhtml');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final decoration = ReaderDecoration(
+        id: 'deco1',
+        locator: const Locator(href: '/ch.xhtml', type: 'application/xhtml+xml'),
+        style: const ReaderDecorationStyle(style: DecorationStyle.highlight),
+      );
+      final updated = decoration.copyWith(id: 'deco2');
+      expect(updated.id, 'deco2');
+      expect(updated.locator.href, '/ch.xhtml');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ReaderDecorationStyle copyWith
+  // ---------------------------------------------------------------------------
+  group('ReaderDecorationStyle', () {
+    test('copyWith() with no args preserves all fields', () {
+      final style = ReaderDecorationStyle(
+        style: DecorationStyle.highlight,
+        tint: const Color(0xFFFF0000),
+      );
+      final copied = style.copyWith();
+      expect(copied.style, DecorationStyle.highlight);
+      expect(copied.tint, const Color(0xFFFF0000));
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final style = ReaderDecorationStyle(
+        style: DecorationStyle.highlight,
+        tint: const Color(0xFFFF0000),
+      );
+      final updated = style.copyWith(tint: const Color(0xFF00FF00));
+      expect(updated.style, DecorationStyle.highlight);
+      expect(updated.tint, const Color(0xFF00FF00));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // ReadiumTimebasedState copyWith
+  // ---------------------------------------------------------------------------
+  group('ReadiumTimebasedState', () {
+    test('copyWith() with no args preserves all fields', () {
+      final state = ReadiumTimebasedState(
+        state: TimebasedState.playing,
+        currentLocator: const Locator(href: '/ch.xhtml', type: 'application/xhtml+xml'),
+      );
+      final copied = state.copyWith();
+      expect(copied.state, TimebasedState.playing);
+      expect(copied.currentLocator?.href, '/ch.xhtml');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final state = ReadiumTimebasedState(
+        state: TimebasedState.playing,
+      );
+      final updated = state.copyWith(state: TimebasedState.paused);
+      expect(updated.state, TimebasedState.paused);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Facet copyWith
+  // ---------------------------------------------------------------------------
+  group('Facet', () {
+    test('copyWith() with no args preserves all fields', () {
+      final facet = Facet(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/link1.xhtml')],
+      );
+      final copied = facet.copyWith();
+      expect(copied.metadata, facet.metadata);
+      expect(copied.links, facet.links);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final facet = Facet(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/link1.xhtml')],
+      );
+      final updated = facet.copyWith(links: [const Link(href: '/link2.xhtml')]);
+      expect(updated.links.first.href, '/link2.xhtml');
+    });
+
+    test('equality is value-based', () {
+      final a = Facet(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l1.xhtml')],
+      );
+      final b = Facet(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l1.xhtml')],
+      );
+      expect(a, equals(b));
+
+      final c = Facet(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l2.xhtml')],
+      );
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // OpdsPublication copyWith
+  // ---------------------------------------------------------------------------
+  group('OpdsPublication', () {
+    test('copyWith() with no args preserves all fields', () {
+      final pub = OpdsPublication(
+        const OpdsMetadata(localizedTitle: LocalizedString()),
+        [const Link(href: '/link1.xhtml')],
+      );
+      final copied = pub.copyWith();
+      expect(copied.metadata, pub.metadata);
+      expect(copied.links, pub.links);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final pub = OpdsPublication(
+        const OpdsMetadata(localizedTitle: LocalizedString()),
+        [const Link(href: '/link1.xhtml')],
+      );
+      final updated = pub.copyWith(links: [const Link(href: '/link2.xhtml')]);
+      expect(updated.links.first.href, '/link2.xhtml');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Properties copyWith
+  // ---------------------------------------------------------------------------
+  group('Properties', () {
+    test('copyWith() with no args preserves all fields', () {
+      final props = Properties(
+        orientation: PresentationOrientation.landscape,
+        layout: EpubLayout.fixed,
+      );
+      final copied = props.copyWith();
+      expect(copied.orientation, PresentationOrientation.landscape);
+      expect(copied.layout, EpubLayout.fixed);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final props = Properties(orientation: PresentationOrientation.landscape);
+      final updated = props.copyWith(layout: EpubLayout.reflowable);
+      expect(updated.orientation, PresentationOrientation.landscape);
+      expect(updated.layout, EpubLayout.reflowable);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Chapter copyWith
+  // ---------------------------------------------------------------------------
+  group('Chapter', () {
+    test('copyWith() with no args preserves all fields', () {
+      final chapter = Chapter(position: 1.0);
+      final copied = chapter.copyWith();
+      expect(copied.position, 1.0);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final chapter = Chapter(position: 1.0);
+      final updated = chapter.copyWith(position: 2.0);
+      expect(updated.position, 2.0);
+    });
+
+    test('equality is value-based', () {
+      final a = Chapter(position: 1.0);
+      final b = Chapter(position: 1.0);
+      expect(a, equals(b));
+
+      final c = Chapter(position: 2.0);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Season copyWith
+  // ---------------------------------------------------------------------------
+  group('Season', () {
+    test('copyWith() with no args preserves all fields', () {
+      final season = Season(position: 1.0);
+      final copied = season.copyWith();
+      expect(copied.position, 1.0);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final season = Season(position: 1.0);
+      final updated = season.copyWith(position: 2.0);
+      expect(updated.position, 2.0);
+    });
+
+    test('equality is value-based', () {
+      final a = Season(position: 1.0);
+      final b = Season(position: 1.0);
+      expect(a, equals(b));
+
+      final c = Season(position: 2.0);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Episode copyWith
+  // ---------------------------------------------------------------------------
+  group('Episode', () {
+    test('copyWith() with no args preserves all fields', () {
+      final episode = Episode(position: 1.0);
+      final copied = episode.copyWith();
+      expect(copied.position, 1.0);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final episode = Episode(position: 1.0);
+      final updated = episode.copyWith(position: 2.0);
+      expect(updated.position, 2.0);
+    });
+
+    test('equality is value-based', () {
+      final a = Episode(position: 1.0);
+      final b = Episode(position: 1.0);
+      expect(a, equals(b));
+
+      final c = Episode(position: 2.0);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Issue copyWith
+  // ---------------------------------------------------------------------------
+  group('Issue', () {
+    test('copyWith() with no args preserves all fields', () {
+      final issue = Issue(position: 1.0);
+      final copied = issue.copyWith();
+      expect(copied.position, 1.0);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final issue = Issue(position: 1.0);
+      final updated = issue.copyWith(position: 2.0);
+      expect(updated.position, 2.0);
+    });
+
+    test('equality is value-based', () {
+      final a = Issue(position: 1.0);
+      final b = Issue(position: 1.0);
+      expect(a, equals(b));
+
+      final c = Issue(position: 2.0);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Periodical copyWith
+  // ---------------------------------------------------------------------------
+  group('Periodical', () {
+    test('copyWith() with no args preserves all fields', () {
+      final periodical = Periodical(localizedName: LocalizedString());
+      final copied = periodical.copyWith();
+      expect(copied.localizedName, isNotNull);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final periodical = Periodical(localizedName: LocalizedString());
+      final updated = periodical.copyWith(identifier: 'id1');
+      expect(updated.identifier, 'id1');
+    });
+
+    test('equality is value-based', () {
+      final a = Periodical(localizedName: LocalizedString());
+      final b = Periodical(localizedName: LocalizedString());
+      expect(a, equals(b));
+
+      final c = Periodical(localizedName: LocalizedString(), identifier: 'id1');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Collection copyWith
+  // ---------------------------------------------------------------------------
+  group('Collection', () {
+    test('copyWith() with no args preserves all fields', () {
+      final collection = Collection(localizedName: LocalizedString());
+      final copied = collection.copyWith();
+      expect(copied.localizedName, isNotNull);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final collection = Collection(localizedName: LocalizedString());
+      final updated = collection.copyWith(identifier: 'id1');
+      expect(updated.identifier, 'id1');
+    });
+
+    test('equality is value-based', () {
+      final a = Collection(localizedName: LocalizedString());
+      final b = Collection(localizedName: LocalizedString());
+      expect(a, equals(b));
+
+      final c = Collection(localizedName: LocalizedString(), identifier: 'id1');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Contributor copyWith
+  // ---------------------------------------------------------------------------
+  group('Contributor', () {
+    test('copyWith() with no args preserves all fields', () {
+      final contributor = Contributor(localizedName: LocalizedString());
+      final copied = contributor.copyWith();
+      expect(copied.localizedName, isNotNull);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final contributor = Contributor(localizedName: LocalizedString());
+      final updated = contributor.copyWith(identifier: 'id1');
+      expect(updated.identifier, 'id1');
+    });
+
+    test('equality is value-based', () {
+      final a = Contributor(localizedName: LocalizedString());
+      final b = Contributor(localizedName: LocalizedString());
+      expect(a, equals(b));
+
+      final c = Contributor(localizedName: LocalizedString(), identifier: 'id1');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // OpdsMetadata copyWith
+  // ---------------------------------------------------------------------------
+  group('OpdsMetadata', () {
+    test('copyWith() with no args preserves all fields', () {
+      final metadata = OpdsMetadata(
+        localizedTitle: LocalizedString(),
+      );
+      final copied = metadata.copyWith();
+      expect(copied.localizedTitle, metadata.localizedTitle);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final metadata = OpdsMetadata(
+        localizedTitle: LocalizedString(),
+      );
+      final updated = metadata.copyWith(identifier: 'id1');
+      expect(updated.identifier, 'id1');
+    });
+
+    test('equality is value-based', () {
+      final a = OpdsMetadata(localizedTitle: LocalizedString());
+      final b = OpdsMetadata(localizedTitle: LocalizedString());
+      expect(a, equals(b));
+
+      final c = OpdsMetadata(localizedTitle: LocalizedString(), identifier: 'id1');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Feed copyWith
+  // ---------------------------------------------------------------------------
+  group('Feed', () {
+    test('copyWith() with no args preserves all fields', () {
+      final feed = Feed(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+      );
+      final copied = feed.copyWith();
+      expect(copied.metadata, feed.metadata);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final feed = Feed(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+      );
+      final updated = feed.copyWith(links: [const Link(href: '/link1.xhtml')]);
+      expect(updated.links, isNotEmpty);
+    });
+
+    test('equality is value-based', () {
+      final a = Feed(metadata: const OpdsMetadata(localizedTitle: LocalizedString()));
+      final b = Feed(metadata: const OpdsMetadata(localizedTitle: LocalizedString()));
+      expect(a, equals(b));
+
+      final c = Feed(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l1.xhtml')],
+      );
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group copyWith
+  // ---------------------------------------------------------------------------
+  group('Group', () {
+    test('copyWith() with no args preserves all fields', () {
+      final group = Group(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/link1.xhtml')],
+      );
+      final copied = group.copyWith();
+      expect(copied.metadata, group.metadata);
+      expect(copied.links, group.links);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final group = Group(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/link1.xhtml')],
+      );
+      final updated = group.copyWith(links: [const Link(href: '/link2.xhtml')]);
+      expect(updated.links.first.href, '/link2.xhtml');
+    });
+
+    test('equality is value-based', () {
+      final a = Group(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l1.xhtml')],
+      );
+      final b = Group(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l1.xhtml')],
+      );
+      expect(a, equals(b));
+
+      final c = Group(
+        metadata: const OpdsMetadata(localizedTitle: LocalizedString()),
+        links: [const Link(href: '/l2.xhtml')],
+      );
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // OpdsAuthentication copyWith
+  // ---------------------------------------------------------------------------
+  group('OpdsAuthentication', () {
+    test('copyWith() with no args preserves all fields', () {
+      final auth = OpdsAuthentication(
+        type: 'http://opds-spec.org/auth/schemes/open',
+        id: 'auth1',
+      );
+      final copied = auth.copyWith();
+      expect(copied.type, 'http://opds-spec.org/auth/schemes/open');
+      expect(copied.id, 'auth1');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final auth = OpdsAuthentication(
+        type: 'http://opds-spec.org/auth/schemes/open',
+        id: 'auth1',
+      );
+      final updated = auth.copyWith(id: 'auth2');
+      expect(updated.type, 'http://opds-spec.org/auth/schemes/open');
+      expect(updated.id, 'auth2');
+    });
+
+    test('equality is value-based', () {
+      final a = OpdsAuthentication(type: 't1', id: 'i1');
+      final b = OpdsAuthentication(type: 't1', id: 'i1');
+      expect(a, equals(b));
+
+      final c = OpdsAuthentication(type: 't1', id: 'i2');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // OpdsAuthenticationFlow copyWith
+  // ---------------------------------------------------------------------------
+  group('OpdsAuthenticationFlow', () {
+    test('copyWith() with no args preserves all fields', () {
+      final flow = OpdsAuthenticationFlow(
+        type: 'http://opds-spec.org/auth/schemes/open',
+      );
+      final copied = flow.copyWith();
+      expect(copied.type, 'http://opds-spec.org/auth/schemes/open');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final flow = OpdsAuthenticationFlow(
+        type: 'http://opds-spec.org/auth/schemes/open',
+      );
+      final updated = flow.copyWith(links: [const Link(href: '/link1.xhtml')]);
+      expect(updated.links, isNotEmpty);
+    });
+
+    test('equality is value-based', () {
+      final a = OpdsAuthenticationFlow(type: 't1');
+      final b = OpdsAuthenticationFlow(type: 't1');
+      expect(a, equals(b));
+
+      final c = OpdsAuthenticationFlow(type: 't2');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Announcement copyWith
+  // ---------------------------------------------------------------------------
+  group('Announcement', () {
+    test('copyWith() with no args preserves all fields', () {
+      final announcement = Announcement(
+        id: 'announce1',
+        content: 'Test Announcement',
+      );
+      final copied = announcement.copyWith();
+      expect(copied.id, 'announce1');
+      expect(copied.content, 'Test Announcement');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final announcement = Announcement(
+        id: 'announce1',
+        content: 'Original',
+      );
+      final updated = announcement.copyWith(content: 'Updated');
+      expect(updated.id, 'announce1');
+      expect(updated.content, 'Updated');
+    });
+
+    test('equality is value-based', () {
+      final a = Announcement(id: 'a1', content: 'C');
+      final b = Announcement(id: 'a1', content: 'C');
+      expect(a, equals(b));
+
+      final c = Announcement(id: 'a1', content: 'D');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FeatureFlags copyWith
+  // ---------------------------------------------------------------------------
+  group('FeatureFlags', () {
+    test('copyWith() with no args preserves all fields', () {
+      final flags = FeatureFlags(
+        enabled: ['feature1'],
+        disabled: ['feature2'],
+      );
+      final copied = flags.copyWith();
+      expect(copied.enabled, ['feature1']);
+      expect(copied.disabled, ['feature2']);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final flags = FeatureFlags(
+        enabled: ['feature1'],
+        disabled: ['feature2'],
+      );
+      final updated = flags.copyWith(enabled: ['feature3']);
+      expect(updated.enabled, ['feature3']);
+    });
+
+    test('equality is value-based', () {
+      final a = FeatureFlags(enabled: ['f1'], disabled: ['f2']);
+      final b = FeatureFlags(enabled: ['f1'], disabled: ['f2']);
+      expect(a, equals(b));
+
+      final c = FeatureFlags(enabled: ['f3'], disabled: ['f2']);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // InputField copyWith
+  // ---------------------------------------------------------------------------
+  group('InputField', () {
+    test('copyWith() with no args preserves all fields', () {
+      final field = InputField(
+        keyboard: KeyboardType.defaultType,
+        maximumLength: 100,
+      );
+      final copied = field.copyWith();
+      expect(copied.keyboard, KeyboardType.defaultType);
+      expect(copied.maximumLength, 100);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final field = InputField(
+        keyboard: KeyboardType.defaultType,
+        maximumLength: 100,
+      );
+      final updated = field.copyWith(maximumLength: 200);
+      expect(updated.keyboard, KeyboardType.defaultType);
+      expect(updated.maximumLength, 200);
+    });
+
+    test('equality is value-based', () {
+      final a = InputField(keyboard: KeyboardType.defaultType, maximumLength: 100);
+      final b = InputField(keyboard: KeyboardType.defaultType, maximumLength: 100);
+      expect(a, equals(b));
+
+      final c = InputField(keyboard: KeyboardType.defaultType, maximumLength: 200);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LoginInputField copyWith
+  // ---------------------------------------------------------------------------
+  group('LoginInputField', () {
+    test('copyWith() with no args preserves all fields', () {
+      final loginField = LoginInputField(
+        barcodeFormat: 'qr-code',
+      );
+      final copied = loginField.copyWith();
+      expect(copied.barcodeFormat, 'qr-code');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final loginField = LoginInputField(
+        barcodeFormat: 'qr-code',
+      );
+      final updated = loginField.copyWith(barcodeFormat: 'barcode');
+      expect(updated.barcodeFormat, 'barcode');
+    });
+
+    test('equality is value-based', () {
+      final a = LoginInputField(barcodeFormat: 'qr-code');
+      final b = LoginInputField(barcodeFormat: 'qr-code');
+      expect(a, equals(b));
+
+      final c = LoginInputField(barcodeFormat: 'barcode');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // InputData copyWith
+  // ---------------------------------------------------------------------------
+  group('InputData', () {
+    test('copyWith() with no args preserves all fields', () {
+      final inputData = InputData(
+        login: const LoginInputField(),
+        password: const InputField(),
+      );
+      final copied = inputData.copyWith();
+      expect(copied.login, const LoginInputField());
+      expect(copied.password, const InputField());
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final inputData = InputData(
+        login: const LoginInputField(),
+        password: const InputField(),
+      );
+      final updated = inputData.copyWith(password: const InputField(keyboard: KeyboardType.numPad));
+      expect(updated.password.keyboard, KeyboardType.numPad);
+    });
+
+    test('equality is value-based', () {
+      final a = InputData();
+      final b = InputData();
+      expect(a, equals(b));
+
+      final c = InputData(password: const InputField(keyboard: KeyboardType.numPad));
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // PublicKeyData copyWith
+  // ---------------------------------------------------------------------------
+  group('PublicKeyData', () {
+    test('copyWith() with no args preserves all fields', () {
+      final publicKey = PublicKeyData(
+        type: 'RSA',
+        value: 'base64-encoded-key',
+      );
+      final copied = publicKey.copyWith();
+      expect(copied.type, 'RSA');
+      expect(copied.value, 'base64-encoded-key');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final publicKey = PublicKeyData(
+        type: 'RSA',
+        value: 'base64-encoded-key',
+      );
+      final updated = publicKey.copyWith(value: 'new-key');
+      expect(updated.type, 'RSA');
+      expect(updated.value, 'new-key');
+    });
+
+    test('equality is value-based', () {
+      final a = PublicKeyData(type: 'RSA', value: 'key1');
+      final b = PublicKeyData(type: 'RSA', value: 'key1');
+      expect(a, equals(b));
+
+      final c = PublicKeyData(type: 'RSA', value: 'key2');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // WebColor copyWith
+  // ---------------------------------------------------------------------------
+  group('WebColor', () {
+    test('copyWith() with no args preserves all fields', () {
+      final color = WebColor(
+        primary: '#FF0000',
+        secondary: '#00FF00',
+      );
+      final copied = color.copyWith();
+      expect(copied.primary, '#FF0000');
+      expect(copied.secondary, '#00FF00');
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final color = WebColor(
+        primary: '#FF0000',
+        secondary: '#00FF00',
+      );
+      final updated = color.copyWith(primary: '#0000FF');
+      expect(updated.primary, '#0000FF');
+      expect(updated.secondary, '#00FF00');
+    });
+
+    test('equality is value-based', () {
+      final a = WebColor(primary: '#FF0000', secondary: '#00FF00');
+      final b = WebColor(primary: '#FF0000', secondary: '#00FF00');
+      expect(a, equals(b));
+
+      final c = WebColor(primary: '#0000FF', secondary: '#00FF00');
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LocatorCollection copyWith
+  // ---------------------------------------------------------------------------
+  group('LocatorCollection', () {
+    test('copyWith() with no args preserves all fields', () {
+      final collection = LocatorCollection(
+        metadata: const LocatorCollectionMetadata(),
+      );
+      final copied = collection.copyWith();
+      expect(copied.metadata, const LocatorCollectionMetadata());
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final collection = LocatorCollection(
+        metadata: const LocatorCollectionMetadata(),
+      );
+      final updated = collection.copyWith(links: [const Link(href: '/link1.xhtml')]);
+      expect(updated.links, isNotEmpty);
+    });
+
+    test('equality is value-based', () {
+      final a = LocatorCollection();
+      final b = LocatorCollection();
+      expect(a, equals(b));
+
+      final c = LocatorCollection(links: [const Link(href: '/l1.xhtml')]);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LocatorCollectionMetadata copyWith
+  // ---------------------------------------------------------------------------
+  group('LocatorCollectionMetadata', () {
+    test('copyWith() with no args preserves all fields', () {
+      final metadata = LocatorCollectionMetadata(
+        localizedTitle: LocalizedString(),
+      );
+      final copied = metadata.copyWith();
+      expect(copied.localizedTitle, isNotNull);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final metadata = LocatorCollectionMetadata(
+        localizedTitle: LocalizedString(),
+      );
+      final updated = metadata.copyWith(numberOfItems: 10);
+      expect(updated.numberOfItems, 10);
+    });
+
+    test('equality is value-based', () {
+      final a = LocatorCollectionMetadata(localizedTitle: LocalizedString());
+      final b = LocatorCollectionMetadata(localizedTitle: LocalizedString());
+      expect(a, equals(b));
+
+      final c = LocatorCollectionMetadata(localizedTitle: LocalizedString(), numberOfItems: 10);
+      expect(a, isNot(equals(c)));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LocalizedString copyWith
+  // ---------------------------------------------------------------------------
+  group('LocalizedString', () {
+    test('copyWith() with no args preserves all fields', () {
+      final str = LocalizedString(
+        translations: {'en': Translation('Hello')},
+      );
+      final copied = str.copyWith();
+      expect(copied.translations, isNotNull);
+    });
+
+    test('copyWith() overrides only specified fields', () {
+      final str = LocalizedString(
+        translations: {'en': Translation('Original')},
+      );
+      final updated = str.copyWith(translations: {'en': Translation('Updated')});
+      expect(updated.translations, isNotNull);
+    });
+
+    test('equality is value-based', () {
+      final a = LocalizedString(translations: {'en': Translation('Hello')});
+      final b = LocalizedString(translations: {'en': Translation('Hello')});
+      expect(a, equals(b));
+
+      final c = LocalizedString(translations: {'en': Translation('Hi')});
+      expect(a, isNot(equals(c)));
     });
   });
 

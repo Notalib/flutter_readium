@@ -46,6 +46,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - **Bridge serialization**: Readium-owned objects (`Locator`, `Decoration`, …) → JSON strings via `json.encode`; plugin-owned flat structures (preferences, action configs) → Maps. Rationale + Web-TS `.serialize()` rules: `docs/architecture.md#bridge-serialization`.
 - **Models**: hand-written `toJson`/`fromJson`. No `json_serializable`/`freezed`/build_runner codegen — don't reintroduce.
 - **PDF locator**: position = 1-based page in `Locator.locations.position` (matches upstream); don't invent plugin-side parallels to upstream models. Detail: `docs/api-reference/locator.md#pdf-locators`.
+- **copyWith sentinel**: use the shared `const unset` from `utils/constants.dart` for parameters that default to "not set" — never declare a new `_unset = Object()`. Merge additional-properties via `AdditionalProperties.copyAdditionalProperties()` instead of inline merge logic.
 
 ### Android
 

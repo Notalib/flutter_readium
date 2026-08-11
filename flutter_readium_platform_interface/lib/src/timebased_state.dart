@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';
+import 'utils/constants.dart';
 import 'utils/jsonable.dart';
 
 @immutable
@@ -15,8 +16,6 @@ class ReadiumTimebasedState implements JSONable {
     this.totalDuration,
     this.currentLocator,
   });
-
-  static const _unset = Object();
 
   factory ReadiumTimebasedState.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
@@ -118,22 +117,22 @@ class ReadiumTimebasedState implements JSONable {
     ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
-    Object? state = _unset,
-    Object? currentOffset = _unset,
-    Object? currentBuffered = _unset,
-    Object? currentDuration = _unset,
-    Object? totalProgressDuration = _unset,
-    Object? totalDuration = _unset,
-    Object? currentLocator = _unset,
+    Object? state = unset,
+    Object? currentOffset = unset,
+    Object? currentBuffered = unset,
+    Object? currentDuration = unset,
+    Object? totalProgressDuration = unset,
+    Object? totalDuration = unset,
+    Object? currentLocator = unset,
   }) => ReadiumTimebasedState(
-    state: identical(state, _unset) ? this.state : (state as TimebasedState?)!,
-    currentOffset: identical(currentOffset, _unset) ? this.currentOffset : (currentOffset as Duration?)!,
-    currentBuffered: identical(currentBuffered, _unset) ? this.currentBuffered : (currentBuffered as Duration?)!,
-    currentDuration: identical(currentDuration, _unset) ? this.currentDuration : (currentDuration as Duration?)!,
-    totalProgressDuration: identical(totalProgressDuration, _unset)
+    state: identical(state, unset) ? this.state : (state as TimebasedState?)!,
+    currentOffset: identical(currentOffset, unset) ? this.currentOffset : (currentOffset as Duration?)!,
+    currentBuffered: identical(currentBuffered, unset) ? this.currentBuffered : (currentBuffered as Duration?)!,
+    currentDuration: identical(currentDuration, unset) ? this.currentDuration : (currentDuration as Duration?)!,
+    totalProgressDuration: identical(totalProgressDuration, unset)
         ? this.totalProgressDuration
         : (totalProgressDuration as Duration?)!,
-    totalDuration: identical(totalDuration, _unset) ? this.totalDuration : (totalDuration as Duration?)!,
-    currentLocator: identical(currentLocator, _unset) ? this.currentLocator : (currentLocator as Locator?)!,
+    totalDuration: identical(totalDuration, unset) ? this.totalDuration : (totalDuration as Duration?)!,
+    currentLocator: identical(currentLocator, unset) ? this.currentLocator : (currentLocator as Locator?)!,
   );
 }

@@ -15,8 +15,6 @@ class PDFPreferences with Equatable implements JSONable {
     this.visibleScrollbar,
   });
 
-  static const _unset = Object();
-
   factory PDFPreferences.fromJson(Map<String, dynamic> json) {
     final layoutStr = json['layout'] as String?;
     final rpStr = json['readingProgression'] as String?;
@@ -86,23 +84,23 @@ class PDFPreferences with Equatable implements JSONable {
     ..putOpt('visibleScrollbar', visibleScrollbar);
 
   PDFPreferences copyWith({
-    Object? layout = _unset,
-    Object? readingProgression = _unset,
-    Object? pageSpacing = _unset,
-    Object? fit = _unset,
-    Object? offsetFirstPage = _unset,
-    Object? spread = _unset,
-    Object? visibleScrollbar = _unset,
+    Object? layout = unset,
+    Object? readingProgression = unset,
+    Object? pageSpacing = unset,
+    Object? fit = unset,
+    Object? offsetFirstPage = unset,
+    Object? spread = unset,
+    Object? visibleScrollbar = unset,
   }) => PDFPreferences(
-    layout: identical(layout, _unset) ? this.layout : (layout as PDFLayout?)!,
-    readingProgression: identical(readingProgression, _unset)
+    layout: identical(layout, unset) ? this.layout : (layout as PDFLayout?)!,
+    readingProgression: identical(readingProgression, unset)
         ? this.readingProgression
         : (readingProgression as PDFReadingProgression?)!,
-    pageSpacing: identical(pageSpacing, _unset) ? this.pageSpacing : (pageSpacing as double?)!,
-    fit: identical(fit, _unset) ? this.fit : (fit as PDFFit?)!,
-    offsetFirstPage: identical(offsetFirstPage, _unset) ? this.offsetFirstPage : (offsetFirstPage as bool?),
-    spread: identical(spread, _unset) ? this.spread : (spread as PDFSpread?),
-    visibleScrollbar: identical(visibleScrollbar, _unset) ? this.visibleScrollbar : (visibleScrollbar as bool?),
+    pageSpacing: identical(pageSpacing, unset) ? this.pageSpacing : (pageSpacing as double?)!,
+    fit: identical(fit, unset) ? this.fit : (fit as PDFFit?)!,
+    offsetFirstPage: identical(offsetFirstPage, unset) ? this.offsetFirstPage : (offsetFirstPage as bool?),
+    spread: identical(spread, unset) ? this.spread : (spread as PDFSpread?),
+    visibleScrollbar: identical(visibleScrollbar, unset) ? this.visibleScrollbar : (visibleScrollbar as bool?),
   );
 
   @override

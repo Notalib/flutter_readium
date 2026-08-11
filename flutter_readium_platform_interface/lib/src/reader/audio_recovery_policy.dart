@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+import '../utils/constants.dart';
 
 /// Configures the automatic audio-stream error recovery loop (retry attempts,
 /// backoff, and stall detection) shared by the iOS/Android/web audio
@@ -21,8 +22,6 @@ class AudioRecoveryPolicy with Equatable {
     this.stallTimeoutSeconds = 20.0,
     this.connectionTimeoutSeconds = 10.0,
   });
-
-  static const _unset = Object();
 
   factory AudioRecoveryPolicy.fromJson(Map<String, dynamic> json) => AudioRecoveryPolicy(
     maxAttempts: (json['maxAttempts'] as num?)?.toInt() ?? 3,
@@ -61,15 +60,17 @@ class AudioRecoveryPolicy with Equatable {
   };
 
   AudioRecoveryPolicy copyWith({
-    Object? maxAttempts = _unset,
-    Object? backoffBaseSeconds = _unset,
-    Object? stallTimeoutSeconds = _unset,
-    Object? connectionTimeoutSeconds = _unset,
+    Object? maxAttempts = unset,
+    Object? backoffBaseSeconds = unset,
+    Object? stallTimeoutSeconds = unset,
+    Object? connectionTimeoutSeconds = unset,
   }) => AudioRecoveryPolicy(
-    maxAttempts: identical(maxAttempts, _unset) ? this.maxAttempts : (maxAttempts as int),
-    backoffBaseSeconds: identical(backoffBaseSeconds, _unset) ? this.backoffBaseSeconds : (backoffBaseSeconds as double),
-    stallTimeoutSeconds: identical(stallTimeoutSeconds, _unset) ? this.stallTimeoutSeconds : (stallTimeoutSeconds as double),
-    connectionTimeoutSeconds: identical(connectionTimeoutSeconds, _unset)
+    maxAttempts: identical(maxAttempts, unset) ? this.maxAttempts : (maxAttempts as int),
+    backoffBaseSeconds: identical(backoffBaseSeconds, unset) ? this.backoffBaseSeconds : (backoffBaseSeconds as double),
+    stallTimeoutSeconds: identical(stallTimeoutSeconds, unset)
+        ? this.stallTimeoutSeconds
+        : (stallTimeoutSeconds as double),
+    connectionTimeoutSeconds: identical(connectionTimeoutSeconds, unset)
         ? this.connectionTimeoutSeconds
         : (connectionTimeoutSeconds as double),
   );

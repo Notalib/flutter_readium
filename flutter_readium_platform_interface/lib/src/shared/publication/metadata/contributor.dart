@@ -61,8 +61,6 @@ class Contributor extends BaseCollection {
     super.additionalProperties,
   });
 
-  static const _unset = Object();
-
   /// All values for the role element should be based on https://www.loc.gov/marc/relators/relaterm.html
   final List<String>? roles;
 
@@ -88,33 +86,29 @@ class Contributor extends BaseCollection {
   }
 
   Contributor copyWith({
-    Object? position = _unset,
-    Object? localizedName = _unset,
-    Object? identifier = _unset,
-    Object? altIdentifiers = _unset,
-    Object? localizedSortAs = _unset,
-    Object? links = _unset,
-    Object? roles = _unset,
-    Object? additionalProperties = _unset,
+    Object? position = unset,
+    Object? localizedName = unset,
+    Object? identifier = unset,
+    Object? altIdentifiers = unset,
+    Object? localizedSortAs = unset,
+    Object? links = unset,
+    Object? roles = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
-        ? Map<String, dynamic>.of(this.additionalProperties)
-        : Map<String, dynamic>.of(this.additionalProperties)
-            ..addAll(additionalProperties as Map<String, dynamic>)
-            ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Contributor(
-      position: identical(position, _unset) ? this.position : (position as double?)!,
-      localizedName: identical(localizedName, _unset) ? this.localizedName : (localizedName as LocalizedString?)!,
-      identifier: identical(identifier, _unset) ? this.identifier : (identifier as String?)!,
-      altIdentifiers: identical(altIdentifiers, _unset)
+      position: identical(position, unset) ? this.position : (position as double?)!,
+      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?)!,
+      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?)!,
+      altIdentifiers: identical(altIdentifiers, unset)
           ? this.altIdentifiers
           : (altIdentifiers as List<AltIdentifier>?)!,
-      localizedSortAs: identical(localizedSortAs, _unset)
+      localizedSortAs: identical(localizedSortAs, unset)
           ? this.localizedSortAs
           : (localizedSortAs as LocalizedString?)!,
-      links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
-      roles: identical(roles, _unset) ? this.roles : (roles as List<String>?)!,
+      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
+      roles: identical(roles, unset) ? this.roles : (roles as List<String>?)!,
       additionalProperties: mergeProperties,
     );
   }

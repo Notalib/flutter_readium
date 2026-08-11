@@ -29,8 +29,6 @@ enum DecorationStyle {
 class ReaderDecoration implements JSONable {
   const ReaderDecoration({required this.id, required this.locator, required this.style});
 
-  static const _unset = Object();
-
   factory ReaderDecoration.fromJson(final Map<String, dynamic> map) {
     final jsonObject = Map<String, dynamic>.of(map);
 
@@ -52,17 +50,15 @@ class ReaderDecoration implements JSONable {
   @override
   Map<String, dynamic> toJson() => {'id': id, 'locator': locator.toJson(), 'style': style.toJson()};
 
-  ReaderDecoration copyWith({Object? id = _unset, Object? locator = _unset, Object? style = _unset}) => ReaderDecoration(
-    id: identical(id, _unset) ? this.id : (id as String?)!,
-    locator: identical(locator, _unset) ? this.locator : (locator as Locator?)!,
-    style: identical(style, _unset) ? this.style : (style as ReaderDecorationStyle?)!,
+  ReaderDecoration copyWith({Object? id = unset, Object? locator = unset, Object? style = unset}) => ReaderDecoration(
+    id: identical(id, unset) ? this.id : (id as String?)!,
+    locator: identical(locator, unset) ? this.locator : (locator as Locator?)!,
+    style: identical(style, unset) ? this.style : (style as ReaderDecorationStyle?)!,
   );
 }
 
 class ReaderDecorationStyle implements JSONable {
   const ReaderDecorationStyle({required this.style, this.tint, this.isActive = false});
-
-  static const _unset = Object();
 
   final DecorationStyle style;
 
@@ -93,9 +89,10 @@ class ReaderDecorationStyle implements JSONable {
     isActive: map['isActive'] as bool? ?? false,
   );
 
-  ReaderDecorationStyle copyWith({Object? style = _unset, Object? tint = _unset, Object? isActive = _unset}) => ReaderDecorationStyle(
-    style: identical(style, _unset) ? this.style : (style as DecorationStyle?)!,
-    tint: identical(tint, _unset) ? this.tint : tint as Color?,
-    isActive: identical(isActive, _unset) ? this.isActive : (isActive as bool),
-  );
+  ReaderDecorationStyle copyWith({Object? style = unset, Object? tint = unset, Object? isActive = unset}) =>
+      ReaderDecorationStyle(
+        style: identical(style, unset) ? this.style : (style as DecorationStyle?)!,
+        tint: identical(tint, unset) ? this.tint : tint as Color?,
+        isActive: identical(isActive, unset) ? this.isActive : (isActive as bool),
+      );
 }

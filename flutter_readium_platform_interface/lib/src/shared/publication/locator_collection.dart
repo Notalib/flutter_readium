@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import 'link.dart';
 import 'locator.dart';
@@ -16,8 +17,6 @@ class LocatorCollection with Equatable implements JSONable {
     this.links = const [],
     this.locators = const [],
   });
-
-  static const _unset = Object();
 
   final LocatorCollectionMetadata metadata;
   final List<Link> links;
@@ -67,13 +66,13 @@ class LocatorCollection with Equatable implements JSONable {
   }
 
   LocatorCollection copyWith({
-    Object? metadata = _unset,
-    Object? links = _unset,
-    Object? locators = _unset,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? locators = unset,
   }) => LocatorCollection(
-    metadata: identical(metadata, _unset) ? this.metadata : (metadata as LocatorCollectionMetadata?)!,
-    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
-    locators: identical(locators, _unset) ? this.locators : (locators as List<Locator>?)!,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as LocatorCollectionMetadata?)!,
+    links: identical(links, unset) ? this.links : (links as List<Link>?)!,
+    locators: identical(locators, unset) ? this.locators : (locators as List<Locator>?)!,
   );
 
   @override
@@ -91,8 +90,6 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
     this.numberOfItems,
     super.additionalProperties,
   });
-
-  static const _unset = Object();
 
   /// The localized title. Can be a simple string or a map of language codes to strings.
   final dynamic localizedTitle;
@@ -158,15 +155,13 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
   }
 
   LocatorCollectionMetadata copyWith({
-    Object? localizedTitle = _unset,
-    Object? numberOfItems = _unset,
-    Object? additionalProperties = _unset,
+    Object? localizedTitle = unset,
+    Object? numberOfItems = unset,
+    Object? additionalProperties = unset,
   }) => LocatorCollectionMetadata(
-    localizedTitle: identical(localizedTitle, _unset) ? this.localizedTitle : localizedTitle,
-    numberOfItems: identical(numberOfItems, _unset) ? this.numberOfItems : (numberOfItems as int?)!,
-    additionalProperties: identical(additionalProperties, _unset) || additionalProperties == null
-        ? this.additionalProperties
-        : (additionalProperties as Map<String, dynamic>),
+    localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : localizedTitle,
+    numberOfItems: identical(numberOfItems, unset) ? this.numberOfItems : (numberOfItems as int?)!,
+    additionalProperties: copyAdditionalProperties(additionalProperties: additionalProperties),
   );
 
   @override

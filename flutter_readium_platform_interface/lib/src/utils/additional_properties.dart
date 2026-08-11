@@ -1,5 +1,7 @@
 import 'package:collection/collection.dart';
 
+import 'constants.dart';
+
 abstract class AdditionalProperties {
   const AdditionalProperties({this.additionalProperties = const {}});
 
@@ -34,5 +36,19 @@ abstract class AdditionalProperties {
       return value;
     }
     return null;
+  }
+
+  /// Returns a new [Map<String, dynamic>] with the merged additional properties.
+  Map<String, dynamic> copyAdditionalProperties({
+    Object? additionalProperties = unset,
+  }) {
+    if (identical(additionalProperties, unset) || additionalProperties == null) {
+      return this.additionalProperties;
+    }
+    final result = <String, dynamic>{}
+      ..addAll(this.additionalProperties)
+      ..addAll(additionalProperties as Map<String, dynamic>)
+      ..removeWhere((key, value) => value == null);
+    return result;
   }
 }

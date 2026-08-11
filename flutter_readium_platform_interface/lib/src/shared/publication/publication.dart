@@ -28,8 +28,6 @@ class Publication with Equatable implements JSONable {
     this.subCollections = const {},
   });
 
-  static const _unset = Object();
-
   /// JSON-LD context URIs declaring the vocabulary used by this manifest.
   final List<String> context;
 
@@ -63,21 +61,21 @@ class Publication with Equatable implements JSONable {
 
   /// Returns a copy of this publication with the given fields replaced.
   Publication copyWith({
-    Object? context = _unset,
-    Object? metadata = _unset,
-    Object? links = _unset,
-    Object? readingOrder = _unset,
-    Object? resources = _unset,
-    Object? tableOfContents = _unset,
-    Object? subCollections = _unset,
+    Object? context = unset,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? readingOrder = unset,
+    Object? resources = unset,
+    Object? tableOfContents = unset,
+    Object? subCollections = unset,
   }) => Publication(
-    context: identical(context, _unset) ? this.context : (context as List<String>?)!,
-    metadata: identical(metadata, _unset) ? this.metadata : (metadata as Metadata?)!,
-    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
-    readingOrder: identical(readingOrder, _unset) ? this.readingOrder : (readingOrder as List<Link>?)!,
-    resources: identical(resources, _unset) ? this.resources : (resources as List<Link>?)!,
-    tableOfContents: identical(tableOfContents, _unset) ? this.tableOfContents : (tableOfContents as List<Link>?)!,
-    subCollections: identical(subCollections, _unset)
+    context: identical(context, unset) ? this.context : (context as List<String>?)!,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as Metadata?)!,
+    links: identical(links, unset) ? this.links : (links as List<Link>?)!,
+    readingOrder: identical(readingOrder, unset) ? this.readingOrder : (readingOrder as List<Link>?)!,
+    resources: identical(resources, unset) ? this.resources : (resources as List<Link>?)!,
+    tableOfContents: identical(tableOfContents, unset) ? this.tableOfContents : (tableOfContents as List<Link>?)!,
+    subCollections: identical(subCollections, unset)
         ? this.subCollections
         : (subCollections as Map<String, List<PublicationCollection>>?)!,
   );

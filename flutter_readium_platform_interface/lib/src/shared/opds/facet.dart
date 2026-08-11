@@ -6,6 +6,7 @@ import 'package:dartx/dartx.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart' show OpdsMetadata;
 import '../publication/link.dart' show Link;
@@ -13,8 +14,6 @@ import '../publication/link.dart' show Link;
 @immutable
 class Facet with Equatable implements JSONable {
   const Facet({required this.metadata, required this.links});
-
-  static const _unset = Object();
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -26,11 +25,11 @@ class Facet with Equatable implements JSONable {
   String toString() => 'Facet{metadata: $metadata, links: $links}';
 
   Facet copyWith({
-    Object? metadata = _unset,
-    Object? links = _unset,
+    Object? metadata = unset,
+    Object? links = unset,
   }) => Facet(
-    metadata: identical(metadata, _unset) ? this.metadata : (metadata as OpdsMetadata)!,
-    links: identical(links, _unset) ? this.links : (links as List<Link>)!,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
   );
 
   @override

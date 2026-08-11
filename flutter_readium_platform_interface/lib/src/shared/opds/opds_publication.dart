@@ -7,20 +7,18 @@ import '../../../flutter_readium_platform_interface.dart';
 class OpdsPublication implements JSONable {
   const OpdsPublication(this.metadata, this.links, {this.images = const []});
 
-  static const _unset = Object();
-
   final OpdsMetadata metadata;
   final List<Link> links;
   final List<Link> images;
 
   OpdsPublication copyWith({
-    Object? metadata = _unset,
-    Object? links = _unset,
-    Object? images = _unset,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? images = unset,
   }) => OpdsPublication(
-    identical(metadata, _unset) ? this.metadata : (metadata as OpdsMetadata?)!,
-    identical(links, _unset) ? this.links : (links as List<Link>?)!,
-    images: identical(images, _unset) ? this.images : (images as List<Link>?)!,
+    identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata?)!,
+    identical(links, unset) ? this.links : (links as List<Link>?)!,
+    images: identical(images, unset) ? this.images : (images as List<Link>?)!,
   );
 
   @override

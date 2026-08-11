@@ -7,6 +7,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart';
@@ -19,8 +20,6 @@ class Group with Equatable implements JSONable {
     this.publications = const [],
     this.navigation = const [],
   });
-
-  static const _unset = Object();
 
   final OpdsMetadata metadata;
   final List<Link> links;
@@ -36,15 +35,15 @@ class Group with Equatable implements JSONable {
       'publications: $publications, navigation: $navigation}';
 
   Group copyWith({
-    Object? metadata = _unset,
-    Object? links = _unset,
-    Object? publications = _unset,
-    Object? navigation = _unset,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? publications = unset,
+    Object? navigation = unset,
   }) => Group(
-    metadata: identical(metadata, _unset) ? this.metadata : (metadata as OpdsMetadata?)!,
-    links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
-    publications: identical(publications, _unset) ? this.publications : (publications as List<OpdsPublication>?)!,
-    navigation: identical(navigation, _unset) ? this.navigation : (navigation as List<Link>?)!,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata?)!,
+    links: identical(links, unset) ? this.links : (links as List<Link>?)!,
+    publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>?)!,
+    navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>?)!,
   );
 
   @override

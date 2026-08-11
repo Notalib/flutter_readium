@@ -22,8 +22,6 @@ class Feed extends AdditionalProperties with Equatable implements JSONable {
     Map<String, dynamic>? additionalProperties = const {},
   }) : super(additionalProperties: additionalProperties ?? const {});
 
-  static const _unset = Object();
-
   final OpdsMetadata metadata;
   final List<Link> links;
   final List<Facet> facets;
@@ -52,29 +50,25 @@ class Feed extends AdditionalProperties with Equatable implements JSONable {
       'context: $context}';
 
   Feed copyWith({
-    Object? metadata = _unset,
-    Object? links = _unset,
-    Object? facets = _unset,
-    Object? groups = _unset,
-    Object? publications = _unset,
-    Object? navigation = _unset,
-    Object? context = _unset,
-    Object? additionalProperties = _unset,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? facets = unset,
+    Object? groups = unset,
+    Object? publications = unset,
+    Object? navigation = unset,
+    Object? context = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
-        ? Map<String, dynamic>.of(this.additionalProperties)
-        : Map<String, dynamic>.of(this.additionalProperties)
-            ..addAll(additionalProperties as Map<String, dynamic>)
-            ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Feed(
-      metadata: identical(metadata, _unset) ? this.metadata : (metadata as OpdsMetadata?)!,
-      links: identical(links, _unset) ? this.links : (links as List<Link>?)!,
-      facets: identical(facets, _unset) ? this.facets : (facets as List<Facet>?)!,
-      groups: identical(groups, _unset) ? this.groups : (groups as List<Group>?)!,
-      publications: identical(publications, _unset) ? this.publications : (publications as List<OpdsPublication>?)!,
-      navigation: identical(navigation, _unset) ? this.navigation : (navigation as List<Link>?)!,
-      context: identical(context, _unset) ? this.context : (context as List<String>?)!,
+      metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata?)!,
+      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
+      facets: identical(facets, unset) ? this.facets : (facets as List<Facet>?)!,
+      groups: identical(groups, unset) ? this.groups : (groups as List<Group>?)!,
+      publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>?)!,
+      navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>?)!,
+      context: identical(context, unset) ? this.context : (context as List<String>?)!,
       additionalProperties: mergeProperties,
     );
   }

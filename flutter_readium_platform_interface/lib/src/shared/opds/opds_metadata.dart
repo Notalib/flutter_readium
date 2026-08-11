@@ -26,8 +26,6 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
     super.additionalProperties,
   });
 
-  static const _unset = Object();
-
   final String? identifier;
 
   final LocalizedString localizedTitle;
@@ -57,37 +55,33 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
   ];
 
   OpdsMetadata copyWith({
-    Object? localizedTitle = _unset,
-    Object? localizedSubtitle = _unset,
-    Object? identifier = _unset,
-    Object? description = _unset,
-    Object? numberOfItems = _unset,
-    Object? itemsPerPage = _unset,
-    Object? currentPage = _unset,
-    Object? modified = _unset,
-    Object? position = _unset,
-    Object? rdfType = _unset,
-    Object? additionalProperties = _unset,
+    Object? localizedTitle = unset,
+    Object? localizedSubtitle = unset,
+    Object? identifier = unset,
+    Object? description = unset,
+    Object? numberOfItems = unset,
+    Object? itemsPerPage = unset,
+    Object? currentPage = unset,
+    Object? modified = unset,
+    Object? position = unset,
+    Object? rdfType = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = identical(additionalProperties, _unset) || additionalProperties == null
-        ? Map<String, dynamic>.of(this.additionalProperties)
-        : Map<String, dynamic>.of(this.additionalProperties)
-            ..addAll(additionalProperties as Map<String, dynamic>)
-            ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return OpdsMetadata(
-      localizedTitle: identical(localizedTitle, _unset) ? this.localizedTitle : (localizedTitle as LocalizedString?)!,
-      localizedSubtitle: identical(localizedSubtitle, _unset)
+      localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : (localizedTitle as LocalizedString?)!,
+      localizedSubtitle: identical(localizedSubtitle, unset)
           ? this.localizedSubtitle
           : localizedSubtitle as LocalizedString?,
-      identifier: identical(identifier, _unset) ? this.identifier : identifier as String?,
-      description: identical(description, _unset) ? this.description : description as String?,
-      numberOfItems: identical(numberOfItems, _unset) ? this.numberOfItems : numberOfItems as int?,
-      itemsPerPage: identical(itemsPerPage, _unset) ? this.itemsPerPage : itemsPerPage as int?,
-      currentPage: identical(currentPage, _unset) ? this.currentPage : currentPage as int?,
-      modified: identical(modified, _unset) ? this.modified : modified as DateTime?,
-      position: identical(position, _unset) ? this.position : position as double?,
-      rdfType: identical(rdfType, _unset) ? this.rdfType : rdfType as String?,
+      identifier: identical(identifier, unset) ? this.identifier : identifier as String?,
+      description: identical(description, unset) ? this.description : description as String?,
+      numberOfItems: identical(numberOfItems, unset) ? this.numberOfItems : numberOfItems as int?,
+      itemsPerPage: identical(itemsPerPage, unset) ? this.itemsPerPage : itemsPerPage as int?,
+      currentPage: identical(currentPage, unset) ? this.currentPage : currentPage as int?,
+      modified: identical(modified, unset) ? this.modified : modified as DateTime?,
+      position: identical(position, unset) ? this.position : position as double?,
+      rdfType: identical(rdfType, unset) ? this.rdfType : rdfType as String?,
       additionalProperties: mergeProperties,
     );
   }
