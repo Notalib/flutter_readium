@@ -217,9 +217,7 @@ public class NowPlayingInfoUpdater {
 
     on(rcc.togglePlayPauseCommand) { navigator, _ in
       Task { @MainActor in
-        let action: ExternalPlaybackCommandAction =
-          FlutterReadiumPlugin.instance?.lastTimebasedPlayerState?.state == .playing ? .pause : .play
-        emit(action)
+        emit(.togglePlayPause)
         await navigator.togglePlayPause()
       }
     }

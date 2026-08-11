@@ -75,6 +75,7 @@ _sub = reader.onExternalPlaybackCommand.listen((command) {
   switch (command.action) {
     case ExternalPlaybackCommandAction.play:         // record play intent
     case ExternalPlaybackCommandAction.pause:        // record pause intent
+    case ExternalPlaybackCommandAction.togglePlayPause: // record toggle intent
     case ExternalPlaybackCommandAction.seekForward:  // record forward seek intent
     case ExternalPlaybackCommandAction.seekBackward: // record backward seek intent
     case ExternalPlaybackCommandAction.seekTo:       // requested position is in `position`

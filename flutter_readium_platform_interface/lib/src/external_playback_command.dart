@@ -44,6 +44,7 @@ class ReadiumExternalPlaybackCommand implements JSONable {
 enum ExternalPlaybackCommandAction {
   play,
   pause,
+  togglePlayPause,
   seekForward,
   seekBackward,
   seekTo,

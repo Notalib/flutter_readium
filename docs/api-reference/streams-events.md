@@ -55,8 +55,8 @@ reader.onExternalPlaybackCommand.listen((command) {
 
 This stream reports user/system control intent. Use
 `onTimebasedPlayerStateChanged` for the resulting playback state and progress.
-The possible actions are `play`, `pause`, `seekForward`, `seekBackward`,
-`seekTo`, `next`, `previous`, and `unknown`. For `seekTo`, `position` contains
+The possible actions are `play`, `pause`, `togglePlayPause`, `seekForward`,
+`seekBackward`, `seekTo`, `next`, `previous`, and `unknown`. For `seekTo`, `position` contains
 the requested position relative to the configured `controlPanelTimebase`.
 
 Android and iOS produce these events. The Web implementation exposes the stream

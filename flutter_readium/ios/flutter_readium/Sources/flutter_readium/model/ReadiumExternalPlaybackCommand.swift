@@ -3,6 +3,7 @@ import Foundation
 enum ExternalPlaybackCommandAction: String {
   case play
   case pause
+  case togglePlayPause
   case seekForward
   case seekBackward
   case seekTo
