@@ -227,16 +227,16 @@ public class NowPlayingInfoUpdater {
     if (skipTrackEnabled) {
       on(rcc.previousTrackCommand) { navigator, _ in
         Task { @MainActor in
-          emit(.previous)
           // TODO: Should these actually skip a full track?
+          emit(.seekBackward)
           await navigator.seekBackward()
         }
       }
 
       on(rcc.nextTrackCommand) { navigator, _ in
         Task { @MainActor in
-          emit(.next)
           // TODO: Should these actually skip a full track?
+          emit(.seekForward)
           await navigator.seekForward()
         }
       }

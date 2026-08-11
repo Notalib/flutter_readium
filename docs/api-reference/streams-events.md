@@ -48,14 +48,8 @@ media session / notification.
 
 ```dart
 reader.onExternalPlaybackCommand.listen((command) {
-  switch (command.action) {
-    case ExternalPlaybackCommandAction.play:
-      // User requested playback from system controls.
-    case ExternalPlaybackCommandAction.pause:
-      // User requested pause from system controls.
-    default:
-      break;
-  }
+  final action = command.action;     // ExternalPlaybackCommandAction
+  final position = command.position; // Duration?
 });
 ```
 
