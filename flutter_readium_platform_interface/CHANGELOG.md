@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- `ReadiumTimebasedState.fromJson()` now tolerates audiobook terminal locators
+  that omit `progression` / `totalProgression`, preserving the locator while
+  normalizing ended-state progress to `1.0` instead of crashing on Android.
+
 ## [0.3.3] - 2026-08-04
 
 ## [0.3.2] - 2026-08-03

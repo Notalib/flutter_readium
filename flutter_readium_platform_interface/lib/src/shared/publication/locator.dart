@@ -21,13 +21,7 @@ import 'link.dart';
 const int _emptyIntValue = -1;
 const double _emptyDoubleValue = -1;
 
-extension IntCheck on int? {
-  int? check(int? defaultValue) => (this == _emptyIntValue) ? defaultValue : this;
-}
-
-extension DoubleNullableCheck on double? {
-  double? check(double? defaultValue) => (this == _emptyDoubleValue) ? defaultValue : this;
-
+extension DoubleNullableRound on double? {
   /// Ensure that this double? is within [epsilon] of [defaultValue], otherwise return this double? (or defaultValue if this is null).
   double roundToIfCloseTo(
     double defaultValue, {
@@ -183,9 +177,9 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
   }) => copyWith(
     locations: (locations ?? Locations()).copyWith(
       fragments: fragments ?? locations?.fragments,
-      progression: progression.check(locations?.progression),
-      position: position.check(locations?.position),
-      totalProgression: totalProgression.check(locations?.totalProgression),
+      progression: progression == _emptyDoubleValue ? locations?.progression : progression,
+      position: position == _emptyIntValue ? locations?.position : position,
+      totalProgression: totalProgression == _emptyDoubleValue ? locations?.totalProgression : totalProgression,
       additionalProperties: otherLocations ?? locations?.additionalProperties,
     ),
   );
@@ -326,9 +320,9 @@ class Locations extends AdditionalProperties with Equatable implements JSONable 
       ..removeWhere((key, value) => value == null);
 
     return Locations(
-      progression: progression.check(this.progression),
-      position: position.check(this.position),
-      totalProgression: totalProgression.check(this.totalProgression),
+      progression: progression == _emptyDoubleValue ? this.progression : progression,
+      position: position == _emptyIntValue ? this.position : position,
+      totalProgression: totalProgression == _emptyDoubleValue ? this.totalProgression : totalProgression,
       fragments: fragments ?? this.fragments,
       cssSelector: cssSelector ?? this.cssSelector,
       domRange: domRange ?? this.domRange,

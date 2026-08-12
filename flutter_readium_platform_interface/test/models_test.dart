@@ -255,6 +255,29 @@ void main() {
     });
   });
 
+  group('ReadiumTimebasedState', () {
+    test('fromJson normalizes an ended locator with partial location data', () {
+      final state = ReadiumTimebasedState.fromJson({
+        'state': 'ended',
+        'currentLocator': {
+          'href': 'last.mp3',
+          'type': 'audio/mpeg',
+          'locations': {
+            'position': 3,
+            'fragments': ['t=123.45'],
+          },
+        },
+      });
+
+      expect(state.state, TimebasedState.ended);
+      expect(state.currentLocator?.href, 'last.mp3');
+      expect(state.currentLocator?.locations?.position, 3);
+      expect(state.currentLocator?.locations?.fragments, ['t=123.45']);
+      expect(state.currentLocator?.locations?.progression, 1.0);
+      expect(state.currentLocator?.locations?.totalProgression, 1.0);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // ReadiumReaderStatus enum
   // ---------------------------------------------------------------------------
