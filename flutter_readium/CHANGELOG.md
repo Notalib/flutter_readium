@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Reader could report `ready` and then never emit a text locator (iOS, Android).**
+  Locator enrichment (a JavaScript page-info call plus a ToC lookup) was unbounded, so a
+  stalled platform webview silently froze `onTextLocatorChanged` for good. Enrichment now
+  times out after 5 seconds and the un-enriched locator is emitted instead.
+
 ## [0.3.3] - 2026-08-04
 
 ## [0.3.2] - 2026-08-03
