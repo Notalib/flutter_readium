@@ -3,33 +3,6 @@ import ReadiumShared
 import Flutter
 import UIKit
 
-/// How long locator enrichment (JS page-info + ToC lookup) may take before the raw
-/// locator is emitted instead. Generous for a healthy webview, short enough that a
-/// stalled one doesn't silently freeze the text-locator stream.
-private let locatorEnrichmentTimeoutSeconds: UInt64 = 5
-
-/// Runs `operation`, returning nil if it doesn't finish within `seconds`.
-///
-/// The timed-out task is not actually cancelled: upstream's `spreadLoaded()` continuation
-/// ignores cancellation, so a stalled JS eval keeps running until the spread loads or the
-/// reader view is disposed.
-private func withTimeout<T: Sendable>(
-  seconds: UInt64,
-  _ operation: @escaping @Sendable () async -> T
-) async -> T? {
-  await withTaskGroup(of: T?.self) { group in
-    group.addTask { await operation() }
-    group.addTask {
-      // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
-      try? await Task.sleep(nanoseconds: seconds * NSEC_PER_SEC)
-      return nil
-    }
-    let first = await group.next() ?? nil
-    group.cancelAll()
-    return first
-  }
-}
-
 /// Core class declaration, stored state, lifecycle, and the base `Navigator`/
 /// `EPUBNavigatorDelegate` callbacks that don't have a more specific home.
 /// Related behaviour lives in the `EPUBReaderView+*.swift` extensions in this
@@ -46,6 +19,11 @@ private func withTimeout<T: Sendable>(
 /// same type when they live in the same file, and stored properties themselves can
 /// only ever be declared here, never added by an extension.
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
+
+  /// How long locator enrichment (JS page-info + ToC lookup) may take before the raw locator
+  /// is emitted instead. Generous for a healthy webview, short enough that a stalled one
+  /// doesn't silently freeze the text-locator stream.
+  private static let locatorEnrichmentTimeoutSeconds: UInt64 = 5
 
   let channel: ReadiumReaderChannel
   let containerView: EPUBContainerView
@@ -393,7 +371,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       /// Enrich Locator with PageInformation and ToC — bounded, because upstream's
       /// `EPUBSpreadView.evaluateScript` awaits `spreadLoaded()` with no timeout, so a stalled
       /// webview would freeze this stream forever after `ready` was already reported.
-      let enriched = await withTimeout(seconds: locatorEnrichmentTimeoutSeconds) { [locator] in
+      let enriched = await withTimeout(seconds: Self.locatorEnrichmentTimeoutSeconds) { [locator] in
         var resultLocator = locator
         if let pageInfo = await self.getPageInformation() {
           resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
@@ -406,7 +384,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       }
 
       if enriched == nil {
-        Log.reader.warn("emitOnPageChanged: enrichment timed out after \(locatorEnrichmentTimeoutSeconds)s; emitting un-enriched locator")
+        Log.reader.warn("emitOnPageChanged: enrichment timed out after \(Self.locatorEnrichmentTimeoutSeconds)s; emitting un-enriched locator")
       }
 
       /// Immutable ref, so that we can use it on the main thread
