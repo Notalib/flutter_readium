@@ -30,6 +30,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
 - **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.
 - **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
+- **Tokensave freshness (repo-local only):** run `bin/tokensave_sync_if_needed` after pulls/rebases/branch switches and before large code exploration sessions. If a stale index is detected, agents should run this script once and retry `tokensave_*` before falling back to grep/read tools.
 - **Branching workflow** — never commit to `main`, and never let a branch track `Notalib/flutter_readium`:
   - Worktree branches created by agents often track upstream `main` — rename and re-track before committing: `git branch -m fix/short-slug && git push -u <fork> HEAD`.
   - Branch names must use a CC prefix: `fix/`, `feat/`, `chore/`, `docs/`, `refactor/`, `test/`.
@@ -40,7 +41,8 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 - **Commits / PR titles**: Conventional Commits with scopes (see `git log`). Include fixed issues in commit desc, e.g. "Fixes #123"
 - **Branching**: GitHub flow off `main`; `main` is the only relevant branch.
-- **Changelog**: update `CHANGELOG.md` under Unreleased for consumer-visible changes only — exclude intra-PR fixes and example-app changes ("would someone upgrading notice this?").
+- **Changelog**: update `CHANGELOG.md` under Unreleased for consumer-visible changes only — exclude intra-PR fixes and example-app changes ("would someone upgrading notice this?"). Keep each entry to a bold one-line lead plus 2–4 lines: symptom, cause in a clause, fix. Cut internal mechanism, field-level detail, and anything restating the lead — a reader upgrading needs to recognise the symptom, not understand the internals. Link to `docs/` when the detail genuinely matters.
+- **Comments**: 1–3 lines. Don't narrate the code, and don't inline a rationale essay — that belongs in `docs/`. Brevity means cutting content, not compressing prose: write plain sentences, never telegraphese. Never prefix a comment with the tool, skill, or agent that produced it — that's noise. Say only what the code can't: a non-obvious constraint, why the simpler thing doesn't work, or a cross-reference.
 - **Verification honesty**: don't claim verification you didn't do. If a change can't be exercised in the example app (native-only, behind a flag, platform edge case), say so explicitly.
 - **Method-channel contract**: keep Dart (`flutter_readium_platform_interface`) in sync with all native sides. Every call needs a Swift, Kotlin, and web handler — or an explicit `UnimplementedError` if intentionally unsupported.
 - **Bridge serialization**: Readium-owned objects (`Locator`, `Decoration`, …) → JSON strings via `json.encode`; plugin-owned flat structures (preferences, action configs) → Maps. Rationale + Web-TS `.serialize()` rules: `docs/architecture.md#bridge-serialization`.
@@ -76,6 +78,15 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - iOS consumers need `use_frameworks!` + `use_modular_headers!` in their `Podfile` (see `README.md`).
 - **Decoration fills must be `!important`** — Readium CSS forces all backgrounds transparent under a custom theme. Editing any fill-based decoration (highlight/ruler)? Read `docs/troubleshooting.md#decorations-render-invisibly-fills-must-be-important` first.
 - **Honest limitations over brittle workarounds**: document a platform constraint rather than reimplementing system UI (copy/share/localised strings/DRM). Surface trade-offs and ask before committing to an approach with obvious downsides.
+
+## Bug investigation
+
+Stop reading code and ask the user for a crash report, screenshot, or Xcode/Android Studio run when any of these apply:
+- Crash is in native code but you only have Flutter console output — a symbolicated stack trace (Xcode crash report, `adb logcat`) gives thread state and exact crash site.
+- 2+ competing hypotheses and you can't falsify them statically — runtime state is the arbiter.
+- You've opened ~8+ files without converging on a hypothesis.
+- Crash involves async ordering or threading — static analysis can't reveal this.
+- You've reached Pods, `build/`, or compiled artifacts — ask for symbolicated output instead.
 
 ## Testing (marionette / web preview)
 

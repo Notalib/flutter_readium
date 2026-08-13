@@ -20,6 +20,11 @@ import UIKit
 /// only ever be declared here, never added by an extension.
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
+  /// How long locator enrichment (JS page-info + ToC lookup) may take before the raw locator
+  /// is emitted instead. Generous for a healthy webview, short enough that a stalled one
+  /// doesn't silently freeze the text-locator stream.
+  private static let locatorEnrichmentTimeoutSeconds: UInt64 = 5
+
   let channel: ReadiumReaderChannel
   let containerView: EPUBContainerView
   let readiumViewController: EPUBNavigatorViewController
@@ -363,18 +368,27 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
     Task.detached(priority: .high) { [locator] in
-      /// Enrich Locator with PageInformation and ToC.
-      var resultLocator = locator
-      if let pageInfo = await self.getPageInformation() {
-        resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+      /// Enrich Locator with PageInformation and ToC — bounded, because upstream's
+      /// `EPUBSpreadView.evaluateScript` awaits `spreadLoaded()` with no timeout, so a stalled
+      /// webview would freeze this stream forever after `ready` was already reported.
+      let enriched = await withTimeout(seconds: Self.locatorEnrichmentTimeoutSeconds) { [locator] in
+        var resultLocator = locator
+        if let pageInfo = await self.getPageInformation() {
+          resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+        }
+        if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
+          resultLocator.title = tocLink.title
+          resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+        }
+        return resultLocator
       }
-      if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
-        resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+
+      if enriched == nil {
+        Log.reader.warn("emitOnPageChanged: enrichment timed out after \(Self.locatorEnrichmentTimeoutSeconds)s; emitting un-enriched locator")
       }
 
       /// Immutable ref, so that we can use it on the main thread
-      let finalLocator = resultLocator
+      let finalLocator = enriched ?? locator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
         FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())

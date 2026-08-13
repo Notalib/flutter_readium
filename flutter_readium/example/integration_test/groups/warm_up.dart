@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import '../readium_integration_harness.dart';
 import '../test_fixtures.dart';
 
+/// Forces the first platform-view / webview launch so the real tests don't pay that cost.
+/// Best-effort: never fails on timeout — a cold CI simulator can thrash WebKit for minutes,
+/// and first-locator emission is asserted for real by the reader-lifecycle suites.
 void defineWarmUpTests(ReadiumIntegrationHarness harness) {
   testWidgets(
     'Warm-up the platform reader view',
@@ -28,9 +31,10 @@ void defineWarmUpTests(ReadiumIntegrationHarness harness) {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 120),
+        timeout: const Duration(seconds: 45),
         reason: 'Reader never emitted an initial textLocator during warm-up',
         diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
+        failOnTimeout: false,
       );
 
       await tester.pumpWidget(const SizedBox());

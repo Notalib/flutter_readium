@@ -217,6 +217,7 @@ extension Publication {
         }
         return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
       }
+      guard !positionedOverlays.isEmpty else { return nil }
       return enrichOverlaysWithToc(positionedOverlays)
     }
 
@@ -253,7 +254,7 @@ extension Publication {
       }
       allOverlays += positionedOverlays
     }
-    guard hasAny else { return nil }
+    guard hasAny, !allOverlays.isEmpty else { return nil }
     return enrichOverlaysWithToc(allOverlays)
   }
 
