@@ -8,14 +8,22 @@
  *   - findItemByAudioTime
  */
 
-import { Link, Locator, LocatorLocations, LocatorText } from "@readium/shared";
+import {
+  Link,
+  Links,
+  Locator,
+  LocatorLocations,
+  LocatorText,
+} from "@readium/shared";
 import {
   SyncNarrationItem,
   combinedLocatorForItem,
   findItemByAudioTime,
+  parseSyncNarration,
   textLocatorForItem,
   textLocatorToAudioLocator,
 } from "../mediaoverlay/syncNarration";
+import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,6 +63,25 @@ function textLocator(href: string, id?: string, progression?: number): Locator {
   });
 }
 
+function makeNarrationPublication(
+  readingOrder: Link[],
+  responses: Record<string, unknown>
+): {
+  publication: ReadiumPublication;
+  get: jest.Mock;
+} {
+  const get = jest.fn((link: Link) => ({
+    readAsJSON: async () => responses[link.href],
+  }));
+  const publication = {
+    baseURL: "https://example.test/book/",
+    readingOrder: { items: readingOrder },
+    manifest: { toc: undefined },
+    get,
+  } as unknown as ReadiumPublication;
+  return { publication, get };
+}
+
 // ---------------------------------------------------------------------------
 // textLocatorForItem
 // ---------------------------------------------------------------------------
@@ -65,6 +92,72 @@ describe("textLocatorForItem", () => {
     const loc = textLocatorForItem(item);
     expect(loc.href).toBe("chap1.html");
     expect(loc.type).toBe("text/html");
+  });
+
+  describe("parseSyncNarration URI templates", () => {
+    const narration = {
+      narration: [{ audio: "chapter.mp3#t=0,3", text: "chapter.xhtml#p1" }],
+    };
+
+    it("expands an alternate template using the owning reading-order resource", async () => {
+      const sidecar = new Link({
+        href: "overlay.json{?ref}",
+        templated: true,
+        type: "application/vnd.readium.narration+json",
+      });
+      const chapter = new Link({
+        href: "chapter.xhtml",
+        alternates: new Links([sidecar]),
+      });
+      const { publication, get } = makeNarrationPublication(
+        [chapter],
+        { "overlay.json?ref=chapter.xhtml": narration }
+      );
+
+      const items = await parseSyncNarration(publication);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].audioHref).toBe("chapter.mp3");
+      expect(get).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: "overlay.json?ref=chapter.xhtml",
+          templated: false,
+        })
+      );
+    });
+
+    it("skips unresolved optional templates while preserving plain sidecars", async () => {
+      const unresolvedSidecar = new Link({
+        href: "overlay.json{?missing}",
+        templated: true,
+        type: "application/vnd.readium.narration+json",
+      });
+      const plainSidecar = new Link({
+        href: "plain-overlay.json",
+        type: "application/vnd.readium.narration+json",
+      });
+      const unresolvedChapter = new Link({
+        href: "missing.xhtml",
+        alternates: new Links([unresolvedSidecar]),
+      });
+      const plainChapter = new Link({
+        href: "plain.xhtml",
+        alternates: new Links([plainSidecar]),
+      });
+      const { publication, get } = makeNarrationPublication(
+        [unresolvedChapter, plainChapter],
+        { "plain-overlay.json": narration }
+      );
+
+      const items = await parseSyncNarration(publication);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].position).toBe(1);
+      expect(get).toHaveBeenCalledTimes(1);
+      expect(get).toHaveBeenCalledWith(
+        expect.objectContaining({ href: "plain-overlay.json" })
+      );
+    });
   });
 
   it("includes the textId as a fragment when present", () => {

@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- URI-templated manifest links are now expanded for guided-navigation and
+  sync-narration sidecar resources on web, iOS, and Android.
+
 ## [0.3.3] - 2026-08-04
 
 ## [0.3.2] - 2026-08-03
