@@ -120,17 +120,17 @@ class ReaderTTSVoice with Equatable implements JSONable {
   ];
 
   ReaderTTSVoice copyWith({
-    Object? identifier = unset,
-    Object? name = unset,
-    Object? language = unset,
-    Object? networkRequired = unset,
-    Object? gender = unset,
+    Object identifier = unset,
+    Object name = unset,
+    Object language = unset,
+    Object networkRequired = unset,
+    Object gender = unset,
     Object? quality = unset,
     Object? active = unset,
   }) => ReaderTTSVoice(
-    identifier: identical(identifier, unset) ? this.identifier : (identifier as String?)!,
-    name: identical(name, unset) ? this.name : (name as String?)!,
-    language: identical(language, unset) ? this.language : (language as String?)!,
+    identifier: identical(identifier, unset) ? this.identifier : (identifier as String),
+    name: identical(name, unset) ? this.name : (name as String),
+    language: identical(language, unset) ? this.language : (language as String),
     networkRequired: identical(networkRequired, unset) ? this.networkRequired : (networkRequired as bool),
     gender: identical(gender, unset) ? this.gender : (gender as TTSVoiceGender),
     quality: identical(quality, unset) ? this.quality : (quality as TTSVoiceQuality?),

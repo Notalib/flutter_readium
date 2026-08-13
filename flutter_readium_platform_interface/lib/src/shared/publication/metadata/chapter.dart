@@ -77,23 +77,19 @@ class Chapter extends BaseCollection {
     Object? altIdentifiers = unset,
     Object? localizedSortAs = unset,
     Object? links = unset,
-    Object? series = unset,
+    Object series = unset,
     Object? additionalProperties = unset,
   }) {
     final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Chapter(
-      position: identical(position, unset) ? this.position : (position as double?)!,
-      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?)!,
-      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?)!,
-      altIdentifiers: identical(altIdentifiers, unset)
-          ? this.altIdentifiers
-          : (altIdentifiers as List<AltIdentifier>?)!,
-      localizedSortAs: identical(localizedSortAs, unset)
-          ? this.localizedSortAs
-          : (localizedSortAs as LocalizedString?)!,
-      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
-      series: identical(series, unset) ? this.series : (series as List<Series>?)!,
+      position: identical(position, unset) ? this.position : (position as double?),
+      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?),
+      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?),
+      altIdentifiers: identical(altIdentifiers, unset) ? this.altIdentifiers : (altIdentifiers as List<AltIdentifier>?),
+      localizedSortAs: identical(localizedSortAs, unset) ? this.localizedSortAs : (localizedSortAs as LocalizedString?),
+      links: identical(links, unset) ? this.links : (links as List<Link>?),
+      series: identical(series, unset) ? this.series : (series as List<Series>),
       additionalProperties: mergeProperties,
     );
   }

@@ -102,23 +102,19 @@ class Season extends BaseCollection {
     Object? altIdentifiers = unset,
     Object? localizedSortAs = unset,
     Object? links = unset,
-    Object? episodes = unset,
+    Object episodes = unset,
     Object? additionalProperties = unset,
   }) {
     final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Season(
-      position: identical(position, unset) ? this.position : (position as double?)!,
-      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?)!,
-      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?)!,
-      altIdentifiers: identical(altIdentifiers, unset)
-          ? this.altIdentifiers
-          : (altIdentifiers as List<AltIdentifier>?)!,
-      localizedSortAs: identical(localizedSortAs, unset)
-          ? this.localizedSortAs
-          : (localizedSortAs as LocalizedString?)!,
-      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
-      episodes: identical(episodes, unset) ? this.episodes : (episodes as List<Episode>?)!,
+      position: identical(position, unset) ? this.position : (position as double?),
+      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?),
+      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?),
+      altIdentifiers: identical(altIdentifiers, unset) ? this.altIdentifiers : (altIdentifiers as List<AltIdentifier>?),
+      localizedSortAs: identical(localizedSortAs, unset) ? this.localizedSortAs : (localizedSortAs as LocalizedString?),
+      links: identical(links, unset) ? this.links : (links as List<Link>?),
+      episodes: identical(episodes, unset) ? this.episodes : (episodes as List<Episode>),
       additionalProperties: mergeProperties,
     );
   }

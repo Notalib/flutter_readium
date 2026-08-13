@@ -86,25 +86,21 @@ class Issue extends BaseCollection {
     Object? altIdentifiers = unset,
     Object? localizedSortAs = unset,
     Object? links = unset,
-    Object? articles = unset,
-    Object? chapters = unset,
+    Object articles = unset,
+    Object chapters = unset,
     Object? additionalProperties = unset,
   }) {
     final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Issue(
-      position: identical(position, unset) ? this.position : (position as double?)!,
-      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?)!,
-      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?)!,
-      altIdentifiers: identical(altIdentifiers, unset)
-          ? this.altIdentifiers
-          : (altIdentifiers as List<AltIdentifier>?)!,
-      localizedSortAs: identical(localizedSortAs, unset)
-          ? this.localizedSortAs
-          : (localizedSortAs as LocalizedString?)!,
-      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
-      articles: identical(articles, unset) ? this.articles : (articles as List<Article>?)!,
-      chapters: identical(chapters, unset) ? this.chapters : (chapters as List<Chapter>?)!,
+      position: identical(position, unset) ? this.position : (position as double?),
+      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?),
+      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?),
+      altIdentifiers: identical(altIdentifiers, unset) ? this.altIdentifiers : (altIdentifiers as List<AltIdentifier>?),
+      localizedSortAs: identical(localizedSortAs, unset) ? this.localizedSortAs : (localizedSortAs as LocalizedString?),
+      links: identical(links, unset) ? this.links : (links as List<Link>?),
+      articles: identical(articles, unset) ? this.articles : (articles as List<Article>),
+      chapters: identical(chapters, unset) ? this.chapters : (chapters as List<Chapter>),
       additionalProperties: mergeProperties,
     );
   }

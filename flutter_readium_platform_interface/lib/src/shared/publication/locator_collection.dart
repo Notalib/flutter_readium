@@ -66,13 +66,13 @@ class LocatorCollection with Equatable implements JSONable {
   }
 
   LocatorCollection copyWith({
-    Object? metadata = unset,
-    Object? links = unset,
-    Object? locators = unset,
+    Object metadata = unset,
+    Object links = unset,
+    Object locators = unset,
   }) => LocatorCollection(
-    metadata: identical(metadata, unset) ? this.metadata : (metadata as LocatorCollectionMetadata?)!,
-    links: identical(links, unset) ? this.links : (links as List<Link>?)!,
-    locators: identical(locators, unset) ? this.locators : (locators as List<Locator>?)!,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as LocatorCollectionMetadata),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
+    locators: identical(locators, unset) ? this.locators : (locators as List<Locator>),
   );
 
   @override
@@ -160,7 +160,7 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
     Object? additionalProperties = unset,
   }) => LocatorCollectionMetadata(
     localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : localizedTitle,
-    numberOfItems: identical(numberOfItems, unset) ? this.numberOfItems : (numberOfItems as int?)!,
+    numberOfItems: identical(numberOfItems, unset) ? this.numberOfItems : (numberOfItems as int?),
     additionalProperties: copyAdditionalProperties(additionalProperties: additionalProperties),
   );
 

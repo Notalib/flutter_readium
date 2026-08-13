@@ -55,7 +55,7 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
   ];
 
   OpdsMetadata copyWith({
-    Object? localizedTitle = unset,
+    Object localizedTitle = unset,
     Object? localizedSubtitle = unset,
     Object? identifier = unset,
     Object? description = unset,
@@ -70,7 +70,7 @@ class OpdsMetadata extends AdditionalProperties with Equatable implements JSONab
     final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return OpdsMetadata(
-      localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : (localizedTitle as LocalizedString?)!,
+      localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : (localizedTitle as LocalizedString),
       localizedSubtitle: identical(localizedSubtitle, unset)
           ? this.localizedSubtitle
           : localizedSubtitle as LocalizedString?,

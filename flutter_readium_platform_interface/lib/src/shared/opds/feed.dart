@@ -50,25 +50,25 @@ class Feed extends AdditionalProperties with Equatable implements JSONable {
       'context: $context}';
 
   Feed copyWith({
-    Object? metadata = unset,
-    Object? links = unset,
-    Object? facets = unset,
-    Object? groups = unset,
-    Object? publications = unset,
-    Object? navigation = unset,
-    Object? context = unset,
+    Object metadata = unset,
+    Object links = unset,
+    Object facets = unset,
+    Object groups = unset,
+    Object publications = unset,
+    Object navigation = unset,
+    Object context = unset,
     Object? additionalProperties = unset,
   }) {
     final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Feed(
-      metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata?)!,
-      links: identical(links, unset) ? this.links : (links as List<Link>?)!,
-      facets: identical(facets, unset) ? this.facets : (facets as List<Facet>?)!,
-      groups: identical(groups, unset) ? this.groups : (groups as List<Group>?)!,
-      publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>?)!,
-      navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>?)!,
-      context: identical(context, unset) ? this.context : (context as List<String>?)!,
+      metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata),
+      links: identical(links, unset) ? this.links : (links as List<Link>),
+      facets: identical(facets, unset) ? this.facets : (facets as List<Facet>),
+      groups: identical(groups, unset) ? this.groups : (groups as List<Group>),
+      publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>),
+      navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>),
+      context: identical(context, unset) ? this.context : (context as List<String>),
       additionalProperties: mergeProperties,
     );
   }

@@ -117,7 +117,7 @@ class ReadiumTimebasedState implements JSONable {
     ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
-    Object? state = unset,
+    Object state = unset,
     Object? currentOffset = unset,
     Object? currentBuffered = unset,
     Object? currentDuration = unset,
@@ -125,14 +125,14 @@ class ReadiumTimebasedState implements JSONable {
     Object? totalDuration = unset,
     Object? currentLocator = unset,
   }) => ReadiumTimebasedState(
-    state: identical(state, unset) ? this.state : (state as TimebasedState?)!,
-    currentOffset: identical(currentOffset, unset) ? this.currentOffset : (currentOffset as Duration?)!,
-    currentBuffered: identical(currentBuffered, unset) ? this.currentBuffered : (currentBuffered as Duration?)!,
-    currentDuration: identical(currentDuration, unset) ? this.currentDuration : (currentDuration as Duration?)!,
+    state: identical(state, unset) ? this.state : (state as TimebasedState),
+    currentOffset: identical(currentOffset, unset) ? this.currentOffset : (currentOffset as Duration?),
+    currentBuffered: identical(currentBuffered, unset) ? this.currentBuffered : (currentBuffered as Duration?),
+    currentDuration: identical(currentDuration, unset) ? this.currentDuration : (currentDuration as Duration?),
     totalProgressDuration: identical(totalProgressDuration, unset)
         ? this.totalProgressDuration
-        : (totalProgressDuration as Duration?)!,
-    totalDuration: identical(totalDuration, unset) ? this.totalDuration : (totalDuration as Duration?)!,
-    currentLocator: identical(currentLocator, unset) ? this.currentLocator : (currentLocator as Locator?)!,
+        : (totalProgressDuration as Duration?),
+    totalDuration: identical(totalDuration, unset) ? this.totalDuration : (totalDuration as Duration?),
+    currentLocator: identical(currentLocator, unset) ? this.currentLocator : (currentLocator as Locator?),
   );
 }
