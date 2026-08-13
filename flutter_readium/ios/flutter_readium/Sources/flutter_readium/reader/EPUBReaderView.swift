@@ -10,10 +10,9 @@ private let locatorEnrichmentTimeoutSeconds: UInt64 = 5
 
 /// Runs `operation`, returning nil if it doesn't finish within `seconds`.
 ///
-/// ponytail: the losing task isn't truly cancelled — upstream's `spreadLoaded()`
-/// continuation is not cancellation-aware, so a stalled JS eval lingers until the spread
-/// loads or the reader view is disposed. Harmless (it holds only its own captures) and the
-/// observable behaviour is correct; revisit if upstream makes `evaluateScript` cancellable.
+/// The timed-out task is not actually cancelled: upstream's `spreadLoaded()` continuation
+/// ignores cancellation, so a stalled JS eval keeps running until the spread loads or the
+/// reader view is disposed.
 private func withTimeout<T: Sendable>(
   seconds: UInt64,
   _ operation: @escaping @Sendable () async -> T
@@ -391,13 +390,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
     Task.detached(priority: .high) { [locator] in
-      /// Enrich Locator with PageInformation and ToC — bounded, because both steps can
-      /// hang indefinitely: `getPageInformation()` evaluates JS, and upstream's
-      /// `EPUBSpreadView.evaluateScript` starts with an unbounded `await spreadLoaded()`.
-      /// A WebContent/GPU process restart can leave the spread never signalling loaded,
-      /// which would otherwise stall the text-locator stream forever after the reader has
-      /// already reported `ready`. Falling back to the un-enriched locator keeps href and
-      /// progression flowing.
+      /// Enrich Locator with PageInformation and ToC — bounded, because upstream's
+      /// `EPUBSpreadView.evaluateScript` awaits `spreadLoaded()` with no timeout, so a stalled
+      /// webview would freeze this stream forever after `ready` was already reported.
       let enriched = await withTimeout(seconds: locatorEnrichmentTimeoutSeconds) { [locator] in
         var resultLocator = locator
         if let pageInfo = await self.getPageInformation() {
