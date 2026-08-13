@@ -3,6 +3,34 @@ import ReadiumShared
 import Flutter
 import UIKit
 
+/// How long locator enrichment (JS page-info + ToC lookup) may take before the raw
+/// locator is emitted instead. Generous for a healthy webview, short enough that a
+/// stalled one doesn't silently freeze the text-locator stream.
+private let locatorEnrichmentTimeoutSeconds: UInt64 = 5
+
+/// Runs `operation`, returning nil if it doesn't finish within `seconds`.
+///
+/// ponytail: the losing task isn't truly cancelled — upstream's `spreadLoaded()`
+/// continuation is not cancellation-aware, so a stalled JS eval lingers until the spread
+/// loads or the reader view is disposed. Harmless (it holds only its own captures) and the
+/// observable behaviour is correct; revisit if upstream makes `evaluateScript` cancellable.
+private func withTimeout<T: Sendable>(
+  seconds: UInt64,
+  _ operation: @escaping @Sendable () async -> T
+) async -> T? {
+  await withTaskGroup(of: T?.self) { group in
+    group.addTask { await operation() }
+    group.addTask {
+      // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
+      try? await Task.sleep(nanoseconds: seconds * NSEC_PER_SEC)
+      return nil
+    }
+    let first = await group.next() ?? nil
+    group.cancelAll()
+    return first
+  }
+}
+
 /// Core class declaration, stored state, lifecycle, and the base `Navigator`/
 /// `EPUBNavigatorDelegate` callbacks that don't have a more specific home.
 /// Related behaviour lives in the `EPUBReaderView+*.swift` extensions in this
@@ -363,18 +391,31 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
     Task.detached(priority: .high) { [locator] in
-      /// Enrich Locator with PageInformation and ToC.
-      var resultLocator = locator
-      if let pageInfo = await self.getPageInformation() {
-        resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+      /// Enrich Locator with PageInformation and ToC — bounded, because both steps can
+      /// hang indefinitely: `getPageInformation()` evaluates JS, and upstream's
+      /// `EPUBSpreadView.evaluateScript` starts with an unbounded `await spreadLoaded()`.
+      /// A WebContent/GPU process restart can leave the spread never signalling loaded,
+      /// which would otherwise stall the text-locator stream forever after the reader has
+      /// already reported `ready`. Falling back to the un-enriched locator keeps href and
+      /// progression flowing.
+      let enriched = await withTimeout(seconds: locatorEnrichmentTimeoutSeconds) { [locator] in
+        var resultLocator = locator
+        if let pageInfo = await self.getPageInformation() {
+          resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+        }
+        if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
+          resultLocator.title = tocLink.title
+          resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+        }
+        return resultLocator
       }
-      if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
-        resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+
+      if enriched == nil {
+        Log.reader.warn("emitOnPageChanged: enrichment timed out after \(locatorEnrichmentTimeoutSeconds)s; emitting un-enriched locator")
       }
 
       /// Immutable ref, so that we can use it on the main thread
-      let finalLocator = resultLocator
+      let finalLocator = enriched ?? locator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
         FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())

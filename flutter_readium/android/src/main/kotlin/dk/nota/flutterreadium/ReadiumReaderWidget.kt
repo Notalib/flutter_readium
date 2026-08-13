@@ -296,7 +296,7 @@ class ReadiumReaderWidget(
                             }?.let { pageInfo ->
                                 emittingLocator =
                                     emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                            } ?: {
+                            } ?: run {
                             PluginLog.d(TAG, "::emitOnPageChanged - no page information")
                         }
                     } catch (e: Error) {

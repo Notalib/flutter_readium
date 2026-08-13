@@ -55,7 +55,12 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
         duration: narr.items.reduce(0) { $0 + ($1.audioDuration ?? 0) }
       )
     }
-    
+
+    guard !audioReadingOrder.isEmpty else {
+      Log.navigator.error("initNavigator() — audio readingOrder is empty; cannot initialize AudioNavigator.")
+      return
+    }
+
     // Copy the manifest and set its readingOrder to audioReadingOrder.
     var audioPubManifest = publication.manifest // var of struct == implicit copy
     audioPubManifest.readingOrder = audioReadingOrder
