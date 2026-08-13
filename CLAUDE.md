@@ -30,6 +30,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS.
 - **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.
 - **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling).
+- **Tokensave freshness (repo-local only):** run `bin/tokensave_sync_if_needed` after pulls/rebases/branch switches and before large code exploration sessions. If a stale index is detected, agents should run this script once and retry `tokensave_*` before falling back to grep/read tools.
 - **Branching workflow** — never commit to `main`, and never let a branch track `Notalib/flutter_readium`:
   - Worktree branches created by agents often track upstream `main` — rename and re-track before committing: `git branch -m fix/short-slug && git push -u <fork> HEAD`.
   - Branch names must use a CC prefix: `fix/`, `feat/`, `chore/`, `docs/`, `refactor/`, `test/`.
