@@ -152,12 +152,16 @@ Future<void> waitUntil(
   }
 }
 
+/// Pumps until [predicate] holds. On timeout it fails the test, or just returns if
+/// [failOnTimeout] is false — either way it logs `waitWithPump TIMEOUT`. Pass `false` only
+/// where the wait is best-effort and a real test asserts the condition elsewhere.
 Future<void> waitWithPump(
   WidgetTester tester,
   bool Function() predicate, {
   required Duration timeout,
   String? reason,
   String Function()? diagnostics,
+  bool failOnTimeout = true,
   Duration pollInterval = const Duration(milliseconds: 100),
 }) async {
   final start = DateTime.now();
@@ -168,7 +172,10 @@ Future<void> waitWithPump(
       final diag = diagnostics != null ? ' | ${diagnostics()}' : '';
       final base = reason ?? 'Condition did not become true within $timeout';
       debugPrint('waitWithPump TIMEOUT after ${elapsedMs}ms: $base$diag');
-      fail('$base (waited ${elapsedMs}ms)$diag');
+      if (failOnTimeout) {
+        fail('$base (waited ${elapsedMs}ms)$diag');
+      }
+      return;
     }
     await tester.pump(pollInterval);
   }
