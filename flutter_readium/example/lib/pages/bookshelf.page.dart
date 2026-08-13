@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
@@ -39,80 +40,100 @@ class BookshelfPageState extends State<BookshelfPage> {
   Future<void> _initialize() async {
     final loadedPublications = <Publication>[];
     final loadedPublicationURLs = <String>[];
-
-    if (kIsWeb) {
-      // Web: Load publications from JSON asset
-      final String response = await rootBundle.loadString(
-        'assets/webManifestList.json',
-      );
-      final List<dynamic> manifestHrefs = json.decode(response);
-      for (final href in manifestHrefs) {
-        try {
-          Publication? pub;
-          final rawHref = href.toString();
-          // WEB: Resolve root-relative paths against the current origin, so local files can be loaded.
-          final localPubPath = rawHref.startsWith('/') ? Uri.base.resolve(rawHref).toString() : rawHref;
-          pub = await loadPublicationFromUrl(localPubPath);
-          if (pub != null) {
-            loadedPublications.add(pub);
-            loadedPublicationURLs.add(localPubPath);
+    try {
+      if (kIsWeb) {
+        // Web: Load publications from JSON asset
+        final String response = await rootBundle.loadString(
+          'assets/webManifestList.json',
+        );
+        final List<dynamic> manifestHrefs = json.decode(response);
+        for (final href in manifestHrefs) {
+          try {
+            final rawHref = href.toString();
+            // WEB: Resolve root-relative paths against the current origin, so local files can be loaded.
+            final localPubPath = rawHref.startsWith('/') ? Uri.base.resolve(rawHref).toString() : rawHref;
+            final pub = await loadPublicationFromUrl(localPubPath);
+            if (pub != null) {
+              loadedPublications.add(pub);
+              loadedPublicationURLs.add(localPubPath);
+            }
+          } on Exception catch (e) {
+            _log.severe('Error opening publication: $e');
           }
-        } on Exception catch (e) {
-          _log.severe('Error opening publication: $e');
+        }
+      } else {
+        // should only be done first time app is started. how to do that?
+        final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
+
+        for (final localPubPath in localPublications) {
+          _log.info('Loading publication from local path: $localPubPath');
+          final publication = await loadPublicationFromUrl(localPubPath);
+          if (publication != null) {
+            loadedPublications.add(publication);
+            loadedPublicationURLs.add(localPubPath);
+          } else {
+            _log.warning('Failed to load publication from path: $localPubPath');
+          }
         }
       }
-    } else {
-      // should only be done first time app is started. how to do that?
-      final localPublications = await PublicationUtils.moveAssetPublicationsToReadiumStorage();
 
-      for (String localPubPath in localPublications) {
-        _log.info('Loading publication from local path: $localPubPath');
-        final publication = await loadPublicationFromUrl(localPubPath);
-        if (publication != null) {
-          loadedPublications.add(publication);
-          loadedPublicationURLs.add(localPubPath);
-        } else {
-          _log.warning('Failed to load publication from path: $localPubPath');
-        }
+      // Set a custom header for all publication requests (e.g., for authentication).
+      _flutterReadiumPlugin.setCustomHeaders({
+        'X-Custom-Header': 'MyCustomValue',
+      });
+
+      final publicationEntries =
+          List.generate(
+            loadedPublications.length,
+            (index) => (publication: loadedPublications[index], url: loadedPublicationURLs[index]),
+          )..sort((left, right) {
+            final formatComparison = _bookFormatSortOrder(
+              left.publication,
+            ).compareTo(_bookFormatSortOrder(right.publication));
+            if (formatComparison != 0) {
+              return formatComparison;
+            }
+
+            return left.publication.metadata.title.compareTo(
+              right.publication.metadata.title,
+            );
+          });
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _testPublications = publicationEntries.map((entry) => entry.publication).toList();
+        _testPublicationURLs = publicationEntries.map((entry) => entry.url).toList();
+      });
+    } on Exception catch (e, stackTrace) {
+      _log.severe('Bookshelf initialization failed: $e', e, stackTrace);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
-
-    // Set a custom header for all publication requests (e.g., for authentication).
-    _flutterReadiumPlugin.setCustomHeaders({
-      'X-Custom-Header': 'MyCustomValue',
-    });
-
-    final publicationEntries =
-        List.generate(
-          loadedPublications.length,
-          (index) => (publication: loadedPublications[index], url: loadedPublicationURLs[index]),
-        )..sort((left, right) {
-          final formatComparison = _bookFormatSortOrder(
-            left.publication,
-          ).compareTo(_bookFormatSortOrder(right.publication));
-          if (formatComparison != 0) {
-            return formatComparison;
-          }
-
-          return left.publication.metadata.title.compareTo(
-            right.publication.metadata.title,
-          );
-        });
-
-    setState(() {
-      _testPublications = publicationEntries.map((entry) => entry.publication).toList();
-      _testPublicationURLs = publicationEntries.map((entry) => entry.url).toList();
-      _isLoading = false;
-    });
   }
 
   Future<Publication?> loadPublicationFromUrl(String pubUrl) async {
     try {
-      Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl);
+      final Publication pub = await _flutterReadiumPlugin.loadPublication(pubUrl).timeout(const Duration(seconds: 20));
       _log.info('loadPublication success: ${pub.metadata.title}');
       return pub;
+    } on TimeoutException {
+      _log.warning('Timed out loading publication: $pubUrl');
+      return null;
+    } on ReadiumException catch (e) {
+      _log.warning('Failed to open publication [$pubUrl]: ${e.code} ${e.message}');
+      return null;
     } on PlatformException catch (e) {
       _log.warning('Failed to open publication: ${e.message}');
+      return null;
+    } on Exception catch (e) {
+      _log.warning('Unexpected publication load error for [$pubUrl]: $e');
       return null;
     }
   }

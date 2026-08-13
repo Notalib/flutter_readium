@@ -456,6 +456,16 @@ object ReadiumReader :
     }
 
     fun detach() {
+        // `detach()` runs twice on shutdown: once from `onDetachedFromActivity` and once
+        // from `onDetachedFromEngine`. The first call clears `appRef`, so the second one
+        // crashes the app in `closePublication() -> ResourceFileCache.purgeAll()`, which
+        // reads `application` and throws IllegalStateException. Nothing is left to release
+        // at that point, so return early.
+        if (appRef?.get() == null && activityRef?.get() == null) {
+            PluginLog.d(TAG, "::detach - already detached, nothing to do")
+            return
+        }
+
         closePublication()
 
         appRef?.clear()
