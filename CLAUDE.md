@@ -79,6 +79,15 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 - **Decoration fills must be `!important`** — Readium CSS forces all backgrounds transparent under a custom theme. Editing any fill-based decoration (highlight/ruler)? Read `docs/troubleshooting.md#decorations-render-invisibly-fills-must-be-important` first.
 - **Honest limitations over brittle workarounds**: document a platform constraint rather than reimplementing system UI (copy/share/localised strings/DRM). Surface trade-offs and ask before committing to an approach with obvious downsides.
 
+## Bug investigation
+
+Stop reading code and ask the user for a crash report, screenshot, or Xcode/Android Studio run when any of these apply:
+- Crash is in native code but you only have Flutter console output — a symbolicated stack trace (Xcode crash report, `adb logcat`) gives thread state and exact crash site.
+- 2+ competing hypotheses and you can't falsify them statically — runtime state is the arbiter.
+- You've opened ~8+ files without converging on a hypothesis.
+- Crash involves async ordering or threading — static analysis can't reveal this.
+- You've reached Pods, `build/`, or compiled artifacts — ask for symbolicated output instead.
+
 ## Testing (marionette / web preview)
 
 Example app is the canonical E2E smoke test. Full operational guide: `docs/agent-testing.md`.
