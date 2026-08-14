@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **iOS custom fonts now apply to headings in unstyled publications/WebPubs.**
 - **Reader could report `ready` and then never emit a text locator (iOS, Android).**
   Locator enrichment (a JavaScript page-info call plus a ToC lookup) was unbounded, so a
   stalled platform webview silently froze `onTextLocatorChanged` for good. Enrichment now

@@ -128,8 +128,9 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
 
-    // TODO: Use config.readiumCSSRSProperties.overrides to add custom CSS variables
-    //config.readiumCSSRSProperties.overrides = [:]
+    // Readium CSS fixed custom fonts not applying to headings (https://github.com/readium/css/issues/147),
+    // but swift-toolkit has not bundled the fix yet. Remove this override once it updates its CSS.
+    config.readiumCSSRSProperties.overrides["--RS__compFontFamily"] = "var(--USER__fontFamily, var(--RS__baseFontFamily))"
 
     config.contentInset = [
       .compact: (top: 0, bottom: 0),
