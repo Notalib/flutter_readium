@@ -14,7 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.3.3] - 2026-08-04
 
-## [0.3.2] - 2026-08-03
+Bundle built javascript helpers, previously accidentally skipped by release pipeline.
 
 ## [0.3.1] - 2026-07-24
 
