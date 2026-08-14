@@ -53,3 +53,11 @@ flutter:
   assets:
     - assets/pubs/
     - assets/webManifestList.json
+  fonts:
+    - family: OpenDyslexic
+      fonts:
+        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Bold_Italic.otf
+        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Bold.otf
+        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Italic.otf
+        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Regular.otf
+          weight: 700
