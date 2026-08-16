@@ -22,6 +22,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onImageTapped,
     this.selectionActions,
     this.allowedDefaultActions,
+    this.fontFamilyDeclarations = const [],
     super.key,
   });
 
@@ -40,6 +41,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final ValueChanged<ImageTapEvent>? onImageTapped;
   final List<SelectionAction>? selectionActions;
   final Set<DefaultSelectionAction>? allowedDefaultActions;
+  final List<ReaderFontFamily> fontFamilyDeclarations;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();
@@ -65,6 +67,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     child: ReadiumWebView(
       publication: widget.publication,
       currentLocator: widget.initialLocator,
+      fontFamilyDeclarations: widget.fontFamilyDeclarations,
       onTextSelected: widget.onTextSelected,
       onSelectionAction: widget.onSelectionAction,
       onDecorationInteraction: widget.onDecorationInteraction,

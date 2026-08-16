@@ -128,6 +128,11 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
 
+    config.fontFamilyDeclarations = customFontFamilyDeclarations(
+      from: creationParams["fontFamilyDeclarations"],
+      registrar: registrar
+    )
+
     // Readium CSS fixed custom fonts not applying to headings (https://github.com/readium/css/issues/147),
     // but swift-toolkit has not bundled the fix yet. Remove this override once it updates its CSS.
     config.readiumCSSRSProperties.overrides["--RS__compFontFamily"] = "var(--USER__fontFamily, var(--RS__baseFontFamily))"
@@ -258,6 +263,63 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     })
 
     Log.reader.debug("init success")
+  }
+
+  private func customFontFamilyDeclarations(
+    from value: Any?,
+    registrar: FlutterPluginRegistrar
+  ) -> [AnyHTMLFontFamilyDeclaration] {
+    guard let families = value as? [[String: Any]] else { return [] }
+
+    return families.compactMap { family in
+      guard let name = family["name"] as? String, !name.isEmpty,
+            let faceMaps = family["faces"] as? [[String: Any]], !faceMaps.isEmpty else {
+        Log.reader.error("Invalid custom font family declaration; skipping family")
+        return nil
+      }
+
+      let fallbackNames = family["fallbacks"] as? [String] ?? []
+      guard fallbackNames.allSatisfy({ !$0.isEmpty }) else {
+        Log.reader.error("Invalid custom font fallback in family: \(name)")
+        return nil
+      }
+      let alternates = fallbackNames.map(FontFamily.init(rawValue:))
+      let faces = faceMaps.map { face -> CSSFontFace? in
+        guard let asset = face["asset"] as? String, !asset.isEmpty,
+              let styleName = face["style"] as? String,
+              let style = CSSFontStyle(rawValue: styleName),
+              let weight = face["weight"] as? Int,
+              (1...1000).contains(weight) else {
+          Log.reader.error("Invalid custom font face in family: \(name)")
+          return nil
+        }
+        let assetKey = registrar.lookupKey(forAsset: asset)
+        guard
+              let path = Bundle.main.path(forResource: assetKey, ofType: nil),
+              let file = FileURL(path: path, isDirectory: false) else {
+          Log.reader.error("Missing custom font asset in family \(name): \(asset)")
+          return nil
+        }
+
+        let cssWeight: CSSFontWeight
+        if let standardWeight = CSSStandardFontWeight(rawValue: weight) {
+          cssWeight = .standard(standardWeight)
+        } else {
+          cssWeight = .variable(weight...weight)
+        }
+        return CSSFontFace(file: file, style: style, weight: cssWeight)
+      }
+
+      guard faces.allSatisfy({ $0 != nil }) else {
+        Log.reader.error("Invalid custom font family declaration: \(name)")
+        return nil
+      }
+      return CSSFontFamilyDeclaration(
+        fontFamily: FontFamily(rawValue: name),
+        alternates: alternates,
+        fontFaces: faces.compactMap { $0 }
+      ).eraseToAnyHTMLFontFamilyDeclaration()
+    }
   }
 
   func middleTapHandler() {
