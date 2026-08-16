@@ -1,6 +1,6 @@
 buildscript {
   ext.kotlin_version = '2.3.21'
-  ext.readium_version = '3.2.0'
+  ext.readium_version = '3.3.0'
 
   repositories {
     google()
