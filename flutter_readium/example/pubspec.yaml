@@ -52,12 +52,5 @@ flutter:
     enable-swift-package-manager: false
   assets:
     - assets/pubs/
+    - assets/fonts/AtkinsonHyperlegible/
     - assets/webManifestList.json
-  fonts:
-    - family: OpenDyslexic
-      fonts:
-        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Bold_Italic.otf
-        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Bold.otf
-        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Italic.otf
-        - asset: assets/fonts/OpenDyslexic/OpenDyslexic_Regular.otf
-          weight: 700
