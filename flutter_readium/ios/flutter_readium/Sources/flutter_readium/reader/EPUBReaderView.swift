@@ -128,7 +128,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
 
-    config.fontFamilyDeclarations = customFontFamilyDeclarations(
+    config.fontFamilyDeclarations = Self.customFontFamilyDeclarations(
       from: creationParams["fontFamilyDeclarations"],
       registrar: registrar
     )
@@ -265,7 +265,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("init success")
   }
 
-  private func customFontFamilyDeclarations(
+  private static func customFontFamilyDeclarations(
     from value: Any?,
     registrar: FlutterPluginRegistrar
   ) -> [AnyHTMLFontFamilyDeclaration] {
