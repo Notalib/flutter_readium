@@ -29,8 +29,11 @@ import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.SelectableNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
+import org.readium.r2.navigator.epub.css.FontStyle
+import org.readium.r2.navigator.epub.css.FontWeight
 import org.readium.r2.navigator.html.HtmlDecorationTemplate
 import org.readium.r2.navigator.html.HtmlDecorationTemplates
+import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.InternalReadiumApi
@@ -620,9 +623,10 @@ class EpubReaderFragment :
                     // To reference assets from other flutter packages use 'flutter_assets/packages/<package>/assets/.*'
                     // Readium uses WebViewAssetLoader.AssetsPathHandler under the surface.
                     servedAssets =
-                        listOf(
-                            "flutter_assets/packages/flutter_readium/assets/.*",
-                        ),
+                        listOf("flutter_assets/packages/flutter_readium/assets/.*") +
+                            model.fontFamilyDeclarations.flatMap { family ->
+                                family.faces.map { face -> face.asset }
+                            },
                     // Use experimentalPositioning in decoration templates. It places highlights behind text, instead of on top.
                     decorationTemplates =
                         HtmlDecorationTemplates
@@ -640,6 +644,29 @@ class EpubReaderFragment :
                             null
                         },
                 ).apply {
+                    model.fontFamilyDeclarations.forEach { family ->
+                        addFontFamilyDeclaration(
+                            FontFamily(family.name),
+                            family.fallbacks.map(::FontFamily),
+                        ) {
+                            family.faces.forEach { face ->
+                                addFontFace {
+                                    addSource(face.asset)
+                                    setFontStyle(
+                                        when (face.style) {
+                                            dk.nota.flutterreadium.ReaderFontStyle.NORMAL -> FontStyle.NORMAL
+                                            dk.nota.flutterreadium.ReaderFontStyle.ITALIC -> FontStyle.ITALIC
+                                        },
+                                    )
+                                    FontWeight.entries
+                                        .firstOrNull { it.value == face.weight }
+                                        ?.let(::setFontWeight)
+                                        ?: setFontWeight(face.weight..face.weight)
+                                }
+                            }
+                        }
+                    }
+
                     // Register JS→native bridge for window.updateNarrationSync(bool).
                     registerJavascriptInterface(NarrationSyncInterface.JS_NAME) { _ -> NarrationSyncInterface(ReadiumReader) }
 

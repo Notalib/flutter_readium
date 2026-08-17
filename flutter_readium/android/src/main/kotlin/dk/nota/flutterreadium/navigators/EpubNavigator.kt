@@ -6,6 +6,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import dk.nota.flutterreadium.FlutterEpubPreferences
 import dk.nota.flutterreadium.PluginLog
+import dk.nota.flutterreadium.ReaderFontFamily
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.ReadiumReaderWidget.Companion.NAVIGATOR_FRAGMENT_TAG
 import dk.nota.flutterreadium.fragments.EpubReaderFragment
@@ -52,14 +53,18 @@ class EpubNavigator :
         visualListener: VisualListener,
         initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences(),
         initialDecorations: MutableMap<String, List<Decoration>> = mutableMapOf(),
+        fontFamilyDeclarations: List<ReaderFontFamily> = emptyList(),
     ) : super(publication, initialLocator) {
         this.preferences = initialPreferences
         this.visualListener = visualListener
         this.currentDecorations = initialDecorations
         this.currentVisualLocator = initialLocator
+        this.fontFamilyDeclarations = fontFamilyDeclarations
     }
 
     private var currentDecorations: MutableMap<String, List<Decoration>> = mutableMapOf()
+
+    private var fontFamilyDeclarations: List<ReaderFontFamily> = emptyList()
 
     val visualListener: VisualListener
 
@@ -139,6 +144,7 @@ class EpubNavigator :
                         navigatorFactory = EpubNavigatorFactory(publication)
                         locator = this@EpubNavigator.initialLocator
                         preferences = this@EpubNavigator.preferences
+                        fontFamilyDeclarations = this@EpubNavigator.fontFamilyDeclarations
                     }
                 listener = this@EpubNavigator
             }

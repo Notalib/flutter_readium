@@ -40,6 +40,7 @@ import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
 import { injectMOBreakCSSIntoWindow } from "./utils/iframeInjection";
+import { FontFamilyDeclaration, injectFontFacesIntoWindow, parseFontFamilyDeclarations } from "./fonts/FontFamilyDeclarations";
 // Errors
 import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from "./errors/ReadiumWebError";
 
@@ -327,7 +328,8 @@ class _ReadiumReader {
     publicationURL: string,
     pubId: string,
     initialPositionJson: string | undefined,
-    preferencesJson: string | undefined
+    preferencesJson: string | undefined,
+    fontFamilyDeclarationsJson: string | undefined
   ) {
     log.info("openPublication", { pubId, hasInitialPosition: !!initialPositionJson });
 
@@ -346,6 +348,8 @@ class _ReadiumReader {
 
     let preferencesJsonString =
       !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
+    const fontFamilyDeclarations: FontFamilyDeclaration[] =
+      parseFontFamilyDeclarations(fontFamilyDeclarationsJson);
 
     try {
       // TODO: match native
@@ -398,13 +402,15 @@ class _ReadiumReader {
             (positions) => { this._positions = positions; },
             (json) => { this._bridge.emitImageTapped(json); },
             (wnd) => {
+              injectFontFacesIntoWindow(wnd, fontFamilyDeclarations);
               // Re-inject MO column-break CSS into freshly-loaded frames when MO is active.
               // Use direct DOM manipulation — window.flutterReadium is deferred by rAF
               // inside the helper script and may not exist yet at frameLoaded time.
               if (this._audioNav && this._preventMOColumnBreaks) {
                 injectMOBreakCSSIntoWindow(wnd);
               }
-            }
+            },
+            fontFamilyDeclarations
           );
         } else if (this._publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
@@ -433,7 +439,8 @@ class _ReadiumReader {
             (nav) => {
               this._nav = nav;
               this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
-            }
+            },
+            fontFamilyDeclarations
           );
         }
       }

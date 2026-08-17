@@ -8,7 +8,14 @@ import '../state/publication_bloc.dart';
 import '../state/text_settings_bloc.dart';
 import 'index.dart';
 
-const List<String> _fontFamilies = ['Original', 'serif', 'sans-serif', 'monospace', 'OpenDyslexic'];
+const List<String> _fontFamilies = [
+  'Original',
+  'serif',
+  'sans-serif',
+  'monospace',
+  'OpenDyslexic',
+  'Atkinson Hyperlegible',
+];
 
 enum _Section { text, layout, theme }
 

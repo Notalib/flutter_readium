@@ -19,6 +19,7 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { injectDecorationOverrides } from "../decorations/decorationFrameUtils";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
 import { enrichWithTotalProgression } from "./locatorEnrich";
 import {
   scrollVisibleIframes,
@@ -38,7 +39,8 @@ export class FlutterWebPubNavigator {
     publication: ReadiumPublication,
     initialPosition: Locator | undefined,
     preferencesJsonString: string,
-    setNav: (nav: WebPubNavigator) => void
+    setNav: (nav: WebPubNavigator) => void,
+    fontFamilyDeclarations: FontFamilyDeclaration[] = []
   ): Promise<void> {
     log.info("Initializing WebPubNavigator");
     const preferences = initializeWebPubPreferencesFromString(preferencesJsonString);
@@ -90,6 +92,7 @@ export class FlutterWebPubNavigator {
           if (frameManager) {
             p.observe(frameManager.window);
             injectDecorationOverrides(frameManager.window);
+            injectFontFacesIntoWindow(frameManager.window, fontFamilyDeclarations);
           }
         });
         p.observe(window);

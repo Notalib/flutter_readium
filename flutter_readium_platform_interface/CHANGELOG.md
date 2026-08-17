@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `ReaderFontFamily`, `ReaderFontFace`, and `ReaderFontStyle` models for declaring
+  app-supplied static reader fonts on `ReadiumReaderWidget`.
+
 ## [0.3.3] - 2026-08-04
 
 Bundle built javascript helpers, previously accidentally skipped by release pipeline.

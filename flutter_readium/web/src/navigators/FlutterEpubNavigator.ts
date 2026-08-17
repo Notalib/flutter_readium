@@ -24,6 +24,7 @@ import {
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
 import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
@@ -60,6 +61,7 @@ export class FlutterEpubNavigator {
     setPositions?: (positions: Locator[]) => void,
     emitImageTapped?: (json: string) => void,
     onFrameLoaded?: (wnd: Window) => void,
+    fontFamilyDeclarations: FontFamilyDeclaration[] = [],
   ): Promise<FlutterEpubNavigator> {
     log.info("Initializing EpubNavigator");
     let positions = await publication.positionsFromManifest();
@@ -145,6 +147,7 @@ export class FlutterEpubNavigator {
                 })
                 .filter((id) => id.length > 0);
               injectFlutterReadiumHelperScripts(frameManager.window, tocFragmentIds);
+              injectFontFacesIntoWindow(frameManager.window, fontFamilyDeclarations);
               onFrameLoaded?.(frameManager.window);
             }
           }

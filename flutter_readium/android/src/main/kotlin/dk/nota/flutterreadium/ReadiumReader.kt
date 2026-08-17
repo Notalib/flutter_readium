@@ -925,6 +925,7 @@ object ReadiumReader :
     suspend fun epubEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -948,7 +949,13 @@ object ReadiumReader :
                 return@withMainContext
             } // Already enabled - assume from restored state.
 
-            EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
+            EpubNavigator(
+                pub,
+                initialLocator,
+                this@ReadiumReader,
+                initialPreferences,
+                fontFamilyDeclarations = fontFamilyDeclarations,
+            ).apply {
                 initNavigator()
                 visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
@@ -1161,6 +1168,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1186,9 +1194,24 @@ object ReadiumReader :
                     ?.matches(MediaType.CBZ) == true
 
         when {
-            isPdf -> pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            isComic -> comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            else -> epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+            isPdf -> {
+                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            isComic -> {
+                comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            else -> {
+                epubEnable(
+                    initialLocator,
+                    initialPreferences,
+                    fontFamilyDeclarations,
+                    fragmentManager,
+                    viewGroup,
+                    readerWidget,
+                )
+            }
         }
     }
 
