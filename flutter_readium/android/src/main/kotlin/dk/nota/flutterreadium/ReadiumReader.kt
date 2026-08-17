@@ -1232,6 +1232,11 @@ object ReadiumReader :
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
+        // Destroy any previous TTS session to prevent double playback if the
+        // old navigator's engine survived a background interruption.
+        ttsNavigator?.dispose()
+        ttsNavigator = null
+
         currentPublication?.let {
             applyPageBreakBehavior(ttsPrefs)
             ttsNavigator =

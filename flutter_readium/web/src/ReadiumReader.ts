@@ -330,6 +330,12 @@ class _ReadiumReader {
     preferencesJson: string | undefined
   ) {
     log.info("openPublication", { pubId, hasInitialPosition: !!initialPositionJson });
+
+    // Close any previously-opened publication/navigator to match iOS and Android behavior.
+    // Without this, stale events (locator changes, media-overlay sync) from the old navigator
+    // would leak into the new publication's session.
+    this.closePublication();
+
     this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
 
     let initialPosition: Locator | undefined;
@@ -340,17 +346,6 @@ class _ReadiumReader {
 
     let preferencesJsonString =
       !preferencesJson || preferencesJson === "null" ? "{}" : preferencesJson;
-
-    // Reset per-publication state so stale values don't bleed across openPublication calls.
-    this._hasSyncNarration = false;
-    this._hasGuidedNavigation = false;
-    this._syncItems = [];
-    this._positions = [];
-    this._stoppedAudioLocator = undefined;
-    this._activeAudioPreferencesJson = "{}";
-    this._lastDeferredSyncLocator = null;
-    this._lastDeferredSyncDurationMs = undefined;
-    this._narrationSyncEnabled = true;
 
     try {
       // TODO: match native
