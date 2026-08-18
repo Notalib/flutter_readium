@@ -5,6 +5,31 @@ import 'package:flutter_readium/flutter_readium.dart';
 import '../state/index.dart';
 import 'full_screen_image_view.dart';
 
+final _customFontFamilies = [
+  ReaderFontFamily(
+    name: 'Atkinson Hyperlegible',
+    fallbacks: const ['sans-serif'],
+    faces: const [
+      ReaderFontFace(
+        asset: 'assets/fonts/AtkinsonHyperlegible/AtkinsonHyperlegible-Regular.ttf',
+      ),
+      ReaderFontFace(
+        asset: 'assets/fonts/AtkinsonHyperlegible/AtkinsonHyperlegible-Italic.ttf',
+        style: ReaderFontStyle.italic,
+      ),
+      ReaderFontFace(
+        asset: 'assets/fonts/AtkinsonHyperlegible/AtkinsonHyperlegible-Bold.ttf',
+        weight: 700,
+      ),
+      ReaderFontFace(
+        asset: 'assets/fonts/AtkinsonHyperlegible/AtkinsonHyperlegible-BoldItalic.ttf',
+        style: ReaderFontStyle.italic,
+        weight: 700,
+      ),
+    ],
+  ),
+];
+
 class ReaderWidget extends StatelessWidget {
   const ReaderWidget({this.shouldShowControls, super.key});
 
@@ -47,6 +72,7 @@ class ReaderWidget extends StatelessWidget {
               ReadiumReaderWidget(
                 publication: state.publication!,
                 initialLocator: state.initialLocator,
+                fontFamilyDeclarations: _customFontFamilies,
                 shouldShowControls: shouldShowControls,
                 allowedDefaultActions: const {
                   DefaultSelectionAction.copy,

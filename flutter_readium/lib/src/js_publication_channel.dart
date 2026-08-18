@@ -12,6 +12,7 @@ extension type ReadiumReader._(JSObject _) implements JSObject {
     JSString pubId,
     JSString? initialPositionJson,
     JSString preferencesJson,
+    JSString? fontFamilyDeclarationsJson,
   );
   external JSPromise<JSString> getPublication(JSString link);
   external JSPromise goTo(JSString locatorJson);
@@ -95,6 +96,7 @@ class JsPublicationChannel {
     required String pubId,
     required String initialPreferences,
     String? initialPositionJson,
+    String fontFamilyDeclarationsJson = '[]',
   }) async {
     try {
       await _readiumReader
@@ -103,6 +105,7 @@ class JsPublicationChannel {
             pubId.toJS,
             initialPositionJson?.toJS,
             initialPreferences.toJS,
+            fontFamilyDeclarationsJson.toJS,
           )
           .toDart;
     } on Object catch (jsError, stackTrace) {

@@ -5,6 +5,51 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('ReaderFontFamily', () {
+    test('round-trips static faces through map serialization', () {
+      final family = ReaderFontFamily(
+        name: 'Atkinson Hyperlegible',
+        fallbacks: ['sans-serif'],
+        faces: [
+          ReaderFontFace(asset: 'assets/fonts/Atkinson-Regular.ttf'),
+          ReaderFontFace(
+            asset: 'assets/fonts/Atkinson-Italic.ttf',
+            style: ReaderFontStyle.italic,
+          ),
+          ReaderFontFace(
+            asset: 'assets/fonts/Atkinson-Bold.ttf',
+            weight: 700,
+          ),
+          ReaderFontFace(
+            asset: 'assets/fonts/Atkinson-BoldItalic.ttf',
+            style: ReaderFontStyle.italic,
+            weight: 700,
+          ),
+        ],
+      );
+
+      final restored = ReaderFontFamily.fromMap(family.toMap());
+
+      expect(restored.name, family.name);
+      expect(restored.fallbacks, family.fallbacks);
+      expect(
+        restored.faces.map((face) => face.toMap()),
+        family.faces.map((face) => face.toMap()),
+      );
+    });
+
+    test('rejects an empty faces list from serialized input', () {
+      expect(
+        () => ReaderFontFamily.fromMap({
+          'name': 'Empty',
+          'fallbacks': <String>[],
+          'faces': <Map<String, Object>>[],
+        }),
+        throwsArgumentError,
+      );
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Locator serialisation
   // ---------------------------------------------------------------------------

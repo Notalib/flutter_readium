@@ -26,6 +26,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.onDecorationInteraction,
     this.onImageTapped,
     this.selectionActions = const [],
+    this.fontFamilyDeclarations = const [],
     this.allowedDefaultActions,
     this.goBackwardSemanticLabel = 'Go Backward',
     this.goForwardSemanticLabel = 'Go Forward',
@@ -70,6 +71,9 @@ class ReadiumReaderWidget extends StatefulWidget {
 
   /// Native context menu actions shown when text is selected.
   final List<SelectionAction> selectionActions;
+
+  /// Static font families whose faces are bundled as Flutter assets.
+  final List<ReaderFontFamily> fontFamilyDeclarations;
 
   /// Controls which system-provided actions appear in the text selection menu.
   ///
@@ -300,6 +304,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
+      'fontFamilyDeclarations': widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
       if (widget.allowedDefaultActions != null)

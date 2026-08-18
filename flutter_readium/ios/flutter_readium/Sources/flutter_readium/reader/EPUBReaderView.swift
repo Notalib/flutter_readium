@@ -20,6 +20,11 @@ import UIKit
 /// only ever be declared here, never added by an extension.
 public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, EPUBNavigatorDelegate, VisualNavigatorDelegate, SelectableNavigatorDelegate {
 
+  /// How long locator enrichment (JS page-info + ToC lookup) may take before the raw locator
+  /// is emitted instead. Generous for a healthy webview, short enough that a stalled one
+  /// doesn't silently freeze the text-locator stream.
+  private static let locatorEnrichmentTimeoutSeconds: UInt64 = 5
+
   let channel: ReadiumReaderChannel
   let containerView: EPUBContainerView
   let readiumViewController: EPUBNavigatorViewController
@@ -123,8 +128,14 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // See EPUBNavigatorViewController.swift in r2-navigator-swift.
     var config = EPUBNavigatorViewController.Configuration()
 
-    // TODO: Use config.readiumCSSRSProperties.overrides to add custom CSS variables
-    //config.readiumCSSRSProperties.overrides = [:]
+    config.fontFamilyDeclarations = Self.customFontFamilyDeclarations(
+      from: creationParams["fontFamilyDeclarations"],
+      registrar: registrar
+    )
+
+    // Readium CSS fixed custom fonts not applying to headings (https://github.com/readium/css/issues/147),
+    // but swift-toolkit has not bundled the fix yet. Remove this override once it updates its CSS.
+    config.readiumCSSRSProperties.overrides["--RS__compFontFamily"] = "var(--USER__fontFamily, var(--RS__baseFontFamily))"
 
     config.contentInset = [
       .compact: (top: 0, bottom: 0),
@@ -254,6 +265,63 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("init success")
   }
 
+  private static func customFontFamilyDeclarations(
+    from value: Any?,
+    registrar: FlutterPluginRegistrar
+  ) -> [AnyHTMLFontFamilyDeclaration] {
+    guard let families = value as? [[String: Any]] else { return [] }
+
+    return families.compactMap { family in
+      guard let name = family["name"] as? String, !name.isEmpty,
+            let faceMaps = family["faces"] as? [[String: Any]], !faceMaps.isEmpty else {
+        Log.reader.error("Invalid custom font family declaration; skipping family")
+        return nil
+      }
+
+      let fallbackNames = family["fallbacks"] as? [String] ?? []
+      guard fallbackNames.allSatisfy({ !$0.isEmpty }) else {
+        Log.reader.error("Invalid custom font fallback in family: \(name)")
+        return nil
+      }
+      let alternates = fallbackNames.map(FontFamily.init(rawValue:))
+      let faces = faceMaps.map { face -> CSSFontFace? in
+        guard let asset = face["asset"] as? String, !asset.isEmpty,
+              let styleName = face["style"] as? String,
+              let style = CSSFontStyle(rawValue: styleName),
+              let weight = face["weight"] as? Int,
+              (1...1000).contains(weight) else {
+          Log.reader.error("Invalid custom font face in family: \(name)")
+          return nil
+        }
+        let assetKey = registrar.lookupKey(forAsset: asset)
+        guard
+              let path = Bundle.main.path(forResource: assetKey, ofType: nil),
+              let file = FileURL(path: path, isDirectory: false) else {
+          Log.reader.error("Missing custom font asset in family \(name): \(asset)")
+          return nil
+        }
+
+        let cssWeight: CSSFontWeight
+        if let standardWeight = CSSStandardFontWeight(rawValue: weight) {
+          cssWeight = .standard(standardWeight)
+        } else {
+          cssWeight = .variable(weight...weight)
+        }
+        return CSSFontFace(file: file, style: style, weight: cssWeight)
+      }
+
+      guard faces.allSatisfy({ $0 != nil }) else {
+        Log.reader.error("Invalid custom font family declaration: \(name)")
+        return nil
+      }
+      return CSSFontFamilyDeclaration(
+        fontFamily: FontFamily(rawValue: name),
+        alternates: alternates,
+        fontFaces: faces.compactMap { $0 }
+      ).eraseToAnyHTMLFontFamilyDeclaration()
+    }
+  }
+
   func middleTapHandler() {
     Log.reader.debug("EPUBNavigatorDelegate.middleTapHandler")
   }
@@ -363,18 +431,27 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     Log.reader.debug("emitOnPageChanged, locator: \(locator)")
 
     Task.detached(priority: .high) { [locator] in
-      /// Enrich Locator with PageInformation and ToC.
-      var resultLocator = locator
-      if let pageInfo = await self.getPageInformation() {
-        resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+      /// Enrich Locator with PageInformation and ToC — bounded, because upstream's
+      /// `EPUBSpreadView.evaluateScript` awaits `spreadLoaded()` with no timeout, so a stalled
+      /// webview would freeze this stream forever after `ready` was already reported.
+      let enriched = await withTimeout(seconds: Self.locatorEnrichmentTimeoutSeconds) { [locator] in
+        var resultLocator = locator
+        if let pageInfo = await self.getPageInformation() {
+          resultLocator.locations.otherLocations.merge(pageInfo.otherLocations, uniquingKeysWith: { lhs, rhs in lhs })
+        }
+        if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
+          resultLocator.title = tocLink.title
+          resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+        }
+        return resultLocator
       }
-      if let tocLink = try? await FlutterReadiumPlugin.instance?.currentTocLinkFromLocator(resultLocator) {
-        resultLocator.title = tocLink.title
-        resultLocator.locations.otherLocations["tocHref"] = .string(tocLink.href)
+
+      if enriched == nil {
+        Log.reader.warn("emitOnPageChanged: enrichment timed out after \(Self.locatorEnrichmentTimeoutSeconds)s; emitting un-enriched locator")
       }
 
       /// Immutable ref, so that we can use it on the main thread
-      let finalLocator = resultLocator
+      let finalLocator = enriched ?? locator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
         FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())

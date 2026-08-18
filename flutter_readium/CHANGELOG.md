@@ -11,9 +11,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   system media controls such as headphones, iOS Control Center, and Android
   media-session controls.
 
+## [0.4.0] - 2026-08-17
+
+### Added
+
+- **App-supplied static EPUB fonts on iOS, Android, and Web.**
+  `ReadiumReaderWidget.fontFamilyDeclarations` registers Flutter font assets with each
+  platform navigator, including normal/italic styles, numeric weights, and fallback families.
+
+### Fixed
+
+- **Bundled OpenDyslexic now loads on Android.**
+  Kotlin Toolkit 3.2.0 served its embedded font from a separate WebView origin without a
+  CORS response header. Android now uses Kotlin Toolkit 3.3.0, which fixes asset font loading.
+- **iOS custom fonts now apply to headings in unstyled publications/WebPubs.**
+- **Reader could report `ready` and then never emit a text locator (iOS, Android).**
+  Locator enrichment (a JavaScript page-info call plus a ToC lookup) was unbounded, so a
+  stalled platform webview silently froze `onTextLocatorChanged` for good. Enrichment now
+  times out after 5 seconds and the un-enriched locator is emitted instead.
+
 ## [0.3.3] - 2026-08-04
 
-## [0.3.2] - 2026-08-03
+Bundle built javascript helpers, previously accidentally skipped by release pipeline.
 
 ## [0.3.1] - 2026-07-24
 

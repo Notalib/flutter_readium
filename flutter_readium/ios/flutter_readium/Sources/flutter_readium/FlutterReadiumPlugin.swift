@@ -229,6 +229,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
 
           Task { @MainActor in
+            // Destroy any previous TTS session to prevent double playback if the
+            // old navigator's synthesizer survived a background interruption.
+            self.timebasedNavigator?.dispose()
+            self.timebasedNavigator = nil
+
             // Start TTS from the reader's current location
             self.applyPageBreakBehavior(from: ttsPrefs)
             let currentLocation = self.currentReaderView?.getCurrentLocation()
@@ -441,6 +446,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Task.detached(priority: .high) {
+        // Destroy any previous audio/TTS session to prevent double playback.
+        await MainActor.run {
+          self.timebasedNavigator?.dispose()
+          self.timebasedNavigator = nil
+        }
+
         // Get preferences via arg, or use defaults (empty map).
         let prefsMap = args[0] as? Dictionary<String, Any>,
             prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])

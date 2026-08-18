@@ -42,3 +42,24 @@ extension Array {
     }
 }
 
+/// Runs `operation`, returning nil if it doesn't finish within `seconds`.
+///
+/// The timed-out task is not actually cancelled, so only use this on work that is safe to
+/// leave running — Readium's JS-evaluation continuations, for one, ignore cancellation.
+func withTimeout<T: Sendable>(
+  seconds: UInt64,
+  _ operation: @escaping @Sendable () async -> T
+) async -> T? {
+  await withTaskGroup(of: T?.self) { group in
+    group.addTask { await operation() }
+    group.addTask {
+      // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
+      try? await Task.sleep(nanoseconds: seconds * NSEC_PER_SEC)
+      return nil
+    }
+    let first = await group.next() ?? nil
+    group.cancelAll()
+    return first
+  }
+}
+

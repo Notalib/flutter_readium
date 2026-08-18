@@ -463,6 +463,16 @@ object ReadiumReader :
     }
 
     fun detach() {
+        // `detach()` runs twice on shutdown: once from `onDetachedFromActivity` and once
+        // from `onDetachedFromEngine`. The first call clears `appRef`, so the second one
+        // crashes the app in `closePublication() -> ResourceFileCache.purgeAll()`, which
+        // reads `application` and throws IllegalStateException. Nothing is left to release
+        // at that point, so return early.
+        if (appRef?.get() == null && activityRef?.get() == null) {
+            PluginLog.d(TAG, "::detach - already detached, nothing to do")
+            return
+        }
+
         closePublication()
 
         appRef?.clear()
@@ -925,6 +935,7 @@ object ReadiumReader :
     suspend fun epubEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -948,7 +959,13 @@ object ReadiumReader :
                 return@withMainContext
             } // Already enabled - assume from restored state.
 
-            EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
+            EpubNavigator(
+                pub,
+                initialLocator,
+                this@ReadiumReader,
+                initialPreferences,
+                fontFamilyDeclarations = fontFamilyDeclarations,
+            ).apply {
                 initNavigator()
                 visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
@@ -1161,6 +1178,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1186,9 +1204,24 @@ object ReadiumReader :
                     ?.matches(MediaType.CBZ) == true
 
         when {
-            isPdf -> pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            isComic -> comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            else -> epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+            isPdf -> {
+                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            isComic -> {
+                comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            else -> {
+                epubEnable(
+                    initialLocator,
+                    initialPreferences,
+                    fontFamilyDeclarations,
+                    fragmentManager,
+                    viewGroup,
+                    readerWidget,
+                )
+            }
         }
     }
 
@@ -1232,6 +1265,11 @@ object ReadiumReader :
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
+        // Destroy any previous TTS session to prevent double playback if the
+        // old navigator's engine survived a background interruption.
+        ttsNavigator?.dispose()
+        ttsNavigator = null
+
         currentPublication?.let {
             applyPageBreakBehavior(ttsPrefs)
             ttsNavigator =

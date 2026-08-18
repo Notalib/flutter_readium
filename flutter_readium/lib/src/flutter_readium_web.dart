@@ -227,6 +227,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
           initialPreferences: json.encode(
             defaultPreferences?.toJson() ?? <String, dynamic>{},
           ),
+          fontFamilyDeclarationsJson: '[]',
         );
       } on PlatformException catch (e) {
         throw ReadiumException.fromPlatformException(e);

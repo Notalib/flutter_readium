@@ -15,6 +15,7 @@ import dk.nota.flutterreadium.fragments.EpubReaderFragment
 import dk.nota.flutterreadium.fragments.PdfReaderFragment
 import dk.nota.flutterreadium.models.PageInformation
 import dk.nota.flutterreadium.navigators.EpubNavigator
+import io.flutter.FlutterInjector
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -26,6 +27,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
@@ -33,6 +35,10 @@ import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val TAG = "ReadiumReaderView"
 internal const val VIEW_TYPE_CHANNEL_NAME = "dk.nota.flutter_readium/ReadiumReaderWidget"
+
+// How long locator enrichment (JS page-info + ToC lookup) may take before the raw locator
+// is emitted instead. Mirrors `locatorEnrichmentTimeoutSeconds` on iOS.
+private const val LOCATOR_ENRICHMENT_TIMEOUT_MS = 5000L
 
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -109,6 +115,10 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
+        val fontFamilyDeclarations =
+            ReaderFontFamily.fromList(creationParams["fontFamilyDeclarations"]) { asset ->
+                FlutterInjector.instance().flutterLoader().getLookupKeyForAsset(asset)
+            }
 
         // Accepted for API parity with iOS but currently no-op: kotlin-toolkit's
         // EpubNavigatorFragment.Configuration does not expose preload-count fields
@@ -162,6 +172,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.visualEnable(
                     initialLocator,
                     initialPreferences,
+                    fontFamilyDeclarations,
                     fragmentManager,
                     layout,
                     this@ReadiumReaderWidget,
@@ -270,43 +281,59 @@ class ReadiumReaderWidget(
         totalPages: Int,
         locator: Locator,
     ) {
-        var emittingLocator = locator
         try {
-            when {
-                ReadiumReader.isPdf -> {
-                    // Enrich PDF locator with the current TOC chapter title/href by
-                    // matching "#page=N" fragments from the publication's table of contents.
-                    emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
-                }
-
-                ReadiumReader.isComic -> {
-                    // Comic (CBZ/DiViNa): no JS webview — just emit the locator as-is.
-                    // ImageNavigatorFragment already produces a correct position-bearing locator.
-                }
-
-                else -> {
-                    // EPUB: JS page-info eval + TOC href enrichment.
-                    try {
-                        evaluateJavascript("window.flutterReadium.getPageInformation()")
-                            ?.let {
-                                PageInformation.fromJson(
-                                    it,
-                                    locator.href,
-                                )
-                            }?.let { pageInfo ->
-                                emittingLocator =
-                                    emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
-                            } ?: {
-                            PluginLog.d(TAG, "::emitOnPageChanged - no page information")
+            // Bounded: the EPUB branch evaluates JS, which a stalled webview can leave pending
+            // forever — freezing this stream after Ready was already reported.
+            val enriched =
+                withTimeoutOrNull(LOCATOR_ENRICHMENT_TIMEOUT_MS) {
+                    var emittingLocator = locator
+                    when {
+                        ReadiumReader.isPdf -> {
+                            // Enrich PDF locator with the current TOC chapter title/href by
+                            // matching "#page=N" fragments from the publication's table of contents.
+                            emittingLocator = ReadiumReader.pdfEnrichLocatorWithTocHref(emittingLocator)
                         }
-                    } catch (e: Error) {
-                        PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
-                    }
 
-                    emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
-                    emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
+                        ReadiumReader.isComic -> {
+                            // Comic (CBZ/DiViNa): no JS webview — just emit the locator as-is.
+                            // ImageNavigatorFragment already produces a correct position-bearing locator.
+                        }
+
+                        else -> {
+                            // EPUB: JS page-info eval + TOC href enrichment.
+                            try {
+                                evaluateJavascript("window.flutterReadium.getPageInformation()")
+                                    ?.let {
+                                        PageInformation.fromJson(
+                                            it,
+                                            locator.href,
+                                        )
+                                    }?.let { pageInfo ->
+                                        emittingLocator =
+                                            emittingLocator.copyWithAdditionalLocations(pageInfo.otherLocations)
+                                    } ?: run {
+                                    PluginLog.d(TAG, "::emitOnPageChanged - no page information")
+                                }
+                            } catch (e: Error) {
+                                PluginLog.d(TAG, "::emitOnPageChanged - pageInformation error: $e")
+                            }
+
+                            emittingLocator = emittingLocator.addPageNumber(pageIndex, totalPages)
+                            emittingLocator = ReadiumReader.epubEnrichLocatorWithTocHref(emittingLocator)
+                        }
+                    }
+                    emittingLocator
                 }
+
+            if (enriched == null) {
+                PluginLog.w(
+                    TAG,
+                    "::emitOnPageChanged - enrichment timed out after ${LOCATOR_ENRICHMENT_TIMEOUT_MS}ms; " +
+                        "emitting un-enriched locator",
+                )
             }
+
+            val emittingLocator = enriched ?: locator
 
             channel.onPageChanged(emittingLocator)
             ReadiumReader.emitTextLocatorUpdate(emittingLocator)
