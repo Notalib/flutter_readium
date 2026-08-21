@@ -84,21 +84,23 @@ class PDFPreferences with Equatable implements JSONable {
     ..putOpt('visibleScrollbar', visibleScrollbar);
 
   PDFPreferences copyWith({
-    PDFLayout? layout,
-    PDFReadingProgression? readingProgression,
-    double? pageSpacing,
-    PDFFit? fit,
-    bool? offsetFirstPage,
-    PDFSpread? spread,
-    bool? visibleScrollbar,
+    Object? layout = unset,
+    Object? readingProgression = unset,
+    Object? pageSpacing = unset,
+    Object? fit = unset,
+    Object? offsetFirstPage = unset,
+    Object? spread = unset,
+    Object? visibleScrollbar = unset,
   }) => PDFPreferences(
-    layout: layout ?? this.layout,
-    readingProgression: readingProgression ?? this.readingProgression,
-    pageSpacing: pageSpacing ?? this.pageSpacing,
-    fit: fit ?? this.fit,
-    offsetFirstPage: offsetFirstPage ?? this.offsetFirstPage,
-    spread: spread ?? this.spread,
-    visibleScrollbar: visibleScrollbar ?? this.visibleScrollbar,
+    layout: identical(layout, unset) ? this.layout : (layout as PDFLayout?)!,
+    readingProgression: identical(readingProgression, unset)
+        ? this.readingProgression
+        : (readingProgression as PDFReadingProgression?)!,
+    pageSpacing: identical(pageSpacing, unset) ? this.pageSpacing : (pageSpacing as double?)!,
+    fit: identical(fit, unset) ? this.fit : (fit as PDFFit?)!,
+    offsetFirstPage: identical(offsetFirstPage, unset) ? this.offsetFirstPage : (offsetFirstPage as bool?),
+    spread: identical(spread, unset) ? this.spread : (spread as PDFSpread?),
+    visibleScrollbar: identical(visibleScrollbar, unset) ? this.visibleScrollbar : (visibleScrollbar as bool?),
   );
 
   @override

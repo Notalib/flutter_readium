@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
+import '../utils/constants.dart';
 
 /// Configures the automatic audio-stream error recovery loop (retry attempts,
 /// backoff, and stall detection) shared by the iOS/Android/web audio
@@ -59,15 +60,19 @@ class AudioRecoveryPolicy with Equatable {
   };
 
   AudioRecoveryPolicy copyWith({
-    int? maxAttempts,
-    double? backoffBaseSeconds,
-    double? stallTimeoutSeconds,
-    double? connectionTimeoutSeconds,
+    Object? maxAttempts = unset,
+    Object? backoffBaseSeconds = unset,
+    Object? stallTimeoutSeconds = unset,
+    Object? connectionTimeoutSeconds = unset,
   }) => AudioRecoveryPolicy(
-    maxAttempts: maxAttempts ?? this.maxAttempts,
-    backoffBaseSeconds: backoffBaseSeconds ?? this.backoffBaseSeconds,
-    stallTimeoutSeconds: stallTimeoutSeconds ?? this.stallTimeoutSeconds,
-    connectionTimeoutSeconds: connectionTimeoutSeconds ?? this.connectionTimeoutSeconds,
+    maxAttempts: identical(maxAttempts, unset) ? this.maxAttempts : (maxAttempts as int),
+    backoffBaseSeconds: identical(backoffBaseSeconds, unset) ? this.backoffBaseSeconds : (backoffBaseSeconds as double),
+    stallTimeoutSeconds: identical(stallTimeoutSeconds, unset)
+        ? this.stallTimeoutSeconds
+        : (stallTimeoutSeconds as double),
+    connectionTimeoutSeconds: identical(connectionTimeoutSeconds, unset)
+        ? this.connectionTimeoutSeconds
+        : (connectionTimeoutSeconds as double),
   );
 
   @override

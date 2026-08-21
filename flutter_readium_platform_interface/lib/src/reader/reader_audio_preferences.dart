@@ -132,25 +132,33 @@ class AudioPreferences with Equatable implements JSONable {
   ];
 
   AudioPreferences copyWith({
-    double? volume,
-    double? speed,
-    double? pitch,
-    double? seekInterval,
-    bool? continuousSeeking,
-    bool? allowExternalSeeking,
-    double? updateIntervalSecs,
-    ControlPanelInfoType? controlPanelInfoType,
-    ControlPanelTimebase? controlPanelTimebase,
+    Object? volume = unset,
+    Object? speed = unset,
+    Object? pitch = unset,
+    Object? seekInterval = unset,
+    Object? continuousSeeking = unset,
+    Object? allowExternalSeeking = unset,
+    Object? updateIntervalSecs = unset,
+    Object? controlPanelInfoType = unset,
+    Object? controlPanelTimebase = unset,
   }) => AudioPreferences(
-    volume: volume ?? this.volume,
-    speed: speed ?? this.speed,
-    pitch: pitch ?? this.pitch,
-    seekInterval: seekInterval ?? this.seekInterval,
-    continuousSeeking: continuousSeeking ?? this.continuousSeeking,
-    allowExternalSeeking: allowExternalSeeking ?? this.allowExternalSeeking,
-    updateIntervalSecs: updateIntervalSecs ?? this.updateIntervalSecs,
-    controlPanelInfoType: controlPanelInfoType ?? this.controlPanelInfoType,
-    controlPanelTimebase: controlPanelTimebase ?? this.controlPanelTimebase,
+    volume: identical(volume, unset) ? this.volume : (volume as double?)!,
+    speed: identical(speed, unset) ? this.speed : (speed as double?)!,
+    pitch: identical(pitch, unset) ? this.pitch : (pitch as double?)!,
+    seekInterval: identical(seekInterval, unset) ? this.seekInterval : (seekInterval as double?)!,
+    continuousSeeking: identical(continuousSeeking, unset) ? this.continuousSeeking : (continuousSeeking as bool?),
+    allowExternalSeeking: identical(allowExternalSeeking, unset)
+        ? this.allowExternalSeeking
+        : (allowExternalSeeking as bool?),
+    updateIntervalSecs: identical(updateIntervalSecs, unset)
+        ? this.updateIntervalSecs
+        : (updateIntervalSecs as double?)!,
+    controlPanelInfoType: identical(controlPanelInfoType, unset)
+        ? this.controlPanelInfoType
+        : (controlPanelInfoType as ControlPanelInfoType?)!,
+    controlPanelTimebase: identical(controlPanelTimebase, unset)
+        ? this.controlPanelTimebase
+        : (controlPanelTimebase as ControlPanelTimebase?)!,
   );
 }
 

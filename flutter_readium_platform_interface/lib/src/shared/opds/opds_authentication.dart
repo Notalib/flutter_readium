@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../publication/link.dart';
 
@@ -211,41 +212,41 @@ class OpdsAuthentication extends AdditionalProperties with Equatable implements 
     ..putJSONableIfNotEmpty('web_color_scheme', webColorScheme);
 
   OpdsAuthentication copyWith({
-    String? type,
-    String? id,
-    String? description,
-    List<Link>? links,
-    List<Announcement>? announcements,
-    List<Audience>? audiences,
-    Map<String, int>? collectionSize,
-    String? colorScheme,
-    FeatureFlags? featureFlags,
-    InputData? inputs,
-    Map<String, String>? labels,
-    PublicKeyData? publicKey,
-    String? serviceDescription,
-    WebColor? webColorScheme,
-    Map<String, dynamic>? additionalProperties,
+    Object type = unset,
+    Object id = unset,
+    Object? description = unset,
+    Object links = unset,
+    Object announcements = unset,
+    Object audiences = unset,
+    Object collectionSize = unset,
+    Object? colorScheme = unset,
+    Object? featureFlags = unset,
+    Object? inputs = unset,
+    Object? labels = unset,
+    Object? publicKey = unset,
+    Object? serviceDescription = unset,
+    Object? webColorScheme = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return OpdsAuthentication(
-      type: type ?? this.type,
-      id: id ?? this.id,
-      links: links ?? this.links,
-      description: description ?? this.description,
-      announcements: announcements ?? this.announcements,
-      audiences: audiences ?? this.audiences,
-      collectionSize: collectionSize ?? this.collectionSize,
-      colorScheme: colorScheme ?? this.colorScheme,
-      featureFlags: featureFlags ?? this.featureFlags,
-      inputs: inputs ?? this.inputs,
-      labels: labels ?? this.labels,
-      publicKey: publicKey ?? this.publicKey,
-      serviceDescription: serviceDescription ?? this.serviceDescription,
-      webColorScheme: webColorScheme ?? this.webColorScheme,
+      type: identical(type, unset) ? this.type : (type as String),
+      id: identical(id, unset) ? this.id : (id as String),
+      links: identical(links, unset) ? this.links : (links as List<Link>),
+      description: identical(description, unset) ? this.description : description as String?,
+      announcements: identical(announcements, unset) ? this.announcements : (announcements as List<Announcement>),
+      audiences: identical(audiences, unset) ? this.audiences : (audiences as List<Audience>),
+      collectionSize: identical(collectionSize, unset) ? this.collectionSize : (collectionSize as Map<String, int>),
+      colorScheme: identical(colorScheme, unset) ? this.colorScheme : colorScheme as String?,
+      featureFlags: identical(featureFlags, unset) ? this.featureFlags : (featureFlags as FeatureFlags?),
+      inputs: identical(inputs, unset) ? this.inputs : (inputs as InputData?),
+      labels: identical(labels, unset) ? this.labels : (labels as Map<String, String>?),
+      publicKey: identical(publicKey, unset) ? this.publicKey : (publicKey as PublicKeyData?),
+      serviceDescription: identical(serviceDescription, unset)
+          ? this.serviceDescription
+          : serviceDescription as String?,
+      webColorScheme: identical(webColorScheme, unset) ? this.webColorScheme : (webColorScheme as WebColor?),
       additionalProperties: mergeProperties,
     );
   }
@@ -299,9 +300,9 @@ class OpdsAuthenticationFlow with Equatable implements JSONable {
     ..put('type', type)
     ..putIterableIfNotEmpty('links', links);
 
-  OpdsAuthenticationFlow copyWith({String? type, List<Link>? links}) => OpdsAuthenticationFlow(
-    type: type ?? this.type,
-    links: links ?? this.links,
+  OpdsAuthenticationFlow copyWith({Object type = unset, Object links = unset}) => OpdsAuthenticationFlow(
+    type: identical(type, unset) ? this.type : (type as String),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
   );
 
   @override
@@ -328,9 +329,9 @@ class OpdsAuthenticationLabels with Equatable implements JSONable {
     ..putOpt('login', login)
     ..putOpt('password', password);
 
-  OpdsAuthenticationLabels copyWith({String? login, String? password}) => OpdsAuthenticationLabels(
-    login: login ?? this.login,
-    password: password ?? this.password,
+  OpdsAuthenticationLabels copyWith({Object? login = unset, Object? password = unset}) => OpdsAuthenticationLabels(
+    login: identical(login, unset) ? this.login : (login as String?)!,
+    password: identical(password, unset) ? this.password : (password as String?)!,
   );
 
   @override
@@ -368,17 +369,15 @@ class Announcement extends AdditionalProperties with Equatable implements JSONab
     ..put('content', content);
 
   Announcement copyWith({
-    String? id,
-    String? content,
-    Map<String, dynamic>? additionalProperties,
+    Object id = unset,
+    Object content = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Announcement(
-      id: id ?? this.id,
-      content: content ?? this.content,
+      id: identical(id, unset) ? this.id : (id as String),
+      content: identical(content, unset) ? this.content : (content as String),
       additionalProperties: mergeProperties,
     );
   }
@@ -457,9 +456,9 @@ class FeatureFlags with Equatable implements JSONable {
     ..putIterableIfNotEmpty('enabled', enabled)
     ..putIterableIfNotEmpty('disabled', disabled);
 
-  FeatureFlags copyWith({List<String>? enabled, List<String>? disabled}) => FeatureFlags(
-    enabled: enabled ?? this.enabled,
-    disabled: disabled ?? this.disabled,
+  FeatureFlags copyWith({Object enabled = unset, Object disabled = unset}) => FeatureFlags(
+    enabled: identical(enabled, unset) ? this.enabled : (enabled as List<String>),
+    disabled: identical(disabled, unset) ? this.disabled : (disabled as List<String>),
   );
 
   @override
@@ -492,9 +491,9 @@ class InputField with Equatable implements JSONable {
     ..putOpt('keyboard', keyboard?.name)
     ..putOpt('maximum_length', maximumLength);
 
-  InputField copyWith({KeyboardType? keyboard, int? maximumLength}) => InputField(
-    keyboard: keyboard ?? this.keyboard,
-    maximumLength: maximumLength ?? this.maximumLength,
+  InputField copyWith({Object? keyboard = unset, Object? maximumLength = unset}) => InputField(
+    keyboard: identical(keyboard, unset) ? this.keyboard : keyboard as KeyboardType?,
+    maximumLength: identical(maximumLength, unset) ? this.maximumLength : maximumLength as int?,
   );
 
   @override
@@ -556,13 +555,13 @@ class LoginInputField extends InputField with Equatable {
 
   @override
   LoginInputField copyWith({
-    String? barcodeFormat,
-    KeyboardType? keyboard,
-    int? maximumLength,
+    Object? barcodeFormat = unset,
+    Object? keyboard = unset,
+    Object? maximumLength = unset,
   }) => LoginInputField(
-    barcodeFormat: barcodeFormat ?? this.barcodeFormat,
-    keyboard: keyboard ?? this.keyboard,
-    maximumLength: maximumLength ?? this.maximumLength,
+    barcodeFormat: identical(barcodeFormat, unset) ? this.barcodeFormat : barcodeFormat as String?,
+    keyboard: identical(keyboard, unset) ? this.keyboard : keyboard as KeyboardType?,
+    maximumLength: identical(maximumLength, unset) ? this.maximumLength : maximumLength as int?,
   );
 
   @override
@@ -598,9 +597,9 @@ class InputData with Equatable implements JSONable {
     ..put('login', login)
     ..put('password', password);
 
-  InputData copyWith({LoginInputField? login, InputField? password}) => InputData(
-    login: login ?? this.login,
-    password: password ?? this.password,
+  InputData copyWith({Object login = unset, Object password = unset}) => InputData(
+    login: identical(login, unset) ? this.login : (login as LoginInputField),
+    password: identical(password, unset) ? this.password : (password as InputField),
   );
 
   @override
@@ -631,8 +630,10 @@ class PublicKeyData with Equatable implements JSONable {
     ..put('type', type)
     ..put('value', value);
 
-  PublicKeyData copyWith({String? type, String? value}) =>
-      PublicKeyData(type: type ?? this.type, value: value ?? this.value);
+  PublicKeyData copyWith({Object type = unset, Object value = unset}) => PublicKeyData(
+    type: identical(type, unset) ? this.type : (type as String),
+    value: identical(value, unset) ? this.value : (value as String),
+  );
 
   @override
   List<Object?> get props => [type, value];
@@ -671,9 +672,9 @@ class WebColor with Equatable implements JSONable {
     ..putOpt('primary', primary)
     ..putOpt('secondary', secondary);
 
-  WebColor copyWith({String? primary, String? secondary}) => WebColor(
-    primary: primary ?? this.primary,
-    secondary: secondary ?? this.secondary,
+  WebColor copyWith({Object primary = unset, Object secondary = unset}) => WebColor(
+    primary: identical(primary, unset) ? this.primary : (primary as String),
+    secondary: identical(secondary, unset) ? this.secondary : (secondary as String),
   );
 
   @override

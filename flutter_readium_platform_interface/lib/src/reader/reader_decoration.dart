@@ -50,8 +50,11 @@ class ReaderDecoration implements JSONable {
   @override
   Map<String, dynamic> toJson() => {'id': id, 'locator': locator.toJson(), 'style': style.toJson()};
 
-  ReaderDecoration copyWith({String? id, Locator? locator, ReaderDecorationStyle? style}) =>
-      ReaderDecoration(id: id ?? this.id, locator: locator ?? this.locator, style: style ?? this.style);
+  ReaderDecoration copyWith({Object id = unset, Object locator = unset, Object style = unset}) => ReaderDecoration(
+    id: identical(id, unset) ? this.id : (id as String),
+    locator: identical(locator, unset) ? this.locator : (locator as Locator),
+    style: identical(style, unset) ? this.style : (style as ReaderDecorationStyle),
+  );
 }
 
 class ReaderDecorationStyle implements JSONable {
@@ -86,9 +89,10 @@ class ReaderDecorationStyle implements JSONable {
     isActive: map['isActive'] as bool? ?? false,
   );
 
-  ReaderDecorationStyle copyWith({DecorationStyle? style, Color? tint, bool? isActive}) => ReaderDecorationStyle(
-    style: style ?? this.style,
-    tint: tint ?? this.tint,
-    isActive: isActive ?? this.isActive,
-  );
+  ReaderDecorationStyle copyWith({Object style = unset, Object? tint = unset, Object isActive = unset}) =>
+      ReaderDecorationStyle(
+        style: identical(style, unset) ? this.style : (style as DecorationStyle),
+        tint: identical(tint, unset) ? this.tint : tint as Color?,
+        isActive: identical(isActive, unset) ? this.isActive : (isActive as bool),
+      );
 }

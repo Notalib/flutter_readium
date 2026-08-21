@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import 'link.dart';
 import 'locator.dart';
@@ -65,13 +66,13 @@ class LocatorCollection with Equatable implements JSONable {
   }
 
   LocatorCollection copyWith({
-    LocatorCollectionMetadata? metadata,
-    List<Link>? links,
-    List<Locator>? locators,
+    Object metadata = unset,
+    Object links = unset,
+    Object locators = unset,
   }) => LocatorCollection(
-    metadata: metadata ?? this.metadata,
-    links: links ?? this.links,
-    locators: locators ?? this.locators,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as LocatorCollectionMetadata),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
+    locators: identical(locators, unset) ? this.locators : (locators as List<Locator>),
   );
 
   @override
@@ -154,13 +155,13 @@ class LocatorCollectionMetadata extends AdditionalProperties with Equatable impl
   }
 
   LocatorCollectionMetadata copyWith({
-    dynamic localizedTitle,
-    int? numberOfItems,
-    Map<String, dynamic>? additionalProperties,
+    Object? localizedTitle = unset,
+    Object? numberOfItems = unset,
+    Object? additionalProperties = unset,
   }) => LocatorCollectionMetadata(
-    localizedTitle: localizedTitle ?? this.localizedTitle,
-    numberOfItems: numberOfItems ?? this.numberOfItems,
-    additionalProperties: additionalProperties ?? this.additionalProperties,
+    localizedTitle: identical(localizedTitle, unset) ? this.localizedTitle : localizedTitle,
+    numberOfItems: identical(numberOfItems, unset) ? this.numberOfItems : (numberOfItems as int?),
+    additionalProperties: copyAdditionalProperties(additionalProperties: additionalProperties),
   );
 
   @override

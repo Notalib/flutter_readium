@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';
+import 'utils/constants.dart';
 import 'utils/jsonable.dart';
 
 @immutable
@@ -116,20 +117,22 @@ class ReadiumTimebasedState implements JSONable {
     ..putOpt('currentLocator', currentLocator?.toJson());
 
   ReadiumTimebasedState copyWith({
-    TimebasedState? state,
-    Duration? currentOffset,
-    Duration? currentBuffered,
-    Duration? currentDuration,
-    Duration? totalProgressDuration,
-    Duration? totalDuration,
-    Locator? currentLocator,
+    Object state = unset,
+    Object? currentOffset = unset,
+    Object? currentBuffered = unset,
+    Object? currentDuration = unset,
+    Object? totalProgressDuration = unset,
+    Object? totalDuration = unset,
+    Object? currentLocator = unset,
   }) => ReadiumTimebasedState(
-    state: state ?? this.state,
-    currentOffset: currentOffset ?? this.currentOffset,
-    currentBuffered: currentBuffered ?? this.currentBuffered,
-    currentDuration: currentDuration ?? this.currentDuration,
-    totalProgressDuration: totalProgressDuration ?? this.totalProgressDuration,
-    totalDuration: totalDuration ?? this.totalDuration,
-    currentLocator: currentLocator ?? this.currentLocator,
+    state: identical(state, unset) ? this.state : (state as TimebasedState),
+    currentOffset: identical(currentOffset, unset) ? this.currentOffset : (currentOffset as Duration?),
+    currentBuffered: identical(currentBuffered, unset) ? this.currentBuffered : (currentBuffered as Duration?),
+    currentDuration: identical(currentDuration, unset) ? this.currentDuration : (currentDuration as Duration?),
+    totalProgressDuration: identical(totalProgressDuration, unset)
+        ? this.totalProgressDuration
+        : (totalProgressDuration as Duration?),
+    totalDuration: identical(totalDuration, unset) ? this.totalDuration : (totalDuration as Duration?),
+    currentLocator: identical(currentLocator, unset) ? this.currentLocator : (currentLocator as Locator?),
   );
 }
