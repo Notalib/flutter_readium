@@ -95,4 +95,5 @@ final results = await FlutterReadium().searchInPublication('query');
 | `onReaderStatusChanged` | `ReadiumReaderStatus` | Loading, ready, closed, error. See [enums.dart](../../flutter_readium_platform_interface/lib/src/enums.dart) |
 | `onTextLocatorChanged` | `Locator` | Visual reader position changes. See [locator.md](./locator.md) |
 | `onTimebasedPlayerStateChanged` | `ReadiumTimebasedState` | Audio/TTS playback state. See [timebased_state.dart](../../flutter_readium_platform_interface/lib/src/timebased_state.dart) |
+| `onExternalPlaybackCommand` | `ReadiumExternalPlaybackCommand` | System media-control commands such as headphones / Control Center play and pause. See [external_playback_command.dart](../../flutter_readium_platform_interface/lib/src/external_playback_command.dart) |
 | `onErrorEvent` | `ReadiumError` | Non-fatal errors. See [readium_exceptions.dart](../../flutter_readium_platform_interface/lib/src/exceptions/readium_exceptions.dart) |

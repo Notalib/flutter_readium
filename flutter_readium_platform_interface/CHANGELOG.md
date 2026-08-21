@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
+  platform interface for distinguishing system media-control commands from
+  ordinary playback state changes.
+
 ## [0.4.0] - 2026-08-17
 
 ### Added
