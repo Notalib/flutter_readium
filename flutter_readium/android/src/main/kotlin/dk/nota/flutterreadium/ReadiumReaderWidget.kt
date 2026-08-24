@@ -15,6 +15,7 @@ import dk.nota.flutterreadium.fragments.EpubReaderFragment
 import dk.nota.flutterreadium.fragments.PdfReaderFragment
 import dk.nota.flutterreadium.models.PageInformation
 import dk.nota.flutterreadium.navigators.EpubNavigator
+import io.flutter.FlutterInjector
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -114,6 +115,28 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
+        val fontFamilyDeclarations =
+            ReaderFontFamily.fromList(creationParams["fontFamilyDeclarations"]) { asset ->
+                FlutterInjector.instance().flutterLoader().getLookupKeyForAsset(asset)
+            }
+
+        // Selection actions must be known BEFORE the navigator fragment is built, because
+        // EpubReaderFragment decides `selectionActionModeCallback` from
+        // `ReadiumReader.selectionActions` and a null callback means `onTextSelected` never
+        // fires. The `configureSelectionActions` method call arrives after this widget is
+        // constructed, so relying on it alone leaves selection dead on the first mount —
+        // the singleton only happens to be populated from the second reader onwards.
+        // iOS already reads the same key straight from the creation params.
+        @Suppress("UNCHECKED_CAST")
+        val selectionActionsParam =
+            creationParams["selectionActions"] as? List<Map<String, String>> ?: emptyList()
+        ReadiumReader.selectionActions =
+            selectionActionsParam.map { map ->
+                SelectionActionConfig(
+                    id = map["id"] ?: "",
+                    title = map["title"] ?: "",
+                )
+            }
 
         // Accepted for API parity with iOS but currently no-op: kotlin-toolkit's
         // EpubNavigatorFragment.Configuration does not expose preload-count fields
@@ -167,6 +190,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.visualEnable(
                     initialLocator,
                     initialPreferences,
+                    fontFamilyDeclarations,
                     fragmentManager,
                     layout,
                     this@ReadiumReaderWidget,

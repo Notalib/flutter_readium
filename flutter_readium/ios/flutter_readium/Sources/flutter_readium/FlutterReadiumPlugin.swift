@@ -40,6 +40,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// Timebased player events & state
   internal var timebasedPlayerStateStreamHandler: EventStreamHandler?
   internal var lastTimebasedPlayerState: ReadiumTimebasedState? = nil
+  internal var externalPlaybackCommandStreamHandler: EventStreamHandler?
 
   /// Timebased Navigator. Can be TTS, Audio or MediaOverlay implementations.
   internal var timebasedNavigator: FlutterTimebasedNavigator? = nil
@@ -67,6 +68,7 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
     let plugin = FlutterReadiumPlugin()
     registrar.addMethodCallDelegate(plugin, channel: channel)
     plugin.timebasedPlayerStateStreamHandler = EventStreamHandler(withName: "timebased-state", messenger: registrar.messenger())
+    plugin.externalPlaybackCommandStreamHandler = EventStreamHandler(withName: "external-playback-command", messenger: registrar.messenger())
     // text-locator and reader-status opt in to buffering: the EPUB platform view
     // can fire its first event before the Dart onListen handshake completes, so
     // the buffer ensures that event is never silently dropped.
@@ -124,6 +126,8 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         await closePublication(ifGeneration: nil)
         timebasedPlayerStateStreamHandler?.dispose()
         timebasedPlayerStateStreamHandler = nil
+        externalPlaybackCommandStreamHandler?.dispose()
+        externalPlaybackCommandStreamHandler = nil
         textLocatorStreamHandler?.dispose()
         textLocatorStreamHandler = nil
         readerStatusStreamHandler?.dispose()
@@ -225,6 +229,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
 
           Task { @MainActor in
+            // Destroy any previous TTS session to prevent double playback if the
+            // old navigator's synthesizer survived a background interruption.
+            self.timebasedNavigator?.dispose()
+            self.timebasedNavigator = nil
+
             // Start TTS from the reader's current location
             self.applyPageBreakBehavior(from: ttsPrefs)
             let currentLocation = self.currentReaderView?.getCurrentLocation()
@@ -437,6 +446,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           details: nil))
       }
       Task.detached(priority: .high) {
+        // Destroy any previous audio/TTS session to prevent double playback.
+        await MainActor.run {
+          self.timebasedNavigator?.dispose()
+          self.timebasedNavigator = nil
+        }
+
         // Get preferences via arg, or use defaults (empty map).
         let prefsMap = args[0] as? Dictionary<String, Any>,
             prefs = try FlutterAudioPreferences.init(fromMap: prefsMap ?? [:])
@@ -745,6 +760,11 @@ extension FlutterReadiumPlugin {
 
   func clearNowPlaying() {
     NowPlayingInfo.shared.clear()
+  }
+
+  @MainActor
+  func emitExternalPlaybackCommand(_ command: ReadiumExternalPlaybackCommand) {
+    externalPlaybackCommandStreamHandler?.sendEvent(command.toMap())
   }
 
   private func loadPublication (

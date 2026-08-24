@@ -12,6 +12,8 @@ import androidx.savedstate.SavedStateRegistryOwner
 import dk.nota.flutterreadium.events.NarrationSyncEventChannel
 import dk.nota.flutterreadium.events.ReadiumError
 import dk.nota.flutterreadium.events.ReadiumErrorEventChannel
+import dk.nota.flutterreadium.events.ReadiumExternalPlaybackCommand
+import dk.nota.flutterreadium.events.ReadiumExternalPlaybackCommandEventChannel
 import dk.nota.flutterreadium.events.ReadiumReaderStatus
 import dk.nota.flutterreadium.events.ReadiumReaderStatusEventChannel
 import dk.nota.flutterreadium.events.TextLocatorEventChannel
@@ -129,6 +131,8 @@ object ReadiumReader :
         get() = activityRef?.get() as? FragmentActivity
 
     private var timedBasedStateEventChannel: TimedBasedStateEventChannel? = null
+
+    private var externalPlaybackCommandEventChannel: ReadiumExternalPlaybackCommandEventChannel? = null
 
     private var textLocatorEventChannel: TextLocatorEventChannel? = null
 
@@ -285,6 +289,9 @@ object ReadiumReader :
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = TimedBasedStateEventChannel(messenger)
+
+        externalPlaybackCommandEventChannel?.dispose()
+        externalPlaybackCommandEventChannel = ReadiumExternalPlaybackCommandEventChannel(messenger)
 
         textLocatorEventChannel?.dispose()
         textLocatorEventChannel = TextLocatorEventChannel(messenger)
@@ -485,6 +492,9 @@ object ReadiumReader :
 
         timedBasedStateEventChannel?.dispose()
         timedBasedStateEventChannel = null
+
+        externalPlaybackCommandEventChannel?.dispose()
+        externalPlaybackCommandEventChannel = null
 
         textLocatorEventChannel?.dispose()
         textLocatorEventChannel = null
@@ -925,6 +935,7 @@ object ReadiumReader :
     suspend fun epubEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -948,7 +959,13 @@ object ReadiumReader :
                 return@withMainContext
             } // Already enabled - assume from restored state.
 
-            EpubNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
+            EpubNavigator(
+                pub,
+                initialLocator,
+                this@ReadiumReader,
+                initialPreferences,
+                fontFamilyDeclarations = fontFamilyDeclarations,
+            ).apply {
                 initNavigator()
                 visualNavigator = this
                 attachEpubNavigator(fragmentManager, viewGroup)
@@ -1161,6 +1178,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        fontFamilyDeclarations: List<ReaderFontFamily>,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1186,9 +1204,24 @@ object ReadiumReader :
                     ?.matches(MediaType.CBZ) == true
 
         when {
-            isPdf -> pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            isComic -> comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
-            else -> epubEnable(initialLocator, initialPreferences, fragmentManager, viewGroup, readerWidget)
+            isPdf -> {
+                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            isComic -> {
+                comicEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+            }
+
+            else -> {
+                epubEnable(
+                    initialLocator,
+                    initialPreferences,
+                    fontFamilyDeclarations,
+                    fragmentManager,
+                    viewGroup,
+                    readerWidget,
+                )
+            }
         }
     }
 
@@ -1232,6 +1265,11 @@ object ReadiumReader :
     }
 
     suspend fun ttsEnable(ttsPrefs: FlutterTtsPreferences) {
+        // Destroy any previous TTS session to prevent double playback if the
+        // old navigator's engine survived a background interruption.
+        ttsNavigator?.dispose()
+        ttsNavigator = null
+
         currentPublication?.let {
             applyPageBreakBehavior(ttsPrefs)
             ttsNavigator =
@@ -1778,6 +1816,13 @@ object ReadiumReader :
      */
     fun emitError(error: ReadiumError) {
         errorChannel?.sendEvent(error)
+    }
+
+    /**
+     * Emit an external playback command received from system media controls.
+     */
+    fun emitExternalPlaybackCommand(command: ReadiumExternalPlaybackCommand) {
+        externalPlaybackCommandEventChannel?.sendEvent(command)
     }
 
     /**

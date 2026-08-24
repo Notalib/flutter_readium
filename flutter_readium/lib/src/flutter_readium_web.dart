@@ -51,6 +51,8 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
   static final StreamController<ReadiumTimebasedState> _timebasedStateController =
       StreamController<ReadiumTimebasedState>.broadcast();
+  static final StreamController<ReadiumExternalPlaybackCommand> _externalPlaybackCommandController =
+      StreamController<ReadiumExternalPlaybackCommand>.broadcast();
   static final StreamController<ReadiumReaderStatus> _readerStatusController =
       StreamController<ReadiumReaderStatus>.broadcast();
   static final StreamController<ReadiumError> _errorEventController = StreamController<ReadiumError>.broadcast();
@@ -84,6 +86,9 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
 
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedStateController.stream;
+
+  @override
+  Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _externalPlaybackCommandController.stream;
 
   @override
   Stream<ReadiumReaderStatus> get onReaderStatusChanged => _readerStatusController.stream;
@@ -222,6 +227,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
           initialPreferences: json.encode(
             defaultPreferences?.toJson() ?? <String, dynamic>{},
           ),
+          fontFamilyDeclarationsJson: '[]',
         );
       } on PlatformException catch (e) {
         throw ReadiumException.fromPlatformException(e);

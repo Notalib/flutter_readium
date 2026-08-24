@@ -8,6 +8,7 @@ import 'package:dfunc/dfunc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../../utils/readium_log.dart';
 
@@ -143,8 +144,9 @@ class LocalizedString with Equatable implements JSONable {
     ),
   );
 
-  LocalizedString copyWith({Map<String?, Translation>? translations}) =>
-      LocalizedString(translations: translations ?? {});
+  LocalizedString copyWith({Object? translations = unset}) => LocalizedString(
+    translations: identical(translations, unset) ? const {} : (translations ?? const {}) as Map<String?, Translation>,
+  );
 
   /// Serializes a [LocalizedString] to its RWPM JSON representation.
   @override

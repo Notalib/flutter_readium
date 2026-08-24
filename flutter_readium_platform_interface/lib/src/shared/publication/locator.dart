@@ -11,6 +11,7 @@ import 'package:meta/meta.dart';
 import '../../extensions/readium_string_extensions.dart';
 import '../../extensions/strings.dart';
 import '../../utils/additional_properties.dart';
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../../utils/readium_log.dart';
 import '../../utils/take.dart';
@@ -152,41 +153,43 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
     ..putJSONableIfNotEmpty('text', text);
 
   Locator copyWith({
-    String? href,
-    String? type,
-    String? title,
-    Locations? locations,
-    LocatorText? text,
-    Map<String, dynamic>? additionalProperties,
+    Object href = unset,
+    Object type = unset,
+    Object? title = unset,
+    Object? locations = unset,
+    Object? text = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Locator(
-      href: href ?? this.href,
-      type: type ?? this.type,
-      title: title ?? this.title,
-      locations: locations ?? this.locations,
-      text: text ?? this.text,
+      href: identical(href, unset) ? this.href : (href as String),
+      type: identical(type, unset) ? this.type : (type as String),
+      title: identical(title, unset) ? this.title : title as String?,
+      locations: identical(locations, unset) ? this.locations : (locations as Locations),
+      text: identical(text, unset) ? this.text : (text as LocatorText),
       additionalProperties: mergeProperties,
     );
   }
 
   /// Shortcut to get a copy of the [Locator] with different [Locations] sub-properties.
   Locator copyWithLocations({
-    List<String>? fragments,
-    double? progression = _emptyDoubleValue,
-    int? position = _emptyIntValue,
-    double? totalProgression = _emptyDoubleValue,
-    Map<String, dynamic>? otherLocations,
+    Object fragments = unset,
+    Object? progression = unset,
+    Object? position = unset,
+    Object? totalProgression = unset,
+    Object? additionalProperties = unset,
   }) => copyWith(
     locations: (locations ?? Locations()).copyWith(
-      fragments: fragments ?? locations?.fragments,
-      progression: progression.check(locations?.progression),
-      position: position.check(locations?.position),
-      totalProgression: totalProgression.check(locations?.totalProgression),
-      additionalProperties: otherLocations ?? locations?.additionalProperties,
+      fragments: identical(fragments, unset) ? (locations?.fragments ?? const <String>[]) : (fragments as List<String>),
+      progression: identical(progression, unset) ? locations?.progression : (progression as double?),
+      position: identical(position, unset) ? locations?.position : (position as int?),
+      totalProgression: identical(totalProgression, unset)
+          ? locations?.totalProgression
+          : (totalProgression as double?),
+      additionalProperties: identical(additionalProperties, unset) || additionalProperties == null
+          ? locations?.additionalProperties
+          : (additionalProperties as Map<String, dynamic>?),
     ),
   );
 
@@ -221,9 +224,9 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
     return copyWith(
       // Makes sure href only contains /path.
       href: hrefPath,
-      type: MediaType.html.name,
+      type: MediaType.html.toString(),
       locations: locations?.copyWith(
-        fragments: idFragment == null ? null : [idFragment],
+        fragments: idFragment == null ? [] : [idFragment],
       ),
     );
   }
@@ -312,27 +315,25 @@ class Locations extends AdditionalProperties with Equatable implements JSONable 
   final String? partialCfi;
 
   Locations copyWith({
-    int? position = _emptyIntValue,
-    double? progression = _emptyDoubleValue,
-    double? totalProgression = _emptyDoubleValue,
-    List<String>? fragments,
-    Map<String, dynamic>? additionalProperties,
-    String? cssSelector,
-    DomRange? domRange,
-    String? partialCfi,
+    Object? position = unset,
+    Object? progression = unset,
+    Object? totalProgression = unset,
+    Object fragments = unset,
+    Object? additionalProperties = unset,
+    Object? cssSelector = unset,
+    Object? domRange = unset,
+    Object? partialCfi = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Locations(
-      progression: progression.check(this.progression),
-      position: position.check(this.position),
-      totalProgression: totalProgression.check(this.totalProgression),
-      fragments: fragments ?? this.fragments,
-      cssSelector: cssSelector ?? this.cssSelector,
-      domRange: domRange ?? this.domRange,
-      partialCfi: partialCfi ?? this.partialCfi,
+      progression: identical(progression, unset) ? this.progression : (progression as double?),
+      position: identical(position, unset) ? this.position : (position as int?),
+      totalProgression: identical(totalProgression, unset) ? this.totalProgression : (totalProgression as double?),
+      fragments: identical(fragments, unset) ? this.fragments : (fragments as List<String>),
+      cssSelector: identical(cssSelector, unset) ? this.cssSelector : (cssSelector as String?),
+      domRange: identical(domRange, unset) ? this.domRange : (domRange as DomRange?),
+      partialCfi: identical(partialCfi, unset) ? this.partialCfi : (partialCfi as String?),
       additionalProperties: mergeProperties,
     );
   }

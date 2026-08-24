@@ -1,4 +1,3 @@
-
 func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
   return min(max(value, minValue), maxValue)
 }
@@ -54,7 +53,7 @@ func withTimeout<T: Sendable>(
     group.addTask { await operation() }
     group.addTask {
       // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
-      try? await Task.sleep(nanoseconds: seconds * NSEC_PER_SEC)
+      try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
       return nil
     }
     let first = await group.next() ?? nil

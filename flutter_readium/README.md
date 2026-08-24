@@ -10,7 +10,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
 - **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.2.0** on Android
+- **kotlin-toolkit 3.3.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
 ## Features
@@ -22,6 +22,7 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 - Synchronized Media Overlays (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
 - Reader preferences (typography, scroll, columns, ...) via the Readium Preferences API
+- App-supplied static reader fonts on iOS, Android, and Web
 - Highlights and annotations via the Decorator API
 - Position persistence and restoration via Locators
 - Content search within open publications

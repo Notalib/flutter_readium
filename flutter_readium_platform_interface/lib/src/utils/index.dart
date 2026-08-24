@@ -1,4 +1,5 @@
 export 'additional_properties.dart';
+export 'constants.dart';
 export 'href.dart';
 export 'jsonable.dart';
 export 'readium_log.dart';

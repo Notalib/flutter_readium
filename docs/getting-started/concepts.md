@@ -71,20 +71,22 @@ Navigation methods (`goForward`, `goBackward`, `goToLocator`, `goToProgression`)
 
 ## Event streams
 
-The plugin communicates state changes through four streams:
+The plugin communicates state changes and external control events through different streams:
 
 ```dart
 final reader = FlutterReadium();
 
 reader.onTextLocatorChanged.listen((locator) { /* position updated */ });
 reader.onTimebasedPlayerStateChanged.listen((state) { /* audio/TTS state */ });
+reader.onExternalPlaybackCommand.listen((command) { /* system media-control intent */ });
 reader.onReaderStatusChanged.listen((status) { /* loading, ready, closed, reachedEndOfPublication, error */ });
 reader.onErrorEvent.listen((error) { /* non-fatal errors */ });
 ```
 
 Always cancel subscriptions in `dispose()` to avoid leaks.
 
-See guides for [Saving Progress](../guides/saving-progress.md) or [Error Handling](../guides/error-handling.md) for more details.
+See guides for [Audiobook Playback](../guides/audiobook-playback.md),
+[Saving Progress](../guides/saving-progress.md), or [Error Handling](../guides/error-handling.md) for more details.
 
 ## Decorations
 

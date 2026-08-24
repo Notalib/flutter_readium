@@ -191,20 +191,33 @@ public class NowPlayingInfoUpdater {
       }
     }
 
+    @MainActor
+    func emit(_ action: ExternalPlaybackCommandAction, position: TimeInterval? = nil) {
+      FlutterReadiumPlugin.instance?.emitExternalPlaybackCommand(
+        ReadiumExternalPlaybackCommand(
+          action: action,
+          position: position
+        )
+      )
+    }
+
     on(rcc.playCommand) { navigator, _ in
       Task { @MainActor in
+        emit(.play)
         await navigator.resume()
       }
     }
 
     on(rcc.pauseCommand) { navigator, _ in
       Task { @MainActor in
+        emit(.pause)
         await navigator.pause()
       }
     }
 
     on(rcc.togglePlayPauseCommand) { navigator, _ in
       Task { @MainActor in
+        emit(.togglePlayPause)
         await navigator.togglePlayPause()
       }
     }
@@ -212,6 +225,7 @@ public class NowPlayingInfoUpdater {
     if (skipTrackEnabled) {
       on(rcc.previousTrackCommand) { navigator, _ in
         Task { @MainActor in
+          emit(.previous)
           // TODO: Should these actually skip a full track?
           await navigator.seekBackward()
         }
@@ -219,6 +233,7 @@ public class NowPlayingInfoUpdater {
 
       on(rcc.nextTrackCommand) { navigator, _ in
         Task { @MainActor in
+          emit(.next)
           // TODO: Should these actually skip a full track?
           await navigator.seekForward()
         }
@@ -230,13 +245,15 @@ public class NowPlayingInfoUpdater {
 
     if (!preferredIntervals.isEmpty) {
       on(rcc.skipBackwardCommand) { navigator, _ in
-        Task {
+        Task { @MainActor in
+          emit(.seekBackward)
           await navigator.seekBackward()
         }
       }
 
       on(rcc.skipForwardCommand) { navigator, _ in
-        Task {
+        Task { @MainActor in
+          emit(.seekForward)
           await navigator.seekForward()
         }
       }
@@ -247,12 +264,14 @@ public class NowPlayingInfoUpdater {
         guard let event = event as? MPChangePlaybackPositionCommandEvent else {
           return
         }
-        Task {
+        let position = event.positionTime
+        Task { @MainActor in
+          emit(.seekTo, position: position)
           if self.timebase == .wholeBook,
              let audioNavigator = navigator as? FlutterAudioNavigator {
-            await audioNavigator.seek(toPublicationOffset: event.positionTime)
+            await audioNavigator.seek(toPublicationOffset: position)
           } else {
-            await navigator.seek(toOffset: event.positionTime)
+            await navigator.seek(toOffset: position)
           }
         }
       }

@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../../utils/additional_properties.dart';
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../publication.dart';
 
@@ -78,27 +79,25 @@ class Properties extends AdditionalProperties with Equatable implements JSONable
     ..putOpt('encryption', encryption);
 
   Properties copyWith({
-    PresentationPage? page,
-    List<String>? contains,
-    PresentationOrientation? orientation,
-    EpubLayout? layout,
-    PresentationOverflow? overflow,
-    PresentationSpread? spread,
-    Encryption? encryption,
-    Map<String, dynamic>? additionalProperties,
+    Object? page = unset,
+    Object? contains = unset,
+    Object? orientation = unset,
+    Object? layout = unset,
+    Object? overflow = unset,
+    Object? spread = unset,
+    Object? encryption = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Properties(
-      page: page ?? this.page,
-      contains: contains?.toSet().toList() ?? this.contains,
-      orientation: orientation ?? this.orientation,
-      layout: layout ?? this.layout,
-      overflow: overflow ?? this.overflow,
-      spread: spread ?? this.spread,
-      encryption: encryption ?? this.encryption,
+      page: identical(page, unset) ? this.page : (page as PresentationPage?)!,
+      contains: identical(contains, unset) ? this.contains : (contains as List<String>?)?.toSet().toList(),
+      orientation: identical(orientation, unset) ? this.orientation : (orientation as PresentationOrientation?)!,
+      layout: identical(layout, unset) ? this.layout : (layout as EpubLayout?)!,
+      overflow: identical(overflow, unset) ? this.overflow : (overflow as PresentationOverflow?)!,
+      spread: identical(spread, unset) ? this.spread : (spread as PresentationSpread?)!,
+      encryption: identical(encryption, unset) ? this.encryption : (encryption as Encryption?)!,
       additionalProperties: mergeProperties,
     );
   }

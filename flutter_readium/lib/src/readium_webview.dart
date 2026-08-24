@@ -18,6 +18,7 @@ class ReadiumWebView extends StatefulWidget {
     this.onSelectionAction,
     this.onDecorationInteraction,
     this.onImageTapped,
+    this.fontFamilyDeclarations = const [],
   });
 
   final Publication publication;
@@ -26,6 +27,7 @@ class ReadiumWebView extends StatefulWidget {
   final void Function(SelectionActionEvent)? onSelectionAction;
   final void Function(DecorationInteractionEvent)? onDecorationInteraction;
   final void Function(ImageTapEvent)? onImageTapped;
+  final List<ReaderFontFamily> fontFamilyDeclarations;
 
   @override
   ReadiumWebViewState createState() => ReadiumWebViewState();
@@ -140,6 +142,9 @@ class ReadiumWebViewState extends State<ReadiumWebView> {
         pubId: pubId,
         initialPreferences: json.encode(preferences),
         initialPositionJson: currentLocatorString,
+        fontFamilyDeclarationsJson: json.encode(
+          widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
+        ),
       );
     } catch (e) {
       // This is a temporary solution to show an error message when opening a publication fails

@@ -50,27 +50,25 @@ class Feed extends AdditionalProperties with Equatable implements JSONable {
       'context: $context}';
 
   Feed copyWith({
-    OpdsMetadata? metadata,
-    List<Link>? links,
-    List<Facet>? facets,
-    List<Group>? groups,
-    List<OpdsPublication>? publications,
-    List<Link>? navigation,
-    List<String>? context,
-    Map<String, dynamic>? additionalProperties,
+    Object metadata = unset,
+    Object links = unset,
+    Object facets = unset,
+    Object groups = unset,
+    Object publications = unset,
+    Object navigation = unset,
+    Object context = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Feed(
-      metadata: metadata ?? this.metadata,
-      links: links ?? this.links,
-      facets: facets ?? this.facets,
-      groups: groups ?? this.groups,
-      publications: publications ?? this.publications,
-      navigation: navigation ?? this.navigation,
-      context: context ?? this.context,
+      metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata),
+      links: identical(links, unset) ? this.links : (links as List<Link>),
+      facets: identical(facets, unset) ? this.facets : (facets as List<Facet>),
+      groups: identical(groups, unset) ? this.groups : (groups as List<Group>),
+      publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>),
+      navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>),
+      context: identical(context, unset) ? this.context : (context as List<String>),
       additionalProperties: mergeProperties,
     );
   }

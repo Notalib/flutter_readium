@@ -96,27 +96,25 @@ class Season extends BaseCollection {
   }
 
   Season copyWith({
-    double? position,
-    LocalizedString? localizedName,
-    String? identifier,
-    List<AltIdentifier>? altIdentifiers,
-    LocalizedString? localizedSortAs,
-    List<Link>? links,
-    List<Episode>? episodes,
-    Map<String, dynamic>? additionalProperties,
+    Object? position = unset,
+    Object? localizedName = unset,
+    Object? identifier = unset,
+    Object? altIdentifiers = unset,
+    Object? localizedSortAs = unset,
+    Object? links = unset,
+    Object episodes = unset,
+    Object? additionalProperties = unset,
   }) {
-    final mergeProperties = Map<String, dynamic>.of(this.additionalProperties)
-      ..addAll(additionalProperties ?? {})
-      ..removeWhere((key, value) => value == null);
+    final mergeProperties = copyAdditionalProperties(additionalProperties: additionalProperties);
 
     return Season(
-      position: position ?? this.position,
-      localizedName: localizedName ?? this.localizedName,
-      identifier: identifier ?? this.identifier,
-      altIdentifiers: altIdentifiers ?? this.altIdentifiers,
-      localizedSortAs: localizedSortAs ?? this.localizedSortAs,
-      links: links ?? this.links,
-      episodes: episodes ?? this.episodes,
+      position: identical(position, unset) ? this.position : (position as double?),
+      localizedName: identical(localizedName, unset) ? this.localizedName : (localizedName as LocalizedString?),
+      identifier: identical(identifier, unset) ? this.identifier : (identifier as String?),
+      altIdentifiers: identical(altIdentifiers, unset) ? this.altIdentifiers : (altIdentifiers as List<AltIdentifier>?),
+      localizedSortAs: identical(localizedSortAs, unset) ? this.localizedSortAs : (localizedSortAs as LocalizedString?),
+      links: identical(links, unset) ? this.links : (links as List<Link>?),
+      episodes: identical(episodes, unset) ? this.episodes : (episodes as List<Episode>),
       additionalProperties: mergeProperties,
     );
   }

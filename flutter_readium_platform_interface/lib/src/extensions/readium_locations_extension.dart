@@ -1,4 +1,5 @@
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 
 import '../shared/index.dart';
 import '../shared/publication.dart';
@@ -15,7 +16,7 @@ extension LocationExtension on Locations {
       if (fragment != null) fragment.fragment,
     ];
 
-    return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
+    return copyWith(fragments: newFragments);
   }
 
   Locations copyWithPhysicalPageNumber(final String? index) {
@@ -24,7 +25,7 @@ extension LocationExtension on Locations {
       if (index != null) 'physicalPage=$index',
     ];
 
-    return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
+    return copyWith(fragments: newFragments);
   }
 
   Locations copyWithPage(final int? index) {
@@ -33,7 +34,7 @@ extension LocationExtension on Locations {
       if (index != null) 'page=$index',
     ];
 
-    return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
+    return copyWith(fragments: newFragments);
   }
 
   /// Duration must be in seconds.
@@ -44,7 +45,7 @@ extension LocationExtension on Locations {
       if (duration != null) 'duration=$duration',
     ];
 
-    return copyWith(fragments: newFragments.isEmpty ? null : newFragments);
+    return copyWith(fragments: newFragments);
   }
 
   String? get physicalPage => fragments.firstWhereOrNull((final f) => f.startsWith('physicalPage='))?.split('=').last;
@@ -64,6 +65,7 @@ extension LocationExtension on Locations {
   );
 }
 
+@immutable
 class TimeFragment {
   const TimeFragment({this.begin = Duration.zero, this.end});
 
