@@ -101,7 +101,16 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
 
   static Locator? fromJsonString(String jsonString) {
     try {
-      final Map<String, dynamic> json = JsonCodec().decode(jsonString);
+      // Decoded as `dynamic` on purpose: assigning straight to Map<String, dynamic>
+      // throws a TypeError for well-formed but wrong-shaped JSON (a top-level array,
+      // say), and TypeError is an Error, so the `on Exception` below cannot catch it.
+      final json = JsonCodec().decode(jsonString);
+      if (json is! Map<String, dynamic>) {
+        ReadiumLog.e(
+          'fromJsonString: Expected a JSON object for Locator, got ${json.runtimeType}: $jsonString',
+        );
+        return null;
+      }
       return Locator.fromJson(json);
     } on Exception catch (ex, st) {
       ReadiumLog.e(

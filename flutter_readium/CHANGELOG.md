@@ -17,8 +17,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (iOS).** A `Locator` or `ReadiumTimebasedState` that failed to serialize sent a
   bare `nil` to the text-locator / timebased-state event channels with nothing in
   the native logs to explain the resulting gap in reader-position updates. The
-  failure is now logged instead (paired with the platform-interface fix that keeps
-  the Dart stream alive when this happens).
+  failure is now logged instead (paired with the platform-interface fix that drops
+  such events rather than raising them on the Dart stream).
 
 ## [0.4.0] - 2026-08-17
 

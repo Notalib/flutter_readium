@@ -10,14 +10,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
   platform interface for distinguishing system media-control commands from
   ordinary playback state changes.
+- `ReadiumTimebasedState.fromJsonString` / `fromJsonDynamic`, matching the
+  decoding pattern already used by `Locator` and `TextSearchResult`.
 
 ### Fixed
 
-- **A single malformed reader-position event could stop updates for the rest of
-  the session.** `onTextLocatorChanged` and `onTimebasedPlayerStateChanged` threw
-  when a native event was `nil` or failed to parse, which breaks the stream for
-  any subscriber that treats the first error as fatal. Bad events are now logged
-  and skipped instead, so later position updates keep arriving.
+- **Malformed native events no longer surface as uncaught async errors.**
+  `onTextLocatorChanged` and `onTimebasedPlayerStateChanged` threw when a native
+  event was `nil` or failed to parse. Later events still arrived, but each bad
+  one raised an unhandled error, and a subscriber using `cancelOnError: true`
+  lost its subscription. Such events are now logged and dropped.
+- `Locator.fromJsonString`, `TextSearchResult.fromJsonString`, and the new
+  `ReadiumTimebasedState.fromJsonString` no longer throw a `TypeError` on
+  well-formed but wrong-shaped JSON (a top-level array, say). They decoded
+  straight into `Map<String, dynamic>`, and the resulting `TypeError` is an
+  `Error`, so their `on Exception` guard never caught it. They now return `null`.
 
 ## [0.4.0] - 2026-08-17
 

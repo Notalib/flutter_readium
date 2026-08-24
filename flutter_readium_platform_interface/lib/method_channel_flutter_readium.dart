@@ -9,48 +9,10 @@ import 'flutter_readium_platform_interface.dart';
 
 final _log = ReadiumLog.tag('MethodChannel');
 
-/// Decodes a single text-locator channel event, or returns `null` to have the
-/// event dropped. Native sends `nil` when Locator JSON serialization fails
-/// (see `EPUBReaderView.swift` / `PDFReaderView.swift`), and `Locator.fromJson`
-/// itself returns `null` (already logged) when `href`/`type` are missing —
-/// one bad event must not kill the whole broadcast stream.
-Locator? _decodeTextLocatorEvent(final dynamic event) {
-  if (event is! String) {
-    _log.w('Skipping non-string text-locator event: $event');
-    return null;
-  }
-  try {
-    return Locator.fromJson(json.decode(event) as Map<String, dynamic>);
-  } on FormatException catch (e) {
-    _log.w('Skipping malformed text-locator JSON: $e');
-    return null;
-  } on TypeError catch (e) {
-    _log.w('Skipping text-locator JSON with unexpected shape: $e');
-    return null;
-  }
-}
-
-/// Decodes a single timebased-state channel event, or returns `null` to have
-/// the event dropped. `ReadiumTimebasedState.toJsonString()` returns `nil` on
-/// the native side when serialization fails, which must not kill the stream
-/// any more than a bad text-locator event should.
-ReadiumTimebasedState? _decodeTimebasedStateEvent(final dynamic event) {
-  if (event is! String) {
-    _log.w('Skipping non-string timebased-state event: $event');
-    return null;
-  }
-
-  final ReadiumTimebasedState state;
-  try {
-    state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
-  } on FormatException catch (e) {
-    _log.w('Skipping malformed timebased-state JSON: $e');
-    return null;
-  } on TypeError catch (e) {
-    _log.w('Skipping timebased-state JSON with unexpected shape: $e');
-    return null;
-  }
-
+/// Pre-existing diagnostic, kept as-is: native has been seen sending a
+/// `currentLocator` with a missing or non-positive position. Logged rather than
+/// dropped, because the rest of the state is still usable.
+ReadiumTimebasedState _warnOnSuspiciousPosition(final ReadiumTimebasedState state) {
   state.currentLocator?.locations?.let((locations) {
     if (locations.position == null) {
       debugPrint('Received timebased player state with currentLocator missing position: $state');
@@ -101,25 +63,32 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// event is never dropped even if it fires before the Dart [onListen]
   /// handshake completes (a race that can happen when the EPUB platform view
   /// initialises faster than the asynchronous channel setup).
+  ///
+  /// Events that cannot be decoded are logged and dropped: native sends `nil`
+  /// when Locator serialization fails, and a decoded Locator missing `href` or
+  /// `type` yields `null`. Neither should reach consumers as a stream error.
   @override
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= textLocatorChannel
         .receiveBroadcastStream()
-        .map(_decodeTextLocatorEvent)
+        .map(Locator.fromJsonDynamic)
         .where((locator) => locator != null)
         .cast<Locator>()
         .asBroadcastStream();
     return _onTextLocatorChanged!;
   }
 
-  /// Fires whenever the TimebasedNavigator changes state
+  /// Fires whenever the TimebasedNavigator changes state.
+  ///
+  /// Undecodable events are logged and dropped, as for [onTextLocatorChanged].
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
     _onTimebasedPlayerStateChanged ??= timebasedStateChannel
         .receiveBroadcastStream()
-        .map(_decodeTimebasedStateEvent)
+        .map(ReadiumTimebasedState.fromJsonDynamic)
         .where((state) => state != null)
         .cast<ReadiumTimebasedState>()
+        .map(_warnOnSuspiciousPosition)
         .asBroadcastStream();
 
     return _onTimebasedPlayerStateChanged!;
