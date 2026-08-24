@@ -27,8 +27,8 @@ void main() {
     /// Pushes a single event through the *real* EventChannel plumbing (the
     /// same path native `sendEvent` calls use), mirroring how the existing
     /// `onTextLocatorChanged emits the locator` test drives the channel.
-    Future<void> emit(dynamic value) => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .handlePlatformMessage(
+    Future<void> emit(dynamic value) =>
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
           methodChannelReadium.textLocatorChannel.name,
           methodChannelReadium.textLocatorChannel.codec.encodeSuccessEnvelope(value),
           (_) {},
@@ -52,7 +52,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(errors, isEmpty, reason: 'bad event must be dropped, not surfaced as a stream error');
-      expect(events, [testTextLocator], reason: 'the valid event sent after the bad one must still arrive');
+      expect(events, hasLength(1), reason: 'the valid event sent after the bad one must still arrive');
+      expect(events.single.href, testTextLocator.href);
+      expect(events.single.type, testTextLocator.type);
     }
 
     // Native `try? finalLocator.jsonString()` sends nil on serialization failure.

@@ -9,6 +9,59 @@ import 'flutter_readium_platform_interface.dart';
 
 final _log = ReadiumLog.tag('MethodChannel');
 
+/// Decodes a single text-locator channel event, or returns `null` to have the
+/// event dropped. Native sends `nil` when Locator JSON serialization fails
+/// (see `EPUBReaderView.swift` / `PDFReaderView.swift`), and `Locator.fromJson`
+/// itself returns `null` (already logged) when `href`/`type` are missing —
+/// one bad event must not kill the whole broadcast stream.
+Locator? _decodeTextLocatorEvent(final dynamic event) {
+  if (event is! String) {
+    _log.w('Skipping non-string text-locator event: $event');
+    return null;
+  }
+  try {
+    return Locator.fromJson(json.decode(event) as Map<String, dynamic>);
+  } on FormatException catch (e) {
+    _log.w('Skipping malformed text-locator JSON: $e');
+    return null;
+  } on TypeError catch (e) {
+    _log.w('Skipping text-locator JSON with unexpected shape: $e');
+    return null;
+  }
+}
+
+/// Decodes a single timebased-state channel event, or returns `null` to have
+/// the event dropped. `ReadiumTimebasedState.toJsonString()` returns `nil` on
+/// the native side when serialization fails, which must not kill the stream
+/// any more than a bad text-locator event should.
+ReadiumTimebasedState? _decodeTimebasedStateEvent(final dynamic event) {
+  if (event is! String) {
+    _log.w('Skipping non-string timebased-state event: $event');
+    return null;
+  }
+
+  final ReadiumTimebasedState state;
+  try {
+    state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
+  } on FormatException catch (e) {
+    _log.w('Skipping malformed timebased-state JSON: $e');
+    return null;
+  } on TypeError catch (e) {
+    _log.w('Skipping timebased-state JSON with unexpected shape: $e');
+    return null;
+  }
+
+  state.currentLocator?.locations?.let((locations) {
+    if (locations.position == null) {
+      debugPrint('Received timebased player state with currentLocator missing position: $state');
+    } else if (locations.position! <= 0) {
+      debugPrint('Received timebased player state with currentLocator invalid position: $state');
+    }
+  });
+
+  return state;
+}
+
 /// An implementation of [FlutterReadiumPlatform] that uses method channels.
 class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// The method channel used to interact with the native platform.
@@ -52,7 +105,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= textLocatorChannel
         .receiveBroadcastStream()
-        .map((dynamic event) => Locator.fromJson(json.decode(event) as Map<String, dynamic>)!)
+        .map(_decodeTextLocatorEvent)
+        .where((locator) => locator != null)
+        .cast<Locator>()
         .asBroadcastStream();
     return _onTextLocatorChanged!;
   }
@@ -60,19 +115,12 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// Fires whenever the TimebasedNavigator changes state
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
-      final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
-
-      state.currentLocator?.locations?.let((locations) {
-        if (locations.position == null) {
-          debugPrint('Received timebased player state with currentLocator missing position: $state');
-        } else if (locations.position! <= 0) {
-          debugPrint('Received timebased player state with currentLocator invalid position: $state');
-        }
-      });
-
-      return state;
-    }).asBroadcastStream();
+    _onTimebasedPlayerStateChanged ??= timebasedStateChannel
+        .receiveBroadcastStream()
+        .map(_decodeTimebasedStateEvent)
+        .where((state) => state != null)
+        .cast<ReadiumTimebasedState>()
+        .asBroadcastStream();
 
     return _onTimebasedPlayerStateChanged!;
   }
