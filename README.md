@@ -95,6 +95,21 @@ Then complete the per-platform setup below. See [docs/getting-started/installati
 ### Android
 
 - Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
+  readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
+  without it:
+
+  ```kotlin
+  android {
+      compileOptions {
+          isCoreLibraryDesugaringEnabled = true
+      }
+  }
+
+  dependencies {
+      coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+  }
+  ```
 - Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
 - If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 
