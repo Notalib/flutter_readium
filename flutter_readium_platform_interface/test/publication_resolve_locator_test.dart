@@ -191,5 +191,23 @@ void main() {
       expect(resolved.locations?.cssSelector, isNull);
       expect(resolved.locations?.fragments, isEmpty);
     });
+
+    test('duplicate reading-order entries still report the real position', () {
+      // Link compares by value, so resolving through the Link rather than its
+      // index would report position 1 for every one of these.
+      final duplicate = Link(href: '/dup.mp3', type: 'audio/mpeg', duration: 100);
+      final pub = _publicationWithReadingOrder([duplicate, duplicate, duplicate]);
+      final locator = Locator(
+        href: '/gone.xhtml',
+        type: 'application/xhtml+xml',
+        locations: Locations(position: 3, totalProgression: 0.9),
+      );
+
+      final resolved = pub.resolveLocator(locator);
+
+      expect(resolved, isNotNull);
+      // 0.9 * 300 = 270, which falls inside the third entry.
+      expect(resolved!.locations?.position, 3);
+    });
   });
 }

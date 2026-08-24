@@ -279,8 +279,12 @@ class Publication with Equatable implements JSONable {
     }
 
     final position = locations?.position;
-    final link = (position != null && position > 0) ? readingOrder.elementAtOrNull(position - 1) : null;
-    return link == null ? null : _relocate(locator, link, progression: null);
+    if (position == null || position <= 0) {
+      return null;
+    }
+
+    final index = position - 1;
+    return readingOrder.elementAtOrNull(index) == null ? null : _relocate(locator, index, progression: null);
   }
 
   /// Maps [totalProgression] onto the accumulated [Link.duration] of
@@ -305,27 +309,35 @@ class Publication with Equatable implements JSONable {
       final isLastLink = i == readingOrder.length - 1;
       if (target <= accumulated + duration || isLastLink) {
         final progression = duration > 0 ? ((target - accumulated) / duration).clamp(0.0, 1.0) : 0.0;
-        return _relocate(locator, readingOrder[i], progression: progression);
+        return _relocate(locator, i, progression: progression);
       }
       accumulated += duration;
     }
     return null; // Unreachable: the loop always returns on the last link.
   }
 
-  /// Rebuilds [locator] to point at [link]: [Locator.href] and [Locator.type]
-  /// become the resolved link's, [Locations.position] becomes its index in
-  /// [readingOrder], and [progression] (when known) replaces the old one.
+  /// Rebuilds [locator] to point at `readingOrder[index]`: [Locator.href] and
+  /// [Locator.type] become the resolved link's, [Locations.position] becomes
+  /// `index + 1`, and [progression] (when known) replaces the old one.
   /// [Locations.cssSelector] and [Locations.fragments] described the old
   /// resource, so they are dropped rather than carried over.
-  Locator _relocate(final Locator locator, final Link link, {required final double? progression}) => locator.copyWith(
-    href: link.href,
-    type: link.type ?? locator.type,
-    locations: Locations(
-      position: readingOrder.indexOf(link) + 1,
-      progression: progression,
-      totalProgression: locator.locations?.totalProgression,
-    ),
-  );
+  ///
+  /// Takes the index rather than the [Link] because [Link] compares by value:
+  /// a reading order containing two equal entries would resolve to the first
+  /// one's index, reporting a position the locator was never at.
+  Locator _relocate(final Locator locator, final int index, {required final double? progression}) {
+    final link = readingOrder[index];
+
+    return locator.copyWith(
+      href: link.href,
+      type: link.type ?? locator.type,
+      locations: Locations(
+        position: index + 1,
+        progression: progression,
+        totalProgression: locator.locations?.totalProgression,
+      ),
+    );
+  }
 
   /// The cover [Link], found by `rel=cover` or by href/type heuristics. `null` if not present.
   Link? get coverLink => resources.firstWhereOrNull(
