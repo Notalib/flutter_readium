@@ -75,7 +75,8 @@ void main() {
       expect(events.single.type, testLocator.type);
     }
 
-    // Native `try? finalLocator.jsonString()` sends nil on serialization failure.
+    // Both platforms guard against emitting nil; this pins the Dart side's
+    // behaviour if that ever regresses.
     test('a nil event is dropped', () => expectSurvives(null));
 
     test('malformed JSON is dropped', () => expectSurvives('not valid json {'));
@@ -110,7 +111,6 @@ void main() {
       expect(events.single.currentLocator?.href, testState.currentLocator?.href);
     }
 
-    // Native `ReadiumTimebasedState.toJsonString()` returns nil on failure.
     test('a nil event is dropped', () => expectSurvives(null));
 
     test('malformed JSON is dropped', () => expectSurvives('not valid json {'));

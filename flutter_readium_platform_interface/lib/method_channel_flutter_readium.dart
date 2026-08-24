@@ -64,9 +64,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// handshake completes (a race that can happen when the EPUB platform view
   /// initialises faster than the asynchronous channel setup).
   ///
-  /// Events that cannot be decoded are logged and dropped: native sends `nil`
-  /// when Locator serialization fails, and a decoded Locator missing `href` or
-  /// `type` yields `null`. Neither should reach consumers as a stream error.
+  /// Undecodable events are logged and dropped rather than raised on the stream.
+  /// Both platforms guard against emitting one, so this is defence against a
+  /// native regression — and against a Locator that decodes but fails validation.
   @override
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= textLocatorChannel

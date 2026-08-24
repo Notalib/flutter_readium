@@ -457,8 +457,8 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         do {
           FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try finalLocator.jsonString())
         } catch {
-          // `try?` used to swallow this: a serialization failure silently stopped
-          // Dart's text-locator stream from ever seeing another event.
+          // `try?` used to discard this error, so a serialization failure left no
+          // trace anywhere: no event on the stream and nothing in the logs.
           Log.reader.error("Failed to serialize locator for text-locator stream: \(error)")
         }
       }

@@ -13,12 +13,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **Native locator/player-state serialization failures were silently swallowed
-  (iOS).** A `Locator` or `ReadiumTimebasedState` that failed to serialize sent a
-  bare `nil` to the text-locator / timebased-state event channels with nothing in
-  the native logs to explain the resulting gap in reader-position updates. The
-  failure is now logged instead (paired with the platform-interface fix that drops
-  such events rather than raising them on the Dart stream).
+- **A reader-position event that failed to serialize left no trace (iOS).** The
+  position update went missing with nothing in the native logs to explain it.
+  Such failures are now logged, and the Dart stream drops the bad event instead
+  of raising an uncaught async error.
 - **iOS build failed on Swift 6.** Building with Xcode 26 / Swift 6.3 stopped with
   `Cannot find 'NSEC_PER_SEC' in scope`. The timeout helper used that `Darwin` macro from a file
   with no imports, which only resolved because older Swift leaked imports between files of one
