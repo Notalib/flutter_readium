@@ -240,6 +240,93 @@ class Publication with Equatable implements JSONable {
     return split == -1 ? null : find(href.substring(0, split));
   }
 
+  /// Resolves [locator] against this publication, for when the stored href is
+  /// no longer part of the reading order — e.g. the publication was re-issued
+  /// with different resource granularity (chapters split/merged, or a
+  /// text-with-overlay reading order replaced by an audio-only one).
+  ///
+  /// Call this before navigating to any persisted [Locator] (last position,
+  /// bookmark, highlight) once the publication it was recorded against might
+  /// have changed shape. It's safe and cheap to call unconditionally: a
+  /// locator whose href is still valid is returned unchanged, without
+  /// touching [readingOrder].
+  ///
+  /// Resolution order:
+  ///  1. [linkWithHref] on [Locator.hrefPath] — still valid, returned as-is.
+  ///  2. [Locations.totalProgression] mapped onto accumulated [Link.duration]
+  ///     across [readingOrder]. Segmentation-independent, so preferred
+  ///     whenever every entry has a duration.
+  ///  3. [Locations.position] as a 1-based index into [readingOrder]. Exact
+  ///     only when the new segmentation happens to line up with the old one,
+  ///     so tried last; an out-of-range position resolves to `null` instead
+  ///     of throwing.
+  ///
+  /// Returns `null` when none of the above yields a position — callers
+  /// should decide what to do next (e.g. fall back to the first reading-order
+  /// link) rather than have this guess.
+  Locator? resolveLocator(final Locator locator) {
+    if (linkWithHref(locator.hrefPath) != null) {
+      return locator;
+    }
+
+    final locations = locator.locations;
+    final totalProgression = locations?.totalProgression;
+    if (totalProgression != null && totalProgression > 0) {
+      final resolved = _resolveLocatorByDuration(locator, totalProgression);
+      if (resolved != null) {
+        return resolved;
+      }
+    }
+
+    final position = locations?.position;
+    final link = (position != null && position > 0) ? readingOrder.elementAtOrNull(position - 1) : null;
+    return link == null ? null : _relocate(locator, link, progression: null);
+  }
+
+  /// Maps [totalProgression] onto the accumulated [Link.duration] of
+  /// [readingOrder], returning the containing link and the offset within it.
+  /// Returns `null` if any entry is missing a duration or the total duration
+  /// is zero — the caller falls back to [Locations.position] in that case.
+  Locator? _resolveLocatorByDuration(final Locator locator, final double totalProgression) {
+    final durations = readingOrder.map((final link) => link.duration).toList();
+    if (durations.isEmpty || durations.any((final duration) => duration == null)) {
+      return null;
+    }
+
+    final total = durations.cast<double>().fold(0.0, (final sum, final duration) => sum + duration);
+    if (total <= 0) {
+      return null;
+    }
+
+    final target = totalProgression * total;
+    var accumulated = 0.0;
+    for (var i = 0; i < readingOrder.length; i++) {
+      final duration = durations[i]!;
+      final isLastLink = i == readingOrder.length - 1;
+      if (target <= accumulated + duration || isLastLink) {
+        final progression = duration > 0 ? ((target - accumulated) / duration).clamp(0.0, 1.0) : 0.0;
+        return _relocate(locator, readingOrder[i], progression: progression);
+      }
+      accumulated += duration;
+    }
+    return null; // Unreachable: the loop always returns on the last link.
+  }
+
+  /// Rebuilds [locator] to point at [link]: [Locator.href] and [Locator.type]
+  /// become the resolved link's, [Locations.position] becomes its index in
+  /// [readingOrder], and [progression] (when known) replaces the old one.
+  /// [Locations.cssSelector] and [Locations.fragments] described the old
+  /// resource, so they are dropped rather than carried over.
+  Locator _relocate(final Locator locator, final Link link, {required final double? progression}) => locator.copyWith(
+    href: link.href,
+    type: link.type ?? locator.type,
+    locations: Locations(
+      position: readingOrder.indexOf(link) + 1,
+      progression: progression,
+      totalProgression: locator.locations?.totalProgression,
+    ),
+  );
+
   /// The cover [Link], found by `rel=cover` or by href/type heuristics. `null` if not present.
   Link? get coverLink => resources.firstWhereOrNull(
     (final r) =>

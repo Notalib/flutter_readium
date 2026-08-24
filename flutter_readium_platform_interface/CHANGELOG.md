@@ -10,6 +10,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
   platform interface for distinguishing system media-control commands from
   ordinary playback state changes.
+- `Publication.resolveLocator(Locator)` — resolves a stored locator whose href is
+  no longer in the reading order, e.g. after a publication is re-issued with
+  different resource granularity (chapters split/merged, or a text-with-overlay
+  reading order replaced by an audio-only one). Prefers the segmentation-independent
+  `Locations.totalProgression` mapped onto `Link.duration`, falls back to a
+  bounds-safe `Locations.position` lookup, and returns `null` instead of guessing
+  or throwing when neither resolves. Drops the stale `cssSelector`/`fragments` and
+  updates `type` to match the resolved link.
 
 ## [0.4.0] - 2026-08-17
 
