@@ -11,6 +11,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   platform interface for distinguishing system media-control commands from
   ordinary playback state changes.
 
+### Fixed
+
+- **A single malformed reader-position event could stop updates for the rest of
+  the session.** `onTextLocatorChanged` and `onTimebasedPlayerStateChanged` threw
+  when a native event was `nil` or failed to parse, which breaks the stream for
+  any subscriber that treats the first error as fatal. Bad events are now logged
+  and skipped instead, so later position updates keep arriving.
+
 ## [0.4.0] - 2026-08-17
 
 ### Added

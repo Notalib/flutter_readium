@@ -11,6 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   system media controls such as headphones, iOS Control Center, and Android
   media-session controls.
 
+### Fixed
+
+- **Native locator/player-state serialization failures were silently swallowed
+  (iOS).** A `Locator` or `ReadiumTimebasedState` that failed to serialize sent a
+  bare `nil` to the text-locator / timebased-state event channels with nothing in
+  the native logs to explain the resulting gap in reader-position updates. The
+  failure is now logged instead (paired with the platform-interface fix that keeps
+  the Dart stream alive when this happens).
+
 ## [0.4.0] - 2026-08-17
 
 ### Added

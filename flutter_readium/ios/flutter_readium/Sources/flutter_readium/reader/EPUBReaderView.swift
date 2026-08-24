@@ -454,7 +454,13 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       let finalLocator = enriched ?? locator
       await MainActor.run() {
         self.channel.onPageChanged(locator: finalLocator)
-        FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try? finalLocator.jsonString())
+        do {
+          FlutterReadiumPlugin.instance?.textLocatorStreamHandler?.sendEvent(try finalLocator.jsonString())
+        } catch {
+          // `try?` used to swallow this: a serialization failure silently stopped
+          // Dart's text-locator stream from ever seeing another event.
+          Log.reader.error("Failed to serialize locator for text-locator stream: \(error)")
+        }
       }
     }
   }
