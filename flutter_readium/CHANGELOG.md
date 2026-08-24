@@ -11,6 +11,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   system media controls such as headphones, iOS Control Center, and Android
   media-session controls.
 
+### Fixed
+
+- **Jumping to a bookmark or saved position in a different audiobook track landed
+  at the wrong time (iOS).** When the locator carried a progression, the offset was
+  scaled by the length of the track already playing instead of the target track, so
+  the more the two track lengths differed, the further off the landing point.
+  Restoring a position in a freshly opened book was the worst case: it started the
+  track from the beginning.
+
 ## [0.4.0] - 2026-08-17
 
 ### Added
