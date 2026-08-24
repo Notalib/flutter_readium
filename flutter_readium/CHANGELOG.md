@@ -13,10 +13,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **iOS build failure on Swift 6.** `utils/Extensions.swift` had no import statements while using
-  `NSEC_PER_SEC`, which comes from `Darwin`. It resolved only because Swift used to leak imports
-  between files of the same compilation unit; Swift 6 does not, so the file failed to compile with
-  `Cannot find 'NSEC_PER_SEC' in scope`.
+- **iOS build failed on Swift 6.** Building with Xcode 26 / Swift 6.3 stopped with
+  `Cannot find 'NSEC_PER_SEC' in scope`. The timeout helper used that `Darwin` macro from a file
+  with no imports, which only resolved because older Swift leaked imports between files of one
+  compilation unit. It now uses a plain nanosecond literal.
 - **Text selection was dead on the first mount of the reader on Android.** `onTextSelected` never
   fired and custom selection actions never appeared, with nothing logged. `selectionActions` is now
   read from the creation params — as iOS already did — so it is known before the navigator fragment

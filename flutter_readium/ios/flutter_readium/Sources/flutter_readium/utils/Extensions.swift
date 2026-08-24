@@ -1,9 +1,3 @@
-// `NSEC_PER_SEC` below comes from the `Darwin` module, re-exported by `Foundation`.
-// It used to resolve without an explicit import because Swift leaked imports between
-// files of the same compilation unit; Swift 6 no longer does, so the file fails to
-// build with "Cannot find 'NSEC_PER_SEC' in scope".
-import Foundation
-
 func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
   return min(max(value, minValue), maxValue)
 }
