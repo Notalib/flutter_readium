@@ -11,6 +11,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   system media controls such as headphones, iOS Control Center, and Android
   media-session controls.
 
+### Fixed
+
+- **iOS build failure on Swift 6.** `utils/Extensions.swift` had no import statements while using
+  `NSEC_PER_SEC`, which comes from `Darwin`. It resolved only because Swift used to leak imports
+  between files of the same compilation unit; Swift 6 does not, so the file failed to compile with
+  `Cannot find 'NSEC_PER_SEC' in scope`.
+- **Text selection was dead on the first mount of the reader on Android.** `onTextSelected` never
+  fired and custom selection actions never appeared, with nothing logged. `selectionActions` is now
+  read from the creation params — as iOS already did — so it is known before the navigator fragment
+  is built, instead of relying on the later `configureSelectionActions` call.
+
+### Documentation
+
+- Document the core library desugaring requirement in the installation guide and the README, and
+  correct the error message shown when `MainActivity` does not extend `FlutterFragmentActivity`.
+
 ## [0.4.0] - 2026-08-17
 
 ### Added
