@@ -36,6 +36,29 @@ android {
 }
 ```
 
+### Core library desugaring
+
+The readium-kotlin-toolkit artifacts require it. In `android/app/build.gradle`:
+
+```gradle
+android {
+  compileOptions {
+    coreLibraryDesugaringEnabled true
+  }
+}
+
+dependencies {
+  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+}
+```
+
+Without this the build fails at `:app:checkDebugAarMetadata` with one error per readium artifact:
+
+```
+Dependency 'org.readium.kotlin-toolkit:readium-shared:3.3.0' requires core library desugaring
+to be enabled for :app.
+```
+
 ### Fragment activity
 
 The plugin uses platform views that require Fragment support. Change your `MainActivity` to extend `FlutterFragmentActivity`:
@@ -46,7 +69,14 @@ import io.flutter.embedding.android.FlutterFragmentActivity
 class MainActivity : FlutterFragmentActivity()
 ```
 
-Without this you will see: `MainActivity cannot be cast to androidx.fragment.app.FragmentActivity`.
+Without this the app still builds and launches — it only fails when a publication is opened, and
+the reader view stays on its loading state:
+
+```
+java.lang.IllegalStateException: ::activity. No FragmentActivity available
+  — is the plugin attached to a FragmentActivity host?
+  at dk.nota.flutterreadium.ReadiumReaderWidget.getActivity(ReadiumReaderWidget.kt:73)
+```
 
 ### Optional permissions
 

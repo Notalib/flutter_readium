@@ -19,6 +19,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the native logs to explain the resulting gap in reader-position updates. The
   failure is now logged instead (paired with the platform-interface fix that drops
   such events rather than raising them on the Dart stream).
+- **iOS build failed on Swift 6.** Building with Xcode 26 / Swift 6.3 stopped with
+  `Cannot find 'NSEC_PER_SEC' in scope`. The timeout helper used that `Darwin` macro from a file
+  with no imports, which only resolved because older Swift leaked imports between files of one
+  compilation unit. It now uses a plain nanosecond literal.
+- **Text selection was dead on the first mount of the reader on Android.** `onTextSelected` never
+  fired and custom selection actions never appeared, with nothing logged. `selectionActions` is now
+  read from the creation params — as iOS already did — so it is known before the navigator fragment
+  is built, instead of relying on the later `configureSelectionActions` call.
+
+### Documentation
+
+- Document the core library desugaring requirement in the installation guide and the README, and
+  correct the error message shown when `MainActivity` does not extend `FlutterFragmentActivity`.
 
 ## [0.4.0] - 2026-08-17
 
@@ -30,6 +43,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **URI-templated manifest links** are now expanded for guided-navigation and
+  sync-narration sidecar resources on web, iOS, and Android.
 - **Bundled OpenDyslexic now loads on Android.**
   Kotlin Toolkit 3.2.0 served its embedded font from a separate WebView origin without a
   CORS response header. Android now uses Kotlin Toolkit 3.3.0, which fixes asset font loading.

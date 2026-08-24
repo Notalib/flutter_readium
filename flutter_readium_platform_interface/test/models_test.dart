@@ -130,21 +130,81 @@ void main() {
     });
   });
 
+  group('Publication URI templates', () {
+    Map<String, dynamic> templatedLink(String href) => {
+      'href': href,
+      'templated': true,
+      'type': 'application/json',
+    };
+
+    test(
+      'accepts templated links in standard and nested Link Object fields',
+      () {
+        final publication = Publication.fromJson({
+          'metadata': {'title': 'Templated publication'},
+          'links': [
+            templatedLink('service{?ref}'),
+            {
+              ...templatedLink('parent{?resource}'),
+              'alternate': [templatedLink('alternate{?id}')],
+              'children': [templatedLink('child{?ref}')],
+            },
+          ],
+          'readingOrder': [templatedLink('chapter{?resource}')],
+          'resources': [templatedLink('resource{?id}')],
+          'toc': [templatedLink('toc{?ref}')],
+          'page-list': {
+            'links': [templatedLink('page{?ref}')],
+          },
+        });
+
+        expect(publication, isNotNull);
+        final parsed = publication!;
+        expect(parsed.links.every((link) => link.templated), isTrue);
+        expect(parsed.readingOrder.single.templated, isTrue);
+        expect(parsed.resources.single.templated, isTrue);
+        expect(parsed.tableOfContents.single.templated, isTrue);
+        expect(parsed.links[1].alternates.single.templated, isTrue);
+        expect(parsed.links[1].children.single.templated, isTrue);
+        expect(parsed.collectionLinks('page-list').single.templated, isTrue);
+      },
+    );
+
+    test('preserves templated flags through manifest serialization', () {
+      final publication = Publication.fromJson({
+        'metadata': {'title': 'Templated publication'},
+        'links': [templatedLink('service{?ref}')],
+        'readingOrder': [templatedLink('chapter{?resource}')],
+      })!;
+
+      final json = publication.toJson();
+
+      expect(json['links'].single['templated'], isTrue);
+      expect(json['readingOrder'].single['templated'], isTrue);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // EPUBPreferences serialisation
   // ---------------------------------------------------------------------------
   group('EPUBPreferences', () {
-    test('round-trips preventMOColumnBreaks: true through toJson / fromJson', () {
-      const prefs = EPUBPreferences(preventMOColumnBreaks: true);
-      final restored = EPUBPreferences.fromJson(prefs.toJson());
-      expect(restored.preventMOColumnBreaks, isTrue);
-    });
+    test(
+      'round-trips preventMOColumnBreaks: true through toJson / fromJson',
+      () {
+        const prefs = EPUBPreferences(preventMOColumnBreaks: true);
+        final restored = EPUBPreferences.fromJson(prefs.toJson());
+        expect(restored.preventMOColumnBreaks, isTrue);
+      },
+    );
 
-    test('round-trips preventMOColumnBreaks: false through toJson / fromJson', () {
-      const prefs = EPUBPreferences(preventMOColumnBreaks: false);
-      final restored = EPUBPreferences.fromJson(prefs.toJson());
-      expect(restored.preventMOColumnBreaks, isFalse);
-    });
+    test(
+      'round-trips preventMOColumnBreaks: false through toJson / fromJson',
+      () {
+        const prefs = EPUBPreferences(preventMOColumnBreaks: false);
+        final restored = EPUBPreferences.fromJson(prefs.toJson());
+        expect(restored.preventMOColumnBreaks, isFalse);
+      },
+    );
 
     test('toJson emits preventMOColumnBreaks under the correct key', () {
       const prefs = EPUBPreferences(preventMOColumnBreaks: false);
@@ -153,10 +213,13 @@ void main() {
       expect(json['preventMOColumnBreaks'], isFalse);
     });
 
-    test('fromJson defaults preventMOColumnBreaks to true when key is absent', () {
-      final restored = EPUBPreferences.fromJson({});
-      expect(restored.preventMOColumnBreaks, isTrue);
-    });
+    test(
+      'fromJson defaults preventMOColumnBreaks to true when key is absent',
+      () {
+        final restored = EPUBPreferences.fromJson({});
+        expect(restored.preventMOColumnBreaks, isTrue);
+      },
+    );
 
     test('copyWith preserves preventMOColumnBreaks when not overridden', () {
       const prefs = EPUBPreferences(preventMOColumnBreaks: false);
@@ -268,7 +331,11 @@ void main() {
         PlatformException(
           code: 'notFound',
           message: 'Publication not found',
-          details: {'href': '/pub.epub', 'httpStatus': 404, 'message': 'native detail'},
+          details: {
+            'href': '/pub.epub',
+            'httpStatus': 404,
+            'message': 'native detail',
+          },
         ),
       );
 
@@ -303,7 +370,12 @@ void main() {
       final error = ReadiumError(
         'oops',
         code: '42',
-        details: {'href': '/ch1.mp3', 'attempt': 1, 'maxAttempts': 3, 'httpStatus': 503},
+        details: {
+          'href': '/ch1.mp3',
+          'attempt': 1,
+          'maxAttempts': 3,
+          'httpStatus': 503,
+        },
       );
       final restored = ReadiumError.fromJson(error.toJson());
       expect(restored.message, 'oops');
@@ -323,15 +395,18 @@ void main() {
       expect(error.httpStatus, isNull);
     });
 
-    test('tolerates a legacy freeform-string data payload by wrapping it as message', () {
-      final error = ReadiumError.fromJson({
-        'message': 'oops',
-        'code': '42',
-        'data': 'attempt=1/3 href=/ch1.mp3',
-      });
-      expect(error.details, {'message': 'attempt=1/3 href=/ch1.mp3'});
-      expect(error.href, isNull);
-    });
+    test(
+      'tolerates a legacy freeform-string data payload by wrapping it as message',
+      () {
+        final error = ReadiumError.fromJson({
+          'message': 'oops',
+          'code': '42',
+          'data': 'attempt=1/3 href=/ch1.mp3',
+        });
+        expect(error.details, {'message': 'attempt=1/3 href=/ch1.mp3'});
+        expect(error.href, isNull);
+      },
+    );
 
     test('ignores legacy stackTrace payload from stale producers', () {
       final error = ReadiumError.fromJson({
@@ -485,9 +560,7 @@ void main() {
   // ---------------------------------------------------------------------------
   group('Preferences controlPanelTimebase fallback', () {
     test('AudioPreferences.fromJson keeps null when missing', () {
-      final prefs = AudioPreferences.fromJson({
-        'speed': 1.0,
-      });
+      final prefs = AudioPreferences.fromJson({'speed': 1.0});
 
       expect(prefs.controlPanelTimebase, isNull);
     });
@@ -501,9 +574,7 @@ void main() {
     });
 
     test('TTSPreferences.fromJson defaults missing value to chapter', () {
-      final prefs = TTSPreferences.fromJson({
-        'speed': 1.0,
-      });
+      final prefs = TTSPreferences.fromJson({'speed': 1.0});
 
       expect(prefs.controlPanelTimebase, ControlPanelTimebase.chapter);
     });
@@ -590,24 +661,27 @@ void main() {
   // ImageTapEvent serialisation
   // ---------------------------------------------------------------------------
   group('ImageTapEvent', () {
-    test('round-trips a fully-populated iOS-style event through toJson / fromJson', () {
-      final event = ImageTapEvent(
-        href: 'images/wendy.jpg',
-        caption: 'Wendy and the boys',
-        rect: const Rect.fromLTWH(10.0, 20.0, 300.0, 200.0),
-        pixelWidth: 600,
-        pixelHeight: 400,
-      );
+    test(
+      'round-trips a fully-populated iOS-style event through toJson / fromJson',
+      () {
+        final event = ImageTapEvent(
+          href: 'images/wendy.jpg',
+          caption: 'Wendy and the boys',
+          rect: const Rect.fromLTWH(10.0, 20.0, 300.0, 200.0),
+          pixelWidth: 600,
+          pixelHeight: 400,
+        );
 
-      final restored = ImageTapEvent.fromJson(event.toJson());
-      expect(restored.href, event.href);
-      expect(restored.caption, event.caption);
-      expect(restored.alt, isNull);
-      expect(restored.rect!.left, closeTo(10.0, 1e-9));
-      expect(restored.rect!.height, closeTo(200.0, 1e-9));
-      expect(restored.pixelWidth, 600);
-      expect(restored.pixelHeight, 400);
-    });
+        final restored = ImageTapEvent.fromJson(event.toJson());
+        expect(restored.href, event.href);
+        expect(restored.caption, event.caption);
+        expect(restored.alt, isNull);
+        expect(restored.rect!.left, closeTo(10.0, 1e-9));
+        expect(restored.rect!.height, closeTo(200.0, 1e-9));
+        expect(restored.pixelWidth, 600);
+        expect(restored.pixelHeight, 400);
+      },
+    );
 
     test('round-trips a fully-populated web-style event (with alt)', () {
       final event = ImageTapEvent(
