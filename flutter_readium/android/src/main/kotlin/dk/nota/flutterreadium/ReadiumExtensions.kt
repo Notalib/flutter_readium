@@ -48,6 +48,32 @@ import org.readium.r2.navigator.preferences.Color as ReadiumColor
 
 private const val TAG = "ReadiumExtensions"
 
+private fun resolvedTemplateLink(
+    link: Link,
+    parameters: Map<String, String>,
+): Link? =
+    when (val resolution = LinkTemplateResolver.resolve(link, parameters)) {
+        is LinkTemplateResolution.Resolved -> {
+            resolution.link
+        }
+
+        is LinkTemplateResolution.Unresolved -> {
+            if (LinkTemplateResolver.shouldReport(link, resolution)) {
+                PluginLog.w(
+                    TAG,
+                    "::resolvedTemplateLink. URI template could not be resolved for " +
+                        "${link.href}: ${resolution.reason}" +
+                        resolution.missingVariables
+                            .takeIf { it.isNotEmpty() }
+                            ?.let {
+                                " (${it.joinToString()})"
+                            }.orEmpty(),
+                )
+            }
+            null
+        }
+    }
+
 /**
  * The [HttpError] found by unwrapping this error's cause chain, if any. Readium/ExoPlayer
  * errors often wrap the real [HttpError] at some depth (e.g. `ReadError.Access(HttpError)`),
@@ -283,10 +309,11 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
     if (!hasMediaOverlays()) return null
 
     val overlayLinks =
-        this.readingOrder.mapNotNull { r ->
-            r.alternates
-                .find { a -> a.mediaType == syncNarrationsMediaType }
-                ?.copy(title = r.title)
+        this.readingOrder.withIndex().mapNotNull { (position, resourceLink) ->
+            resourceLink.alternates
+                .find { alternate -> alternate.mediaType == syncNarrationsMediaType }
+                ?.copy(title = resourceLink.title)
+                ?.let { overlayLink -> Triple(position, resourceLink, overlayLink) }
         }
 
     // Fetch+parse every overlay JSON in parallel on IO. Cap is configurable so we don't open
@@ -295,10 +322,14 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
         coroutineScope {
             val gate = Semaphore(permits = mediaOverlayFetchConcurrency)
             overlayLinks
-                .mapIndexed { index, link ->
+                .map { (position, resourceLink, link) ->
                     async(Dispatchers.IO) {
                         gate.withPermit {
-                            val resource = get(link)
+                            val parameters = LinkTemplateResolver.parameters(resourceLink, link)
+                            val resolvedLink =
+                                resolvedTemplateLink(link, parameters)
+                                    ?: return@withPermit null
+                            val resource = get(resolvedLink)
                             if (resource == null) {
                                 PluginLog.w(TAG, "::getMediaOverlays() - no resource for ${link.href}")
                                 return@withPermit null
@@ -318,7 +349,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
 
                             return@withPermit FlutterMediaOverlay.fromJson(
                                 JSONObject(jsonString),
-                                index + 1,
+                                position + 1,
                                 null,
                                 link.title ?: "",
                                 duration,
@@ -345,8 +376,9 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     // Strategy 1: single guided navigation document in publication links (preferred).
     val singleDocLink = links.find { it.mediaType == guidedNavigationMediaType }
     if (singleDocLink != null) {
+        val resolvedLink = resolvedTemplateLink(singleDocLink, emptyMap()) ?: return null
         val jsonString =
-            get(singleDocLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
+            get(resolvedLink)?.read()?.getOrNull()?.let { String(it) } ?: run {
                 PluginLog.w(
                     TAG,
                     "::getGuidedNavigationMediaOverlays - unable to load ${singleDocLink.href}",
@@ -384,8 +416,15 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
     // Deduplicate: several readingOrder items may reference the same guided-navigation document.
     val guidedLinks =
         readingOrder
-            .mapNotNull { roLink -> roLink.alternates.find { it.mediaType == guidedNavigationMediaType } }
-            .distinctBy { it.href }
+            .mapNotNull { roLink ->
+                val guidedLink =
+                    roLink.alternates.find { it.mediaType == guidedNavigationMediaType }
+                        ?: return@mapNotNull null
+                resolvedTemplateLink(
+                    guidedLink,
+                    LinkTemplateResolver.parameters(roLink, guidedLink),
+                )
+            }.distinctBy { it.href.toString() }
     if (guidedLinks.isEmpty()) return null
 
     val parsed: List<List<FlutterMediaOverlay>?> =

@@ -18,6 +18,7 @@
 import { Link, Locator, LocatorLocations, LocatorText, Resource } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { linkTemplateContext, resolveLink } from "../utils/linkTemplate";
 
 const log = createLogger("SyncNarration");
 
@@ -108,9 +109,15 @@ export async function parseSyncNarration(
     const link = publication.readingOrder.items[i];
     const narrationLink = _narrationAlternate(link);
     if (!narrationLink) continue;
+    const resolved = resolveLink(
+      narrationLink,
+      linkTemplateContext(link, narrationLink),
+      publication.baseURL
+    );
+    if (!resolved.ok) continue;
 
     try {
-      const resource: Resource = publication.get(narrationLink);
+      const resource: Resource = publication.get(resolved.link);
       const json = await resource.readAsJSON();
       const items = _parseNarrationJson(json, i, link.duration);
       result.push(...items);

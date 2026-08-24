@@ -37,6 +37,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **URI-templated manifest links** are now expanded for guided-navigation and
+  sync-narration sidecar resources on web, iOS, and Android.
 - **Bundled OpenDyslexic now loads on Android.**
   Kotlin Toolkit 3.2.0 served its embedded font from a separate WebView origin without a
   CORS response header. Android now uses Kotlin Toolkit 3.3.0, which fixes asset font loading.
