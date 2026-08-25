@@ -232,7 +232,6 @@ fun Resource.injectScriptsAndStyles(
                     }
                 };
             </script>
-            $injectStyle
             """
 
         val allLines = assetLines + listOf(platformScript) + listOfNotNull(injectStyle)
@@ -242,14 +241,14 @@ fun Resource.injectScriptsAndStyles(
         if (startIdx != -1) {
             val endIdx = content.indexOf(INJECT_END_MARKER, startIdx)
             if (endIdx == -1) {
-                PluginLog.w(TAG, "Injection start marker found without end marker in: $filename")
+                PluginLog.w(TAG, "::injectScriptsAndStyles. Injection start marker found without end marker in: $filename")
             } else {
                 val existingBlock = content.substring(startIdx, endIdx + INJECT_END_MARKER.length)
                 if (existingBlock == newBlock) {
-                    PluginLog.d(TAG, "Skip injecting - no changes for: $filename")
+                    PluginLog.d(TAG, "::injectScriptsAndStyles. Skip injecting - no changes for: $filename")
                     return@TransformingResource Try.success(bytes)
                 }
-                PluginLog.d(TAG, "Replacing injection block for: $filename")
+                PluginLog.d(TAG, "::injectScriptsAndStyles. Replacing injection block for: $filename")
                 val newContent =
                     content.substring(0, startIdx) +
                         newBlock +
