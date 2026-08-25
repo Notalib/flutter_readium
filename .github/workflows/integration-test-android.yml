@@ -109,11 +109,7 @@ jobs:
           # when it ends, so a later `if: failure()` step (as on iOS) can't reach it.
           script: |
             adb logcat -c || true
-            # `timeout` keeps the test run inside the job's 30-minute budget so the
-            # capture below can still run. Without it a hang is killed by the
-            # job-level timeout-minutes, which tears down the whole process tree —
-            # the `||` never fires and the failure is an opaque cancellation with no
-            # logcat. API 24 has hit this; see the run linked in the PR.
+            # Bounded so a hang can't trip timeout-minutes, which would kill the capture below.
             timeout 18m flutter test integration_test/plugin_integration_test.dart --dart-define=READIUM_TEST_SKIP_LOGS=true || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
 
       - name: Upload Android diagnostics

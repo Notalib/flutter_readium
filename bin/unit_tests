@@ -35,13 +35,7 @@ function test_ios() {
   local EXAMPLE_DIR="$REPO_ROOT/flutter_readium/example"
   local IOS_DIR="$EXAMPLE_DIR/ios"
 
-  # cd rather than "pub get --directory": flutter_tools resolves the *current
-  # project* (and its pubspec's "enable-swift-package-manager: false" override)
-  # from the working directory, not from --directory. Run from $REPO_ROOT and
-  # it silently falls back to the (default-on) global Swift Package Manager
-  # setting, regenerating FlutterGeneratedPluginSwiftPackage with real plugin
-  # dependencies whose deployment-target bump never runs outside "flutter
-  # build ios" — leaving a stale platform mismatch the next xcodebuild sees.
+  # cd, not --directory: --directory loses this pubspec's SPM override.
   ( cd "$EXAMPLE_DIR" && flutter pub get > /dev/null )
 
   # The CocoaPods podhelper needs Flutter's generated iOS config (and the
@@ -85,11 +79,9 @@ function test_android() {
 
   if [ ! -f "$EXAMPLE_DIR/android/gradlew" ]; then
     echo "Gradle wrapper not found — generating via 'flutter build apk --config-only'..."
-    # cd rather than "pub get --directory" — see test_ios() for why: run from
-    # $REPO_ROOT, flutter_tools can't see this project's pubspec overrides.
+    # cd, not --directory (see test_ios).
     ( cd "$EXAMPLE_DIR" && flutter pub get > /dev/null )
-    # "flutter build apk" has no --project-directory flag; cd into place instead
-    # (same idiom test_ios() already uses for "flutter build ios --config-only").
+    # flutter build apk has no --project-directory flag.
     ( cd "$EXAMPLE_DIR" && flutter build apk --config-only )
   fi
 

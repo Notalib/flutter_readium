@@ -6,14 +6,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 # (which includes flutter_lints/flutter.yaml for the page_width: 120 setting).
 # Without it, the formatter falls back to 80-char page width and produces
 # different output than CI (which always runs pub get before dart format).
-#
-# Each pub get cd's into its package rather than using --directory: flutter_tools
-# resolves the *current project* from the working directory, so from $REPO_ROOT it
-# cannot see a package's own pubspec flutter config. For the example app that means
-# its "enable-swift-package-manager: false" override is ignored, and the resulting
-# SPM-enabled resolution leaves the ephemeral FlutterGeneratedPluginSwiftPackage
-# declaring iOS 13.0 while depending on packages that require 15.0 — which breaks
-# the next "bin/unit_tests ios". See test_ios() in bin/unit_tests.
+# cd, not --directory: flutter_tools reads pubspec flutter config from the cwd.
 
 echo "Formatting flutter_readium_platform_interface..."
 ( cd "$REPO_ROOT/flutter_readium_platform_interface" && flutter pub get > /dev/null )
