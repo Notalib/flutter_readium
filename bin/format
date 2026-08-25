@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 # Format all Dart code across all packages in the repo.
@@ -19,3 +20,11 @@ dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium"
 echo "Formatting example app..."
 ( cd "$REPO_ROOT/flutter_readium/example" && flutter pub get > /dev/null )
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"
+
+echo "Formatting test app..."
+( cd "$REPO_ROOT/flutter_readium/test" && flutter pub get > /dev/null )
+dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/test"
+
+## Run flutter analyze on all packages in the repo.
+flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium
+flutter analyze --fatal-infos --fatal-warnings $REPO_ROOT/flutter_readium_platform_interface

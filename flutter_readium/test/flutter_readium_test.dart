@@ -167,9 +167,6 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   Future<void> setJavaScriptInjections(List<InjectionAsset> injections) async {}
 
   @override
-  Future<Uint8List> getResourceBytes(String href) async => Uint8List(0);
-
-  @override
   Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
     lastAudioRecoveryPolicy = policy;
   }
