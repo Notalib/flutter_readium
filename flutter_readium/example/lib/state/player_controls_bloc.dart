@@ -472,6 +472,8 @@ class PlayerControlsBloc extends Bloc<PlayerControlsEvent, PlayerControlsState> 
 
   Stream<ReadiumTimebasedState> get timebasedStateStream => instance.onTimebasedPlayerStateChanged;
 
+  Stream<ReadiumExternalPlaybackCommand> get externalPlaybackCommandStream => instance.onExternalPlaybackCommand;
+
   /// Emits the current [Locator] for the active publication, regardless of media type.
   /// Backed by a [BehaviorSubject] so a single underlying subscription is reused and
   /// late subscribers receive the most recent value on subscribe.

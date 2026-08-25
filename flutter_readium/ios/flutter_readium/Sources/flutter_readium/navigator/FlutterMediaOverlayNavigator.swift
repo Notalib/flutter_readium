@@ -32,7 +32,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
     self._initialLocator = self.mapTextLocatorToMediaOverlayAudioLocator(initialLocator)
   }
-
+  
   public override func initNavigator() async throws -> Void {
     Log.navigator.info("Initializing MediaOverlayNavigator")
     
@@ -54,6 +54,11 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
         title: item.tocTitle,
         duration: narr.items.reduce(0) { $0 + ($1.audioDuration ?? 0) }
       )
+    }
+    
+    guard !audioReadingOrder.isEmpty else {
+      Log.navigator.error("initNavigator() — audio readingOrder is empty; cannot initialize AudioNavigator.")
+      return
     }
     
     // Copy the manifest and set its readingOrder to audioReadingOrder.
@@ -150,7 +155,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   }
   
   internal override func submitTimebasedPlayerStateToListener(info: MediaPlaybackInfo, location: Locator?, bufferedInterval: TimeInterval? = nil) {
-
+    
     /// Create TimebasedState and send it over the timebased-state stream.
     let timebasedState = mapToTimebasedState(info: info, location: location, bufferedInterval: bufferedInterval)
     
@@ -160,7 +165,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
        let combinedLocator = mediaOverlayItem.toCombinedLocator(fromAudioLocator: locator) {
       timebasedState.currentLocator = combinedLocator
     }
-
+    
     /// If state has changed, submit it to listener.
     if (timebasedState != self._lastTimebasedPlayerState) {
       self._lastTimebasedPlayerState = timebasedState
@@ -193,12 +198,12 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     // If the input Text Locator, is a combined locator with a time fragment
     // we use this, as it can be more precise than the MediaOverlayItem fragment.
     if let textLocatorTime = textLocator.locations.time,
-            let textLocatorTimeBegin = textLocatorTime.begin {
+       let textLocatorTimeBegin = textLocatorTime.begin {
       Log.navigator.debug("TextLocator had more precise time offset: \(textLocatorTimeBegin)")
       let timeOffset = textLocatorTimeBegin
       audioLocator = audioLocator.copyWithOffset(timeOffset)
     }
-
+    
     Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - mapped text href=\(textLocator.href.string) " +
                         "-> audio href=\(audioLocator.href.string) fragments=\(audioLocator.locations.fragments)")
     return audioLocator

@@ -12,13 +12,13 @@ class OpdsPublication implements JSONable {
   final List<Link> images;
 
   OpdsPublication copyWith({
-    OpdsMetadata? metadata,
-    List<Link>? links,
-    List<Link>? images,
+    Object? metadata = unset,
+    Object? links = unset,
+    Object? images = unset,
   }) => OpdsPublication(
-    metadata ?? this.metadata,
-    links ?? this.links,
-    images: images ?? this.images,
+    identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata?)!,
+    identical(links, unset) ? this.links : (links as List<Link>?)!,
+    images: identical(images, unset) ? this.images : (images as List<Link>?)!,
   );
 
   @override

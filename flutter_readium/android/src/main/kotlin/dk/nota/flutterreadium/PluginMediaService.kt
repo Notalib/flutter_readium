@@ -34,6 +34,8 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import dk.nota.flutterreadium.events.ExternalPlaybackCommandAction
+import dk.nota.flutterreadium.events.ReadiumExternalPlaybackCommand
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -144,11 +146,21 @@ class PluginMediaService :
     ): ListenableFuture<SessionResult> {
         // Handle custom command buttons from player notification.
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.REWIND.customAction) {
+            ReadiumReader.emitExternalPlaybackCommand(
+                ReadiumExternalPlaybackCommand(
+                    action = ExternalPlaybackCommandAction.SeekBackward,
+                ),
+            )
             CoroutineScope(Dispatchers.Main).async {
                 ReadiumReader.previous()
             }
         }
         if (customCommand.customAction == NotificationPlayerCustomCommandButton.FORWARD.customAction) {
+            ReadiumReader.emitExternalPlaybackCommand(
+                ReadiumExternalPlaybackCommand(
+                    action = ExternalPlaybackCommandAction.SeekForward,
+                ),
+            )
             CoroutineScope(Dispatchers.Main).async {
                 ReadiumReader.next()
             }
@@ -211,7 +223,13 @@ class PluginMediaService :
                         if (secs != null && secs.isFinite() && secs > 0) (secs * 1000L).toLong() else null
                     }?.takeIf { it.size == (ReadiumReader.currentPublication?.readingOrder?.size ?: 0) }
 
-            val pluginForwardingPlayer = PluginSimpleBasePlayer(player, ReadiumReader.audioPreferences, publicationChapterDurationsMs)
+            val pluginForwardingPlayer =
+                PluginSimpleBasePlayer(
+                    player,
+                    ReadiumReader.audioPreferences,
+                    publicationChapterDurationsMs,
+                    ReadiumReader::emitExternalPlaybackCommand,
+                )
 
             val mediaSession =
                 MediaSession
@@ -404,6 +422,7 @@ class PluginSimpleBasePlayer(
     val preferences: FlutterAudioPreferences,
     /** Chapter durations from the publication manifest (seconds → ms). Null = chapter mode or durations unavailable. */
     private val manifestChapterDurationsMs: List<Long>? = null,
+    private val onExternalPlaybackCommand: ((ReadiumExternalPlaybackCommand) -> Unit)? = null,
 ) : ForwardingSimpleBasePlayer(player) {
     private data class PublicationSeekTarget(
         val mediaItemIndex: Int,
@@ -556,6 +575,29 @@ class PluginSimpleBasePlayer(
         return null
     }
 
+    private fun emitExternalPlaybackCommand(
+        action: ExternalPlaybackCommandAction,
+        positionMs: Long? = null,
+    ) {
+        onExternalPlaybackCommand?.invoke(
+            ReadiumExternalPlaybackCommand(
+                action = action,
+                position = positionMs,
+            ),
+        )
+    }
+
+    override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
+        emitExternalPlaybackCommand(
+            if (playWhenReady) {
+                ExternalPlaybackCommandAction.Play
+            } else {
+                ExternalPlaybackCommandAction.Pause
+            },
+        )
+        return super.handleSetPlayWhenReady(playWhenReady)
+    }
+
     override fun handleSeek(
         mediaItemIndex: Int,
         positionMs: Long,
@@ -563,9 +605,17 @@ class PluginSimpleBasePlayer(
     ): ListenableFuture<*> {
         // NOTE: Maps seek to next/previous track, to seek forward/backward in current track.
         if (seekCommand == COMMAND_SEEK_TO_NEXT) {
+            emitExternalPlaybackCommand(ExternalPlaybackCommandAction.SeekForward)
             return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_FORWARD)
         } else if (seekCommand == COMMAND_SEEK_TO_PREVIOUS) {
+            emitExternalPlaybackCommand(ExternalPlaybackCommandAction.SeekBackward)
             return super.handleSeek(mediaItemIndex, positionMs, COMMAND_SEEK_BACK)
+        }
+
+        when (seekCommand) {
+            COMMAND_SEEK_FORWARD -> emitExternalPlaybackCommand(ExternalPlaybackCommandAction.SeekForward)
+            COMMAND_SEEK_BACK -> emitExternalPlaybackCommand(ExternalPlaybackCommandAction.SeekBackward)
+            else -> emitExternalPlaybackCommand(ExternalPlaybackCommandAction.SeekTo, positionMs)
         }
 
         if (usesWholeBookTimebase() &&

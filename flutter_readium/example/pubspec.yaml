@@ -52,4 +52,5 @@ flutter:
     enable-swift-package-manager: false
   assets:
     - assets/pubs/
+    - assets/fonts/AtkinsonHyperlegible/
     - assets/webManifestList.json

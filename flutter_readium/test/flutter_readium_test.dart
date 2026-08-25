@@ -20,6 +20,7 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   final _textLocatorController = StreamController<Locator>.broadcast();
   final _statusController = StreamController<ReadiumReaderStatus>.broadcast();
   final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
+  final _externalPlaybackCommandController = StreamController<ReadiumExternalPlaybackCommand>.broadcast();
   final _errorController = StreamController<ReadiumError>.broadcast();
   final _narrationSyncController = StreamController<bool>.broadcast();
 
@@ -42,6 +43,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged => _timebasedController.stream;
+
+  @override
+  Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand => _externalPlaybackCommandController.stream;
 
   @override
   Stream<ReadiumError> get onErrorEvent => _errorController.stream;
@@ -178,6 +182,8 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
 
   void emitLocator(Locator l) => _textLocatorController.add(l);
   void emitStatus(ReadiumReaderStatus s) => _statusController.add(s);
+  void emitExternalPlaybackCommand(ReadiumExternalPlaybackCommand command) =>
+      _externalPlaybackCommandController.add(command);
   void emitError(ReadiumError e) => _errorController.add(e);
 }
 
@@ -337,6 +343,19 @@ void main() {
       final future = reader.onReaderStatusChanged.first;
       platform.emitStatus(ReadiumReaderStatus.ready);
       expect(await future, ReadiumReaderStatus.ready);
+    });
+  });
+
+  group('onExternalPlaybackCommand stream', () {
+    test('emits commands from the platform', () async {
+      const command = ReadiumExternalPlaybackCommand(
+        action: ExternalPlaybackCommandAction.seekForward,
+      );
+      final future = reader.onExternalPlaybackCommand.first;
+
+      platform.emitExternalPlaybackCommand(command);
+
+      expect(await future, same(command));
     });
   });
 

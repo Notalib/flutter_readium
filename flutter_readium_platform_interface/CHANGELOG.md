@@ -5,9 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
+  platform interface for distinguishing system media-control commands from
+  ordinary playback state changes.
+
+## [0.4.0] - 2026-08-17
+
+### Added
+
+- `ReaderFontFamily`, `ReaderFontFace`, and `ReaderFontStyle` models for declaring
+  app-supplied static reader fonts on `ReadiumReaderWidget`.
+
 ## [0.3.3] - 2026-08-04
 
-## [0.3.2] - 2026-08-03
+Bundle built javascript helpers, previously accidentally skipped by release pipeline.
 
 ## [0.3.1] - 2026-07-24
 
@@ -39,7 +52,7 @@ No changes — version bumped to stay in lockstep with `flutter_readium`.
 - **Breaking**: `ReadiumError` is now a value type rather than a Dart `Error`;
   native `stackTrace` is removed. Its freeform `data` payload is replaced by
   an unmodifiable structured `details` map.
-  
+
 ## [0.2.1] - 2026-07-09
 
 ### Fixed

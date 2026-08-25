@@ -65,7 +65,8 @@ struct GuidedNavigationDocument: Equatable {
   ) -> [FlutterMediaOverlay] {
     func flatten(_ obj: GuidedNavigationObject) -> [FlutterMediaOverlayItem] {
       var items: [FlutterMediaOverlayItem] = []
-      if let audio = obj.audioref, let text = obj.textref {
+      // Accept textref (EPUB/read-aloud) or imgref (Divina panel audio) as the text anchor.
+      if let audio = obj.audioref, let text = obj.textref ?? obj.imgref {
         items.append(FlutterMediaOverlayItem(
           audio: audio,
           text: text,

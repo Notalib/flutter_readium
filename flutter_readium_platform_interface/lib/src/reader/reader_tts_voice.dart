@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../enums.dart';
+import '../utils/constants.dart';
 import '../utils/jsonable.dart';
 import '../utils/readium_log.dart';
 import 'index.dart';
@@ -119,20 +120,20 @@ class ReaderTTSVoice with Equatable implements JSONable {
   ];
 
   ReaderTTSVoice copyWith({
-    String? identifier,
-    String? name,
-    String? language,
-    bool? networkRequired,
-    TTSVoiceGender? gender,
-    TTSVoiceQuality? quality,
-    bool? active,
+    Object identifier = unset,
+    Object name = unset,
+    Object language = unset,
+    Object networkRequired = unset,
+    Object gender = unset,
+    Object? quality = unset,
+    Object? active = unset,
   }) => ReaderTTSVoice(
-    identifier: identifier ?? this.identifier,
-    name: name ?? this.name,
-    language: language ?? this.language,
-    networkRequired: networkRequired ?? this.networkRequired,
-    gender: gender ?? this.gender,
-    quality: quality ?? this.quality,
-    active: active ?? this.active,
+    identifier: identical(identifier, unset) ? this.identifier : (identifier as String),
+    name: identical(name, unset) ? this.name : (name as String),
+    language: identical(language, unset) ? this.language : (language as String),
+    networkRequired: identical(networkRequired, unset) ? this.networkRequired : (networkRequired as bool),
+    gender: identical(gender, unset) ? this.gender : (gender as TTSVoiceGender),
+    quality: identical(quality, unset) ? this.quality : (quality as TTSVoiceQuality?),
+    active: identical(active, unset) ? this.active : (active as bool?),
   );
 }

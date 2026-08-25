@@ -1,4 +1,3 @@
-
 func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
   return min(max(value, minValue), maxValue)
 }
@@ -40,5 +39,26 @@ extension Array {
             Array(self[$0..<Swift.min($0 + size, count)])
         }
     }
+}
+
+/// Runs `operation`, returning nil if it doesn't finish within `seconds`.
+///
+/// The timed-out task is not actually cancelled, so only use this on work that is safe to
+/// leave running — Readium's JS-evaluation continuations, for one, ignore cancellation.
+func withTimeout<T: Sendable>(
+  seconds: UInt64,
+  _ operation: @escaping @Sendable () async -> T
+) async -> T? {
+  await withTaskGroup(of: T?.self) { group in
+    group.addTask { await operation() }
+    group.addTask {
+      // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
+      try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+      return nil
+    }
+    let first = await group.next() ?? nil
+    group.cancelAll()
+    return first
+  }
 }
 

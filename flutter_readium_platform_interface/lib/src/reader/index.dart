@@ -3,6 +3,7 @@ export 'reader_audio_preferences.dart';
 export 'reader_decoration.dart';
 export 'reader_decoration_interaction.dart';
 export 'reader_epub_preferences.dart';
+export 'reader_font_family.dart';
 export 'reader_highlights.dart';
 export 'reader_image_interaction.dart';
 export 'reader_pdf_preferences.dart';

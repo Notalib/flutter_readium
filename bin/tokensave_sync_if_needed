@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+# Keep tokensave fully optional for contributors who do not use it.
+if ! command -v tokensave >/dev/null 2>&1; then
+  echo "tokensave not found; skipping index refresh"
+  exit 0
+fi
+
+cd "$REPO_ROOT"
+
+# Ensure tokensave is initialized before syncing.
+if [ ! -f ".tokensave/tokensave.db" ]; then
+  echo "tokensave index not found; initializing"
+  tokensave init </dev/null
+fi
+
+# Keep the repo's curated excludes in place when available.
+if [ -f ".githooks/tokensave.config.json" ]; then
+  cp ".githooks/tokensave.config.json" ".tokensave/config.json"
+fi
+
+echo "refreshing tokensave index"
+tokensave sync

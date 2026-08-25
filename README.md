@@ -5,7 +5,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
 
 - **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.2.0** on Android
+- **kotlin-toolkit 3.3.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
 The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`, `flutter_readium/android/build.gradle` (`ext.readium_version`), and `flutter_readium/package.json`. Run `bin/readium_versions` to print them at any time.
@@ -95,6 +95,21 @@ Then complete the per-platform setup below. See [docs/getting-started/installati
 ### Android
 
 - Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
+  readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
+  without it:
+
+  ```kotlin
+  android {
+      compileOptions {
+          isCoreLibraryDesugaringEnabled = true
+      }
+  }
+
+  dependencies {
+      coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+  }
+  ```
 - Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
 - If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 

@@ -45,7 +45,7 @@
     "**/project.pbxproj",
     "**/Podfile.lock"
   ],
-  "cSpell.language": "en,da,sv",
+  "cSpell.language": "en,da,sv,no",
   "cSpell.words": [
     "acsm",
     "androidx",
@@ -53,6 +53,7 @@
     "ascii",
     "Ascii",
     "audioref",
+    "AVTTS",
     "behaviour",
     "charsets",
     "Charsets",

@@ -23,6 +23,9 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   EventChannel timebasedStateChannel = const EventChannel('dk.nota.flutter_readium/timebased-state');
 
   @visibleForTesting
+  EventChannel externalPlaybackCommandChannel = const EventChannel('dk.nota.flutter_readium/external-playback-command');
+
+  @visibleForTesting
   EventChannel errorEventChannel = const EventChannel('dk.nota.flutter_readium/error');
 
   /// The event channel used to receive text Locator changes from the native platform.
@@ -34,6 +37,7 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
 
   Stream<Locator>? _onTextLocatorChanged;
   Stream<ReadiumTimebasedState>? _onTimebasedPlayerStateChanged;
+  Stream<ReadiumExternalPlaybackCommand>? _onExternalPlaybackCommand;
   Stream<ReadiumReaderStatus>? _onReaderStatusChanged;
   Stream<ReadiumError>? _onErrorEvent;
   Stream<bool>? _onNarrationSyncChanged;
@@ -71,6 +75,15 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
     }).asBroadcastStream();
 
     return _onTimebasedPlayerStateChanged!;
+  }
+
+  @override
+  Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand {
+    _onExternalPlaybackCommand ??= externalPlaybackCommandChannel.receiveBroadcastStream().map((dynamic event) {
+      final map = Map<String, dynamic>.from(event as Map);
+      return ReadiumExternalPlaybackCommand.fromJson(map);
+    }).asBroadcastStream();
+    return _onExternalPlaybackCommand!;
   }
 
   /// Fires whenever the reader status changes.

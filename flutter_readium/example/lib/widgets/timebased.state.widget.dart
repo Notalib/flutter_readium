@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../state/index.dart';
+import 'external_playback_command_status.widget.dart';
 
 class TimebasedStateWidget extends StatefulWidget {
   const TimebasedStateWidget({super.key});
@@ -24,6 +25,9 @@ class _TimebasedStateWidgetState extends State<TimebasedStateWidget> {
             spacing: 6,
             children: [
               Text('State: ${snapshot.data?.state.name.toUpperCase()}'),
+              ExternalPlaybackCommandStatus(
+                commands: context.read<PlayerControlsBloc>().externalPlaybackCommandStream,
+              ),
               Text(
                 'Offset: ${snapshot.data?.currentOffset?.inSeconds} of ${snapshot.data?.currentDuration?.inSeconds} seconds',
               ),

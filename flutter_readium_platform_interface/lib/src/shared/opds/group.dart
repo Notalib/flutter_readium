@@ -7,6 +7,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
+import '../../utils/constants.dart';
 import '../../utils/jsonable.dart';
 import '../opds.dart';
 import '../publication/link.dart';
@@ -34,15 +35,15 @@ class Group with Equatable implements JSONable {
       'publications: $publications, navigation: $navigation}';
 
   Group copyWith({
-    OpdsMetadata? metadata,
-    List<Link>? links,
-    List<OpdsPublication>? publications,
-    List<Link>? navigation,
+    Object metadata = unset,
+    Object links = unset,
+    Object publications = unset,
+    Object navigation = unset,
   }) => Group(
-    metadata: metadata ?? this.metadata,
-    links: links ?? this.links,
-    publications: publications ?? this.publications,
-    navigation: navigation ?? this.navigation,
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as OpdsMetadata),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
+    publications: identical(publications, unset) ? this.publications : (publications as List<OpdsPublication>),
+    navigation: identical(navigation, unset) ? this.navigation : (navigation as List<Link>),
   );
 
   @override

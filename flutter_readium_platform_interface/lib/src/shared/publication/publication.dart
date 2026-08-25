@@ -61,21 +61,23 @@ class Publication with Equatable implements JSONable {
 
   /// Returns a copy of this publication with the given fields replaced.
   Publication copyWith({
-    List<String>? context,
-    Metadata? metadata,
-    List<Link>? links,
-    List<Link>? readingOrder,
-    List<Link>? resources,
-    List<Link>? tableOfContents,
-    Map<String, List<PublicationCollection>>? subCollections,
+    Object context = unset,
+    Object metadata = unset,
+    Object links = unset,
+    Object readingOrder = unset,
+    Object resources = unset,
+    Object tableOfContents = unset,
+    Object subCollections = unset,
   }) => Publication(
-    context: context ?? this.context,
-    metadata: metadata ?? this.metadata,
-    links: links ?? this.links,
-    readingOrder: readingOrder ?? this.readingOrder,
-    resources: resources ?? this.resources,
-    tableOfContents: tableOfContents ?? this.tableOfContents,
-    subCollections: subCollections ?? this.subCollections,
+    context: identical(context, unset) ? this.context : (context as List<String>),
+    metadata: identical(metadata, unset) ? this.metadata : (metadata as Metadata),
+    links: identical(links, unset) ? this.links : (links as List<Link>),
+    readingOrder: identical(readingOrder, unset) ? this.readingOrder : (readingOrder as List<Link>),
+    resources: identical(resources, unset) ? this.resources : (resources as List<Link>),
+    tableOfContents: identical(tableOfContents, unset) ? this.tableOfContents : (tableOfContents as List<Link>),
+    subCollections: identical(subCollections, unset)
+        ? this.subCollections
+        : (subCollections as Map<String, List<PublicationCollection>>),
   );
 
   @override

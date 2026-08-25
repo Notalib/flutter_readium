@@ -244,6 +244,13 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     );
   }
 
+  /// Stream emitting playback commands received from system media controls.
+  Stream<ReadiumExternalPlaybackCommand> get onExternalPlaybackCommand {
+    throw UnimplementedError(
+      'onExternalPlaybackCommand stream has not been implemented.',
+    );
+  }
+
   /// State stream for error events occurring in the reader or playback.
   Stream<ReadiumError> get onErrorEvent {
     throw UnimplementedError('onErrorEvent stream has not been implemented.');
