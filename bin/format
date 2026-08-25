@@ -6,15 +6,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 # (which includes flutter_lints/flutter.yaml for the page_width: 120 setting).
 # Without it, the formatter falls back to 80-char page width and produces
 # different output than CI (which always runs pub get before dart format).
+# cd, not --directory: flutter_tools reads pubspec flutter config from the cwd.
 
 echo "Formatting flutter_readium_platform_interface..."
-flutter pub get --directory "$REPO_ROOT/flutter_readium_platform_interface" > /dev/null
+( cd "$REPO_ROOT/flutter_readium_platform_interface" && flutter pub get > /dev/null )
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium_platform_interface"
 
 echo "Formatting flutter_readium..."
-flutter pub get --directory "$REPO_ROOT/flutter_readium" > /dev/null
+( cd "$REPO_ROOT/flutter_readium" && flutter pub get > /dev/null )
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium"
 
 echo "Formatting example app..."
-flutter pub get --directory "$REPO_ROOT/flutter_readium/example" > /dev/null
+( cd "$REPO_ROOT/flutter_readium/example" && flutter pub get > /dev/null )
 dart format --set-exit-if-changed "$REPO_ROOT/flutter_readium/example"

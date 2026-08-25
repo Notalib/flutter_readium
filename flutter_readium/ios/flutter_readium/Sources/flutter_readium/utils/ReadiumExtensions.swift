@@ -4,6 +4,21 @@ import ReadiumNavigator
 import ReadiumShared
 import ReadiumInternal
 
+private func resolvedTemplateLink(
+  _ link: Link,
+  parameters: [String: String]
+) -> Link? {
+  switch LinkTemplateResolver.resolve(link, parameters: parameters) {
+  case .success(let resolved):
+    return resolved
+  case .failure(let error):
+    if LinkTemplateResolver.shouldReport(link, error: error) {
+      Log.readium.warn("URI template could not be resolved for \(link.href): \(error)")
+    }
+    return nil
+  }
+}
+
 extension Locator {
   var timeOffset: TimeInterval? {
     MediaTimeFragment.seconds(from: locations.fragments)
@@ -133,16 +148,42 @@ extension Publication {
   func getMediaOverlays() async -> [FlutterMediaOverlay]? {
     guard containsMediaOverlays else { return nil }
 
-    let narrationLinks = self.narrationLinks
+    let narrationLinks = readingOrder.enumerated().compactMap {
+      position, resourceLink -> (position: Int, resource: Link, overlay: Link)? in
+      guard var overlayLink = resourceLink.alternates
+        .filterByMediaType(MediaType("application/vnd.syncnarr+json")!)
+        .first else {
+        return nil
+      }
+      overlayLink.title = resourceLink.title
+      return (position: position, resource: resourceLink, overlay: overlayLink)
+    }
 
-    let narrationJson = await narrationLinks.asyncCompactMap { try? await self.get($0)?.read().asJSONObject().get() }
-    let rawOverlays = narrationJson.enumerated().compactMap({ idx, json in
-      let roDuration = readingOrder.getOrNil(idx)?.duration
-      return FlutterMediaOverlay.fromJson(json, atPosition: idx, atTocHref: nil, readingOrderDuration: roDuration)
-    })
+    var narrationJson: [(position: Int, resource: Link, json: [String: Any])] = []
+    for entry in narrationLinks {
+      let parameters = LinkTemplateResolver.parameters(
+        for: entry.resource,
+        sidecarLink: entry.overlay
+      )
+      guard let resolved = resolvedTemplateLink(entry.overlay, parameters: parameters) else {
+        continue
+      }
+      guard let json = try? await self.get(resolved)?.read().asJSONObject().get() else {
+        continue
+      }
+      narrationJson.append((position: entry.position, resource: entry.resource, json: json))
+    }
+    let rawOverlays = narrationJson.compactMap { entry -> FlutterMediaOverlay? in
+      return FlutterMediaOverlay.fromJson(
+        entry.json,
+        atPosition: entry.position,
+        atTocHref: nil,
+        readingOrderDuration: entry.resource.duration
+      )
+    }
 
-    // Assert that we did not lose any MediaOverlays during JSON deserialization.
-    assert(rawOverlays.count == narrationLinks.count)
+    // Templated optional sidecars can be unresolved; only parsed overlays are returned.
+    assert(rawOverlays.count <= narrationLinks.count)
 
     return enrichOverlaysWithToc(rawOverlays)
   }
@@ -154,8 +195,11 @@ extension Publication {
 
     // Strategy 1: single guided navigation document in publication links (preferred).
     if let singleDocLink = links.filterByMediaType(guidedNavMediaType).first {
+      guard let resolved = resolvedTemplateLink(singleDocLink, parameters: [:]) else {
+        return nil
+      }
       guard
-        let json = try? await get(singleDocLink)?.read().asJSONObject().get(),
+        let json = try? await get(resolved)?.read().asJSONObject().get(),
         let document = GuidedNavigationDocument.fromJson(json)
       else { return nil }
 
@@ -184,10 +228,14 @@ extension Publication {
     for (_, roLink) in readingOrder.enumerated() {
       guard let gnLink = roLink.alternates.filterByMediaType(guidedNavMediaType).first else { continue }
       hasAny = true
-      guard !seenHrefs.contains(gnLink.href) else { continue }
-      seenHrefs.insert(gnLink.href)
+      let parameters = LinkTemplateResolver.parameters(for: roLink, sidecarLink: gnLink)
+      guard let resolved = resolvedTemplateLink(gnLink, parameters: parameters) else {
+        continue
+      }
+      guard !seenHrefs.contains(resolved.href) else { continue }
+      seenHrefs.insert(resolved.href)
       guard
-        let json = try? await get(gnLink)?.read().asJSONObject().get(),
+        let json = try? await get(resolved)?.read().asJSONObject().get(),
         let document = GuidedNavigationDocument.fromJson(json)
       else { continue }
       let rawOverlays = document.toMediaOverlays()

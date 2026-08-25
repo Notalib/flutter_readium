@@ -16,6 +16,10 @@
 
 import { Link, Resource } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
+import {
+  linkTemplateContext,
+  resolveLink,
+} from "../utils/linkTemplate";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import {
   SyncNarrationItem,
@@ -105,9 +109,12 @@ async function _parsePublicationLevelDocument(
   publication: ReadiumPublication,
   link: Link
 ): Promise<SyncNarrationItem[]> {
+  const resolved = resolveLink(link, {}, publication.baseURL);
+  if (!resolved.ok) return [];
+
   let document: GuidedNavigationDocument | null = null;
   try {
-    const resource: Resource = publication.get(link);
+    const resource: Resource = publication.get(resolved.link);
     const json = await resource.readAsJSON();
     document = _parseDocument(json);
   } catch (err) {
@@ -139,12 +146,18 @@ async function _parseReadingOrderAlternates(
     if (!alternates) continue;
     const gnLink = alternates.findWithMediaType(GUIDED_NAVIGATION_MEDIA_TYPE);
     if (!gnLink) continue;
-    if (seenHrefs.has(gnLink.href)) continue;
-    seenHrefs.add(gnLink.href);
+    const resolved = resolveLink(
+      gnLink,
+      linkTemplateContext(roLink, gnLink),
+      publication.baseURL
+    );
+    if (!resolved.ok) continue;
+    if (seenHrefs.has(resolved.link.href)) continue;
+    seenHrefs.add(resolved.link.href);
 
     let document: GuidedNavigationDocument | null = null;
     try {
-      const resource: Resource = publication.get(gnLink);
+      const resource: Resource = publication.get(resolved.link);
       const json = await resource.readAsJSON();
       document = _parseDocument(json);
     } catch (err) {
