@@ -35,7 +35,8 @@ function test_ios() {
   local EXAMPLE_DIR="$REPO_ROOT/flutter_readium/example"
   local IOS_DIR="$EXAMPLE_DIR/ios"
 
-  flutter pub get --directory "$EXAMPLE_DIR" > /dev/null
+  # cd, not --directory: --directory loses this pubspec's SPM override.
+  ( cd "$EXAMPLE_DIR" && flutter pub get > /dev/null )
 
   # The CocoaPods podhelper needs Flutter's generated iOS config (and the
   # ephemeral SPM packages the plugin depends on); --config-only writes them
@@ -78,8 +79,10 @@ function test_android() {
 
   if [ ! -f "$EXAMPLE_DIR/android/gradlew" ]; then
     echo "Gradle wrapper not found — generating via 'flutter build apk --config-only'..."
-    flutter pub get --directory "$EXAMPLE_DIR" > /dev/null
-    flutter build apk --config-only --project-directory "$EXAMPLE_DIR"
+    # cd, not --directory (see test_ios).
+    ( cd "$EXAMPLE_DIR" && flutter pub get > /dev/null )
+    # flutter build apk has no --project-directory flag.
+    ( cd "$EXAMPLE_DIR" && flutter build apk --config-only )
   fi
 
   cd "$EXAMPLE_DIR/android" || exit 1
