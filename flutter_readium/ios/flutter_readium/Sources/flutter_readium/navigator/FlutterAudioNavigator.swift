@@ -192,9 +192,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     return false
   }
 
+  /// Progression is relative to the track the locator points at, so the duration must
+  /// come from that track. This used to shadow the parameter with `audioLocator`, which
+  /// scaled by the *currently playing* track instead — wrong for any cross-track jump,
+  /// and nil at cold open, which then fell back to a start-of-track seek.
   private func getTimeOffsetForLocatorWithProgression(locator: Locator, progression: Double) -> Double? {
-    guard let locator = audioLocator,
-          let link = publication.readingOrder.firstWithHREF(locator.href),
+    guard let link = publication.readingOrder.firstWithHREF(locator.href),
           let duration = link.duration, duration.isFinite else {
       return nil
     }
@@ -812,7 +815,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     /// Progression is resolved to a time fragment here, as this resolution is unique to AudioNavigator.
     // TODO: This should really be handled by the Readium Navigator (upstream issue).
     if let progression = locator.locations.progression, progression.isFinite,
-       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: locator, progression: progression) {
+       let preciseTimeOffset = getTimeOffsetForLocatorWithProgression(locator: resolvedLocator, progression: progression) {
         timeOffset = preciseTimeOffset
     }
     resolvedLocator = resolvedLocator.copyWithOffset(timeOffset ?? 0.0)

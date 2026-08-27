@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `Publication.resolveLocator(Locator)` — resolves a stored locator whose href has
+  left the reading order after a publication was re-issued with different resource
+  granularity. Prefers the segmentation-independent `totalProgression` mapped onto
+  `Link.duration`, falls back to a bounds-safe `position` lookup, and returns `null`
+  rather than guessing. Drops the stale `cssSelector`/`fragments` and updates `type`.
+
 ## [0.4.1] - 2026-08-27
 
 ### Added
