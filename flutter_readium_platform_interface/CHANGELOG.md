@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.4.1] - 2026-08-27
+
 ### Added
 
 - `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
