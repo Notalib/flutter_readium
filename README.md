@@ -79,7 +79,10 @@ The Flutter version is pinned in `.flutter-version`. To update it, run:
 bin/update_flutter_version <version>   # e.g. bin/update_flutter_version 3.45.0
 ```
 
-This syncs the version to `.flutter-version` and both pubspec files, then run `bin/install` to fetch updated dependencies.
+This syncs the dev pin (`.flutter-version`, `.fvmrc`, example app), then run `bin/install` to fetch updated
+dependencies. The published `environment.flutter` minimum in `flutter_readium` and
+`flutter_readium_platform_interface` is not touched — raising it forces the same minimum on every consumer, so
+it is a separate, deliberate step: add `--min-sdk`.
 
 ## Getting started
 

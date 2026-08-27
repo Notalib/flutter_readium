@@ -92,7 +92,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   CryptoSwift: e2e7776512f250e66205955da748e7a4e4abffe0
   DifferenceKit: ab185c4d7f9cef8af3fcf593e5b387fb81e999ca
-  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
   flutter_readium: a4b23fa14c9f8a0c3c903119b3244810b2d1e837
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   Minizip: 188cb3e39a1195c283ae03bf673d182596fefd0b

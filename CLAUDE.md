@@ -23,7 +23,7 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 ## Workflow
 
 - `bin/doctor` — verify toolchain. `bin/install` — full bootstrap after clone / dependency change.
-- `bin/update_flutter_version <version>` — the only way to change the Flutter SDK version. It updates `.flutter-version`, `.fvmrc`, and both pubspecs together; changing one by hand causes build failures.
+- `bin/update_flutter_version <version>` — the only way to change the Flutter SDK version. It moves the dev pin (`.flutter-version`, `.fvmrc`, example pubspec) together; changing one by hand causes build failures. The published floor in the two library pubspecs is deliberately separate — raise it only with `--min-sdk`, as a deliberate breaking change, never as a side effect of bumping the SDK we build with.
 - **Before any PR:** `bin/format` + `bin/analyze` (both cover all three packages); fix everything they report.
 - **Platform build and lint gates** — the checks that must pass before declaring native or web changes done live in the nested platform files: `flutter_readium/ios/CLAUDE.md`, `flutter_readium/android/CLAUDE.md`, `flutter_readium/web/CLAUDE.md`. Read the one for the platform you touch.
 - **Before declaring any `bin/` script changes done:** run `bash -n <script>` for each edited script and fix any syntax errors.
