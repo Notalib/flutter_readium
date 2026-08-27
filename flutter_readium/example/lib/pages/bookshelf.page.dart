@@ -151,6 +151,8 @@ class BookshelfPageState extends State<BookshelfPage> {
     body: SafeArea(
       child: _isLoading
           ? Center(child: CircularProgressIndicator())
+          : _testPublications.isEmpty
+          ? _buildEmptyState(context)
           : Column(
               children: [
                 Expanded(
@@ -177,6 +179,36 @@ class BookshelfPageState extends State<BookshelfPage> {
                 // _buildAddBookCard(context),
               ],
             ),
+    ),
+  );
+
+  /// Test fixtures are generated and gitignored, so an empty shelf almost always
+  /// means `bin/fetch_test_resources` has not been run in this checkout.
+  Widget _buildEmptyState(final BuildContext context) => Center(
+    key: const ValueKey('bookshelf_empty_state'),
+    child: Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.library_books_outlined,
+            size: 64,
+            color: Theme.of(context).colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text('No publications found', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Test fixtures are generated, not committed. Run bin/fetch_test_resources '
+            'from the repo root, then restart the app.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 
