@@ -19,6 +19,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the more the two track lengths differed, the further off the landing point.
   Restoring a position in a freshly opened book was the worst case: it started the
   track from the beginning.
+- **A reader-position event that failed to serialize left no trace (iOS).** The
+  position update went missing with nothing in the native logs to explain it.
+  Such failures are now logged, and the Dart stream drops the bad event instead
+  of raising an uncaught async error.
 - **iOS build failed on Swift 6.** Building with Xcode 26 / Swift 6.3 stopped with
   `Cannot find 'NSEC_PER_SEC' in scope`. The timeout helper used that `Darwin` macro from a file
   with no imports, which only resolved because older Swift leaked imports between files of one

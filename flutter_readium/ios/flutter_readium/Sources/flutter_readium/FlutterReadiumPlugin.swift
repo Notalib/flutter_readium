@@ -348,7 +348,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           let wasMO = self.timebasedNavigator is FlutterMediaOverlayNavigator
           self.timebasedNavigator?.dispose()
           self.timebasedNavigator = nil
-          self.timebasedPlayerStateStreamHandler?.sendEvent(ReadiumTimebasedState(state: .none).toJsonString())
+          if let json = ReadiumTimebasedState(state: .none).toJsonString() {
+            self.timebasedPlayerStateStreamHandler?.sendEvent(json)
+          } else {
+            Log.navigator.error("Failed to serialize timebased-state .none sentinel")
+          }
           self.updateReaderViewTimebasedDecorations([])
           if wasMO {
             self.currentReaderView?.setMOActive(false)
@@ -707,7 +711,11 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
 
       Task { @MainActor [state] in
         self.lastTimebasedPlayerState = state
-        self.timebasedPlayerStateStreamHandler?.sendEvent(state.toJsonString())
+        if let json = state.toJsonString() {
+          self.timebasedPlayerStateStreamHandler?.sendEvent(json)
+        } else {
+          Log.navigator.error("Failed to serialize timebased player state: \(state.state)")
+        }
       }
     }
   }

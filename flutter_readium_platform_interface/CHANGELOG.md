@@ -18,6 +18,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bounds-safe `Locations.position` lookup, and returns `null` instead of guessing
   or throwing when neither resolves. Drops the stale `cssSelector`/`fragments` and
   updates `type` to match the resolved link.
+- `ReadiumTimebasedState.fromJsonString` / `fromJsonDynamic`, matching the
+  decoding pattern already used by `Locator` and `TextSearchResult`.
+
+### Fixed
+
+- **Malformed native events no longer surface as uncaught async errors.**
+  `onTextLocatorChanged` and `onTimebasedPlayerStateChanged` threw when a native
+  event was `nil` or failed to parse. Later events still arrived, but each bad
+  one raised an unhandled error, and a subscriber using `cancelOnError: true`
+  lost its subscription. Such events are now logged and dropped.
+- `Locator.fromJsonString`, `TextSearchResult.fromJsonString`, and the new
+  `ReadiumTimebasedState.fromJsonString` no longer throw a `TypeError` on
+  well-formed but wrong-shaped JSON (a top-level array, say). They decoded
+  straight into `Map<String, dynamic>`, and the resulting `TypeError` is an
+  `Error`, so their `on Exception` guard never caught it. They now return `null`.
 
 ## [0.4.0] - 2026-08-17
 
