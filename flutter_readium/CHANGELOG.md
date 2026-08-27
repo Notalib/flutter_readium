@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.4.2] - 2026-08-28
+
 ### Fixed
 
 - **Jumping to a saved position in a different audiobook track landed at the wrong

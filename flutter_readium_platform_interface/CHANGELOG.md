@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.4.2] - 2026-08-28
+
 ### Added
 
 - `Publication.resolveLocator(Locator)` — resolves a stored locator whose href has
