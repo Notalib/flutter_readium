@@ -1,1 +1,6 @@
+# The `analyzer:` block below is what `flutter pub get` writes if it is absent.
+# Committing it keeps the tree clean, which `dart pub publish --dry-run` requires.
+analyzer:
+  exclude:
+    - build/**
 include: ../analysis_options.base.yaml
