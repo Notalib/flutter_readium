@@ -102,8 +102,7 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
   static Locator? fromJsonString(String jsonString) {
     try {
       // Decoded as `dynamic` on purpose: assigning straight to Map<String, dynamic>
-      // throws a TypeError for well-formed but wrong-shaped JSON (a top-level array,
-      // say), and TypeError is an Error, so the `on Exception` below cannot catch it.
+      // throws a TypeError for well-formed but wrong-shaped JSON (a top-level array).
       final json = JsonCodec().decode(jsonString);
       if (json is! Map<String, dynamic>) {
         ReadiumLog.e(
@@ -112,7 +111,7 @@ class Locator extends AdditionalProperties with Equatable implements JSONable {
         return null;
       }
       return Locator.fromJson(json);
-    } on Exception catch (ex, st) {
+    } on Object catch (ex, st) {
       ReadiumLog.e(
         'fromJsonString: Failed to parse Locator from json: $jsonString',
         stackTrace: st,
