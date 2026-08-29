@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Android builds warned that `flutter_readium` still applied the Kotlin Gradle Plugin.**
+  The Android source layout and example now support AGP's built-in Kotlin, and
+  `wakelock_plus` is constrained to a compatible release.
+
 ## [0.4.2] - 2026-08-28
 
 ### Fixed

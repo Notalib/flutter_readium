@@ -52,7 +52,6 @@ android {
   compileSdkVersion 36
 
   sourceSets {
-    main.java.srcDirs += 'src/main/kotlin'
     main.res.srcDirs += 'src/main/res'
   }
   defaultConfig {
