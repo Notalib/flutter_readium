@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Creating `ReadiumReaderWidget` could freeze the Android UI while the native reader
+  initialized.** Publication positions, which Readium's EPUB fragment constructor reads with a
+  blocking call, are now fetched and cached on the I/O dispatcher first.
+
 ## [0.4.2] - 2026-08-28
 
 ### Fixed
