@@ -124,6 +124,7 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     Log.reader.debug("locationDidChange: \(locator)")
     if (!hasSentReady) {
+      channel.onReaderReady()
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
     }

@@ -15,6 +15,8 @@ internal class ReadiumReaderChannel(
     name: String,
 ) : MethodChannel(messenger, name),
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
+    fun onReaderReady() = launch { invokeMethod("onReaderReady", null) }
+
     fun onPageChanged(locator: Locator?) =
         launch {
             invokeMethod(

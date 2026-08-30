@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **`ReadiumReaderWidget` could leave its loading widget visible after the publication had
+  rendered.** Native readers now send a dedicated per-widget visual-ready event instead of making
+  the loading state depend on a later, asynchronously enriched page-location event. The loading
+  widget also no longer intercepts pointer input while it is visible.
+
 ## [0.4.2] - 2026-08-28
 
 ### Fixed
