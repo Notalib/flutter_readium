@@ -360,6 +360,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     Log.reader.debug("onPageChanged: \(locator)")
     if (!hasSentReady) {
+      channel.onReaderReady()
       emitReaderStatusChanged(status: ReadiumReaderStatusReady)
       hasSentReady = true
     }

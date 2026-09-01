@@ -274,6 +274,8 @@ class ReadiumReaderWidget(
 
     override fun onVisualReaderIsReady() {
         PluginLog.i(TAG, "::onVisualReaderIsReady")
+        channel.onReaderReady()
+
         if (!hasSentReady) {
             ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Ready)
 

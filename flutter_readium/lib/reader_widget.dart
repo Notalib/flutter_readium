@@ -40,7 +40,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   final Publication publication;
 
   /// Optional widget to show while the reader is loading, e.g. a spinner.
-  /// It will be shown until the reader sends its first onPageChanged event.
+  /// It will be shown until the native reader reports that its initial content
+  /// is visually ready.
   /// It should typically be a full-screen widget, since it will be stacked on top of the reader widget.
   final Widget? loadingWidget;
 
@@ -243,7 +244,10 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
             child: _readerWidget,
           ),
         ),
-        if (!isReady && widget.loadingWidget != null) Positioned.fill(child: widget.loadingWidget!),
+        if (!isReady && widget.loadingWidget != null)
+          Positioned.fill(
+            child: IgnorePointer(child: widget.loadingWidget!),
+          ),
       ],
     );
   }
@@ -386,14 +390,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   void _onPlatformViewCreated(final int id) {
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
+      onReaderReady: _markReady,
       onPageChanged: (final locator) {
         _log.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
 
-        if (isReady == false) {
-          setState(() {
-            isReady = true;
-          });
+        _markReady();
+        if (!_isReadyCompleter.isCompleted) {
           _isReadyCompleter.complete(locator);
         }
       },
@@ -408,6 +411,16 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     _log.d('New widget is: ${_channel?.name}');
+  }
+
+  void _markReady() {
+    if (!mounted || isReady) {
+      return;
+    }
+
+    setState(() {
+      isReady = true;
+    });
   }
 
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.
