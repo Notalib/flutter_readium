@@ -26,7 +26,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No initial locator before applying preferences',
       );
       final beforePreferences = locators.last;
@@ -65,7 +65,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'No initial locator before applying PDF preferences',
         );
 
@@ -105,7 +105,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No initial locator before applying decorations',
       );
 

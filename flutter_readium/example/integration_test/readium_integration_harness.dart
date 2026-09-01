@@ -13,7 +13,7 @@ import 'web_resource_probe.dart' if (dart.library.js_interop) 'web_resource_prob
 /// 2x+ run to run (a 3s warm-up on a fast runner vs. 22s+ on a slow one). 45s is the
 /// ceiling already proven safe for a cold CI simulator by groups/warm_up.dart;
 /// reuse it everywhere instead of guessing a fresh number per call site.
-const firstMountTimeout = Duration(seconds: 45);
+const firstMountTimeout = Duration(seconds: 60);
 
 class ReadiumIntegrationHarness {
   final readium = FlutterReadium();
