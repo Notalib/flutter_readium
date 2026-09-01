@@ -15,9 +15,10 @@ struct InjectionAsset {
     self.packageName = packageName
   }
 
-  init(from map: [String: Any?]) {
-    assetPath = map["assetPath"] as! String
-    packageName = map["package"] as? String
+  init?(from map: [String: Any]) {
+    guard let assetPath = map["assetPath"] as? String else { return nil }
+    self.assetPath = assetPath
+    self.packageName = map["package"] as? String
   }
 }
 

@@ -257,7 +257,7 @@ fun Resource.injectScriptsAndStyles(
             }
         }
 
-        PluginLog.d(TAG, "Injecting files into: $filename")
+        PluginLog.d(TAG, "::injectScriptsAndStyles. Injecting files into: $filename")
         val newContent =
             StringBuilder(content)
                 .insert(headEndIndex, "\n$newBlock\n")
