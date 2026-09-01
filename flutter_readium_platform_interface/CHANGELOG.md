@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Changed
+
+- **Breaking**: Minimum Flutter SDK raised to `3.47.2` (from `3.44.8`), and `meta` bumped to `^1.19.0`. Projects must now use Flutter `3.47.2` or later to build.
+
 ## [0.4.2] - 2026-08-28
 
 ### Added
