@@ -242,10 +242,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
             child: _readerWidget,
           ),
         ),
-        if (!isReady && widget.loadingWidget != null)
-          Positioned.fill(
-            child: IgnorePointer(child: widget.loadingWidget!),
-          ),
+        if (!isReady && widget.loadingWidget != null) Positioned.fill(child: widget.loadingWidget!),
       ],
     );
   }
