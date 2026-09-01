@@ -15,8 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   The Android source layout and example now support AGP's built-in Kotlin, and
   `wakelock_plus` is constrained to a compatible release.
 - **Creating `ReadiumReaderWidget` could freeze the Android UI while the native reader
-  initialized.** Publication positions, which Readium's EPUB fragment constructor reads with a
-  blocking call, are now fetched and cached on the I/O dispatcher first.
+  initialized.** Publication positions, which Readium's EPUB and comic (DiViNa/CBZ) fragments
+  read with a blocking call, are now fetched and cached on the I/O dispatcher first.
 
 ## [0.4.2] - 2026-08-28
 

@@ -1124,6 +1124,13 @@ object ReadiumReader :
             throw Exception("Publication is not a comic (CBZ/DiViNa), cannot enable comic navigator")
         }
 
+        // ImageNavigatorFragment 3.3.0 reads the position list with runBlocking from onCreateView.
+        // For a streamed DiViNa that can be a network request, which would otherwise park Android's
+        // main thread. Populate the service cache first on the I/O dispatcher.
+        withIOContext {
+            pub.positionsByReadingOrder()
+        }
+
         withMainContext {
             comicNavigator?.let {
                 attachComicNavigator(fragmentManager, viewGroup)
