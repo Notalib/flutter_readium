@@ -170,13 +170,29 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     await seekRelative(byOffsetSeconds: -1 * self._preferences.seekInterval)
   }
 
+  private static let goToLocatorTimeoutSeconds: UInt64 = 10
+
+  /// Upstream `AudioNavigator.go(to:)` never returns when jumping to a different track while
+  /// paused — the player switches track but the call hangs, which would hang the method-channel
+  /// result forever. Bounded so the caller always gets an answer; `false` means "not confirmed".
+  internal func goBounded(to locator: Locator) async -> Bool {
+    guard let navigator = _audioNavigator else { return false }
+    guard let navigated = await withTimeout(seconds: Self.goToLocatorTimeoutSeconds, {
+      await navigator.go(to: locator)
+    }) else {
+      Log.navigator.warn("go(to:) timed out after \(Self.goToLocatorTimeoutSeconds)s, treating as failed")
+      return false
+    }
+    return navigated
+  }
+
   public func seek(toLocator: Locator) async -> Bool {
     guard let resolvedLocator = resolveLocator(toLocator) else {
       Log.navigator.warn("Could not resolve Locator: \(toLocator)")
       return false
     }
     let wasPlaying = _audioNavigator?.state == .playing || _audioNavigator?.state == .loading
-    let navigated = await _audioNavigator?.go(to: resolvedLocator) ?? false
+    let navigated = await goBounded(to: resolvedLocator)
     if (wasPlaying && navigated) {
       _audioNavigator?.play()
     }
