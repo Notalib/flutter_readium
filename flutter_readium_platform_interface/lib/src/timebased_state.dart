@@ -1,9 +1,12 @@
+import 'dart:convert' show JsonCodec;
+
 import 'package:meta/meta.dart';
 
 import 'enums.dart';
 import 'shared/publication/locator.dart';
 import 'utils/constants.dart';
 import 'utils/jsonable.dart';
+import 'utils/readium_log.dart';
 
 @immutable
 class ReadiumTimebasedState implements JSONable {
@@ -73,6 +76,42 @@ class ReadiumTimebasedState implements JSONable {
       totalDuration: totalDuration != null ? Duration(milliseconds: totalDuration) : null,
       currentLocator: currentLocator,
     );
+  }
+
+  static ReadiumTimebasedState? fromJsonString(String jsonString) {
+    try {
+      // Decoded as `dynamic` on purpose; see Locator.fromJsonString.
+      final json = JsonCodec().decode(jsonString);
+      if (json is! Map<String, dynamic>) {
+        ReadiumLog.e(
+          'fromJsonString: Expected a JSON object for ReadiumTimebasedState, '
+          'got ${json.runtimeType}: $jsonString',
+        );
+        return null;
+      }
+      return ReadiumTimebasedState.fromJson(json);
+    } on Exception catch (ex, st) {
+      ReadiumLog.e(
+        'fromJsonString: Failed to parse ReadiumTimebasedState from json: $jsonString',
+        stackTrace: st,
+      );
+    }
+    return null;
+  }
+
+  static ReadiumTimebasedState? fromJsonDynamic(dynamic json) {
+    if (json == null) {
+      return null;
+    } else if (json is String) {
+      return fromJsonString(json);
+    } else if (json is Map<String, dynamic>) {
+      return ReadiumTimebasedState.fromJson(json);
+    }
+
+    ReadiumLog.e(
+      'ReadiumTimebasedState.fromJsonDynamic: Unsupported json type: ${json.runtimeType}',
+    );
+    return null;
   }
 
   @override

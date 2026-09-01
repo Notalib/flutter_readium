@@ -9,6 +9,21 @@ import 'flutter_readium_platform_interface.dart';
 
 final _log = ReadiumLog.tag('MethodChannel');
 
+/// Pre-existing diagnostic, kept as-is: native has been seen sending a
+/// `currentLocator` with a missing or non-positive position. Logged rather than
+/// dropped, because the rest of the state is still usable.
+ReadiumTimebasedState _warnOnSuspiciousPosition(final ReadiumTimebasedState state) {
+  state.currentLocator?.locations?.let((locations) {
+    if (locations.position == null) {
+      debugPrint('Received timebased player state with currentLocator missing position: $state');
+    } else if (locations.position! <= 0) {
+      debugPrint('Received timebased player state with currentLocator invalid position: $state');
+    }
+  });
+
+  return state;
+}
+
 /// An implementation of [FlutterReadiumPlatform] that uses method channels.
 class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// The method channel used to interact with the native platform.
@@ -48,31 +63,33 @@ class MethodChannelFlutterReadium extends FlutterReadiumPlatform {
   /// event is never dropped even if it fires before the Dart [onListen]
   /// handshake completes (a race that can happen when the EPUB platform view
   /// initialises faster than the asynchronous channel setup).
+  ///
+  /// Undecodable events are logged and dropped rather than raised on the stream.
+  /// Both platforms guard against emitting one, so this is defence against a
+  /// native regression — and against a Locator that decodes but fails validation.
   @override
   Stream<Locator> get onTextLocatorChanged {
     _onTextLocatorChanged ??= textLocatorChannel
         .receiveBroadcastStream()
-        .map((dynamic event) => Locator.fromJson(json.decode(event) as Map<String, dynamic>)!)
+        .map(Locator.fromJsonDynamic)
+        .where((locator) => locator != null)
+        .cast<Locator>()
         .asBroadcastStream();
     return _onTextLocatorChanged!;
   }
 
-  /// Fires whenever the TimebasedNavigator changes state
+  /// Fires whenever the TimebasedNavigator changes state.
+  ///
+  /// Undecodable events are logged and dropped, as for [onTextLocatorChanged].
   @override
   Stream<ReadiumTimebasedState> get onTimebasedPlayerStateChanged {
-    _onTimebasedPlayerStateChanged ??= timebasedStateChannel.receiveBroadcastStream().map((dynamic event) {
-      final state = ReadiumTimebasedState.fromJson(json.decode(event) as Map<String, dynamic>);
-
-      state.currentLocator?.locations?.let((locations) {
-        if (locations.position == null) {
-          debugPrint('Received timebased player state with currentLocator missing position: $state');
-        } else if (locations.position! <= 0) {
-          debugPrint('Received timebased player state with currentLocator invalid position: $state');
-        }
-      });
-
-      return state;
-    }).asBroadcastStream();
+    _onTimebasedPlayerStateChanged ??= timebasedStateChannel
+        .receiveBroadcastStream()
+        .map(ReadiumTimebasedState.fromJsonDynamic)
+        .where((state) => state != null)
+        .cast<ReadiumTimebasedState>()
+        .map(_warnOnSuspiciousPosition)
+        .asBroadcastStream();
 
     return _onTimebasedPlayerStateChanged!;
   }

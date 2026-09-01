@@ -54,6 +54,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.positionsByReadingOrder
 import org.readium.r2.shared.publication.services.content.DefaultContentService
 import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.content.contentServiceFactory
@@ -962,6 +963,14 @@ object ReadiumReader :
         // Seed the runtime sync flag from the initial preference. If the preference
         // already disables synchronization, start in manual mode.
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
+
+        // EpubNavigatorFragment 3.3.0 reads this position list with runBlocking from its
+        // constructor. For a streamed Web Publication that can be a network request, which would
+        // otherwise park Android's main thread for seconds or minutes. Populate the service cache
+        // first on the I/O dispatcher so the constructor's lookup is immediate.
+        withIOContext {
+            pub.positionsByReadingOrder()
+        }
 
         withMainContext {
             epubNavigator?.let {

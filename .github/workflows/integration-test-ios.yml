@@ -142,6 +142,8 @@ jobs:
         # Run the single aggregator entrypoint, not the folder glob: each
         # groups/*_test.dart is its own build target (flutter/flutter#115751), so
         # the glob would rebuild the app per suite.
+        # Bounded so a hang fails this step instead of the job, which would skip the capture below.
+        timeout-minutes: 25
         run: flutter test integration_test/plugin_integration_test.dart --reporter expanded --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID"
         working-directory: flutter_readium/example
 

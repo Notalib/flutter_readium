@@ -5,11 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.4.2] - 2026-08-28
+
+### Added
+
+- `Publication.resolveLocator(Locator)` — resolves a stored locator whose href has
+  left the reading order after a publication was re-issued with different resource
+  granularity. Prefers the segmentation-independent `totalProgression` mapped onto
+  `Link.duration`, falls back to a bounds-safe `position` lookup, and returns `null`
+  rather than guessing. Drops the stale `cssSelector`/`fragments` and updates `type`.
+
+## [0.4.1] - 2026-08-27
+
 ### Added
 
 - `ReadiumExternalPlaybackCommand` and `onExternalPlaybackCommand` in the shared
   platform interface for distinguishing system media-control commands from
   ordinary playback state changes.
+
+### Fixed
+
+- **Malformed native events no longer surface as uncaught async errors.**
+  `onTextLocatorChanged` and `onTimebasedPlayerStateChanged` threw when a native
+  event was `nil` or failed to parse. Later events still arrived, but each bad
+  one raised an unhandled error, and a subscriber using `cancelOnError: true`
+  lost its subscription. Such events are now logged and dropped.
+- `Locator.fromJsonString`, `TextSearchResult.fromJsonString`, and the new
+  `ReadiumTimebasedState.fromJsonString` no longer throw a `TypeError` on
+  well-formed but wrong-shaped JSON (a top-level array, say).
 
 ## [0.4.0] - 2026-08-17
 

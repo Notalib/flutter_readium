@@ -32,7 +32,14 @@ class TextSearchResult with Equatable implements JSONable {
 
   static TextSearchResult? fromJsonString(String jsonString) {
     try {
-      final Map<String, dynamic> json = JsonCodec().decode(jsonString);
+      // Decoded as `dynamic` on purpose; see Locator.fromJsonString.
+      final json = JsonCodec().decode(jsonString);
+      if (json is! Map<String, dynamic>) {
+        ReadiumLog.e(
+          'fromJsonString: Expected a JSON object for TextSearchResult, got ${json.runtimeType}: $jsonString',
+        );
+        return null;
+      }
       return TextSearchResult.fromJson(json);
     } on Exception catch (ex, st) {
       ReadiumLog.e(

@@ -1,23 +1,42 @@
 #!/bin/bash
 #
-# Update the Flutter SDK minimum version across the repo.
+# Update the Flutter SDK version used to develop this repo.
 #
-# Updates:
+# Updates by default (dev pin only — no effect on consumers):
 #   1. `.flutter-version` — CI source of truth (single-line version number)
 #   2. `.fvmrc`           — FVM config (JSON flutter key)
-#   3. `flutter_readium/pubspec.yaml`     — environment.flutter constraint
-#   4. `flutter_readium_platform_interface/pubspec.yaml` — same
+#   3. `flutter_readium/example/pubspec.yaml` — example app, tracks the dev pin
+#
+# With --min-sdk, also raises the published floor (BREAKING for consumers):
+#   4. `flutter_readium/pubspec.yaml`     — environment.flutter constraint
+#   5. `flutter_readium_platform_interface/pubspec.yaml` — same
+#
+# The floor is deliberately decoupled from the dev pin: bumping the SDK we build
+# with must not silently force every consumer onto that same SDK.
 #
 # Usage:
-#   bin/update_flutter_version <version>    # e.g. bin/update_flutter_version 3.45.0
+#   bin/update_flutter_version <version>              # e.g. 3.45.0
+#   bin/update_flutter_version <version> --min-sdk    # also raise consumer floor
 
 # Bootstrap PATH / REPO_ROOT for non-interactive shells (repo convention).
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
-VERSION="${1:-}"
+VERSION=""
+UPDATE_MIN_SDK=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --min-sdk) UPDATE_MIN_SDK=1 ;;
+    -*)
+      echo "ERROR: unknown option: $arg"
+      exit 1
+      ;;
+    *) VERSION="$arg" ;;
+  esac
+done
 
 if [ -z "$VERSION" ]; then
-  echo "Usage: bin/update_flutter_version <version>"
+  echo "Usage: bin/update_flutter_version <version> [--min-sdk]"
   echo "Example: bin/update_flutter_version 3.45.0"
   exit 1
 fi
@@ -29,8 +48,21 @@ fi
 
 FLUTTER_VERSION_FILE="$REPO_ROOT/.flutter-version"
 FVMRC_FILE="$REPO_ROOT/.fvmrc"
+EXAMPLE_PUBSPEC="$REPO_ROOT/flutter_readium/example/pubspec.yaml"
 PLUGIN_PUBSPEC="$REPO_ROOT/flutter_readium/pubspec.yaml"
 IFACE_PUBSPEC="$REPO_ROOT/flutter_readium_platform_interface/pubspec.yaml"
+
+update_flutter_constraint() {
+  local pubspec="$1"
+  sed -i '' -E \
+    "s/(flutter:[[:space:]]*[\"']?)(>=)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1>=${VERSION}\3/" \
+    "$pubspec"
+  if ! grep -q "flutter:.*>=${VERSION}" "$pubspec"; then
+    echo "ERROR: failed to update flutter constraint in $pubspec"
+    exit 1
+  fi
+  echo "  $pubspec → flutter: >=${VERSION}"
+}
 
 # --- Update .flutter-version ------------------------------------------------
 echo "$VERSION" > "$FLUTTER_VERSION_FILE"
@@ -48,18 +80,24 @@ if ! grep -q "\"flutter\": \"${VERSION}\"" "$FVMRC_FILE"; then
 fi
 echo "  $FVMRC_FILE → $VERSION"
 
-# --- Update pubspec flutter constraints -------------------------------------
-for pubspec in "$PLUGIN_PUBSPEC" "$IFACE_PUBSPEC"; do
-  sed -i '' -E \
-    "s/(flutter:[[:space:]]*[\"']?)(>=)[0-9]+\.[0-9]+\.[0-9]+([\"']?)/\1>=${VERSION}\3/" \
-    "$pubspec"
-  if ! grep -q "flutter:.*>=${VERSION}" "$pubspec"; then
-    echo "ERROR: failed to update flutter constraint in $pubspec"
-    exit 1
-  fi
-  echo "  $pubspec → flutter: >=${VERSION}"
-done
+# --- Update example app (not published, tracks the dev pin) -----------------
+update_flutter_constraint "$EXAMPLE_PUBSPEC"
+
+# --- Update published minimum, opt-in only ----------------------------------
+if [ "$UPDATE_MIN_SDK" -eq 1 ]; then
+  update_flutter_constraint "$PLUGIN_PUBSPEC"
+  update_flutter_constraint "$IFACE_PUBSPEC"
+fi
 
 echo ""
 echo "Flutter version updated to $VERSION"
+
+if [ "$UPDATE_MIN_SDK" -eq 1 ]; then
+  echo "Published minimum raised to >=${VERSION} — BREAKING for consumers."
+  echo "Add a CHANGELOG entry and bump the package versions accordingly."
+else
+  CURRENT_MIN="$(grep -E "^[[:space:]]*flutter:[[:space:]]*[\"']?>=" "$PLUGIN_PUBSPEC" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
+  echo "Published minimum left at >=${CURRENT_MIN}. Re-run with --min-sdk to raise it."
+fi
+
 echo "Don't forget to run 'bin/install' to fetch updated dependencies."

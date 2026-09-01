@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Creating `ReadiumReaderWidget` could freeze the Android UI while the native reader
+  initialized.** Publication positions, which Readium's EPUB fragment constructor reads with a
+  blocking call, are now fetched and cached on the I/O dispatcher first.
+
+## [0.4.2] - 2026-08-28
+
+### Fixed
+
+- **Jumping to a saved position in a different audiobook track landed at the wrong
+  time (iOS).** The offset was scaled by the length of the track already playing
+  instead of the target track. Restoring in a freshly opened book was the worst
+  case: it started that track from the beginning.
+
+## [0.4.1] - 2026-08-27
+
 ### Added
 
 - `onExternalPlaybackCommand` stream for play/pause/seek commands received from

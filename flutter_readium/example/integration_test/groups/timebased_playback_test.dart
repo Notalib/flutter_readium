@@ -214,6 +214,82 @@ void main() {
 
           await harness.readium.pause();
         });
+
+        // Regression: the progression -> time-offset helper resolved the track
+        // duration from the *currently playing* locator, so a cross-track jump
+        // scaled progression by the wrong track's length.
+        test('goToLocator scales progression by the target track, not the playing one', () async {
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+
+          final pub = await harness.readium.openPublication(path);
+
+          final firstDuration = pub.readingOrder.first.duration;
+          final targetIndex = pub.readingOrder.length - 1;
+          final targetLink = pub.readingOrder[targetIndex];
+          final targetDuration = targetLink.duration;
+          expect(
+            firstDuration != null && targetDuration != null && targetDuration > firstDuration * 2,
+            isTrue,
+            reason:
+                'Test needs the last track to be far longer than the first so the two '
+                'candidate offsets are distinguishable (got $firstDuration vs $targetDuration)',
+          );
+
+          final states = <ReadiumTimebasedState>[];
+          final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          addTearDown(sub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+
+          // Start on the first (short) track so it becomes the current locator.
+          await harness.readium.play(null);
+          await waitUntil(
+            () => states.any((s) => s.state == TimebasedState.playing && s.currentOffset != null),
+            timeout: const Duration(seconds: 20),
+            reason: 'Never reached playing state on the first track',
+          );
+          await harness.readium.pause();
+
+          // No time fragment: progression is the only offset signal, which is what
+          // Publication.resolveLocator now produces for a relocated audiobook locator.
+          const progression = 0.5;
+          final navigated = await harness.readium.goToLocator(
+            Locator(
+              href: targetLink.href,
+              type: targetLink.type ?? 'audio/mpeg',
+              locations: Locations(position: targetIndex + 1, progression: progression),
+            ),
+          );
+          expect(navigated, isTrue, reason: 'goToLocator to the last track should succeed');
+
+          await waitUntil(
+            () => states.last.currentLocator?.href == targetLink.href && states.last.currentOffset != null,
+            timeout: const Duration(seconds: 20),
+            reason: 'Never landed on the target track with an offset',
+          );
+
+          final expectedSeconds = targetDuration! * progression;
+          final wrongSeconds = firstDuration! * progression;
+          final landedSeconds = states.last.currentOffset!.inMilliseconds / 1000.0;
+
+          expect(
+            (landedSeconds - expectedSeconds).abs(),
+            lessThan((landedSeconds - wrongSeconds).abs()),
+            reason:
+                'Landed at ${landedSeconds}s: closer to the current-track answer '
+                '(${wrongSeconds}s) than to the target-track answer (${expectedSeconds}s)',
+          );
+          expect(
+            landedSeconds,
+            greaterThan(wrongSeconds + 1),
+            reason: 'Offset was scaled by the first track duration, not the target track',
+          );
+
+          await harness.readium.pause();
+        });
       },
     );
   });
