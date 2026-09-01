@@ -120,8 +120,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   bool wasDestroyed = false;
   bool isReady = false;
 
-  final _isReadyCompleter = Completer<Locator>();
-
   final _readium = FlutterReadiumPlatform.instance;
 
   mq.Orientation? _lastOrientation;
@@ -396,9 +394,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
         _currentLocator = locator;
 
         _markReady();
-        if (!_isReadyCompleter.isCompleted) {
-          _isReadyCompleter.complete(locator);
-        }
       },
       onTextSelected: widget.onTextSelected,
       onSelectionAction: widget.onSelectionAction,
