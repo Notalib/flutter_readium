@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Android builds warned that `flutter_readium` still applied the Kotlin Gradle Plugin.**
+  The Android source layout and example now support AGP's built-in Kotlin, and
+  `wakelock_plus` is constrained to a compatible release.
 - **Creating `ReadiumReaderWidget` could freeze the Android UI while the native reader
   initialized.** Publication positions, which Readium's EPUB fragment constructor reads with a
   blocking call, are now fetched and cached on the I/O dispatcher first.
