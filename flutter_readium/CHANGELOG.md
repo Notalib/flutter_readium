@@ -11,6 +11,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rendered.** Native readers now send a dedicated per-widget visual-ready event instead of making
   the loading state depend on a later, asynchronously enriched page-location event. The loading
   widget also no longer intercepts pointer input while it is visible.
+- **Android builds warned that `flutter_readium` still applied the Kotlin Gradle Plugin.**
+  The Android source layout and example now support AGP's built-in Kotlin, and
+  `wakelock_plus` is constrained to a compatible release.
 - **Creating `ReadiumReaderWidget` could freeze the Android UI while the native reader
   initialized.** Publication positions, which Readium's EPUB fragment constructor reads with a
   blocking call, are now fetched and cached on the I/O dispatcher first.
