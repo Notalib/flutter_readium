@@ -27,7 +27,7 @@ void main() {
       await waitWithPump(
         tester,
         () => statuses.any((s) => s.isReady),
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'Reader never emitted a ready status',
       );
 
@@ -52,7 +52,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'PDF ReadiumReaderWidget never emitted an initial textLocator',
         );
 
@@ -83,7 +83,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No initial locator on first mount',
       );
       await waitForListStable(tester, locators);
@@ -108,7 +108,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.length > preCount,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No textLocator emitted after remount with initialLocator',
       );
       await waitForListStable(tester, locators);

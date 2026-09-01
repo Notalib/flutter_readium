@@ -31,7 +31,7 @@ void defineWarmUpTests(ReadiumIntegrationHarness harness) {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 45),
+        timeout: firstMountTimeout,
         reason: 'Reader never emitted an initial textLocator during warm-up',
         diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
         failOnTimeout: false,
