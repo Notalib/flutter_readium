@@ -113,11 +113,11 @@ internal class PublicationMethodCallHandler : MethodChannel.MethodCallHandler {
                 return Try.success(null)
             }
 
-             "setAudioRecoveryPolicy" -> {
-                 val args = arguments as? Map<*, *>
-                 ReadiumReader.audioRecoveryPolicy = AudioRecoveryPolicy.fromMap(args)
-                 return Try.success(null)
-             }
+            "setAudioRecoveryPolicy" -> {
+                val args = arguments as? Map<*, *>
+                ReadiumReader.audioRecoveryPolicy = AudioRecoveryPolicy.fromMap(args)
+                return Try.success(null)
+            }
 
             "setCssInjections" -> {
                 @Suppress("UNCHECKED_CAST")

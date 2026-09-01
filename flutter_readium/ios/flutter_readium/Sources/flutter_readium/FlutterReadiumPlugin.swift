@@ -228,12 +228,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         }
       }
     case "setCssInjections":
-      let items = call.arguments as? [[String: Any?]] ?? []
-      self.cssInjections = items.map { InjectionAsset(from: $0) }
+      let items = call.arguments as? [[String: Any]] ?? []
+      self.cssInjections = items.compactMap { InjectionAsset(from: $0) }
       result(nil)
     case "setJavaScriptInjections":
-      let items = call.arguments as? [[String: Any?]] ?? []
-      self.javaScriptInjections = items.map { InjectionAsset(from: $0) }
+      let items = call.arguments as? [[String: Any]] ?? []
+      self.javaScriptInjections = items.compactMap { InjectionAsset(from: $0) }
       result(nil)
     case "setCustomHeaders":
       guard let args = call.arguments as? [String: Any],
