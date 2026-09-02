@@ -92,9 +92,8 @@ extension ReadError {
 struct AudioRecoveryPolicy {
   var maxAttempts: Int = 3
   var backoffBaseSeconds: TimeInterval = 1.0
-  /// How long, in seconds, playback can go without the offset advancing
-  /// (while playback is intended to be running) before the stall watchdog
-  /// synthesizes a retryable error and enters the recovery loop.
+  /// How long, in seconds, playback can remain in the loading state before the
+  /// stall watchdog synthesizes a retryable error and enters the recovery loop.
   var stallTimeoutSeconds: TimeInterval = 20.0
   /// How long, in seconds, a single recovery attempt has to prove playback
   /// advanced after rebuilding the player, before that attempt is abandoned and

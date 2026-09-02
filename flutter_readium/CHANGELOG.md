@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Audiobook playback could jump backward about 20 seconds after changing chapters on iOS.**
+  The streaming-stall watchdog now times only continuous buffering instead of comparing playback
+  offsets across tracks and rebuilding the navigator during healthy playback.
+
 ## [0.4.3] - 2026-09-01
 
 ### Fixed

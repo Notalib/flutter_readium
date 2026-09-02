@@ -155,6 +155,82 @@ void main() {
           );
         });
 
+        test('changing audiobook tracks does not trigger false stall recovery', () async {
+          await harness.readium.setAudioRecoveryPolicy(
+            const AudioRecoveryPolicy(stallTimeoutSeconds: 3.0),
+          );
+          addTearDown(
+            () => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()),
+          );
+
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+          final pub = await harness.readium.openPublication(path);
+          expect(pub.readingOrder.length, greaterThanOrEqualTo(2));
+
+          final states = <ReadiumTimebasedState>[];
+          final errors = <ReadiumError>[];
+          final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          final errorSub = harness.readium.onErrorEvent.listen(errors.add);
+          addTearDown(stateSub.cancel);
+          addTearDown(errorSub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+
+          final firstLink = pub.readingOrder.first;
+          final startedLate = await harness.readium.goToLocator(
+            Locator(
+              href: firstLink.href,
+              type: firstLink.type ?? 'audio/mpeg',
+              locations: const Locations(position: 1, fragments: ['t=7']),
+            ),
+          );
+          expect(startedLate, isTrue);
+          await harness.readium.play(null);
+          await waitUntil(
+            () => states.any(
+              (state) =>
+                  state.state == TimebasedState.playing &&
+                  state.currentLocator?.href == firstLink.href &&
+                  state.currentOffset != null &&
+                  state.currentOffset! >= const Duration(milliseconds: 8500),
+            ),
+            timeout: const Duration(seconds: 10),
+            reason: 'First track never played from the late offset',
+          );
+
+          final secondLink = pub.readingOrder[1];
+          final changedTrack = await harness.readium.goToLocator(
+            Locator(
+              href: secondLink.href,
+              type: secondLink.type ?? 'audio/mpeg',
+              locations: const Locations(position: 2, fragments: ['t=0']),
+            ),
+          );
+          expect(changedTrack, isTrue);
+
+          await waitUntil(
+            () => states.any(
+              (state) =>
+                  state.state == TimebasedState.playing &&
+                  state.currentLocator?.href == secondLink.href &&
+                  state.currentOffset != null &&
+                  state.currentOffset! >= const Duration(seconds: 4),
+            ),
+            timeout: const Duration(seconds: 15),
+            reason: 'Second track did not play beyond the 3-second stall timeout',
+          );
+
+          expect(
+            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            isEmpty,
+            reason: 'Healthy playback after a track change was mistaken for a stall',
+          );
+          await harness.readium.pause();
+        });
+
         test('audiobook emits ended state when playback reaches end of book', () async {
           final path = harness.fixturePath(
             FixtureKeys.audiobook,

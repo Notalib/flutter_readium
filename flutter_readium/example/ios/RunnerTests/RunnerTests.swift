@@ -218,6 +218,30 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   }
 }
 
+final class AudioStallWatchdogTests: XCTestCase {
+  func testOnlyWatchesLoadingWhilePlaybackIsIntended() {
+    let cases: [(intent: Bool, state: MediaPlaybackState, expected: Bool)] = [
+      (false, .paused, false),
+      (false, .loading, false),
+      (false, .playing, false),
+      (true, .paused, false),
+      (true, .loading, true),
+      (true, .playing, false),
+    ]
+
+    for testCase in cases {
+      XCTAssertEqual(
+        shouldWatchForAudioStall(
+          playbackIntent: testCase.intent,
+          playbackState: testCase.state
+        ),
+        testCase.expected,
+        "intent=\(testCase.intent), state=\(testCase.state)"
+      )
+    }
+  }
+}
+
 /// Resource stub whose reads always fail with the given error.
 private final class FailingResource: Resource {
   let error: ReadError
