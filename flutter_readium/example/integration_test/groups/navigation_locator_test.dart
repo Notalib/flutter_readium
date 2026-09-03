@@ -30,7 +30,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'ReadiumReaderWidget never emitted an initial textLocator',
         diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
@@ -81,7 +81,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No initial textLocator emitted',
         diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
@@ -132,7 +132,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'No initial textLocator emitted',
       );
       await waitForListStable(tester, locators);
@@ -196,7 +196,7 @@ void main() {
       await waitWithPump(
         tester,
         () => locators.isNotEmpty,
-        timeout: const Duration(seconds: 30),
+        timeout: firstMountTimeout,
         reason: 'DiViNa reader never emitted an initial textLocator',
         diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
       );
@@ -259,7 +259,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'No initial textLocator emitted',
           diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
         );
@@ -314,7 +314,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'No initial textLocator emitted',
           diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
         );
@@ -365,7 +365,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'No initial locator emitted',
         );
         await waitForListStable(tester, locators);
@@ -437,7 +437,7 @@ void main() {
         await waitWithPump(
           tester,
           () => locators.isNotEmpty,
-          timeout: const Duration(seconds: 30),
+          timeout: firstMountTimeout,
           reason: 'Fixed-layout reader never emitted an initial textLocator',
         );
         await waitForListStable(tester, locators);

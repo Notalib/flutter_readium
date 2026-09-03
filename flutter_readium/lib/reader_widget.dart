@@ -40,7 +40,8 @@ class ReadiumReaderWidget extends StatefulWidget {
   final Publication publication;
 
   /// Optional widget to show while the reader is loading, e.g. a spinner.
-  /// It will be shown until the reader sends its first onPageChanged event.
+  /// It will be shown until the native reader reports that its initial content
+  /// is visually ready.
   /// It should typically be a full-screen widget, since it will be stacked on top of the reader widget.
   final Widget? loadingWidget;
 
@@ -118,8 +119,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   ReadiumReaderChannel? _channel;
   bool wasDestroyed = false;
   bool isReady = false;
-
-  final _isReadyCompleter = Completer<Locator>();
 
   final _readium = FlutterReadiumPlatform.instance;
 
@@ -386,16 +385,12 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   void _onPlatformViewCreated(final int id) {
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
+      onReaderReady: _markReady,
       onPageChanged: (final locator) {
         _log.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
 
-        if (isReady == false) {
-          setState(() {
-            isReady = true;
-          });
-          _isReadyCompleter.complete(locator);
-        }
+        _markReady();
       },
       onTextSelected: widget.onTextSelected,
       onSelectionAction: widget.onSelectionAction,
@@ -408,6 +403,16 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     _log.d('New widget is: ${_channel?.name}');
+  }
+
+  void _markReady() {
+    if (!mounted || isReady) {
+      return;
+    }
+
+    setState(() {
+      isReady = true;
+    });
   }
 
   /// TODO: Remove this workaround, if the underlying issue is completely fixed in Readium.

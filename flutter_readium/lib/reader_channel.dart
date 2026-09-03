@@ -18,11 +18,14 @@ enum _ReaderChannelMethodInvoke {
 /// Internal use only.
 /// Used by ReadiumReaderWidget to talk to the native widget.
 class ReadiumReaderChannel extends MethodChannel {
-  /// Creates a channel bound to [name]. [onPageChanged] is called when the
-  /// native navigator reports a page change. [onExternalLinkActivated] is
-  /// called when an external (non-publication) link is tapped.
+  /// Creates a channel bound to [name]. [onReaderReady] is called when the
+  /// native navigator first reports content on screen. [onPageChanged] is
+  /// called when the native navigator reports a page change.
+  /// [onExternalLinkActivated] is called when an external (non-publication)
+  /// link is tapped.
   ReadiumReaderChannel(
     super.name, {
+    required this.onReaderReady,
     required this.onPageChanged,
     this.onExternalLinkActivated,
     this.onTextSelected,
@@ -34,6 +37,14 @@ class ReadiumReaderChannel extends MethodChannel {
   }
 
   static final _log = ReadiumLog.tag('ReaderChannel');
+
+  /// Called once when the native reader first reports content on screen.
+  ///
+  /// This is a best-effort, per-platform signal, not a paint callback. Android
+  /// fires it from the navigator's resource-loaded callback; iOS fires it from
+  /// the first navigator location change. If the native navigator never
+  /// reports either, this is never called.
+  final void Function() onReaderReady;
 
   /// Called by the native side whenever the visible page changes.
   final void Function(Locator) onPageChanged;
@@ -134,6 +145,11 @@ class ReadiumReaderChannel extends MethodChannel {
   Future<dynamic> onMethodCall(final MethodCall call) async {
     try {
       switch (call.method) {
+        case 'onReaderReady':
+          _log.d('onReaderReady');
+          onReaderReady();
+
+          return null;
         case 'onPageChanged':
           final args = call.arguments as String;
           final locatorJson = json.decode(args) as Map<String, dynamic>;

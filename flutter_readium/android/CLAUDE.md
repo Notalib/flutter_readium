@@ -17,4 +17,5 @@ Thin wrapper over [kotlin-toolkit](https://github.com/readium/kotlin-toolkit/); 
 
 ## Toolchain
 
-`minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
+`minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, Java 18 source/target.
+The plugin fallback uses AGP 8.13.2; the example validates AGP 9.3.0 with Gradle 9.5.

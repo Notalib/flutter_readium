@@ -9,6 +9,10 @@ class ReadiumReaderChannel: FlutterMethodChannel {
       taskQueue: nil)
   }
 
+  func onReaderReady() {
+    invokeMethod("onReaderReady", arguments: nil)
+  }
+
   func onPageChanged(locator: Locator) {
     invokeMethod("onPageChanged", arguments: try? locator.jsonString())
   }
