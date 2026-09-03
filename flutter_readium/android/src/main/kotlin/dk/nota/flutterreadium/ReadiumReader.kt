@@ -90,7 +90,7 @@ private const val TAG = "ReadiumReader"
 private val HTTP_CONNECT_TIMEOUT = 10.seconds
 private val HTTP_READ_TIMEOUT = 30.seconds
 
-private val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
+private const val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
 
 private val currentPublicationUrlKey = "currentPublicationUrl"
 private val ttsEnabledKey = "ttsEnabled"
@@ -527,6 +527,12 @@ object ReadiumReader :
     /** Selection actions configured from Dart. Used by EpubReaderFragment to build ActionMode menu. */
     var selectionActions: List<SelectionActionConfig> = emptyList()
 
+    /** Extra CSS assets injected alongside the built-in helpers. */
+    var cssInjections: List<InjectionAsset> = emptyList()
+
+    /** Extra JavaScript assets injected alongside the built-in helpers. */
+    var javaScriptInjections: List<InjectionAsset> = emptyList()
+
     private val context: Context
         get() = application.applicationContext
 
@@ -715,7 +721,11 @@ object ReadiumReader :
                     val epubPreferences =
                         navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
-                        resource.injectScriptsAndStyles(tocIds, epubPreferences)
+                        resource.injectScriptsAndStyles(
+                            tocIds,
+                            epubPreferences,
+                            javaScriptInjections + cssInjections,
+                        )
                     } else {
                         resource
                     }

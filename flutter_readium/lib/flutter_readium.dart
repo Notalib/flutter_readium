@@ -66,6 +66,18 @@ class FlutterReadium {
     _platform.setDefaultPreferences(preferences);
   }
 
+  /// Registers extra CSS assets to inject into every EPUB HTML resource,
+  /// in addition to the built-in `flutterReadiumTools.css`.
+  /// Call before opening a publication so the injections are active when the reader view is created.
+  Future<void> setCssInjections(List<InjectionAsset> injections) =>
+      _readiumCall(() => _platform.setCssInjections(injections));
+
+  /// Registers extra JavaScript assets to inject into every EPUB HTML resource,
+  /// in addition to the built-in `flutterReadiumTools.js`.
+  /// Call before opening a publication so the injections are active when the reader view is created.
+  Future<void> setJavaScriptInjections(List<InjectionAsset> injections) =>
+      _readiumCall(() => _platform.setJavaScriptInjections(injections));
+
   /// Loads a publication from the given URL and returns a [Publication] object representing its metadata and structure. This does not open the publication for reading.
   Future<Publication> loadPublication(String pubUrl) => _readiumCall(() => _platform.loadPublication(pubUrl));
 

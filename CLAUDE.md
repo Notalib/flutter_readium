@@ -48,8 +48,11 @@ When upgrading a toolkit, move all three platforms together where API surface ov
 
 ## Build / toolchain facts
 
-- Dart SDK: `>=3.8.0 <4.0.0`. Flutter version pinned in `.flutter-version` — see the Workflow note above before changing it.
-- Per-platform toolchain facts (Android SDK/Kotlin/AGP levels, iOS `Podfile` requirements, the web bundler) live in the nested platform files.
+- Dart SDK: `>=3.8.0 <4.0.0`, Flutter version pinned in `.flutter-version`, synced to pubspecs via `bin/update_flutter_version`.
+- Android: `minSdkVersion 24`, `compileSdk 36`, Kotlin 2.3.21, AGP 8.13.2, Java 18 source/target.
+- iOS: requires `use_frameworks!` and `use_modular_headers!` in consuming `Podfile` (see top-level `README.md`).
+- Web: webpack 5, TypeScript 5.7+.
+- **Flutter version updates**: always update `.flutter-version`, `.fvmrc`, and both pubspec.yaml files (`flutter_readium/pubspec.yaml`, `flutter_readium_platform_interface/pubspec.yaml`) together via `bin/update_flutter_version <version>`. Never change one without the others — divergence causes build failures.
 
 ## Gotchas
 

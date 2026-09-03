@@ -157,19 +157,41 @@ fun decorationStyleFromMap(decoMap: Map<*, *>?): Decoration.Style? {
     }
 }
 
-private const val READIUM_FLUTTER_PATH_PREFIX =
-    "https://readium_assets/flutter_assets/packages/flutter_readium"
+private const val FLUTTER_ASSETS_BASE = "https://readium_assets/flutter_assets"
+
+private const val INJECT_START_MARKER = "<!-- flutter_readium:start -->"
+private const val INJECT_END_MARKER = "<!-- flutter_readium:end -->"
+
+/** A Flutter asset (JS or CSS) to inject into every EPUB HTML resource. */
+data class InjectionAsset(
+    val assetPath: String,
+    val packageName: String?,
+) {
+    val assetUrl: String
+        get() =
+            if (packageName != null) {
+                "$FLUTTER_ASSETS_BASE/packages/$packageName/$assetPath"
+            } else {
+                "$FLUTTER_ASSETS_BASE/$assetPath"
+            }
+}
+
+private val BUILT_IN_INJECTIONS =
+    listOf(
+        InjectionAsset("assets/helpers/flutterReadiumTools.js", "flutter_readium"),
+        InjectionAsset("assets/helpers/flutterReadiumTools.css", "flutter_readium"),
+    )
 
 // Helper for injecting extra files into an epub.
 fun Resource.injectScriptsAndStyles(
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
+    extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
         val props = this.properties().getOrNull()
         val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
 
-        // Skip all non-html files
         if (!filename.endsWith("html", ignoreCase = true)) {
             return@TransformingResource Try.success(bytes)
         }
@@ -181,37 +203,26 @@ fun Resource.injectScriptsAndStyles(
             return@TransformingResource Try.success(bytes)
         }
 
-        val injectStyle = epubPreferences?.toInjectableStyleSheet()
+        val assetLines =
+            (BUILT_IN_INJECTIONS + extraInjections).mapNotNull { injection ->
+                when {
+                    injection.assetPath.endsWith(".js", ignoreCase = true) -> {
+                        """<script type="text/javascript" src="${injection.assetUrl}"></script>"""
+                    }
 
-        if (content.take(headEndIndex).contains(READIUM_FLUTTER_PATH_PREFIX)) {
-            injectStyle?.let {
-                if (!content.contains(it)) {
-                    PluginLog.d(
-                        TAG,
-                        "Scripts already loaded for $filename, but custom css needs to be updated.",
-                    )
-                    return@TransformingResource Try.success(
-                        content
-                            .replace(
-                                "</head>",
-                                "$it</head>",
-                                true,
-                            ).toByteArray(),
-                    )
+                    injection.assetPath.endsWith(".css", ignoreCase = true) -> {
+                        """<link rel="stylesheet" type="text/css" href="${injection.assetUrl}"></link>"""
+                    }
+
+                    else -> {
+                        null
+                    }
                 }
             }
 
-            PluginLog.d(TAG, "Skip injecting - already done for: $filename")
-            return@TransformingResource Try.success(bytes)
-        }
-
-        PluginLog.d(TAG, "Injecting files into: $filename")
-
-        val injectLines =
-            listOf(
-                """<script type="text/javascript" src="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.js"></script>""",
-                """<link rel="stylesheet" type="text/css" href="$READIUM_FLUTTER_PATH_PREFIX/assets/helpers/flutterReadiumTools.css"></link>""",
-                """<script type="text/javascript">
+        val injectStyle = epubPreferences?.toInjectableStyleSheet()
+        val platformScript =
+            """<script type="text/javascript">
                 const isAndroid = true;
                 const isIos = false;
                 window.readiumTocIDs = ${jsonEncode(tocIds)};
@@ -221,14 +232,36 @@ fun Resource.injectScriptsAndStyles(
                     }
                 };
             </script>
-            $injectStyle
-            """,
-            )
+            """
+
+        val allLines = assetLines + listOf(platformScript) + listOfNotNull(injectStyle)
+        val newBlock = "$INJECT_START_MARKER\n${allLines.joinToString("\n")}\n$INJECT_END_MARKER"
+
+        val startIdx = content.indexOf(INJECT_START_MARKER)
+        if (startIdx != -1) {
+            val endIdx = content.indexOf(INJECT_END_MARKER, startIdx)
+            if (endIdx == -1) {
+                PluginLog.w(TAG, "::injectScriptsAndStyles. Injection start marker found without end marker in: $filename")
+            } else {
+                val existingBlock = content.substring(startIdx, endIdx + INJECT_END_MARKER.length)
+                if (existingBlock == newBlock) {
+                    PluginLog.d(TAG, "::injectScriptsAndStyles. Skip injecting - no changes for: $filename")
+                    return@TransformingResource Try.success(bytes)
+                }
+                PluginLog.d(TAG, "::injectScriptsAndStyles. Replacing injection block for: $filename")
+                val newContent =
+                    content.substring(0, startIdx) +
+                        newBlock +
+                        content.substring(endIdx + INJECT_END_MARKER.length)
+                return@TransformingResource Try.success(newContent.toByteArray())
+            }
+        }
+
+        PluginLog.d(TAG, "::injectScriptsAndStyles. Injecting files into: $filename")
         val newContent =
             StringBuilder(content)
-                .insert(headEndIndex, "\n" + injectLines.joinToString("\n") + "\n")
+                .insert(headEndIndex, "\n$newBlock\n")
                 .toString()
-
         Try.success(newContent.toByteArray())
     }
 
