@@ -7,9 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **Audiobook playback could jump backward about 20 seconds after changing chapters on iOS.**
-  The streaming-stall watchdog now times only continuous buffering instead of comparing playback
-  offsets across tracks and rebuilding the navigator during healthy playback.
+- **Audiobook playback could briefly stutter or replay a few seconds on iOS.**
+  The stall watchdog no longer compares offsets across tracks, which could trigger recovery during
+  healthy chapter transitions; it now checks progress independently within each timeout window.
 
 ## [0.4.3] - 2026-09-01
 

@@ -219,26 +219,24 @@ final class AudioRecoveryPolicyTests: XCTestCase {
 }
 
 final class AudioStallWatchdogTests: XCTestCase {
-  func testOnlyWatchesLoadingWhilePlaybackIsIntended() {
-    let cases: [(intent: Bool, state: MediaPlaybackState, expected: Bool)] = [
-      (false, .paused, false),
-      (false, .loading, false),
-      (false, .playing, false),
-      (true, .paused, false),
-      (true, .loading, true),
-      (true, .playing, false),
-    ]
+  func testWatchesExactlyWhilePlaybackIsIntended() {
+    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: false))
+    XCTAssertTrue(shouldWatchForAudioStall(playbackIntent: true))
+  }
 
-    for testCase in cases {
-      XCTAssertEqual(
-        shouldWatchForAudioStall(
-          playbackIntent: testCase.intent,
-          playbackState: testCase.state
-        ),
-        testCase.expected,
-        "intent=\(testCase.intent), state=\(testCase.state)"
-      )
-    }
+  func testProgressRequiresTimeAdvanceOrResourceChange() {
+    XCTAssertFalse(
+      hasAudioPlaybackAdvanced(
+        fromResourceIndex: 0, fromTime: 10,
+        toResourceIndex: 0, toTime: 10.1))
+    XCTAssertTrue(
+      hasAudioPlaybackAdvanced(
+        fromResourceIndex: 0, fromTime: 10,
+        toResourceIndex: 0, toTime: 10.2))
+    XCTAssertTrue(
+      hasAudioPlaybackAdvanced(
+        fromResourceIndex: 0, fromTime: 10,
+        toResourceIndex: 1, toTime: 0))
   }
 }
 
