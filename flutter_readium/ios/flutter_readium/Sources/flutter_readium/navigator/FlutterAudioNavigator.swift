@@ -172,11 +172,19 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   private static let goToLocatorTimeoutSeconds: UInt64 = 10
 
-  /// Upstream `AudioNavigator.go(to:)` never returns when jumping to a different track while
-  /// paused — the player switches track but the call hangs, which would hang the method-channel
-  /// result forever. Bounded so the caller always gets an answer; `false` means "not confirmed".
+  /// True while an `AudioNavigator.go(to:)` is in flight. Upstream fires our delegate callbacks
+  /// synchronously mid-navigation; if we read `playbackInfo` there, `-[AVPlayerItem currentTime]`
+  /// does a main-thread `dispatch_sync` that deadlocks against the track switch and hangs `go(to:)`.
+  /// The callbacks skip their listener emissions while this is set — the transitional state they
+  /// would report is superseded by the settled state emitted once navigation completes.
+  @MainActor private var _isNavigating = false
+
+  /// Upstream `AudioNavigator.go(to:)` also never returns if a delegate callback blocks it (see
+  /// `_isNavigating`); the timeout is the backstop so the method-channel result always resolves.
   internal func goBounded(to locator: Locator) async -> Bool {
     guard let navigator = _audioNavigator else { return false }
+    _isNavigating = true
+    defer { _isNavigating = false }
     guard let navigated = await withTimeout(seconds: Self.goToLocatorTimeoutSeconds, {
       await navigator.go(to: locator)
     }) else {
@@ -395,6 +403,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
     self.audioLocator = locator
+    // See `_isNavigating`: submitting here reads `playbackInfo` and would deadlock mid-`go(to:)`.
+    // The landed location is emitted by the periodic observer once navigation settles.
+    if _isNavigating { return }
     // Submit new locator to the listener
     self.submitAudioLocatorReachedToListener(locator)
 
@@ -406,6 +417,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// Called when the ranges of buffered media data change.
   /// Warning: They may be discontinuous.
   public func navigator(_ navigator: AudioNavigator, loadedTimeRangesDidChange ranges: [Range<Double>]) {
+    // See `_isNavigating`: reading `playbackInfo` mid-`go(to:)` deadlocks the main thread.
+    if _isNavigating { return }
+
     // Simplified buffer range to TimeInterval, by just taking highest upper bound.
     // May be too optimistic if ranges are discontinuous.
     let highestUpperBound: TimeInterval = ranges.map(\.upperBound).max() ?? 0
