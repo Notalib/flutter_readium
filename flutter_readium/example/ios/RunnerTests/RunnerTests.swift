@@ -307,3 +307,16 @@ final class ResourceReadErrorReportingTests: XCTestCase {
     XCTAssertEqual(reportCount, 0)
   }
 }
+
+// Bounds an operation that ignores cancellation, verifying withTimeout resolves to
+// nil rather than hanging forever. See FlutterAudioNavigator.goBounded(to:).
+final class WithTimeoutTests: XCTestCase {
+  func testWithTimeoutReturnsNilForOperationThatIgnoresCancellation() async {
+    let result: Void? = await withTimeout(seconds: 1) {
+      // Never resumes and ignores cancellation, without spinning after the timeout fires.
+      await withUnsafeContinuation { (_: UnsafeContinuation<Void, Never>) in }
+    }
+
+    XCTAssertNil(result)
+  }
+}
