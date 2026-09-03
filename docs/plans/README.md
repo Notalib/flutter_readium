@@ -26,6 +26,9 @@ This directory holds implementation plans, parity audits, and retained reference
 	native comic cue framing work after the shared narration sync API landed. *(Cross-platform parity / M-L)*
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
+- **[todo/cross-platform-audio-stall-watchdog.md](todo/cross-platform-audio-stall-watchdog.md)** —
+	define one progress-based audiobook stall contract and regression matrix for iOS, Android, and
+	web. *(Cross-platform reliability / M)*
 
 ## Upstream plans (`upstream/`)
 
