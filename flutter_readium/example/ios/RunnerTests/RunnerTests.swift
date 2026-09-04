@@ -222,21 +222,49 @@ final class AudioStallWatchdogTests: XCTestCase {
   func testWatchesExactlyWhilePlaybackIsIntended() {
     XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: false))
     XCTAssertTrue(shouldWatchForAudioStall(playbackIntent: true))
+    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: true, isInterrupted: true))
   }
 
-  func testProgressRequiresTimeAdvanceOrResourceChange() {
-    XCTAssertFalse(
-      hasAudioPlaybackAdvanced(
-        fromResourceIndex: 0, fromTime: 10,
-        toResourceIndex: 0, toTime: 10.1))
-    XCTAssertTrue(
-      hasAudioPlaybackAdvanced(
-        fromResourceIndex: 0, fromTime: 10,
-        toResourceIndex: 0, toTime: 10.2))
-    XCTAssertTrue(
-      hasAudioPlaybackAdvanced(
-        fromResourceIndex: 0, fromTime: 10,
-        toResourceIndex: 1, toTime: 0))
+  func testFrozenPositionStallsAtDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 2.99, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10, now: 3, timeout: 3))
+  }
+
+  func testForwardProgressMovesDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 4.99, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10.2, now: 5, timeout: 3))
+  }
+
+  func testBackwardSeekMovesDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 4, timeout: 3))
+  }
+
+  func testResourceChangeMovesDeadlineDespiteOffsetReset() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 4, timeout: 3))
+  }
+
+  func testResetStartsFreshWindow() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.reset()
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 10, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 12, timeout: 3))
   }
 }
 
