@@ -280,3 +280,27 @@ describe("audio stop lifecycle", () => {
     });
   });
 });
+
+describe("audiobook playback intent", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("tracks explicit play, pause, and resume independently from player state", () => {
+    const reader = new ReadiumReader();
+    const audioNav = {
+      play: jest.fn(),
+      pause: jest.fn(),
+    };
+    const setPlaybackIntent = jest
+      .spyOn(FlutterAudioNavigator, "setPlaybackIntent")
+      .mockImplementation(() => {});
+    (reader as any)._audioNav = audioNav;
+
+    reader.play();
+    reader.pause();
+    reader.resume();
+
+    expect(setPlaybackIntent.mock.calls).toEqual([[true], [false], [true]]);
+  });
+});

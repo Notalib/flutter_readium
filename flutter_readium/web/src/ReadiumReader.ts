@@ -678,6 +678,7 @@ class _ReadiumReader {
   ): Promise<void> {
     const nav = this._audioNav;
     if (!nav) return Promise.resolve();
+    FlutterAudioNavigator.setPlaybackIntent(resumePlaying);
     return seekAudioAndResume(nav, audioLocator, resumePlaying);
   }
 
@@ -708,6 +709,7 @@ class _ReadiumReader {
         this._activeAudioPreferencesJson,
         (nav) => {
           this._audioNav = nav;
+          FlutterAudioNavigator.setPlaybackIntent(true);
           nav.play();
         },
         undefined,
@@ -729,18 +731,21 @@ class _ReadiumReader {
         return;
       }
     }
+    FlutterAudioNavigator.setPlaybackIntent(true);
     this._audioNav.play();
   }
 
   public pause(): void {
     log.debug("pause");
     if (this._ttsEngine) { this._ttsEngine.pause(); return; }
+    FlutterAudioNavigator.setPlaybackIntent(false);
     this._audioNav?.pause();
   }
 
   public resume(): void {
     log.debug("resume");
     if (this._ttsEngine) { this._ttsEngine.resume(); return; }
+    FlutterAudioNavigator.setPlaybackIntent(true);
     this._audioNav?.play();
   }
 
