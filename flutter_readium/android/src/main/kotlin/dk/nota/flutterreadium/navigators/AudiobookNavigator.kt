@@ -1,6 +1,8 @@
 package dk.nota.flutterreadium.navigators
 
 import android.os.Bundle
+import android.os.SystemClock
+import androidx.media3.common.Player
 import dk.nota.flutterreadium.ControlPanelInfoType
 import dk.nota.flutterreadium.FlutterAudioPreferences
 import dk.nota.flutterreadium.PluginLog
@@ -67,6 +69,51 @@ private val SEEK_SETTLE_TIMEOUT = 5.seconds
  * rarely lands exactly on the requested offset, so treat "close enough" as arrived.
  */
 private val SEEK_MATCH_TOLERANCE = 1500.milliseconds
+
+internal fun shouldWatchForAudioStall(
+    playWhenReady: Boolean,
+    ended: Boolean,
+    suppressed: Boolean,
+): Boolean = playWhenReady && !ended && !suppressed
+
+internal class AudioStallWatchdog(
+    private val timeoutMillis: Long,
+) {
+    private var resourceIndex: Int? = null
+    private var offset: Duration? = null
+    private var deadlineMillis: Long? = null
+
+    fun observe(
+        playbackRequested: Boolean,
+        resourceIndex: Int,
+        offset: Duration,
+        nowMillis: Long,
+    ): Boolean {
+        if (!playbackRequested) {
+            reset()
+            return false
+        }
+
+        val moved =
+            this.resourceIndex != resourceIndex ||
+                this.offset?.let { abs((offset - it).inWholeMilliseconds) > 100 } == true
+
+        if (deadlineMillis == null || moved) {
+            this.resourceIndex = resourceIndex
+            this.offset = offset
+            deadlineMillis = nowMillis + timeoutMillis
+            return false
+        }
+
+        return nowMillis >= deadlineMillis!!
+    }
+
+    fun reset() {
+        resourceIndex = null
+        offset = null
+        deadlineMillis = null
+    }
+}
 
 const val CURRENT_TIMEBASE_LOCATOR_KEY = "currentTimebaseLocator"
 
@@ -793,9 +840,9 @@ open class AudiobookNavigator(
         withinMillis: Long,
     ): Boolean {
         val startOffset = navigator.playback.value.offset
-        val deadline = System.currentTimeMillis() + withinMillis
+        val deadline = SystemClock.elapsedRealtime() + withinMillis
 
-        while (System.currentTimeMillis() < deadline && isActive) {
+        while (SystemClock.elapsedRealtime() < deadline && isActive) {
             if (offsetAdvanced(navigator, startOffset)) return true
             if (navigator.playback.value.state is AudioNavigator.State.Failure<*>) {
                 return false
@@ -807,9 +854,8 @@ open class AudiobookNavigator(
 
     /**
      * True when [navigator] is `Ready`, playback is intended (`playWhenReady`), and its
-     * offset has moved past `sinceOffset` by more than 100ms. Shared by [playbackAdvanced]
-     * (post-rebuild recovery verification) and [startStallWatchdog] (stall detection) so
-     * both agree on what "playback is actually progressing" means.
+     * offset has moved forward by more than 100ms. Recovery verification is deliberately
+     * stricter than stall liveness: a rebuilt player must prove forward playback.
      */
     private fun offsetAdvanced(
         navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
@@ -837,36 +883,36 @@ open class AudiobookNavigator(
         stallWatchdogJob?.cancel()
         stallWatchdogJob =
             launch {
-                var lastAdvanceOffset = navigator.playback.value.offset
-                var deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                val watchdog =
+                    AudioStallWatchdog(
+                        timeoutMillis = (recoveryPolicy.stallTimeoutSeconds * 1000).toLong(),
+                    )
 
                 while (isActive && !disposed) {
                     delay(1_000)
 
                     if (isRecovering || isTerminallyFailed) {
-                        lastAdvanceOffset = navigator.playback.value.offset
-                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
+                        watchdog.reset()
                         continue
                     }
 
                     val playback = navigator.playback.value
-                    if (!playback.playWhenReady || playback.state is AudioNavigator.State.Ended) {
-                        // Genuinely not trying to play (paused/ended) - not a stall, reset the
-                        // window. Note: Buffering with playWhenReady is NOT reset here - a network
-                        // stall sits in Buffering (never Ready), so that is exactly what the
-                        // watchdog must count toward the deadline.
-                        lastAdvanceOffset = playback.offset
-                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
-                        continue
-                    }
-
-                    if (offsetAdvanced(navigator, lastAdvanceOffset)) {
-                        lastAdvanceOffset = playback.offset
-                        deadline = System.currentTimeMillis() + (recoveryPolicy.stallTimeoutSeconds * 1000).toLong()
-                        continue
-                    }
-
-                    if (System.currentTimeMillis() >= deadline) {
+                    val playbackRequested =
+                        shouldWatchForAudioStall(
+                            playWhenReady = playback.playWhenReady,
+                            ended = playback.state is AudioNavigator.State.Ended,
+                            suppressed =
+                                navigator.asMedia3Player().playbackSuppressionReason !=
+                                    Player.PLAYBACK_SUPPRESSION_REASON_NONE,
+                        )
+                    if (
+                        watchdog.observe(
+                            playbackRequested = playbackRequested,
+                            resourceIndex = playback.index,
+                            offset = playback.offset,
+                            nowMillis = SystemClock.elapsedRealtime(),
+                        )
+                    ) {
                         PluginLog.w(
                             TAG,
                             "::startStallWatchdog - offset hasn't advanced in ${recoveryPolicy.stallTimeoutSeconds}s, synthesizing retryable error",

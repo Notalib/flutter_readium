@@ -1,11 +1,14 @@
 package dk.nota.flutterreadium.navigators
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.readium.r2.shared.util.DebugError
 import org.readium.r2.shared.util.Error
 import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.http.HttpStatus
+import kotlin.time.Duration.Companion.seconds
 
 internal class AudioStreamErrorPolicyTest {
     @Test
@@ -151,5 +154,62 @@ internal class AudioStreamErrorPolicyTest {
     fun `fromMap falls back to defaults for missing or null map`() {
         assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(null))
         assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(emptyMap<String, Any>()))
+    }
+}
+
+internal class AudioStallWatchdogTest {
+    @Test
+    fun `watches only requested unsuppressed playback`() {
+        assertTrue(shouldWatchForAudioStall(playWhenReady = true, ended = false, suppressed = false))
+        assertFalse(shouldWatchForAudioStall(playWhenReady = false, ended = false, suppressed = false))
+        assertFalse(shouldWatchForAudioStall(playWhenReady = true, ended = true, suppressed = false))
+        assertFalse(shouldWatchForAudioStall(playWhenReady = true, ended = false, suppressed = true))
+    }
+
+    @Test
+    fun `frozen position stalls at deadline`() {
+        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 2_999))
+        assertTrue(watchdog.observe(true, 0, 10.seconds, nowMillis = 3_000))
+    }
+
+    @Test
+    fun `forward progress moves deadline`() {
+        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 2_000))
+        assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 4_999))
+        assertTrue(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 5_000))
+    }
+
+    @Test
+    fun `backward seek moves deadline`() {
+        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        assertFalse(watchdog.observe(true, 0, 2.seconds, nowMillis = 2_000))
+        assertFalse(watchdog.observe(true, 0, 2.seconds, nowMillis = 4_000))
+    }
+
+    @Test
+    fun `resource change moves deadline despite offset reset`() {
+        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        assertFalse(watchdog.observe(true, 1, 0.seconds, nowMillis = 2_000))
+        assertFalse(watchdog.observe(true, 1, 0.seconds, nowMillis = 4_000))
+    }
+
+    @Test
+    fun `pause and resume start a fresh window`() {
+        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        assertFalse(watchdog.observe(false, 0, 10.seconds, nowMillis = 4_000))
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 10_000))
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 12_000))
     }
 }
