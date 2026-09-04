@@ -39,10 +39,10 @@ class AudioRecoveryPolicy with Equatable {
   /// default). Defaults to `1.0`.
   final double backoffBaseSeconds;
 
-  /// How long, in seconds, playback can go without the offset advancing
-  /// (while playback is intended to be running) before the stall watchdog
-  /// synthesizes a retryable error and enters the recovery loop. Must exceed
-  /// normal seek/chapter-boundary buffering. Defaults to `20.0`.
+  /// How long, in seconds, playback can remain in the platform's stalled or
+  /// buffering condition before the watchdog synthesizes a retryable error and
+  /// enters the recovery loop. Must exceed normal startup and seek buffering.
+  /// Defaults to `20.0`.
   final double stallTimeoutSeconds;
 
   /// How long, in seconds, a single recovery attempt may spend rebuilding the

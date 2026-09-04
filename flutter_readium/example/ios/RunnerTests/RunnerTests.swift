@@ -218,6 +218,56 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   }
 }
 
+final class AudioStallWatchdogTests: XCTestCase {
+  func testWatchesExactlyWhilePlaybackIsIntended() {
+    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: false))
+    XCTAssertTrue(shouldWatchForAudioStall(playbackIntent: true))
+    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: true, isInterrupted: true))
+  }
+
+  func testFrozenPositionStallsAtDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 2.99, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10, now: 3, timeout: 3))
+  }
+
+  func testForwardProgressMovesDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 4.99, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10.2, now: 5, timeout: 3))
+  }
+
+  func testBackwardSeekMovesDeadline() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 4, timeout: 3))
+  }
+
+  func testResourceChangeMovesDeadlineDespiteOffsetReset() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 2, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 4, timeout: 3))
+  }
+
+  func testResetStartsFreshWindow() {
+    var watchdog = AudioStallWatchdog()
+
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.reset()
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 10, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 12, timeout: 3))
+  }
+}
+
 /// Resource stub whose reads always fail with the given error.
 private final class FailingResource: Resource {
   let error: ReadError

@@ -20,7 +20,51 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { AudioNavigator } from "@readium/navigator";
 
-const { makeAudioTotalProgressionFn, withTocHref } = __testing__;
+const { AudioStallWatchdog, makeAudioTotalProgressionFn, withTocHref } = __testing__;
+
+describe("AudioStallWatchdog", () => {
+  it("stalls at the deadline when resource and position are frozen", () => {
+    const watchdog = new AudioStallWatchdog();
+
+    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10, 2999, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10, 3000, 3000)).toBe(true);
+  });
+
+  it("moves the deadline for forward progress", () => {
+    const watchdog = new AudioStallWatchdog();
+
+    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10.2, 2000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10.2, 4999, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10.2, 5000, 3000)).toBe(true);
+  });
+
+  it("moves the deadline for a backward seek", () => {
+    const watchdog = new AudioStallWatchdog();
+
+    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 2, 2000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 2, 4000, 3000)).toBe(false);
+  });
+
+  it("moves the deadline when a new resource resets the offset", () => {
+    const watchdog = new AudioStallWatchdog();
+
+    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    expect(watchdog.observe(true, "two.mp3", 0, 2000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "two.mp3", 0, 4000, 3000)).toBe(false);
+  });
+
+  it("starts a fresh window after pause and resume", () => {
+    const watchdog = new AudioStallWatchdog();
+
+    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    expect(watchdog.observe(false, "one.mp3", 10, 4000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10, 10000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 10, 12000, 3000)).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

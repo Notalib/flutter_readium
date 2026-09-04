@@ -26,6 +26,93 @@ void main() {
       );
     });
 
+    test(
+      'audio stream that stops delivering data triggers the stall watchdog',
+      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
+      () async {
+        final server = await StallingAudioServer.start();
+        addTearDown(server.close);
+
+        final manifest = jsonEncode({
+          '@context': 'https://readium.org/webpub-manifest/context.jsonld',
+          'metadata': {
+            '@type': 'http://schema.org/Audiobook',
+            'conformsTo': 'https://readium.org/webpub-manifest/profiles/audiobook',
+            'title': 'Stalling audiobook (watchdog test)',
+            'language': 'en',
+            'duration': 60,
+          },
+          'readingOrder': [
+            {
+              'href': server.audioUrl,
+              'type': server.audioMediaType,
+              'duration': 60,
+              'title': 'Track 1',
+            },
+          ],
+        });
+
+        await harness.readium.setAudioRecoveryPolicy(
+          const AudioRecoveryPolicy(
+            maxAttempts: 1,
+            backoffBaseSeconds: 0.1,
+            connectionTimeoutSeconds: 5.0,
+            stallTimeoutSeconds: 2.0,
+          ),
+        );
+        addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
+
+        final errors = <ReadiumError>[];
+        final errorSub = harness.readium.onErrorEvent.listen(errors.add);
+        addTearDown(errorSub.cancel);
+        final states = <ReadiumTimebasedState>[];
+        final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(stateSub.cancel);
+
+        final manifestPath = await writeTempAudiobookManifest(manifest);
+        final pub = await harness.readium.openPublication(manifestPath);
+        expect(pub.conformsToReadiumAudiobook, isTrue);
+
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        await server.firstRequest.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => fail('The native player never requested the synthetic audio resource'),
+        );
+        await waitUntil(
+          () => states.any((state) => state.state == TimebasedState.playing),
+          timeout: const Duration(seconds: 8),
+          reason: 'The partial WAV response never started playback',
+        );
+        expect(
+          errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          isEmpty,
+          reason: 'The watchdog fired while the partial audio was still starting',
+        );
+
+        await waitUntil(
+          () => errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          timeout: const Duration(seconds: 8),
+          reason: 'The stalled audio stream never triggered the configured watchdog',
+        );
+
+        final retry = errors.firstWhere(
+          (error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry,
+        );
+        expect(
+          states
+              .where((state) => state.currentOffset != null)
+              .map((state) => state.currentOffset!)
+              .fold(Duration.zero, (max, offset) => offset > max ? offset : max),
+          greaterThan(const Duration(milliseconds: 500)),
+          reason: 'Playback must advance before the synthetic stream stalls',
+        );
+        expect(retry.attempt, 1);
+        expect(retry.maxAttempts, 1);
+      },
+    );
+
     // Exercises the audio-stream recovery loop's terminal path end-to-end: an
     // audiobook whose media host is unreachable can never connect, so recovery
     // runs its bounded attempts and then emits a terminal audioStream error +
