@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Seeking an audiobook to a position in a different track could hang the app.** Jumping via
+  `goToLocator` while playback was paused never returned from Readium's iOS audio navigator, so
+  the call's result never resolved. The native call is now bounded by a timeout and reports
+  failure instead of hanging.
+
 ## [0.4.3] - 2026-09-01
 
 ### Fixed

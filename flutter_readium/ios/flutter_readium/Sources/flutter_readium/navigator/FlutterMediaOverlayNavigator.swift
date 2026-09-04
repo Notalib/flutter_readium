@@ -90,7 +90,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       return false
     }
     let wasPlaying = navigator.state == .playing || navigator.state == .loading
-    let navigated = await navigator.go(to: audioLocator)
+    let navigated = await goBounded(to: audioLocator)
     // Go will sometimes result in a pause, if buffering was necessary.
     // So we actively ensure we resume playing (if we were before).
     if (wasPlaying) {
@@ -106,7 +106,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       return false
     }
     let wasPlaying = navigator.state == .playing || navigator.state == .loading
-    let navigated = await navigator.go(to: locator)
+    let navigated = await goBounded(to: locator)
     // Go will sometimes result in a pause, if buffering was necessary.
     // So we actively ensure we resume playing (if we were before).
     if (wasPlaying) {
