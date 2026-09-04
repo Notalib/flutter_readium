@@ -181,6 +181,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Upstream `AudioNavigator.go(to:)` also never returns if a delegate callback blocks it (see
   /// `_isNavigating`); the timeout is the backstop so the method-channel result always resolves.
+  /// `@MainActor` so the `_isNavigating` write lands on the same actor the delegate callbacks read
+  /// it from — the seek entry points are `@MainActor`, but this helper is not a protocol requirement
+  /// and so would otherwise run off-main and race the guard.
+  @MainActor
   internal func goBounded(to locator: Locator) async -> Bool {
     guard let navigator = _audioNavigator else { return false }
     _isNavigating = true
