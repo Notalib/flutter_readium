@@ -231,6 +231,86 @@ void main() {
           await harness.readium.pause();
         });
 
+        test('pause and backward seek do not trigger false stall recovery', () async {
+          await harness.readium.setAudioRecoveryPolicy(
+            const AudioRecoveryPolicy(stallTimeoutSeconds: 2.0),
+          );
+          addTearDown(
+            () => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()),
+          );
+
+          final path = harness.fixturePath(
+            FixtureKeys.audiobook,
+            reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
+          );
+          await harness.readium.openPublication(path);
+
+          final states = <ReadiumTimebasedState>[];
+          final errors = <ReadiumError>[];
+          final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          final errorSub = harness.readium.onErrorEvent.listen(errors.add);
+          addTearDown(stateSub.cancel);
+          addTearDown(errorSub.cancel);
+
+          await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+          await harness.readium.play(null);
+          await waitUntil(
+            () =>
+                states.isNotEmpty &&
+                states.last.state == TimebasedState.playing &&
+                (states.last.currentOffset ?? Duration.zero) >= const Duration(seconds: 3),
+            timeout: const Duration(seconds: 10),
+            reason: 'Playback did not advance before the pause check',
+          );
+
+          await harness.readium.pause();
+          await Future<void>.delayed(const Duration(seconds: 3));
+          expect(
+            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            isEmpty,
+            reason: 'An explicit pause was mistaken for a stall',
+          );
+
+          await harness.readium.resume();
+          await waitUntil(
+            () =>
+                states.isNotEmpty &&
+                states.last.state == TimebasedState.playing &&
+                (states.last.currentOffset ?? Duration.zero) >= const Duration(seconds: 4),
+            timeout: const Duration(seconds: 10),
+            reason: 'Playback did not resume before the backward seek check',
+          );
+
+          final beforeSeek = states.last.currentOffset!;
+          await harness.readium.audioSeekBy(const Duration(seconds: -2));
+          await harness.readium.resume();
+          await waitUntil(
+            () =>
+                states.isNotEmpty &&
+                states.last.state == TimebasedState.playing &&
+                states.last.currentOffset != null &&
+                states.last.currentOffset! < beforeSeek - const Duration(seconds: 1),
+            timeout: const Duration(seconds: 10),
+            reason: 'Playback did not move backward after audioSeekBy',
+          );
+          final afterSeek = states.last.currentOffset!;
+
+          await waitUntil(
+            () =>
+                states.isNotEmpty &&
+                states.last.state == TimebasedState.playing &&
+                (states.last.currentOffset ?? Duration.zero) >= afterSeek + const Duration(seconds: 5),
+            timeout: const Duration(seconds: 10),
+            reason: 'Playback did not continue for two stall timeouts after seeking',
+          );
+          expect(
+            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            isEmpty,
+            reason: 'Healthy playback after a backward seek was mistaken for a stall',
+          );
+          await harness.readium.pause();
+        });
+
         test('audiobook emits ended state when playback reaches end of book', () async {
           final path = harness.fixturePath(
             FixtureKeys.audiobook,

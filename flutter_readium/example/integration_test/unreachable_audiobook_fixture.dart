@@ -41,7 +41,11 @@ final class StallingAudioServer {
     return fixture;
   }
 
-  String get audioUrl => 'http://127.0.0.1:${_server.port}/track.mp3';
+  // AVPlayer accepts this streamed prefix only through its MP3-labelled path,
+  // while ExoPlayer requires the actual WAV type to select its extractor.
+  String get audioUrl => 'http://127.0.0.1:${_server.port}/track.${Platform.isIOS ? 'mp3' : 'wav'}';
+
+  String get audioMediaType => Platform.isIOS ? 'audio/mpeg' : 'audio/wav';
 
   Future<void> get firstRequest => _firstRequest.future;
 

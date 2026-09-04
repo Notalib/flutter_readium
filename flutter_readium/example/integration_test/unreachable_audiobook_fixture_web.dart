@@ -8,6 +8,8 @@ final class StallingAudioServer {
 
   String get audioUrl => throw UnsupportedError('StallingAudioServer is native-only');
 
+  String get audioMediaType => throw UnsupportedError('StallingAudioServer is native-only');
+
   Future<void> get firstRequest => throw UnsupportedError('StallingAudioServer is native-only');
 
   Future<void> close() async {}

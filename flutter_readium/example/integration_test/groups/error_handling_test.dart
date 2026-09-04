@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,9 +28,7 @@ void main() {
 
     test(
       'audio stream that stops delivering data triggers the stall watchdog',
-      skip: kIsWeb || defaultTargetPlatform != TargetPlatform.iOS
-          ? 'iOS-only: exercises AVPlayer watchdog behavior'
-          : null,
+      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
       () async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
@@ -47,7 +45,7 @@ void main() {
           'readingOrder': [
             {
               'href': server.audioUrl,
-              'type': 'audio/mpeg',
+              'type': server.audioMediaType,
               'duration': 60,
               'title': 'Track 1',
             },
