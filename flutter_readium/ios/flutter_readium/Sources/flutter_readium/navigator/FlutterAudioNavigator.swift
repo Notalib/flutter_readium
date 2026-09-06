@@ -188,12 +188,20 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   internal func goBounded(to locator: Locator) async -> Bool {
     guard let navigator = _audioNavigator else { return false }
     _isNavigating = true
-    defer { _isNavigating = false }
-    guard let navigated = await withTimeout(seconds: Self.goToLocatorTimeoutSeconds, {
+    let result = await withTimeout(seconds: Self.goToLocatorTimeoutSeconds, {
       await navigator.go(to: locator)
-    }) else {
+    })
+    // A timeout means `go(to:)` is still running, so the guard has to stay up — clearing it
+    // here would re-expose the very deadlock it prevents. The next completed go clears it.
+    guard let navigated = result else {
       Log.navigator.warn("go(to:) timed out after \(Self.goToLocatorTimeoutSeconds)s, treating as failed")
       return false
+    }
+    _isNavigating = false
+    // The guard suppressed the delegate's report of where we landed, and a jump made while
+    // paused gets no periodic tick to re-report it, so the reader is told here instead.
+    if navigated, let landed = audioLocator {
+      submitAudioLocatorReachedToListener(landed)
     }
     return navigated
   }
