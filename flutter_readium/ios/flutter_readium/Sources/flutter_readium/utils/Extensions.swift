@@ -45,24 +45,25 @@ extension Array {
 
 /// Runs `operation`, returning nil if it doesn't finish within `seconds`.
 ///
-/// `operation` is cancelled on timeout but not guaranteed to stop — only use this on work
-/// that is safe to leave running, e.g. Readium continuations that ignore cancellation.
+/// On timeout `operation` is left running — only use this on work that is safe to leave
+/// running, e.g. Readium continuations that ignore cancellation anyway.
 func withTimeout<T: Sendable>(
   seconds: UInt64,
   _ operation: @escaping @Sendable () async -> T
 ) async -> T? {
   let once = TimeoutOnceFlag()
   return await withCheckedContinuation { (continuation: CheckedContinuation<T?, Never>) in
-    let work = Task {
-      let value = await operation()
-      if once.claim() { continuation.resume(returning: value) }
-    }
-    Task {
+    let timeout = Task {
       // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
       try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+      if once.claim() { continuation.resume(returning: nil) }
+    }
+    Task {
+      let value = await operation()
       if once.claim() {
-        work.cancel()
-        continuation.resume(returning: nil)
+        // Stop the timer rather than leave it sleeping until it expires.
+        timeout.cancel()
+        continuation.resume(returning: value)
       }
     }
   }
