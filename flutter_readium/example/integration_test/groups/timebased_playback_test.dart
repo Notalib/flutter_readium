@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -367,12 +368,9 @@ void main() {
                   'the media-overlay jump did not land.',
             );
 
-            // Compare by filename, not full path: the combined text locator and the
-            // reading-order link can carry different base-path prefixes for the same file.
-            String chapterFile(String href) => href.split('#').first.split('?').first.split('/').last;
             expect(
-              chapterFile(states.last.currentLocator!.href),
-              equals(chapterFile(targetChapter.href)),
+              _chapterFile(states.last.currentLocator!.href),
+              equals(_chapterFile(targetChapter.href)),
               reason:
                   'Highlight moved but not to the jumped-to chapter '
                   '(${states.last.currentLocator!.href} vs ${targetChapter.href})',
@@ -381,7 +379,103 @@ void main() {
             await harness.readium.pause();
           },
         );
+
+        // Regression: while `_isNavigating` suppresses the delegate, nothing reports where the
+        // jump landed, and a paused jump gets no periodic tick to report it later — so the reader
+        // page stayed on the pre-jump chapter until playback resumed. With audio enabled
+        // `goToLocator` goes to the timebased navigator, never to the reader view, so the page can
+        // only move via the navigator's reachedLocator -> syncToLocator report.
+        // iOS-only: this reporting lives in the iOS navigator; Android syncs via its own path.
+        testWidgets(
+          'media-overlay goToLocator syncs the reader page when paused',
+          // testWidgets takes a bool skip, so the reason lives in the comment above.
+          skip: defaultTargetPlatform != TargetPlatform.iOS,
+          (tester) async {
+            final path = harness.fixturePath(
+              FixtureKeys.overlayWebpub,
+              reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
+            );
+
+            final pub = await harness.readium.openPublication(path);
+            expect(
+              pub.readingOrder.length,
+              greaterThanOrEqualTo(2),
+              reason: 'Test needs a later chapter to jump to (got ${pub.readingOrder.length})',
+            );
+
+            final locators = <Locator>[];
+            final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
+            addTearDown(sub.cancel);
+
+            final states = <ReadiumTimebasedState>[];
+            final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+            addTearDown(stateSub.cancel);
+
+            ReadiumReaderStatus? readerStatus;
+            final readerStatusSub = harness.readium.onReaderStatusChanged.listen((s) => readerStatus = s);
+            addTearDown(readerStatusSub.cancel);
+
+            await tester.pumpWidget(bareReaderApp(pub));
+            await waitWithPump(
+              tester,
+              () => locators.isNotEmpty,
+              timeout: firstMountTimeout,
+              reason: 'No initial textLocator emitted',
+              diagnostics: () => 'readerStatus=$readerStatus, locators=${locators.length}',
+            );
+
+            await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+            await harness.readium.play(null);
+            await waitWithPump(
+              tester,
+              () => states.any((s) => s.state == TimebasedState.playing),
+              timeout: const Duration(seconds: 30),
+              reason: 'media-overlay never reached playing',
+              diagnostics: () => 'lastState=${states.isEmpty ? "<none>" : states.last.state}',
+            );
+
+            // Paused: nothing re-reports position, so only the jump can move the reader page.
+            await harness.readium.pause();
+            await waitForListStable(tester, locators);
+            final beforeJump = locators.last;
+
+            final targetChapter = pub.readingOrder.last;
+            final navigated = await harness.readium.goToLocator(
+              Locator(
+                href: targetChapter.href,
+                type: targetChapter.type ?? 'text/html',
+                locations: const Locations(progression: 0.25),
+              ),
+            );
+            expect(navigated, isTrue, reason: 'goToLocator to a later chapter should succeed');
+
+            await waitWithPump(
+              tester,
+              () => locators.last != beforeJump,
+              timeout: const Duration(seconds: 30),
+              reason:
+                  'Reader page did not sync after a paused media-overlay jump '
+                  '(still ${beforeJump.href}); the landed location was never reported.',
+            );
+            await waitForListStable(tester, locators);
+
+            expect(
+              _chapterFile(locators.last.href),
+              equals(_chapterFile(targetChapter.href)),
+              reason:
+                  'Reader synced but not to the jumped-to chapter '
+                  '(${locators.last.href} vs ${targetChapter.href})',
+            );
+
+            await harness.readium.pause();
+            await tester.pumpWidget(const SizedBox());
+          },
+        );
       },
     );
   });
 }
+
+/// Compare chapters by filename: a text locator and its reading-order link can carry
+/// different base-path prefixes for the same file.
+String _chapterFile(String href) => href.split('#').first.split('?').first.split('/').last;
