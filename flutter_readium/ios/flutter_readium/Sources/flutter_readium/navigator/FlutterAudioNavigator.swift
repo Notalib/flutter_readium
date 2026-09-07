@@ -103,9 +103,9 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _playbackIntent = false
     _recoveryTask?.cancel()
     _recoveryTask = nil
-    _stallWatchdogTask?.cancel()
-    _stallWatchdogTask = nil
-    _stallWatchdog.reset()
+    _resourceLoadingWatchdogTask?.cancel()
+    _resourceLoadingWatchdogTask = nil
+    _resourceLoadingWatchdog.reset()
     if (self._audioNavigator != nil) {
       self._audioNavigator?.pause()
       self._audioNavigator?.delegate = nil
@@ -133,7 +133,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       let _ = await seek(toLocator: locator)
     }
     _audioNavigator?.play()
-    updateStallWatchdog()
+    armResourceLoadingWatchdog()
     _nowPlayingUpdater.setupNowPlayingInfo()
     _nowPlayingUpdater.setupCommandCenterControls(
       preferredIntervals: [_preferences.seekInterval],
@@ -144,7 +144,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   public func pause() async -> Void {
     _playbackIntent = false
-    updateStallWatchdog()
+    resetResourceLoadingWatchdog()
     _audioNavigator?.pause()
   }
 
@@ -154,7 +154,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     }
     _playbackIntent = true
     _audioNavigator?.play()
-    updateStallWatchdog()
+    armResourceLoadingWatchdog()
   }
 
   public func togglePlayPause() async -> Void {
@@ -370,15 +370,10 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
 
   /// Called when the playback updates.
   public func navigator(_ navigator: AudioNavigator, playbackDidChange info: MediaPlaybackInfo) {
-    if info.state == .paused,
-       info.progress >= 1.0,
-       info.resourceIndex == self.publication.manifest.readingOrder.count - 1 {
-      _playbackIntent = false
-    }
     self._nowPlayingUpdater.updatePlaybackFromInfo(info, withSpeedSetting: _audioNavigator?.settings.speed)
     self._nowPlayingUpdater.updateCommandCenterControls()
     self.playback = info
-    updateStallWatchdog()
+    updateResourceLoadingWatchdog()
   }
 
   public func navigator(_ navigator: Navigator, locationDidChange locator: Locator) {
@@ -416,6 +411,8 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   public func navigator(_ navigator: AudioNavigator, shouldPlayNextResource info: MediaPlaybackInfo) -> Bool {
     if !canGoForward {
       Log.navigator.info("Resource \(info.resourceIndex) finished — no next resource, publication ended")
+      _playbackIntent = false
+      resetResourceLoadingWatchdog(resourceIndex: info.resourceIndex)
       submitEndedStateToListener(info: info)
     } else {
       Log.navigator.debug("Resource \(info.resourceIndex) finished, advancing to next resource")
@@ -502,12 +499,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   /// after the publication was closed.
   internal var _disposed = false
   /// User/app playback intent. iOS exposes only `.paused/.playing/.loading`, so
-  /// this mirrors Android's `playWhenReady` for stall-watchdog decisions.
+  /// this mirrors Android's `playWhenReady` for resource-loading decisions.
   internal var _playbackIntent = false
-  /// Last observed resource, position, and monotonic activity deadline.
-  internal var _stallWatchdog = AudioStallWatchdog()
-  /// One-shot wake-up for the current liveness deadline.
-  internal var _stallWatchdogTask: Task<Void, Never>?
+  /// One-shot readiness check for the current resource-loading attempt.
+  internal var _resourceLoadingWatchdog = AudioResourceLoadingWatchdog()
+  internal var _resourceLoadingWatchdogTask: Task<Void, Never>?
 
   /// Entry point for resource read errors routed from the plugin.
   @MainActor
@@ -549,15 +545,12 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     guard _recoveryTask == nil else {
       return  // recovery already in progress
     }
-    _stallWatchdogTask?.cancel()
-    _stallWatchdogTask = nil
-    _stallWatchdog.reset()
+    resetResourceLoadingWatchdog()
     let resumeLocator = (audioLocator ?? _audioNavigator?.currentLocation)?.copyWithOffset(playback.time)
 
     _recoveryTask = Task { @MainActor in
       defer {
         self._recoveryTask = nil
-        self.updateStallWatchdog()
       }
 
       for attempt in 1...self._recoveryPolicy.maxAttempts {
@@ -636,60 +629,97 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     playback.state == .playing && playback.time > sinceTime + 0.1
   }
 
-  /// Checks actual progress because AVPlayer can remain `.playing` after its buffer
-  /// runs dry. Player state is diagnostic only; resource and position are liveness.
   @MainActor
-  private func updateStallWatchdog() {
-    let shouldWatch = shouldWatchForAudioStall(
+  private func armResourceLoadingWatchdog() {
+    let shouldWatch = shouldWatchForResourceLoading(
       playbackIntent: _playbackIntent,
       isInterrupted: AudioSession.shared.isInterrupted
     ) && _recoveryTask == nil && !_hasFailed && !_disposed
 
     guard shouldWatch else {
-      _stallWatchdogTask?.cancel()
-      _stallWatchdogTask = nil
-      _stallWatchdog.reset()
+      resetResourceLoadingWatchdog()
       return
     }
 
     let now = ProcessInfo.processInfo.systemUptime
-    let stalled = _stallWatchdog.observe(
+    _resourceLoadingWatchdogTask?.cancel()
+    _resourceLoadingWatchdogTask = nil
+    _resourceLoadingWatchdog.arm(
+      resourceIndex: playback.resourceIndex,
+      time: playback.time,
+      now: now,
+      timeout: _recoveryPolicy.stallTimeoutSeconds
+    )
+    scheduleResourceLoadingWatchdog(now: now)
+  }
+
+  @MainActor
+  private func updateResourceLoadingWatchdog() {
+    let shouldWatch = shouldWatchForResourceLoading(
+      playbackIntent: _playbackIntent,
+      isInterrupted: AudioSession.shared.isInterrupted
+    ) && _recoveryTask == nil && !_hasFailed && !_disposed
+
+    guard shouldWatch else {
+      resetResourceLoadingWatchdog(resourceIndex: playback.resourceIndex)
+      return
+    }
+
+    let now = ProcessInfo.processInfo.systemUptime
+    let timedOut = _resourceLoadingWatchdog.observe(
       resourceIndex: playback.resourceIndex,
       time: playback.time,
       now: now,
       timeout: _recoveryPolicy.stallTimeoutSeconds
     )
 
-    if stalled {
-      _stallWatchdogTask?.cancel()
-      _stallWatchdogTask = nil
-      Log.navigator.warn("Playback did not advance for \(self._recoveryPolicy.stallTimeoutSeconds)s, synthesizing retryable error")
-      guard let href = (audioLocator ?? _audioNavigator?.currentLocation)?.href else {
+    if timedOut {
+      _resourceLoadingWatchdogTask?.cancel()
+      _resourceLoadingWatchdogTask = nil
+      Log.navigator.warn("Resource loading did not produce playback progress within \(self._recoveryPolicy.stallTimeoutSeconds)s")
+      let locator = audioLocator ?? _audioNavigator?.currentLocation
+      guard _recoveryPolicy.recoverOnResourceLoadingTimeout, let href = locator?.href else {
+        submitRecoveryState(.loading, locator: locator)
         return
       }
       startRecovery(
         href: href,
-        error: ReadError.access(.other(DebugError("Playback did not advance for \(self._recoveryPolicy.stallTimeoutSeconds)s"))),
+        error: ReadError.access(.other(DebugError("Resource loading did not advance playback within \(self._recoveryPolicy.stallTimeoutSeconds)s"))),
         terminalCode: "AudioStreamNetworkError"
       )
       return
     }
 
-    guard _stallWatchdogTask == nil, let deadline = _stallWatchdog.deadline else {
+    guard _resourceLoadingWatchdog.deadline != nil else {
+      _resourceLoadingWatchdogTask?.cancel()
+      _resourceLoadingWatchdogTask = nil
       return
     }
+    scheduleResourceLoadingWatchdog(now: now)
+  }
 
+  @MainActor
+  private func scheduleResourceLoadingWatchdog(now: TimeInterval) {
+    guard _resourceLoadingWatchdogTask == nil,
+          let deadline = _resourceLoadingWatchdog.deadline else { return }
     let delay = max(0, deadline - now)
-    _stallWatchdogTask = Task { @MainActor [weak self] in
+    _resourceLoadingWatchdogTask = Task { @MainActor [weak self] in
       guard let self else { return }
       try? await Task.sleep(
         nanoseconds: UInt64(delay * 1_000_000_000)
       )
       guard !Task.isCancelled else { return }
 
-      self._stallWatchdogTask = nil
-      self.updateStallWatchdog()
+      self._resourceLoadingWatchdogTask = nil
+      self.updateResourceLoadingWatchdog()
     }
+  }
+
+  @MainActor
+  private func resetResourceLoadingWatchdog(resourceIndex: Int? = nil) {
+    _resourceLoadingWatchdogTask?.cancel()
+    _resourceLoadingWatchdogTask = nil
+    _resourceLoadingWatchdog.reset(resourceIndex: resourceIndex)
   }
 
   @MainActor
@@ -700,9 +730,7 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
     _hasFailed = true
     _playbackIntent = false
     _recoveryTask?.cancel()
-    _stallWatchdogTask?.cancel()
-    _stallWatchdogTask = nil
-    _stallWatchdog.reset()
+    resetResourceLoadingWatchdog()
     /// Tear down so the failed player stops issuing resource reads and
     /// emitting states. play() rebuilds from the last locator.
     _audioNavigator?.pause()
@@ -896,17 +924,30 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
   }
 }
 
-func shouldWatchForAudioStall(
+func shouldWatchForResourceLoading(
   playbackIntent: Bool,
   isInterrupted: Bool = false
 ) -> Bool {
   playbackIntent && !isInterrupted
 }
 
-struct AudioStallWatchdog {
+struct AudioResourceLoadingWatchdog {
   private var resourceIndex: Int?
-  private var time: TimeInterval?
+  private var startTime: TimeInterval?
   private(set) var deadline: TimeInterval?
+  private var reported = false
+
+  mutating func arm(
+    resourceIndex: Int,
+    time: TimeInterval,
+    now: TimeInterval,
+    timeout: TimeInterval
+  ) {
+    self.resourceIndex = resourceIndex
+    startTime = time
+    deadline = now + timeout
+    reported = false
+  }
 
   mutating func observe(
     resourceIndex: Int,
@@ -914,23 +955,27 @@ struct AudioStallWatchdog {
     now: TimeInterval,
     timeout: TimeInterval
   ) -> Bool {
-    let moved = self.resourceIndex != resourceIndex
-      || self.time.map { abs(time - $0) > 0.1 } == true
-
-    if deadline == nil || moved {
-      self.resourceIndex = resourceIndex
-      self.time = time
-      deadline = now + timeout
+    if self.resourceIndex != resourceIndex {
+      arm(resourceIndex: resourceIndex, time: time, now: now, timeout: timeout)
       return false
     }
 
-    return now >= deadline!
+    if let startTime, time > startTime + 0.1 {
+      reset(resourceIndex: resourceIndex)
+      return false
+    }
+
+    guard !reported, let deadline, now >= deadline else { return false }
+    self.deadline = nil
+    reported = true
+    return true
   }
 
-  mutating func reset() {
-    resourceIndex = nil
-    time = nil
+  mutating func reset(resourceIndex: Int? = nil) {
+    self.resourceIndex = resourceIndex
+    startTime = nil
     deadline = nil
+    reported = false
   }
 }
 

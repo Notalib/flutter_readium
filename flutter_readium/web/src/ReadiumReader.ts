@@ -81,8 +81,8 @@ class _ReadiumReader {
 
   /**
    * Configures the automatic audio-stream error recovery loop (retry attempts,
-   * backoff, stall detection). Applies to the next-opened publication and to
-   * any in-flight recovery loop — not to an already-running attempt sequence.
+   * backoff, stall detection). Existing audio navigators keep the policy
+   * captured at construction time.
    */
   public setAudioRecoveryPolicy(policyJson: string): void {
     const policy = AudioRecoveryPolicy.fromJson(JSON.parse(policyJson));

@@ -212,58 +212,65 @@ final class AudioRecoveryPolicyTests: XCTestCase {
   func testExponentialBackoffDelays() {
     let policy = AudioRecoveryPolicy()
     XCTAssertEqual(policy.maxAttempts, 3)
+    XCTAssertFalse(policy.recoverOnResourceLoadingTimeout)
     XCTAssertEqual(policy.delay(forAttempt: 1), 1.0)
     XCTAssertEqual(policy.delay(forAttempt: 2), 2.0)
     XCTAssertEqual(policy.delay(forAttempt: 3), 4.0)
   }
+
+  func testLoadingTimeoutRecoveryOptInParsesAndInvalidValueDefaultsFalse() {
+    XCTAssertTrue(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": true]).recoverOnResourceLoadingTimeout)
+    XCTAssertFalse(AudioRecoveryPolicy.fromMap(["recoverOnResourceLoadingTimeout": "true"]).recoverOnResourceLoadingTimeout)
+  }
 }
 
-final class AudioStallWatchdogTests: XCTestCase {
+final class AudioResourceLoadingWatchdogTests: XCTestCase {
   func testWatchesExactlyWhilePlaybackIsIntended() {
-    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: false))
-    XCTAssertTrue(shouldWatchForAudioStall(playbackIntent: true))
-    XCTAssertFalse(shouldWatchForAudioStall(playbackIntent: true, isInterrupted: true))
+    XCTAssertFalse(shouldWatchForResourceLoading(playbackIntent: false))
+    XCTAssertTrue(shouldWatchForResourceLoading(playbackIntent: true))
+    XCTAssertFalse(shouldWatchForResourceLoading(playbackIntent: true, isInterrupted: true))
   }
 
-  func testFrozenPositionStallsAtDeadline() {
-    var watchdog = AudioStallWatchdog()
+  func testFrozenPositionReportsOnceAtDeadline() {
+    var watchdog = AudioResourceLoadingWatchdog()
 
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.arm(resourceIndex: 0, time: 10, now: 0, timeout: 3)
     XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 2.99, timeout: 3))
     XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10, now: 3, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 6, timeout: 3))
   }
 
-  func testForwardProgressMovesDeadline() {
-    var watchdog = AudioStallWatchdog()
+  func testForwardProgressPermanentlyDisarmsResource() {
+    var watchdog = AudioResourceLoadingWatchdog()
 
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.arm(resourceIndex: 0, time: 10, now: 0, timeout: 3)
     XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 2, timeout: 3))
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 4.99, timeout: 3))
-    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 10.2, now: 5, timeout: 3))
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 50, timeout: 3))
   }
 
-  func testBackwardSeekMovesDeadline() {
-    var watchdog = AudioStallWatchdog()
+  func testBackwardMovementDoesNotCountAsProgress() {
+    var watchdog = AudioResourceLoadingWatchdog()
 
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.arm(resourceIndex: 0, time: 10, now: 0, timeout: 3)
     XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 2, timeout: 3))
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 2, now: 4, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 0, time: 2, now: 3, timeout: 3))
   }
 
-  func testResourceChangeMovesDeadlineDespiteOffsetReset() {
-    var watchdog = AudioStallWatchdog()
+  func testResourceChangeStartsFreshWindowAfterProgress() {
+    var watchdog = AudioResourceLoadingWatchdog()
 
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
+    watchdog.arm(resourceIndex: 0, time: 10, now: 0, timeout: 3)
+    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10.2, now: 1, timeout: 3))
     XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 2, timeout: 3))
-    XCTAssertFalse(watchdog.observe(resourceIndex: 1, time: 0, now: 4, timeout: 3))
+    XCTAssertTrue(watchdog.observe(resourceIndex: 1, time: 0, now: 5, timeout: 3))
   }
 
   func testResetStartsFreshWindow() {
-    var watchdog = AudioStallWatchdog()
+    var watchdog = AudioResourceLoadingWatchdog()
 
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 0, timeout: 3))
-    watchdog.reset()
-    XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 10, timeout: 3))
+    watchdog.arm(resourceIndex: 0, time: 10, now: 0, timeout: 3)
+    watchdog.reset(resourceIndex: 0)
+    watchdog.arm(resourceIndex: 0, time: 10, now: 10, timeout: 3)
     XCTAssertFalse(watchdog.observe(resourceIndex: 0, time: 10, now: 12, timeout: 3))
   }
 }

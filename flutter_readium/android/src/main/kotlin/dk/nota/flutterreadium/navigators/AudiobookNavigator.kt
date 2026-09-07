@@ -70,18 +70,31 @@ private val SEEK_SETTLE_TIMEOUT = 5.seconds
  */
 private val SEEK_MATCH_TOLERANCE = 1500.milliseconds
 
-internal fun shouldWatchForAudioStall(
+internal fun shouldWatchForResourceLoading(
     playWhenReady: Boolean,
     ended: Boolean,
     suppressed: Boolean,
 ): Boolean = playWhenReady && !ended && !suppressed
 
-internal class AudioStallWatchdog(
+internal class AudioResourceLoadingWatchdog(
     private val timeoutMillis: Long,
 ) {
     private var resourceIndex: Int? = null
-    private var offset: Duration? = null
-    private var deadlineMillis: Long? = null
+    private var startOffset: Duration? = null
+    var deadlineMillis: Long? = null
+        private set
+    private var reported = false
+
+    fun arm(
+        resourceIndex: Int,
+        offset: Duration,
+        nowMillis: Long,
+    ) {
+        this.resourceIndex = resourceIndex
+        startOffset = offset
+        deadlineMillis = nowMillis + timeoutMillis
+        reported = false
+    }
 
     fun observe(
         playbackRequested: Boolean,
@@ -94,24 +107,28 @@ internal class AudioStallWatchdog(
             return false
         }
 
-        val moved =
-            this.resourceIndex != resourceIndex ||
-                this.offset?.let { abs((offset - it).inWholeMilliseconds) > 100 } == true
-
-        if (deadlineMillis == null || moved) {
-            this.resourceIndex = resourceIndex
-            this.offset = offset
-            deadlineMillis = nowMillis + timeoutMillis
+        if (this.resourceIndex != resourceIndex) {
+            arm(resourceIndex, offset, nowMillis)
             return false
         }
 
-        return nowMillis >= deadlineMillis!!
+        if (startOffset?.let { offset > it + 100.milliseconds } == true) {
+            reset(resourceIndex)
+            return false
+        }
+
+        val deadline = deadlineMillis ?: return false
+        if (reported || nowMillis < deadline) return false
+        deadlineMillis = null
+        reported = true
+        return true
     }
 
-    fun reset() {
-        resourceIndex = null
-        offset = null
+    fun reset(resourceIndex: Int? = null) {
+        this.resourceIndex = resourceIndex
+        startOffset = null
         deadlineMillis = null
+        reported = false
     }
 }
 
@@ -153,12 +170,11 @@ open class AudiobookNavigator(
      */
     private val recoveryPolicy = ReadiumReader.audioRecoveryPolicy
 
-    /**
-     * Stall watchdog: fires when playback intent is on but the offset hasn't advanced
-     * within [AudioRecoveryPolicy.stallTimeoutSeconds]. Non-null whenever a navigator is
-     * active; cancelled/restarted on rebuild.
-     */
-    private var stallWatchdogJob: Job? = null
+    private val resourceLoadingWatchdog =
+        AudioResourceLoadingWatchdog(
+            timeoutMillis = (recoveryPolicy.stallTimeoutSeconds * 1000).toLong(),
+        )
+    private var resourceLoadingWatchdogJob: Job? = null
 
     /**
      * Explicit terminal-failure latch. Must not be inferred from the last emitted
@@ -271,7 +287,7 @@ open class AudiobookNavigator(
         }
 
         // Bound the initial create the same way the recovery rebuild is bounded: with no
-        // navigator yet the stall watchdog can't help, so opening a remote audiobook with no
+        // navigator yet the resource-loading watchdog can't help, so opening a remote audiobook with no
         // connectivity would otherwise suspend here forever (silent, no error). On timeout,
         // surface a terminal error event and throw - consistent with the create-error path.
         val newNavigator =
@@ -420,6 +436,7 @@ open class AudiobookNavigator(
                     return
                 }
             withMainContext { navigator.play() }
+            armResourceLoadingWatchdog(navigator)
             return
         }
 
@@ -431,6 +448,7 @@ open class AudiobookNavigator(
             try {
                 val navigator = ensureNavigatorWithOpenMediaSession()
                 navigator.play()
+                armResourceLoadingWatchdog(navigator)
             } catch (e: Exception) {
                 PluginLog.e(TAG, "::play - error opening MediaSession: ${e.message}")
                 return@withMainContext
@@ -440,6 +458,7 @@ open class AudiobookNavigator(
 
     override suspend fun pause() {
         val navigator = ensureNavigator()
+        resetResourceLoadingWatchdog(navigator.playback.value.index)
 
         withMainContext {
             navigator.pause()
@@ -452,6 +471,7 @@ open class AudiobookNavigator(
         withMainContext {
             // TODO: Do we need to check if already playing?
             navigator.play()
+            armResourceLoadingWatchdog(navigator)
         }
     }
 
@@ -663,16 +683,20 @@ open class AudiobookNavigator(
                 return
             }
 
-        startStallWatchdog(navigator)
-
         // Listen to state changes
         navigator.playback
             .throttleLatest(100.milliseconds)
             .distinctUntilChangedBy { pb ->
-                "${pb.state}|${pb.playWhenReady}"
+                "${pb.state}|${pb.playWhenReady}|${pb.index}"
             }.onEach { pb ->
                 onPlaybackStateChanged(pb)
             }.launchIn(this)
+            .let { jobs.add(it) }
+
+        navigator.playback
+            .throttleLatest(100.milliseconds)
+            .onEach { pb -> updateResourceLoadingWatchdog(navigator, pb) }
+            .launchIn(this)
             .let { jobs.add(it) }
 
         // Handle buffered changes
@@ -786,6 +810,7 @@ open class AudiobookNavigator(
     ) {
         if (disposed) return // publication closed - do not start recovering
         if (recoveryJob != null) return // recovery already in progress
+        resetResourceLoadingWatchdog()
 
         val resumeLocator = state[CURRENT_TIMEBASE_LOCATOR_KEY] as? Locator ?: initialLocator
         val href = resumeLocator?.href?.toString() ?: "unknown"
@@ -867,64 +892,84 @@ open class AudiobookNavigator(
             playback.offset > sinceOffset + 100.milliseconds
     }
 
-    /**
-     * Stall watchdog: today's recovery is error-driven only, so a *throttled* (not
-     * dropped) connection that keeps bytes trickling in never errors and playback sits in
-     * Buffering/Loading forever. This polls the offset once a second and, if playback
-     * intent is on (`playWhenReady`) but the offset hasn't advanced within
-     * [AudioRecoveryPolicy.stallTimeoutSeconds], synthesizes a retryable error into the
-     * same [startRecovery] path a real playback error would take.
-     *
-     * Skips while already recovering/terminally failed, or while playback isn't intended
-     * (paused/ended) - those aren't stalls. Cancelled and restarted whenever the navigator
-     * is rebuilt (called from [setupNavigatorListeners]).
-     */
-    private fun startStallWatchdog(navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>) {
-        stallWatchdogJob?.cancel()
-        stallWatchdogJob =
-            launch {
-                val watchdog =
-                    AudioStallWatchdog(
-                        timeoutMillis = (recoveryPolicy.stallTimeoutSeconds * 1000).toLong(),
-                    )
+    private fun armResourceLoadingWatchdog(navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>) {
+        val playback = navigator.playback.value
+        resourceLoadingWatchdogJob?.cancel()
+        resourceLoadingWatchdogJob = null
+        resourceLoadingWatchdog.arm(playback.index, playback.offset, SystemClock.elapsedRealtime())
+        scheduleResourceLoadingWatchdog(navigator)
+    }
 
-                while (isActive && !disposed) {
-                    delay(1_000)
+    private fun updateResourceLoadingWatchdog(
+        navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>,
+        playback: AudioNavigator.Playback,
+    ) {
+        val playbackRequested =
+            !isRecovering &&
+                !isTerminallyFailed &&
+                !disposed &&
+                shouldWatchForResourceLoading(
+                    playWhenReady = playback.playWhenReady,
+                    ended = playback.state is AudioNavigator.State.Ended,
+                    suppressed =
+                        navigator.asMedia3Player().playbackSuppressionReason !=
+                            Player.PLAYBACK_SUPPRESSION_REASON_NONE,
+                )
 
-                    if (isRecovering || isTerminallyFailed) {
-                        watchdog.reset()
-                        continue
-                    }
+        if (!playbackRequested) {
+            resetResourceLoadingWatchdog()
+            return
+        }
 
-                    val playback = navigator.playback.value
-                    val playbackRequested =
-                        shouldWatchForAudioStall(
-                            playWhenReady = playback.playWhenReady,
-                            ended = playback.state is AudioNavigator.State.Ended,
-                            suppressed =
-                                navigator.asMedia3Player().playbackSuppressionReason !=
-                                    Player.PLAYBACK_SUPPRESSION_REASON_NONE,
-                        )
-                    if (
-                        watchdog.observe(
-                            playbackRequested = playbackRequested,
-                            resourceIndex = playback.index,
-                            offset = playback.offset,
-                            nowMillis = SystemClock.elapsedRealtime(),
-                        )
-                    ) {
-                        PluginLog.w(
-                            TAG,
-                            "::startStallWatchdog - offset hasn't advanced in ${recoveryPolicy.stallTimeoutSeconds}s, synthesizing retryable error",
-                        )
-                        startRecovery(
-                            DebugError("Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s"),
-                            terminalCode = "AudioStreamNetworkError",
-                        )
-                        return@launch // startRecovery owns the retry loop; a fresh watchdog starts on rebuild
-                    }
-                }
+        val timedOut =
+            resourceLoadingWatchdog.observe(
+                playbackRequested = true,
+                resourceIndex = playback.index,
+                offset = playback.offset,
+                nowMillis = SystemClock.elapsedRealtime(),
+            )
+
+        if (timedOut) {
+            resourceLoadingWatchdogJob?.cancel()
+            resourceLoadingWatchdogJob = null
+            PluginLog.w(
+                TAG,
+                "::updateResourceLoadingWatchdog - resource loading did not advance playback within ${recoveryPolicy.stallTimeoutSeconds}s",
+            )
+            if (recoveryPolicy.recoverOnResourceLoadingTimeout) {
+                startRecovery(
+                    DebugError("Resource loading did not advance playback within ${recoveryPolicy.stallTimeoutSeconds}s"),
+                    terminalCode = "AudioStreamNetworkError",
+                )
+            } else {
+                timebaseListener.onTimebasedPlaybackStateChanged(TimebasedState.Loading)
             }
+            return
+        }
+
+        if (resourceLoadingWatchdog.deadlineMillis == null) {
+            resourceLoadingWatchdogJob?.cancel()
+            resourceLoadingWatchdogJob = null
+        } else {
+            scheduleResourceLoadingWatchdog(navigator)
+        }
+    }
+
+    private fun scheduleResourceLoadingWatchdog(navigator: AudioNavigator<ExoPlayerSettings, ExoPlayerPreferences>) {
+        if (resourceLoadingWatchdogJob != null) return
+        val deadline = resourceLoadingWatchdog.deadlineMillis ?: return
+        resourceLoadingWatchdogJob =
+            launch {
+                delay(maxOf(0, deadline - SystemClock.elapsedRealtime()))
+                resourceLoadingWatchdogJob = null
+                updateResourceLoadingWatchdog(navigator, navigator.playback.value)
+            }
+    }
+
+    private fun resetResourceLoadingWatchdog(resourceIndex: Int? = null) {
+        resourceLoadingWatchdogJob?.cancel()
+        resourceLoadingWatchdogJob = null
+        resourceLoadingWatchdog.reset(resourceIndex)
     }
 
     /**
@@ -940,8 +985,7 @@ open class AudiobookNavigator(
     ) {
         if (isTerminallyFailed) return
         isTerminallyFailed = true
-        stallWatchdogJob?.cancel()
-        stallWatchdogJob = null
+        resetResourceLoadingWatchdog()
 
         PluginLog.e(TAG, "::enterTerminalFailure - [$code] ${error.message}")
 
@@ -982,8 +1026,7 @@ open class AudiobookNavigator(
         disposed = true
         recoveryJob?.cancel()
         recoveryJob = null
-        stallWatchdogJob?.cancel()
-        stallWatchdogJob = null
+        resetResourceLoadingWatchdog()
 
         super.dispose()
 

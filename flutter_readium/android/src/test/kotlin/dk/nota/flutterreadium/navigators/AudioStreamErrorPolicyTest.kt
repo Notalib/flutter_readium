@@ -117,6 +117,7 @@ internal class AudioStreamErrorPolicyTest {
     @Test
     fun `recovery policy defaults stallTimeoutSeconds to 20`() {
         assertEquals(20.0, AudioRecoveryPolicy().stallTimeoutSeconds, 0.0)
+        assertFalse(AudioRecoveryPolicy().recoverOnResourceLoadingTimeout)
     }
 
     @Test
@@ -143,11 +144,13 @@ internal class AudioStreamErrorPolicyTest {
                     "maxAttempts" to 5,
                     "backoffBaseSeconds" to 2.0,
                     "stallTimeoutSeconds" to 30.0,
+                    "recoverOnResourceLoadingTimeout" to true,
                 ),
             )
         assertEquals(5, policy.maxAttempts)
         assertEquals(2.0, policy.backoffBaseSeconds, 0.0)
         assertEquals(30.0, policy.stallTimeoutSeconds, 0.0)
+        assertTrue(policy.recoverOnResourceLoadingTimeout)
     }
 
     @Test
@@ -155,61 +158,71 @@ internal class AudioStreamErrorPolicyTest {
         assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(null))
         assertEquals(AudioRecoveryPolicy(), AudioRecoveryPolicy.fromMap(emptyMap<String, Any>()))
     }
+
+    @Test
+    fun `fromMap defaults invalid loading timeout recovery to false`() {
+        assertFalse(
+            AudioRecoveryPolicy
+                .fromMap(mapOf("recoverOnResourceLoadingTimeout" to "true"))
+                .recoverOnResourceLoadingTimeout,
+        )
+    }
 }
 
-internal class AudioStallWatchdogTest {
+internal class AudioResourceLoadingWatchdogTest {
     @Test
     fun `watches only requested unsuppressed playback`() {
-        assertTrue(shouldWatchForAudioStall(playWhenReady = true, ended = false, suppressed = false))
-        assertFalse(shouldWatchForAudioStall(playWhenReady = false, ended = false, suppressed = false))
-        assertFalse(shouldWatchForAudioStall(playWhenReady = true, ended = true, suppressed = false))
-        assertFalse(shouldWatchForAudioStall(playWhenReady = true, ended = false, suppressed = true))
+        assertTrue(shouldWatchForResourceLoading(playWhenReady = true, ended = false, suppressed = false))
+        assertFalse(shouldWatchForResourceLoading(playWhenReady = false, ended = false, suppressed = false))
+        assertFalse(shouldWatchForResourceLoading(playWhenReady = true, ended = true, suppressed = false))
+        assertFalse(shouldWatchForResourceLoading(playWhenReady = true, ended = false, suppressed = true))
     }
 
     @Test
-    fun `frozen position stalls at deadline`() {
-        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+    fun `frozen position reports once at deadline`() {
+        val watchdog = AudioResourceLoadingWatchdog(timeoutMillis = 3_000)
 
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        watchdog.arm(0, 10.seconds, nowMillis = 0)
         assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 2_999))
         assertTrue(watchdog.observe(true, 0, 10.seconds, nowMillis = 3_000))
+        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 6_000))
     }
 
     @Test
-    fun `forward progress moves deadline`() {
-        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+    fun `forward progress permanently disarms resource`() {
+        val watchdog = AudioResourceLoadingWatchdog(timeoutMillis = 3_000)
 
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        watchdog.arm(0, 10.seconds, nowMillis = 0)
         assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 2_000))
-        assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 4_999))
-        assertTrue(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 5_000))
+        assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 50_000))
     }
 
     @Test
-    fun `backward seek moves deadline`() {
-        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+    fun `backward movement does not count as progress`() {
+        val watchdog = AudioResourceLoadingWatchdog(timeoutMillis = 3_000)
 
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        watchdog.arm(0, 10.seconds, nowMillis = 0)
         assertFalse(watchdog.observe(true, 0, 2.seconds, nowMillis = 2_000))
-        assertFalse(watchdog.observe(true, 0, 2.seconds, nowMillis = 4_000))
+        assertTrue(watchdog.observe(true, 0, 2.seconds, nowMillis = 3_000))
     }
 
     @Test
-    fun `resource change moves deadline despite offset reset`() {
-        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+    fun `resource change starts fresh window after progress`() {
+        val watchdog = AudioResourceLoadingWatchdog(timeoutMillis = 3_000)
 
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        watchdog.arm(0, 10.seconds, nowMillis = 0)
+        assertFalse(watchdog.observe(true, 0, 10.2.seconds, nowMillis = 1_000))
         assertFalse(watchdog.observe(true, 1, 0.seconds, nowMillis = 2_000))
-        assertFalse(watchdog.observe(true, 1, 0.seconds, nowMillis = 4_000))
+        assertTrue(watchdog.observe(true, 1, 0.seconds, nowMillis = 5_000))
     }
 
     @Test
     fun `pause and resume start a fresh window`() {
-        val watchdog = AudioStallWatchdog(timeoutMillis = 3_000)
+        val watchdog = AudioResourceLoadingWatchdog(timeoutMillis = 3_000)
 
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 0))
+        watchdog.arm(0, 10.seconds, nowMillis = 0)
         assertFalse(watchdog.observe(false, 0, 10.seconds, nowMillis = 4_000))
         assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 10_000))
-        assertFalse(watchdog.observe(true, 0, 10.seconds, nowMillis = 12_000))
+        assertTrue(watchdog.observe(true, 0, 10.seconds, nowMillis = 13_000))
     }
 }

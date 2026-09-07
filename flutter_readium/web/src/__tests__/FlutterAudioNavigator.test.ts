@@ -20,48 +20,49 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { AudioNavigator } from "@readium/navigator";
 
-const { AudioStallWatchdog, makeAudioTotalProgressionFn, withTocHref } = __testing__;
+const { AudioResourceLoadingWatchdog, makeAudioTotalProgressionFn, withTocHref } = __testing__;
 
-describe("AudioStallWatchdog", () => {
-  it("stalls at the deadline when resource and position are frozen", () => {
-    const watchdog = new AudioStallWatchdog();
+describe("AudioResourceLoadingWatchdog", () => {
+  it("reports once at the deadline when resource and position are frozen", () => {
+    const watchdog = new AudioResourceLoadingWatchdog();
 
-    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 0, 3000);
     expect(watchdog.observe(true, "one.mp3", 10, 2999, 3000)).toBe(false);
     expect(watchdog.observe(true, "one.mp3", 10, 3000, 3000)).toBe(true);
+    expect(watchdog.observe(true, "one.mp3", 10, 6000, 3000)).toBe(false);
   });
 
-  it("moves the deadline for forward progress", () => {
-    const watchdog = new AudioStallWatchdog();
+  it("permanently disarms a resource after forward progress", () => {
+    const watchdog = new AudioResourceLoadingWatchdog();
 
-    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 0, 3000);
     expect(watchdog.observe(true, "one.mp3", 10.2, 2000, 3000)).toBe(false);
-    expect(watchdog.observe(true, "one.mp3", 10.2, 4999, 3000)).toBe(false);
-    expect(watchdog.observe(true, "one.mp3", 10.2, 5000, 3000)).toBe(true);
+    expect(watchdog.observe(true, "one.mp3", 10.2, 50000, 3000)).toBe(false);
   });
 
-  it("moves the deadline for a backward seek", () => {
-    const watchdog = new AudioStallWatchdog();
+  it("does not count backward movement as progress", () => {
+    const watchdog = new AudioResourceLoadingWatchdog();
 
-    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 0, 3000);
     expect(watchdog.observe(true, "one.mp3", 2, 2000, 3000)).toBe(false);
-    expect(watchdog.observe(true, "one.mp3", 2, 4000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "one.mp3", 2, 3000, 3000)).toBe(true);
   });
 
-  it("moves the deadline when a new resource resets the offset", () => {
-    const watchdog = new AudioStallWatchdog();
+  it("starts a fresh window when a new resource follows progress", () => {
+    const watchdog = new AudioResourceLoadingWatchdog();
 
-    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 0, 3000);
+    expect(watchdog.observe(true, "one.mp3", 10.2, 1000, 3000)).toBe(false);
     expect(watchdog.observe(true, "two.mp3", 0, 2000, 3000)).toBe(false);
-    expect(watchdog.observe(true, "two.mp3", 0, 4000, 3000)).toBe(false);
+    expect(watchdog.observe(true, "two.mp3", 0, 5000, 3000)).toBe(true);
   });
 
   it("starts a fresh window after pause and resume", () => {
-    const watchdog = new AudioStallWatchdog();
+    const watchdog = new AudioResourceLoadingWatchdog();
 
-    expect(watchdog.observe(true, "one.mp3", 10, 0, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 0, 3000);
     expect(watchdog.observe(false, "one.mp3", 10, 4000, 3000)).toBe(false);
-    expect(watchdog.observe(true, "one.mp3", 10, 10000, 3000)).toBe(false);
+    watchdog.arm("one.mp3", 10, 10000, 3000);
     expect(watchdog.observe(true, "one.mp3", 10, 12000, 3000)).toBe(false);
   });
 });

@@ -55,9 +55,8 @@ class FlutterReadium {
   Future<void> setLogLevel(LogLevel level) => _readiumCall(() => _platform.setLogLevel(level));
 
   /// Configures the automatic audio-stream error recovery loop (retry attempts,
-  /// backoff, and stall detection). Applies to the next publication opened and
-  /// to any in-flight recovery loop; there is no mid-stream reconfiguration.
-  /// Defaults reproduce the behaviour that shipped before this policy existed.
+  /// backoff, and stall detection). Applies to audio navigators created after
+  /// this call; existing sessions keep their captured policy.
   Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) =>
       _readiumCall(() => _platform.setAudioRecoveryPolicy(policy));
 
