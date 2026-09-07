@@ -12,9 +12,9 @@ error model, see [error-handling.md](error-handling.md).
 
 ## The recovery lifecycle
 
-1. **Transient failure or stall** — a retryable network error, or a *throttled*
-   connection whose playback offset stops advancing (a stall). The plugin does not
-   surface this as a hard failure; it starts recovering.
+1. **Transient failure or resource-loading stall** — a retryable network error, or playback
+   failing to advance after play/resume or a new reading-order resource. The plugin does not
+   surface this as a hard failure; by default it starts recovering.
 2. **Retrying** — for each attempt it emits an **informational** `AudioStreamRetry`
    event (`error.codeEnum.isInformational == true`) carrying `attempt` / `maxAttempts`,
    while the timebased state stays `loading`. Backoff grows between attempts.
@@ -73,21 +73,27 @@ Tune the retry budget, backoff, and stall sensitivity with `AudioRecoveryPolicy`
 await FlutterReadium().setAudioRecoveryPolicy(
   const AudioRecoveryPolicy(
     maxAttempts: 5,          // more attempts on flaky networks
-    stallTimeoutSeconds: 30, // wait longer before treating a slow load as a stall
+    stallTimeoutSeconds: 30, // wait longer for initial resource progress
+    recoverOnResourceLoadingTimeout: true, // rebuild after a loading timeout
   ),
 );
 ```
 
-- Set it **once**, before opening the publication you want it to apply to. It also
-  affects any in-flight recovery loop, but not an already-running attempt sequence.
-- Defaults (`maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 20.0`,
-  `connectionTimeoutSeconds: 10.0`) reproduce the built-in behaviour, so leaving it
-  unset changes nothing. `connectionTimeoutSeconds` is the budget for each phase of a
+- Set it **once**, before opening the publication you want it to apply to. Existing
+  audio sessions keep the policy captured when their navigator was created.
+- Defaults are `maxAttempts: 3`, `backoffBaseSeconds: 1.0`, `stallTimeoutSeconds: 20.0`,
+  `connectionTimeoutSeconds: 10.0`, and `recoverOnResourceLoadingTimeout: false`.
+  Explicit player errors still recover automatically; a resource-loading timeout reports
+  `loading` without rebuilding unless recovery is enabled. `connectionTimeoutSeconds` is the budget for each phase of a
   recovery attempt: on Android/web it bounds the (asynchronous) navigator rebuild, and
   on all three platforms it separately bounds the post-rebuild window in which playback
   must be observed to advance before the attempt is abandoned.
-- Raise `stallTimeoutSeconds` if legitimate slow networks or long chapter-boundary
-  buffering trip the stall watchdog; lower it to fail faster. Field semantics:
+- The resource-loading watchdog disarms permanently after playback advances by more than 100 ms.
+  Later mid-resource stalls are left to the native player and explicit error recovery.
+  Set `recoverOnResourceLoadingTimeout` to `true` when a suspected loading timeout should also
+  rebuild the navigator. Explicit player errors recover regardless of this setting.
+- Raise `stallTimeoutSeconds` if legitimate startup or chapter-boundary loading trips the watchdog;
+  lower it to report sooner. Field semantics:
   [error-codes.md#audiorecoverypolicy](../api-reference/error-codes.md#audiorecoverypolicy).
 
 ## Platform notes

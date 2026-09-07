@@ -26,7 +26,6 @@ This directory holds implementation plans, parity audits, and retained reference
 	native comic cue framing work after the shared narration sync API landed. *(Cross-platform parity / M-L)*
 - **[todo/native-reader-interaction-navigation-plan.md](todo/native-reader-interaction-navigation-plan.md)** —
 	disentangle manual reader interaction from page-navigation/manual-mode signaling. *(Cross-platform parity / M)*
-
 ## Upstream plans (`upstream/`)
 
 - **[upstream/upstream-audio-error-surfacing-plan.md](upstream/upstream-audio-error-surfacing-plan.md)** —
@@ -43,7 +42,8 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[decoration-active-flag.md](decoration-active-flag.md)** — active decoration flag and styling follow-up.
 - **[comic-manual-zoom-plan.md](comic-manual-zoom-plan.md)** — native comic manual zoom/pan behavior.
 - **[ios-audio-error-recovery-plan.md](ios-audio-error-recovery-plan.md)** — audio streaming failure recovery plan that has since landed locally.
-- **[cross-platform-audio-stall-watchdog.md](cross-platform-audio-stall-watchdog.md)** — synchronized progress-based audiobook stall detection and regressions for iOS, Android, and web.
+- **[resource-loading-watchdog.md](resource-loading-watchdog.md)** — one-shot audiobook
+	resource-loading watchdog with opt-in navigator rebuild recovery.
 - **[native-divina-sync-plan.md](native-divina-sync-plan.md)** — implemented shared narration-sync/manual-mode slice; remaining comic framing work was split out.
 
 ---
