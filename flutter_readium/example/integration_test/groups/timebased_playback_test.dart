@@ -157,7 +157,10 @@ void main() {
 
         test('changing audiobook tracks does not trigger false stall recovery', () async {
           await harness.readium.setAudioRecoveryPolicy(
-            const AudioRecoveryPolicy(stallTimeoutSeconds: 3.0),
+            const AudioRecoveryPolicy(
+              stallTimeoutSeconds: 3.0,
+              recoverOnResourceLoadingTimeout: true,
+            ),
           );
           addTearDown(
             () => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()),
@@ -233,7 +236,10 @@ void main() {
 
         test('pause and backward seek do not trigger false stall recovery', () async {
           await harness.readium.setAudioRecoveryPolicy(
-            const AudioRecoveryPolicy(stallTimeoutSeconds: 2.0),
+            const AudioRecoveryPolicy(
+              stallTimeoutSeconds: 2.0,
+              recoverOnResourceLoadingTimeout: true,
+            ),
           );
           addTearDown(
             () => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()),
@@ -312,6 +318,16 @@ void main() {
         });
 
         test('audiobook emits ended state when playback reaches end of book', () async {
+          await harness.readium.setAudioRecoveryPolicy(
+            const AudioRecoveryPolicy(
+              stallTimeoutSeconds: 1.0,
+              recoverOnResourceLoadingTimeout: true,
+            ),
+          );
+          addTearDown(
+            () => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()),
+          );
+
           final path = harness.fixturePath(
             FixtureKeys.audiobook,
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -333,8 +349,11 @@ void main() {
           final beginSeconds = lastDuration! - 2;
 
           final states = <ReadiumTimebasedState>[];
+          final errors = <ReadiumError>[];
           final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+          final errorSub = harness.readium.onErrorEvent.listen(errors.add);
           addTearDown(sub.cancel);
+          addTearDown(errorSub.cancel);
 
           await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
 
@@ -359,13 +378,18 @@ void main() {
                 'Last state seen: ${states.isEmpty ? "<none>" : states.last.state}',
           );
 
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(seconds: 2));
           expect(
             states.last.state,
             equals(TimebasedState.ended),
             reason:
                 'ended was reported but a later state overwrote it as the last emission: '
                 '${states.last.state}',
+          );
+          expect(
+            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            isEmpty,
+            reason: 'Final ended state must cancel resource-loading recovery',
           );
 
           await harness.readium.pause();

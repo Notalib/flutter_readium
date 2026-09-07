@@ -9,6 +9,31 @@ import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
 import '../unreachable_audiobook_fixture.dart' if (dart.library.js_interop) '../unreachable_audiobook_fixture_web.dart';
 
+String _twoTrackAudiobookManifest(StallingAudioServer server) => jsonEncode({
+  '@context': 'https://readium.org/webpub-manifest/context.jsonld',
+  'metadata': {
+    '@type': 'http://schema.org/Audiobook',
+    'conformsTo': 'https://readium.org/webpub-manifest/profiles/audiobook',
+    'title': 'Resource-loading watchdog audiobook',
+    'language': 'en',
+    'duration': 6,
+  },
+  'readingOrder': [
+    {
+      'href': server.healthyAudioUrl,
+      'type': server.audioMediaType,
+      'duration': 2,
+      'title': 'Healthy track',
+    },
+    {
+      'href': server.loadingAudioUrl,
+      'type': server.audioMediaType,
+      'duration': 4,
+      'title': 'Initially stalled track',
+    },
+  ],
+});
+
 void main() {
   final harness = suiteHarness();
 
@@ -27,7 +52,7 @@ void main() {
     });
 
     test(
-      'audio stream that stops delivering data triggers the stall watchdog',
+      'mid-resource stall after initial progress does not trigger resource-loading recovery',
       skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
       () async {
         final server = await StallingAudioServer.start();
@@ -38,7 +63,7 @@ void main() {
           'metadata': {
             '@type': 'http://schema.org/Audiobook',
             'conformsTo': 'https://readium.org/webpub-manifest/profiles/audiobook',
-            'title': 'Stalling audiobook (watchdog test)',
+            'title': 'Mid-resource stalling audiobook',
             'language': 'en',
             'duration': 60,
           },
@@ -58,6 +83,7 @@ void main() {
             backoffBaseSeconds: 0.1,
             connectionTimeoutSeconds: 5.0,
             stallTimeoutSeconds: 2.0,
+            recoverOnResourceLoadingTimeout: true,
           ),
         );
         addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
@@ -91,25 +117,116 @@ void main() {
           reason: 'The watchdog fired while the partial audio was still starting',
         );
 
-        await waitUntil(
-          () => errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
-          timeout: const Duration(seconds: 8),
-          reason: 'The stalled audio stream never triggered the configured watchdog',
-        );
-
-        final retry = errors.firstWhere(
-          (error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry,
-        );
+        await Future<void>.delayed(const Duration(seconds: 7));
         expect(
           states
               .where((state) => state.currentOffset != null)
               .map((state) => state.currentOffset!)
               .fold(Duration.zero, (max, offset) => offset > max ? offset : max),
           greaterThan(const Duration(milliseconds: 500)),
-          reason: 'Playback must advance before the synthetic stream stalls',
+          reason: 'The fixture must make initial progress before stalling',
         );
-        expect(retry.attempt, 1);
-        expect(retry.maxAttempts, 1);
+        expect(
+          errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          isEmpty,
+          reason: 'A later mid-resource stall must not restart resource-loading recovery',
+        );
+      },
+    );
+
+    test(
+      'default resource-loading timeout reports loading without retrying',
+      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
+      () async {
+        final server = await StallingAudioServer.start();
+        addTearDown(server.close);
+        await harness.readium.setAudioRecoveryPolicy(
+          const AudioRecoveryPolicy(stallTimeoutSeconds: 1.0),
+        );
+        addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
+
+        final errors = <ReadiumError>[];
+        final states = <ReadiumTimebasedState>[];
+        final errorSub = harness.readium.onErrorEvent.listen(errors.add);
+        final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(errorSub.cancel);
+        addTearDown(stateSub.cancel);
+
+        final manifestPath = await writeTempAudiobookManifest(
+          _twoTrackAudiobookManifest(server),
+        );
+        await harness.readium.openPublication(manifestPath);
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        await server.loadingFirstRequest.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => fail('The player never requested the second resource'),
+        );
+        await waitUntil(
+          () => states.any((state) => state.state == TimebasedState.loading),
+          timeout: const Duration(seconds: 5),
+          reason: 'The stuck resource never entered loading state',
+        );
+        await Future<void>.delayed(const Duration(seconds: 2));
+
+        expect(
+          errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          isEmpty,
+        );
+        expect(server.loadingRequestCount, greaterThanOrEqualTo(1));
+      },
+    );
+
+    test(
+      'enabled resource-loading recovery retries and advances the new resource',
+      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
+      () async {
+        final server = await StallingAudioServer.start();
+        addTearDown(server.close);
+        await harness.readium.setAudioRecoveryPolicy(
+          const AudioRecoveryPolicy(
+            maxAttempts: 1,
+            backoffBaseSeconds: 0.1,
+            stallTimeoutSeconds: 1.0,
+            connectionTimeoutSeconds: 5.0,
+            recoverOnResourceLoadingTimeout: true,
+          ),
+        );
+        addTearDown(() => harness.readium.setAudioRecoveryPolicy(const AudioRecoveryPolicy()));
+
+        final errors = <ReadiumError>[];
+        final states = <ReadiumTimebasedState>[];
+        final errorSub = harness.readium.onErrorEvent.listen(errors.add);
+        final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(errorSub.cancel);
+        addTearDown(stateSub.cancel);
+
+        final manifestPath = await writeTempAudiobookManifest(
+          _twoTrackAudiobookManifest(server),
+        );
+        await harness.readium.openPublication(manifestPath);
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+
+        await waitUntil(
+          () => errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          timeout: const Duration(seconds: 10),
+          reason: 'The stalled second resource did not start recovery',
+        );
+        server.allowLoadingRequests();
+        await waitUntil(
+          () => states.any(
+            (state) =>
+                state.state == TimebasedState.playing &&
+                state.currentLocator?.href == server.loadingAudioUrl &&
+                (state.currentOffset ?? Duration.zero) > const Duration(milliseconds: 500),
+          ),
+          timeout: const Duration(seconds: 10),
+          reason: 'Recovery did not restore forward playback in the second resource',
+        );
+
+        expect(server.loadingRequestCount, greaterThanOrEqualTo(2));
       },
     );
 
