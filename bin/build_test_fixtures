@@ -17,6 +17,56 @@ WEB_DIR="$REPO_ROOT/flutter_readium/example/web"
 
 bash "$RESOURCES_CHECKOUT/bin/build_publications.sh" build "$PUBS_DIR"
 
+# A truncated zip still opens as a valid archive, so integrity checks are
+# useless here — verify each fixture is COMPLETE against its source tree.
+# A silently missing entry (e.g. container.xml) otherwise surfaces minutes
+# later as an unrelated openPublication ReadError in integration tests.
+echo "Verifying built fixtures…"
+verify_failures=0
+while IFS=$'\t' read -r pub_id kind output_name source_path; do
+  case "$kind" in
+    pdf | remote-json) continue ;; # plain copies, not archives
+  esac
+  out="$PUBS_DIR/$output_name"
+  if ! entries="$(unzip -Z1 "$out" 2>/dev/null)"; then
+    echo "FAILED: $output_name is not a readable zip archive" >&2
+    verify_failures=$((verify_failures + 1))
+    continue
+  fi
+  count="$(printf '%s\n' "$entries" | grep -c .)"
+  if [ "$kind" = "pre-built" ]; then
+    expected="$(unzip -Z1 "$source_path" | grep -c .)"
+  else
+    expected="$(find "$source_path" -type f | grep -c .)"
+  fi
+  if [ "$count" != "$expected" ]; then
+    echo "FAILED: $output_name holds $count entries, source has $expected" >&2
+    verify_failures=$((verify_failures + 1))
+  fi
+  case "$kind" in
+    epub)
+      [ "$(printf '%s\n' "$entries" | head -1)" = "mimetype" ] || {
+        echo "FAILED: $output_name must list mimetype first" >&2
+        verify_failures=$((verify_failures + 1))
+      }
+      printf '%s\n' "$entries" | grep -qx 'META-INF/container.xml' || {
+        echo "FAILED: $output_name is missing META-INF/container.xml" >&2
+        verify_failures=$((verify_failures + 1))
+      }
+      ;;
+    webpub | audiobook | divina)
+      printf '%s\n' "$entries" | grep -qx 'manifest.json' || {
+        echo "FAILED: $output_name is missing manifest.json" >&2
+        verify_failures=$((verify_failures + 1))
+      }
+      ;;
+  esac
+done < <(bash "$RESOURCES_CHECKOUT/bin/build_publications.sh" list | tail -n +2)
+[ "$verify_failures" -eq 0 ] || {
+  echo "Fixture verification failed with $verify_failures problem(s)" >&2
+  exit 1
+}
+
 echo "Deriving example/web/ test fixtures…"
 trim() {
   if [ -n "${3:-}" ]; then
