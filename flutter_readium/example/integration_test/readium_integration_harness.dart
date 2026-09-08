@@ -10,7 +10,7 @@ import 'web_resource_probe.dart' if (dart.library.js_interop) 'web_resource_prob
 
 /// Budget for the first textLocator/status emission after mounting a reader widget:
 /// each mount launches a fresh platform-view webview, and CI runner speed varies
-/// 2x+ run to run (a 3s warm-up on a fast runner vs. 22s+ on a slow one). 45s is the
+/// 2x+ run to run (a 3s warm-up on a fast runner vs. 22s+ on a slow one). 60s is the
 /// ceiling already proven safe for a cold CI simulator by groups/warm_up.dart;
 /// reuse it everywhere instead of guessing a fresh number per call site.
 const firstMountTimeout = Duration(seconds: 60);

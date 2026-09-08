@@ -112,7 +112,10 @@ jobs:
             sleep 10
             adb logcat -c || true
             # Bounded so a hang can't trip timeout-minutes, which would kill the capture below.
-            timeout 18m flutter test integration_test/plugin_integration_test.dart --dart-define=READIUM_TEST_SKIP_LOGS=true || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
+            # --timeout caps each individual test too: without it a stuck test runs out the
+            # clock silently and the outer `timeout 18m` kills the whole run with zero test
+            # output, naming nothing.
+            timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
 
       - name: Upload Android diagnostics
         if: failure()

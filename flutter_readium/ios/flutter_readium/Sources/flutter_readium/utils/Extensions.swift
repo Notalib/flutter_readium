@@ -1,3 +1,5 @@
+import Foundation
+
 func clamp<T>(_ value: T, minValue: T, maxValue: T) -> T where T : Comparable {
   return min(max(value, minValue), maxValue)
 }
@@ -43,22 +45,40 @@ extension Array {
 
 /// Runs `operation`, returning nil if it doesn't finish within `seconds`.
 ///
-/// The timed-out task is not actually cancelled, so only use this on work that is safe to
-/// leave running — Readium's JS-evaluation continuations, for one, ignore cancellation.
+/// On timeout `operation` is left running — only use this on work that is safe to leave
+/// running, e.g. Readium continuations that ignore cancellation anyway.
 func withTimeout<T: Sendable>(
   seconds: UInt64,
   _ operation: @escaping @Sendable () async -> T
 ) async -> T? {
-  await withTaskGroup(of: T?.self) { group in
-    group.addTask { await operation() }
-    group.addTask {
+  let once = TimeoutOnceFlag()
+  return await withCheckedContinuation { (continuation: CheckedContinuation<T?, Never>) in
+    let timeout = Task {
       // Task.sleep(for: .seconds(_:)) would read better but is iOS 16+; the podspec targets 15.0.
       try? await Task.sleep(nanoseconds: seconds * 1_000_000_000)
-      return nil
+      if once.claim() { continuation.resume(returning: nil) }
     }
-    let first = await group.next() ?? nil
-    group.cancelAll()
-    return first
+    Task {
+      let value = await operation()
+      if once.claim() {
+        // Stop the timer rather than leave it sleeping until it expires.
+        timeout.cancel()
+        continuation.resume(returning: value)
+      }
+    }
+  }
+}
+
+/// Single-use claim so only one of `withTimeout`'s two racing tasks resumes the continuation.
+private final class TimeoutOnceFlag: @unchecked Sendable {
+  private let lock = NSLock()
+  private var claimed = false
+  func claim() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    if claimed { return false }
+    claimed = true
+    return true
   }
 }
 
