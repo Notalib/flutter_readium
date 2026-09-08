@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.4.4] - 2026-09-08
+
 ### Fixed
 
 - **Seeking an audiobook to a position in a different track could hang the app.** Jumping via
