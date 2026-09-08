@@ -81,6 +81,6 @@ Example app is the canonical E2E smoke test. Full operational guide: `docs/agent
 
 Other tools read this file too — Copilot supports `CLAUDE.md` directly, and `AGENTS.md` symlinks here. This section is Claude Code only; skip it otherwise.
 
-- **Code research**: prefer `tokensave_*` MCP tools over grep/Explore (`.tokensave/`, gitignored; `tokensave sync` after pulling). When plan mode asks for exploration agents, do the tokensave sweep in the main loop and spawn Explore only for breadth tokensave can't cover — docs, web, external APIs.
-- **Tokensave freshness (repo-local only)**: run `bin/tokensave_sync_if_needed` after pulls/rebases/branch switches and before large exploration sessions. On a stale index, run it once and retry `tokensave_*` before falling back to grep/read tools.
+- **Code research**: prefer the `codegraph_explore` MCP tool over grep/Explore (`.codegraph/`, gitignored via its own tracked `.gitignore`). One call returns the relevant symbols' verbatim source plus call paths — treat its source as already read. CLI fallback: `codegraph explore "<question or symbols>"` (also `callers`/`callees`/`impact`/`affected`). When plan mode asks for exploration agents, do the codegraph sweep in the main loop and spawn Explore only for breadth codegraph can't cover — docs, web, external APIs.
+- **Freshness (repo-local only)**: the codegraph daemon auto-syncs on file changes and the `.githooks` post-checkout/merge/commit/rewrite hooks run `codegraph sync`; no manual step normally. If the index looks stale (or `codegraph status` fails), run `codegraph sync` once and retry before falling back to grep/read tools.
 - **Web preview**: the `Claude_Preview` MCP drives the web example; the browser-side detail is in `flutter_readium/web/CLAUDE.md`.

@@ -90,9 +90,9 @@ PDF position lives in `Locator.locations.position` as a **1-based page number**.
 
 > Platform-specific conventions (Android log format, navigator null guard, TypeScript locator serialization) are in the scoped instruction files under `.github/instructions/`.
 
-## Code search (tokensave)
+## Code search (CodeGraph)
 
-This repo is indexed by [tokensave](https://github.com/aovestdipaperino/tokensave) (`.tokensave/`, gitignored). For codebase research — finding symbols, callers/callees, impact — prefer the `tokensave_*` MCP tools (`tokensave_context`, `tokensave_search`, `tokensave_callers`, `tokensave_callees`, `tokensave_impact`, `tokensave_node`, `tokensave_files`, `tokensave_affected`) over grep/glob/Explore; they answer from the semantic graph at a fraction of the tokens. Fall back to direct reads/grep when tokensave is unavailable or a raw text match is genuinely the better tool (e.g. the built JS bundles, which are excluded from the index). Exclusions live in `.tokensave/config.json`; after pulling source changes, run `tokensave sync` to refresh.
+This repo is indexed by [CodeGraph](https://github.com/colbymchenry/codegraph) (`.codegraph/`, gitignored via its own tracked `.gitignore`). For codebase research — how X works, where a symbol is defined/used, callers/callees, impact — prefer the `codegraph_explore` MCP tool over grep/glob/Explore: one call returns the relevant symbols' verbatim line-numbered source grouped by file, the call paths between them, and a blast-radius summary. Treat that source as already read. CLI equivalents: `codegraph explore|callers|callees|impact|affected`. Fall back to direct reads/grep when CodeGraph is unavailable or a raw text match is genuinely the better tool (e.g. the built JS bundles, which are excluded from the index). The daemon auto-syncs on file changes; run `codegraph sync` if the index looks stale.
 
 ## MCP Servers
 
@@ -115,6 +115,8 @@ MCP servers are configured in `.mcp.json`:
 - `marionette-hot_reload` / `marionette-hot_restart` — apply code changes without restarting
 
 **`context7`** — docs retrieval for library/framework/API references. Use it proactively when work depends on Readium/Flutter APIs or examples.
+
+**`codegraph`** — code knowledge graph (requires the `codegraph` CLI; index is created by `bin/install`). Use `codegraph_explore` for codebase research — one call returns relevant symbols' verbatim source, call paths, and blast radius. CLI fallback: `codegraph explore|callers|callees|impact|affected`.
 
 ## Smoke Testing (marionette)
 

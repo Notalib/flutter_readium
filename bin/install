@@ -19,17 +19,13 @@ fi
 
 "$REPO_ROOT/bin/fetch_test_resources"
 
-# Optional: AI code-search index (tokensave, https://github.com/aovestdipaperino/tokensave).
-# Entirely no-op for anyone who doesn't have the tokensave CLI installed.
-# Install with: brew install aovestdipaperino/tap/tokensave
-if command -v tokensave >/dev/null 2>&1; then
-  echo "tokensave detected — configuring code index + refresh hooks"
-  # Build the index DB on a fresh checkout (init also writes a default config we override next).
-  [ -f "$REPO_ROOT/.tokensave/tokensave.db" ] || ( cd "$REPO_ROOT" && tokensave init </dev/null )
-  # Apply the repo's curated, portable config (root_dir ".", build/Pods/vendored excluded).
-  cp "$REPO_ROOT/.githooks/tokensave.config.json" "$REPO_ROOT/.tokensave/config.json"
+# Optional: AI code-search index (CodeGraph, https://github.com/colbymchenry/codegraph).
+# Entirely no-op for anyone who doesn't have the codegraph CLI installed.
+# Install with: brew install codegraph  (or npm i -g @colbymchenry/codegraph)
+if command -v codegraph >/dev/null 2>&1; then
+  echo "codegraph detected — configuring code index + refresh hooks"
+  # Build the index on a fresh checkout; .codegraph/ is gitignored via its own .gitignore.
+  [ -f "$REPO_ROOT/.codegraph/codegraph.db" ] || ( cd "$REPO_ROOT" && codegraph init )
   # Activate the shared refresh hooks (post-commit / merge / checkout / rewrite).
   git -C "$REPO_ROOT" config core.hooksPath .githooks
-  # Reindex honoring the curated excludes.
-  ( cd "$REPO_ROOT" && tokensave sync --force )
 fi
