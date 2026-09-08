@@ -8,12 +8,11 @@ import '../utils/constants.dart';
 ///
 /// Plugin-owned flat config (not a Readium-owned model) — serialized as a
 /// flat `Map`, not `json.encode`. Set once via
-/// `FlutterReadium().setAudioRecoveryPolicy(...)`; it applies to the next
-/// publication opened and to any in-flight recovery loop. There is no
-/// mid-stream reconfiguration.
+/// `FlutterReadium().setAudioRecoveryPolicy(...)` before opening a publication.
+/// Existing audio navigators keep the policy captured at construction time.
 ///
-/// Defaults reproduce the recovery behaviour that shipped before this policy
-/// existed, so an unconfigured consumer sees no change.
+/// Explicit player errors recover automatically by default. Resource-loading
+/// timeouts only report loading unless the application opts into rebuilding.
 @immutable
 class AudioRecoveryPolicy with Equatable {
   const AudioRecoveryPolicy({
@@ -21,6 +20,7 @@ class AudioRecoveryPolicy with Equatable {
     this.backoffBaseSeconds = 1.0,
     this.stallTimeoutSeconds = 20.0,
     this.connectionTimeoutSeconds = 10.0,
+    this.recoverOnResourceLoadingTimeout = false,
   });
 
   factory AudioRecoveryPolicy.fromJson(Map<String, dynamic> json) => AudioRecoveryPolicy(
@@ -28,6 +28,9 @@ class AudioRecoveryPolicy with Equatable {
     backoffBaseSeconds: (json['backoffBaseSeconds'] as num?)?.toDouble() ?? 1.0,
     stallTimeoutSeconds: (json['stallTimeoutSeconds'] as num?)?.toDouble() ?? 20.0,
     connectionTimeoutSeconds: (json['connectionTimeoutSeconds'] as num?)?.toDouble() ?? 10.0,
+    recoverOnResourceLoadingTimeout: json['recoverOnResourceLoadingTimeout'] is bool
+        ? json['recoverOnResourceLoadingTimeout'] as bool
+        : false,
   );
 
   /// Maximum number of automatic recovery attempts before entering a
@@ -39,10 +42,9 @@ class AudioRecoveryPolicy with Equatable {
   /// default). Defaults to `1.0`.
   final double backoffBaseSeconds;
 
-  /// How long, in seconds, playback can go without the offset advancing
-  /// (while playback is intended to be running) before the stall watchdog
-  /// synthesizes a retryable error and enters the recovery loop. Must exceed
-  /// normal seek/chapter-boundary buffering. Defaults to `20.0`.
+  /// How long, in seconds, a resource-loading attempt may wait for its first
+  /// forward playback progress before reporting a loading stall.
+  /// Defaults to `20.0`.
   final double stallTimeoutSeconds;
 
   /// How long, in seconds, a single recovery attempt may spend rebuilding the
@@ -52,11 +54,16 @@ class AudioRecoveryPolicy with Equatable {
   /// `10.0`.
   final double connectionTimeoutSeconds;
 
+  /// Whether a resource-loading timeout starts automatic recovery.
+  /// When false, the timeout only reports a loading state. Defaults to `false`.
+  final bool recoverOnResourceLoadingTimeout;
+
   Map<String, Object?> toJson() => {
     'maxAttempts': maxAttempts,
     'backoffBaseSeconds': backoffBaseSeconds,
     'stallTimeoutSeconds': stallTimeoutSeconds,
     'connectionTimeoutSeconds': connectionTimeoutSeconds,
+    'recoverOnResourceLoadingTimeout': recoverOnResourceLoadingTimeout,
   };
 
   AudioRecoveryPolicy copyWith({
@@ -64,6 +71,7 @@ class AudioRecoveryPolicy with Equatable {
     Object? backoffBaseSeconds = unset,
     Object? stallTimeoutSeconds = unset,
     Object? connectionTimeoutSeconds = unset,
+    Object? recoverOnResourceLoadingTimeout = unset,
   }) => AudioRecoveryPolicy(
     maxAttempts: identical(maxAttempts, unset) ? this.maxAttempts : (maxAttempts as int),
     backoffBaseSeconds: identical(backoffBaseSeconds, unset) ? this.backoffBaseSeconds : (backoffBaseSeconds as double),
@@ -73,6 +81,9 @@ class AudioRecoveryPolicy with Equatable {
     connectionTimeoutSeconds: identical(connectionTimeoutSeconds, unset)
         ? this.connectionTimeoutSeconds
         : (connectionTimeoutSeconds as double),
+    recoverOnResourceLoadingTimeout: identical(recoverOnResourceLoadingTimeout, unset)
+        ? this.recoverOnResourceLoadingTimeout
+        : (recoverOnResourceLoadingTimeout as bool),
   );
 
   @override
@@ -81,5 +92,6 @@ class AudioRecoveryPolicy with Equatable {
     backoffBaseSeconds,
     stallTimeoutSeconds,
     connectionTimeoutSeconds,
+    recoverOnResourceLoadingTimeout,
   ];
 }

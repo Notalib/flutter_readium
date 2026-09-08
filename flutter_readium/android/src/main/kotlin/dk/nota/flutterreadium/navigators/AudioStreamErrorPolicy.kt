@@ -66,16 +66,14 @@ private fun HttpError.classify(): AudioStreamErrorAction =
  * / web's `AudioRecoveryPolicy`.
  *
  * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
- * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`); defaults
- * reproduce the recovery behaviour that shipped before the policy existed.
+ * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
+ * player errors recover by default; loading-timeout recovery is opt-in.
  */
 data class AudioRecoveryPolicy(
     val maxAttempts: Int = 3,
     val backoffBaseSeconds: Double = 1.0,
     /**
-     * How long, in seconds, playback can go without the offset advancing
-     * (while playback is intended to be running) before the stall watchdog
-     * synthesizes a retryable error and enters the recovery loop.
+     * How long a resource-loading attempt may wait for initial playback progress.
      */
     val stallTimeoutSeconds: Double = 20.0,
     /**
@@ -84,6 +82,8 @@ data class AudioRecoveryPolicy(
      * on. Bounds a stalled connect so a dead network can't hang recovery.
      */
     val connectionTimeoutSeconds: Double = 10.0,
+    /** Whether a resource-loading timeout starts the recovery loop. */
+    val recoverOnResourceLoadingTimeout: Boolean = false,
 ) {
     fun delayMillis(forAttempt: Int): Long {
         val attempt = maxOf(forAttempt, 1) - 1
@@ -98,7 +98,14 @@ data class AudioRecoveryPolicy(
             val backoffBaseSeconds = (map["backoffBaseSeconds"] as? Number)?.toDouble() ?: 1.0
             val stallTimeoutSeconds = (map["stallTimeoutSeconds"] as? Number)?.toDouble() ?: 20.0
             val connectionTimeoutSeconds = (map["connectionTimeoutSeconds"] as? Number)?.toDouble() ?: 10.0
-            return AudioRecoveryPolicy(maxAttempts, backoffBaseSeconds, stallTimeoutSeconds, connectionTimeoutSeconds)
+            val recoverOnResourceLoadingTimeout = map["recoverOnResourceLoadingTimeout"] as? Boolean ?: false
+            return AudioRecoveryPolicy(
+                maxAttempts,
+                backoffBaseSeconds,
+                stallTimeoutSeconds,
+                connectionTimeoutSeconds,
+                recoverOnResourceLoadingTimeout,
+            )
         }
     }
 }

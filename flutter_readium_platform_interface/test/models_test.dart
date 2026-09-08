@@ -801,12 +801,13 @@ void main() {
   // AudioRecoveryPolicy
   // ---------------------------------------------------------------------------
   group('AudioRecoveryPolicy', () {
-    test('defaults reproduce prior hardcoded recovery behaviour', () {
+    test('defaults recover explicit errors without rebuilding on loading timeout', () {
       const policy = AudioRecoveryPolicy();
       expect(policy.maxAttempts, 3);
       expect(policy.backoffBaseSeconds, 1.0);
       expect(policy.stallTimeoutSeconds, 20.0);
       expect(policy.connectionTimeoutSeconds, 10.0);
+      expect(policy.recoverOnResourceLoadingTimeout, isFalse);
     });
 
     test('toJson emits a flat map (not nested/JSON-encoded)', () {
@@ -815,12 +816,14 @@ void main() {
         backoffBaseSeconds: 2.0,
         stallTimeoutSeconds: 15.0,
         connectionTimeoutSeconds: 8.0,
+        recoverOnResourceLoadingTimeout: true,
       );
       expect(policy.toJson(), {
         'maxAttempts': 5,
         'backoffBaseSeconds': 2.0,
         'stallTimeoutSeconds': 15.0,
         'connectionTimeoutSeconds': 8.0,
+        'recoverOnResourceLoadingTimeout': true,
       });
     });
 
@@ -830,6 +833,7 @@ void main() {
         backoffBaseSeconds: 1.5,
         stallTimeoutSeconds: 30.0,
         connectionTimeoutSeconds: 12.0,
+        recoverOnResourceLoadingTimeout: true,
       );
       final restored = AudioRecoveryPolicy.fromJson(policy.toJson());
       expect(restored, policy);
@@ -840,12 +844,23 @@ void main() {
       expect(policy, const AudioRecoveryPolicy());
     });
 
+    test('fromJson defaults missing or invalid loading-timeout recovery to false', () {
+      expect(AudioRecoveryPolicy.fromJson({}).recoverOnResourceLoadingTimeout, isFalse);
+      expect(
+        AudioRecoveryPolicy.fromJson({
+          'recoverOnResourceLoadingTimeout': 'true',
+        }).recoverOnResourceLoadingTimeout,
+        isFalse,
+      );
+    });
+
     test('copyWith overrides only the given fields', () {
       const policy = AudioRecoveryPolicy();
       final updated = policy.copyWith(stallTimeoutSeconds: 10.0);
       expect(updated.maxAttempts, 3);
       expect(updated.backoffBaseSeconds, 1.0);
       expect(updated.stallTimeoutSeconds, 10.0);
+      expect(updated.recoverOnResourceLoadingTimeout, isFalse);
     });
 
     test('copyWith() with no args preserves all fields', () {
@@ -854,12 +869,14 @@ void main() {
         backoffBaseSeconds: 2.0,
         stallTimeoutSeconds: 30.0,
         connectionTimeoutSeconds: 10.0,
+        recoverOnResourceLoadingTimeout: true,
       );
       final copied = policy.copyWith();
       expect(copied.maxAttempts, 5);
       expect(copied.backoffBaseSeconds, 2.0);
       expect(copied.stallTimeoutSeconds, 30.0);
       expect(copied.connectionTimeoutSeconds, 10.0);
+      expect(copied.recoverOnResourceLoadingTimeout, isTrue);
     });
 
     test('equality is value-based', () {

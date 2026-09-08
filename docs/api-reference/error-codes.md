@@ -40,7 +40,7 @@ oversight. Finer-grained distinctions that a client wouldn't branch on different
 | `forbidden` | `forbidden` | iOS, Android, web | opening | fatal | Access to the publication resource is forbidden |
 | `unavailable` | `unavailable` | iOS, Android, web | opening | fatal | Publication temporarily unavailable |
 | `incorrectCredentials` | `incorrectCredentials` | iOS, Android, web | opening | fatal | Credentials rejected while opening a protected publication |
-| `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error, or a detected playback stall; playback state pinned to loading |
+| `audioStreamRetry` | `AudioStreamRetry` | iOS, Android, web | audioStream | **informational** | Automatic connection recovery in progress after a transient network error or recoverable resource-loading timeout; playback state pinned to loading |
 | `audioStreamAuthError` | `AudioStreamAuthError` | iOS, Android, web | audioStream | fatal | HTTP 401/403 fetching an audio resource |
 | `audioStreamHttpError` | `AudioStreamHTTPError` | iOS, Android, web | audioStream | fatal | Other non-5xx HTTP error fetching an audio resource |
 | `audioStreamNetworkError` | `AudioStreamNetworkError` | iOS, Android, web | audioStream | fatal | Unclassified network-layer failure streaming audio; also the Android recovery-exhausted fallback for every non-HTTP failure shape (ExoPlayer doesn't distinguish range/filesystem causes) |
@@ -113,7 +113,7 @@ All fields are optional; a producer omits the field entirely when nothing applie
 
 ## `AudioRecoveryPolicy`
 
-Configures the automatic audio-stream error recovery loop shared by the iOS/Android/web audio navigators — retry attempts, exponential backoff, and stall detection:
+Configures the automatic audio-stream error recovery loop and resource-loading watchdog shared by the iOS/Android/web audio navigators:
 
 ```dart
 await FlutterReadium().setAudioRecoveryPolicy(
@@ -125,9 +125,10 @@ await FlutterReadium().setAudioRecoveryPolicy(
 |---|---|---|
 | `maxAttempts` | `3` | Automatic recovery attempts before entering a terminal failure state |
 | `backoffBaseSeconds` | `1.0` | Base delay between attempts (`backoffBaseSeconds * 2^(attempt-1)`, i.e. 1s/2s/4s with the default) |
-| `stallTimeoutSeconds` | `20.0` | How long playback can go without its offset advancing (while intended to be playing) before a stall is treated as a retryable error |
+| `stallTimeoutSeconds` | `20.0` | How long play/resume or a new reading-order resource may wait for its first forward playback advance before reporting `loading` |
 | `connectionTimeoutSeconds` | `10.0` | Budget for each phase of a single recovery attempt: on Android/web (where rebuilding the player is asynchronous) it bounds the navigator rebuild itself, and on all three platforms it separately bounds the post-rebuild window in which playback must be observed to advance before the attempt is abandoned and the loop moves on (next attempt, or terminal) |
+| `recoverOnResourceLoadingTimeout` | `false` | Whether a resource-loading timeout also starts automatic recovery. When `false`, it only logs and emits `loading`; explicit player errors still recover automatically |
 
-Set once — it applies to the next-opened publication and to any in-flight recovery loop, not to an already-running attempt sequence. Defaults reproduce the recovery behaviour that shipped before this policy existed, so an unconfigured consumer sees no change.
+Set it before opening the publication. It applies to audio navigators created afterwards; existing sessions keep their captured policy. Explicit player errors recover automatically by default; resource-loading timeouts require an explicit recovery opt-in.
 
-**Stall watchdog**: recovery was originally error-driven only — a dropped connection errors and recovers, but a *throttled* connection that keeps bytes trickling in never errors and playback could sit in `Buffering`/`Loading` forever. All three platforms now also watch for the offset failing to advance for `stallTimeoutSeconds` while playback is intended, and synthesize a retryable `audioStreamRetry` into the same recovery path a real error would take. On web, the browser's native `stalled` event (fires quickly, ~3s) is only an early UI signal for a buffering indicator — it does not itself trigger recovery, which still waits for the full `stallTimeoutSeconds` of a frozen offset, matching iOS/Android.
+**Resource-loading watchdog**: play/resume and each requested reading-order resource start one deadline. The first forward advance greater than 100 ms permanently disarms that resource attempt; a later mid-resource stall cannot trigger watchdog recovery. Pausing, ending, interruption/suppression, recovery, failure, and disposal cancel observation. A timeout logs once and emits `loading` once. With `recoverOnResourceLoadingTimeout: true`, it also enters the existing recovery loop and emits `AudioStreamRetry` only when recovery starts. The browser's native `stalled` event remains an immediate loading-state signal only.

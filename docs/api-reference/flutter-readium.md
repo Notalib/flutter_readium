@@ -37,7 +37,7 @@ await FlutterReadium().closePublication();
 | `setEPUBPreferences(prefs)` | Apply EPUB display preferences to the current publication. See [preferences.md](./preferences.md#preferences) |
 | `setCustomHeaders(headers)` | Set HTTP headers used for all network requests |
 | `setLogLevel(level)` | Set the plugin's internal log verbosity |
-| `setAudioRecoveryPolicy(policy)` | Configure audio-stream error recovery (retry attempts, backoff, stall timeout). See [error-codes.md](./error-codes.md#audiorecoverypolicy) |
+| `setAudioRecoveryPolicy(policy)` | Configure audio-stream error recovery and resource-loading watchdog reporting/recovery. See [error-codes.md](./error-codes.md#audiorecoverypolicy) |
 
 ## Decorations
 

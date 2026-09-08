@@ -89,18 +89,15 @@ export function classifyAudioStreamError(error: unknown): AudioStreamErrorAction
  * / Android's `AudioRecoveryPolicy`.
  *
  * Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
- * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`);
- * defaults reproduce the recovery behaviour that shipped before the policy
- * existed. Default: 1s, 2s, 4s backoff.
+ * (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
+ * player errors recover by default; loading-timeout recovery is opt-in.
  */
 export class AudioRecoveryPolicy {
   constructor(
     public readonly maxAttempts: number = 3,
     public readonly backoffBaseSeconds: number = 1.0,
     /**
-     * How long, in seconds, playback can go without the offset advancing
-     * (while playback is intended to be running) before the stall watchdog
-     * synthesizes a retryable error and enters the recovery loop.
+     * How long a resource-loading attempt may wait for initial playback progress.
      */
     public readonly stallTimeoutSeconds: number = 20.0,
     /**
@@ -108,7 +105,9 @@ export class AudioRecoveryPolicy {
      * player / reconnecting before that attempt is abandoned and the loop moves
      * on. Bounds a stalled connect so a dead network can't hang recovery.
      */
-    public readonly connectionTimeoutSeconds: number = 10.0
+    public readonly connectionTimeoutSeconds: number = 10.0,
+    /** Whether a resource-loading timeout starts the recovery loop. */
+    public readonly recoverOnResourceLoadingTimeout: boolean = false
   ) {}
 
   delayMillis(forAttempt: number): number {
@@ -129,11 +128,16 @@ export class AudioRecoveryPolicy {
       typeof json.stallTimeoutSeconds === "number" ? json.stallTimeoutSeconds : 20.0;
     const connectionTimeoutSeconds =
       typeof json.connectionTimeoutSeconds === "number" ? json.connectionTimeoutSeconds : 10.0;
+    const recoverOnResourceLoadingTimeout =
+      typeof json.recoverOnResourceLoadingTimeout === "boolean"
+        ? json.recoverOnResourceLoadingTimeout
+        : false;
     return new AudioRecoveryPolicy(
       maxAttempts,
       backoffBaseSeconds,
       stallTimeoutSeconds,
-      connectionTimeoutSeconds
+      connectionTimeoutSeconds,
+      recoverOnResourceLoadingTimeout
     );
   }
 }
@@ -141,8 +145,7 @@ export class AudioRecoveryPolicy {
 /**
  * Currently configured recovery policy, set via `ReadiumReader.setAudioRecoveryPolicy`.
  * Read by `FlutterAudioNavigator.create` when constructing a session's
- * `AudioStreamRecoveryController` — applies to the next-opened publication and to any
- * in-flight recovery loop, not to an already-running attempt sequence.
+ * `AudioStreamRecoveryController`. Existing sessions keep their captured policy.
  */
 let _currentRecoveryPolicy = new AudioRecoveryPolicy();
 

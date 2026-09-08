@@ -560,8 +560,7 @@ object ReadiumReader :
     /**
      * Policy for the audio-stream error recovery loop (retry attempts, backoff, stall
      * detection). Read by [dk.nota.flutterreadium.navigators.AudiobookNavigator] at
-     * construction time — applies to the next-opened publication and to any in-flight
-     * recovery loop, not to an already-running attempt sequence.
+     * construction time. Existing navigators keep their captured policy.
      */
     var audioRecoveryPolicy: AudioRecoveryPolicy = AudioRecoveryPolicy()
 
