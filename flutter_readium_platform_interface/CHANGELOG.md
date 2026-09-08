@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- `AudioRecoveryPolicy.recoverOnResourceLoadingTimeout` lets applications opt into rebuilding the
+  audio navigator after a suspected resource-loading timeout. It defaults to `false`.
+
 ## [0.4.3] - 2026-09-01
 
 ## [0.4.2] - 2026-08-28

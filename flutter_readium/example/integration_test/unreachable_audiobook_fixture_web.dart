@@ -1,5 +1,29 @@
-// Web stub: the audio-recovery test that uses this is native-only (see the
-// kIsWeb skip at its call site), so this must compile but is never invoked.
+// Web stubs: the audio-recovery tests are native-only, so these compile but are
+// never invoked.
+
+final class StallingAudioServer {
+  static Future<StallingAudioServer> start() {
+    throw UnsupportedError('StallingAudioServer is native-only');
+  }
+
+  String get audioUrl => throw UnsupportedError('StallingAudioServer is native-only');
+
+  String get healthyAudioUrl => throw UnsupportedError('StallingAudioServer is native-only');
+
+  String get loadingAudioUrl => throw UnsupportedError('StallingAudioServer is native-only');
+
+  String get audioMediaType => throw UnsupportedError('StallingAudioServer is native-only');
+
+  Future<void> get firstRequest => throw UnsupportedError('StallingAudioServer is native-only');
+
+  Future<void> get loadingFirstRequest => throw UnsupportedError('StallingAudioServer is native-only');
+
+  int get loadingRequestCount => throw UnsupportedError('StallingAudioServer is native-only');
+
+  void allowLoadingRequests() => throw UnsupportedError('StallingAudioServer is native-only');
+
+  Future<void> close() async {}
+}
 
 Future<String> writeTempAudiobookManifest(String manifestJson) {
   throw UnsupportedError('writeTempAudiobookManifest is native-only');

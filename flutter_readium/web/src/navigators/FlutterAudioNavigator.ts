@@ -27,6 +27,55 @@ const RECOVERY_VERIFY_POLL_MS = 250;
 /** Minimum position advance (seconds) counted as "playback actually resumed". */
 const RECOVERY_VERIFY_MIN_ADVANCE_S = 0.1;
 
+class AudioResourceLoadingWatchdog {
+  private href: string | undefined;
+  private startOffset: number | undefined;
+  deadline: number | undefined;
+  private reported = false;
+
+  arm(href: string, offset: number, now: number, timeout: number): void {
+    this.href = href;
+    this.startOffset = offset;
+    this.deadline = now + timeout;
+    this.reported = false;
+  }
+
+  observe(
+    playbackRequested: boolean,
+    href: string,
+    offset: number,
+    now: number,
+    timeout: number
+  ): boolean {
+    if (!playbackRequested) {
+      this.reset(href);
+      return false;
+    }
+
+    if (this.href !== href) {
+      this.arm(href, offset, now, timeout);
+      return false;
+    }
+
+    if (this.startOffset !== undefined && offset > this.startOffset + 0.1) {
+      this.reset(href);
+      return false;
+    }
+
+    if (this.reported || this.deadline === undefined || now < this.deadline) return false;
+    this.deadline = undefined;
+    this.reported = true;
+    return true;
+  }
+
+  reset(href?: string): void {
+    this.href = href;
+    this.startOffset = undefined;
+    this.deadline = undefined;
+    this.reported = false;
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -530,6 +579,7 @@ async function rebuildAndVerifyPlayback(
   }
   if (!rebuilt || isDisposed()) return false;
 
+  FlutterAudioNavigator.setPlaybackIntent(true);
   rebuilt.play();
 
   const startOffset = rebuilt.currentTime;
@@ -558,6 +608,7 @@ export class FlutterAudioNavigator {
    * Overlay / TTS sessions are out of scope for this parity pass.
    */
   private static _recovery: AudioStreamRecoveryController | undefined;
+  private static _playbackIntentHandler: ((requested: boolean) => void) | undefined;
   /** Incremented on close/stop so stale async callbacks can self-suppress. */
   private static _sessionGeneration = 0;
 
@@ -575,12 +626,18 @@ export class FlutterAudioNavigator {
     return this._recovery?.isTerminallyFailed() ?? false;
   }
 
+  /** Records client playback intent independently from browser player state. */
+  static setPlaybackIntent(requested: boolean): void {
+    this._playbackIntentHandler?.(requested);
+  }
+
   /** Clears any recovery state. Call when a session ends (stop/closePublication)
    *  so a stale latch/controller can't leak into the next audiobook session. */
   static resetRecovery(): void {
     this._sessionGeneration += 1;
     this._recovery?.dispose();
     this._recovery = undefined;
+    this._playbackIntentHandler = undefined;
   }
 
   // See Readium's guide on ts-toolkit AudioNavigator configuration:
@@ -661,36 +718,83 @@ export class FlutterAudioNavigator {
     let lastPositionLogKey = "";
 
     const recoveryPolicy = getCurrentAudioRecoveryPolicy();
-    // Stall watchdog state: the browser's own `stalled` event fires quickly (~3s) and is
-    // only an early *detection* signal that data stopped flowing — not the escalation
-    // threshold. Mirrors iOS/Android: escalation waits for the full `stallTimeoutSeconds`
-    // of the offset genuinely not advancing while playback is intended, so all three
-    // platforms present a consistent ~stallTimeout × maxAttempts UX bar.
-    let stallWatchdogTimer: ReturnType<typeof setTimeout> | undefined;
-    let lastAdvanceOffset: number | undefined;
+    // Browser `stalled` is only an early UI signal; this timer watches the first
+    // playback advance after each resource-loading boundary.
+    let resourceLoadingWatchdogTimer: ReturnType<typeof setTimeout> | undefined;
+    let playbackRequested = false;
+    const resourceLoadingWatchdog = new AudioResourceLoadingWatchdog();
 
-    function clearStallWatchdog(): void {
-      if (stallWatchdogTimer !== undefined) {
-        clearTimeout(stallWatchdogTimer);
-        stallWatchdogTimer = undefined;
+    function clearResourceLoadingWatchdogTimer(): void {
+      if (resourceLoadingWatchdogTimer !== undefined) {
+        clearTimeout(resourceLoadingWatchdogTimer);
+        resourceLoadingWatchdogTimer = undefined;
       }
     }
 
-    /** (Re)arms the watchdog: fires after `stallTimeoutSeconds` unless reset first by another offset advance. */
-    function armStallWatchdog(onStalled: () => void): void {
-      clearStallWatchdog();
-      stallWatchdogTimer = setTimeout(onStalled, recoveryPolicy.stallTimeoutSeconds * 1000);
+    function resetResourceLoadingWatchdog(): void {
+      clearResourceLoadingWatchdogTimer();
+      resourceLoadingWatchdog.reset(nav?.currentLocator.href);
     }
 
-    /**
-     * Called on every `timeupdate`-driven position change while playback is intended: resets
-     * the watchdog whenever the offset actually moves, and arms it on the first observation.
-     */
-    function noteOffsetAdvance(currentOffset: number, onStalled: () => void): void {
-      if (lastAdvanceOffset === undefined || currentOffset > lastAdvanceOffset + 0.1) {
-        lastAdvanceOffset = currentOffset;
-        armStallWatchdog(onStalled);
+    function armResourceLoadingWatchdog(): void {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+        resetResourceLoadingWatchdog();
+        return;
       }
+      clearResourceLoadingWatchdogTimer();
+      resourceLoadingWatchdog.arm(
+        nav.currentLocator.href,
+        nav.currentTime,
+        performance.now(),
+        recoveryPolicy.stallTimeoutSeconds * 1000
+      );
+      scheduleResourceLoadingWatchdog();
+    }
+
+    function updateResourceLoadingWatchdog(): void {
+      if (!nav || !recovery || recovery.isSuppressed() || !playbackRequested) {
+        resetResourceLoadingWatchdog();
+        return;
+      }
+
+      const locator = nav.currentLocator;
+      const now = performance.now();
+      const timedOut = resourceLoadingWatchdog.observe(
+        true,
+        locator.href,
+        nav.currentTime,
+        now,
+        recoveryPolicy.stallTimeoutSeconds * 1000
+      );
+
+      if (timedOut) {
+        clearResourceLoadingWatchdogTimer();
+        log.warn(`Resource loading did not advance playback within ${recoveryPolicy.stallTimeoutSeconds}s`);
+        if (recoveryPolicy.recoverOnResourceLoadingTimeout) {
+          recovery.handle(
+            `Resource loading did not advance playback within ${recoveryPolicy.stallTimeoutSeconds}s`,
+            AudioStreamErrorAction.retry(),
+            locator.href
+          );
+        } else {
+          emit("loading", locator, false);
+        }
+        return;
+      }
+
+      if (resourceLoadingWatchdog.deadline === undefined) {
+        clearResourceLoadingWatchdogTimer();
+      } else {
+        scheduleResourceLoadingWatchdog();
+      }
+    }
+
+    function scheduleResourceLoadingWatchdog(): void {
+      if (resourceLoadingWatchdogTimer !== undefined || resourceLoadingWatchdog.deadline === undefined) return;
+      resourceLoadingWatchdogTimer = setTimeout(() => {
+        resourceLoadingWatchdogTimer = undefined;
+        updateResourceLoadingWatchdog();
+      }, Math.max(0, resourceLoadingWatchdog.deadline - performance.now()));
     }
 
     // Recovery is only wired for the plain audiobook path. Media Overlay/TTS
@@ -714,6 +818,8 @@ export class FlutterAudioNavigator {
           },
           stopPlayback: () => {
             if (isDisposed()) return;
+            playbackRequested = false;
+            resetResourceLoadingWatchdog();
             nav?.stop();
           },
           delay: sleep,
@@ -736,6 +842,11 @@ export class FlutterAudioNavigator {
         getCurrentAudioRecoveryPolicy()
       );
       FlutterAudioNavigator._recovery = recovery;
+      FlutterAudioNavigator._playbackIntentHandler = (requested) => {
+        playbackRequested = requested;
+        if (requested) armResourceLoadingWatchdog();
+        else resetResourceLoadingWatchdog();
+      };
     }
 
     // Local emit shorthand — captures the 5 context args so each listener
@@ -791,22 +902,7 @@ export class FlutterAudioNavigator {
           }
           emit(nav.isPlaying ? "playing" : "paused", locator, /* alsoText */ true);
 
-          if (recovery && !recovery.isSuppressed()) {
-            if (nav.isPlaying) {
-              noteOffsetAdvance(time, () => {
-                if (recovery!.isSuppressed()) return;
-                log.warn(`Playback stalled: offset didn't advance within ${recoveryPolicy.stallTimeoutSeconds}s`);
-                recovery!.handle(
-                  `Playback stalled (offset frozen for ${recoveryPolicy.stallTimeoutSeconds}s)`,
-                  AudioStreamErrorAction.retry(),
-                  locator.href
-                );
-              });
-            } else {
-              clearStallWatchdog();
-              lastAdvanceOffset = undefined;
-            }
-          }
+          updateResourceLoadingWatchdog();
         },
         timelineItemChanged: (item) => {
           if (timeline && item) {
@@ -817,12 +913,14 @@ export class FlutterAudioNavigator {
         },
         play: (locator) => {
           log.info("play event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
+          playbackRequested = true;
+          armResourceLoadingWatchdog();
           emit("playing", locator, false);
         },
         pause: (locator) => {
           log.info("pause event", locator?.href, locator?.locations?.fragments?.[0] ?? "");
-          clearStallWatchdog();
-          lastAdvanceOffset = undefined;
+          playbackRequested = false;
+          resetResourceLoadingWatchdog();
           emit("paused", locator, false);
         },
         trackEnded: (locator) => {
@@ -832,11 +930,12 @@ export class FlutterAudioNavigator {
           // would cause Dart-side to close the player prematurely.
           if (!nav.canGoForward) {
             log.info("Publication ended (last track)");
-            clearStallWatchdog();
-            lastAdvanceOffset = undefined;
+            playbackRequested = false;
+            resetResourceLoadingWatchdog();
             emit("ended", locator, false);
           } else {
             log.debug("Track ended, auto-advancing to next track");
+            armResourceLoadingWatchdog();
           }
         },
         stalled: (isStalled) => {
@@ -851,8 +950,7 @@ export class FlutterAudioNavigator {
         error: (mediaError, locator) => {
           if (!nav) return;
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
-          clearStallWatchdog();
-          lastAdvanceOffset = undefined;
+          resetResourceLoadingWatchdog();
           if (!recovery) {
             // No recovery wired (Media Overlay/TTS session): fall back to the
             // previous unconditional "failure" emission.
@@ -884,7 +982,7 @@ export class FlutterAudioNavigator {
     } catch (error) {
       const timedOut = error instanceof TimeoutError;
       createCancelled = true;
-      clearStallWatchdog();
+      resetResourceLoadingWatchdog();
       if (!isDisposed()) {
         try {
           nav?.stop();
@@ -914,6 +1012,7 @@ export class FlutterAudioNavigator {
 // ---------------------------------------------------------------------------
 
 export const __testing__ = {
+  AudioResourceLoadingWatchdog,
   makeAudioTotalProgressionFn,
   withTocHref,
 };

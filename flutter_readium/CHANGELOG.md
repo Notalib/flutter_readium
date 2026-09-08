@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Audiobook playback could briefly stutter or replay a few seconds during healthy playback.**
+  The watchdog kept monitoring after a resource had started and could rebuild the player during a
+  later pause in progress. It now checks only that playback starts after play/resume or a resource
+  change. Loading timeouts now only report `loading` by default; applications can opt into
+  navigator recovery with `recoverOnResourceLoadingTimeout`. Explicit player errors still recover.
+
 ## [0.4.3] - 2026-09-01
 
 ### Fixed

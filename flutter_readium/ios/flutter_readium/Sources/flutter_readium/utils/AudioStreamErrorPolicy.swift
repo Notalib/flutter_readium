@@ -86,30 +86,28 @@ extension ReadError {
 /// `AudioRecoveryPolicy` / web's `AudioRecoveryPolicy`.
 ///
 /// Consumer-configurable via `FlutterReadium().setAudioRecoveryPolicy(...)`
-/// (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`);
-/// defaults reproduce the recovery behaviour that shipped before the policy
-/// existed. Default: 1s, 2s, 4s backoff.
+/// (see `flutter_readium_platform_interface`'s `AudioRecoveryPolicy`). Explicit
+/// player errors recover by default; loading-timeout recovery is opt-in.
 struct AudioRecoveryPolicy {
   var maxAttempts: Int = 3
   var backoffBaseSeconds: TimeInterval = 1.0
-  /// How long, in seconds, playback can go without the offset advancing
-  /// (while playback is intended to be running) before the stall watchdog
-  /// synthesizes a retryable error and enters the recovery loop.
+  /// How long a resource-loading attempt may wait for initial playback progress.
   var stallTimeoutSeconds: TimeInterval = 20.0
   /// How long, in seconds, a single recovery attempt has to prove playback
   /// advanced after rebuilding the player, before that attempt is abandoned and
   /// the loop moves on to the next one. Mirrors Android's/web's usage of the
   /// same field name.
   var connectionTimeoutSeconds: TimeInterval = 10.0
+  /// Whether a resource-loading timeout starts the recovery loop.
+  var recoverOnResourceLoadingTimeout: Bool = false
 
   func delay(forAttempt attempt: Int) -> TimeInterval {
     backoffBaseSeconds * pow(2.0, Double(max(attempt, 1) - 1))
   }
 
   /// Currently configured policy, set via `setAudioRecoveryPolicy`. Read by
-  /// `FlutterAudioNavigator` at construction time - applies to the
-  /// next-opened publication and to any in-flight recovery loop, not to an
-  /// already-running attempt sequence.
+  /// `FlutterAudioNavigator` at construction time. Existing navigators keep
+  /// their captured policy.
   static var current: AudioRecoveryPolicy = AudioRecoveryPolicy()
 
   /// Parses a flat `[String: Any]` map (as sent over the method channel) into
@@ -120,7 +118,8 @@ struct AudioRecoveryPolicy {
       maxAttempts: (map["maxAttempts"] as? NSNumber)?.intValue ?? 3,
       backoffBaseSeconds: (map["backoffBaseSeconds"] as? NSNumber)?.doubleValue ?? 1.0,
       stallTimeoutSeconds: (map["stallTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 20.0,
-      connectionTimeoutSeconds: (map["connectionTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 10.0
+      connectionTimeoutSeconds: (map["connectionTimeoutSeconds"] as? NSNumber)?.doubleValue ?? 10.0,
+      recoverOnResourceLoadingTimeout: map["recoverOnResourceLoadingTimeout"] as? Bool ?? false
     )
   }
 }
