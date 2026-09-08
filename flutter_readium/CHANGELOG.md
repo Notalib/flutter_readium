@@ -9,8 +9,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Seeking an audiobook to a position in a different track could hang the app.** Jumping via
   `goToLocator` while playback was paused never returned from Readium's iOS audio navigator, so
-  the call's result never resolved. Cross-track seeks now complete normally, and a timeout bounds
-  the native call as a fallback so the result always resolves.
+  the call's result never resolved. Cross-track seeks now complete normally, report their settled
+  offset, and use a timeout to ensure the native call always resolves.
 - **Audiobook playback could briefly stutter or replay a few seconds during healthy playback.**
   The watchdog kept monitoring after a resource had started and could rebuild the player during a
   later pause in progress. It now checks only that playback starts after play/resume or a resource

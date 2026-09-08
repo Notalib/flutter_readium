@@ -201,10 +201,11 @@ public class FlutterAudioNavigator: FlutterTimebasedNavigator, AudioNavigatorDel
       return false
     }
     _isNavigating = false
-    // The guard suppressed the delegate's report of where we landed, and a jump made while
-    // paused gets no periodic tick to re-report it, so the reader is told here instead.
+    // The guard suppressed the delegate's reports of where we landed, and a jump made while
+    // paused gets no periodic tick to re-report them, so listeners are told here instead.
     if navigated, let landed = audioLocator {
       submitAudioLocatorReachedToListener(landed)
+      submitTimebasedPlayerStateToListener(info: navigator.playbackInfo, location: landed)
     }
     return navigated
   }
