@@ -1194,12 +1194,15 @@ class _ReadiumReader {
         if (this._syncItems.length > 0) {
           locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
         }
-        this._seekAudioAndResume(locator, true);
+        // Must await: callers chain play() on this promise, and a play() that
+        // lands while upstream go() still has _isNavigating true is swallowed
+        // by its DOM "play" guard, so position polling never restarts.
+        await this._seekAudioAndResume(locator, true);
         return;
       }
       // Use the safe restart path so polling resumes even when we're already at
       // the current cue/position (upstream same-position seek quirk).
-      this._seekAudioAndResume(this._audioNav.currentLocator, true);
+      await this._seekAudioAndResume(this._audioNav.currentLocator, true);
       return;
     }
 
