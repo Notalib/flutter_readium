@@ -127,6 +127,45 @@ flutter test integration_test
 
 The same suite runs in CI on every push/PR via [.github/workflows/integration-test.yml](.github/workflows/integration-test.yml) on an iOS simulator and Android emulators. Feel free to add relevant integration tests, especially when implementing new features and use-cases.
 
+#### Running them on web
+
+Web needs a ChromeDriver on `PATH` whose major version matches your installed Chrome.
+
+`brew install --cask chromedriver` no longer works — the cask ships an unsigned binary that Gatekeeper blocks. Install through Puppeteer's downloader instead:
+
+```bash
+npx @puppeteer/browsers install chromedriver@stable --path ~/.cache/chromedriver
+```
+
+The command prints the extracted path. Link that exact path (it carries the version) into `/usr/local/bin`, which needs your password:
+
+```bash
+sudo ln -sf ~/.cache/chromedriver/chromedriver/mac_arm-<version>/chromedriver-mac-arm64/chromedriver /usr/local/bin/chromedriver
+```
+
+If you would rather not touch `/usr/local/bin`, add the directory holding the binary to `PATH` in your shell profile. Either way, check it:
+
+```bash
+chromedriver --version
+```
+
+Then start a driver and run the suite the same way CI does:
+
+```bash
+chromedriver --port=4444 &
+
+cd flutter_readium/example
+flutter drive \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/plugin_integration_test.dart \
+  --dart-define=READIUM_TEST_SKIP_LOGS=true \
+  -d chrome
+```
+
+Chrome auto-updates, so re-run the install and re-point the symlink when a run fails with `session not created: This version of ChromeDriver only supports Chrome version N`. A run that dies with `SessionNotCreatedException (500): DevToolsActivePort file doesn't exist` means a headless Chrome from an interrupted run is still alive — kill only the driver-spawned one with `pkill -f "test-type=webdriver.*scoped_dir"`.
+
+Captured browser logs drop `console.debug`, so a `log.debug` you add while diagnosing will not show up. Use `log.info` or a breakpoint.
+
 ---
 
 ## Building the web bundle
