@@ -161,6 +161,12 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   AudioRecoveryPolicy? lastAudioRecoveryPolicy;
 
   @override
+  Future<void> setCssInjections(List<InjectionAsset> injections) async {}
+
+  @override
+  Future<void> setJavaScriptInjections(List<InjectionAsset> injections) async {}
+
+  @override
   Future<void> setAudioRecoveryPolicy(AudioRecoveryPolicy policy) async {
     lastAudioRecoveryPolicy = policy;
   }

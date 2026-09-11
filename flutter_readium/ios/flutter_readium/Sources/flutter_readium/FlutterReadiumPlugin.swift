@@ -5,6 +5,23 @@ import MediaPlayer
 import ReadiumNavigator
 import ReadiumShared
 
+/// A Flutter asset (JS or CSS) to inject into every EPUB HTML resource.
+struct InjectionAsset {
+  let assetPath: String
+  let packageName: String?
+
+  init(assetPath: String, packageName: String? = nil) {
+    self.assetPath = assetPath
+    self.packageName = packageName
+  }
+
+  init?(from map: [String: Any]) {
+    guard let assetPath = map["assetPath"] as? String else { return nil }
+    self.assetPath = assetPath
+    self.packageName = map["package"] as? String
+  }
+}
+
 /// Reports resource read failures during publication open (audio streaming
 /// errors are otherwise swallowed inside upstream AudioNavigator — no handler
 /// set means no-op). Module scope: installed in `openPublication` before the
@@ -19,6 +36,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   public var currentPublicationUrlStr: String?
   public var currentPublication: Publication?
   public var currentReaderView: (any ReadiumReaderView)?
+
+  /// Extra CSS assets injected alongside the built-in helpers.
+  var cssInjections: [InjectionAsset] = []
+
+  /// Extra JavaScript assets injected alongside the built-in helpers.
+  var javaScriptInjections: [InjectionAsset] = []
 
   /// Incremented each time a new publication is successfully opened.
   /// Used to guard against stale `closePublication` calls from a previous
@@ -204,6 +227,14 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
           }
         }
       }
+    case "setCssInjections":
+      let items = call.arguments as? [[String: Any]] ?? []
+      self.cssInjections = items.compactMap { InjectionAsset(from: $0) }
+      result(nil)
+    case "setJavaScriptInjections":
+      let items = call.arguments as? [[String: Any]] ?? []
+      self.javaScriptInjections = items.compactMap { InjectionAsset(from: $0) }
+      result(nil)
     case "setCustomHeaders":
       guard let args = call.arguments as? [String: Any],
             let httpHeaders = args["httpHeaders"] as? [String: String] else {
