@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# Split a `flutter test` run into Xcode build time vs test execution time, and
+# rank the slowest tests. Answers "is the CI job slow because of compilation or
+# because of the tests themselves?" — the two need completely different fixes.
+#
+# Usage: bin/ios_test_timings <flutter-test-log>
+#
+# Reads a log captured from `flutter test --reporter expanded`. Writes a plain
+# summary to stdout, plus a markdown table to $GITHUB_STEP_SUMMARY when set.
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+LOG="${1:-}"
+if [ -z "$LOG" ] || [ ! -s "$LOG" ]; then
+  echo "Usage: bin/ios_test_timings <flutter-test-log>" >&2
+  echo "  (log missing or empty: ${LOG:-<none>})" >&2
+  exit 2
+fi
+
+# The expanded reporter's MM:SS clock starts after the Xcode build, so the two
+# numbers come from different places: the build from Flutter's own "Xcode build
+# done." line, the test time from the last reporter timestamp.
+build_seconds="$(
+  awk '/Xcode build done\./ {
+    for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+(\.[0-9]+)?s$/) { sub(/s$/, "", $i); total += $i }
+  } END { printf "%.0f", total + 0 }' "$LOG"
+)"
+
+# Each "MM:SS +N: <name>" line marks a test STARTING, so a test's duration is the
+# gap to the next marker. The final tally line closes the last one.
+per_test="$(
+  awk '
+    match($0, /^([0-9][0-9]):([0-9][0-9]) \+[0-9]+( -[0-9]+)?: /) {
+      stamp = substr($0, RSTART, RLENGTH)
+      name = substr($0, RSTART + RLENGTH)
+      seconds = substr(stamp, 1, 2) * 60 + substr(stamp, 4, 2)
+      if (name ~ /^loading /) next            # printed before the clock starts
+      if ($0 ~ /\[E\]$/) next                 # failure detail, not a new test
+      if (have) printf "%d\t%s\n", seconds - prev_seconds, prev_name
+      prev_seconds = seconds; prev_name = name; have = 1
+      last = seconds
+    }
+    END { printf "TOTAL\t%d\n", last + 0 }
+  ' "$LOG"
+)"
+
+test_seconds="$(awk -F'\t' '$1 == "TOTAL" { print $2 }' <<<"$per_test")"
+slowest="$(awk -F'\t' '$1 != "TOTAL" && $1 > 0' <<<"$per_test" | sort -rn -k1,1 | head -10)"
+measured=$(( build_seconds + test_seconds ))
+
+echo "iOS integration timing breakdown"
+echo "--------------------------------"
+printf '  Xcode build      %5ds\n' "$build_seconds"
+printf '  Test execution   %5ds\n' "$test_seconds"
+printf '  Measured total   %5ds\n' "$measured"
+echo
+echo "Slowest tests"
+if [ -z "$slowest" ]; then
+  echo "  (no test took a measurable second)"
+else
+  while IFS=$'\t' read -r seconds name; do
+    printf '  %4ds  %s\n' "$seconds" "$name"
+  done <<<"$slowest"
+fi
+
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  {
+    echo "### iOS integration timing"
+    echo ""
+    echo "| Phase | Seconds | Share of measured |"
+    echo "| --- | --- | --- |"
+    if [ "$measured" -gt 0 ]; then
+      printf '| Xcode build | %d | %d%% |\n' "$build_seconds" $(( 100 * build_seconds / measured ))
+      printf '| Test execution | %d | %d%% |\n' "$test_seconds" $(( 100 * test_seconds / measured ))
+    fi
+    printf '| **Measured total** | **%d** | |\n' "$measured"
+    echo ""
+    echo "Excludes simulator boot, pod install and SDK setup — the job's own step timings cover those."
+    echo ""
+    if [ -n "$slowest" ]; then
+      echo "<details><summary>Slowest tests</summary>"
+      echo ""
+      echo "| Seconds | Test |"
+      echo "| --- | --- |"
+      while IFS=$'\t' read -r seconds name; do
+        printf '| %d | %s |\n' "$seconds" "$name"
+      done <<<"$slowest"
+      echo ""
+      echo "</details>"
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
+fi

@@ -146,8 +146,19 @@ jobs:
         # --timeout caps each individual test too: without it a stuck test runs out the clock
         # silently and the step timeout kills the whole run with zero test output, naming nothing.
         timeout-minutes: 25
-        run: flutter test integration_test/plugin_integration_test.dart --reporter expanded --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID"
+        # Tee to a log so the next step can split Xcode build time from test time.
+        # This job has no `defaults.shell`, so pipefail is off — set it explicitly
+        # or `tee`'s exit code would mask a failing test run.
+        run: |
+          set -o pipefail
+          flutter test integration_test/plugin_integration_test.dart --reporter expanded --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID" 2>&1 | tee "$RUNNER_TEMP/ios-integration.log"
         working-directory: flutter_readium/example
+
+      # Compilation and test execution need completely different fixes, and the
+      # step timings alone cannot tell them apart. Informational — never fails.
+      - name: Report build vs test timing
+        if: always()
+        run: bin/ios_test_timings "$RUNNER_TEMP/ios-integration.log" || true
 
       # Diagnostic: confirm the integration build ran the host-native arch and not
       # the x86_64/Rosetta slice (a suspected cause of slow runs). Reports the host
