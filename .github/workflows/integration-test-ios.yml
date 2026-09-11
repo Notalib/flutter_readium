@@ -151,6 +151,8 @@ jobs:
         # or `tee`'s exit code would mask a failing test run.
         run: |
           set -o pipefail
+          # Read by the log-extraction step below to bound `log show` to this run.
+          echo "IOS_TEST_START_UTC=$(date -u '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
           flutter test integration_test/plugin_integration_test.dart --reporter expanded --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID" 2>&1 | tee "$RUNNER_TEMP/ios-integration.log"
         working-directory: flutter_readium/example
 
@@ -188,6 +190,50 @@ jobs:
           cp -R ~/Library/Logs/DiagnosticReports/. /tmp/ios-diags/ 2>/dev/null || true
           xcrun simctl spawn "$IOS_SIMULATOR_UDID" log collect --output /tmp/ios-diags/sim.logarchive 2>/dev/null || true
           ls -lR /tmp/ios-diags || true
+
+      # sim.logarchive is ~130MB, which is a slow download for the few lines that
+      # matter. Run the queries here and publish them as their own small artifact,
+      # so a triage pull is `gh run download -n ios-integration-log-extracts`.
+      - name: Extract log slices from the simulator archive
+        if: failure()
+        run: |
+          ARCHIVE=/tmp/ios-diags/sim.logarchive
+          OUT=/tmp/ios-log-extracts
+          mkdir -p "$OUT"
+          # Crash reports are tiny and the most useful thing here — keep them alongside.
+          cp /tmp/ios-diags/*.ips "$OUT/" 2>/dev/null || true
+          if [ ! -d "$ARCHIVE" ]; then
+            echo "no sim.logarchive collected" > "$OUT/README.txt"
+            exit 0
+          fi
+          # Without a start bound the archive spans the whole runner session.
+          WINDOW=()
+          [ -n "${IOS_TEST_START_UTC:-}" ] && WINDOW=(--start "$IOS_TEST_START_UTC")
+          # /usr/bin/log by full path: `log` is also a zsh builtin, and a shadowed
+          # call fails with "too many arguments". Stderr is deliberately NOT
+          # discarded — a silently empty slice is indistinguishable from "nothing
+          # matched", which costs a whole triage round to notice.
+          slice() {
+            name=$1; shift
+            TZ=UTC /usr/bin/log show "$ARCHIVE" "${WINDOW[@]}" --style compact --predicate "$1" \
+              | head -c 2000000 > "$OUT/$name.txt" || true
+            echo "  $name.txt: $(wc -l < "$OUT/$name.txt" | tr -d ' ') lines"
+          }
+          echo "Extracted from $ARCHIVE (start: ${IOS_TEST_START_UTC:-whole archive})"
+          slice signals 'eventMessage CONTAINS[c] "jetsam" OR eventMessage CONTAINS[c] "memorystatus" OR eventMessage CONTAINS[c] "terminat" OR eventMessage CONTAINS[c] "exited abnormally" OR eventMessage CONTAINS[c] "watchdog" OR eventMessage CONTAINS[c] "Runner"'
+          slice runner 'process == "Runner" OR processImagePath CONTAINS "Runner.app"'
+          slice system 'process IN {"launchd_sim","SpringBoard","assertiond","backboardd","runningboardd","CoreSimulatorBridge"}'
+          slice vmservice 'eventMessage CONTAINS[c] "Dart VM service" OR eventMessage CONTAINS[c] "Observatory" OR eventMessage CONTAINS[c] "listening on"'
+
+      # Separate from the full archive on purpose: this one is ~100KB and is what
+      # triage should reach for first.
+      - name: Upload iOS log extracts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-integration-log-extracts
+          path: /tmp/ios-log-extracts
+          if-no-files-found: ignore
 
       - name: Upload iOS diagnostics
         if: failure()
