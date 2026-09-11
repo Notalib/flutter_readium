@@ -77,6 +77,16 @@ function inspectables(args: unknown[]): unknown[] {
 }
 
 /**
+ * True when the page is driven by WebDriver (`flutter drive` + chromedriver).
+ *
+ * chromedriver never captures `console.debug`: `flutter drive` hardcodes the
+ * WebDriver browser log level to INFO, so DEBUG entries are dropped before the
+ * test driver reads them and a debug line looks like code that never ran.
+ */
+const _isWebDriver =
+  typeof navigator !== "undefined" && navigator.webdriver === true;
+
+/**
  * Each log call passes the fully-formatted message as the FIRST argument, then
  * re-appends any object/Error args.
  *
@@ -91,8 +101,13 @@ export function createLogger(tag: string): Logger {
   const prefix = `[Readium/${tag}]`;
   return {
     debug: (...args) => {
-      if (_currentLevel >= LogLevel.debug)
-        console.debug(`DEBUG ${prefix} ${format(args)}`, ...inspectables(args));
+      if (_currentLevel >= LogLevel.debug) {
+        const line = `DEBUG ${prefix} ${format(args)}`;
+        // console.log is INFO level, so it survives the capture; a real browser
+        // keeps console.debug and its DevTools "Verbose" filter.
+        if (_isWebDriver) console.log(line, ...inspectables(args));
+        else console.debug(line, ...inspectables(args));
+      }
     },
     info: (...args) => {
       if (_currentLevel >= LogLevel.info)

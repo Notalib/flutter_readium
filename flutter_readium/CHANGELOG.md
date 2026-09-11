@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Web: reopening an audiobook restored the saved position but stayed paused.** `audioEnable`
+  did not await its restore seek, so the following `play()` arrived while Readium was still
+  navigating and was silently discarded. Playback appeared frozen until the track ended, then
+  resumed from the next track. The seek is now awaited before `audioEnable` resolves.
+
 ## [0.4.4] - 2026-09-08
 
 ### Fixed

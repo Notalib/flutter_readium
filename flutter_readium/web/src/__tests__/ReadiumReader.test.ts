@@ -304,3 +304,64 @@ describe("audiobook playback intent", () => {
     expect(setPlaybackIntent.mock.calls).toEqual([[true], [false], [true]]);
   });
 });
+
+describe("audioEnable restore sequencing", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("resolves only after the restore seek finishes", async () => {
+    jest.spyOn(FlutterAudioNavigator, "setPlaybackIntent").mockImplementation(() => {});
+    const reader = new ReadiumReader();
+    const target = new Locator({
+      href: "track-01.mp3",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=5.6"] }),
+    });
+    let releaseGo: (() => void) | undefined;
+    const audioNav = {
+      currentLocator: new Locator({
+        href: "track-01.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=0"] }),
+      }),
+      currentTime: 0,
+      isPlaying: false,
+      play: jest.fn(),
+      pause: jest.fn(),
+      go: jest.fn(
+        (_locator: Locator, _animated: boolean, cb: (ok: boolean) => void) =>
+          new Promise<void>((resolve) => {
+            releaseGo = () => {
+              cb(true);
+              resolve();
+            };
+          })
+      ),
+    };
+    (reader as any)._audioNav = audioNav;
+
+    let settled = false;
+    const enabling = reader
+      .audioEnable("{}", JSON.stringify(target.serialize()))
+      .then(() => {
+        settled = true;
+      });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(audioNav.go).toHaveBeenCalledTimes(1);
+    // Must still be pending. Dart calls play() right after audioEnable resolves,
+    // and a play() that lands while upstream go() is still navigating is
+    // swallowed, so position polling never restarts and the player looks frozen.
+    expect(settled).toBe(false);
+    expect(audioNav.play).not.toHaveBeenCalled();
+
+    releaseGo!();
+    await enabling;
+
+    expect(settled).toBe(true);
+    expect(audioNav.play).toHaveBeenCalledTimes(1);
+  });
+});
