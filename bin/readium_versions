@@ -1,17 +1,47 @@
 #!/bin/bash
 set -euo pipefail
 
+usage() {
+  cat <<'USAGE'
+Usage: bin/readium_versions [--check]
+
+  (no args)  Print the Readium toolkit version pins for every platform.
+  --check    Verify the iOS pins agree across podspec, Package.swift and the
+             example Podfile. Exits non-zero on a mismatch.
+USAGE
+}
+
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 ANDROID_BUILD_GRADLE="$ROOT_DIR/flutter_readium/android/build.gradle"
 IOS_PODSPEC="$ROOT_DIR/flutter_readium/ios/flutter_readium.podspec"
+IOS_PACKAGE_SWIFT="$ROOT_DIR/flutter_readium/ios/flutter_readium/Package.swift"
+EXAMPLE_PODFILE="$ROOT_DIR/flutter_readium/example/ios/Podfile"
 WEB_PACKAGE_JSON="$ROOT_DIR/flutter_readium/package.json"
 
+# Drop whole-line comments first: deliberately disabled pins (ReadiumLCP in the
+# podspec, ReadiumZIPFoundation in the Podfile) must not read as active ones.
+uncommented() {
+  grep -v '^[[:space:]]*#' "$1"
+}
+
+# Every active swift-toolkit pin in the three iOS files, as "<path> <version>".
+ios_pins() {
+  uncommented "$IOS_PODSPEC" |
+    sed -n "s|.*s\.dependency 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium/ios/flutter_readium.podspec \1|p"
+  uncommented "$EXAMPLE_PODFILE" |
+    sed -n "s|.*pod 'Readium[A-Za-z]*', '~> \([^']*\)'.*|flutter_readium/example/ios/Podfile \1|p"
+  uncommented "$IOS_PACKAGE_SWIFT" |
+    sed -n 's|.*swift-toolkit.*upToNextMinor(from: "\([^"]*\)").*|flutter_readium/ios/flutter_readium/Package.swift \1|p'
+}
+
 android_version="$(
-  sed -n "s/.*ext.readium_version = '\\([^']*\\)'.*/\\1/p" "$ANDROID_BUILD_GRADLE" | head -n1
+  uncommented "$ANDROID_BUILD_GRADLE" |
+    sed -n "s/.*ext.readium_version = '\\([^']*\\)'.*/\\1/p" | head -n1
 )"
 ios_swift_toolkit_version="$(
-  sed -n "s/.*s.dependency 'ReadiumShared', '~> \\([^']*\\)'.*/\\1/p" "$IOS_PODSPEC" | head -n1
+  uncommented "$IOS_PODSPEC" |
+    sed -n "s/.*s.dependency 'ReadiumShared', '~> \\([^']*\\)'.*/\\1/p" | head -n1
 )"
 web_readium_shared="$(
   sed -n 's/.*"@readium\/shared": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
@@ -23,10 +53,63 @@ web_readium_injectables="$(
   sed -n 's/.*"@readium\/navigator-html-injectables": "\(.*\)".*/\1/p' "$WEB_PACKAGE_JSON" | head -n1
 )"
 
-echo "Readium toolkit version pins"
-echo "----------------------------"
-echo "Android kotlin-toolkit: $android_version"
-echo "iOS swift-toolkit:      $ios_swift_toolkit_version"
-echo "Web @readium/shared:    $web_readium_shared"
-echo "Web @readium/navigator: $web_readium_navigator"
-echo "Web @readium/navigator-html-injectables: $web_readium_injectables"
+print_versions() {
+  echo "Readium toolkit version pins"
+  echo "----------------------------"
+  echo "Android kotlin-toolkit: $android_version"
+  echo "iOS swift-toolkit:      $ios_swift_toolkit_version"
+  echo "Web @readium/shared:    $web_readium_shared"
+  echo "Web @readium/navigator: $web_readium_navigator"
+  echo "Web @readium/navigator-html-injectables: $web_readium_injectables"
+}
+
+# The podspec's ReadiumShared pin is the reference; CocoaPods '~> 3.11.0' and
+# SwiftPM upToNextMinor(from: "3.11.0") both mean >=3.11.0 <3.12.0, so the two
+# files are in sync exactly when the version strings match.
+check_ios_sync() {
+  local status=0 pins file version
+  pins="$(ios_pins)"
+
+  if [ -z "$ios_swift_toolkit_version" ]; then
+    echo "ERROR: no ReadiumShared pin found in $IOS_PODSPEC" >&2
+    return 1
+  fi
+
+  # A pin-syntax change would otherwise make this check pass by finding nothing.
+  for expected_file in \
+    flutter_readium/ios/flutter_readium.podspec \
+    flutter_readium/example/ios/Podfile \
+    flutter_readium/ios/flutter_readium/Package.swift; do
+    if ! grep -q "^$expected_file " <<<"$pins"; then
+      echo "ERROR: found no swift-toolkit pin in $expected_file — has its syntax changed?" >&2
+      status=1
+    fi
+  done
+
+  echo "iOS swift-toolkit pins (reference: podspec ReadiumShared $ios_swift_toolkit_version)"
+  while read -r file version; do
+    if [ "$version" = "$ios_swift_toolkit_version" ]; then
+      printf '  ok        %-50s %s\n' "$file" "$version"
+    else
+      printf '  MISMATCH  %-50s %s\n' "$file" "$version" >&2
+      status=1
+    fi
+  done <<<"$pins"
+
+  if [ "$status" -ne 0 ]; then
+    echo "" >&2
+    echo "Bump every iOS pin together. See Upstream toolkits in CLAUDE.md." >&2
+  fi
+  return "$status"
+}
+
+case "${1:-}" in
+  --check) check_ios_sync ;;
+  -h | --help) usage ;;
+  "") print_versions ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

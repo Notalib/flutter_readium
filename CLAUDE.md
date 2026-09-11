@@ -11,7 +11,7 @@ Federated Flutter plugin wrapping the [Readium](https://readium.org) toolkits (E
 
 ## Upstream toolkits
 
-Native sides are thin wrappers — for native behavior the source of truth is upstream. Inspect via `gh api`/`WebFetch`; **never decompile JARs/.framework/build artifacts.** Versions are pinned in the build files (run `bin/readium_versions` to print them), not duplicated here.
+Native sides are thin wrappers — for native behavior the source of truth is upstream. Inspect via `gh api`/`WebFetch`; **never decompile JARs/.framework/build artifacts.** Versions are pinned in the build files (run `bin/readium_versions` to print them), not duplicated here. iOS declares its pin in three files; `bin/readium_versions --check` verifies they agree.
 
 - swift-toolkit — https://github.com/readium/swift-toolkit/ (version in podspec + example `Podfile`)
 - kotlin-toolkit — https://github.com/readium/kotlin-toolkit/ (`ext.readium_version` in `android/build.gradle`)

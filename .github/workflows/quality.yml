@@ -113,3 +113,16 @@ jobs:
             echo "| --- | --- |"
             jq -r '.report.sections[] | "| \(.title) | \(.grantedPoints)/\(.maxPoints) |"' "$json"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  readium-pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The iOS swift-toolkit version is declared in three files. A bump that
+      # misses one lets CocoaPods and SwiftPM consumers resolve different
+      # Readium versions, which only shows up as odd native behaviour later.
+      - name: Check Readium version pins are in sync
+        run: bin/readium_versions --check

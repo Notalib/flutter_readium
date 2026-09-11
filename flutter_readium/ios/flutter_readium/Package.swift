@@ -17,7 +17,7 @@ let package = Package(
     ],
     dependencies: [
       .package(name: "FlutterFramework", path: "../FlutterFramework"),
-      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.9.0"))
+      .package(url: "https://github.com/readium/swift-toolkit.git", .upToNextMinor(from: "3.11.0"))
     ],
     targets: [
         .target(
