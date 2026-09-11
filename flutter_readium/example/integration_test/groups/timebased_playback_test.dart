@@ -446,15 +446,30 @@ void main() {
           );
           expect(navigated, isTrue, reason: 'goToLocator to the last track should succeed');
 
+          // The target track reports a 0 offset before the seek is applied, and a
+          // plain non-null check accepted it — the test then read 0.0s and failed.
+          // Both candidate answers are non-zero, so requiring > 0 hides nothing.
+          ReadiumTimebasedState? landed;
           await waitUntil(
-            () => states.last.currentLocator?.href == targetLink.href && states.last.currentOffset != null,
+            () {
+              final state = states.last;
+              if (state.currentLocator?.href != targetLink.href) {
+                return false;
+              }
+              final offset = state.currentOffset;
+              if (offset == null || offset <= Duration.zero) {
+                return false;
+              }
+              landed = state;
+              return true;
+            },
             timeout: const Duration(seconds: 20),
-            reason: 'Never landed on the target track with an offset',
+            reason: 'Never landed on the target track with the seek applied (offset stayed 0)',
           );
 
           final expectedSeconds = targetDuration! * progression;
           final wrongSeconds = firstDuration! * progression;
-          final landedSeconds = states.last.currentOffset!.inMilliseconds / 1000.0;
+          final landedSeconds = landed!.currentOffset!.inMilliseconds / 1000.0;
 
           expect(
             (landedSeconds - expectedSeconds).abs(),
