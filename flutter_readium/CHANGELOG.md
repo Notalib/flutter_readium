@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.5.0] - 2026-09-11
+
 ### Added
 
 - **Extra JS/CSS injection** — `FlutterReadium().setJavaScriptInjections(List<InjectionAsset>)`
@@ -19,6 +21,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   did not await its restore seek, so the following `play()` arrived while Readium was still
   navigating and was silently discarded. Playback appeared frozen until the track ended, then
   resumed from the next track. The seek is now awaited before `audioEnable` resolves.
+
+- **iOS: Swift Package Manager builds resolved swift-toolkit 3.9.0 instead of 3.11.0.** `Package.swift`
+  kept a lower bound the podspec had already moved past, so SPM consumers silently got a
+  two-minor-versions older Readium than CocoaPods consumers. Both now pin 3.11.0.
 
 ## [0.4.4] - 2026-09-08
 
