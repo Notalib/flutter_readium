@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
+  platforms converted the matched reading-order index twice, so the second item was emitted as
+  position 3. Locators now apply Readium's 1-based position convention exactly once.
+
 ## [0.5.0] - 2026-09-11
 
 ### Added

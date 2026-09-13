@@ -209,7 +209,7 @@ extension Publication {
         let roEntry = readingOrder.enumerated().first {
           $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
         }
-        let position = (roEntry?.offset ?? -1) + 1
+        let position = roEntry?.offset ?? 0
         let duration = roEntry?.element.duration
         let items = overlay.items.map { item -> FlutterMediaOverlayItem in
           FlutterMediaOverlayItem(
@@ -244,7 +244,7 @@ extension Publication {
         let roEntry = readingOrder.enumerated().first {
           $1.href.split(separator: "#", maxSplits: 1).first.map(String.init) == textFile
         }
-        let position = (roEntry?.offset ?? -1) + 1
+        let position = roEntry?.offset ?? 0
         let duration = roEntry?.element.duration
         let items = overlay.items.map { item in
           FlutterMediaOverlayItem(

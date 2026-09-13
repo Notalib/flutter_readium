@@ -53,7 +53,7 @@ struct GuidedNavigationDocument: Equatable {
   /// grouping the resulting items by their (audioFile, textFile) pair.
   ///
   /// - Parameters:
-  ///   - position: Reading-order position (1-based) shared by all generated items.
+  ///   - position: Zero-based reading-order index shared by all generated items.
   ///   - tocHref: ToC href to attach to every item, or nil if unknown.
   ///   - title: Chapter/section title, supplied by the caller from the publication ToC.
   ///   - readingOrderDuration: Total duration of the reading-order item, used for progression calculations.
