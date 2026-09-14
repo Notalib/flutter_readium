@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Android EPUB navigation could report the initial position after an immediate jump.**
+  Navigation now waits for the first page to load before applying a locator, so an initial
+  restore cannot race an explicit jump.
+
 ## [0.5.0] - 2026-09-11
 
 ### Added

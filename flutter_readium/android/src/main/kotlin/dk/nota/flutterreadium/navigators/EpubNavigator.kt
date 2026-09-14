@@ -133,9 +133,6 @@ class EpubNavigator :
     /**
      * Checks when the fragment starts and is safe to use.
      */
-    private val navigatorStarted
-        get() = epubNavigator!!.started
-
     override suspend fun initNavigator() {
         epubNavigator =
             EpubReaderFragment().apply {
@@ -182,7 +179,7 @@ class EpubNavigator :
         PluginLog.d(TAG, "::go $locator animated:$animated")
 
         return withMainContext {
-            afterFragmentStarted()
+            afterFragmentStarted(navigator)
             segmentDuration?.takeIf { it > 0 }?.let {
                 navigator.evaluateJavascript("window.flutterReadium.setSegmentDuration(${it * 1000.0})")
             }
@@ -377,7 +374,7 @@ class EpubNavigator :
             return null
         }
 
-        afterFragmentStarted()
+        afterFragmentStarted(navigator)
         return withMainContext {
             navigator.evaluateJavascript(script)
         }
@@ -415,10 +412,12 @@ class EpubNavigator :
         }
     }
 
-    private suspend fun afterFragmentStarted() {
-        if (navigatorStarted.value) return
+    private suspend fun afterFragmentStarted(navigator: EpubReaderFragment) {
+        if (!navigator.started.value) {
+            navigator.started.first { it }
+        }
 
-        navigatorStarted.first { it }
+        navigator.pageLoaded.first { it }
     }
 
     suspend fun firstVisibleElementLocator(): Locator? {

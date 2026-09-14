@@ -78,6 +78,9 @@ class EpubReaderFragment :
 
     val started = MutableStateFlow(false)
 
+    /** True after the current child navigator has loaded its first visible page. */
+    val pageLoaded = MutableStateFlow(false)
+
     val scrollMode: Boolean
         get() = epubNavigator?.settings?.value?.scroll == true
 
@@ -119,6 +122,7 @@ class EpubReaderFragment :
 
     override fun onPageLoaded() {
         PluginLog.d(TAG, "::onPageLoaded")
+        pageLoaded.value = true
         lifecycleScope.launch {
             applyCustomCssVariables()
             injectImageTapListeners()
@@ -578,6 +582,7 @@ class EpubReaderFragment :
 
             epubNavigator = null
             started.value = false
+            pageLoaded.value = false
 
             attachingNavigatorFragment = false
 

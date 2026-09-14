@@ -11,6 +11,48 @@ void main() {
   final harness = suiteHarness();
 
   group('Navigation and locator round-tripping', () {
+    testWidgets(
+      'Android EPUB immediate goToLocator settles on the requested resource',
+      (tester) async {
+        final path = harness.fixturePath(
+          FixtureKeys.reflowableEpub,
+          reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
+        );
+        final pub = await harness.readium.openPublication(path);
+        expect(pub.readingOrder.length, greaterThan(1));
+
+        final initialLocator = pub.locatorFromLink(pub.readingOrder.first)!;
+        final targetLocator = pub.locatorFromLink(pub.readingOrder[1])!;
+        final locators = <Locator>[];
+        final locatorSub = harness.readium.onTextLocatorChanged.listen(locators.add);
+        addTearDown(locatorSub.cancel);
+
+        await tester.pumpWidget(bareReaderApp(pub, initialLocator: initialLocator));
+        await tester.pump();
+
+        final navigated = await harness.readium.goToLocator(targetLocator);
+        expect(navigated, isTrue, reason: 'goToLocator should report success');
+
+        await waitWithPump(
+          tester,
+          () => locators.isNotEmpty && locators.last.href == targetLocator.href,
+          timeout: firstMountTimeout,
+          reason: 'Immediate goToLocator did not settle on the requested resource',
+          diagnostics: () => 'locators=$locators',
+        );
+        await waitForListStable(tester, locators);
+
+        expect(
+          locators.last.href,
+          equals(targetLocator.href),
+          reason: 'The initial restore must not overwrite the explicit jump',
+        );
+
+        await tester.pumpWidget(const SizedBox());
+      },
+      skip: !isAndroid(),
+    );
+
     testWidgets('EPUB goForward emits a new textLocator', (tester) async {
       final path = harness.fixturePath(
         FixtureKeys.reflowableEpub,
