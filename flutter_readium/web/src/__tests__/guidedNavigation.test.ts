@@ -1,14 +1,14 @@
 /**
  * Unit tests for the Guided Navigation parser.
  *
- * Tests the pure JSON-layer functions exposed via `__testing__`, plus the
- * shared `enrichItemsWithToc` helper from syncNarration. The publication-aware
- * detect/parse entry points are not covered here — those would require mocking
- * `Resource.readAsJSON` and the full `ReadiumPublication` fetcher.
+ * Tests the parser, its pure JSON-layer functions exposed via `__testing__`,
+ * and the shared `enrichItemsWithToc` helper from syncNarration.
  */
 
-import { __testing__ } from "../mediaoverlay/guidedNavigation";
+import { Link, Links, Locator, LocatorLocations } from "@readium/shared";
+import { __testing__, parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
 import {
+  combinedLocatorForItem,
   enrichItemsWithToc,
   parseAudioField,
   parseImgField,
@@ -18,6 +18,50 @@ import {
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 
 const { parseDocument, parseObject } = __testing__;
+
+describe("guided-navigation reading-order position", () => {
+  it("reports the second reading-order item as position 2", async () => {
+    const guidedLink = new Link({
+      href: "chapter2-guided.json",
+      type: "application/guided-navigation+json",
+    });
+    const readingOrder = [
+      new Link({ href: "chapter1.xhtml" }),
+      new Link({
+        href: "chapter2.xhtml",
+        alternates: new Links([guidedLink]),
+      }),
+    ];
+    const publication = {
+      baseURL: "https://example.test/book/",
+      readingOrder: { items: readingOrder },
+      manifest: { links: undefined, toc: undefined },
+      get: () => ({
+        readAsJSON: async () => ({
+          guided: [
+            {
+              audioref: "chapter2.mp3#t=0,10",
+              textref: "chapter2.xhtml#p1",
+            },
+          ],
+        }),
+      }),
+    } as unknown as ReadiumPublication;
+
+    const [item] = await parseGuidedNavigation(publication);
+    const locator = combinedLocatorForItem(
+      item,
+      new Locator({
+        href: "chapter2.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ progression: 0 }),
+      })
+    );
+
+    expect(item.position).toBe(1);
+    expect(locator.locations.position).toBe(2);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Fake publication builders

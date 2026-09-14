@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
+  platforms converted the matched reading-order index twice, so the second item was emitted as
+  position 3. Locators now apply Readium's 1-based position convention exactly once.
 - **Android EPUB navigation could report the initial position after an immediate jump.**
   Navigation now waits for the first page to load before applying a locator, so an initial
   restore cannot race an explicit jump.

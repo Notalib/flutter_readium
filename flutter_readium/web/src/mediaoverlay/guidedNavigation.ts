@@ -184,10 +184,10 @@ async function _parseReadingOrderAlternates(
 
 /**
  * Flatten helper used by both strategies: position is derived per item by matching
- * the textref's file path against the publication's reading order — 1-based index
- * when matched, 0 when unmatched. The matched reading-order link's `duration`
+ * the textref's file path against the publication's reading order — 0-based index,
+ * falling back to the first item when unmatched. The matched reading-order link's `duration`
  * (when declared) is attached to the item as `readingOrderDuration`.
- * Mirrors iOS: `(roEntry?.offset ?? -1) + 1` and `roEntry?.element.duration`.
+ * Mirrors iOS: `roEntry?.offset ?? 0` and `roEntry?.element.duration`.
  */
 function _flattenWithReadingOrderLookup(
   obj: GuidedNavigationObject,
@@ -199,7 +199,7 @@ function _flattenWithReadingOrderLookup(
     const roIndex = publication.readingOrder.items.findIndex(
       (link: Link) => normalizeHref(link.href) === normalizeHref(textHref)
     );
-    const position = roIndex === -1 ? 0 : roIndex + 1;
+    const position = roIndex === -1 ? 0 : roIndex;
     const readingOrderDuration =
       roIndex === -1 ? undefined : publication.readingOrder.items[roIndex].duration;
     out.push(_buildItem(obj.audioref, obj.textref, obj.imgref, position, readingOrderDuration));
