@@ -241,6 +241,14 @@ Bundle built javascript helpers, previously accidentally skipped by release pipe
 
 ### Fixed
 
+- **Media Overlay ToC navigation to cue-less anchors** — tapping a ToC entry whose
+  fragment points at a heading or element with no narration cue (e.g. `chap1.xhtml#title`)
+  now seeks audio to the start of that chapter when navigating to a *different* chapter,
+  and leaves playback untouched when the anchor is within the *current* chapter (no
+  spurious rewind). Previously iOS and Android kept audio playing at the wrong position
+  (visual/audio desync on chapter cross), and Web always rewound to the chapter start
+  even for same-chapter anchors.
+
 - **iOS media-overlay playback crashes on malformed sync-narration data** — starting playback in a
   publication with a reversed or non-finite audio time fragment (`t=start,end` where `end < start`)
   no longer traps with `Range requires lowerBound <= upperBound`, and a `narration` block with no
