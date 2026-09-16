@@ -119,6 +119,12 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal func registerAsCurrentReaderView(_ readerView: any ReadiumReaderView) {
     let old = currentReaderView
     currentReaderView = readerView
+    // Seed MO-active from the live navigator: `audioEnable` sets it via the
+    // optional-chained `currentReaderView?`, so a view that mounts afterwards
+    // would never learn MO is running and would skip its column-break CSS for
+    // the rest of the session. Android has no such gap - the flag lives on the
+    // singleton `ReadiumReader`, not on the widget.
+    readerView.setMOActive(timebasedNavigator is FlutterMediaOverlayNavigator)
     _ = old // released here, safely outside the write
   }
 

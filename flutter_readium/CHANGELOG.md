@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **iOS reader views mounted after `audioEnable` never applied the media-overlay
+  column-break CSS.** The MO-active flag lives on the reader view, so a view created
+  after audio was enabled started with it off and word highlighting could be split
+  across CSS columns for the rest of the session. The flag is now seeded from the live
+  navigator when a reader view registers, matching Android, where it lives on the
+  shared reader.
 - **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
   platforms converted the matched reading-order index twice, so the second item was emitted as
   position 3. Locators now apply Readium's 1-based position convention exactly once.
