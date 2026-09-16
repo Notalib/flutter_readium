@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Web: audio never started for a text publication with synchronised audio.** On web a
+  publication is only opened once `ReadiumWebView` mounts and supplies its container element,
+  so an `audioEnable` issued right after `openPublication` found nothing and gave up silently,
+  with nothing to retry it. Such a call is now remembered and replayed at the end of
+  `openPublication`. It still resolves immediately, because the caller awaits it before the
+  host app routes to the page that hosts the reader view.
+
 - **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
   platforms converted the matched reading-order index twice, so the second item was emitted as
   position 3. Locators now apply Readium's 1-based position convention exactly once.
