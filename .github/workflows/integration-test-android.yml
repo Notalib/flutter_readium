@@ -106,21 +106,24 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           working-directory: flutter_readium/example
-          # logcat must be captured INSIDE this action: the emulator is torn down
-          # when it ends, so a later `if: failure()` step (as on iOS) can't reach it.
+          # logcat is captured inside this action: the emulator is torn down when it
+          # ends. Per-line `sh -c` constraints: see ci.instructions.md.
           script: |
             sleep 10
+            # Larger buffer, or `chatty` drops our lines.
+            adb logcat -G 64M || true
             adb logcat -c || true
-            # Bounded so a hang can't trip timeout-minutes, which would kill the capture below.
-            # --timeout caps each individual test too: without it a stuck test runs out the
-            # clock silently and the outer `timeout 18m` kills the whole run with zero test
-            # output, naming nothing.
-            timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true || (adb logcat -d -v threadtime > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
+            # Bounded so a hang fails this step, not the job.
+            # pipefail + tee so a failing test stays a failure and its record survives.
+            bash -o pipefail -c 'timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true 2>&1 | tee "$GITHUB_WORKSPACE/android-test-api${{ matrix.api-level }}.log"' || (APP_PID=$(adb shell pidof -s com.example.flutter_readium_example | tr -d "\r"); adb logcat -d -v threadtime ${APP_PID:+--pid="$APP_PID"} > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
 
       - name: Upload Android diagnostics
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: android-integration-diagnostics-api${{ matrix.api-level }}
-          path: ${{ github.workspace }}/android-logcat-api${{ matrix.api-level }}.txt
+          # Dart record names the failing test; logcat shows the native side.
+          path: |
+            ${{ github.workspace }}/android-test-api${{ matrix.api-level }}.log
+            ${{ github.workspace }}/android-logcat-api${{ matrix.api-level }}.txt
           if-no-files-found: ignore

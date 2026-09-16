@@ -64,3 +64,12 @@ Omit `channel:` when an exact version is passed — it's inferred and `channel: 
 ## Integration vs build workflows
 
 `flutter test integration_test` performs its own build internally (targeting the emulator/simulator) and cannot consume a pre-built APK/app from the build workflows. Don't couple the integration-test workflow to the build workflows — they serve different purposes. Share only caching patterns.
+
+## Android integration-test diagnostics
+
+Failed runs upload `android-test-api<N>.log` (`flutter test` stdout — names the failing test) and `android-logcat-api<N>.txt` (pid-scoped logcat). Constraints, all of which bite silently:
+
+- `reactivecircus/android-emulator-runner` runs each line of `script:` in its own `sh -c` and discards stdout. Keep a guard on the same line as its command, and `tee` anything you want to keep.
+- That `sh` is dash: no `pipefail`, so `cmd | tee file` reports `tee`'s status and a failing test reads as a pass. Use `bash -o pipefail -c '…'`.
+- Capture logcat with `--pid=$(adb shell pidof -s <applicationId>)`, and `adb logcat -G 64M` beforehand (best-effort, `-G` can need root). Unscoped, the `google_apis` firehose overflows the ring buffer and `chatty` drops the app's own lines.
+- `<applicationId>` must match `flutter_readium/example/android/app/build.gradle.kts`; on drift `pidof` returns nothing and the capture degrades to that unscoped dump instead of failing.
