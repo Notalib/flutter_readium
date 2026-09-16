@@ -7,13 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
-- **Web: audio never started for a text publication with synchronised audio.** On web a
+- **Web: audio may never start for a text publication with synchronised audio.** On web a
   publication is only opened once `ReadiumWebView` mounts and supplies its container element,
   so an `audioEnable` issued right after `openPublication` found nothing and gave up silently,
   with nothing to retry it. Such a call is now remembered and replayed at the end of
   `openPublication`. It still resolves immediately, because the caller awaits it before the
   host app routes to the page that hosts the reader view.
-
+- **iOS reader views mounted after `audioEnable` never applied the media-overlay
+  column-break CSS.** The MO-active flag lives on the reader view, so a view created
+  after audio was enabled started with it off and word highlighting could be split
+  across CSS columns for the rest of the session. The flag is now seeded from the live
+  navigator when a reader view registers, matching Android, where it lives on the
+  shared reader.
 - **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
   platforms converted the matched reading-order index twice, so the second item was emitted as
   position 3. Locators now apply Readium's 1-based position convention exactly once.

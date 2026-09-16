@@ -119,6 +119,9 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   internal func registerAsCurrentReaderView(_ readerView: any ReadiumReaderView) {
     let old = currentReaderView
     currentReaderView = readerView
+    // `audioEnable` sets MO-active through an optional-chained `currentReaderView?`,
+    // so a view registering later must pick the flag up from the navigator itself.
+    readerView.setMOActive(timebasedNavigator is FlutterMediaOverlayNavigator)
     _ = old // released here, safely outside the write
   }
 
