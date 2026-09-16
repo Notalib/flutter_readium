@@ -5,47 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
-### Fixed
-
-- **Web: audio may never start for a text publication with synchronised audio.** On web a
-  publication is only opened once `ReadiumWebView` mounts and supplies its container element,
-  so an `audioEnable` issued right after `openPublication` found nothing and gave up silently,
-  with nothing to retry it. Such a call is now remembered and replayed at the end of
-  `openPublication`. It still resolves immediately, because the caller awaits it before the
-  host app routes to the page that hosts the reader view.
-- **iOS reader views mounted after `audioEnable` never applied the media-overlay
-  column-break CSS.** The MO-active flag lives on the reader view, so a view created
-  after audio was enabled started with it off and word highlighting could be split
-  across CSS columns for the rest of the session. The flag is now seeded from the live
-  navigator when a reader view registers, matching Android, where it lives on the
-  shared reader.
-- **Guided-navigation playback reported later reading-order positions on iOS and web.** Those
-  platforms converted the matched reading-order index twice, so the second item was emitted as
-  position 3. Locators now apply Readium's 1-based position convention exactly once.
-- **Android EPUB navigation could report the initial position after an immediate jump.**
-  Navigation now waits for the first page to load before applying a locator, so an initial
-  restore cannot race an explicit jump.
-
-## [0.5.0] - 2026-09-11
-
 ### Added
 
 - **Extra JS/CSS injection** — `FlutterReadium().setJavaScriptInjections(List<InjectionAsset>)`
-  and `FlutterReadium().setCssInjections(List<InjectionAsset>)` register additional JavaScript
-  and CSS assets to inject into every EPUB HTML resource alongside the
-  built-in `flutterReadiumTools.js` / `flutterReadiumTools.css`. Supported on iOS and Android.
-  Call before opening a publication so the injections are active when the reader view is created.
+  and `setCssInjections(List<InjectionAsset>)` inject additional assets into every EPUB HTML
+  resource, alongside the built-in `flutterReadiumTools` files. iOS and Android only.
 
 ### Fixed
 
-- **Web: reopening an audiobook restored the saved position but stayed paused.** `audioEnable`
-  did not await its restore seek, so the following `play()` arrived while Readium was still
-  navigating and was silently discarded. Playback appeared frozen until the track ended, then
-  resumed from the next track. The seek is now awaited before `audioEnable` resolves.
-
-- **iOS: Swift Package Manager builds resolved swift-toolkit 3.9.0 instead of 3.11.0.** `Package.swift`
-  kept a lower bound the podspec had already moved past, so SPM consumers silently got a
-  two-minor-versions older Readium than CocoaPods consumers. Both now pin 3.11.0.
+- **iOS: reader views created after `audioEnable` missed the media-overlay column-break CSS.**
+  The active flag is now seeded from the live navigator on registration, matching Android.
+- **iOS: Swift Package Manager builds resolved swift-toolkit 3.9.0 instead of 3.11.0** due to a
+  stale lower bound in `Package.swift`. Both build systems now pin 3.11.0.
+- **Android: EPUB navigation could report the initial position after an immediate jump**,
+  because a restore raced an explicit `goToLocator`. It now waits for the first page to load.
+- **Guided-navigation playback reported the wrong reading-order position on iOS and web**, off
+  by one due to a double index conversion.
+- **Web: `audioEnable` called before the reader view mounted was silently dropped**, so
+  synchronised audio for a text publication could never start. It's now remembered and replayed
+  once the publication opens.
+- **Web: reopening an audiobook restored the saved position but stayed paused**, because
+  `audioEnable` didn't await its restore seek. The seek is now awaited before it resolves.
 
 ## [0.4.4] - 2026-09-08
 
