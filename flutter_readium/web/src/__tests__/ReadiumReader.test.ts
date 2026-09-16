@@ -365,3 +365,45 @@ describe("audioEnable restore sequencing", () => {
     expect(audioNav.play).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("audioEnable before the publication is open", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("defers the call instead of dropping it, and resolves right away", async () => {
+    const reader = new ReadiumReader();
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    await reader.audioEnable('{"speed":1.5}', undefined);
+
+    expect((reader as any)._pendingAudioEnable).toEqual({
+      prefsJson: '{"speed":1.5}',
+      fromLocatorJson: undefined,
+    });
+    // Must not take the "no audiobook or Media Overlay content detected" exit:
+    // nothing retries after it, so the book would stay silent forever.
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("replays the deferred call once the publication is open", async () => {
+    const reader = new ReadiumReader();
+    (reader as any)._pendingAudioEnable = { prefsJson: "{}", fromLocatorJson: undefined };
+    const replay = jest.spyOn(reader, "audioEnable").mockResolvedValue(undefined);
+
+    await (reader as any)._replayDeferredAudioEnable();
+
+    expect(replay).toHaveBeenCalledWith("{}", undefined);
+    // Consumed, so a reader remount or hot restart cannot run it twice.
+    expect((reader as any)._pendingAudioEnable).toBeUndefined();
+  });
+
+  it("drops the deferred call when the publication is closed first", () => {
+    const reader = new ReadiumReader();
+    (reader as any)._pendingAudioEnable = { prefsJson: "{}", fromLocatorJson: undefined };
+
+    withDomGlobals(() => reader.closePublication());
+
+    expect((reader as any)._pendingAudioEnable).toBeUndefined();
+  });
+});
