@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **iOS: Re-sync stopped working after the first use within one narration cue.** The current
   cue is now retained until narration stops, allowing repeated manual-navigation/re-sync cycles.
 - **Web: synchronised audio never started until the reader view was on screen.** `audioEnable` issued right after `openPublication` hit a publication whose audio capability had not been detected yet, and gave up silently. Audio capability is now detected as the publication loads, so `audioEnable` builds the audio navigator without a reader view — matching iOS and Android, where audio can play without showing book content. Mounting the reader view no longer stops a book that is already narrating.
+- **DiViNa comics played no audio on Android and web.** Their guided-navigation cues point at the page image instead of a text document, and both parsers required a text reference, so every cue was dropped and playback aborted silently. Image-only cues are now accepted, matching iOS; on web the page image also drives page turns and panel panning.
 
 ## [0.5.0] - 2026-09-17
 

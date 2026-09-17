@@ -184,7 +184,7 @@ async function _parseReadingOrderAlternates(
 
 /**
  * Flatten helper used by both strategies: position is derived per item by matching
- * the textref's file path against the publication's reading order — 0-based index,
+ * the cue's file path against the publication's reading order — 0-based index,
  * falling back to the first item when unmatched. The matched reading-order link's `duration`
  * (when declared) is attached to the item as `readingOrderDuration`.
  * Mirrors iOS: `roEntry?.offset ?? 0` and `roEntry?.element.duration`.
@@ -194,15 +194,19 @@ function _flattenWithReadingOrderLookup(
   out: SyncNarrationItem[],
   publication: ReadiumPublication
 ): void {
-  if (obj.audioref !== undefined && obj.textref !== undefined) {
-    const { textHref } = parseTextField(obj.textref);
+  // DiViNa comics have no text documents: their cues carry `imgref` alone, and the
+  // page image is the reading-order entry, so it stands in for the missing textref.
+  const visualRef =
+    obj.textref ?? (obj.imgref !== undefined ? parseImgField(obj.imgref).imgHref : undefined);
+  if (obj.audioref !== undefined && visualRef !== undefined) {
+    const { textHref } = parseTextField(visualRef);
     const roIndex = publication.readingOrder.items.findIndex(
       (link: Link) => normalizeHref(link.href) === normalizeHref(textHref)
     );
     const position = roIndex === -1 ? 0 : roIndex;
     const readingOrderDuration =
       roIndex === -1 ? undefined : publication.readingOrder.items[roIndex].duration;
-    out.push(_buildItem(obj.audioref, obj.textref, obj.imgref, position, readingOrderDuration));
+    out.push(_buildItem(obj.audioref, visualRef, obj.imgref, position, readingOrderDuration));
   }
   for (const child of obj.children) {
     _flattenWithReadingOrderLookup(child, out, publication);
