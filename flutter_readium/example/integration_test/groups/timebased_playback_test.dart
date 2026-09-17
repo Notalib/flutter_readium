@@ -666,6 +666,88 @@ void main() {
         );
       },
     );
+
+    // Audio must start from the manifest alone, before any reader view exists —
+    // that is how the host app plays a book without showing it. Each fixture here
+    // is a different cue shape, and a parser that drops one of them emits no
+    // playback state at all, which is what these assertions catch.
+    group('audio starts without a reader view', () {
+      test('guided-navigation WebPub', () async {
+        final path = harness.fixturePath(
+          FixtureKeys.guidedNav,
+          reason: 'Fixture ${FixtureKeys.guidedNav} missing from asset bundle',
+        );
+
+        await harness.readium.openPublication(path);
+
+        await expectAudioSessionStarts(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          reason: 'Guided-navigation cues produced no audio session',
+        );
+      });
+
+      test('DiViNa comic', () async {
+        final path = harness.fixturePath(
+          FixtureKeys.divina,
+          reason: 'Fixture ${FixtureKeys.divina} missing from asset bundle',
+        );
+
+        await harness.readium.openPublication(path);
+
+        await expectAudioSessionStarts(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          reason:
+              'DiViNa cues carry an imgref and no textref; a parser that requires '
+              'a text reference drops them all and starts no audio session',
+        );
+      });
+
+      test('comic media-overlay EPUB', () async {
+        final path = harness.fixturePath(
+          FixtureKeys.comic,
+          reason: 'Fixture ${FixtureKeys.comic} missing from asset bundle',
+        );
+
+        await harness.readium.openPublication(path);
+
+        await expectAudioSessionStarts(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          reason: 'Comic media-overlay cues produced no audio session',
+        );
+      });
+
+      testWidgets('a session started first survives the reader mounting after it', (tester) async {
+        final path = harness.fixturePath(
+          FixtureKeys.guidedNav,
+          reason: 'Fixture ${FixtureKeys.guidedNav} missing from asset bundle',
+        );
+
+        final pub = await harness.readium.openPublication(path);
+
+        await expectAudioSessionStarts(
+          harness.readium,
+          enable: () => harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0)),
+          reason: 'Guided-navigation cues produced no audio session',
+        );
+
+        final locators = <Locator>[];
+        final sub = harness.readium.onTextLocatorChanged.listen(locators.add);
+        addTearDown(sub.cancel);
+
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => locators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Reader mounted after audio started but reported no location',
+        );
+
+        await tester.pumpWidget(const SizedBox());
+      });
+    });
   });
 }
 
