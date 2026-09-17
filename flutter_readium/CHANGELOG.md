@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Web: synchronised audio never started until the reader view was on screen.** `audioEnable` issued right after `openPublication` hit a publication whose audio capability had not been detected yet, and gave up silently. Audio capability is now detected as the publication loads, so `audioEnable` builds the audio navigator without a reader view — matching iOS and Android, where audio can play without showing book content. Mounting the reader view no longer stops a book that is already narrating.
+
 ## [0.5.0] - 2026-09-17
 
 ### Added
