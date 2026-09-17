@@ -11,7 +11,7 @@ import 'js_publication_channel.dart';
 /// Provides JS-callable callbacks for pure audiobooks, where [ReadiumWebView]
 /// (and its [registerJSExports] call) is never in the widget tree.
 @js_interop.JSExport()
-class _AudiobookCallbacks {
+class _PluginCallbacks {
   static final _log = ReadiumLog.tag('WebPlugin');
 
   @js_interop.JSExport()
@@ -46,7 +46,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
     FlutterReadiumPlatform.instance = FlutterReadiumWebPlugin();
   }
 
-  static _AudiobookCallbacks? _audiobookCallbacks;
+  static _PluginCallbacks? _pluginCallbacks;
 
   static final StreamController<Locator> _locatorTextController = StreamController<Locator>.broadcast();
   static final StreamController<ReadiumTimebasedState> _timebasedStateController =
@@ -205,21 +205,23 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   Future<Publication> openPublication(String pubUrl) async {
     final publication = await loadPublication(pubUrl);
 
+    // Register the JS->Dart callbacks that ReadiumWebViewState would otherwise set up on
+    // mount. Audio can be enabled as soon as the publication is loaded, so player state and
+    // errors need somewhere to land before any reader view exists. The widget re-registers
+    // the full set, including the visual callbacks, when it mounts.
+    // Hold a static reference so Dart's GC doesn't collect the instance while the JS side
+    // still holds the function references.
+    _pluginCallbacks = _PluginCallbacks();
+    updateTimebasedPlayerState = _pluginCallbacks!.onTimebasedPlayerState.toJS;
+    updateReaderStatus = _pluginCallbacks!.onReaderStatus.toJS;
+    onErrorCallback = _pluginCallbacks!.onErrorHandler.toJS;
+
     if (publication.conformsToReadiumAudiobook) {
       // Pure audiobooks: ReadiumWebView (and its #container div) is not in the
       // widget tree, so call openPublication on the JS side directly.
       // AudioNavigator drives <audio> elements and needs no DOM container.
       // Sync-narration EPUBs (containsMediaOverlays) DO need the container —
       // those publications use the EPUB navigator and are handled by ReadiumWebView.
-      //
-      // Register the JS->Dart callbacks that ReadiumWebViewState would normally
-      // set up, since there is no ReadiumWebView in the tree for audiobooks.
-      // Hold a static reference so Dart's GC doesn't collect the instance while
-      // the JS AudioNavigator still holds the function references.
-      _audiobookCallbacks = _AudiobookCallbacks();
-      updateTimebasedPlayerState = _audiobookCallbacks!.onTimebasedPlayerState.toJS;
-      updateReaderStatus = _audiobookCallbacks!.onReaderStatus.toJS;
-      onErrorCallback = _audiobookCallbacks!.onErrorHandler.toJS;
       try {
         await JsPublicationChannel().openPublication(
           pubUrl,
@@ -242,7 +244,7 @@ class FlutterReadiumWebPlugin extends FlutterReadiumPlatform {
   @override
   Future<void> closePublication() async {
     JsPublicationChannel().closePublication();
-    _audiobookCallbacks = null;
+    _pluginCallbacks = null;
   }
 
   @override
