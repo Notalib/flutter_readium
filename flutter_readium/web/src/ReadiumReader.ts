@@ -166,6 +166,7 @@ class _ReadiumReader {
     try {
       const { publication, manifestJson } = await this._pubManager.fetchAndCache(publicationURL);
       this._publication = publication;
+      this._detectAudioCapabilities(publication);
       log.info("Publication fetched:", publication.metadata.identifier ?? "unidentified");
       return manifestJson;
     } catch (error) {
@@ -174,6 +175,18 @@ class _ReadiumReader {
       this._bridge.emitError("Failed to get publication: " + errorMessage);
       throw error;
     }
+  }
+
+  /**
+   * Flags whether the publication carries synchronised audio. Both checks read the
+   * manifest only, so this runs as soon as the publication is loaded: audioEnable
+   * needs the flags, and audio needs no `#container` — only the visual navigators do.
+   */
+  private _detectAudioCapabilities(publication: ReadiumPublication): void {
+    this._hasSyncNarration = detectSyncNarration(publication);
+    if (this._hasSyncNarration) log.info("Sync Narration detected");
+    this._hasGuidedNavigation = detectGuidedNavigation(publication);
+    if (this._hasGuidedNavigation) log.info("Guided Navigation detected");
   }
 
   public goRight() {
@@ -344,13 +357,6 @@ class _ReadiumReader {
   ) {
     log.info("openPublication", { pubId, hasInitialPosition: !!initialPositionJson });
 
-    // Close any previously-opened publication/navigator to match iOS and Android behavior.
-    // Without this, stale events (locator changes, media-overlay sync) from the old navigator
-    // would leak into the new publication's session.
-    this.closePublication();
-
-    this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
-
     let initialPosition: Locator | undefined;
 
     if (initialPositionJson) {
@@ -364,7 +370,24 @@ class _ReadiumReader {
 
     try {
       // TODO: match native
-      this._publication = await this._pubManager.getOrFetch(pubId, publicationURL);
+      const publication = await this._pubManager.getOrFetch(pubId, publicationURL);
+
+      // Close the previous publication/navigator so its locator and media-overlay events
+      // cannot leak into this session. Audio for this same publication is kept: it starts
+      // as soon as the manifest is loaded, so it is usually already narrating by the time
+      // the reader view mounts and gets here.
+      const keepAudio = !!this._audioNav && publication === this._publication;
+      const pendingAudioEnable = this._pendingAudioEnable;
+      this._close(undefined, keepAudio);
+      // A deferred audioEnable can only belong to the publication being opened right now,
+      // and the close above would otherwise drop it before the replay at the end.
+      this._pendingAudioEnable = pendingAudioEnable;
+
+      // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
+      this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
+
+      this._publication = publication;
+      this._detectAudioCapabilities(publication);
 
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
@@ -396,11 +419,6 @@ class _ReadiumReader {
         }
         if (this._publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
-          // Detect sync narration before opening the navigator (async fetch-free check).
-          this._hasSyncNarration = detectSyncNarration(this._publication);
-          if (this._hasSyncNarration) log.info("Sync Narration detected");
-          this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
-          if (this._hasGuidedNavigation) log.info("Guided Navigation detected");
           await FlutterEpubNavigator.create(
             container,
             this._publication,
@@ -425,8 +443,6 @@ class _ReadiumReader {
           );
         } else if (this._publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
-          this._hasGuidedNavigation = detectGuidedNavigation(this._publication);
-          if (this._hasGuidedNavigation) log.info("DiViNa: Guided Navigation detected");
           // ts-toolkit has no DiViNa/image navigator; render images ourselves.
           await FlutterDivinaNavigator.create(
             container,
@@ -457,6 +473,9 @@ class _ReadiumReader {
       }
 
 
+      // Audio may already be narrating, so snap the visual sync to the current cue.
+      this._replayDeferredVisualSync();
+
       // Failures fall into the catch below and surface through the existing
       // open-failure path, since the deferred caller can no longer be thrown to.
       await this._replayDeferredAudioEnable();
@@ -465,6 +484,38 @@ class _ReadiumReader {
       this.closePublication(error);
       throw error;
     }
+  }
+
+  /**
+   * Re-applies the most recent narration cue to a visual navigator that has just been
+   * created. Cues emitted while audio ran without a reader view had nowhere to go.
+   */
+  private _replayDeferredVisualSync(): void {
+    const locator = this._lastDeferredSyncLocator;
+    if (!this._audioNav || !locator) return;
+    if (!this._nav && !this._comicNav) return;
+    this._lastMediaOverlayLocatorKey = null;
+    this._routeNarrationCue(locator, "MediaOverlay (reader view mounted)", this._lastDeferredSyncDurationMs);
+  }
+
+  /**
+   * Sends a narration cue to whichever navigator is mounted at this moment. The
+   * choice cannot be made when the audio navigator is built: audio starts as soon as
+   * the manifest is loaded, so a comic navigator usually appears only afterwards.
+   */
+  private _routeNarrationCue(
+    textLocator: Locator,
+    sourceLabel: string,
+    durationMs: number | undefined
+  ): void {
+    if (this._comicNav) {
+      // The comic path has no decoration layer, so it records the cue itself.
+      this._lastDeferredSyncLocator = textLocator;
+      this._lastDeferredSyncDurationMs = durationMs;
+      this._syncDivinaToMediaOverlayLocator(textLocator);
+      return;
+    }
+    this._syncVisualToMediaOverlayLocator(textLocator, sourceLabel, durationMs);
   }
 
   private async _replayDeferredAudioEnable(): Promise<void> {
@@ -634,33 +685,48 @@ class _ReadiumReader {
   }
 
   public closePublication(error?: any) {
-    log.info("closePublication", error ? `(error: ${error})` : "");
+    this._close(error, false);
+  }
 
-    // Suppress any post-close stragglers, then stop+destroy audio/TTS. An
-    // autoplay-blocked play() keeps retrying and the position poll keeps firing;
-    // destroy() alone does not reliably halt a trailing event, so without the
-    // emissions gate a stale textLocator/state could leak into the next opened
-    // publication (and the visual Media Overlay sync would run against a
-    // torn-down frame).
-    setAudioEmissionsEnabled(false);
-    FlutterAudioNavigator.resetRecovery();
+  /**
+   * Shared teardown. `keepAudio` is set only by `openPublication` when the reader view
+   * mounts for the publication that audio is already narrating — stopping it there would
+   * silence a book the moment it becomes visible.
+   */
+  private _close(error: any | undefined, keepAudio: boolean) {
+    log.info("closePublication", error ? `(error: ${error})` : "", keepAudio ? "(keeping audio)" : "");
+
+    // The TTS engine drives the visual navigator that is being torn down here, so it goes
+    // even when audio stays: a synchronised narration is an AudioNavigator, not TTS.
     this._ttsEngine?.destroy();
     this._ttsEngine = undefined;
-    this._audioNav?.stop();
-    this._audioNav?.destroy();
-    this._audioNav = undefined;
-    this._stoppedAudioLocator = undefined;
 
-    this._pendingAudioEnable = undefined;
-    this._hasSyncNarration = false;
-    this._hasGuidedNavigation = false;
-    this._syncItems = [];
+    if (!keepAudio) {
+      // Suppress any post-close stragglers, then stop+destroy audio. An
+      // autoplay-blocked play() keeps retrying and the position poll keeps firing;
+      // destroy() alone does not reliably halt a trailing event, so without the
+      // emissions gate a stale textLocator/state could leak into the next opened
+      // publication (and the visual Media Overlay sync would run against a
+      // torn-down frame).
+      setAudioEmissionsEnabled(false);
+      FlutterAudioNavigator.resetRecovery();
+      this._audioNav?.stop();
+      this._audioNav?.destroy();
+      this._audioNav = undefined;
+      this._stoppedAudioLocator = undefined;
+
+      this._pendingAudioEnable = undefined;
+      this._hasSyncNarration = false;
+      this._hasGuidedNavigation = false;
+      this._syncItems = [];
+      this._publication = undefined;
+      this._lastDeferredSyncLocator = null;
+      this._lastDeferredSyncDurationMs = undefined;
+      this._narrationSyncEnabled = true;
+    }
+
     this._positions = [];
-    this._publication = undefined;
     this._lastMediaOverlayLocatorKey = null;
-    this._lastDeferredSyncLocator = null;
-    this._lastDeferredSyncDurationMs = undefined;
-    this._narrationSyncEnabled = true;
     this._isComicBook = false;
     this._decorations.reset();
 
@@ -678,7 +744,10 @@ class _ReadiumReader {
     // Emit status synchronously so Dart receives it before any async navigator cleanup.
     // Do NOT delete the window callbacks here — the Dart side re-registers them before each
     // openPublication call, and deleting them asynchronously races with the new registration.
-    this._bridge.emitReaderStatus(error ? ReadiumReaderStatus.error : ReadiumReaderStatus.closed);
+    // A keepAudio close is the first half of an open, not a close, so it stays silent.
+    if (!keepAudio) {
+      this._bridge.emitReaderStatus(error ? ReadiumReaderStatus.error : ReadiumReaderStatus.closed);
+    }
 
     const navDestroy = nav?.destroy();
     if (navDestroy) {
@@ -1042,6 +1111,12 @@ class _ReadiumReader {
     sourceLabel: string,
     durationMs: number | undefined
   ): void {
+    // Track the most recent cue before every early return. A Re-sync
+    // (setNarrationSyncEnabled(true)) can then snap to the CURRENT cue even when triggered
+    // mid-cue, and cues narrated before the reader view mounted are replayed once it does.
+    this._lastDeferredSyncLocator = textLocator;
+    this._lastDeferredSyncDurationMs = durationMs;
+
     const nav = this._nav;
     if (!nav) return;
     // Skip redundant work when the same cue is still active.
@@ -1147,13 +1222,6 @@ class _ReadiumReader {
       }
     };
 
-    // Track the most recent cue unconditionally so a Re-sync
-    // (setNarrationSyncEnabled(true)) can snap to the CURRENT cue immediately, even
-    // when triggered mid-cue. Previously this was cleared on the enabled path, so a
-    // mid-cue Re-sync had no locator to replay and only corrected on the next cue.
-    this._lastDeferredSyncLocator = textLocator;
-    this._lastDeferredSyncDurationMs = durationMs;
-
     if (!this._narrationSyncEnabled) {
       applyUtteranceDecoration();
       return;
@@ -1248,25 +1316,13 @@ class _ReadiumReader {
     if (this._hasGuidedNavigation && this._publication) {
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
-      if (this._comicNav) {
-        // DiViNa: page-level sync only — no iframe, no decoration.
-        await initializeGuidedNavigationNavigator(
-          this._publication,
-          fromLocator,
-          preferencesJsonString,
-          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-          (textLocator, _durationMs) => this._syncDivinaToMediaOverlayLocator(textLocator)
-        );
-      } else {
-        // EPUB: full sync with visual decoration.
-        await initializeGuidedNavigationNavigator(
-          this._publication,
-          fromLocator,
-          preferencesJsonString,
-          (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-          (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "GuidedNavigation", durationMs)
-        );
-      }
+      await initializeGuidedNavigationNavigator(
+        this._publication,
+        fromLocator,
+        preferencesJsonString,
+        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+        (textLocator, durationMs) => this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs)
+      );
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
@@ -1286,7 +1342,7 @@ class _ReadiumReader {
         fromLocator,
         prefsJson,
         (nav, items) => { this._audioNav = nav; this._syncItems = items; },
-        (textLocator, durationMs) => this._syncVisualToMediaOverlayLocator(textLocator, "MediaOverlay", durationMs)
+        (textLocator, durationMs) => this._routeNarrationCue(textLocator, "MediaOverlay", durationMs)
       );
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
