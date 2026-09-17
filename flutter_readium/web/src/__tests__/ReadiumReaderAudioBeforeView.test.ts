@@ -156,8 +156,6 @@ describe("audio before the reader view mounts", () => {
 
     expect(initializeGuidedNavigationNavigator).toHaveBeenCalledTimes(1);
     expect((reader as any)._audioNav).toBe(audioNav);
-    // Neither deferred nor dropped through the "no audio content" exit.
-    expect((reader as any)._pendingAudioEnable).toBeUndefined();
     expect(warn).not.toHaveBeenCalled();
   });
 
@@ -195,23 +193,35 @@ describe("audio before the reader view mounts", () => {
     expect(audioNav.destroy).toHaveBeenCalledTimes(1);
   });
 
-  it("replays an audioEnable deferred before the open instead of dropping it", async () => {
+  it("enables audio straight after getPublication, with no open in between", async () => {
     const reader = new ReadiumReader();
     const publication = guidedNavPublication();
-    (reader as any)._pendingAudioEnable = { prefsJson: '{"speed":1.0}', fromLocatorJson: undefined };
-    (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(publication) };
-    (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
-      async (_c, _p, _i, _prefs, setNav) => setNav({ destroy: jest.fn() })
-    );
+    (reader as any)._pubManager = {
+      fetchAndCache: jest.fn().mockResolvedValue({ publication, manifestJson: "{}" }),
+    };
     const audioNav = fakeAudioNav();
     (initializeGuidedNavigationNavigator as jest.Mock).mockImplementation(
       async (_pub, _loc, _prefs, setNav) => setNav(audioNav, [])
     );
 
-    await reader.openPublication("https://example.test/book/manifest.json", "urn:test:book", undefined, "{}", "[]");
+    // The sequence every client follows: await openPublication, then audioEnable.
+    // getPublication is the part of that which the JS side sees.
+    await reader.getPublication("https://example.test/book/manifest.json");
+    await reader.audioEnable('{"speed":1.0}', undefined);
 
     expect(initializeGuidedNavigationNavigator).toHaveBeenCalledTimes(1);
-    expect((reader as any)._pendingAudioEnable).toBeUndefined();
+    expect((reader as any)._audioNav).toBe(audioNav);
+  });
+
+  it("refuses audioEnable before the publication is loaded instead of deferring it", async () => {
+    const reader = new ReadiumReader();
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    await reader.audioEnable('{"speed":1.0}', undefined);
+
+    expect(initializeGuidedNavigationNavigator).not.toHaveBeenCalled();
+    expect((reader as any)._audioNav).toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 
   it("replays the cue that narrated before the visual navigator existed", async () => {
