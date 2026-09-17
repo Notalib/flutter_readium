@@ -110,7 +110,6 @@ class _ReadiumReader {
   /** True when the current EPUB publication has embedded Sync Narration JSON. */
   private _hasSyncNarration = false;
   private _hasGuidedNavigation = false;
-  private _pendingAudioEnable?: { prefsJson: string; fromLocatorJson?: string };
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
   /**
@@ -377,11 +376,7 @@ class _ReadiumReader {
       // as soon as the manifest is loaded, so it is usually already narrating by the time
       // the reader view mounts and gets here.
       const keepAudio = !!this._audioNav && publication === this._publication;
-      const pendingAudioEnable = this._pendingAudioEnable;
       this._close(undefined, keepAudio);
-      // A deferred audioEnable can only belong to the publication being opened right now,
-      // and the close above would otherwise drop it before the replay at the end.
-      this._pendingAudioEnable = pendingAudioEnable;
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
       this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
@@ -475,10 +470,6 @@ class _ReadiumReader {
 
       // Audio may already be narrating, so snap the visual sync to the current cue.
       this._replayDeferredVisualSync();
-
-      // Failures fall into the catch below and surface through the existing
-      // open-failure path, since the deferred caller can no longer be thrown to.
-      await this._replayDeferredAudioEnable();
     } catch (error) {
       log.error("Failed to open publication:", error);
       this.closePublication(error);
@@ -516,15 +507,6 @@ class _ReadiumReader {
       return;
     }
     this._syncVisualToMediaOverlayLocator(textLocator, sourceLabel, durationMs);
-  }
-
-  private async _replayDeferredAudioEnable(): Promise<void> {
-    const pending = this._pendingAudioEnable;
-    if (!pending) return;
-    // Consume first so a second open (reader remount, hot restart) cannot run it twice.
-    this._pendingAudioEnable = undefined;
-    log.info("openPublication: replaying deferred audioEnable");
-    await this.audioEnable(pending.prefsJson, pending.fromLocatorJson);
   }
 
   public setEPUBPreferences(newPreferencesString: string) {
@@ -715,7 +697,6 @@ class _ReadiumReader {
       this._audioNav = undefined;
       this._stoppedAudioLocator = undefined;
 
-      this._pendingAudioEnable = undefined;
       this._hasSyncNarration = false;
       this._hasGuidedNavigation = false;
       this._syncItems = [];
@@ -1276,16 +1257,10 @@ class _ReadiumReader {
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
     if (!this._publication && !this._audioNav) {
-      // A text publication is only opened once the reader view mounts and supplies
-      // the #container element, so audioEnable issued right after the Dart-side
-      // openPublication arrives before there is anything to enable. Remember it and
-      // replay it at the end of openPublication instead of dropping it. Resolving
-      // now is required, not just convenient: the caller awaits this before the app
-      // routes to the page that hosts the reader view, so blocking here would wait
-      // on a reader that is waiting on us. No matching play() is recorded because
-      // audioEnable resumes playback itself via _seekAudioAndResume(..., true).
-      log.info("audioEnable: publication not open yet, deferring until it is");
-      this._pendingAudioEnable = { prefsJson, fromLocatorJson };
+      // getPublication stores the publication and detects its audio capabilities, so an
+      // awaited openPublication always leaves something to enable here. Reaching this
+      // means the caller did not await it — the same mistake fails on iOS and Android.
+      log.error("audioEnable: call it only after openPublication has resolved");
       return;
     }
     const preferencesJsonString =
