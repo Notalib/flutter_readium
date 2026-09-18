@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' as mq show Orientation;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -33,6 +34,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.toggleShowControlsSemanticLabel = 'Toggle show controls',
     this.preloadPreviousPositionCount = 2,
     this.preloadNextPositionCount = 6,
+    this.disablePageTurnsWhileScrolling = false,
     super.key,
   });
 
@@ -107,6 +109,14 @@ class ReadiumReaderWidget extends StatefulWidget {
   /// See [preloadPreviousPositionCount] for tradeoffs and platform support.
   final int preloadNextPositionCount;
 
+  /// Whether horizontal gestures are prevented from changing EPUB resources
+  /// while vertical scroll mode is enabled.
+  ///
+  /// This is supported on iOS and Android. When enabled, provide another way
+  /// to change resources, such as [FlutterReadium.goForward],
+  /// [FlutterReadium.goBackward], or table-of-contents navigation.
+  final bool disablePageTurnsWhileScrolling;
+
   @override
   State<StatefulWidget> createState() => _ReadiumReaderWidgetState();
 }
@@ -124,6 +134,8 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
+  final Map<int, ({Offset origin, double slop})> _activePointers = {};
+  bool _didPointerSequenceMove = false;
 
   EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
@@ -161,7 +173,6 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   @override
   Widget build(final BuildContext context) {
     _onOrientationChangeWorkaround(MediaQuery.orientationOf(context));
-    var userSwipe = false;
 
     final readingProgression = widget.publication.metadata.readingProgression;
     // TODO: this presumes that ReadingProgression value btt or vertical scroll using btt is not ever used
@@ -205,40 +216,13 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
           ),
         ),
         ExcludeSemantics(
+          // Observe interactions without competing with the native reader in
+          // Flutter's gesture arena.
           child: Listener(
-            onPointerDown: (final _) {
-              _enableWakelock();
-            },
-            onPointerMove: (final event) {
-              if (userSwipe) {
-                return;
-              }
-
-              userSwipe = event.delta.distance > 3.0;
-
-              if (userSwipe) {
-                _onInteraction();
-              }
-            },
-            onPointerUp: (final event) async {
-              if (userSwipe) {
-                /// Wait for page animation to complete.
-                await Future.delayed(const Duration(seconds: 1));
-              } else {
-                final dx = event.position.dx;
-
-                if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
-                  // edge tap
-                  _onInteraction();
-                } else {
-                  // center tap
-                  _toggleControls();
-                }
-              }
-
-              userSwipe = false;
-            },
-
+            onPointerDown: _handlePointerDown,
+            onPointerMove: _handlePointerMove,
+            onPointerUp: _handlePointerUp,
+            onPointerCancel: _handlePointerCancel,
             child: _readerWidget,
           ),
         ),
@@ -303,6 +287,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
       'initialLocator': widget.initialLocator == null ? null : json.encode(widget.initialLocator),
       'preloadPreviousPositionCount': widget.preloadPreviousPositionCount,
       'preloadNextPositionCount': widget.preloadNextPositionCount,
+      'disablePageTurnsWhileScrolling': widget.disablePageTurnsWhileScrolling,
       'fontFamilyDeclarations': widget.fontFamilyDeclarations.map((font) => font.toMap()).toList(),
       if (widget.selectionActions.isNotEmpty)
         'selectionActions': widget.selectionActions.map((a) => a.toJson()).toList(),
@@ -465,13 +450,75 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
+  void _handlePointerDown(final PointerDownEvent event) {
+    final hadActivePointers = _activePointers.isNotEmpty;
+    if (!hadActivePointers) {
+      _didPointerSequenceMove = false;
+    }
+
+    _activePointers[event.pointer] = (
+      origin: event.localPosition,
+      slop: computeHitSlop(event.kind, MediaQuery.gestureSettingsOf(context)),
+    );
+
+    if (hadActivePointers) {
+      _markPointerSequenceMoved();
+    }
+    _enableWakelock();
+  }
+
+  void _handlePointerMove(final PointerMoveEvent event) {
+    if (_didPointerSequenceMove) {
+      return;
+    }
+
+    final pointer = _activePointers[event.pointer];
+    if (pointer != null && (event.localPosition - pointer.origin).distance > pointer.slop) {
+      _markPointerSequenceMoved();
+    }
+  }
+
+  void _handlePointerUp(final PointerUpEvent event) {
+    if (_activePointers.remove(event.pointer) == null || _activePointers.isNotEmpty) {
+      return;
+    }
+
+    final didPointerSequenceMove = _didPointerSequenceMove;
+    _didPointerSequenceMove = false;
+    if (didPointerSequenceMove) {
+      return;
+    }
+
+    final dx = event.localPosition.dx;
+    if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
+      _onInteraction();
+    } else {
+      _toggleControls();
+    }
+  }
+
+  void _handlePointerCancel(final PointerCancelEvent event) {
+    if (_activePointers.remove(event.pointer) != null && _activePointers.isEmpty) {
+      _didPointerSequenceMove = false;
+    }
+  }
+
+  void _markPointerSequenceMoved() {
+    if (_didPointerSequenceMove) {
+      return;
+    }
+
+    _didPointerSequenceMove = true;
+    _onInteraction();
+  }
+
   void _onInteraction() {
     if (widget.shouldShowControls?.value == true) {
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
     }
 
-    // A user swipe / edge-tap is the unambiguous "user took manual control"
+    // A user drag / edge-tap is the unambiguous "user took manual control"
     // signal (audio-driven page turns are programmatic and never reach this
     // Listener). The native side enters narration manual mode only if narration
     // is active, so this is a no-op during plain reading.

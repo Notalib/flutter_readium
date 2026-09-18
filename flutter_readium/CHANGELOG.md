@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Optional scroll-mode page-turn lock** — Set
+  `ReadiumReaderWidget.disablePageTurnsWhileScrolling` to prevent horizontal gestures from
+  switching EPUB resources while vertically scrolling on iOS and Android. Apps enabling it
+  should provide explicit page or table-of-contents navigation.
+
 ## [0.5.0] - 2026-09-17
 
 ### Added
