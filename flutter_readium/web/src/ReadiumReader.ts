@@ -100,6 +100,13 @@ class _ReadiumReader {
    */
   private _comicNav: FlutterDivinaNavigator | undefined;
   private _audioNav: AudioNavigator | undefined;
+  /**
+   * The publication `_audioNav` was built for. Publication identity alone cannot prove
+   * this: `getPublication` replaces `_publication` with a freshly fetched instance before
+   * the reader view mounts, so `openPublication` would otherwise keep a navigator that
+   * belongs to the previous book.
+   */
+  private _audioNavPublication: ReadiumPublication | undefined;
   /** Last audiobook locator selected while audio is stopped/destructed. */
   private _stoppedAudioLocator: Locator | undefined;
   /** Last audio preferences JSON used to create an audio navigator. */
@@ -374,8 +381,10 @@ class _ReadiumReader {
       // Close the previous publication/navigator so its locator and media-overlay events
       // cannot leak into this session. Audio for this same publication is kept: it starts
       // as soon as the manifest is loaded, so it is usually already narrating by the time
-      // the reader view mounts and gets here.
-      const keepAudio = !!this._audioNav && publication === this._publication;
+      // the reader view mounts and gets here. The keep is keyed on the navigator's own
+      // publication, not on `_publication`, which a preceding getPublication may already
+      // have advanced to another book.
+      const keepAudio = !!this._audioNav && this._audioNavPublication === publication;
       this._close(undefined, keepAudio);
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
@@ -387,6 +396,14 @@ class _ReadiumReader {
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
         this._activeAudioPreferencesJson = preferencesJsonString;
+        if (keepAudio) {
+          // A second create() here would leave the running navigator orphaned but audible,
+          // playing under the new one. Re-opening the same audiobook is legal on the public
+          // API, so keep the navigator and report ready ourselves.
+          log.info("Reusing the audio navigator already narrating this audiobook");
+          this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
+          return;
+        }
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await FlutterAudioNavigator.create(
           this._publication,
@@ -394,6 +411,7 @@ class _ReadiumReader {
           preferencesJsonString,
           (nav) => {
             this._audioNav = nav;
+            this._audioNavPublication = this._publication;
             this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
           },
           undefined,
@@ -695,6 +713,7 @@ class _ReadiumReader {
       this._audioNav?.stop();
       this._audioNav?.destroy();
       this._audioNav = undefined;
+      this._audioNavPublication = undefined;
       this._stoppedAudioLocator = undefined;
 
       this._hasSyncNarration = false;
@@ -785,6 +804,7 @@ class _ReadiumReader {
         this._activeAudioPreferencesJson,
         (nav) => {
           this._audioNav = nav;
+          this._audioNavPublication = this._publication;
           FlutterAudioNavigator.setPlaybackIntent(true);
           nav.play();
         },
@@ -849,6 +869,7 @@ class _ReadiumReader {
         : "(plain audiobook)"
     );
     this._audioNav = undefined;
+    this._audioNavPublication = undefined;
     audioNav.stop();
     audioNav.destroy();
     window.updateTimebasedPlayerState?.(
@@ -1260,7 +1281,11 @@ class _ReadiumReader {
       // getPublication stores the publication and detects its audio capabilities, so an
       // awaited openPublication always leaves something to enable here. Reaching this
       // means the caller did not await it — the same mistake fails on iOS and Android.
-      log.error("audioEnable: call it only after openPublication has resolved");
+      // Report it to Dart: a bare return resolves the promise and leaves silent audio
+      // with nothing observable outside the JS console.
+      const message = "audioEnable: call it only after openPublication has resolved";
+      log.error(message);
+      this._bridge.emitError(message);
       return;
     }
     const preferencesJsonString =
@@ -1295,7 +1320,11 @@ class _ReadiumReader {
         this._publication,
         fromLocator,
         preferencesJsonString,
-        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+        (nav, items) => {
+          this._audioNav = nav;
+          this._audioNavPublication = this._publication;
+          this._syncItems = items;
+        },
         (textLocator, durationMs) => this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs)
       );
       const nav = this._audioNav as AudioNavigator | undefined;
@@ -1316,7 +1345,11 @@ class _ReadiumReader {
         this._publication,
         fromLocator,
         prefsJson,
-        (nav, items) => { this._audioNav = nav; this._syncItems = items; },
+        (nav, items) => {
+          this._audioNav = nav;
+          this._audioNavPublication = this._publication;
+          this._syncItems = items;
+        },
         (textLocator, durationMs) => this._routeNarrationCue(textLocator, "MediaOverlay", durationMs)
       );
       const nav = this._audioNav as AudioNavigator | undefined;
@@ -1337,7 +1370,10 @@ class _ReadiumReader {
         this._publication,
         fromLocator,
         preferencesJsonString,
-        (nav) => { this._audioNav = nav; },
+        (nav) => {
+          this._audioNav = nav;
+          this._audioNavPublication = this._publication;
+        },
         undefined,
         undefined,
         undefined,
