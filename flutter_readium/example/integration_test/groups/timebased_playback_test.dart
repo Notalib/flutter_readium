@@ -11,10 +11,10 @@ void main() {
   final harness = suiteHarness();
 
   group('Timebased playback', () {
-    test(
+    testWidgets(
       'EPUB TTS reaches playing with a current locator',
-      skip: kIsWeb ? 'Web Speech API unavailable in the web test harness' : false,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.reflowableEpub,
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
@@ -30,7 +30,7 @@ void main() {
       },
     );
 
-    test('media-overlay WebPub opens and plays audio on native', () async {
+    testWidgets('media-overlay WebPub opens and plays audio on native', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.overlayWebpub,
         reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
@@ -49,7 +49,7 @@ void main() {
       }
     });
 
-    test('audiobook opens and plays audio on native', () async {
+    testWidgets('audiobook opens and plays audio on native', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.audiobook,
         reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -76,7 +76,7 @@ void main() {
       'native audio controls',
       skip: kIsWeb ? 'Real audio playback is not available in the web test harness' : null,
       () {
-        test('audiobook pause then resume cycles through state transitions', () async {
+        testWidgets('audiobook pause then resume cycles through state transitions', (_) async {
           final path = harness.fixturePath(
             FixtureKeys.audiobook,
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -114,7 +114,7 @@ void main() {
           await harness.readium.pause();
         });
 
-        test('audioSeekBy advances the timebased position', () async {
+        testWidgets('audioSeekBy advances the timebased position', (_) async {
           final path = harness.fixturePath(
             FixtureKeys.audiobook,
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -156,7 +156,7 @@ void main() {
           );
         });
 
-        test('changing audiobook tracks does not trigger false stall recovery', () async {
+        testWidgets('changing audiobook tracks does not trigger false stall recovery', (_) async {
           await harness.readium.setAudioRecoveryPolicy(
             const AudioRecoveryPolicy(
               stallTimeoutSeconds: 3.0,
@@ -235,7 +235,7 @@ void main() {
           await harness.readium.pause();
         });
 
-        test('pause and backward seek do not trigger false stall recovery', () async {
+        testWidgets('pause and backward seek do not trigger false stall recovery', (_) async {
           await harness.readium.setAudioRecoveryPolicy(
             const AudioRecoveryPolicy(
               stallTimeoutSeconds: 2.0,
@@ -318,7 +318,7 @@ void main() {
           await harness.readium.pause();
         });
 
-        test('audiobook emits ended state when playback reaches end of book', () async {
+        testWidgets('audiobook emits ended state when playback reaches end of book', (_) async {
           await harness.readium.setAudioRecoveryPolicy(
             const AudioRecoveryPolicy(
               stallTimeoutSeconds: 1.0,
@@ -399,7 +399,7 @@ void main() {
         // Regression: the progression -> time-offset helper resolved the track
         // duration from the *currently playing* locator, so a cross-track jump
         // scaled progression by the wrong track's length.
-        test('goToLocator scales progression by the target track, not the playing one', () async {
+        testWidgets('goToLocator scales progression by the target track, not the playing one', (_) async {
           final path = harness.fixturePath(
             FixtureKeys.audiobook,
             reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -494,12 +494,10 @@ void main() {
         // jump can move that position, not continuous playback. The on-page highlight decoration
         // is webview-only, so a headless test asserts the reported locator, not the decoration.
         // iOS-only: goBounded and its guard are iOS; Android media-overlay sync differs.
-        test(
+        testWidgets(
           'media-overlay goToLocator lands the text position on the jumped-to chapter',
-          skip: defaultTargetPlatform != TargetPlatform.iOS
-              ? 'Exercises the iOS goBounded media-overlay path; Android syncs differently'
-              : false,
-          () async {
+          skip: defaultTargetPlatform != TargetPlatform.iOS,
+          (_) async {
             final path = harness.fixturePath(
               FixtureKeys.overlayWebpub,
               reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
