@@ -144,6 +144,36 @@ Future<void> exerciseAudioPlayback(
   await reader.pause();
 }
 
+/// Asserts that a timebased session actually starts, without requiring sound.
+///
+/// Chrome blocks autoplay in the web test harness, so `playing` is unreachable there.
+/// A state event carrying a `currentLocator` is the honest signal instead: it can only
+/// be emitted once a navigator exists, which means the cue parser produced items.
+/// A publication whose cues were all dropped emits nothing at all.
+Future<void> expectAudioSessionStarts(
+  FlutterReadium reader, {
+  required Future<void> Function() enable,
+  Duration timeout = const Duration(seconds: 30),
+  String? reason,
+}) async {
+  final gotLocator = reader.onTimebasedPlayerStateChanged
+      .firstWhere((s) => s.currentLocator != null)
+      .timeout(
+        timeout,
+        onTimeout: () => fail(
+          reason ?? 'audioEnable produced no playback state within $timeout',
+        ),
+      );
+
+  await enable();
+  await reader.play(null);
+
+  final state = await gotLocator;
+  expect(state.currentLocator, isNotNull);
+
+  await reader.pause();
+}
+
 Future<void> waitUntil(
   bool Function() predicate, {
   required Duration timeout,
