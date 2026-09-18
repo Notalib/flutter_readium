@@ -17,9 +17,21 @@ jest.mock("../navigators/FlutterEpubNavigator", () => ({
   ...jest.requireActual("../navigators/FlutterEpubNavigator"),
   FlutterEpubNavigator: { create: jest.fn() },
 }));
+jest.mock("../navigators/FlutterAudioNavigator", () => ({
+  ...jest.requireActual("../navigators/FlutterAudioNavigator"),
+  setAudioEmissionsEnabled: jest.fn(),
+  FlutterAudioNavigator: {
+    create: jest.fn(),
+    resetRecovery: jest.fn(),
+    retryAfterFailure: jest.fn(),
+    setPlaybackIntent: jest.fn(),
+    isTerminallyFailed: jest.fn(() => false),
+  },
+}));
 
 import { initializeGuidedNavigationNavigator } from "../navigators/FlutterMediaOverlayNavigator";
 import { FlutterEpubNavigator } from "../navigators/FlutterEpubNavigator";
+import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
 import { __testing__ } from "../ReadiumReader";
 
 const { ReadiumReader } = __testing__;
@@ -42,6 +54,20 @@ function guidedNavPublication(): ReadiumPublication {
         }),
       ],
     },
+    resources: { items: [] },
+    manifest: { links: undefined, toc: undefined },
+  } as unknown as ReadiumPublication;
+}
+
+/** Plain audiobook: no text documents, the AudioNavigator is built by openPublication. */
+function audiobookPublication(): ReadiumPublication {
+  return {
+    baseURL: "https://example.test/audiobook/",
+    conformsToAudiobook: true,
+    conformsToEpub: false,
+    conformsToDivina: false,
+    metadata: { identifier: "urn:test:audiobook" },
+    readingOrder: { items: [new Link({ href: "track1.mp3", type: "audio/mpeg" })] },
     resources: { items: [] },
     manifest: { links: undefined, toc: undefined },
   } as unknown as ReadiumPublication;
@@ -165,6 +191,7 @@ describe("audio before the reader view mounts", () => {
     const audioNav = fakeAudioNav();
     (reader as any)._publication = publication;
     (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = publication;
     (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(publication) };
     (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
       async (_c, _p, _i, _prefs, setNav) => setNav({ destroy: jest.fn() })
@@ -180,8 +207,10 @@ describe("audio before the reader view mounts", () => {
   it("still tears audio down when a different publication is opened", async () => {
     const reader = new ReadiumReader();
     const audioNav = fakeAudioNav();
-    (reader as any)._publication = guidedNavPublication();
+    const narrating = guidedNavPublication();
+    (reader as any)._publication = narrating;
     (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = narrating;
     (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(guidedNavPublication()) };
     (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
       async (_c, _p, _i, _prefs, setNav) => setNav({ destroy: jest.fn() })
@@ -191,6 +220,65 @@ describe("audio before the reader view mounts", () => {
 
     expect(audioNav.stop).toHaveBeenCalledTimes(1);
     expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops narration when the open is for another book that loaded over the narrating one", async () => {
+    // getPublication assigns _publication before the reader view mounts, so publication
+    // identity alone cannot tell whether the running navigator belongs to this open.
+    const reader = new ReadiumReader();
+    const narrating = guidedNavPublication();
+    const opening = guidedNavPublication();
+    const audioNav = fakeAudioNav();
+    (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = narrating;
+    (reader as any)._syncItems = [{ audio: "a.mp3", text: "chapter1.xhtml#p1" }];
+    // What getPublication leaves behind: a fresh instance already installed.
+    (reader as any)._publication = opening;
+    (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(opening) };
+    (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
+      async (_c: any, _p: any, _i: any, _prefs: any, setNav: any) => setNav({ destroy: jest.fn() })
+    );
+
+    await reader.openPublication("https://example.test/book/manifest.json", "urn:test:book", undefined, "{}", "[]");
+
+    expect(audioNav.stop).toHaveBeenCalledTimes(1);
+    expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+    expect((reader as any)._audioNav).toBeUndefined();
+    expect((reader as any)._syncItems).toEqual([]);
+  });
+
+  it("does not build a second audio navigator when the same audiobook is re-opened", async () => {
+    const reader = new ReadiumReader();
+    const publication = audiobookPublication();
+    const audioNav = fakeAudioNav();
+    (reader as any)._publication = publication;
+    (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = publication;
+    (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(publication) };
+
+    await reader.openPublication(
+      "https://example.test/audiobook/manifest.json", "urn:test:audiobook", undefined, "{}", "[]"
+    );
+
+    expect(FlutterAudioNavigator.create).not.toHaveBeenCalled();
+    expect(audioNav.stop).not.toHaveBeenCalled();
+    expect((reader as any)._audioNav).toBe(audioNav);
+  });
+
+  it("still builds the audio navigator when an audiobook is opened for the first time", async () => {
+    const reader = new ReadiumReader();
+    const publication = audiobookPublication();
+    (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(publication) };
+    (FlutterAudioNavigator.create as jest.Mock).mockImplementation(
+      async (_p: any, _i: any, _prefs: any, setNav: any) => setNav(fakeAudioNav())
+    );
+
+    await reader.openPublication(
+      "https://example.test/audiobook/manifest.json", "urn:test:audiobook", undefined, "{}", "[]"
+    );
+
+    expect(FlutterAudioNavigator.create).toHaveBeenCalledTimes(1);
+    expect((reader as any)._audioNavPublication).toBe(publication);
   });
 
   it("enables audio straight after getPublication, with no open in between", async () => {
@@ -216,12 +304,15 @@ describe("audio before the reader view mounts", () => {
   it("refuses audioEnable before the publication is loaded instead of deferring it", async () => {
     const reader = new ReadiumReader();
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    const emitError = jest.fn();
+    (reader as any)._bridge.emitError = emitError;
 
     await reader.audioEnable('{"speed":1.0}', undefined);
 
     expect(initializeGuidedNavigationNavigator).not.toHaveBeenCalled();
     expect((reader as any)._audioNav).toBeUndefined();
     expect(error).toHaveBeenCalled();
+    expect(emitError).toHaveBeenCalledWith(expect.stringContaining("audioEnable"));
   });
 
   it("replays the cue that narrated before the visual navigator existed", async () => {
