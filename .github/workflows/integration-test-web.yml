@@ -9,7 +9,6 @@ jobs:
     name: Web (ChromeDriver)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true # allowed to fail for now
 
     steps:
       - uses: actions/checkout@v7
@@ -51,4 +50,4 @@ jobs:
             --driver=test_driver/integration_test.dart \
             --target=integration_test/plugin_integration_test.dart \
             --dart-define=READIUM_TEST_SKIP_LOGS=true \
-            -d chrome
+            -d web-server

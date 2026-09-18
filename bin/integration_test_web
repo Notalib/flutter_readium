@@ -4,7 +4,7 @@
 # then cleans up.
 #
 # Usage:
-#   bin/integration_test_web
+#   bin/integration_test_web [--no-clean]
 #
 # Requirements: npx, node/npm, flutter, Google Chrome installed
 
@@ -14,6 +14,16 @@ PROJECT_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 EXAMPLE_DIR="$PROJECT_ROOT/flutter_readium/example"
 CHROMEDRIVER_DIR="$PROJECT_ROOT/.chromedriver"
 
+if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != "--no-clean" ]; }; then
+  echo "Usage: bin/integration_test_web [--no-clean]" >&2
+  exit 2
+fi
+
+NO_CLEAN=false
+if [ "${1:-}" = "--no-clean" ]; then
+  NO_CLEAN=true
+fi
+
 # Build first so a stale JS bundle or a cached web asset tree can't silently break
 # the run. `update_web_example` rebuilds readiumReader.js and copies it into
 # example/web/; `flutter clean` drops the cached web build so newly added web/
@@ -21,9 +31,13 @@ CHROMEDRIVER_DIR="$PROJECT_ROOT/.chromedriver"
 echo "==> Rebuilding web JS bundle..."
 "$PROJECT_ROOT/bin/update_web_example"
 
-echo "==> Clearing stale Flutter build..."
 cd "$EXAMPLE_DIR"
-flutter clean
+if [ "$NO_CLEAN" = true ]; then
+  echo "==> Reusing existing Flutter build..."
+else
+  echo "==> Clearing stale Flutter build..."
+  flutter clean
+fi
 flutter pub get
 
 cleanup() {
@@ -86,10 +100,9 @@ echo "==> ChromeDriver running on port 4444 (PID $CHROMEDRIVER_PID)"
 # flutter drive prints pass/fail results without it.
 echo "==> Running web integration tests..."
 cd "$EXAMPLE_DIR"
-# Single aggregator entrypoint = one build. To iterate on one suite, point
-# --target at its groups/*_test.dart file instead.
+# Always use the aggregator entrypoint. A groups/*_test.dart target imports the
+# shared harness from outside the served web root and cannot build on web.
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/plugin_integration_test.dart \
-  -d chrome \
-  --no-headless # show the browser window for debugging
+  -d web-server
