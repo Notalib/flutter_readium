@@ -2,6 +2,7 @@ package dk.nota.flutterreadium.models
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -93,6 +94,30 @@ internal class GuidedNavigationDocumentTest {
         val items = itemsOf(documentOf("""{"children":[{"audioref":"a.mp3#t=0,5"}]}"""))
 
         assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun imageOnlyCue_hasNoTextFragment() {
+        // An empty text id would render as the invalid fragment and selector "#".
+        val item =
+            itemsOf(
+                documentOf(
+                    """{"children":[{"imgref":"image0001.jpg#xywh=pixel:44,113,757,226","audioref":"a.mp3#t=0,5"}]}""",
+                ),
+            )[0]
+
+        assertEquals("image0001.jpg", item.textFile)
+        assertNull(item.syncTextFragment)
+    }
+
+    @Test
+    fun textCue_keepsItsTextFragment() {
+        val item =
+            itemsOf(
+                documentOf("""{"children":[{"textref":"chapter1.xhtml#p7","audioref":"a.mp3#t=0,5"}]}"""),
+            )[0]
+
+        assertEquals("#p7", item.syncTextFragment)
     }
 
     @Test
