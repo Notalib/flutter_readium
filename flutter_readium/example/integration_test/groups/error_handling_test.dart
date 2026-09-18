@@ -43,7 +43,7 @@ void main() {
     // audio-stream errors during playback (see the recovery tests below + the
     // web jest suite). The unreachable source differs by platform: file I/O
     // natively, an origin-relative HTTP 404 on web.
-    test('openPublication throws ReadiumException for an unreachable source', () async {
+    testWidgets('openPublication throws ReadiumException for an unreachable source', (_) async {
       final badSource = kIsWeb ? '/no-such-fixture/manifest.json' : '/does-not-exist/no-such.epub';
       await expectLater(
         harness.readium.openPublication(badSource),
@@ -51,10 +51,10 @@ void main() {
       );
     });
 
-    test(
+    testWidgets(
       'mid-resource stall after initial progress does not trigger resource-loading recovery',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
 
@@ -134,10 +134,10 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'default resource-loading timeout reports loading without retrying',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
@@ -178,10 +178,10 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'enabled resource-loading recovery retries and advances the new resource',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
@@ -242,10 +242,10 @@ void main() {
     // MediaError, which is validated separately in the web jest suite. The
     // mid-stream throttle case (retry-while-playing) still needs real network
     // fault injection (Link Conditioner) and stays a manual check.
-    test(
+    testWidgets(
       'unreachable audiobook media surfaces a terminal audioStream error via recovery',
-      skip: kIsWeb ? 'Native-only: web audio failure path is covered by jest' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         // 127.0.0.1:1 refuses connections immediately and deterministically, so
         // each recovery attempt fails fast rather than waiting out a timeout.
         const deadHost = 'http://127.0.0.1:1/frx-recovery-test';
@@ -341,10 +341,10 @@ void main() {
     // which is exactly what this test must catch. No token is ever committed —
     // its absence is the point.
     const authMediaHost = 'https://merkur.nota.dk/health/ping'; // media host health-endpoint
-    test(
+    testWidgets(
       'audiobook with missing Bearer token surfaces a terminal audioStreamAuthError',
-      skip: kIsWeb ? 'Native-only: remote auth fixture is not in the web set' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         if (!await isHostReachable(authMediaHost)) {
           markTestSkipped('$authMediaHost unreachable — auth-recovery path not exercised');
           return;
