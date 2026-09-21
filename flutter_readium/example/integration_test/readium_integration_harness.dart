@@ -127,14 +127,17 @@ Future<void> exerciseAudioPlayback(
   required Future<void> Function() enable,
   Duration timeout = const Duration(seconds: 20),
 }) async {
-  final reachedPlaying = reader.onTimebasedPlayerStateChanged
-      .firstWhere((s) => s.state == TimebasedState.playing && s.currentLocator != null)
-      .timeout(timeout);
+  // Subscribe now so a state event emitted during enable()/play() is still captured.
+  final reachedPlaying = reader.onTimebasedPlayerStateChanged.firstWhere(
+    (s) => s.state == TimebasedState.playing && s.currentLocator != null,
+  );
 
   await enable();
   await reader.play(null);
 
-  final playingState = await reachedPlaying;
+  // Arm the timeout only after enable()/play() return: their throw path must not
+  // leave a timer that fires under a later test.
+  final playingState = await reachedPlaying.timeout(timeout);
   expect(
     playingState.currentLocator,
     isNotNull,
@@ -156,19 +159,20 @@ Future<void> expectAudioSessionStarts(
   Duration timeout = const Duration(seconds: 30),
   String? reason,
 }) async {
-  final gotLocator = reader.onTimebasedPlayerStateChanged
-      .firstWhere((s) => s.currentLocator != null)
-      .timeout(
-        timeout,
-        onTimeout: () => fail(
-          reason ?? 'audioEnable produced no playback state within $timeout',
-        ),
-      );
+  // Subscribe now so a state event emitted during enable()/play() is still captured.
+  final gotLocator = reader.onTimebasedPlayerStateChanged.firstWhere((s) => s.currentLocator != null);
 
   await enable();
   await reader.play(null);
 
-  final state = await gotLocator;
+  // Arm the timeout only after enable()/play() return: their throw path must not
+  // leave a timer that calls fail() under a later test.
+  final state = await gotLocator.timeout(
+    timeout,
+    onTimeout: () => fail(
+      reason ?? 'audioEnable produced no playback state within $timeout',
+    ),
+  );
   expect(state.currentLocator, isNotNull);
 
   await reader.pause();
