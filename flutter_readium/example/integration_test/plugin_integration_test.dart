@@ -12,6 +12,9 @@
 // integration_test` — the glob would build every groups/*_test.dart as its own
 // target too, multiplying the (slow) native build.
 
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+
 import 'groups/error_handling_test.dart' as error_handling;
 import 'groups/navigation_locator_test.dart' as navigation_locator;
 import 'groups/preferences_decorations_resources_test.dart' as preferences_decorations_resources;
@@ -22,6 +25,7 @@ import 'groups/timebased_playback_test.dart' as timebased_playback;
 import 'test_suite_setup.dart';
 
 void main() {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   beginAggregatedRun();
 
   publication_opening.main();
@@ -31,4 +35,17 @@ void main() {
   search.main();
   timebased_playback.main();
   error_handling.main();
+
+  testWidgets('reports integration test results', (_) async {
+    final testNames = binding.results.keys.toList();
+    binding.reportData = {
+      'testCount': testNames.length,
+      'testNames': testNames,
+    };
+    expect(
+      testNames,
+      isNotEmpty,
+      reason: 'No integration test results were recorded',
+    );
+  });
 }

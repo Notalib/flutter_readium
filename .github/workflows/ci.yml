@@ -51,6 +51,7 @@ jobs:
               - '.github/workflows/build-web.yml'
               - '.github/workflows/integration-test-ios.yml'
               - '.github/workflows/integration-test-android.yml'
+              - '.github/workflows/integration-test-web.yml'
 
   # Standalone release builds run only on main. Integration jobs stay independent:
   # they build target-specific debug applications and cannot reuse these artifacts.
@@ -83,3 +84,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.android == 'true'
     uses: ./.github/workflows/integration-test-android.yml
+
+  integration-web:
+    name: Integration Tests Web
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/integration-test-web.yml

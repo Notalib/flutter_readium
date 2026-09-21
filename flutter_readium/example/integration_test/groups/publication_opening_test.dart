@@ -9,7 +9,7 @@ void main() {
   final harness = suiteHarness();
 
   group('Publication opening contract', () {
-    test('opens EPUB successfully', () async {
+    testWidgets('opens EPUB successfully', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.reflowableEpub,
         reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
@@ -22,10 +22,10 @@ void main() {
       expect(pub.containsMediaOverlays, isFalse, reason: 'Plain EPUB should not report media overlays');
     });
 
-    test(
+    testWidgets(
       'opens PDF successfully',
-      skip: kIsWeb ? 'PDF not supported on web' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.pdfTest,
           reason: 'Fixture ${FixtureKeys.pdfTest} missing from asset bundle',
@@ -39,7 +39,7 @@ void main() {
       },
     );
 
-    test('opens WebPub with media overlays', () async {
+    testWidgets('opens WebPub with media overlays', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.overlayWebpub,
         reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
@@ -51,7 +51,7 @@ void main() {
       expect(pub.containsMediaOverlays, isTrue, reason: 'Overlay webpub should report media overlays');
     });
 
-    test('opens audiobook', () async {
+    testWidgets('opens audiobook', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.audiobook,
         reason: 'Fixture ${FixtureKeys.audiobook} missing from asset bundle',
@@ -67,9 +67,9 @@ void main() {
       );
     });
 
-    test(
+    testWidgets(
       'opens DiViNa comic',
-      () async {
+      (_) async {
         final fixtureKey = kIsWeb ? FixtureKeys.divina : FixtureKeys.divinaComicCbz;
         final path = harness.fixturePath(
           fixtureKey,
@@ -87,7 +87,7 @@ void main() {
     );
 
     group('Publication shapes', () {
-      test('opens fixed-layout EPUB', () async {
+      testWidgets('opens fixed-layout EPUB', (_) async {
         final path = harness.fixturePath(
           FixtureKeys.fixedLayout,
           reason: 'Fixture ${FixtureKeys.fixedLayout} missing',
@@ -103,7 +103,7 @@ void main() {
         );
       });
 
-      test('opens guided-navigation publication', () async {
+      testWidgets('opens guided-navigation publication', (_) async {
         final path = harness.fixturePath(
           FixtureKeys.guidedNav,
           reason: 'Fixture ${FixtureKeys.guidedNav} missing',
@@ -113,7 +113,7 @@ void main() {
         expect(pub.readingOrder, isNotEmpty);
       });
 
-      test('opens comic media-overlay EPUB', () async {
+      testWidgets('opens comic media-overlay EPUB', (_) async {
         final path = harness.fixturePath(
           FixtureKeys.comic,
           reason: 'Fixture ${FixtureKeys.comic} missing',
