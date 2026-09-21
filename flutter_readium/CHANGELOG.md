@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS: Re-sync stopped working after the first use within one narration cue.** The current
+  cue is now retained until narration stops, allowing repeated manual-navigation/re-sync cycles.
+
 ## [0.5.0] - 2026-09-17
 
 ### Added
