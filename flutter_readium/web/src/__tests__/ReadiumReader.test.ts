@@ -376,7 +376,10 @@ describe("audioEnable restore sequencing", () => {
           })
       ),
     };
+    const publication = { conformsToAudiobook: true };
+    (reader as any)._publication = publication;
     (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = publication;
 
     let settled = false;
     const enabling = reader

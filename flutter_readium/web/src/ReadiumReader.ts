@@ -407,12 +407,11 @@ class _ReadiumReader {
         this._activeAudioPreferencesJson = preferencesJsonString;
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await FlutterAudioNavigator.create(
-          this._publication,
+          publication,
           initialPosition,
           preferencesJsonString,
           (nav) => {
-            this._audioNav = nav;
-            this._audioNavPublication = this._publication;
+            if (!this._installAudioNavigator(publication, nav)) return;
             this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
           },
           undefined,
@@ -776,6 +775,24 @@ class _ReadiumReader {
     if (!nav) return Promise.resolve();
     FlutterAudioNavigator.setPlaybackIntent(resumePlaying);
     return seekAudioAndResume(nav, audioLocator, resumePlaying);
+  }
+
+  /** Installs a completed navigator only if its requesting publication is still current. */
+  private _installAudioNavigator(
+    publication: ReadiumPublication,
+    nav: AudioNavigator,
+    syncItems?: SyncNarrationItem[]
+  ): boolean {
+    if (this._publication !== publication) {
+      log.info("Discarding audio navigator completed for a previous publication");
+      nav.stop();
+      nav.destroy();
+      return false;
+    }
+    this._audioNav = nav;
+    this._audioNavPublication = publication;
+    if (syncItems !== undefined) this._syncItems = syncItems;
+    return true;
   }
 
   /**
@@ -1319,16 +1336,13 @@ class _ReadiumReader {
    */
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
-    if (!this._publication && !this._audioNav) {
+    if (!this._publication) {
       // getPublication stores the publication and detects its audio capabilities, so an
       // awaited openPublication always leaves something to enable here. Reaching this
       // means the caller did not await it — the same mistake fails on iOS and Android.
-      // Report it to Dart: a bare return resolves the promise and leaves silent audio
-      // with nothing observable outside the JS console.
       const message = "audioEnable: call it only after openPublication has resolved";
       log.error(message);
-      this._bridge.emitError(message);
-      return;
+      throw new ReadiumWebError(message, ReadiumWebErrorCode.noPublication);
     }
     const preferencesJsonString =
       !prefsJson || prefsJson === "null" ? "{}" : prefsJson;
@@ -1365,19 +1379,23 @@ class _ReadiumReader {
     }
 
     if (this._hasGuidedNavigation && this._publication) {
+      const publication = this._publication;
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
       await initializeGuidedNavigationNavigator(
-        this._publication,
+        publication,
         fromLocator,
         preferencesJsonString,
         (nav, items) => {
-          this._audioNav = nav;
-          this._audioNavPublication = this._publication;
-          this._syncItems = items;
+          this._installAudioNavigator(publication, nav, items);
         },
-        (textLocator, durationMs) => this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs)
+        (textLocator, durationMs) => {
+          if (this._publication === publication) {
+            this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs);
+          }
+        }
       );
+      if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
@@ -1390,19 +1408,23 @@ class _ReadiumReader {
     }
 
     if (this._hasSyncNarration && this._publication) {
+      const publication = this._publication;
       const fromLocator = resolvedFromLocator;
       this._lastMediaOverlayLocatorKey = null;
       await initializeMediaOverlayNavigator(
-        this._publication,
+        publication,
         fromLocator,
         prefsJson,
         (nav, items) => {
-          this._audioNav = nav;
-          this._audioNavPublication = this._publication;
-          this._syncItems = items;
+          this._installAudioNavigator(publication, nav, items);
         },
-        (textLocator, durationMs) => this._routeNarrationCue(textLocator, "MediaOverlay", durationMs)
+        (textLocator, durationMs) => {
+          if (this._publication === publication) {
+            this._routeNarrationCue(textLocator, "MediaOverlay", durationMs);
+          }
+        }
       );
+      if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
@@ -1415,21 +1437,22 @@ class _ReadiumReader {
     }
 
     if (this._publication?.conformsToAudiobook) {
+      const publication = this._publication;
       const fromLocator = resolvedFromLocator ?? this._stoppedAudioLocator;
       log.info("audioEnable: recreating plain audiobook navigator");
       await FlutterAudioNavigator.create(
-        this._publication,
+        publication,
         fromLocator,
         preferencesJsonString,
         (nav) => {
-          this._audioNav = nav;
-          this._audioNavPublication = this._publication;
+          this._installAudioNavigator(publication, nav);
         },
         undefined,
         undefined,
         undefined,
         this._bridge
       );
+      if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         this._stoppedAudioLocator = undefined;

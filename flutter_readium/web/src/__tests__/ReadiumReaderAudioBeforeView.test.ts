@@ -32,6 +32,7 @@ jest.mock("../navigators/FlutterAudioNavigator", () => ({
 import { initializeGuidedNavigationNavigator } from "../navigators/FlutterMediaOverlayNavigator";
 import { FlutterEpubNavigator } from "../navigators/FlutterEpubNavigator";
 import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
+import { ReadiumWebErrorCode } from "../errors/ReadiumWebError";
 import { __testing__ } from "../ReadiumReader";
 
 const { ReadiumReader } = __testing__;
@@ -183,6 +184,35 @@ describe("audio before the reader view mounts", () => {
     expect(initializeGuidedNavigationNavigator).toHaveBeenCalledTimes(1);
     expect((reader as any)._audioNav).toBe(audioNav);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("discards an audio navigator whose publication changed while it was being created", async () => {
+    const reader = new ReadiumReader();
+    const requestedPublication = guidedNavPublication();
+    const nextPublication = guidedNavPublication();
+    const staleNav = fakeAudioNav();
+    let finishCreate: (() => void) | undefined;
+    (initializeGuidedNavigationNavigator as jest.Mock).mockImplementation(
+      async (_pub, _loc, _prefs, setNav) =>
+        new Promise<void>((resolve) => {
+          finishCreate = () => {
+            setNav(staleNav, []);
+            resolve();
+          };
+        })
+    );
+    (reader as any)._publication = requestedPublication;
+    (reader as any)._hasGuidedNavigation = true;
+
+    const enable = reader.audioEnable('{"speed":1.0}', undefined);
+    (reader as any)._publication = nextPublication;
+    finishCreate!();
+    await enable;
+
+    expect(staleNav.stop).toHaveBeenCalledTimes(1);
+    expect(staleNav.destroy).toHaveBeenCalledTimes(1);
+    expect((reader as any)._audioNav).toBeUndefined();
+    expect((reader as any)._audioNavPublication).toBeUndefined();
   });
 
   it("keeps the narrating audio navigator when the reader view opens the same publication", async () => {
@@ -347,18 +377,20 @@ describe("audio before the reader view mounts", () => {
     expect((reader as any)._audioNav).toBe(audioNav);
   });
 
-  it("refuses audioEnable before the publication is loaded instead of deferring it", async () => {
+  it("rejects audioEnable with NoPublication before the publication is loaded", async () => {
     const reader = new ReadiumReader();
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
     const emitError = jest.fn();
     (reader as any)._bridge.emitError = emitError;
 
-    await reader.audioEnable('{"speed":1.0}', undefined);
+    await expect(reader.audioEnable('{"speed":1.0}', undefined)).rejects.toMatchObject({
+      code: ReadiumWebErrorCode.noPublication,
+    });
 
     expect(initializeGuidedNavigationNavigator).not.toHaveBeenCalled();
     expect((reader as any)._audioNav).toBeUndefined();
     expect(error).toHaveBeenCalled();
-    expect(emitError).toHaveBeenCalledWith(expect.stringContaining("audioEnable"));
+    expect(emitError).not.toHaveBeenCalled();
   });
 
   it("replays the cue that narrated before the visual navigator existed", async () => {

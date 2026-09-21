@@ -14,7 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
-- **Web: `audioEnable` now requires an awaited `openPublication`.** A call that arrives before the publication is loaded used to be remembered and replayed; it is now reported on the error channel instead, the same mistake that already fails on iOS and Android.
+- **Web: `audioEnable` now requires an awaited `openPublication`.** A call that arrives before the publication is loaded used to be remembered and replayed; it now fails with `NoPublication`, matching Android's awaited error contract.
 
 ## [0.5.0] - 2026-09-17
 
