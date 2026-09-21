@@ -83,6 +83,26 @@ internal class GuidedNavigationDocumentTest {
     }
 
     @Test
+    fun divinaCue_wholeFileAudioref_parsesWithoutTimeFragment() {
+        // Whole-file audio (no #t=) is legal guided navigation; the parser accepts it and
+        // makeSyncAudiobook's duration fallback (declared reading-order duration) keeps
+        // the file playable instead of filtering it out.
+        val items =
+            itemsOf(
+                documentOf(
+                    """{"children":[
+                        {"imgref":"image0001.jpg","audioref":"side1.mp3"}
+                    ]}""",
+                ),
+            )
+
+        assertEquals(1, items.size)
+        assertEquals("side1.mp3", items[0].audioFile)
+        assertNull(items[0].audioStart)
+        assertNull(items[0].audioEnd)
+    }
+
+    @Test
     fun cueWithoutAudio_isSkipped() {
         val items = itemsOf(documentOf("""{"children":[{"imgref":"image0001.jpg"}]}"""))
 

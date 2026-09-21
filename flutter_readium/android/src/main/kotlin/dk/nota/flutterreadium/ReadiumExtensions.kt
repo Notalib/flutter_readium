@@ -546,7 +546,15 @@ suspend fun Publication.makeSyncAudiobook(): Pair<Publication, List<FlutterMedia
                                 Link(
                                     href,
                                     mediaType = item.audioMediaType,
-                                    duration = overlay.duration,
+                                    // Whole-file cues (no #t= fragment) carry no audioEnd, so
+                                    // fall back to the manifest's declared reading-order
+                                    // duration — mirroring web's _buildAudioReadingOrder — or
+                                    // the filter below drops the file and silences the book.
+                                    duration =
+                                        overlay.duration.takeIf { it > 0.0 }
+                                            ?: overlay.items.firstNotNullOfOrNull {
+                                                it.readingOrderItemDuration.takeIf { d -> d > 0.0 }
+                                            },
                                     title = item.title,
                                 )
                             }
