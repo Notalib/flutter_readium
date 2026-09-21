@@ -778,6 +778,32 @@ class _ReadiumReader {
     return seekAudioAndResume(nav, audioLocator, resumePlaying);
   }
 
+  /**
+   * Tears down a live audio navigator that belongs to a different publication than
+   * `_publication`. getPublication may have advanced the current publication while the
+   * old one still narrated audio-only (no reader view, so openPublication's
+   * keep/teardown never ran); reusing such a navigator would replay the old book
+   * "as" the new one. Shared by audioEnable's guard and play()'s terminal-failure
+   * retry so both callers keep the exact same teardown contract.
+   */
+  private _discardForeignAudioNavigator(origin: string): void {
+    const audioNav = this._audioNav;
+    if (!audioNav) return;
+    log.info(origin + ": discarding navigator built for a previous publication");
+    setAudioEmissionsEnabled(false);
+    FlutterAudioNavigator.resetRecovery();
+    audioNav.stop();
+    audioNav.destroy();
+    this._audioNav = undefined;
+    this._audioNavPublication = undefined;
+    this._stoppedAudioLocator = undefined;
+    this._syncItems = [];
+    this._lastMediaOverlayLocatorKey = null;
+    this._lastDeferredSyncLocator = null;
+    this._lastDeferredSyncDurationMs = undefined;
+    this._narrationSyncEnabled = true;
+  }
+
   public play(locatorJson?: string): void {
     log.debug("play", locatorJson ? "(with locator)" : "");
     if (this._ttsEngine) {
@@ -794,18 +820,33 @@ class _ReadiumReader {
     // re-prepare API), so clear the latch and rebuild fresh at the last
     // locator — mirrors iOS/Android's play()-after-failure contract.
     if (FlutterAudioNavigator.isTerminallyFailed()) {
+      // A live navigator only proves the book it narrates via its own publication:
+      // getPublication may already have advanced `_publication` to another book
+      // while this one narrated audio-only (the same stacked state audioEnable's
+      // guard discards). Rebuilding here would build the new book's audio tracks
+      // from the dead session's locator and launder the mismatch through the
+      // stamp below, so discard the foreign navigator instead — audioEnable
+      // re-arms playback for the current publication.
+      if (this._audioNavPublication !== this._publication) {
+        this._discardForeignAudioNavigator("play");
+        return;
+      }
       log.info("play: retrying after terminal audio streaming failure");
       FlutterAudioNavigator.retryAfterFailure();
       const resumeLocator = locatorJson
         ? Locator.deserialize(JSON.parse(locatorJson)) ?? this._audioNav.currentLocator
         : this._audioNav.currentLocator;
+      // Stamp the captured instance, not `this._publication`: create() is async and
+      // a mid-flight getPublication would otherwise record the new book as owning
+      // this navigator.
+      const retryPublication = this._audioNavPublication as ReadiumPublication;
       void FlutterAudioNavigator.create(
-        this._publication as ReadiumPublication,
+        retryPublication,
         resumeLocator,
         this._activeAudioPreferencesJson,
         (nav) => {
           this._audioNav = nav;
-          this._audioNavPublication = this._publication;
+          this._audioNavPublication = retryPublication;
           FlutterAudioNavigator.setPlaybackIntent(true);
           nav.play();
         },
@@ -1302,19 +1343,7 @@ class _ReadiumReader {
     // same way) never ran because no reader view mounted. Reusing such a navigator
     // would replay the old book "as" the new one.
     if (this._audioNav && this._audioNavPublication !== this._publication) {
-      log.info("audioEnable: discarding navigator built for a previous publication");
-      setAudioEmissionsEnabled(false);
-      FlutterAudioNavigator.resetRecovery();
-      this._audioNav.stop();
-      this._audioNav.destroy();
-      this._audioNav = undefined;
-      this._audioNavPublication = undefined;
-      this._stoppedAudioLocator = undefined;
-      this._syncItems = [];
-      this._lastMediaOverlayLocatorKey = null;
-      this._lastDeferredSyncLocator = null;
-      this._lastDeferredSyncDurationMs = undefined;
-      this._narrationSyncEnabled = true;
+      this._discardForeignAudioNavigator("audioEnable");
     }
 
     if (this._audioNav) {
