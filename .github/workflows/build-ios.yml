@@ -46,9 +46,9 @@ jobs:
           # .pch is built against that engine's Flutter.framework headers, and a
           # mismatch is a hard build failure ("has been modified since the
           # precompiled header was built"), not just stale flutter_assets.
-          key: xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
+          key: xcode-deriveddata-macos26-iphoneos-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
           restore-keys: |
-            xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-
+            xcode-deriveddata-macos26-iphoneos-flutter${{ steps.flutter_version.outputs.version }}-
 
       # Build the gitignored webview helper assets so the built app bundles them
       # (see docs/troubleshooting.md).
@@ -63,6 +63,6 @@ jobs:
         run: pod install ${{ steps.pods-cache.outputs.cache-hit == 'true' && ' ' || '--repo-update' }}
         working-directory: flutter_readium/example/ios
 
-      - name: Build iOS (no codesign)
-        run: flutter build ios --no-codesign
+      - name: Build release iOS (no codesign)
+        run: flutter build ios --release --no-codesign
         working-directory: flutter_readium/example

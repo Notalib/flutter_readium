@@ -9,10 +9,10 @@ void main() {
   final harness = suiteHarness();
 
   group('Search', () {
-    test(
+    testWidgets(
       'searchInPublication returns hits for a common word in a reflowable EPUB',
-      skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.reflowableEpub,
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
@@ -26,10 +26,10 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'searchInPublication returns no hits for an absent word in a reflowable EPUB',
-      skip: kIsWeb ? 'searchInPublication not implemented on web (see docs/parity/web-search.md)' : false,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.reflowableEpub,
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
@@ -42,9 +42,9 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'searchInPublication returns hits for a common word in a text PDF',
-      () async {
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
@@ -61,14 +61,12 @@ void main() {
           reason: 'PDF search hit should carry a 1-based page position',
         );
       },
-      skip: kIsWeb || isAndroid()
-          ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService) or web'
-          : false,
+      skip: kIsWeb || isAndroid(),
     );
 
-    test(
+    testWidgets(
       'searchInPublication returns no hits for an absent word in a text PDF',
-      () async {
+      (_) async {
         final path = harness.fixturePath(
           FixtureKeys.timeMachinePdf,
           reason: 'Fixture ${FixtureKeys.timeMachinePdf} missing from asset bundle',
@@ -79,9 +77,7 @@ void main() {
         final results = await harness.readium.searchInPublication('zzzxxy-not-a-word');
         expect(results, isEmpty, reason: 'An absent PDF search term should return an empty result set');
       },
-      skip: kIsWeb || isAndroid()
-          ? 'PDF text search not supported on Android (kotlin-toolkit has no PDF SearchService) or web'
-          : false,
+      skip: kIsWeb || isAndroid(),
     );
   });
 }

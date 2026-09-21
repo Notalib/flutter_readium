@@ -109,4 +109,6 @@ dependencies {
   implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
 
   testImplementation 'junit:junit:4.13.2'
+  // The android.jar stub throws on every org.json call, so unit tests need a real implementation.
+  testImplementation 'org.json:json:20260814'
 }

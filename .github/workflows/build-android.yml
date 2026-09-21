@@ -56,12 +56,12 @@ jobs:
         run: flutter pub get
         working-directory: flutter_readium/example
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
         working-directory: flutter_readium/example
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
-          name: debug-apk
-          path: flutter_readium/example/build/app/outputs/flutter-apk/app-debug.apk
+          name: release-apk
+          path: flutter_readium/example/build/app/outputs/flutter-apk/app-release.apk

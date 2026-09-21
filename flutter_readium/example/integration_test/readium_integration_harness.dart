@@ -127,19 +127,53 @@ Future<void> exerciseAudioPlayback(
   required Future<void> Function() enable,
   Duration timeout = const Duration(seconds: 20),
 }) async {
-  final reachedPlaying = reader.onTimebasedPlayerStateChanged
-      .firstWhere((s) => s.state == TimebasedState.playing && s.currentLocator != null)
-      .timeout(timeout);
+  // Subscribe now so a state event emitted during enable()/play() is still captured.
+  final reachedPlaying = reader.onTimebasedPlayerStateChanged.firstWhere(
+    (s) => s.state == TimebasedState.playing && s.currentLocator != null,
+  );
 
   await enable();
   await reader.play(null);
 
-  final playingState = await reachedPlaying;
+  // Arm the timeout only after enable()/play() return: their throw path must not
+  // leave a timer that fires under a later test.
+  final playingState = await reachedPlaying.timeout(timeout);
   expect(
     playingState.currentLocator,
     isNotNull,
     reason: 'A playing state event should carry the current playback locator',
   );
+
+  await reader.pause();
+}
+
+/// Asserts that a timebased session actually starts, without requiring sound.
+///
+/// Chrome blocks autoplay in the web test harness, so `playing` is unreachable there.
+/// A state event carrying a `currentLocator` is the honest signal instead: it can only
+/// be emitted once a navigator exists, which means the cue parser produced items.
+/// A publication whose cues were all dropped emits nothing at all.
+Future<void> expectAudioSessionStarts(
+  FlutterReadium reader, {
+  required Future<void> Function() enable,
+  Duration timeout = const Duration(seconds: 30),
+  String? reason,
+}) async {
+  // Subscribe now so a state event emitted during enable()/play() is still captured.
+  final gotLocator = reader.onTimebasedPlayerStateChanged.firstWhere((s) => s.currentLocator != null);
+
+  await enable();
+  await reader.play(null);
+
+  // Arm the timeout only after enable()/play() return: their throw path must not
+  // leave a timer that calls fail() under a later test.
+  final state = await gotLocator.timeout(
+    timeout,
+    onTimeout: () => fail(
+      reason ?? 'audioEnable produced no playback state within $timeout',
+    ),
+  );
+  expect(state.currentLocator, isNotNull);
 
   await reader.pause();
 }

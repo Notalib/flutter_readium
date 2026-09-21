@@ -43,7 +43,7 @@ void main() {
     // audio-stream errors during playback (see the recovery tests below + the
     // web jest suite). The unreachable source differs by platform: file I/O
     // natively, an origin-relative HTTP 404 on web.
-    test('openPublication throws ReadiumException for an unreachable source', () async {
+    testWidgets('openPublication throws ReadiumException for an unreachable source', (_) async {
       final badSource = kIsWeb ? '/no-such-fixture/manifest.json' : '/does-not-exist/no-such.epub';
       await expectLater(
         harness.readium.openPublication(badSource),
@@ -51,10 +51,10 @@ void main() {
       );
     });
 
-    test(
+    testWidgets(
       'mid-resource stall after initial progress does not trigger resource-loading recovery',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
 
@@ -77,12 +77,22 @@ void main() {
           ],
         });
 
+        // The watchdog disarms the moment playback advances past the point it armed at,
+        // which gives this test two phases with opposite needs. Startup has to finish
+        // inside stallTimeout or the watchdog fires before the stall under test ever
+        // happens — a 2s budget lost that race on a loaded CI simulator. The stall then
+        // has to be watched for longer than the fixture's remaining audio plus that same
+        // timeout, so a watchdog that wrongly re-armed would have fired inside the window.
+        const stallTimeout = Duration(seconds: 8);
+        const fixtureAudio = Duration(seconds: 4);
+        final stallObservation = fixtureAudio + stallTimeout + const Duration(seconds: 4);
+
         await harness.readium.setAudioRecoveryPolicy(
-          const AudioRecoveryPolicy(
+          AudioRecoveryPolicy(
             maxAttempts: 1,
             backoffBaseSeconds: 0.1,
             connectionTimeoutSeconds: 5.0,
-            stallTimeoutSeconds: 2.0,
+            stallTimeoutSeconds: stallTimeout.inSeconds.toDouble(),
             recoverOnResourceLoadingTimeout: true,
           ),
         );
@@ -106,10 +116,17 @@ void main() {
           const Duration(seconds: 5),
           onTimeout: () => fail('The native player never requested the synthetic audio resource'),
         );
+        // Advancing playback is what disarms the watchdog, so wait for the offset to move
+        // rather than for the playing state: the two are not the same moment.
+        Duration observedOffset() => states
+            .where((state) => state.currentOffset != null)
+            .map((state) => state.currentOffset!)
+            .fold(Duration.zero, (max, offset) => offset > max ? offset : max);
+
         await waitUntil(
-          () => states.any((state) => state.state == TimebasedState.playing),
-          timeout: const Duration(seconds: 8),
-          reason: 'The partial WAV response never started playback',
+          () => observedOffset() > const Duration(milliseconds: 500),
+          timeout: stallTimeout + const Duration(seconds: 10),
+          reason: 'The partial WAV response never produced playback progress',
         );
         expect(
           errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
@@ -117,15 +134,7 @@ void main() {
           reason: 'The watchdog fired while the partial audio was still starting',
         );
 
-        await Future<void>.delayed(const Duration(seconds: 7));
-        expect(
-          states
-              .where((state) => state.currentOffset != null)
-              .map((state) => state.currentOffset!)
-              .fold(Duration.zero, (max, offset) => offset > max ? offset : max),
-          greaterThan(const Duration(milliseconds: 500)),
-          reason: 'The fixture must make initial progress before stalling',
-        );
+        await Future<void>.delayed(stallObservation);
         expect(
           errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
           isEmpty,
@@ -134,10 +143,10 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'default resource-loading timeout reports loading without retrying',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
@@ -178,10 +187,10 @@ void main() {
       },
     );
 
-    test(
+    testWidgets(
       'enabled resource-loading recovery retries and advances the new resource',
-      skip: kIsWeb ? 'Native-only: exercises the platform audio watchdog' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         final server = await StallingAudioServer.start();
         addTearDown(server.close);
         await harness.readium.setAudioRecoveryPolicy(
@@ -242,10 +251,10 @@ void main() {
     // MediaError, which is validated separately in the web jest suite. The
     // mid-stream throttle case (retry-while-playing) still needs real network
     // fault injection (Link Conditioner) and stays a manual check.
-    test(
+    testWidgets(
       'unreachable audiobook media surfaces a terminal audioStream error via recovery',
-      skip: kIsWeb ? 'Native-only: web audio failure path is covered by jest' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         // 127.0.0.1:1 refuses connections immediately and deterministically, so
         // each recovery attempt fails fast rather than waiting out a timeout.
         const deadHost = 'http://127.0.0.1:1/frx-recovery-test';
@@ -341,10 +350,10 @@ void main() {
     // which is exactly what this test must catch. No token is ever committed —
     // its absence is the point.
     const authMediaHost = 'https://merkur.nota.dk/health/ping'; // media host health-endpoint
-    test(
+    testWidgets(
       'audiobook with missing Bearer token surfaces a terminal audioStreamAuthError',
-      skip: kIsWeb ? 'Native-only: remote auth fixture is not in the web set' : null,
-      () async {
+      skip: kIsWeb,
+      (_) async {
         if (!await isHostReachable(authMediaHost)) {
           markTestSkipped('$authMediaHost unreachable — auth-recovery path not exercised');
           return;

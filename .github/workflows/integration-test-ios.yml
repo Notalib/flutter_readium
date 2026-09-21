@@ -57,9 +57,9 @@ jobs:
           # .pch is built against that engine's Flutter.framework headers, and a
           # mismatch is a hard build failure ("has been modified since the
           # precompiled header was built"), not just stale flutter_assets.
-          key: xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
+          key: xcode-deriveddata-macos26-iphonesimulator-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/pubspec.lock', 'flutter_readium/assets/_helper_scripts/src/**') }}
           restore-keys: |
-            xcode-deriveddata-macos26-flutter${{ steps.flutter_version.outputs.version }}-
+            xcode-deriveddata-macos26-iphonesimulator-flutter${{ steps.flutter_version.outputs.version }}-
 
       # Diagnostic: the dominant iOS-CI time sinks are cold caches (full pod install
       # + full Xcode rebuild) and underpowered runners. Surface both up front so a
