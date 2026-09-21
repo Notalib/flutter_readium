@@ -49,7 +49,7 @@ extension EPUBReaderView {
     if !narrationSyncEnabled {
       lastSyncLocator = locator
       lastSyncSegmentDuration = segmentDuration
-      Log.reader.debug("syncToLocator: deferred while narration sync is disabled")
+      Log.reader.debug("syncToLocator: cached latest cue while narration sync is disabled")
       return false
     }
     // In scroll mode, skip fine-grained word-range syncs. Scrolling to each
@@ -111,22 +111,23 @@ extension EPUBReaderView {
   internal func setNarrationSyncEnabled(_ enabled: Bool) {
     let wasEnabled = narrationSyncEnabled
     narrationSyncEnabled = enabled
-    Log.reader.debug("setNarrationSyncEnabled: \(enabled)")
+    Log.reader.debug(
+      "setNarrationSyncEnabled: enabled=\(enabled), wasEnabled=\(wasEnabled), hasCachedCue=\(self.lastSyncLocator != nil)")
     FlutterReadiumPlugin.instance?.narrationSyncStreamHandler?.sendEvent(enabled)
-    // Replay deferred sync locator when re-enabling, matching the existing
-    // wasSyncDisabled catch-up logic that was previously in setPreferences.
+    // Keep the latest cue after replay so repeated manual-mode cycles can re-sync
+    // within the same cue. Narration stop clears it in resetForNarrationStop().
     if enabled, !wasEnabled, let deferredLocator = lastSyncLocator {
       let deferredSegmentDuration = lastSyncSegmentDuration
-      lastSyncLocator = nil
-      lastSyncSegmentDuration = nil
       Task.detached(priority: .high) {
         // Clear the JS-side manual-override flag so the next pinch re-enters manual
         // mode. No-op (optional chaining) on non-comic pages.
         await self.evaluateJavascript("window.comicBookPage?.clearManualOverride?.();")
-        _ = await self.performSyncNavigation(
+        let navigated = await self.performSyncNavigation(
           deferredLocator,
           animated: false,
           segmentDuration: deferredSegmentDuration)
+        Log.reader.debug(
+          "setNarrationSyncEnabled: re-sync completed success=\(navigated)")
       }
     }
   }
