@@ -247,6 +247,52 @@ describe("audio before the reader view mounts", () => {
     expect((reader as any)._syncItems).toEqual([]);
   });
 
+  it("discards a navigator built for another book instead of replaying it", async () => {
+    // The audio-first flow's remaining hole: A narrates with no view, getPublication(B)
+    // advances _publication, and audioEnable arrives before B's view mounts and runs
+    // openPublication's teardown. The reuse branch must not play A "as" B.
+    const reader = new ReadiumReader();
+    const narrating = guidedNavPublication();
+    const opening = guidedNavPublication();
+    const staleNav = fakeAudioNav();
+    const builtNav = fakeAudioNav();
+    (reader as any)._publication = opening;
+    (reader as any)._audioNav = staleNav;
+    (reader as any)._audioNavPublication = narrating;
+    (reader as any)._hasGuidedNavigation = true;
+    (reader as any)._syncItems = [{ audio: "a.mp3", text: "chapter1.xhtml#p1" }];
+    (initializeGuidedNavigationNavigator as jest.Mock).mockImplementation(
+      async (_pub, _loc, _prefs, setNav) => setNav(builtNav, [])
+    );
+
+    await reader.audioEnable('{"speed":1.0}', undefined);
+
+    expect(staleNav.stop).toHaveBeenCalledTimes(1);
+    expect(staleNav.destroy).toHaveBeenCalledTimes(1);
+    expect(initializeGuidedNavigationNavigator).toHaveBeenCalledTimes(1);
+    expect((reader as any)._audioNav).toBe(builtNav);
+    expect((reader as any)._audioNavPublication).toBe(opening);
+    expect((reader as any)._syncItems).toEqual([]);
+  });
+
+  it("keeps the audioEnable preferences when the view re-opens the narrating audiobook", async () => {
+    // The keep path must not record the view's initial preferences as active: a later
+    // recovery restart rebuilds from them and would silently drop speed & friends.
+    const reader = new ReadiumReader();
+    const publication = audiobookPublication();
+    (reader as any)._publication = publication;
+    (reader as any)._audioNav = fakeAudioNav();
+    (reader as any)._audioNavPublication = publication;
+    (reader as any)._activeAudioPreferencesJson = '{"speed":2.0}';
+    (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(publication) };
+
+    await reader.openPublication(
+      "https://example.test/audiobook/manifest.json", "urn:test:audiobook", undefined, '{"speed":1.0}', "[]"
+    );
+
+    expect((reader as any)._activeAudioPreferencesJson).toBe('{"speed":2.0}');
+  });
+
   it("does not build a second audio navigator when the same audiobook is re-opened", async () => {
     const reader = new ReadiumReader();
     const publication = audiobookPublication();

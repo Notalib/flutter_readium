@@ -8,8 +8,9 @@ import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'js_publication_channel.dart';
 
-/// Provides JS-callable callbacks for pure audiobooks, where [ReadiumWebView]
-/// (and its [registerJSExports] call) is never in the widget tree.
+/// Provides JS-callable callbacks registered by every [openPublication], so
+/// audio events reach Dart even before [ReadiumWebView] (and its
+/// [registerJSExports] call) is in the widget tree.
 @js_interop.JSExport()
 class _PluginCallbacks {
   static final _log = ReadiumLog.tag('WebPlugin');

@@ -395,15 +395,16 @@ class _ReadiumReader {
 
       if (this._publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
-        this._activeAudioPreferencesJson = preferencesJsonString;
         if (keepAudio) {
           // A second create() here would leave the running navigator orphaned but audible,
           // playing under the new one. Re-opening the same audiobook is legal on the public
-          // API, so keep the navigator and report ready ourselves.
+          // API, so keep the navigator and report ready ourselves. The navigator keeps the
+          // preferences audioEnable gave it, so don't record this view's initial ones.
           log.info("Reusing the audio navigator already narrating this audiobook");
           this._bridge.emitReaderStatus(ReadiumReaderStatus.ready);
           return;
         }
+        this._activeAudioPreferencesJson = preferencesJsonString;
         // AudioNavigator doesn't need a DOM container — it drives <audio> elements directly.
         await FlutterAudioNavigator.create(
           this._publication,
@@ -1294,6 +1295,27 @@ class _ReadiumReader {
     const resolvedFromLocator: Locator | undefined = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
       : this._visualNav?.currentLocator;
+
+    // A running navigator only proves the book it narrates via its own publication:
+    // getPublication may already have advanced `_publication` to another book while
+    // this one narrates audio-only, and openPublication's keep/teardown (keyed the
+    // same way) never ran because no reader view mounted. Reusing such a navigator
+    // would replay the old book "as" the new one.
+    if (this._audioNav && this._audioNavPublication !== this._publication) {
+      log.info("audioEnable: discarding navigator built for a previous publication");
+      setAudioEmissionsEnabled(false);
+      FlutterAudioNavigator.resetRecovery();
+      this._audioNav.stop();
+      this._audioNav.destroy();
+      this._audioNav = undefined;
+      this._audioNavPublication = undefined;
+      this._stoppedAudioLocator = undefined;
+      this._syncItems = [];
+      this._lastMediaOverlayLocatorKey = null;
+      this._lastDeferredSyncLocator = null;
+      this._lastDeferredSyncDurationMs = undefined;
+      this._narrationSyncEnabled = true;
+    }
 
     if (this._audioNav) {
       if (resolvedFromLocator) {
