@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Web: TTS could stop for good after a speechSynthesis stall.**
+  The stall watchdog treated `speaking: true` with no `onstart` yet as a wedge, which is
+  also what a perfectly normal queued utterance looks like. After two timeouts it emitted
+  `failure` and left the engine stuck, so playback only came back by reloading. The
+  watchdog now waits for real silence, always resets the engine before reporting failure,
+  and can no longer cancel the utterance that replaced it or speak again after `stop()`.
+
 ## [0.6.0] - 2026-09-22
 
 ### Fixed

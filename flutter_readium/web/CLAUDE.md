@@ -6,6 +6,7 @@ TS implementation bundled to JS and loaded in a webview. Wraps the npm ts-toolki
 - **Gate scope:** for TypeScript-only changes, the web checks are sufficient. Run the repo-wide Dart format/analyze gates only when Dart or shared API files also changed.
 - **Locator serialization**: call `locator.serialize()` before `JSON.stringify` — a plain stringify silently drops `otherLocations` Map entries. Wider rules: `docs/architecture.md#bridge-serialization`.
 - Web example for manual checks: `bin/run_web_example [port]`. The Flutter shell is a `<canvas>` (use screenshots), but EPUB content is real HTML in an iframe, so DOM inspection and JS eval work there.
+- **TTS needs a real browser.** The in-app preview browser accepts `speechSynthesis.speak()` but never dispatches `onstart` — `speaking` just stays `true` forever, which looks exactly like the stall the watchdog hunts for. Drive TTS checks through Claude in Chrome (or a browser you open yourself) instead; there, utterances start in 1-500 ms and `window.speechSynthesis` exposes the real voice list, network voices included.
 
 ## Toolchain
 

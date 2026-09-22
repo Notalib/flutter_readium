@@ -13,6 +13,8 @@
  * Known limitations:
  *  - onboundary sub-utterance granularity is not available in all browsers (Firefox, some
  *    mobile).  When absent, the engine falls back to utterance (paragraph) level silently.
+ *    Chrome's remote "Google *" voices never fire onboundary either, so word-level
+ *    highlighting degrades to paragraph level on those voices.
  */
 
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
@@ -41,9 +43,14 @@ const log = createLogger("TTS");
 
 /** Minimum ms between onboundary state emissions (throttle). */
 const BOUNDARY_THROTTLE_MS = 100;
-// How long to wait for `utterance.onstart` after calling `speak()` before
-// considering the speechSynthesis engine wedged and triggering recovery.
-const WEDGE_WATCHDOG_MS = 1500;
+// How long to wait for any event from an utterance (`onstart`/`onerror`) after
+// calling `speak()` before treating the engine as stalled. Measured start
+// latency is 1-500ms on healthy setups, for local and Google network voices
+// alike, so this is a silence threshold rather than a timing budget — a value
+// close to normal latency turns slow starts into spurious cancel/re-speak.
+const STALL_WATCHDOG_MS = 8000;
+/** Delay between the recovery `cancel()` and re-speaking the same utterance. */
+const STALL_RECOVERY_DELAY_MS = 200;
 
 type AnyNavigator = EpubNavigator | WebPubNavigator;
 
@@ -168,6 +175,15 @@ export class FlutterTTSNavigator {
   private _lastBoundaryEmitTime = 0;
   private _destroyed = false;
 
+  /**
+   * Bumped for every utterance. Timers and event handlers capture the value
+   * current when they were created and go quiet once it changes, so a stale
+   * watchdog can never cancel the utterance that replaced it.
+   */
+  private _generation = 0;
+  private _watchdog: ReturnType<typeof setTimeout> | null = null;
+  private _recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** voice selected via setVoice() — overrides prefs.voice */
   private _selectedVoice: SpeechSynthesisVoice | null = null;
   /** per-language voice map: lang -> voiceURI */
@@ -267,6 +283,7 @@ export class FlutterTTSNavigator {
 
   async play(fromLocator?: Locator): Promise<void> {
     if (this._destroyed) return;
+    this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
     log.info("play", fromLocator ? "(from locator)" : "", {
       speaking: speechSynthesis.speaking,
@@ -325,6 +342,7 @@ export class FlutterTTSNavigator {
   stop(): void {
     if (this._destroyed) return;
     log.info("stop");
+    this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
@@ -335,12 +353,14 @@ export class FlutterTTSNavigator {
 
   async next(): Promise<void> {
     if (this._destroyed || !this._iterator) return;
+    this._invalidateCurrentUtterance();
     speechSynthesis.cancel();
     await this._speakNext();
   }
 
   async previous(): Promise<void> {
     if (this._destroyed || !this._iterator) return;
+    this._invalidateCurrentUtterance();
     speechSynthesis.cancel();
     await this._speakPrevious();
   }
@@ -377,6 +397,7 @@ export class FlutterTTSNavigator {
   destroy(): void {
     log.info("destroy");
     this._destroyed = true;
+    this._invalidateCurrentUtterance();
     this._lastDeferredSyncLocator = null;
     speechSynthesis.cancel();
     this._iterator = null;
@@ -503,36 +524,48 @@ export class FlutterTTSNavigator {
       elementLang: lang ?? "(none)",
     });
 
-    // Wedge detector — Chrome occasionally flips `speaking: true` on `speak()`
-    // without ever dispatching `onstart` (a known speechSynthesis bug,
-    // especially after page navigation). If `onstart` hasn't fired within the
-    // watchdog timeout AND the engine claims to be speaking, do one hard reset
-    // and re-speak the same utterance. A single retry — if recovery also
-    // wedges, surface a failure instead of looping forever.
+    // Stall detector — the engine occasionally accepts `speak()` and then
+    // dispatches nothing at all: no `onstart`, no `onerror`. Silence past the
+    // watchdog means stuck, not slow. Note that `speaking` is not part of the
+    // test: it flips to `true` synchronously inside `speak()` and stays true
+    // while an utterance is merely queued, so it says nothing about progress.
+    const gen = ++this._generation;
+    const isCurrent = () => !this._destroyed && this._generation === gen;
     let started = false;
     let recovered = false;
-    let watchdog: ReturnType<typeof setTimeout> | null = null;
-    const clearWatchdog = () => {
-      if (watchdog !== null) {
-        clearTimeout(watchdog);
-        watchdog = null;
-      }
-    };
+
     const armWatchdog = () => {
-      watchdog = setTimeout(() => {
-        watchdog = null;
-        if (started || this._destroyed) return;
-        if (!speechSynthesis.speaking) return; // engine moved on; nothing to recover
+      this._clearPendingTimers();
+      this._watchdog = setTimeout(() => {
+        this._watchdog = null;
+        if (started || !isCurrent()) return;
+        // A paused engine is legitimately silent — keep waiting for resume().
+        if (speechSynthesis.paused) {
+          armWatchdog();
+          return;
+        }
+        // Logged in full because the trigger is rare and not reproducible on
+        // healthy hardware — these fields are the only evidence we get.
+        const diagnostics = {
+          voice: utterance.voice?.name ?? "(default)",
+          localService: utterance.voice?.localService ?? null,
+          speaking: speechSynthesis.speaking,
+          pending: speechSynthesis.pending,
+          paused: speechSynthesis.paused,
+          waitedMs: STALL_WATCHDOG_MS,
+        };
         if (recovered) {
-          log.warn("speechSynthesis wedge persisted after recovery — aborting utterance");
+          log.warn("speechSynthesis stall persisted after recovery", diagnostics);
+          this._resetToIdle();
           emitState("failure", element.locator);
           return;
         }
         recovered = true;
-        log.warn("speechSynthesis wedge detected — attempting recovery");
+        log.warn("speechSynthesis stall detected — attempting recovery", diagnostics);
         try { speechSynthesis.cancel(); } catch { /* ignore */ }
-        setTimeout(() => {
-          if (this._destroyed || started) return;
+        this._recoveryTimer = setTimeout(() => {
+          this._recoveryTimer = null;
+          if (started || !isCurrent()) return;
           try {
             // Prime, then re-speak. Re-using the utterance is supported —
             // its event handlers fire for each speak() cycle.
@@ -541,17 +574,18 @@ export class FlutterTTSNavigator {
             armWatchdog();
           } catch (e) {
             log.warn("speechSynthesis recovery failed:", e);
+            this._resetToIdle();
             emitState("failure", element.locator);
           }
-        }, 200);
-      }, WEDGE_WATCHDOG_MS);
+        }, STALL_RECOVERY_DELAY_MS);
+      }, STALL_WATCHDOG_MS);
     };
 
     utterance.onstart = () => {
       log.debug("utterance.onstart");
       started = true;
-      clearWatchdog();
-      if (this._destroyed) return;
+      this._clearPendingTimers();
+      if (!isCurrent()) return;
       // Enrich with tocHref so chapter-aware Dart consumers (next/previous chapter,
       // current-chapter display) work during TTS playback. Decoration calls keep the
       // raw locator — they're href/cssSelector-based and don't need tocHref.
@@ -578,29 +612,30 @@ export class FlutterTTSNavigator {
 
     utterance.onend = () => {
       log.debug("utterance.onend");
-      clearWatchdog();
-      if (this._destroyed) return;
+      this._clearPendingTimers();
+      if (!isCurrent()) return;
       this._speakNext();
     };
 
     utterance.onerror = (ev) => {
-      // Recovery-induced cancel fires onerror with "canceled" on the original
-      // attempt — keep the watchdog alive so the retry is still monitored.
-      if (!recovered) clearWatchdog();
-      if (this._destroyed) return;
+      // The recovery cancel() fires onerror with "canceled" on the original
+      // attempt — leave the pending re-speak alone so the retry still happens.
+      if (!recovered) this._clearPendingTimers();
+      if (!isCurrent()) return;
       // "interrupted" and "canceled" are expected when stop()/pause()/next() is called.
       if (ev.error === "interrupted" || ev.error === "canceled") {
         log.debug("utterance.onerror (expected):", ev.error);
         return;
       }
       log.warn("utterance.onerror", ev.error);
+      this._resetToIdle();
       emitState("failure", element.locator);
     };
 
     // onboundary: emit sub-utterance locators for word/sentence granularity.
     // Not available in all browsers — fails gracefully.
     utterance.onboundary = (ev) => {
-      if (this._destroyed) return;
+      if (!isCurrent()) return;
       if (ev.name !== "word" && ev.name !== "sentence") return;
 
       const now = Date.now();
@@ -683,6 +718,43 @@ export class FlutterTTSNavigator {
     // the text to its default UI-language voice — which silently wedges
     // speechSynthesis on short non-English utterances after a `cancel()`.
     return this._publication.metadata.languages?.[0];
+  }
+
+  /** Clears the stall watchdog and any pending recovery re-speak. */
+  private _clearPendingTimers(): void {
+    if (this._watchdog !== null) {
+      clearTimeout(this._watchdog);
+      this._watchdog = null;
+    }
+    if (this._recoveryTimer !== null) {
+      clearTimeout(this._recoveryTimer);
+      this._recoveryTimer = null;
+    }
+  }
+
+  /**
+   * Retires the in-flight utterance: its timers are dropped and its handlers
+   * become no-ops. Called before anything that supersedes it, so a pending
+   * recovery can never re-speak after stop() or over a newer utterance.
+   */
+  private _invalidateCurrentUtterance(): void {
+    this._generation++;
+    this._clearPendingTimers();
+  }
+
+  /**
+   * Returns the engine to a state a later play() can use. A stalled
+   * speechSynthesis keeps reporting `speaking: true` until something cancels
+   * it, so without this the session stays unusable after a reported failure.
+   */
+  private _resetToIdle(): void {
+    this._invalidateCurrentUtterance();
+    try {
+      speechSynthesis.cancel();
+    } catch {
+      /* ignore — unsupported environment */
+    }
+    this._clearDecorations();
   }
 
   /** Clear both TTS decoration groups. No-op when no callback is registered. */
