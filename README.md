@@ -33,16 +33,9 @@ Add the package:
 flutter pub add flutter_readium
 ```
 
-Open a local file or URL, then mount the native reader:
-
-```dart
-final readium = FlutterReadium();
-final publication = await readium.openPublication(publicationUrl);
-final readerWidget = ReadiumReaderWidget(publication: publication);
-```
-
-See the [five-minute walkthrough](docs/getting-started/quick-start.md) for lifecycle, navigation,
-preferences, and position restoration.
+See the [complete reader screen](flutter_readium/README.md#quick-start) for opening a local file or URL,
+mounting the reader, and closing the publication. The [five-minute walkthrough](docs/getting-started/quick-start.md)
+continues with navigation, preferences, and position restoration.
 
 ## Features
 
@@ -115,21 +108,13 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | see `.flutter-version` |
+| Flutter     | 3.44.8+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
 
-The Flutter version is pinned in `.flutter-version`. To update it, run:
-
-```bash
-bin/update_flutter_version <version>   # e.g. bin/update_flutter_version 3.45.0
-```
-
-This syncs the dev pin (`.flutter-version`, `.fvmrc`, example app), then run `bin/install` to fetch updated
-dependencies. The published `environment.flutter` minimum in `flutter_readium` and
-`flutter_readium_platform_interface` is not touched — raising it forces the same minimum on every consumer, so
-it is a separate, deliberate step: add `--min-sdk`.
+The development SDK is pinned separately in `.flutter-version`; contributors should use
+`bin/update_flutter_version` to change that pin.
 
 ## Platform setup
 

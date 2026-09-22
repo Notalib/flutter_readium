@@ -33,16 +33,64 @@ Add the package:
 flutter pub add flutter_readium
 ```
 
-Open a local file or URL, then mount the native reader:
+Pass a publication URL (for example, a file or HTTPS URL) to this reader screen:
 
 ```dart
-final readium = FlutterReadium();
-final publication = await readium.openPublication(publicationUrl);
-final readerWidget = ReadiumReaderWidget(publication: publication);
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_readium/flutter_readium.dart';
+
+class ReaderScreen extends StatefulWidget {
+  const ReaderScreen({super.key, required this.publicationUrl});
+
+  final String publicationUrl;
+
+  @override
+  State<ReaderScreen> createState() => _ReaderScreenState();
+}
+
+class _ReaderScreenState extends State<ReaderScreen> {
+  final _readium = FlutterReadium();
+  Publication? _publication;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    try {
+      final publication = await _readium.openPublication(widget.publicationUrl);
+      if (!mounted) {
+        await _readium.closePublication();
+        return;
+      }
+      setState(() => _publication = publication);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_publication != null) unawaited(_readium.closePublication());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) return Center(child: Text(_error!));
+    if (_publication == null) return const Center(child: CircularProgressIndicator());
+    return ReadiumReaderWidget(publication: _publication!);
+  }
+}
 ```
 
 See the [five-minute walkthrough](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md)
-for lifecycle, navigation, preferences, and position restoration.
+for navigation, preferences, and position restoration. Complete the platform setup below before running.
 
 ## Features
 
@@ -59,15 +107,6 @@ for lifecycle, navigation, preferences, and position restoration.
 - Content search within open publications
 - Real-time event streams for position, playback state, reader status, and errors
 - Custom HTTP headers for publication and resource fetching
-
-## How it works
-
-flutter_readium is a federated plugin that delegates to the upstream Readium toolkit on each
-platform:
-
-- **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.3.0** on Android
-- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
 ## Supported formats
 
@@ -127,6 +166,21 @@ for details.
 ### Android
 
 - Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Enable core library desugaring in your app's Gradle build file. The Readium Android artifacts require it:
+
+  ```kotlin
+  android {
+      compileOptions {
+          isCoreLibraryDesugaringEnabled = true
+      }
+  }
+
+  dependencies {
+      coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+  }
+  ```
+
+  For Groovy Gradle files, see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
 - Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
 - If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 
@@ -158,8 +212,7 @@ target 'Runner' do
 end
 ```
 
-The `readium/podspecs` source is hosted at https://github.com/readium/podspecs. To use
-a specific version, change the `~>` constraint accordingly (e.g. `~> 3.10.0`).
+Keep these pod versions aligned with the plugin's pin; do not override them independently.
 
 ### Web
 
@@ -180,15 +233,11 @@ a specific version, change the `~>` constraint accordingly (e.g. `~> 3.10.0`).
 
 ## Documentation
 
-Full documentation is hosted in the [project repository](https://github.com/notalib/flutter_readium):
-
-- **Getting Started** — [Installation](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/installation.md) · [Quick Start](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md) · [Core Concepts](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/concepts.md)
-- **Guides** — [EPUB Reading](https://github.com/notalib/flutter_readium/blob/main/docs/guides/epub-reading.md) · [Audiobook Playback](https://github.com/notalib/flutter_readium/blob/main/docs/guides/audiobook-playback.md) · [Text-to-Speech](https://github.com/notalib/flutter_readium/blob/main/docs/guides/text-to-speech.md) · [Preferences](https://github.com/notalib/flutter_readium/blob/main/docs/guides/preferences.md) · [Highlights & Annotations](https://github.com/notalib/flutter_readium/blob/main/docs/guides/highlights-annotations.md) · [Search](https://github.com/notalib/flutter_readium/blob/main/docs/guides/search.md) · [Custom HTTP Headers](https://github.com/notalib/flutter_readium/blob/main/docs/guides/http-headers.md) · [Saving Progress](https://github.com/notalib/flutter_readium/blob/main/docs/guides/saving-progress.md) · [Error Handling](https://github.com/notalib/flutter_readium/blob/main/docs/guides/error-handling.md)
-- **API Reference** — [FlutterReadium class](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/flutter-readium.md) · [ReaderWidget](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/reader-widget.md) · [Locator](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/locator.md) · [Preferences](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/preferences.md) · [Decorations](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/decorations.md) · [Streams & Events](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/streams-events.md) · [Publication](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/publication.md)
-- **Architecture** — [Overview](https://github.com/notalib/flutter_readium/blob/main/docs/architecture.md)
-- **Troubleshooting** — [Troubleshooting](https://github.com/notalib/flutter_readium/blob/main/docs/troubleshooting.md)
-
-The generated Dart API reference is also published on [pub.dev](https://pub.dev/documentation/flutter_readium/latest/).
+For more detail, see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md),
+[reader walkthrough](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md),
+[feature guides](https://github.com/Notalib/flutter_readium/tree/main/docs/guides), and
+[API reference](https://pub.dev/documentation/flutter_readium/latest/). For implementation details and toolkit
+versions, see the [project README](https://github.com/Notalib/flutter_readium#how-it-works).
 
 ## Example app
 
