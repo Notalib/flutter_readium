@@ -1,16 +1,44 @@
 # flutter_readium
 
-A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping the [Readium](https://readium.org) toolkits behind a unified Dart API.
+Build EPUB, PDF, audiobook, comic, and WebPub readers in Flutter with one unified Dart API—powered
+by Readium toolkits on iOS, Android, and Web.
 
-flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
+[![pub package](https://img.shields.io/pub/v/flutter_readium.svg)](https://pub.dev/packages/flutter_readium)
+[![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
+[![Unit Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
+[![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
-- **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.3.0** on Android
-- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
+<p align="center">
+  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="flutter_readium example app changing EPUB reading preferences and demonstrating synchronized read-along highlighting.">
+</p>
 
-The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`, `flutter_readium/android/build.gradle` (`ext.readium_version`), and `flutter_readium/package.json`. Run `bin/readium_versions` to print them at any time.
+<p align="center"><em>Captured on iOS; synchronized narration uses the same Dart API on Android and Web.</em></p>
+
+<p align="center">
+  <a href="docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
+  <a href="flutter_readium/example/"><strong>Example app</strong></a> ·
+  <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
+</p>
+
+| Reading | Listening | Rich formats |
+| :---: | :---: | :---: |
+| <img src="docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="docs/assets/readme/capability-rich-formats.png" width="240" alt="PDF and comic navigation in flutter_readium."> |
+| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | PDF and comic/DiViNa navigation |
+
+## Quick start
+
+Add the package:
+
+```bash
+flutter pub add flutter_readium
+```
+
+See the [complete reader screen](flutter_readium/README.md#quick-start) for opening a local file or URL,
+mounting the reader, and closing the publication. The [five-minute walkthrough](docs/getting-started/quick-start.md)
+continues with navigation, preferences, and position restoration.
 
 ## Features
+
 - EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
 - PDF reading on iOS (PDFKit) and Android (PDFium), with layout, reading-progression, page-spacing, and fit preferences
 - WebPub reading (including audiobook WebPub)
@@ -18,11 +46,23 @@ The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`
 - Synchronized Media Overlays in WebPubs (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
 - Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
+- App-supplied static reader fonts on iOS, Android, and Web
 - Highlights and annotations via the Decorator API
 - Position persistence and restoration via Locators
 - Content search within open publications
 - Real-time event streams for position, playback state, reader status, and errors
 - Custom HTTP headers for publication and resource fetching
+
+## How it works
+
+flutter_readium is a federated plugin that delegates to the upstream Readium toolkit on each
+platform:
+
+- **swift-toolkit 3.11.0** on iOS
+- **kotlin-toolkit 3.3.0** on Android
+- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
+
+The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`, `flutter_readium/android/build.gradle` (`ext.readium_version`), and `flutter_readium/package.json`. Run `bin/readium_versions` to print them at any time.
 
 ## Supported formats
 
@@ -51,7 +91,7 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 | Comics (CBZ / DiViNa)    |    ✓    |  ✓  |     ✓      |
 | PDF reading              |    ✓    |  ✓  |     —      |
 | Audiobook playback       |    ✓    |  ✓  |     ✓      |
-| Media Overlays           |    ✓    |  ✓  |     —      |
+| Media Overlays           |    ✓    |  ✓  |     ✓      |
 | Text-to-Speech           |    ✓    |  ✓  |  Limited¹  |
 | Highlights / decorations |    ✓    |  ✓  |     ✓      |
 | Reader preferences       |    ✓    |  ✓  |     ✓      |
@@ -68,32 +108,18 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | see `.flutter-version` |
+| Flutter     | 3.44.8+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
 
-The Flutter version is pinned in `.flutter-version`. To update it, run:
+The development SDK is pinned separately in `.flutter-version`; contributors should use
+`bin/update_flutter_version` to change that pin.
 
-```bash
-bin/update_flutter_version <version>   # e.g. bin/update_flutter_version 3.45.0
-```
+## Platform setup
 
-This syncs the dev pin (`.flutter-version`, `.fvmrc`, example app), then run `bin/install` to fetch updated
-dependencies. The published `environment.flutter` minimum in `flutter_readium` and
-`flutter_readium_platform_interface` is not touched — raising it forces the same minimum on every consumer, so
-it is a separate, deliberate step: add `--min-sdk`.
-
-## Getting started
-
-Add the dependency to your app's `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter_readium: ^x.y.z
-```
-
-Then complete the per-platform setup below. See [docs/getting-started/installation.md](docs/getting-started/installation.md) for the full installation guide and [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) for a 5-minute walkthrough.
+Complete the per-platform setup below before running the reader. See the full
+[installation guide](docs/getting-started/installation.md) for details.
 
 ### Android
 
@@ -211,6 +237,16 @@ A complete example app is available in [flutter_readium/example/](flutter_readiu
 ```bash
 cd flutter_readium/example && flutter run
 ```
+
+The README animation is driven by a small integration-test-style showcase and recorded from a
+booted iOS Simulator. Once the generated test fixtures are installed, regenerate it with:
+
+```bash
+bin/generate_readme_demo [--no-bezel] [--device-id <simulator-udid>]
+```
+
+The physical device bezel is included by default. The script keeps the H.264 master under
+`build/readme-demo/` and replaces the checked-in GIF only after the capture and size checks pass.
 
 ### Dependency size analysis
 

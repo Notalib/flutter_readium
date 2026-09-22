@@ -1,17 +1,96 @@
 # flutter_readium
 
+Build EPUB, PDF, audiobook, comic, and WebPub readers in Flutter with one unified Dart API—powered
+by Readium toolkits on iOS, Android, and Web.
+
 [![pub package](https://img.shields.io/pub/v/flutter_readium.svg)](https://pub.dev/packages/flutter_readium)
 [![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
 [![Unit Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
-A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping the [Readium](https://readium.org) toolkits behind a unified Dart API.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/flutter-readium-demo.gif" width="360" alt="flutter_readium example app changing EPUB reading preferences and demonstrating synchronized read-along highlighting.">
+</p>
 
-flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
+<p align="center"><em>Captured on iOS; synchronized narration uses the same Dart API on Android and Web.</em></p>
 
-- **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.3.0** on Android
-- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
+<p align="center">
+  <a href="https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
+  <a href="https://github.com/Notalib/flutter_readium/tree/main/flutter_readium/example"><strong>Example app</strong></a> ·
+  <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
+</p>
+
+| Reading | Listening | Rich formats |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png" width="240" alt="PDF and comic navigation in flutter_readium."> |
+| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | PDF and comic/DiViNa navigation |
+
+## Quick start
+
+Add the package:
+
+```bash
+flutter pub add flutter_readium
+```
+
+Pass a publication URL (for example, a file or HTTPS URL) to this reader screen:
+
+```dart
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_readium/flutter_readium.dart';
+
+class ReaderScreen extends StatefulWidget {
+  const ReaderScreen({super.key, required this.publicationUrl});
+
+  final String publicationUrl;
+
+  @override
+  State<ReaderScreen> createState() => _ReaderScreenState();
+}
+
+class _ReaderScreenState extends State<ReaderScreen> {
+  final _readium = FlutterReadium();
+  Publication? _publication;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _open();
+  }
+
+  Future<void> _open() async {
+    try {
+      final publication = await _readium.openPublication(widget.publicationUrl);
+      if (!mounted) {
+        await _readium.closePublication();
+        return;
+      }
+      setState(() => _publication = publication);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_publication != null) unawaited(_readium.closePublication());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) return Center(child: Text(_error!));
+    if (_publication == null) return const Center(child: CircularProgressIndicator());
+    return ReadiumReaderWidget(publication: _publication!);
+  }
+}
+```
+
+See the [five-minute walkthrough](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md)
+for navigation, preferences, and position restoration. Complete the platform setup below before running.
 
 ## Features
 
@@ -19,9 +98,9 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 - PDF reading on iOS (PDFKit) and Android (PDFium), with layout, reading-progression, page-spacing, and fit preferences
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
-- Synchronized Media Overlays (text-and-audio read-along)
+- Synchronized Media Overlays in WebPubs (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
-- Reader preferences (typography, scroll, columns, ...) via the Readium Preferences API
+- Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
 - App-supplied static reader fonts on iOS, Android, and Web
 - Highlights and annotations via the Decorator API
 - Position persistence and restoration via Locators
@@ -38,17 +117,25 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 | WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
 | Audiobook |      —       |  —  |   ✓   |           -            |
 | PDF       |      ✓       |  —  |   —   |           -            |
+| CBZ       |      ✓       |  —  |   —   |           -            |
+| DiViNa    |      ✓       |  —  |  ✓¹   | ✓¹ (Guided Navigation) |
 
-CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
+¹ DiViNa audio narration is driven by a Guided Navigation document and synchronizes at the page
+level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
+plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
+any platform.
+
+LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
 ## Platform support
 
 | Feature                  | Android | iOS | Web        |
 | ------------------------ | :-----: | :-: | :--------: |
 | EPUB visual reading      |    ✓    |  ✓  |     ✓      |
+| Comics (CBZ / DiViNa)    |    ✓    |  ✓  |     ✓      |
 | PDF reading              |    ✓    |  ✓  |     —      |
 | Audiobook playback       |    ✓    |  ✓  |     ✓      |
-| Media Overlays           |    ✓    |  ✓  |     —      |
+| Media Overlays           |    ✓    |  ✓  |     ✓      |
 | Text-to-Speech           |    ✓    |  ✓  | Limited¹   |
 | Highlights / decorations |    ✓    |  ✓  |     ✓      |
 | Reader preferences       |    ✓    |  ✓  |     ✓      |
@@ -65,25 +152,35 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.44.4+                |
+| Flutter     | 3.44.8+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
 
-## Getting started
+## Platform setup
 
-Add the dependency to your app's `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter_readium: ^x.y.z
-```
-
-Then complete the per-platform setup below. See the [installation guide](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/installation.md) and the [quick-start walkthrough](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md) for details.
+Complete the per-platform setup below before running the reader. See the full
+[installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md)
+for details.
 
 ### Android
 
 - Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Enable core library desugaring in your app's Gradle build file. The Readium Android artifacts require it:
+
+  ```kotlin
+  android {
+      compileOptions {
+          isCoreLibraryDesugaringEnabled = true
+      }
+  }
+
+  dependencies {
+      coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+  }
+  ```
+
+  For Groovy Gradle files, see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
 - Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
 - If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 
@@ -115,8 +212,7 @@ target 'Runner' do
 end
 ```
 
-The `readium/podspecs` source is hosted at https://github.com/readium/podspecs. To use
-a specific version, change the `~>` constraint accordingly (e.g. `~> 3.10.0`).
+Keep these pod versions aligned with the plugin's pin; do not override them independently.
 
 ### Web
 
@@ -137,15 +233,11 @@ a specific version, change the `~>` constraint accordingly (e.g. `~> 3.10.0`).
 
 ## Documentation
 
-Full documentation is hosted in the [project repository](https://github.com/notalib/flutter_readium):
-
-- **Getting Started** — [Installation](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/installation.md) · [Quick Start](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md) · [Core Concepts](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/concepts.md)
-- **Guides** — [EPUB Reading](https://github.com/notalib/flutter_readium/blob/main/docs/guides/epub-reading.md) · [Audiobook Playback](https://github.com/notalib/flutter_readium/blob/main/docs/guides/audiobook-playback.md) · [Text-to-Speech](https://github.com/notalib/flutter_readium/blob/main/docs/guides/text-to-speech.md) · [Preferences](https://github.com/notalib/flutter_readium/blob/main/docs/guides/preferences.md) · [Highlights & Annotations](https://github.com/notalib/flutter_readium/blob/main/docs/guides/highlights-annotations.md) · [Search](https://github.com/notalib/flutter_readium/blob/main/docs/guides/search.md) · [Custom HTTP Headers](https://github.com/notalib/flutter_readium/blob/main/docs/guides/http-headers.md) · [Saving Progress](https://github.com/notalib/flutter_readium/blob/main/docs/guides/saving-progress.md) · [Error Handling](https://github.com/notalib/flutter_readium/blob/main/docs/guides/error-handling.md)
-- **API Reference** — [FlutterReadium class](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/flutter-readium.md) · [ReaderWidget](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/reader-widget.md) · [Locator](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/locator.md) · [Preferences](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/preferences.md) · [Decorations](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/decorations.md) · [Streams & Events](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/streams-events.md) · [Publication](https://github.com/notalib/flutter_readium/blob/main/docs/api-reference/publication.md)
-- **Architecture** — [Overview](https://github.com/notalib/flutter_readium/blob/main/docs/architecture.md)
-- **Troubleshooting** — [Troubleshooting](https://github.com/notalib/flutter_readium/blob/main/docs/troubleshooting.md)
-
-The generated Dart API reference is also published on [pub.dev](https://pub.dev/documentation/flutter_readium/latest/).
+For more detail, see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md),
+[reader walkthrough](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md),
+[feature guides](https://github.com/Notalib/flutter_readium/tree/main/docs/guides), and
+[API reference](https://pub.dev/documentation/flutter_readium/latest/). For implementation details and toolkit
+versions, see the [project README](https://github.com/Notalib/flutter_readium#how-it-works).
 
 ## Example app
 

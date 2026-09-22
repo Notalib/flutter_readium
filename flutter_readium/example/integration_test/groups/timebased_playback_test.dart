@@ -49,6 +49,62 @@ void main() {
       }
     });
 
+    testWidgets(
+      'media-overlay WebPub initializes synchronized text cues on web',
+      skip: !kIsWeb,
+      (tester) async {
+        final path = harness.fixturePath(
+          FixtureKeys.overlayWebpub,
+          reason: 'Fixture ${FixtureKeys.overlayWebpub} missing from asset bundle',
+        );
+        final pub = await harness.readium.openPublication(path);
+
+        final textLocators = <Locator>[];
+        final textSub = harness.readium.onTextLocatorChanged.listen(textLocators.add);
+        addTearDown(textSub.cancel);
+        final states = <ReadiumTimebasedState>[];
+        final stateSub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(stateSub.cancel);
+
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => textLocators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Media-overlay reader emitted no initial text location on web',
+        );
+        textLocators.clear();
+
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+        await waitWithPump(
+          tester,
+          () =>
+              states.any((state) => state.currentLocator?.locations?.fragments.isNotEmpty ?? false) &&
+              textLocators.isNotEmpty,
+          timeout: const Duration(seconds: 30),
+          reason: 'Web Media Overlay emitted no synchronized audio/text cue',
+          diagnostics: () =>
+              'states=${states.map((state) => '${state.state}:${state.currentLocator}').toList()}, '
+              'textLocators=$textLocators',
+        );
+
+        final cueLocator = states
+            .lastWhere(
+              (state) => state.currentLocator?.locations?.fragments.isNotEmpty ?? false,
+            )
+            .currentLocator!;
+        expect(
+          textLocators.any((locator) => locator.href == cueLocator.href),
+          isTrue,
+          reason: 'The visual reader did not follow the Media Overlay cue resource',
+        );
+
+        await harness.readium.pause();
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
     testWidgets('audiobook opens and plays audio on native', (_) async {
       final path = harness.fixturePath(
         FixtureKeys.audiobook,

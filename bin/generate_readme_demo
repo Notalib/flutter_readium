@@ -1,0 +1,314 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+DEVICE_ID=''
+WITH_BEZEL=1
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-bezel)
+      WITH_BEZEL=0
+      ;;
+    --device-id)
+      if [ "$#" -lt 2 ] || [ -n "$DEVICE_ID" ]; then
+        echo '--device-id requires one simulator UDID.' >&2
+        exit 2
+      fi
+      DEVICE_ID="$2"
+      shift
+      ;;
+    -h|--help)
+      echo 'Usage: bin/generate_readme_demo [--no-bezel] [--device-id simulator-udid]'
+      exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
+    *)
+      if [ -n "$DEVICE_ID" ]; then
+        echo 'Pass at most one simulator UDID.' >&2
+        exit 2
+      fi
+      DEVICE_ID="$1"
+      ;;
+  esac
+  shift
+done
+
+EXAMPLE_DIR="$REPO_ROOT/flutter_readium/example"
+OUTPUT_DIR="$REPO_ROOT/docs/assets/readme"
+BUILD_DIR="$REPO_ROOT/build/readme-demo"
+GIF_PATH="$OUTPUT_DIR/flutter-readium-demo.gif"
+POSTER_PATH="$OUTPUT_DIR/flutter-readium-demo-poster.png"
+READING_STILL_PATH="$OUTPUT_DIR/capability-reading.png"
+LISTENING_STILL_PATH="$OUTPUT_DIR/capability-listening.png"
+RICH_FORMATS_STILL_PATH="$OUTPUT_DIR/capability-rich-formats.png"
+
+for command_name in flutter xcrun ffmpeg ffprobe; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "Missing required command: $command_name" >&2
+    exit 1
+  }
+done
+if [ "$WITH_BEZEL" -eq 1 ] && ! command -v magick >/dev/null 2>&1; then
+  echo 'Missing required command for the bezel: magick' >&2
+  echo 'Install ImageMagick or pass --no-bezel.' >&2
+  exit 1
+fi
+
+if [ -z "$DEVICE_ID" ]; then
+  DEVICE_ID="$(xcrun simctl list devices booted 2>/dev/null | grep -Eo '[0-9A-Fa-f-]{36}' | head -n1 || true)"
+fi
+if [ -z "$DEVICE_ID" ]; then
+  echo "No booted iOS Simulator. Boot one or pass --device-id <udid>." >&2
+  exit 1
+fi
+
+for fixture in peter_rabbit.epub 38533_overlay_preview.webpub time_machine.pdf 50272-nota-comics.webpub; do
+  [ -f "$EXAMPLE_DIR/assets/pubs/$fixture" ] || {
+    echo "Missing generated fixture: $fixture" >&2
+    echo "Run bin/fetch_test_resources, then retry." >&2
+    exit 1
+  }
+done
+
+mkdir -p "$OUTPUT_DIR" "$BUILD_DIR"
+WORK_DIR="$(mktemp -d)"
+
+cleanup() {
+  local exit_status=$?
+  xcrun simctl status_bar "$DEVICE_ID" clear >/dev/null 2>&1 || true
+  if [ "$exit_status" -eq 0 ]; then
+    rm -rf "$WORK_DIR"
+  else
+    echo "Capture workspace preserved for diagnosis: $WORK_DIR" >&2
+  fi
+}
+trap cleanup EXIT INT TERM
+
+xcrun simctl status_bar "$DEVICE_ID" override \
+  --time '9:41' \
+  --dataNetwork wifi \
+  --wifiMode active \
+  --wifiBars 3 \
+  --batteryState charged \
+  --batteryLevel 100
+
+(cd "$EXAMPLE_DIR" && flutter pub get >/dev/null)
+
+record_scene() {
+  local scene="$1"
+  local raw_path="$WORK_DIR/$scene.mp4"
+  local fifo_path="$WORK_DIR/$scene.fifo"
+  local recorder_log="$WORK_DIR/$scene-recorder.log"
+  local parser_pid
+  local test_status
+
+  mkfifo "$fifo_path"
+  (
+    local recorder_pid=''
+    while IFS= read -r line; do
+      printf '%s\n' "$line"
+      if [[ "$line" == *"README_DEMO_READY:$scene"* ]]; then
+        xcrun simctl io "$DEVICE_ID" recordVideo \
+          --codec=h264 \
+          --mask=black \
+          --force \
+          "$raw_path" 2>"$recorder_log" &
+        recorder_pid=$!
+      elif [[ "$line" == *"README_DEMO_DONE:$scene"* ]] && [ -n "$recorder_pid" ]; then
+        kill -INT "$recorder_pid" 2>/dev/null || true
+        wait "$recorder_pid" || true
+        recorder_pid=''
+      fi
+    done < "$fifo_path"
+
+    if [ -n "$recorder_pid" ]; then
+      kill -INT "$recorder_pid" 2>/dev/null || true
+      wait "$recorder_pid" || true
+    fi
+  ) &
+  parser_pid=$!
+
+  set +e
+  (
+    cd "$EXAMPLE_DIR"
+    flutter test integration_test/readme_demo_test.dart \
+      --no-pub \
+      --device-id="$DEVICE_ID" \
+      --dart-define="README_DEMO_SCENE=$scene" \
+      --timeout=300s \
+      --reporter=expanded
+  ) > "$fifo_path" 2>&1
+  test_status=$?
+  set -e
+
+  wait "$parser_pid"
+  if [ "$test_status" -ne 0 ]; then
+    echo "The $scene showcase target failed." >&2
+    exit "$test_status"
+  fi
+  if [ ! -s "$raw_path" ]; then
+    echo "The $scene recording was not created." >&2
+    [ -f "$recorder_log" ] && sed -n '1,80p' "$recorder_log" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$raw_path"
+}
+
+echo "Recording EPUB scene..."
+EPUB_VIDEO="$(record_scene epub | tee /dev/stderr | tail -n1)"
+echo "Recording read-along scene..."
+READALONG_VIDEO="$(record_scene readalong | tee /dev/stderr | tail -n1)"
+echo "Capturing PDF still..."
+PDF_VIDEO="$(record_scene pdf | tee /dev/stderr | tail -n1)"
+echo "Capturing comic still..."
+COMIC_VIDEO="$(record_scene comic | tee /dev/stderr | tail -n1)"
+
+MASTER_PATH="$BUILD_DIR/flutter-readium-demo.mp4"
+PALETTE_PATH="$WORK_DIR/palette.png"
+BEZEL_PATH="$WORK_DIR/ios-simulator-bezel.png"
+TEMP_GIF="$WORK_DIR/flutter-readium-demo.gif"
+TEMP_POSTER="$WORK_DIR/flutter-readium-demo-poster.png"
+TEMP_READING_STILL="$WORK_DIR/capability-reading.png"
+TEMP_LISTENING_STILL="$WORK_DIR/capability-listening.png"
+TEMP_RICH_FORMATS_STILL="$WORK_DIR/capability-rich-formats.png"
+TEMP_PDF_STILL="$WORK_DIR/capability-pdf.png"
+TEMP_COMIC_STILL="$WORK_DIR/capability-comic.png"
+
+if [ "$WITH_BEZEL" -eq 1 ]; then
+  magick \
+    -size 720x1504 \
+    'xc:#f3f4f6' \
+    -fill '#0b0b0c' \
+    -stroke '#343438' \
+    -strokewidth 3 \
+    -draw 'roundrectangle 16,8 704,1496 92,92' \
+    "$BEZEL_PATH"
+
+  ffmpeg -hide_banner -loglevel error -y \
+    -i "$EPUB_VIDEO" \
+    -i "$READALONG_VIDEO" \
+    -loop 1 -framerate 10 -i "$BEZEL_PATH" \
+    -filter_complex \
+      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10[screen];[2:v][screen]overlay=40:56:shortest=1,format=yuv420p[v]' \
+    -map '[v]' \
+    -an \
+    -c:v libx264 \
+    -crf 18 \
+    -preset medium \
+    -movflags +faststart \
+    "$MASTER_PATH"
+else
+  ffmpeg -hide_banner -loglevel error -y \
+    -i "$EPUB_VIDEO" \
+    -i "$READALONG_VIDEO" \
+    -filter_complex \
+      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10,format=yuv420p[v]' \
+    -map '[v]' \
+    -an \
+    -c:v libx264 \
+    -crf 18 \
+    -preset medium \
+    -movflags +faststart \
+    "$MASTER_PATH"
+fi
+
+ffmpeg -hide_banner -loglevel error -y \
+  -ss 3.4 \
+  -i "$EPUB_VIDEO" \
+  -frames:v 1 \
+  -vf 'crop=iw:860:0:550,scale=720:480:flags=lanczos' \
+  "$TEMP_READING_STILL"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -ss 4.5 \
+  -i "$READALONG_VIDEO" \
+  -frames:v 1 \
+  -vf 'crop=iw:860:0:300,scale=720:480:flags=lanczos' \
+  "$TEMP_LISTENING_STILL"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$PDF_VIDEO" \
+  -frames:v 1 \
+  -vf 'crop=645:860:(iw-645)/2:300,scale=360:480:flags=lanczos' \
+  "$TEMP_PDF_STILL"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$COMIC_VIDEO" \
+  -frames:v 1 \
+  -vf 'crop=645:860:(iw-645)/2:300,scale=360:480:flags=lanczos' \
+  "$TEMP_COMIC_STILL"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$TEMP_PDF_STILL" \
+  -i "$TEMP_COMIC_STILL" \
+  -frames:v 1 \
+  -filter_complex '[0:v][1:v]hstack=inputs=2' \
+  "$TEMP_RICH_FORMATS_STILL"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$MASTER_PATH" \
+  -vf 'palettegen=max_colors=128:stats_mode=diff' \
+  "$PALETTE_PATH"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -i "$MASTER_PATH" \
+  -i "$PALETTE_PATH" \
+  -lavfi '[0:v][1:v]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle' \
+  -loop 0 \
+  "$TEMP_GIF"
+
+ffmpeg -hide_banner -loglevel error -y \
+  -ss 6.0 \
+  -i "$MASTER_PATH" \
+  -frames:v 1 \
+  "$TEMP_POSTER"
+
+for generated_asset in \
+  "$TEMP_GIF" \
+  "$TEMP_POSTER" \
+  "$TEMP_READING_STILL" \
+  "$TEMP_LISTENING_STILL" \
+  "$TEMP_RICH_FORMATS_STILL"; do
+  if [ ! -s "$generated_asset" ]; then
+    echo "Generated asset is missing or empty: $generated_asset" >&2
+    echo "Existing checked-in assets were left untouched." >&2
+    exit 1
+  fi
+done
+
+GIF_BYTES="$(wc -c < "$TEMP_GIF" | tr -d ' ')"
+MAX_BYTES=$((8 * 1024 * 1024))
+if [ "$GIF_BYTES" -gt "$MAX_BYTES" ]; then
+  echo "Generated GIF is $GIF_BYTES bytes; hard ceiling is $MAX_BYTES." >&2
+  echo "Existing checked-in assets were left untouched." >&2
+  exit 1
+fi
+
+mv "$TEMP_GIF" "$GIF_PATH"
+mv "$TEMP_POSTER" "$POSTER_PATH"
+mv "$TEMP_READING_STILL" "$READING_STILL_PATH"
+mv "$TEMP_LISTENING_STILL" "$LISTENING_STILL_PATH"
+mv "$TEMP_RICH_FORMATS_STILL" "$RICH_FORMATS_STILL_PATH"
+
+DURATION="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$MASTER_PATH")"
+DIMENSIONS="$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$GIF_PATH")"
+
+echo
+echo "README demo generated:"
+echo "  GIF:    $GIF_PATH"
+echo "  Poster: $POSTER_PATH"
+echo "  Stills: $READING_STILL_PATH"
+echo "          $LISTENING_STILL_PATH"
+echo "          $RICH_FORMATS_STILL_PATH"
+echo "  Master: $MASTER_PATH"
+echo "  Size:   $GIF_BYTES bytes"
+echo "  Frame:  $DIMENSIONS at 10 fps"
+echo "  Length: ${DURATION}s"
+if [ "$WITH_BEZEL" -eq 1 ]; then
+  echo '  Bezel:  included (pass --no-bezel to omit)'
+else
+  echo '  Bezel:  omitted'
+fi
