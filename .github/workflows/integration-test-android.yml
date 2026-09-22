@@ -79,8 +79,8 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          # Make sure the cache key changes if this workflow file changes, so AVD is recreated.
-          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml') }}
+          # Recreate the AVD whenever the emulator setup changes, in either file.
+          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml', '.github/actions/run-android-integration-tests/action.yml') }}
 
       - name: Create AVD snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
@@ -93,29 +93,34 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: echo "Generated AVD snapshot for caching."
+          # Idle before the snapshot is saved on teardown. Taken straight after
+          # boot it captures services still starting, and every restore of it
+          # then races them.
+          script: sleep 60
 
       - name: Run integration tests
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        id: tests
+        continue-on-error: true
+        uses: ./.github/actions/run-android-integration-tests
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          working-directory: flutter_readium/example
-          # logcat is captured inside this action: the emulator is torn down when it
-          # ends. Per-line `sh -c` constraints: see ci.instructions.md.
-          script: |
-            sleep 10
-            # Larger buffer, or `chatty` drops our lines.
-            adb logcat -G 64M || true
-            adb logcat -c || true
-            # Bounded so a hang fails this step, not the job.
-            # pipefail + tee so a failing test stays a failure and its record survives.
-            bash -o pipefail -c 'timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true 2>&1 | tee "$GITHUB_WORKSPACE/android-test-api${{ matrix.api-level }}.log"' || (APP_PID=$(adb shell pidof -s com.example.flutter_readium_example | tr -d "\r"); adb logcat -d -v threadtime ${APP_PID:+--pid="$APP_PID"} > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
+
+      # The emulator runner presses the unlock key the moment `sys.boot_completed`
+      # flips, which a restored snapshot reports before its services are back; the
+      # keypress dies and takes the step with it, before our script ever runs
+      # (ReactiveCircus/android-emulator-runner#489). A missing test log means the
+      # suite never started, so that is the only case safe to retry — a real test
+      # failure always leaves its log behind and must stand.
+      - name: Retry integration tests after an emulator boot failure
+        id: tests-retry
+        if: steps.tests.outcome == 'failure' && hashFiles(format('android-test-api{0}.log', matrix.api-level)) == ''
+        uses: ./.github/actions/run-android-integration-tests
+        with:
+          api-level: ${{ matrix.api-level }}
+
+      - name: Report integration test failure
+        if: steps.tests.outcome == 'failure' && steps.tests-retry.outcome != 'success'
+        run: exit 1
 
       - name: Upload Android diagnostics
         if: failure()
