@@ -170,13 +170,22 @@ data class FlutterMediaOverlayItem(
                 title = title,
                 locations =
                     Locator.Locations(
-                        listOf("#$textId"),
-                        otherLocations = mapOf("cssSelector" to "#$textId"),
+                        listOfNotNull(syncTextFragment),
+                        otherLocations = syncTextFragment?.let { mapOf("cssSelector" to it) } ?: emptyMap(),
                         position = position,
                     ),
             )
         }
     }
+
+    /**
+     * Fragment and CSS selector for [syncTextLocator], or null when the cue carries no text id.
+     * DiViNa cues point at a page image, and an empty textId would render as the invalid
+     * selector "#". The web side omits both in the same case.
+     */
+    @IgnoredOnParcel
+    internal val syncTextFragment: String?
+        get() = if (textId.isEmpty()) null else "#$textId"
 
     /**
      * Locator meant to be sent via the audio-locator channel to the Flutter side

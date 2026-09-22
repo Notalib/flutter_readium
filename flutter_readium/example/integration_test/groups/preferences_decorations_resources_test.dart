@@ -140,7 +140,7 @@ void main() {
     });
 
     group('EPUB image resource API', () {
-      test('getResourceUrl returns a loadable image URL', () async {
+      testWidgets('getResourceUrl returns a loadable image URL', (_) async {
         final path = harness.fixturePath(
           FixtureKeys.peterRabbitEpub,
           reason: 'Fixture ${FixtureKeys.peterRabbitEpub} missing',

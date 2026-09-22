@@ -319,20 +319,28 @@ class FlutterReadium {
     int direction,
   ) async {
     final toc = publication.tocFlattened;
-    if (toc.isEmpty) return;
+    final readingOrder = publication.readingOrder;
+    if (toc.isEmpty && readingOrder.isEmpty) return;
 
-    final curIndex = toc.indexWhere((l) => l.href == currentTocHref);
+    final tocIndex = toc.indexWhere((l) => l.href == currentTocHref);
+
+    if (tocIndex == -1) {
+      _log.w('Could not find currentTOCHref in the TOC attempting to use readingOrder instead');
+    }
+
+    final navigationLinks = tocIndex == -1 ? readingOrder : toc;
+    final curIndex = tocIndex == -1 ? readingOrder.indexWhere((l) => l.href == currentTocHref) : tocIndex;
 
     // Throws exceptions so that they can either be handled to send a message to user or ignored
     if (curIndex == -1) {
-      throw ReadiumException(ReadiumError('Could not find current toc index'));
+      throw ReadiumException(ReadiumError('Could not find current toc or readingOrder index'));
     }
-    if (direction == 1 && curIndex == toc.length - 1) {
+    if (direction == 1 && curIndex == navigationLinks.length - 1) {
       throw ReadiumException(ReadiumError('At the last chapter'));
     }
 
-    final newIndex = (curIndex + direction).clamp(0, toc.length - 1);
-    final locator = publication.locatorFromLink(toc[newIndex]);
+    final newIndex = (curIndex + direction).clamp(0, navigationLinks.length - 1);
+    final locator = publication.locatorFromLink(navigationLinks[newIndex]);
 
     if (locator != null) {
       await goToLocator(locator);

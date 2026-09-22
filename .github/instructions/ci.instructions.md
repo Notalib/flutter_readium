@@ -73,3 +73,10 @@ Failed runs upload `android-test-api<N>.log` (`flutter test` stdout — names th
 - That `sh` is dash: no `pipefail`, so `cmd | tee file` reports `tee`'s status and a failing test reads as a pass. Use `bash -o pipefail -c '…'`.
 - Capture logcat with `--pid=$(adb shell pidof -s <applicationId>)`, and `adb logcat -G 64M` beforehand (best-effort, `-G` can need root). Unscoped, the `google_apis` firehose overflows the ring buffer and `chatty` drops the app's own lines.
 - `<applicationId>` must match `flutter_readium/example/android/app/build.gradle.kts`; on drift `pidof` returns nothing and the capture degrades to that unscoped dump instead of failing.
+
+## Android emulator boot race
+
+`reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) the moment `sys.boot_completed` reads `1`, with no hook in between. A restored quickboot snapshot sets that property before its services are back, the keypress is killed, and the step dies before `script:` runs — about one API 24 job in five ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). Two guards, both needed:
+
+- The AVD-snapshot step idles (`script: sleep 60`) so the cached snapshot captures a settled system rather than one mid-startup.
+- `Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent** — a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.

@@ -220,8 +220,12 @@ describe("audio stop lifecycle", () => {
         .spyOn(FlutterAudioNavigator, "retryAfterFailure")
         .mockImplementation(() => {});
 
-      (reader as any)._publication = { conformsToAudiobook: true };
+      const publication = { conformsToAudiobook: true };
+      (reader as any)._publication = publication;
       (reader as any)._audioNav = audioNav;
+      // Every production assignment site stamps the navigator's publication;
+      // the retry rebuild is keyed on that identity.
+      (reader as any)._audioNavPublication = publication;
       (reader as any)._activeAudioPreferencesJson = '{"volume":0.5}';
 
       reader.play();
@@ -232,6 +236,39 @@ describe("audio stop lifecycle", () => {
       expect(create.mock.calls[0][7]).toBeDefined();
       expect((reader as any)._audioNav).toBe(rebuiltNav);
       expect(rebuiltNav.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("discards a terminal-failed navigator built for a previous publication instead of rebuilding", () => {
+      const reader = new ReadiumReader();
+      const locator = new Locator({
+        href: "track.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=9"] }),
+      });
+      const audioNav = {
+        currentLocator: locator,
+        play: jest.fn(),
+        stop: jest.fn(),
+        destroy: jest.fn(),
+      };
+      const create = jest.spyOn(FlutterAudioNavigator, "create");
+      jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
+      const retryAfterFailure = jest.spyOn(FlutterAudioNavigator, "retryAfterFailure");
+
+      // Stacked state: the old book still narrates while _publication advanced to B.
+      (reader as any)._publication = { conformsToAudiobook: false };
+      (reader as any)._audioNav = audioNav;
+      (reader as any)._audioNavPublication = { conformsToAudiobook: true };
+
+      reader.play();
+
+      // Rebuilding would launder A's navigator through B's identity — discard instead.
+      expect(retryAfterFailure).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+      expect(audioNav.stop).toHaveBeenCalledTimes(1);
+      expect(audioNav.destroy).toHaveBeenCalledTimes(1);
+      expect((reader as any)._audioNav).toBeUndefined();
+      expect((reader as any)._audioNavPublication).toBeUndefined();
     });
   });
 
@@ -339,7 +376,10 @@ describe("audioEnable restore sequencing", () => {
           })
       ),
     };
+    const publication = { conformsToAudiobook: true };
+    (reader as any)._publication = publication;
     (reader as any)._audioNav = audioNav;
+    (reader as any)._audioNavPublication = publication;
 
     let settled = false;
     const enabling = reader
@@ -363,47 +403,5 @@ describe("audioEnable restore sequencing", () => {
 
     expect(settled).toBe(true);
     expect(audioNav.play).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("audioEnable before the publication is open", () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it("defers the call instead of dropping it, and resolves right away", async () => {
-    const reader = new ReadiumReader();
-    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-
-    await reader.audioEnable('{"speed":1.5}', undefined);
-
-    expect((reader as any)._pendingAudioEnable).toEqual({
-      prefsJson: '{"speed":1.5}',
-      fromLocatorJson: undefined,
-    });
-    // Must not take the "no audiobook or Media Overlay content detected" exit:
-    // nothing retries after it, so the book would stay silent forever.
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it("replays the deferred call once the publication is open", async () => {
-    const reader = new ReadiumReader();
-    (reader as any)._pendingAudioEnable = { prefsJson: "{}", fromLocatorJson: undefined };
-    const replay = jest.spyOn(reader, "audioEnable").mockResolvedValue(undefined);
-
-    await (reader as any)._replayDeferredAudioEnable();
-
-    expect(replay).toHaveBeenCalledWith("{}", undefined);
-    // Consumed, so a reader remount or hot restart cannot run it twice.
-    expect((reader as any)._pendingAudioEnable).toBeUndefined();
-  });
-
-  it("drops the deferred call when the publication is closed first", () => {
-    const reader = new ReadiumReader();
-    (reader as any)._pendingAudioEnable = { prefsJson: "{}", fromLocatorJson: undefined };
-
-    withDomGlobals(() => reader.closePublication());
-
-    expect((reader as any)._pendingAudioEnable).toBeUndefined();
   });
 });

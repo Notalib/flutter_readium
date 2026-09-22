@@ -30,7 +30,7 @@ build_seconds="$(
 # gap to the next marker. The final tally line closes the last one.
 per_test="$(
   awk '
-    match($0, /^([0-9][0-9]):([0-9][0-9]) \+[0-9]+( -[0-9]+)?: /) {
+    match($0, /^([0-9][0-9]):([0-9][0-9]) \+[0-9]+( ~[0-9]+)?( -[0-9]+)?: /) {
       stamp = substr($0, RSTART, RLENGTH)
       name = substr($0, RSTART + RLENGTH)
       seconds = substr(stamp, 1, 2) * 60 + substr(stamp, 4, 2)

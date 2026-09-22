@@ -14,6 +14,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   watchdog now waits for real silence, always resets the engine before reporting failure,
   and can no longer cancel the utterance that replaced it or speak again after `stop()`.
 
+## [0.6.0] - 2026-09-22
+
+### Fixed
+
+- **iOS: Re-sync stopped working after the first use within one narration cue.** The current
+  cue is now retained until narration stops, allowing repeated manual-navigation/re-sync cycles.
+- **Web: synchronised audio never started until the reader view was on screen.** `audioEnable` issued right after `openPublication` hit a publication whose audio capability had not been detected yet, and gave up silently. Audio capability is now detected as the publication loads, so `audioEnable` builds the audio navigator without a reader view — matching iOS and Android, where audio can play without showing book content. Mounting the reader view no longer stops a book that is already narrating.
+- **DiViNa comics played no audio on Android and web.** Their guided-navigation cues point at the page image instead of a text document, and both parsers required a text reference, so every cue was dropped and playback aborted silently. Image-only cues are now accepted, matching iOS; on web the page image also drives page turns and panel panning.
+
+### Changed
+
+- **Web: `audioEnable` now requires an awaited `openPublication`.** A call that arrives before the publication is loaded used to be remembered and replayed; it now fails with `NoPublication`, matching Android's awaited error contract.
+
 ## [0.5.0] - 2026-09-17
 
 ### Added
