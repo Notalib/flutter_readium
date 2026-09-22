@@ -12,6 +12,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   switching EPUB resources while vertically scrolling on iOS and Android. Apps enabling it
   should provide explicit page or table-of-contents navigation.
 
+## [0.6.0] - 2026-09-22
+
 ### Fixed
 
 - **iOS: Re-sync stopped working after the first use within one narration cue.** The current

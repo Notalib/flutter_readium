@@ -1,0 +1,33 @@
+name: Run Android integration tests
+description: >-
+  Boot the emulator for one API level and run the example app's integration
+  test suite, capturing flutter test output and a pid-scoped logcat on failure.
+
+inputs:
+  api-level:
+    description: Android API level of the emulator to boot.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+      with:
+        api-level: ${{ inputs.api-level }}
+        target: google_apis
+        arch: x86_64
+        profile: pixel_6
+        force-avd-creation: false
+        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        disable-animations: true
+        working-directory: flutter_readium/example
+        # logcat is captured inside this action: the emulator is torn down when it
+        # ends. Per-line `sh -c` constraints: see ci.instructions.md.
+        script: |
+          sleep 10
+          # Larger buffer, or `chatty` drops our lines.
+          adb logcat -G 64M || true
+          adb logcat -c || true
+          # Bounded so a hang fails this step, not the job.
+          # pipefail + tee so a failing test stays a failure and its record survives.
+          bash -o pipefail -c 'timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true 2>&1 | tee "$GITHUB_WORKSPACE/android-test-api${{ inputs.api-level }}.log"' || (APP_PID=$(adb shell pidof -s com.example.flutter_readium_example | tr -d "\r"); adb logcat -d -v threadtime ${APP_PID:+--pid="$APP_PID"} > "$GITHUB_WORKSPACE/android-logcat-api${{ inputs.api-level }}.txt" 2>&1; exit 1)
