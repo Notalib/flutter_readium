@@ -13,6 +13,9 @@ This directory holds implementation plans, parity audits, and retained reference
 
 ## Open plans (`todo/`)
 
+- **[todo/readme-demo-gif.md](todo/readme-demo-gif.md)** — reproducible example-app capture and
+	GIF pipeline for a more visual README introduction. Implementation is ready for visual approval.
+	*(Documentation / example tooling / M)*
 - **[todo/web-search.md](todo/web-search.md)** — `searchInPublication` still throws
 	`UnimplementedError` on web. *(Cross-platform parity / M)*
 - **[todo/cross-platform-search-options.md](todo/cross-platform-search-options.md)** — expose

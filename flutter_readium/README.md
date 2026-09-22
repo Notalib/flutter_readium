@@ -1,17 +1,48 @@
 # flutter_readium
 
+Build EPUB, PDF, audiobook, comic, and WebPub readers in Flutter with one unified Dart API—powered
+by Readium toolkits on iOS, Android, and Web.
+
 [![pub package](https://img.shields.io/pub/v/flutter_readium.svg)](https://pub.dev/packages/flutter_readium)
 [![Quality](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/quality.yml)
 [![Unit Tests](https://github.com/notalib/flutter_readium/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/test.yml)
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
-A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping the [Readium](https://readium.org) toolkits behind a unified Dart API.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/flutter-readium-demo.gif" width="360" alt="flutter_readium example app changing EPUB reading preferences and demonstrating synchronized read-along highlighting.">
+</p>
 
-flutter_readium is a federated Flutter plugin that delegates to the upstream Readium toolkits on each platform:
+<p align="center"><em>Captured on iOS; synchronized narration uses the same Dart API on Android and Web.</em></p>
 
-- **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.3.0** on Android
-- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
+<p align="center">
+  <a href="https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
+  <a href="https://github.com/Notalib/flutter_readium/tree/main/flutter_readium/example"><strong>Example app</strong></a> ·
+  <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
+</p>
+
+| Reading | Listening | Rich formats |
+| :---: | :---: | :---: |
+| <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png" width="240" alt="PDF and comic navigation in flutter_readium."> |
+| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | PDF and comic/DiViNa navigation |
+
+## Quick start
+
+Add the package:
+
+```bash
+flutter pub add flutter_readium
+```
+
+Open a local file or URL, then mount the native reader:
+
+```dart
+final readium = FlutterReadium();
+final publication = await readium.openPublication(publicationUrl);
+final readerWidget = ReadiumReaderWidget(publication: publication);
+```
+
+See the [five-minute walkthrough](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md)
+for lifecycle, navigation, preferences, and position restoration.
 
 ## Features
 
@@ -19,15 +50,24 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 - PDF reading on iOS (PDFKit) and Android (PDFium), with layout, reading-progression, page-spacing, and fit preferences
 - WebPub reading (including audiobook WebPub)
 - Pre-recorded audio playback with track navigation and variable speed
-- Synchronized Media Overlays (text-and-audio read-along)
+- Synchronized Media Overlays in WebPubs (text-and-audio read-along)
 - Platform-native text-to-speech with voice selection, speed, and pitch
-- Reader preferences (typography, scroll, columns, ...) via the Readium Preferences API
+- Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
 - App-supplied static reader fonts on iOS, Android, and Web
 - Highlights and annotations via the Decorator API
 - Position persistence and restoration via Locators
 - Content search within open publications
 - Real-time event streams for position, playback state, reader status, and errors
 - Custom HTTP headers for publication and resource fetching
+
+## How it works
+
+flutter_readium is a federated plugin that delegates to the upstream Readium toolkit on each
+platform:
+
+- **swift-toolkit 3.11.0** on iOS
+- **kotlin-toolkit 3.3.0** on Android
+- **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
 ## Supported formats
 
@@ -38,17 +78,25 @@ flutter_readium is a federated Flutter plugin that delegates to the upstream Rea
 | WebPub    |      ✓       |  ✓  |   ✓   | ✓ (EPUB profile)       |
 | Audiobook |      —       |  —  |   ✓   |           -            |
 | PDF       |      ✓       |  —  |   —   |           -            |
+| CBZ       |      ✓       |  —  |   —   |           -            |
+| DiViNa    |      ✓       |  —  |  ✓¹   | ✓¹ (Guided Navigation) |
 
-CBZ, DIVINA, and LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
+¹ DiViNa audio narration is driven by a Guided Navigation document and synchronizes at the page
+level on all platforms (on Web, ts-toolkit has no DiViNa navigator, so images are rendered by a
+plugin-side navigator). Panel-level zoom (the segments' `xywh` regions) is not yet implemented on
+any platform.
+
+LCP-protected publications are not currently supported. The underlying toolkits include an LCP adapter; it may be enabled in a future release.
 
 ## Platform support
 
 | Feature                  | Android | iOS | Web        |
 | ------------------------ | :-----: | :-: | :--------: |
 | EPUB visual reading      |    ✓    |  ✓  |     ✓      |
+| Comics (CBZ / DiViNa)    |    ✓    |  ✓  |     ✓      |
 | PDF reading              |    ✓    |  ✓  |     —      |
 | Audiobook playback       |    ✓    |  ✓  |     ✓      |
-| Media Overlays           |    ✓    |  ✓  |     —      |
+| Media Overlays           |    ✓    |  ✓  |     ✓      |
 | Text-to-Speech           |    ✓    |  ✓  | Limited¹   |
 | Highlights / decorations |    ✓    |  ✓  |     ✓      |
 | Reader preferences       |    ✓    |  ✓  |     ✓      |
@@ -65,21 +113,16 @@ CBZ, DIVINA, and LCP-protected publications are not currently supported. The und
 
 | Requirement | Version                |
 | ----------- | ---------------------- |
-| Flutter     | 3.44.4+                |
+| Flutter     | 3.44.8+                |
 | Dart SDK    | 3.8.0+                 |
 | Android     | `minSdkVersion` 24     |
 | iOS         | 15.0+                  |
 
-## Getting started
+## Platform setup
 
-Add the dependency to your app's `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter_readium: ^x.y.z
-```
-
-Then complete the per-platform setup below. See the [installation guide](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/installation.md) and the [quick-start walkthrough](https://github.com/notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md) for details.
+Complete the per-platform setup below before running the reader. See the full
+[installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md)
+for details.
 
 ### Android
 
