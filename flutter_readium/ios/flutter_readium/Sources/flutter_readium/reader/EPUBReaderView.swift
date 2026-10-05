@@ -114,6 +114,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
     let preloadPreviousPositionCount = creationParams["preloadPreviousPositionCount"] as? Int ?? 2
     let preloadNextPositionCount = creationParams["preloadNextPositionCount"] as? Int ?? 6
+    let disablePageTurnsWhileScrolling = creationParams["disablePageTurnsWhileScrolling"] as? Bool ?? false
     Log.reader.debug("publication = \(publication)")
 
     channel = ReadiumReaderChannel(
@@ -146,6 +147,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     // publications, lowering both helps memory pressure for remote ones.
     config.preloadPreviousPositionCount = preloadPreviousPositionCount
     config.preloadNextPositionCount = preloadNextPositionCount
+    config.disablePageTurnsWhileScrolling = disablePageTurnsWhileScrolling
     config.debugState = false
 
     // NOTE: Use experimentalPositioning. It places highlights on z-index -1 behind text, instead of on top.

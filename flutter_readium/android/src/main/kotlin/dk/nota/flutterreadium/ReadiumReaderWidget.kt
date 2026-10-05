@@ -115,6 +115,8 @@ class ReadiumReaderWidget(
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
+        val disablePageTurnsWhileScrolling =
+            creationParams["disablePageTurnsWhileScrolling"] as? Boolean ?: false
         val fontFamilyDeclarations =
             ReaderFontFamily.fromList(creationParams["fontFamilyDeclarations"]) { asset ->
                 FlutterInjector.instance().flutterLoader().getLookupKeyForAsset(asset)
@@ -191,6 +193,7 @@ class ReadiumReaderWidget(
                     initialLocator,
                     initialPreferences,
                     fontFamilyDeclarations,
+                    disablePageTurnsWhileScrolling,
                     fragmentManager,
                     layout,
                     this@ReadiumReaderWidget,

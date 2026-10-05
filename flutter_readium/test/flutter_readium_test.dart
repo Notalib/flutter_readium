@@ -206,6 +206,27 @@ void main() {
     });
   });
 
+  group('ReadiumReaderWidget', () {
+    test(
+      'preserves scroll-mode page turns by default and supports disabling them',
+      () {
+        final publication = MockFlutterReadiumPlatform._pub('Test');
+
+        expect(
+          ReadiumReaderWidget(publication: publication).disablePageTurnsWhileScrolling,
+          isFalse,
+        );
+        expect(
+          ReadiumReaderWidget(
+            publication: publication,
+            disablePageTurnsWhileScrolling: true,
+          ).disablePageTurnsWhileScrolling,
+          isTrue,
+        );
+      },
+    );
+  });
+
   group('setDefaultPreferences', () {
     test('stores preferences on the platform', () {
       final prefs = EPUBPreferences(fontSize: 1.5);
