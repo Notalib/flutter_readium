@@ -134,8 +134,9 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
-  final Map<int, ({Offset origin, double slop})> _activePointers = {};
+  final Map<int, ({Offset origin, double tapSlop, double navigationSlop})> _activePointers = {};
   bool _didPointerSequenceMove = false;
+  bool _didNotifyUserNavigation = false;
 
   EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
@@ -453,28 +454,36 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   void _handlePointerDown(final PointerDownEvent event) {
     final hadActivePointers = _activePointers.isNotEmpty;
     if (!hadActivePointers) {
-      _didPointerSequenceMove = false;
+      _resetPointerSequence();
     }
 
+    final gestureSettings = MediaQuery.gestureSettingsOf(context);
     _activePointers[event.pointer] = (
       origin: event.localPosition,
-      slop: computeHitSlop(event.kind, MediaQuery.gestureSettingsOf(context)),
+      tapSlop: computeHitSlop(event.kind, gestureSettings),
+      // Pan slop (2x touch slop) so tiny drags that snap back don't enter narration manual mode.
+      navigationSlop: computePanSlop(event.kind, gestureSettings),
     );
 
     if (hadActivePointers) {
-      _markPointerSequenceMoved();
+      _didPointerSequenceMove = true;
+      _markUserNavigation();
     }
     _enableWakelock();
   }
 
   void _handlePointerMove(final PointerMoveEvent event) {
-    if (_didPointerSequenceMove) {
+    final pointer = _activePointers[event.pointer];
+    if (pointer == null || _didNotifyUserNavigation) {
       return;
     }
 
-    final pointer = _activePointers[event.pointer];
-    if (pointer != null && (event.localPosition - pointer.origin).distance > pointer.slop) {
-      _markPointerSequenceMoved();
+    final distance = (event.localPosition - pointer.origin).distance;
+    if (distance > pointer.tapSlop) {
+      _didPointerSequenceMove = true;
+    }
+    if (distance > pointer.navigationSlop) {
+      _markUserNavigation();
     }
   }
 
@@ -484,7 +493,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
 
     final didPointerSequenceMove = _didPointerSequenceMove;
-    _didPointerSequenceMove = false;
+    _resetPointerSequence();
     if (didPointerSequenceMove) {
       return;
     }
@@ -499,16 +508,21 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   void _handlePointerCancel(final PointerCancelEvent event) {
     if (_activePointers.remove(event.pointer) != null && _activePointers.isEmpty) {
-      _didPointerSequenceMove = false;
+      _resetPointerSequence();
     }
   }
 
-  void _markPointerSequenceMoved() {
-    if (_didPointerSequenceMove) {
+  void _resetPointerSequence() {
+    _didPointerSequenceMove = false;
+    _didNotifyUserNavigation = false;
+  }
+
+  void _markUserNavigation() {
+    if (_didNotifyUserNavigation) {
       return;
     }
 
-    _didPointerSequenceMove = true;
+    _didNotifyUserNavigation = true;
     _onInteraction();
   }
 
