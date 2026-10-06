@@ -19,11 +19,7 @@ struct FlutterMediaOverlay {
   }
 
   func itemInRangeOfTime(_ time: Double, inHref href: String) -> FlutterMediaOverlayItem? {
-    if (href != audioFile && href != textFile) {
-      return nil
-    }
-
-    return items.first(where: { $0.isAudioInRangeOfTime(time, inHref: href) })
+    return items.first {item in item.isAudioInRangeOfTime(time, inHref: href)}
   }
   
   func itemFromTextId(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {

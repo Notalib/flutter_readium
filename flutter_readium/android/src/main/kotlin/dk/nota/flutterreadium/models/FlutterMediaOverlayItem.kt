@@ -211,7 +211,7 @@ data class FlutterMediaOverlayItem(
                 mediaType = audioMediaType,
                 locations =
                     Locator.Locations(
-                        fragments = listOf("t=${audioStart?.toInt() ?: 0}"),
+                        fragments = listOf("t=${audioStart?: 0.0}"),
                     ),
             )
         }
