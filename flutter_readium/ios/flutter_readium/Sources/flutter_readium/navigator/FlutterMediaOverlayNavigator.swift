@@ -70,10 +70,14 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     publication.manifest = audioPubManifest
     
     Log.navigator.info("New audio readingOrder found: \(audioReadingOrder)")
-    // Save the media-overlays for later position matching.
-    self.mediaOverlays = mediaOverlays
+    applyMediaOverlays(mediaOverlays)
     
     try await super.initNavigator()
+  }
+  
+  /// Saves the media-overlays for later position matching.
+  internal func applyMediaOverlays(_ mediaOverlays: [FlutterMediaOverlay]) {
+    self.mediaOverlays = mediaOverlays
   }
   
   public override func play(fromLocator: Locator?) async {
