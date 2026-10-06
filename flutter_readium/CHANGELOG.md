@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS: audiobooks with text restarted from the beginning when opened at a saved position.**
+  Calling `audioEnable` with an initial locator on a media-overlay book and then `resume()` played from 0:00. The text locator was mapped to an audio position before the media overlays were loaded, so the mapping always failed. It is now mapped once the overlays are loaded.
+
 ## [0.6.1] - 2026-10-06
 
 ### Fixed
