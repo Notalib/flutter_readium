@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.6.1] - 2026-10-06
+
 ### Changed
 
 - **`equatable` 3.x is now supported.** The `flutter_readium_platform_interface` constraint was `^2.1.0`, which blocked apps from upgrading. It is now `>=2.1.0 <4.0.0`. Model equality is unchanged: equatable 3 still compares `runtimeType`, and the models never relied on `EquatableMixin`.

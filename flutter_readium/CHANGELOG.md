@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.6.1] - 2026-10-06
+
 ### Fixed
 
 - **Web: TTS could stop for good after a speechSynthesis stall.**
