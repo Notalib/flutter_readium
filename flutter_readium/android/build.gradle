@@ -24,13 +24,11 @@ rootProject.allprojects {
   repositories {
     google()
     mavenCentral()
-    maven { url 'https://storage.googleapis.com/download.flutter.io' }
     maven { url 'https://jitpack.io' } // Needed for readium-adapter-pdfium
   }
 }
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -45,8 +43,10 @@ android {
     targetCompatibility JavaVersion.VERSION_18
   }
 
-  kotlinOptions {
-    jvmTarget = '18'
+  kotlin {
+    compilerOptions {
+      jvmTarget = JvmTarget.JVM_18
+    }
   }
 
   compileSdkVersion 36
@@ -84,9 +84,6 @@ android {
 }
 
 dependencies {
-  compileOnly 'io.flutter:flutter_embedding_debug:1.0.0-b8c8d3d8d5d0095127057f8a29ca8cc53da2167c'
-  testImplementation 'io.flutter:flutter_embedding_debug:1.0.0-b8c8d3d8d5d0095127057f8a29ca8cc53da2167c'
-
   implementation 'androidx.fragment:fragment-ktx:1.8.9'
 
   implementation fileTree(include: ['*.jar'], dir: 'libs')
