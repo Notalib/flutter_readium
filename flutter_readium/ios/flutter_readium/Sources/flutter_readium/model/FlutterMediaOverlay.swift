@@ -155,10 +155,10 @@ struct FlutterMediaOverlayItem {
       return false
     }
     guard let start = audioStart else { return false }
-    // A reversed or non-finite end (malformed `t=start,end` fragment) would trap
-    // `start...end`; treat it as open-ended from `start`, mirroring the no-end case.
+    // The end is exclusive so a shared boundary belongs to the next cue.
+    // Malformed or missing ends are treated as open-ended from the start.
     guard let end = audioEnd, end >= start else { return time >= start }
-    return (start...end).contains(time)
+    return (time >= start && time < end) || time < start
   }
   
   // MARK: Locators
