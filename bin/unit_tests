@@ -17,11 +17,12 @@ function first_ios_simulator_udid() {
 }
 
 # iOS native unit tests run through the example app's Xcode RunnerTests target
-# (app-hosted, so the plugin compiles with its real `import Flutter`). The SPM
-# `flutter_readiumTests` target can NOT run via `swift test`: the generated
-# FlutterFramework package is an empty placeholder and the Flutter module is
-# only provided by Xcode at build time. CI does not invoke this — it runs on
-# Ubuntu; iOS would need a macOS runner.
+# (app-hosted, so the plugin compiles with its real `import Flutter`). They live in
+# flutter_readium/example/ios/RunnerTests/ and each new file must be registered in the
+# RunnerTests target of Runner.xcodeproj (guarded below). An SPM test target can NOT
+# run via `swift test`: the generated FlutterFramework package is an empty placeholder
+# and the Flutter module is only provided by Xcode at build time, so there is none.
+# CI does not invoke this — it runs on Ubuntu; iOS would need a macOS runner.
 function test_ios() {
   if [ "$(uname)" != "Darwin" ] || ! command -v xcodebuild > /dev/null 2>&1; then
     echo "Skipping iOS unit-tests — requires macOS with Xcode."
@@ -51,6 +52,14 @@ function test_ios() {
      ! diff -q "$IOS_DIR/Podfile.lock" "$IOS_DIR/Pods/Manifest.lock" > /dev/null 2>&1; then
     ( cd "$IOS_DIR" && pod install )
   fi
+
+  local f
+  for f in "$IOS_DIR"/RunnerTests/*.swift; do
+    if ! grep -qF "$(basename "$f") in Sources" "$IOS_DIR/Runner.xcodeproj/project.pbxproj"; then
+      echo "$(basename "$f") is not registered in the RunnerTests target of Runner.xcodeproj" >&2
+      return 1
+    fi
+  done
 
   local udid
   udid="$(first_ios_simulator_udid)"

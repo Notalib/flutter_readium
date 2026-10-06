@@ -4,9 +4,10 @@ import ReadiumShared
 
 @testable import flutter_readium
 
-// Native unit tests run in this app-hosted target (not the SPM `flutter_readiumTests` target)
-// because the plugin's `import Flutter` module is only resolvable inside the app host, not under
-// plain `swift test`. See docs / bin/unit_tests for the rationale.
+// All native iOS unit tests live in this app-hosted RunnerTests directory, because the plugin's
+// `import Flutter` module is only resolvable inside the app host, not under plain `swift test`.
+// A new test file must be registered in the RunnerTests target of Runner.xcodeproj; bin/unit_tests
+// fails if one is missing. See bin/unit_tests for the rationale.
 
 // Regression tests for media-overlay item range matching.
 class FlutterMediaOverlayItemTests: XCTestCase {
