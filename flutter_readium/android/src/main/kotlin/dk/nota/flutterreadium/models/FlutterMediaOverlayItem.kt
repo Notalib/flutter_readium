@@ -135,7 +135,8 @@ data class FlutterMediaOverlayItem(
 
         val start = audioStart ?: return false
         val end = audioEnd ?: return time >= start // No end value, check if time is after start.
-        return time in start..end || time < start
+        // Make the end exclusive so an exact cue boundary belongs to the next cue.
+        return (time in start..<end) || time < start
     }
 
     /**
@@ -211,7 +212,7 @@ data class FlutterMediaOverlayItem(
                 mediaType = audioMediaType,
                 locations =
                     Locator.Locations(
-                        fragments = listOf("t=${audioStart?.toInt() ?: 0}"),
+                        fragments = listOf("t=${audioStart?: 0.0}"),
                     ),
             )
         }
