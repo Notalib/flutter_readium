@@ -103,6 +103,9 @@ void main() {
       timeout: firstMountTimeout,
       reason: 'The demo reader did not emit an initial locator',
     );
+    if (_scene == 'epub') {
+      await _hold(tester, const Duration(seconds: 2));
+    }
 
     if (_scene == 'readalong') {
       await readium.setDecorationStyle(
@@ -130,7 +133,9 @@ void main() {
       );
       await waitWithPump(
         tester,
-        () => locators.any((locator) => locator.href == target.href),
+        () => locators.any(
+          (locator) => locator.href == target.href && (_scene != 'epub' || (locator.locations?.progression ?? 0) > 0.1),
+        ),
         timeout: const Duration(seconds: 20),
         reason: 'The reader did not reach the selected demo resource',
       );
@@ -143,7 +148,9 @@ void main() {
         await _recordEpubScene(tester);
       case 'readalong':
         await _recordReadAlongScene(tester, playerControlsBloc);
-      case 'pdf' || 'comic':
+      case 'comic':
+        await _recordComicScene(tester, playerControlsBloc);
+      case 'pdf':
         await _hold(tester, const Duration(seconds: 10));
     }
     expect(tester.takeException(), isNull);
@@ -166,22 +173,22 @@ Locator _targetLocator(Publication publication) {
   }
 
   final resourceName = _scene == 'epub' ? '7451058775928492912_14838-h-0.htm.xhtml' : '38533-0004-generic.xhtml';
-  final fragment = _scene == 'epub' ? 'img_images_peter19.jpg' : 'uwlh00026';
+  final fragment = _scene == 'epub' ? null : 'uwlh00026';
   final resource = publication.readingOrder.firstWhere(
     (link) => link.href.endsWith(resourceName),
     orElse: () => throw StateError('Missing demo resource $resourceName'),
   );
   final locator = publication.locatorFromLink(
     Link(
-      href: '${resource.href}#$fragment',
+      href: fragment == null ? resource.href : '${resource.href}#$fragment',
       type: resource.type,
       title: resource.title,
     ),
   );
-  return locator ??
-      (throw StateError(
-        'Could not create a locator for $resourceName#$fragment',
-      ));
+  if (locator == null) {
+    throw StateError('Could not create a locator for $resourceName${fragment == null ? '' : '#$fragment'}');
+  }
+  return _scene == 'epub' ? locator.copyWithLocations(progression: 0.35) : locator;
 }
 
 Future<void> _recordEpubScene(WidgetTester tester) async {
@@ -243,6 +250,35 @@ Future<void> _recordReadAlongScene(
     reason: 'Read-along playback did not pause',
   );
   await _hold(tester, const Duration(milliseconds: 1200));
+}
+
+Future<void> _recordComicScene(
+  WidgetTester tester,
+  PlayerControlsBloc playerControlsBloc,
+) async {
+  await _hold(tester, const Duration(milliseconds: 800));
+
+  final playButton = find.byTooltip('Play');
+  expect(playButton, findsOneWidget);
+  await tester.tap(playButton);
+  await waitWithPump(
+    tester,
+    () => playerControlsBloc.state.audioEnabled && playerControlsBloc.state.playing,
+    timeout: const Duration(seconds: 30),
+    reason: 'Comic narration did not start',
+  );
+  await _hold(tester, const Duration(seconds: 8));
+
+  final pauseButton = find.byTooltip('Pause');
+  expect(pauseButton, findsOneWidget);
+  await tester.tap(pauseButton);
+  await waitWithPump(
+    tester,
+    () => !playerControlsBloc.state.playing,
+    timeout: const Duration(seconds: 10),
+    reason: 'Comic narration did not pause',
+  );
+  await _hold(tester, const Duration(milliseconds: 800));
 }
 
 Future<void> _dragHorizontally(

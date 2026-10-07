@@ -36,6 +36,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 EXAMPLE_DIR="$REPO_ROOT/flutter_readium/example"
+HELPER_DIR="$REPO_ROOT/flutter_readium/assets/_helper_scripts"
 OUTPUT_DIR="$REPO_ROOT/docs/assets/readme"
 BUILD_DIR="$REPO_ROOT/build/readme-demo"
 GIF_PATH="$OUTPUT_DIR/flutter-readium-demo.gif"
@@ -44,7 +45,7 @@ READING_STILL_PATH="$OUTPUT_DIR/capability-reading.png"
 LISTENING_STILL_PATH="$OUTPUT_DIR/capability-listening.png"
 RICH_FORMATS_STILL_PATH="$OUTPUT_DIR/capability-rich-formats.png"
 
-for command_name in flutter xcrun ffmpeg ffprobe; do
+for command_name in flutter xcrun ffmpeg ffprobe npm; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Missing required command: $command_name" >&2
     exit 1
@@ -64,7 +65,7 @@ if [ -z "$DEVICE_ID" ]; then
   exit 1
 fi
 
-for fixture in peter_rabbit.epub 38533_overlay_preview.webpub time_machine.pdf 50272-nota-comics.webpub; do
+for fixture in peter_rabbit.epub 38533_overlay_preview.webpub 50272-nota-comics.webpub; do
   [ -f "$EXAMPLE_DIR/assets/pubs/$fixture" ] || {
     echo "Missing generated fixture: $fixture" >&2
     echo "Run bin/fetch_test_resources, then retry." >&2
@@ -94,6 +95,16 @@ xcrun simctl status_bar "$DEVICE_ID" override \
   --batteryState charged \
   --batteryLevel 100
 
+if [ ! -d "$HELPER_DIR/node_modules" ]; then
+  (cd "$HELPER_DIR" && npm ci --ignore-scripts)
+fi
+(cd "$HELPER_DIR" && npm run build:dev)
+for helper in flutterReadiumTools.js flutterReadiumTools.css; do
+  [ -s "$REPO_ROOT/flutter_readium/assets/helpers/$helper" ] || {
+    echo "Missing built WebView helper: $helper" >&2
+    exit 1
+  }
+done
 (cd "$EXAMPLE_DIR" && flutter pub get >/dev/null)
 
 record_scene() {
@@ -161,9 +172,7 @@ echo "Recording EPUB scene..."
 EPUB_VIDEO="$(record_scene epub | tee /dev/stderr | tail -n1)"
 echo "Recording read-along scene..."
 READALONG_VIDEO="$(record_scene readalong | tee /dev/stderr | tail -n1)"
-echo "Capturing PDF still..."
-PDF_VIDEO="$(record_scene pdf | tee /dev/stderr | tail -n1)"
-echo "Capturing comic still..."
+echo "Recording narrated comic scene..."
 COMIC_VIDEO="$(record_scene comic | tee /dev/stderr | tail -n1)"
 
 MASTER_PATH="$BUILD_DIR/flutter-readium-demo.mp4"
@@ -174,8 +183,6 @@ TEMP_POSTER="$WORK_DIR/flutter-readium-demo-poster.png"
 TEMP_READING_STILL="$WORK_DIR/capability-reading.png"
 TEMP_LISTENING_STILL="$WORK_DIR/capability-listening.png"
 TEMP_RICH_FORMATS_STILL="$WORK_DIR/capability-rich-formats.png"
-TEMP_PDF_STILL="$WORK_DIR/capability-pdf.png"
-TEMP_COMIC_STILL="$WORK_DIR/capability-comic.png"
 
 if [ "$WITH_BEZEL" -eq 1 ]; then
   magick \
@@ -190,9 +197,10 @@ if [ "$WITH_BEZEL" -eq 1 ]; then
   ffmpeg -hide_banner -loglevel error -y \
     -i "$EPUB_VIDEO" \
     -i "$READALONG_VIDEO" \
+    -i "$COMIC_VIDEO" \
     -loop 1 -framerate 10 -i "$BEZEL_PATH" \
     -filter_complex \
-      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10[screen];[2:v][screen]overlay=40:56:shortest=1,format=yuv420p[v]' \
+      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[2:v]setpts=PTS-STARTPTS[v2];[v0][v1][v2]concat=n=3:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10[screen];[3:v][screen]overlay=40:56:shortest=1,format=yuv420p[v]' \
     -map '[v]' \
     -an \
     -c:v libx264 \
@@ -204,8 +212,9 @@ else
   ffmpeg -hide_banner -loglevel error -y \
     -i "$EPUB_VIDEO" \
     -i "$READALONG_VIDEO" \
+    -i "$COMIC_VIDEO" \
     -filter_complex \
-      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[v0][v1]concat=n=2:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10,format=yuv420p[v]' \
+      '[0:v]setpts=PTS-STARTPTS[v0];[1:v]setpts=PTS-STARTPTS[v1];[2:v]setpts=PTS-STARTPTS[v2];[v0][v1][v2]concat=n=3:v=1:a=0,scale=640:1392:force_original_aspect_ratio=decrease:flags=lanczos,pad=640:1392:(ow-iw)/2:(oh-ih)/2:black,fps=10,format=yuv420p[v]' \
     -map '[v]' \
     -an \
     -c:v libx264 \
@@ -230,22 +239,10 @@ ffmpeg -hide_banner -loglevel error -y \
   "$TEMP_LISTENING_STILL"
 
 ffmpeg -hide_banner -loglevel error -y \
-  -i "$PDF_VIDEO" \
-  -frames:v 1 \
-  -vf 'crop=645:860:(iw-645)/2:300,scale=360:480:flags=lanczos' \
-  "$TEMP_PDF_STILL"
-
-ffmpeg -hide_banner -loglevel error -y \
+  -ss 8.5 \
   -i "$COMIC_VIDEO" \
   -frames:v 1 \
-  -vf 'crop=645:860:(iw-645)/2:300,scale=360:480:flags=lanczos' \
-  "$TEMP_COMIC_STILL"
-
-ffmpeg -hide_banner -loglevel error -y \
-  -i "$TEMP_PDF_STILL" \
-  -i "$TEMP_COMIC_STILL" \
-  -frames:v 1 \
-  -filter_complex '[0:v][1:v]hstack=inputs=2' \
+  -vf 'crop=iw:860:0:750,scale=720:480:flags=lanczos' \
   "$TEMP_RICH_FORMATS_STILL"
 
 ffmpeg -hide_banner -loglevel error -y \

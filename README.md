@@ -9,10 +9,10 @@ by Readium toolkits on iOS, Android, and Web.
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="flutter_readium example app changing EPUB reading preferences and demonstrating synchronized read-along highlighting.">
+  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
 </p>
 
-<p align="center"><em>Captured on iOS; synchronized narration uses the same Dart API on Android and Web.</em></p>
+<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
 
 <p align="center">
   <a href="docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
@@ -22,8 +22,8 @@ by Readium toolkits on iOS, Android, and Web.
 
 | Reading | Listening | Rich formats |
 | :---: | :---: | :---: |
-| <img src="docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="docs/assets/readme/capability-rich-formats.png" width="240" alt="PDF and comic navigation in flutter_readium."> |
-| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | PDF and comic/DiViNa navigation |
+| <img src="docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="docs/assets/readme/capability-rich-formats.png" width="240" alt="A full-width narrated comic panel in flutter_readium."> |
+| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | Comic panel navigation (also supports PDF) |
 
 ## Quick start
 
