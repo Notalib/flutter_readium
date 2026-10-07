@@ -153,6 +153,14 @@ jobs:
           set -o pipefail
           # Read by the log-extraction step below to bound `log show` to this run.
           echo "IOS_TEST_START_UTC=$(date -u '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
+          # Host load every 5s. A WebContent launch has stalled for 83s on this 3-core runner;
+          # this shows whether the host was starved at that moment.
+          ( while :; do
+              date -u '+== %H:%M:%S'; uptime; vm_stat | sed -n '2,6p;/Pageouts/p;/Swapouts/p'
+              ps -A -r -o %cpu=,rss=,ucomm= | head -8
+              sleep 5
+            done ) > "$RUNNER_TEMP/host-load.log" 2>&1 &
+          trap "kill $! 2>/dev/null" EXIT
           flutter test integration_test/plugin_integration_test.dart --reporter expanded --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true --device-id="$IOS_SIMULATOR_UDID" 2>&1 | tee "$RUNNER_TEMP/ios-integration.log"
         working-directory: flutter_readium/example
 
@@ -202,6 +210,7 @@ jobs:
           mkdir -p "$OUT"
           # Crash reports are tiny and the most useful thing here — keep them alongside.
           cp /tmp/ios-diags/*.ips "$OUT/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/host-load.log" "$OUT/" 2>/dev/null || true
           if [ ! -d "$ARCHIVE" ]; then
             echo "no sim.logarchive collected" > "$OUT/README.txt"
             exit 0
