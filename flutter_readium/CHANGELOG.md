@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **iOS: `resume()` after `audioEnable(fromLocator:)` played a media-overlay book from 0:00.**
+  The initial locator was mapped before the media overlays loaded. It is now mapped after they load.
+
 ## [0.6.1] - 2026-10-06
 
 ### Fixed

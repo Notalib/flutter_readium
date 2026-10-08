@@ -12,6 +12,7 @@ import ReadiumNavigator
 public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 {
   internal var mediaOverlays: [FlutterMediaOverlay] = []
+  private var pendingTextInitialLocator: Locator?
   
   public override var currentLocator: Locator? {
     get {
@@ -28,8 +29,10 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   public override init(publication: Publication, preferences: FlutterAudioPreferences, initialLocator: Locator?) {
     super.init(publication: publication, preferences: preferences, initialLocator: initialLocator)
     
-    // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
-    self._initialLocator = self.mapTextLocatorToMediaOverlayAudioLocator(initialLocator)
+    // The overlays load in `initNavigator()`, so the Text-based locator is mapped there. The raw
+    // locator is kept because `super.init` resolves it to a time-only locator, dropping the text id.
+    self.pendingTextInitialLocator = initialLocator
+    self._initialLocator = nil
   }
   
   public override func initNavigator() async throws -> Void {
@@ -70,10 +73,16 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     publication.manifest = audioPubManifest
     
     Log.navigator.info("New audio readingOrder found: \(audioReadingOrder)")
-    // Save the media-overlays for later position matching.
-    self.mediaOverlays = mediaOverlays
+    applyMediaOverlays(mediaOverlays)
     
     try await super.initNavigator()
+  }
+  
+  /// Saves the media-overlays for later position matching, and maps the pending initial locator.
+  internal func applyMediaOverlays(_ mediaOverlays: [FlutterMediaOverlay]) {
+    self.mediaOverlays = mediaOverlays
+    // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
+    self._initialLocator = mapTextLocatorToMediaOverlayAudioLocator(pendingTextInitialLocator)
   }
   
   public override func play(fromLocator: Locator?) async {

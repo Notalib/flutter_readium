@@ -8,12 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'test_fixtures.dart';
 import 'web_resource_probe.dart' if (dart.library.js_interop) 'web_resource_probe_web.dart';
 
-/// Budget for the first textLocator/status emission after mounting a reader widget:
-/// each mount launches a fresh platform-view webview, and CI runner speed varies
-/// 2x+ run to run (a 3s warm-up on a fast runner vs. 22s+ on a slow one). 60s is the
-/// ceiling already proven safe for a cold CI simulator by groups/warm_up.dart;
-/// reuse it everywhere instead of guessing a fresh number per call site.
-const firstMountTimeout = Duration(seconds: 60);
+/// Budget for the first textLocator/status emission after mounting a reader widget. Each mount
+/// launches a fresh WebContent process, and on the 3-core CI simulator a launch has hung for 59s
+/// and 83s mid-run (seen in the sim logarchive), long after groups/warm_up.dart warmed WebKit.
+/// Two mounts in one test must still fit the 300s per-test `--timeout`, hence 120s and not more.
+const firstMountTimeout = Duration(seconds: 120);
 
 class ReadiumIntegrationHarness {
   final readium = FlutterReadium();

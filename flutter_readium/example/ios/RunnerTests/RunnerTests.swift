@@ -4,9 +4,10 @@ import ReadiumShared
 
 @testable import flutter_readium
 
-// Native unit tests run in this app-hosted target (not the SPM `flutter_readiumTests` target)
-// because the plugin's `import Flutter` module is only resolvable inside the app host, not under
-// plain `swift test`. See docs / bin/unit_tests for the rationale.
+// All native iOS unit tests live in this app-hosted RunnerTests directory, because the plugin's
+// `import Flutter` module is only resolvable inside the app host, not under plain `swift test`.
+// A new test file must be registered in the RunnerTests target of Runner.xcodeproj; bin/unit_tests
+// fails if one is missing. See bin/unit_tests for the rationale.
 
 // Regression tests for media-overlay item range matching.
 class FlutterMediaOverlayItemTests: XCTestCase {
@@ -375,5 +376,65 @@ final class WithTimeoutTests: XCTestCase {
     }
 
     XCTAssertNil(result)
+  }
+}
+
+// Regression: the Text-based initial locator must map to an Audio locator once the media-overlays
+// are loaded. Mapping it in `init` always failed, as `mediaOverlays` is empty until `initNavigator`.
+@MainActor
+final class FlutterMediaOverlayNavigatorInitialLocatorTests: XCTestCase {
+  private let overlays = [
+    FlutterMediaOverlay(
+      items: [
+        FlutterMediaOverlayItem(audio: "chap1.mp3#t=0,5", text: "chap1.xhtml#p1", position: 0),
+        FlutterMediaOverlayItem(audio: "chap1.mp3#t=5,10", text: "chap1.xhtml#p2", position: 0),
+      ],
+      readingOrderDuration: nil),
+    FlutterMediaOverlay(
+      items: [
+        FlutterMediaOverlayItem(audio: "chap2.mp3#t=0,3", text: "chap2.xhtml#q1", position: 1),
+        FlutterMediaOverlayItem(audio: "chap2.mp3#t=3,8", text: "chap2.xhtml#q2", position: 1),
+      ],
+      readingOrderDuration: nil),
+  ]
+
+  private func makeNavigator(initialLocator: Locator?) -> FlutterMediaOverlayNavigator {
+    let publication = Publication(manifest: Manifest(
+      metadata: Metadata(title: "Narrated"),
+      readingOrder: [
+        Link(href: "chap1.xhtml", mediaType: .xhtml),
+        Link(href: "chap2.xhtml", mediaType: .xhtml),
+      ]))
+    return FlutterMediaOverlayNavigator(
+      publication: publication,
+      preferences: FlutterAudioPreferences(),
+      initialLocator: initialLocator)
+  }
+
+  func testInitialTextLocatorMapsToAudioLocatorOnceOverlaysAreLoaded() throws {
+    let navigator = makeNavigator(initialLocator: Locator(
+      href: URL(string: "chap2.xhtml")!,
+      mediaType: .xhtml,
+      locations: .init(fragments: ["#q2"])))
+
+    navigator.applyMediaOverlays(overlays)
+
+    let audio = try XCTUnwrap(navigator.initialLocator, "initialLocator was not mapped to an audio locator")
+    XCTAssertEqual(audio.href.string, "chap2.mp3")
+    XCTAssertEqual(audio.timeOffset, 3)
+  }
+
+  // A saved combined locator (text id + audio time) must keep its more precise time.
+  func testInitialCombinedLocatorKeepsItsTimeOffset() throws {
+    let navigator = makeNavigator(initialLocator: Locator(
+      href: URL(string: "chap2.xhtml")!,
+      mediaType: .xhtml,
+      locations: .init(fragments: ["#q2", "t=5.5"])))
+
+    navigator.applyMediaOverlays(overlays)
+
+    let audio = try XCTUnwrap(navigator.initialLocator, "initialLocator was not mapped to an audio locator")
+    XCTAssertEqual(audio.href.string, "chap2.mp3")
+    XCTAssertEqual(audio.timeOffset, 5.5)
   }
 }

@@ -260,6 +260,7 @@ void main() {
             timeout: const Duration(seconds: 10),
             reason: 'First track never played from the late offset',
           );
+          final errorsBeforeTrackChange = errors.length;
 
           final secondLink = pub.readingOrder[1];
           final changedTrack = await harness.readium.goToLocator(
@@ -284,7 +285,7 @@ void main() {
           );
 
           expect(
-            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            _retriesAfter(errors, errorsBeforeTrackChange),
             isEmpty,
             reason: 'Healthy playback after a track change was mistaken for a stall',
           );
@@ -325,11 +326,12 @@ void main() {
             timeout: const Duration(seconds: 10),
             reason: 'Playback did not advance before the pause check',
           );
+          final errorsBeforePause = errors.length;
 
           await harness.readium.pause();
           await Future<void>.delayed(const Duration(seconds: 3));
           expect(
-            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            _retriesAfter(errors, errorsBeforePause),
             isEmpty,
             reason: 'An explicit pause was mistaken for a stall',
           );
@@ -367,7 +369,7 @@ void main() {
             reason: 'Playback did not continue for two stall timeouts after seeking',
           );
           expect(
-            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            _retriesAfter(errors, errorsBeforePause),
             isEmpty,
             reason: 'Healthy playback after a backward seek was mistaken for a stall',
           );
@@ -427,6 +429,22 @@ void main() {
 
           await harness.readium.play(null);
 
+          // The 1s stall timeout must be short enough to fire inside the 2s window after `ended`. It
+          // then also fires whenever CI starts playback slowly, so count retries from proven progress on.
+          final begin = Duration(milliseconds: (beginSeconds * 1000).round());
+          await waitUntil(
+            () => states.any(
+              (s) =>
+                  s.state == TimebasedState.playing &&
+                  s.currentLocator?.href == lastLink.href &&
+                  s.currentOffset != null &&
+                  s.currentOffset! >= begin + const Duration(milliseconds: 500),
+            ),
+            timeout: const Duration(seconds: 15),
+            reason: 'Last track never played past its start offset',
+          );
+          final errorsBeforeProgress = errors.length;
+
           await waitUntil(
             () => states.any((s) => s.state == TimebasedState.ended),
             timeout: const Duration(seconds: 30),
@@ -444,7 +462,7 @@ void main() {
                 '${states.last.state}',
           );
           expect(
-            errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+            _retriesAfter(errors, errorsBeforeProgress),
             isEmpty,
             reason: 'Final ended state must cancel resource-loading recovery',
           );
@@ -810,3 +828,8 @@ void main() {
 /// Compare chapters by filename: a text locator and its reading-order link can carry
 /// different base-path prefixes for the same file.
 String _chapterFile(String href) => href.split('#').first.split('?').first.split('/').last;
+
+/// `audioStreamRetry` errors after the first [skip] errors. The stall tests count from proven playback on:
+/// CI can take longer than their short stall timeouts to start cold playback, which is a real stall.
+Iterable<ReadiumError> _retriesAfter(List<ReadiumError> errors, int skip) =>
+    errors.skip(skip).where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry);
