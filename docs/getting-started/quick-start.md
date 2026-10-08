@@ -1,12 +1,29 @@
 # Quick Start
 
-This guide takes you from zero to a working reader screen in a couple of minutes.
+This guide takes you from a publication URL to audio playback or a visual reader in a couple of
+minutes. Complete the [platform setup](installation.md) before running the examples.
 
 ## 1. Open a publication
 
-Start with the complete [`ReaderScreen` example](../../flutter_readium/README.md#quick-start). It opens a
-publication URL, mounts `ReadiumReaderWidget`, handles loading and errors, and closes the publication when
-the screen is disposed. Complete the [platform setup](installation.md) before running it.
+For a publication with recorded audio, you can start playback without mounting a reader widget.
+Run this inside an async callback (such as a Play button handler on Web):
+
+```dart
+import 'package:flutter_readium/flutter_readium.dart';
+
+final readium = FlutterReadium();
+final publication = await readium.openPublication(publicationUrl);
+await readium.audioEnable();
+await readium.play(null);
+```
+
+`publication` provides metadata and reading order. `openPublication()` is required for playback;
+`loadPublication()` only loads the manifest. See [Audiobook Playback](../guides/audiobook-playback.md#start-audio-without-a-reader-widget)
+for publication checks, playback state, and cleanup.
+
+For visual reading, use the complete [`ReaderScreen` example](../../flutter_readium/README.md#quick-start).
+It mounts `ReadiumReaderWidget` and handles loading, errors, and closing the publication. The
+remaining steps extend that visual reader screen.
 
 ## 2. Add navigation controls
 
