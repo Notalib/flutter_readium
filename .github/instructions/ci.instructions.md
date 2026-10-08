@@ -9,7 +9,7 @@ applyTo: '.github/workflows/*.yml'
 
 All workflows that build iOS or Android must include the relevant caches:
 
-- **Android**: Cache `~/.gradle/caches` and `~/.gradle/wrapper`, keyed on the relevant `build.gradle` files. Include a `restore-keys` prefix fallback.
+- **Android**: Cache `~/.gradle/caches` and `~/.gradle/wrapper`, keyed on the relevant `build.gradle` files. Include a `restore-keys` prefix fallback. Restore with `actions/cache/restore` and save with `actions/cache/save` only on `refs/heads/main`: a PR can only read its own caches and `main`'s, so a PR that saves just stores another 1.15 GB copy.
 - **iOS (CocoaPods)**: Cache `flutter_readium/example/ios/Pods` and `~/.cocoapods`, keyed on `Podfile.lock`. `~/.cocoapods` is required — it holds the trunk spec repo used to resolve Flutter ecosystem pods (e.g. webview_flutter). Without it, a cold `pod install` fails even though Readium pods use explicit `podspec:` URLs.
 - **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on `Podfile.lock`.
 - **Android emulator AVD**: Do not cache it. See "Android emulator boot" below.
