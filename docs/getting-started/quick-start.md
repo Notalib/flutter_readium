@@ -1,55 +1,29 @@
 # Quick Start
 
-This guide takes you from zero to a working reader screen in a couple of minutes.
+This guide takes you from a publication URL to audio playback or a visual reader in a couple of
+minutes. Complete the [platform setup](installation.md) before running the examples.
 
 ## 1. Open a publication
+
+For a publication with recorded audio, you can start playback without mounting a reader widget.
+Run this inside an async callback (such as a Play button handler on Web):
 
 ```dart
 import 'package:flutter_readium/flutter_readium.dart';
 
-class ReaderScreen extends StatefulWidget {
-  final String pubUrl;
-  const ReaderScreen({super.key, required this.pubUrl});
-
-  @override
-  State<ReaderScreen> createState() => _ReaderScreenState();
-}
-
-class _ReaderScreenState extends State<ReaderScreen> {
-  final _reader = FlutterReadium();
-  Publication? _publication;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _open();
-  }
-
-  Future<void> _open() async {
-    try {
-      final pub = await _reader.openPublication(widget.pubUrl);
-      setState(() => _publication = pub);
-    } on ReadiumException catch (e) {
-      setState(() => _error = e.toString());
-    }
-  }
-
-  @override
-  void dispose() {
-    _reader.closePublication();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_error != null) return Center(child: Text(_error!));
-    if (_publication == null) return const Center(child: CircularProgressIndicator());
-
-    return ReadiumReaderWidget(publication: _publication!);
-  }
-}
+final readium = FlutterReadium();
+final publication = await readium.openPublication(publicationUrl);
+await readium.audioEnable();
+await readium.play(null);
 ```
+
+`publication` provides metadata and reading order. `openPublication()` is required for playback;
+`loadPublication()` only loads the manifest. See [Audiobook Playback](../guides/audiobook-playback.md#start-audio-without-a-reader-widget)
+for publication checks, playback state, and cleanup.
+
+For visual reading, use the complete [`ReaderScreen` example](../../flutter_readium/README.md#quick-start).
+It mounts `ReadiumReaderWidget` and handles loading, errors, and closing the publication. The
+remaining steps extend that visual reader screen.
 
 ## 2. Add navigation controls
 
@@ -58,11 +32,11 @@ Row(
   children: [
     IconButton(
       icon: const Icon(Icons.arrow_back),
-      onPressed: () => _reader.goBackward(),
+      onPressed: () => _readium.goBackward(),
     ),
     IconButton(
       icon: const Icon(Icons.arrow_forward),
-      onPressed: () => _reader.goForward(),
+      onPressed: () => _readium.goForward(),
     ),
   ],
 )
@@ -70,22 +44,29 @@ Row(
 
 ## 3. Track reading position
 
+In `_ReaderScreenState`, add a progress field and keep the subscription so it can be canceled:
+
 ```dart
+StreamSubscription<Locator>? _positionSubscription;
+double _progress = 0;
+
 @override
 void initState() {
   super.initState();
-  _reader.onTextLocatorChanged.listen((locator) {
+  _positionSubscription = _readium.onTextLocatorChanged.listen((locator) {
     final progress = locator.locations?.totalProgression ?? 0.0;
-    setState(() => _progress = progress);
+    if (mounted) setState(() => _progress = progress);
   });
   _open();
 }
 ```
 
+Call `_positionSubscription?.cancel()` in the screen's existing `dispose()` method.
+
 ## 4. Apply EPUB display preferences
 
 ```dart
-await _reader.setEPUBPreferences(
+await _readium.setEPUBPreferences(
   EPUBPreferences(
     fontSize: 1.2,          // 120% of default
     fontFamily: 'Georgia',
@@ -104,7 +85,7 @@ ReadiumReaderWidget(
 )
 
 // Save when position changes — serialise locator.toJson() however your storage layer expects
-_reader.onTextLocatorChanged.listen((locator) {
+  _readium.onTextLocatorChanged.listen((locator) {
   prefs.setString('lastLocator', jsonEncode(locator.toJson()));
 });
 
