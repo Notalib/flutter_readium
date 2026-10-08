@@ -47,16 +47,18 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
-          cache: true
           pub-cache: true
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v6
+      # Restore only. `Save Gradle cache` at the end of the job writes from main
+      # alone, so PRs do not each store a 1 GB copy (ci.instructions.md#caching).
+      - name: Restore Gradle cache
+        id: gradle-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -72,32 +74,6 @@ jobs:
       - name: Fetch test resources
         uses: ./.github/actions/fetch-test-resources
 
-      - name: Cache AVD
-        uses: actions/cache@v6
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          # Recreate the AVD whenever the emulator setup changes, in either file.
-          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml', '.github/actions/run-android-integration-tests/action.yml') }}
-
-      - name: Create AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
-          api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          # Idle before the snapshot is saved on teardown. Taken straight after
-          # boot it captures services still starting, and every restore of it
-          # then races them.
-          script: sleep 60
-
       - name: Run integration tests
         id: tests
         continue-on-error: true
@@ -105,12 +81,10 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
 
-      # The emulator runner presses the unlock key the moment `sys.boot_completed`
-      # flips, which a restored snapshot reports before its services are back; the
-      # keypress dies and takes the step with it, before our script ever runs
-      # (ReactiveCircus/android-emulator-runner#489). A missing test log means the
-      # suite never started, so that is the only case safe to retry — a real test
-      # failure always leaves its log behind and must stand.
+      # A boot failure kills the step before our script runs, so no test log exists
+      # (e.g. ReactiveCircus/android-emulator-runner#489). A missing test log means
+      # the suite never started, so that is the only case safe to retry — a real
+      # test failure always leaves its log behind and must stand.
       - name: Retry integration tests after an emulator boot failure
         id: tests-retry
         if: steps.tests.outcome == 'failure' && hashFiles(format('android-test-api{0}.log', matrix.api-level)) == ''
@@ -132,3 +106,12 @@ jobs:
             ${{ github.workspace }}/android-test-api${{ matrix.api-level }}.log
             ${{ github.workspace }}/android-logcat-api${{ matrix.api-level }}.txt
           if-no-files-found: ignore
+
+      - name: Save Gradle cache
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}

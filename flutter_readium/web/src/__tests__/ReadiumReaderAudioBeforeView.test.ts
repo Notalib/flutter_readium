@@ -396,6 +396,7 @@ describe("audio before the reader view mounts", () => {
   it("replays the cue that narrated before the visual navigator existed", async () => {
     const reader = new ReadiumReader();
     const audioNav = fakeAudioNav();
+    const applyDecorations = jest.spyOn(reader, "applyDecorations").mockImplementation(() => {});
     (reader as any)._audioNav = audioNav;
 
     // Cue emitted while no visual navigator exists: remembered, not applied.
@@ -408,6 +409,10 @@ describe("audio before the reader view mounts", () => {
 
     expect(nav.go).toHaveBeenCalledTimes(1);
     expect((nav.go.mock.calls[0][0] as Locator).locations?.fragments?.[0]).toBe("p7");
+    expect(applyDecorations).toHaveBeenCalledTimes(1);
+    expect(applyDecorations.mock.calls[0][0]).toBe("media_overlay_utterance");
+    const decorations = JSON.parse(applyDecorations.mock.calls[0][1]);
+    expect(decorations[0].locator.locations.fragments[0]).toBe("p7");
   });
 
   it("sends comic cues to the comic navigator that mounts after audio started", async () => {

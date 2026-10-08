@@ -9,7 +9,9 @@ jobs:
     # Pinned to macos-26 (Arm64, GA) rather than macos-latest: the latest alias
     # can lag behind the newest image, and we need the iOS 26 runtime that ships
     # the pinned SIMULATOR_DEVICE below.
-    runs-on: macos-26
+    # EXPERIMENT, do not merge: 5-core M2 Pro larger runner, billed per minute
+    # even on public repos. Measures build/test time against free macos-26.
+    runs-on: macos-26-xlarge
     timeout-minutes: 45
 
     env:
@@ -31,7 +33,6 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
-          cache: true
 
       - name: Cache CocoaPods
         uses: actions/cache@v6
