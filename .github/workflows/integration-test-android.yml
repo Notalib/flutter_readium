@@ -47,11 +47,13 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
-          cache: true
           pub-cache: true
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v6
+      # Restore only. `Save Gradle cache` at the end of the job writes from main
+      # alone, so PRs do not each store a 1 GB copy (ci.instructions.md#caching).
+      - name: Restore Gradle cache
+        id: gradle-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.gradle/caches
@@ -104,3 +106,12 @@ jobs:
             ${{ github.workspace }}/android-test-api${{ matrix.api-level }}.log
             ${{ github.workspace }}/android-logcat-api${{ matrix.api-level }}.txt
           if-no-files-found: ignore
+
+      - name: Save Gradle cache
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}
