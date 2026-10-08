@@ -18,7 +18,9 @@ runs:
         arch: x86_64
         profile: pixel_6
         force-avd-creation: false
-        emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+        # Cold boot every run: a restored snapshot reports boot_completed before its
+        # services are up and races the runner's unlock key (upstream #489).
+        emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
         disable-animations: true
         working-directory: flutter_readium/example
         # logcat is captured inside this action: the emulator is torn down when it

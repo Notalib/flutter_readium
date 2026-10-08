@@ -12,7 +12,7 @@ All workflows that build iOS or Android must include the relevant caches:
 - **Android**: Cache `~/.gradle/caches` and `~/.gradle/wrapper`, keyed on the relevant `build.gradle` files. Include a `restore-keys` prefix fallback.
 - **iOS (CocoaPods)**: Cache `flutter_readium/example/ios/Pods` and `~/.cocoapods`, keyed on `Podfile.lock`. `~/.cocoapods` is required — it holds the trunk spec repo used to resolve Flutter ecosystem pods (e.g. webview_flutter). Without it, a cold `pod install` fails even though Readium pods use explicit `podspec:` URLs.
 - **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on `Podfile.lock`.
-- **Android emulator AVD**: Cache `~/.android/avd/*` and `~/.android/adb*`, keyed on API level.
+- **Android emulator AVD**: Do not cache it. See "Android emulator boot" below.
 
 Cache keys must end with a trailing dash before the hash segment (e.g. `gradle-${{ runner.os }}-`) to prevent accidental prefix collisions between keys that share a common prefix.
 
@@ -74,9 +74,11 @@ Failed runs upload `android-test-api<N>.log` (`flutter test` stdout — names th
 - Capture logcat with `--pid=$(adb shell pidof -s <applicationId>)`, and `adb logcat -G 64M` beforehand (best-effort, `-G` can need root). Unscoped, the `google_apis` firehose overflows the ring buffer and `chatty` drops the app's own lines.
 - `<applicationId>` must match `flutter_readium/example/android/app/build.gradle.kts`; on drift `pidof` returns nothing and the capture degrades to that unscoped dump instead of failing.
 
-## Android emulator boot race
+## Android emulator boot
 
-`reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) the moment `sys.boot_completed` reads `1`, with no hook in between. A restored quickboot snapshot sets that property before its services are back, the keypress is killed, and the step dies before `script:` runs — about one API 24 job in five ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). Two guards, both needed:
+The emulator cold boots every run (`-no-snapshot`). Do not bring back a cached AVD quickboot snapshot:
 
-- The AVD-snapshot step idles (`script: sleep 60`) so the cached snapshot captures a settled system rather than one mid-startup.
-- `Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent** — a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.
+- A restored snapshot reports `sys.boot_completed=1` before its services are back. `reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) at that moment, with no hook in between, and the keypress is killed before `script:` runs ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). From 2026-10-07 this failed most API 24 jobs, often on both attempts.
+- It saves no time. Measured on API 24: restoring the 1.2 GB AVD cache took 30–50 s plus a 10–12 s snapshot boot, against a 38–40 s cold boot. Each cache miss also cost about 2.5 min to build the snapshot, and the API 24 and API 36 caches together use about 2.4 GB of the repo's 10 GB cache limit.
+
+`Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent**: a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.
