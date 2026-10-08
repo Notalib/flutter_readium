@@ -9,21 +9,28 @@ by Readium toolkits on iOS, Android, and Web.
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
-</p>
-
-<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
-
-<p align="center">
   <a href="https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
   <a href="https://github.com/Notalib/flutter_readium/tree/main/flutter_readium/example"><strong>Example app</strong></a> ·
   <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
 </p>
 
-| Reading | Listening | Rich formats |
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
+</p>
+
+<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
+
+These iOS Simulator detail crops are clickable for a larger view.
+
+| EPUB settings | Read-along | Comics |
 | :---: | :---: | :---: |
-| <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png" width="240" alt="A full-width narrated comic panel in flutter_readium."> |
-| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | Comic panel navigation (also supports PDF) |
+| <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme settings in the example app."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting with playback controls visible below."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png" width="240" alt="A comic panel in the example reader."></a> |
+| Theme presets | Synchronized narration and controls | Narrated panel navigation |
+
+| Text highlights | PDF reading |
+| :---: | :---: |
+| <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-highlights.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-highlights.png" width="360" alt="Highlighted text in the Peter Rabbit EPUB."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-pdf.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-pdf.png" width="360" alt="The Time Machine PDF open in the example reader."></a> |
+| EPUB highlights | PDF page rendering |
 
 ## Quick start
 

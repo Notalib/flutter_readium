@@ -23,7 +23,7 @@ void main() {
 
   testWidgets('records the $_scene README demo scene', (tester) async {
     expect(
-      const {'epub', 'readalong', 'pdf', 'comic'},
+      const {'epub', 'highlight', 'readalong', 'pdf', 'comic'},
       contains(_scene),
       reason: 'Unknown README demo scene',
     );
@@ -38,7 +38,7 @@ void main() {
 
     final fixturePaths = await loadFixturePaths();
     final fixtureKey = switch (_scene) {
-      'epub' => FixtureKeys.peterRabbitEpub,
+      'epub' || 'highlight' => FixtureKeys.peterRabbitEpub,
       'readalong' => FixtureKeys.overlayWebpub,
       'pdf' => FixtureKeys.timeMachinePdf,
       'comic' => FixtureKeys.comic,
@@ -118,11 +118,33 @@ void main() {
     }
 
     final publication = publicationBloc.state.publication!;
-    if (_scene == 'pdf') {
-      final navigated = await readium.goToLocator(
-        locators.last.copyWithLocations(position: 2),
-      );
+    if (_scene == 'highlight') {
+      final matches = await readium.searchInPublication('First he ate some lettuces');
+      expect(matches, isNotEmpty, reason: 'The highlight demo text was not found');
+      final locator = matches.first.locator;
+      expect(await readium.goToLocator(locator), isTrue);
+      await readium.applyDecorations('readme-demo-highlights', [
+        ReaderDecoration(
+          id: 'peter-rabbit-highlight',
+          locator: locator,
+          style: const ReaderDecorationStyle(
+            style: DecorationStyle.highlight,
+            tint: Color(0x80FFE066),
+          ),
+        ),
+      ]);
+    } else if (_scene == 'pdf') {
+      final pageCount = publication.metadata.numberOfPages;
+      expect(pageCount, isNotNull);
+      expect(pageCount, greaterThanOrEqualTo(7));
+      final navigated = await readium.goToProgression(6 / (pageCount! - 1));
       expect(navigated, isTrue, reason: 'Could not open the selected PDF page');
+      await waitWithPump(
+        tester,
+        () => locators.any((locator) => locator.locations?.position == 7),
+        timeout: const Duration(seconds: 20),
+        reason: 'The PDF reader did not reach page 7',
+      );
     } else {
       final target = _targetLocator(publication);
       final navigated = await readium.goToLocator(target);
@@ -146,6 +168,8 @@ void main() {
     switch (_scene) {
       case 'epub':
         await _recordEpubScene(tester);
+      case 'highlight':
+        await _hold(tester, const Duration(seconds: 6));
       case 'readalong':
         await _recordReadAlongScene(tester, playerControlsBloc);
       case 'comic':

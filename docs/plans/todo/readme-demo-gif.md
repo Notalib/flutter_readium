@@ -1,13 +1,11 @@
 # Reproducible README demo GIF
 
-> **Implementation ready for visual inspection (2026-09-22).** The chosen scenes are Peter Rabbit
-> at `7451058775928492912_14838-h-0.htm.xhtml#img_images_peter19.jpg` and
-> `38533_overlay_preview.webpub` at `38533-0004-generic.xhtml#uwlh00026`. The generated default is a
-> bezel-framed 720 × 1504, 10 fps, 16-second GIF; pass `--no-bezel` for the masked simulator
-> framebuffer alone. The same run also produces three 720 × 480 capability stills: EPUB theme
-> controls, synchronized narration highlighting, and a split Time Machine PDF / Nota comic view.
-> The comic capture targets `50272-0002-generic.xhtml#hix00001` so it lands on the page art rather
-> than the heading-only pagination slice.
+> **Implemented; the storyboard below records the original plan.** The generator now captures
+> Peter Rabbit, `38533_overlay_preview.webpub`, and narrated Nota comic scenes in a bezel-framed
+> 720 × 1504, 10 fps, roughly 26-second GIF. Pass `--no-bezel` to omit the frame. It also produces
+> five 720 × 480 detail crops: EPUB settings, EPUB highlights, read-along controls, a comic panel,
+> and page 7 of *The Time Machine* PDF. The earlier duration and scene-count targets below are
+> historical rather than the current output contract.
 
 **Type:** Documentation / example-app tooling
 
@@ -376,8 +374,10 @@ Suggested checked-in paths:
 docs/assets/readme/flutter-readium-demo.gif
 docs/assets/readme/flutter-readium-demo-poster.png
 docs/assets/readme/capability-reading.png
+docs/assets/readme/capability-highlights.png
 docs/assets/readme/capability-listening.png
 docs/assets/readme/capability-rich-formats.png
+docs/assets/readme/capability-pdf.png
 ```
 
 Keep raw scene recordings and palette files out of Git. Add a narrow ignore entry for the generator's

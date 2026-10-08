@@ -9,21 +9,28 @@ by Readium toolkits on iOS, Android, and Web.
 [![CI](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/notalib/flutter_readium/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
-</p>
-
-<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
-
-<p align="center">
   <a href="docs/getting-started/quick-start.md"><strong>Get started</strong></a> ·
   <a href="flutter_readium/example/"><strong>Example app</strong></a> ·
   <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
 </p>
 
-| Reading | Listening | Rich formats |
+<p align="center">
+  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
+</p>
+
+<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
+
+These iOS Simulator detail crops are clickable for a larger view.
+
+| EPUB settings | Read-along | Comics |
 | :---: | :---: | :---: |
-| <img src="docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme and typography controls in flutter_readium."> | <img src="docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting and playback controls in flutter_readium."> | <img src="docs/assets/readme/capability-rich-formats.png" width="240" alt="A full-width narrated comic panel in flutter_readium."> |
-| EPUB themes, layout, and highlights | Synchronized narration on iOS, Android, and Web | Comic panel navigation (also supports PDF) |
+| <a href="docs/assets/readme/capability-reading.png"><img src="docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme settings in the example app."></a> | <a href="docs/assets/readme/capability-listening.png"><img src="docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting with playback controls visible below."></a> | <a href="docs/assets/readme/capability-rich-formats.png"><img src="docs/assets/readme/capability-rich-formats.png" width="240" alt="A comic panel in the example reader."></a> |
+| Theme presets | Synchronized narration and controls | Narrated panel navigation |
+
+| Text highlights | PDF reading |
+| :---: | :---: |
+| <a href="docs/assets/readme/capability-highlights.png"><img src="docs/assets/readme/capability-highlights.png" width="360" alt="Highlighted text in the Peter Rabbit EPUB."></a> | <a href="docs/assets/readme/capability-pdf.png"><img src="docs/assets/readme/capability-pdf.png" width="360" alt="The Time Machine PDF open in the example reader."></a> |
+| EPUB highlights | PDF page rendering |
 
 ## Quick start
 
@@ -238,15 +245,16 @@ A complete example app is available in [flutter_readium/example/](flutter_readiu
 cd flutter_readium/example && flutter run
 ```
 
-The README animation is driven by a small integration-test-style showcase and recorded from a
-booted iOS Simulator. Once the generated test fixtures are installed, regenerate it with:
+The README animation and capability screenshots are driven by a small integration-test-style
+showcase recorded from a booted iOS Simulator. Once the generated test fixtures are installed,
+regenerate them with:
 
 ```bash
 bin/generate_readme_demo [--no-bezel] [--device-id <simulator-udid>]
 ```
 
 The physical device bezel is included by default. The script keeps the H.264 master under
-`build/readme-demo/` and replaces the checked-in GIF only after the capture and size checks pass.
+`build/readme-demo/` and replaces the checked-in media only after the capture and size checks pass.
 
 ### Dependency size analysis
 
