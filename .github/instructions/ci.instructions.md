@@ -78,5 +78,5 @@ Failed runs upload `android-test-api<N>.log` (`flutter test` stdout — names th
 
 `reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) the moment `sys.boot_completed` reads `1`, with no hook in between. A restored quickboot snapshot sets that property before its services are back, the keypress is killed, and the step dies before `script:` runs — about one API 24 job in five ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). Two guards, both needed:
 
-- The AVD-snapshot step idles (`script: sleep 60`) so the cached snapshot captures a settled system rather than one mid-startup.
+- The AVD-snapshot step runs `.github/scripts/settle-avd-snapshot.sh`: it waits until `pm path android` answers and `service check input` reports the service, then idles 60 s, so the cached snapshot captures a ready system rather than one mid-startup. The script is part of the AVD cache key, so editing it rebuilds the snapshot.
 - `Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent** — a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.

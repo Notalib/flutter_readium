@@ -56,7 +56,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -79,8 +79,8 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          # Recreate the AVD whenever the emulator setup changes, in either file.
-          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml', '.github/actions/run-android-integration-tests/action.yml') }}
+          # Recreate the AVD whenever the emulator setup changes, in any of these files.
+          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml', '.github/actions/run-android-integration-tests/action.yml', '.github/scripts/settle-avd-snapshot.sh') }}
 
       - name: Create AVD snapshot
         if: steps.avd-cache.outputs.cache-hit != 'true'
@@ -93,10 +93,10 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          # Idle before the snapshot is saved on teardown. Taken straight after
-          # boot it captures services still starting, and every restore of it
-          # then races them.
-          script: sleep 60
+          # Wait for a ready framework before the snapshot is saved on teardown.
+          # Taken straight after boot it captures services still starting, and
+          # every restore of it then races them.
+          script: bash .github/scripts/settle-avd-snapshot.sh
 
       - name: Run integration tests
         id: tests
