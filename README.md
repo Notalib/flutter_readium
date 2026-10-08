@@ -14,11 +14,26 @@ by Readium toolkits on iOS, Android, and Web.
   <a href="https://pub.dev/documentation/flutter_readium/latest/"><strong>API docs</strong></a>
 </p>
 
-<p align="center">
-  <img src="docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
-</p>
-
-<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels.</em></p>
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/assets/readme/flutter-readium-demo.gif" width="300" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions."><br>
+      <em>Captured on iOS: EPUB styling, read-along, then narrated comic panels.</em>
+    </td>
+    <td valign="top">
+      <h2>Features</h2>
+      <ul>
+        <li>Read EPUB 2/3 and WebPub with pagination, scrolling, themes, and typography controls.</li>
+        <li>Open PDFs on iOS and Android, plus CBZ and DiViNa comics.</li>
+        <li>Play audiobooks with track navigation and variable speed.</li>
+        <li>Follow Media Overlay read-along highlighting and page-level narrated comic navigation.</li>
+        <li>Listen with text-to-speech, including voice, speed, and pitch controls where available.</li>
+        <li>Highlight and annotate text, search on iOS and Android, and restore reading position.</li>
+        <li>Use one Dart API for reader and playback events, with custom HTTP headers.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
 Select an iOS Simulator capture to see it full size.
 
@@ -41,13 +56,6 @@ flutter pub add flutter_readium
 See the [complete reader screen](flutter_readium/README.md#quick-start) for opening a local file or URL,
 mounting the reader, and closing the publication. The [five-minute walkthrough](docs/getting-started/quick-start.md)
 continues with navigation, preferences, and position restoration.
-
-## Features
-
-- Read EPUB and WebPub with configurable layout and appearance; open comics and PDFs (PDF on iOS and Android).
-- Play audiobooks, follow synchronized narration, or listen with text-to-speech.
-- Highlight and annotate text, search content, and save and restore reading position.
-- Integrate through one Dart API with reading and playback events and custom HTTP headers.
 
 ## How it works
 
