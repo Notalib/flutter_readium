@@ -236,14 +236,14 @@ ffmpeg -hide_banner -loglevel error -y \
   -ss 3.4 \
   -i "$EPUB_VIDEO" \
   -frames:v 1 \
-  -vf 'crop=iw:860:0:550,scale=720:480:flags=lanczos' \
+  -vf 'crop=iw:1140:0:680,scale=720:680:flags=lanczos' \
   "$TEMP_READING_STILL"
 
 ffmpeg -hide_banner -loglevel error -y \
   -ss 4.5 \
   -i "$READALONG_VIDEO" \
   -frames:v 1 \
-  -filter_complex '[0:v]split=2[top][bottom];[top]crop=iw:500:0:650,scale=720:300:flags=lanczos[t];[bottom]crop=iw:350:0:2100,scale=720:180:flags=lanczos[b];[t][b]vstack=inputs=2[out]' \
+  -filter_complex '[0:v]split=2[top][bottom];[top]crop=iw:900:0:450,scale=720:530:flags=lanczos[t];[bottom]crop=iw:250:0:2100,scale=720:150:flags=lanczos[b];[t][b]vstack=inputs=2[out]' \
   -map '[out]' \
   "$TEMP_LISTENING_STILL"
 

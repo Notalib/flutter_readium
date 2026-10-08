@@ -18,19 +18,17 @@ by Readium toolkits on iOS, Android, and Web.
   <img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/flutter-readium-demo.gif" width="360" alt="iOS demo of EPUB reading preferences, synchronized read-along highlighting, and narration-driven comic panel transitions.">
 </p>
 
-<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels. Synchronized narration uses the same Dart API on Android and Web.</em></p>
+<p align="center"><em>Captured on iOS: EPUB styling, read-along, then narrated comic panels.</em></p>
 
-These iOS Simulator detail crops are clickable for a larger view.
+Select an iOS Simulator capture to see it full size.
 
-| EPUB settings | Read-along | Comics |
+| EPUB themes | Read-along | Narrated comics |
 | :---: | :---: | :---: |
 | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-reading.png" width="240" alt="EPUB theme settings in the example app."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-listening.png" width="240" alt="Synchronized narration highlighting with playback controls visible below."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-rich-formats.png" width="240" alt="A comic panel in the example reader."></a> |
-| Theme presets | Synchronized narration and controls | Narrated panel navigation |
 
-| Text highlights | PDF reading |
+| EPUB highlights | PDF pages |
 | :---: | :---: |
 | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-highlights.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-highlights.png" width="360" alt="Highlighted text in the Peter Rabbit EPUB."></a> | <a href="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-pdf.png"><img src="https://raw.githubusercontent.com/Notalib/flutter_readium/main/docs/assets/readme/capability-pdf.png" width="360" alt="The Time Machine PDF open in the example reader."></a> |
-| EPUB highlights | PDF page rendering |
 
 ## Quick start
 
@@ -101,19 +99,10 @@ for navigation, preferences, and position restoration. Complete the platform set
 
 ## Features
 
-- EPUB 2 / EPUB 3 reading, with dynamic horizontal pagination and vertical scrolling modes
-- PDF reading on iOS (PDFKit) and Android (PDFium), with layout, reading-progression, page-spacing, and fit preferences
-- WebPub reading (including audiobook WebPub)
-- Pre-recorded audio playback with track navigation and variable speed
-- Synchronized Media Overlays in WebPubs (text-and-audio read-along)
-- Platform-native text-to-speech with voice selection, speed, and pitch
-- Reader preferences (typography, theme, scroll, columns, ...) via the Readium Preferences API
-- App-supplied static reader fonts on iOS, Android, and Web
-- Highlights and annotations via the Decorator API
-- Position persistence and restoration via Locators
-- Content search within open publications
-- Real-time event streams for position, playback state, reader status, and errors
-- Custom HTTP headers for publication and resource fetching
+- Read EPUB and WebPub with configurable layout and appearance; open comics and PDFs (PDF on iOS and Android).
+- Play audiobooks, follow synchronized narration, or listen with text-to-speech.
+- Highlight and annotate text, search content, and save and restore reading position.
+- Integrate through one Dart API with reading and playback events and custom HTTP headers.
 
 ## Supported formats
 
