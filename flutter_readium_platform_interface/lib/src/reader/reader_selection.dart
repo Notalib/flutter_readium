@@ -62,7 +62,7 @@ class SelectionActionEvent implements JSONable {
 /// Defines a native context menu item shown when text is selected.
 ///
 /// Pass a list of these to `ReadiumReaderWidget.selectionActions` to configure
-/// the native selection menu. Maximum 5 actions are supported on iOS.
+/// the native selection menu.
 class SelectionAction implements JSONable {
   const SelectionAction({required this.id, required this.title});
 

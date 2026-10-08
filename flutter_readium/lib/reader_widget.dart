@@ -73,6 +73,10 @@ class ReadiumReaderWidget extends StatefulWidget {
   final ValueChanged<ImageTapEvent>? onImageTapped;
 
   /// Native context menu actions shown when text is selected.
+  ///
+  /// On Android, these replace the system menu. On iOS, they appear first and
+  /// the system items follow. To show only these on iOS too, pass
+  /// `allowedDefaultActions: const {}`.
   final List<SelectionAction> selectionActions;
 
   /// Static font families whose faces are bundled as Flutter assets.
