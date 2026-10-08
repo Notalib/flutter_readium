@@ -14,6 +14,8 @@ All workflows that build iOS or Android must include the relevant caches:
 - **iOS (Xcode derived data)**: Cache `~/Library/Developer/Xcode/DerivedData`, keyed on `Podfile.lock`.
 - **Android emulator AVD**: Do not cache it. See "Android emulator boot" below.
 
+Do not cache the Flutter SDK (`subosito/flutter-action` `cache: true`). Measured: it saved 30–45 s per Linux job and 5–10 s per macOS job, for 3.75 GB of the repo's 10 GB cache limit. A Flutter bump doubles that for up to 7 days while the old entries age out. `pub-cache: true` is small and stays.
+
 Cache keys must end with a trailing dash before the hash segment (e.g. `gradle-${{ runner.os }}-`) to prevent accidental prefix collisions between keys that share a common prefix.
 
 ## CocoaPods `--repo-update`
@@ -55,7 +57,6 @@ All workflows pin Flutter via `.flutter-version` (the fvm version file). **Do no
 - uses: subosito/flutter-action@<sha> # v2.x
   with:
     flutter-version: ${{ steps.flutter_version.outputs.version }}
-    cache: true
     pub-cache: true
 ```
 
@@ -79,6 +80,6 @@ Failed runs upload `android-test-api<N>.log` (`flutter test` stdout — names th
 The emulator cold boots every run (`-no-snapshot`). Do not bring back a cached AVD quickboot snapshot:
 
 - A restored snapshot reports `sys.boot_completed=1` before its services are back. `reactivecircus/android-emulator-runner` presses the unlock key (`input keyevent 82`) at that moment, with no hook in between, and the keypress is killed before `script:` runs ([upstream #489](https://github.com/ReactiveCircus/android-emulator-runner/issues/489), fix unmerged). From 2026-10-07 this failed most API 24 jobs, often on both attempts.
-- It saves no time. Measured on API 24: restoring the 1.2 GB AVD cache took 30–50 s plus a 10–12 s snapshot boot, against a 38–40 s cold boot. Each cache miss also cost about 2.5 min to build the snapshot, and the API 24 and API 36 caches together use about 2.4 GB of the repo's 10 GB cache limit.
+- It saves no time. Measured on API 24: restoring the 1.2 GB AVD cache took 30–50 s plus a 10–12 s snapshot boot, against a 38–40 s cold boot. Each cache miss also cost about 2.5 min to build the snapshot, and the API 24 and API 36 caches together used 4.1 GB of the repo's 10 GB cache limit.
 
 `Run integration tests` is `continue-on-error`, and retries once **only when `android-test-api<N>.log` is absent**: a missing log proves the suite never started. A real test failure always leaves its log, so it is never re-run. Both attempts call `.github/actions/run-android-integration-tests` so the two paths cannot drift.
