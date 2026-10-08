@@ -23,6 +23,7 @@ class ReadiumReaderWidget extends StatefulWidget {
     this.selectionActions,
     this.allowedDefaultActions,
     this.fontFamilyDeclarations = const [],
+    this.disablePageTurnsWhileScrolling = false,
     super.key,
   });
 
@@ -42,6 +43,7 @@ class ReadiumReaderWidget extends StatefulWidget {
   final List<SelectionAction>? selectionActions;
   final Set<DefaultSelectionAction>? allowedDefaultActions;
   final List<ReaderFontFamily> fontFamilyDeclarations;
+  final bool disablePageTurnsWhileScrolling;
 
   @override
   State<ReadiumReaderWidget> createState() => _ReadiumReaderWidgetState();

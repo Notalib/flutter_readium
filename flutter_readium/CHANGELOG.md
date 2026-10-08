@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.6.1] - 2026-10-06
+
+### Fixed
+
+- **Web: TTS could stop for good after a speechSynthesis stall.**
+  The stall watchdog treated `speaking: true` with no `onstart` yet as a wedge, which is
+  also what a perfectly normal queued utterance looks like. After two timeouts it emitted
+  `failure` and left the engine stuck, so playback only came back by reloading. The
+  watchdog now waits for real silence, always resets the engine before reporting failure,
+  and can no longer cancel the utterance that replaced it or speak again after `stop()`.
+
+### Added
+
+- **Optional scroll-mode page-turn lock** — Set
+  `ReadiumReaderWidget.disablePageTurnsWhileScrolling` to prevent horizontal gestures from
+  switching EPUB resources while vertically scrolling on iOS and Android. Apps enabling it
+  should provide explicit page or table-of-contents navigation.
+
+### Changed
+
+- **`equatable` 3.x is now supported.** The `flutter_readium_platform_interface` constraint was `^2.1.0`, which blocked apps from upgrading. It is now `>=2.1.0 <4.0.0`. Model equality is unchanged: equatable 3 still compares `runtimeType`, and the models never relied on `EquatableMixin`.
+
 ## [0.6.0] - 2026-09-22
 
 ### Fixed
