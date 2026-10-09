@@ -462,9 +462,8 @@ function resolveAudioResourceUrl(
 }
 
 /**
- * Runs the HTTP diagnostic probe (see `AudioStreamHttpProbe.ts`) ahead of
- * classification-based dispatch, then hands off to
- * `AudioStreamRecoveryController.handle`.
+ * Classifies an audio error, running the HTTP diagnostic probe (see
+ * `AudioStreamHttpProbe.ts`) first.
  *
  * The probe only runs when it could change the outcome: skipped entirely for
  * `MEDIA_ERR_ABORTED` (already `ignore`, and firing a CORS fetch during
@@ -475,13 +474,11 @@ function resolveAudioResourceUrl(
  * — supersedes the MediaError-only classification; an inconclusive probe
  * (timeout/thrown-while-online/opaque) falls back to it unchanged.
  */
-async function handleAudioStreamError(
+async function classifyWithProbe(
   mediaError: unknown,
   href: string,
-  publication: ReadiumPublication,
-  recovery: AudioStreamRecoveryController,
-  message: string
-): Promise<void> {
+  publication: ReadiumPublication
+): Promise<AudioStreamErrorAction> {
   const fallback = classifyAudioStreamError(mediaError);
   const code = (mediaError as MediaErrorLike | null | undefined)?.code;
 
@@ -493,8 +490,7 @@ async function handleAudioStreamError(
       if (probed) action = probed;
     }
   }
-
-  recovery.handle(message, action, href);
+  return action;
 }
 
 /**
@@ -654,9 +650,9 @@ export class FlutterAudioNavigator {
      *  than the Dart-side `updateIntervalSecs` preference (which controls the
      *  progress bar, not cue timing). */
     pollIntervalOverrideMs?: number,
-    /** Bridge used to emit streaming-failure error events. Only consulted on
-     *  the plain audiobook path (no `locatorMapper`) — pass it from
-     *  `ReadiumReader` to enable retry/failure recovery for that session. */
+    /** Bridge used to emit streaming-failure error events. Plain audiobooks
+     *  get retry/failure recovery; Media Overlay sessions (`locatorMapper`)
+     *  only get the error classified, without a rebuild. */
     bridge?: ReadiumBridge,
     /** Internal: recovery rebuild timeouts are failed attempts, not initial-open errors. */
     emitCreateTimeoutError = true,
@@ -807,6 +803,13 @@ export class FlutterAudioNavigator {
     // `rebuildAndVerifyPlayback`), is reused rather than replaced — a fresh
     // controller would silently orphan `_recovery`'s attempt budget/latch.
     let recovery: AudioStreamRecoveryController | undefined;
+    // Media Overlay latch: one error event per failure, cleared when playback is requested again.
+    let mediaOverlayFailed = false;
+    if (locatorMapper && bridge) {
+      FlutterAudioNavigator._playbackIntentHandler = (requested) => {
+        if (requested) mediaOverlayFailed = false;
+      };
+    }
     if (!locatorMapper && bridge) {
       recovery = recoveryController ?? new AudioStreamRecoveryController(
         {
@@ -951,15 +954,30 @@ export class FlutterAudioNavigator {
           if (!nav) return;
           log.error("AudioNavigator error:", mediaError, "locator:", locator?.href);
           resetResourceLoadingWatchdog();
-          if (!recovery) {
-            // No recovery wired (Media Overlay/TTS session): fall back to the
-            // previous unconditional "failure" emission.
+          if (!recovery && !bridge) {
             emit("failure", locator, false);
             return;
           }
           const href = (locator ?? nav.currentLocator).href;
           const message = `AudioNavigator error (code=${(mediaError as { code?: number })?.code ?? "unknown"})`;
-          void handleAudioStreamError(mediaError, href, publication, recovery, message);
+          if (recovery) {
+            const activeRecovery = recovery;
+            void classifyWithProbe(mediaError, href, publication).then((action) =>
+              activeRecovery.handle(message, action, href)
+            );
+            return;
+          }
+          // Media Overlay: classify only. A rebuild can't resume the mapper's cue state.
+          if (mediaOverlayFailed) return;
+          void classifyWithProbe(mediaError, href, publication).then((action) => {
+            if (isDisposed() || mediaOverlayFailed || action.kind === "ignore") return;
+            mediaOverlayFailed = true;
+            nav?.stop();
+            const code = action.kind === "fail" ? action.code : "AudioStreamNetworkError";
+            const httpStatus = action.kind === "fail" ? action.httpStatus : undefined;
+            bridge!.emitError(message, code, { href, httpStatus });
+            emit("failure", locator, false);
+          });
         },
         metadataLoaded: (_metadata) => {},
         seeking: (_isSeeking) => {},

@@ -1393,7 +1393,8 @@ class _ReadiumReader {
           if (this._publication === publication) {
             this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs);
           }
-        }
+        },
+        this._bridge
       );
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
@@ -1422,7 +1423,8 @@ class _ReadiumReader {
           if (this._publication === publication) {
             this._routeNarrationCue(textLocator, "MediaOverlay", durationMs);
           }
-        }
+        },
+        this._bridge
       );
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
