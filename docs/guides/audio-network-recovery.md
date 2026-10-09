@@ -102,5 +102,6 @@ Supported on iOS, Android, and Web. On Web the browser does not expose HTTP stat
 for media loads, so auth/HTTP classification relies on a short diagnostic fetch probe;
 when it is inconclusive the failure surfaces as `AudioStreamNetworkError` rather than a
 more specific code. Detail: [error-codes.md](../api-reference/error-codes.md).
+On Web, Media Overlay (sync narration) sessions classify the failure and emit the fatal code with `TimebasedState.failure`, but skip the automatic retries: the navigator cannot be rebuilt mid-narration. Handle the fatal code (e.g. reopen after refreshing a token) to recover.
 iOS audio streaming requires byte-range support from the remote audio server; if a range
 request is rejected, the terminal error is `AudioStreamError` with `details.reason: "rangeNotSupported"`.
