@@ -86,7 +86,8 @@ enum TTSVoiceQuality {
   low,
   normal,
   high,
-  highest;
+  highest,
+  veryHigh;
 
   /// Returns the [TTSVoiceQuality] matching [quality] (case-insensitive), or `null` if unknown.
   static TTSVoiceQuality? optFromString(final String quality) =>

@@ -81,7 +81,7 @@ class TtsSettingsBloc extends Bloc<TtsSettingsEvent, TtsSettingsState> {
         _log.info('  Available voices:');
         for (final v in i.value) {
           _log.info(
-            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender.name},active=${v.active},networkRequired=${v.networkRequired}',
+            '    - ${v.identifier},name=${v.name},quality=${v.quality?.name},gender=${v.gender?.name},active=${v.active},networkRequired=${v.networkRequired}',
           );
         }
       }
