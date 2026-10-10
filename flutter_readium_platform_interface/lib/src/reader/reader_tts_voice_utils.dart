@@ -42,21 +42,23 @@ abstract class ReaderTTSVoiceUtils {
   /// Ensure the Readium Speech voice data is loaded from the bundled asset before trying to match against it.
   static Future<void> ensureReadiumVoiceDataLoaded() async {
     if (_readiumVoiceData.isEmpty) {
-      final jsonString = await rootBundle.loadString(_voiceAssetPath);
-      final jsonList = jsonDecode(jsonString) as Map<String, dynamic>;
-      final voices = jsonList
-          .map(
-            (key, json) => MapEntry(
-              key,
-              ReadiumSpeechLanguage.fromJson(
+      try {
+        final jsonString = await rootBundle.loadString(_voiceAssetPath);
+        final jsonList = jsonDecode(jsonString) as Map<String, dynamic>;
+        final voices = jsonList.values
+            .expand(
+              (json) => ReadiumSpeechLanguage.fromJson(
                 json as Map<String, dynamic>,
               ).voices,
-            ),
-          )
-          .values
-          .reduce((acc, langVoices) => acc..addAll(langVoices))
-          .toList();
-      _readiumVoiceData = groupBy(voices, (v) => v.language.toLowerCase());
+            )
+            .toList();
+        _readiumVoiceData = groupBy(voices, (v) => _normalizeLanguage(v.language));
+      } on Object catch (error) {
+        ReadiumLog.warn(
+          'Could not load Readium Speech voice metadata; available voices '
+          'will be returned without metadata. $error',
+        );
+      }
     }
   }
 
@@ -105,7 +107,7 @@ abstract class ReaderTTSVoiceUtils {
     language: language,
     identifier: identifier,
     name: name,
-    voices: _readiumVoiceData[language.toLowerCase()] ?? const [],
+    voices: _readiumVoiceData[_normalizeLanguage(language)] ?? const [],
   );
 
   /// Returns a friendly name for Android voices, preserving platform names elsewhere.
