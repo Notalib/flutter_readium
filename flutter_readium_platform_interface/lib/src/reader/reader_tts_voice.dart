@@ -113,18 +113,18 @@ class ReaderTTSVoice with Equatable implements JSONable {
     Object language = unset,
     Object networkRequired = unset,
     Object? label = unset,
-    Object gender = unset,
+    Object? gender = unset,
     Object? quality = unset,
     Object? active = unset,
-  }) => ReaderTTSVoice(
-    identifier: identical(identifier, unset) ? this.identifier : (identifier as String),
-    name: identical(name, unset) ? this.name : (name as String),
-    language: identical(language, unset) ? this.language : (language as String),
-    networkRequired: identical(networkRequired, unset) ? this.networkRequired : (networkRequired as bool),
-    label: identical(label, unset) ? this.label : (label as String?),
-    gender: identical(gender, unset) ? this.gender : (gender as TTSVoiceGender?),
-    quality: identical(quality, unset) ? this.quality : (quality as TTSVoiceQuality?),
-    active: identical(active, unset) ? this.active : (active as bool?),
+  }) => ReaderTTSVoice._(
+    identical(identifier, unset) ? this.identifier : (identifier as String),
+    identical(name, unset) ? this.name : (name as String),
+    identical(language, unset) ? this.language : (language as String),
+    identical(networkRequired, unset) ? this.networkRequired : (networkRequired as bool),
+    identical(label, unset) ? this.label : (label as String?),
+    identical(gender, unset) ? this.gender : (gender as TTSVoiceGender?),
+    identical(quality, unset) ? this.quality : (quality as TTSVoiceQuality?),
+    identical(active, unset) ? this.active : (active as bool?),
   );
 }
 
