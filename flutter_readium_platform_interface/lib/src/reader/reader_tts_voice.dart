@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
@@ -26,7 +27,7 @@ class ReaderTTSVoice with Equatable implements JSONable {
     required bool networkRequired,
     required bool? active,
     String? label,
-    TTSVoiceGender? gender,
+    TTSVoiceGender gender = TTSVoiceGender.unspecified,
     TTSVoiceQuality? quality,
   }) {
     final metadata = ReaderTTSVoiceUtils.getVoiceMetadata(
@@ -35,7 +36,7 @@ class ReaderTTSVoice with Equatable implements JSONable {
       name,
     );
 
-    // Keep the established Android display name while exposing metadata separately.
+    // Readium Speech metadata wins when the voice is known; otherwise keep what the platform reported.
     name = ReaderTTSVoiceUtils.getVoiceName(language, identifier, name);
     label ??= metadata?.label;
     gender = TTSVoiceGender.optFromString(metadata?.gender ?? '') ?? gender;
@@ -64,6 +65,8 @@ class ReaderTTSVoice with Equatable implements JSONable {
       remove: true,
     );
     final label = jsonObject.optNullableString('label', remove: true);
+    final gender = TTSVoiceGender.fromString(jsonObject.optString('gender', remove: true));
+    final quality = TTSVoiceQuality.optFromString(jsonObject.optString('quality', remove: true));
     final active = jsonObject.optNullableBoolean('active', remove: true);
     return ReaderTTSVoice(
       identifier: identifier,
@@ -71,6 +74,8 @@ class ReaderTTSVoice with Equatable implements JSONable {
       language: language,
       networkRequired: networkRequired,
       label: label,
+      gender: gender,
+      quality: quality,
       active: active,
     );
   }
@@ -80,7 +85,7 @@ class ReaderTTSVoice with Equatable implements JSONable {
   final String language;
   final bool networkRequired;
   final String? label;
-  final TTSVoiceGender? gender;
+  final TTSVoiceGender gender;
   final TTSVoiceQuality? quality;
   final bool? active;
 
@@ -91,7 +96,7 @@ class ReaderTTSVoice with Equatable implements JSONable {
     ..put('language', language)
     ..put('networkRequired', networkRequired)
     ..putOpt('label', label)
-    ..putOpt('gender', gender?.name)
+    ..put('gender', gender.name)
     ..putOpt('quality', quality?.name)
     ..putOpt('active', active);
 
@@ -113,7 +118,7 @@ class ReaderTTSVoice with Equatable implements JSONable {
     Object language = unset,
     Object networkRequired = unset,
     Object? label = unset,
-    Object? gender = unset,
+    Object gender = unset,
     Object? quality = unset,
     Object? active = unset,
   }) => ReaderTTSVoice._(
@@ -122,18 +127,20 @@ class ReaderTTSVoice with Equatable implements JSONable {
     identical(language, unset) ? this.language : (language as String),
     identical(networkRequired, unset) ? this.networkRequired : (networkRequired as bool),
     identical(label, unset) ? this.label : (label as String?),
-    identical(gender, unset) ? this.gender : (gender as TTSVoiceGender?),
+    identical(gender, unset) ? this.gender : (gender as TTSVoiceGender),
     identical(quality, unset) ? this.quality : (quality as TTSVoiceQuality?),
     identical(active, unset) ? this.active : (active as bool?),
   );
 }
 
+// Readium Speech lists every quality a voice ships in; pick the best. Its `veryHigh` is our `highest`.
 TTSVoiceQuality? _readiumQuality(List<String> qualities) {
-  const preference = ['veryHigh', 'high', 'normal', 'low', 'lowest'];
-  for (final quality in preference) {
-    if (qualities.any((value) => value.toLowerCase() == quality.toLowerCase())) {
-      return TTSVoiceQuality.optFromString(quality);
-    }
-  }
-  return null;
+  const preference = {
+    'veryhigh': TTSVoiceQuality.highest,
+    'high': TTSVoiceQuality.high,
+    'normal': TTSVoiceQuality.normal,
+    'low': TTSVoiceQuality.low,
+  };
+  final lower = qualities.map((q) => q.toLowerCase()).toSet();
+  return preference.entries.firstWhereOrNull((e) => lower.contains(e.key))?.value;
 }

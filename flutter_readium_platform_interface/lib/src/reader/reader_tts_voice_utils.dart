@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 
 import '../index.dart';
 
-// Fallbacks for Android voices whose identifiers are not covered by Readium Speech.
+// Hardcoded mappings for known Android TTS voices with non-descriptive names.
+// These take precedence over those in Readium Speech.
 // Android nativeID look like this:
 //  - da-dk-x-kfm-local
 //  - da-dk-x-kfm-network
@@ -157,12 +158,22 @@ abstract class ReaderTTSVoiceUtils {
     final String? name,
     final ReadiumSpeechVoice? voice,
   ) {
-    if (voice != null) {
-      return voice.label;
+    final mappedName = _getAndroidVoiceNameFromIdentifier(language, identifier);
+    if (mappedName != null && mappedName.isNotEmpty) {
+      return mappedName;
     }
 
-    final mappedName = _getAndroidVoiceNameFromIdentifier(language, identifier);
-    if (mappedName != null && mappedName.isNotEmpty) return mappedName;
+    if (voice != null) {
+      // Before using the label, check for a hardcoded friendly name via the matched voice's native IDs.
+      for (final nativeId in voice.nativeID ?? <String>[]) {
+        final mappedName = _getAndroidVoiceNameFromIdentifier(language, nativeId);
+        if (mappedName != null && mappedName.isNotEmpty) {
+          return mappedName;
+        }
+      }
+
+      return voice.label;
+    }
 
     // Nothing found, return the original name or identifier.
     return name ?? identifier;

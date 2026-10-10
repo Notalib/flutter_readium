@@ -9,6 +9,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **iOS: `resume()` after `audioEnable(fromLocator:)` played a media-overlay book from 0:00.**
   The initial locator was mapped before the media overlays loaded. It is now mapped after they load.
+- **Web could be reported as iOS or Android on mobile browsers.** The browser user agent can influence
+  `defaultTargetPlatform`, which sent web code down native platform paths. Runtime platform flags now
+  report iOS and Android only for native apps.
+
+### Added
+
+- **`ttsGetAvailableVoices()` now adds Readium Speech metadata on every platform.** Friendly `label`,
+  `gender` and `quality` came from Readium Speech on Android only, so web and iOS voices lacked them.
+  Known voices now get them everywhere; unknown voices keep what the platform reports.
 
 ## [0.6.1] - 2026-10-06
 

@@ -59,10 +59,7 @@ await FlutterReadium().applyDecorations('highlights', []);
 | `ttsSetVoice(id, language)` | Set a specific voice; `language` scopes it to a content language |
 | `setDecorationStyle(utterance, range)` | Set decoration styles for TTS highlighting |
 
-Available voices include the platform identifier, name, language, and network status.
-When Readium Speech recognizes a voice, the result also includes its friendly `label`,
-`gender`, and `quality`; these metadata fields are `null` when no match is found. Quality
-uses `TTSVoiceQuality`, with the highest level available for that voice.
+Available voices include the platform identifier, name, language, network status, gender and quality. When Readium Speech recognizes a voice, its friendly `label`, `gender` and `quality` replace the platform values; `label` is `null` when no match is found. Readium Speech `veryHigh` maps to `TTSVoiceQuality.highest`.
 
 ### TODO: Slightly inconsistent that audioEnable takes a fromLocator and ttsEnable doesn't.
 

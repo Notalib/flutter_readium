@@ -81,7 +81,7 @@ void main() {
     });
   });
 
-  test('an unrecognized platform voice keeps null Readium metadata', () {
+  test('an unrecognized platform voice keeps its platform gender and quality', () {
     final voice = ReaderTTSVoice.fromJson({
       'identifier': 'unknown-uri',
       'name': 'Unknown Voice',
@@ -93,8 +93,8 @@ void main() {
 
     expect(voice.name, 'Unknown Voice');
     expect(voice.label, isNull);
-    expect(voice.gender, isNull);
-    expect(voice.quality, isNull);
+    expect(voice.gender, TTSVoiceGender.female);
+    expect(voice.quality, TTSVoiceQuality.high);
   });
 
   test('ReaderTTSVoice serializes and copies the friendly label', () {

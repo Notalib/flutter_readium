@@ -15,8 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **Available TTS voices now include Readium Speech metadata across platforms.** Browser and native
   voices could lack a friendly label, gender, or quality because metadata enrichment was Android-only.
-  Recognized voices now expose these fields everywhere; unmatched voices remain available with null
-  metadata.
+  Recognized voices now expose these fields everywhere; unmatched voices keep what the platform reports.
 
 ## [0.6.1] - 2026-10-06
 
