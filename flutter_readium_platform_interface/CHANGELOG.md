@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Fixed
+
+- **Web could be reported as iOS or Android on mobile browsers.** The browser user agent can influence
+  `defaultTargetPlatform`, which sent web code down native platform paths. Runtime platform flags now
+  report iOS and Android only for native apps.
+
+### Added
+
+- **Available TTS voices now include Readium Speech metadata across platforms.** Browser and native
+  voices could lack a friendly label, gender, or quality because metadata enrichment was Android-only.
+  Recognized voices now expose these fields everywhere; unmatched voices remain available with null
+  metadata.
+
 ## [0.6.1] - 2026-10-06
 
 ### Changed
