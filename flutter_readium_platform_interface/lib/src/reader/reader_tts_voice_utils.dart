@@ -67,7 +67,8 @@ abstract class ReaderTTSVoiceUtils {
     required List<ReadiumSpeechVoice> voices,
     String? name,
   }) {
-    final languageVoices = voices.where((voice) => voice.language.toLowerCase() == language.toLowerCase()).toList();
+    final normalizedLanguage = _normalizeLanguage(language);
+    final languageVoices = voices.where((voice) => _normalizeLanguage(voice.language) == normalizedLanguage).toList();
 
     if (name != null) {
       final byName = languageVoices.firstWhereOrNull(
@@ -92,6 +93,8 @@ abstract class ReaderTTSVoiceUtils {
               true;
     });
   }
+
+  static String _normalizeLanguage(String language) => language.replaceAll('_', '-').toLowerCase();
 
   /// Returns Readium Speech metadata for a platform voice, if it is known.
   static ReadiumSpeechVoice? getVoiceMetadata(

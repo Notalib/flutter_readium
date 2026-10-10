@@ -59,6 +59,16 @@ void main() {
       expect(voice?.label, 'Ava');
     });
 
+    test('matches underscore-separated language tags', () {
+      final voice = ReaderTTSVoiceUtils.matchVoiceData(
+        language: 'en_US',
+        identifier: 'en-us-ava',
+        voices: voices,
+      );
+
+      expect(voice?.label, 'Ava');
+    });
+
     test('keeps an unknown voice unmatched and scopes matching by language', () {
       final voice = ReaderTTSVoiceUtils.matchVoiceData(
         language: 'en-GB',
