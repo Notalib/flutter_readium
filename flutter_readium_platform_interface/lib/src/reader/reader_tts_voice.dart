@@ -36,11 +36,11 @@ class ReaderTTSVoice with Equatable implements JSONable {
       name,
     );
 
-    // Readium Speech metadata wins when the voice is known; otherwise keep what the platform reported.
+    // Catalog quality covers multiple variants; preserve the quality of the installed voice.
     name = ReaderTTSVoiceUtils.getVoiceName(language, identifier, name);
     label ??= metadata?.label;
     gender = TTSVoiceGender.optFromString(metadata?.gender ?? '') ?? gender;
-    quality = _readiumQuality(metadata?.quality ?? const []) ?? quality;
+    quality ??= _readiumQuality(metadata?.quality ?? const []);
 
     return ReaderTTSVoice._(
       identifier,

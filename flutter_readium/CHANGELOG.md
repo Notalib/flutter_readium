@@ -15,9 +15,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
-- **`ttsGetAvailableVoices()` now adds Readium Speech metadata on every platform.** Friendly `label`,
-  `gender` and `quality` came from Readium Speech on Android only, so web and iOS voices lacked them.
-  Known voices now get them everywhere; unknown voices keep what the platform reports.
+- **`ttsGetAvailableVoices()` now adds Readium Speech metadata on every platform.** Voice enrichment
+  previously ran only on Android. Known voices now get a friendly `label` and `gender` everywhere,
+  with catalog quality used only when the platform reports none; unmatched voices retain platform values.
 
 ## [0.6.1] - 2026-10-06
 

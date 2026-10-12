@@ -3,17 +3,18 @@ import 'package:flutter_readium_platform_interface/flutter_readium_platform_inte
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('native platform flags follow the default target platform', () {
+  test('native platform flags exclude web and follow the default target platform', () {
+    final originalPlatform = debugDefaultTargetPlatformOverride;
+    addTearDown(() => debugDefaultTargetPlatformOverride = originalPlatform);
+
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    expect(RuntimePlatform.isIOS, isTrue);
+    expect(RuntimePlatform.isIOS, !kIsWeb);
     expect(RuntimePlatform.isAndroid, isFalse);
-    expect(RuntimePlatform.isMobile, isTrue);
+    expect(RuntimePlatform.isMobile, !kIsWeb);
 
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     expect(RuntimePlatform.isIOS, isFalse);
-    expect(RuntimePlatform.isAndroid, isTrue);
-    expect(RuntimePlatform.isMobile, isTrue);
-
-    debugDefaultTargetPlatformOverride = null;
+    expect(RuntimePlatform.isAndroid, !kIsWeb);
+    expect(RuntimePlatform.isMobile, !kIsWeb);
   });
 }

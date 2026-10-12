@@ -39,6 +39,38 @@ void main() {
     expect(voice.quality, TTSVoiceQuality.highest);
   });
 
+  test('iOS quality is not promoted to the best catalog variant', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    final voice = ReaderTTSVoice.fromJson({
+      'identifier': 'com.apple.voice.compact.en-US.Zoe',
+      'name': 'Zoe',
+      'language': 'en-US',
+      'networkRequired': false,
+      'quality': 'low',
+    });
+
+    expect(voice.label, 'Zoe');
+    expect(voice.quality, TTSVoiceQuality.low);
+  });
+
+  test('iOS quality is not demoted by the catalog', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    final voice = ReaderTTSVoice.fromJson({
+      'identifier': 'samantha-uri',
+      'name': 'Samantha',
+      'language': 'en-US',
+      'networkRequired': false,
+      'quality': 'high',
+    });
+
+    expect(voice.label, 'Samantha');
+    expect(voice.quality, TTSVoiceQuality.high);
+  });
+
   test('hardcoded Android names take precedence over Readium Speech labels', () {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
@@ -53,6 +85,6 @@ void main() {
 
     expect(voice.name, 'Anna');
     expect(voice.label, 'Kvindestemme 1');
-    expect(voice.quality, TTSVoiceQuality.high);
+    expect(voice.quality, TTSVoiceQuality.normal);
   });
 }
