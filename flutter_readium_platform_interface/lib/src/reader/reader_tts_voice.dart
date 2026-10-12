@@ -39,7 +39,9 @@ class ReaderTTSVoice with Equatable implements JSONable {
     // Catalog quality covers multiple variants; preserve the quality of the installed voice.
     name = ReaderTTSVoiceUtils.getVoiceName(language, identifier, name);
     label ??= metadata?.label;
-    gender = TTSVoiceGender.optFromString(metadata?.gender ?? '') ?? gender;
+    if (gender == TTSVoiceGender.unspecified) {
+      gender = TTSVoiceGender.optFromString(metadata?.gender ?? '') ?? gender;
+    }
     quality ??= _readiumQuality(metadata?.quality ?? const []);
 
     return ReaderTTSVoice._(

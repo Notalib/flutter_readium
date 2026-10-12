@@ -26,6 +26,51 @@ void main() {
     expect(cleared.quality, isNull);
   });
 
+  for (final (name, language, gender) in [
+    ('Zoe', 'en-US', TTSVoiceGender.male),
+    ('Daniel', 'en-GB', TTSVoiceGender.female),
+  ]) {
+    test('reported ${gender.name} gender is preserved over conflicting catalog data', () {
+      final voice = ReaderTTSVoice.fromJson({
+        'identifier': '$name-uri',
+        'name': name,
+        'language': language,
+        'networkRequired': false,
+        'gender': gender.name,
+      });
+
+      expect(voice.label, name);
+      expect(voice.gender, gender);
+    });
+  }
+
+  for (final genderJson in <Map<String, Object?>>[
+    {},
+    {'gender': null},
+    {'gender': 'unspecified'},
+  ]) {
+    final description = genderJson.isEmpty ? 'missing' : '${genderJson['gender']}';
+    test('$description gender uses the catalog or remains unspecified without a match', () {
+      final voice = ReaderTTSVoice.fromJson({
+        'identifier': 'zoe-uri',
+        'name': 'Zoe',
+        'language': 'en-US',
+        'networkRequired': false,
+        ...genderJson,
+      });
+      final unknown = ReaderTTSVoice.fromJson({
+        'identifier': 'unknown-uri',
+        'name': 'Unknown Voice',
+        'language': 'en-US',
+        'networkRequired': false,
+        ...genderJson,
+      });
+
+      expect(voice.gender, TTSVoiceGender.female);
+      expect(unknown.gender, TTSVoiceGender.unspecified);
+    });
+  }
+
   test('Readium Speech veryHigh quality maps to highest', () {
     final voice = ReaderTTSVoice(
       identifier: 'christel-uri',
