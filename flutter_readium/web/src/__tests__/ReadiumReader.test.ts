@@ -210,10 +210,11 @@ describe("audio stop lifecycle", () => {
         currentLocator: locator,
         play: jest.fn(),
       };
-      const create = jest
-        .spyOn(FlutterAudioNavigator, "create")
-        .mockImplementation(async (_publication, _initial, _prefs, setNav) => {
+      const recreate = jest
+        .spyOn(FlutterAudioNavigator, "recreateAfterFailure")
+        .mockImplementation((_initial, _prefs, setNav) => {
           setNav(rebuiltNav as any);
+          return true;
         });
       jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
       const retryAfterFailure = jest
@@ -231,10 +232,49 @@ describe("audio stop lifecycle", () => {
       reader.play();
 
       expect(retryAfterFailure).toHaveBeenCalledTimes(1);
-      expect(create).toHaveBeenCalledTimes(1);
-      expect(create.mock.calls[0][2]).toBe('{"volume":0.5}');
-      expect(create.mock.calls[0][7]).toBeDefined();
+      expect(recreate).toHaveBeenCalledTimes(1);
+      expect(recreate.mock.calls[0][0]).toBe(locator);
+      expect(recreate.mock.calls[0][1]).toBe('{"volume":0.5}');
       expect((reader as any)._audioNav).toBe(rebuiltNav);
+      expect(rebuiltNav.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("manual retry after terminal failure maps a Media Overlay text locator to audio", () => {
+      const reader = new ReadiumReader();
+      const audioLocator = new Locator({
+        href: "chap.mp3",
+        type: "audio/mpeg",
+        locations: new LocatorLocations({ fragments: ["t=1"] }),
+      });
+      const audioNav = { currentLocator: audioLocator, play: jest.fn() };
+      const rebuiltNav = { currentLocator: audioLocator, play: jest.fn() };
+      const recreate = jest
+        .spyOn(FlutterAudioNavigator, "recreateAfterFailure")
+        .mockImplementation((_initial, _prefs, setNav) => {
+          setNav(rebuiltNav as any);
+          return true;
+        });
+      jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
+      jest.spyOn(FlutterAudioNavigator, "retryAfterFailure").mockImplementation(() => {});
+
+      const publication = {};
+      (reader as any)._publication = publication;
+      (reader as any)._audioNav = audioNav;
+      (reader as any)._audioNavPublication = publication;
+      (reader as any)._syncItems = [
+        { audioHref: "chap.mp3", audioStart: 12, audioEnd: 15, textHref: "chap.xhtml", textId: "p2" },
+      ];
+
+      const textLocator = new Locator({
+        href: "chap.xhtml",
+        type: "application/xhtml+xml",
+        locations: new LocatorLocations({ fragments: ["p2"] }),
+      });
+      reader.play(JSON.stringify(textLocator.serialize()));
+
+      const resumed = recreate.mock.calls[0][0];
+      expect(resumed.href).toBe("chap.mp3");
+      expect(resumed.locations?.fragments).toEqual(["t=12"]);
       expect(rebuiltNav.play).toHaveBeenCalledTimes(1);
     });
 

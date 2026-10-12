@@ -1,6 +1,6 @@
-# Web: classify 401/403 in Media Overlay audio sessions
+# Web: audio stream recovery for Media Overlay sessions
 
-> **✅ Implemented (2026-10-09).** The LYT4 follow-up below is still open.
+> **✅ Implemented (2026-10-12).** The LYT4 follow-up below is still open.
 
 ## Problem
 
@@ -23,29 +23,26 @@ Static reading only. Not run on a device.
 - iOS: `FlutterMediaOverlayNavigator` subclasses `FlutterAudioNavigator`, so the `as? FlutterAudioNavigator` cast in `FlutterReadiumPlugin.swift:527` routes read errors to `handleResourceReadError`. A 401 gives `AudioStreamAuthError`.
 - Android: `SyncAudiobookNavigator` extends `AudiobookNavigator` and calls `super.setupNavigatorListeners()`, so `onPlaybackStateChanged` classifies the failure. A 401 gives `AudioStreamAuthError`.
 
-Both native sides also run retry/rebuild recovery for Media Overlay. Web will only classify. That difference stays documented, not fixed here.
+Both native sides also run retry/rebuild recovery for Media Overlay.
 
 ## Fix
 
-Classify without rebuild for Media Overlay sessions:
+Give Media Overlay sessions the same recovery as plain audiobooks:
 
-1. Pass the bridge from `initializeMediaOverlayNavigator` (and the guided-navigation path) through to `create`.
-2. In `create`, when `locatorMapper` is set and a bridge exists, keep the current `failure` emission but run the probe first. Extract a small `classifyWithProbe(mediaError, href, publication)` from `handleAudioStreamError` so both paths share it.
-3. On `fail(code, httpStatus)`: `nav.stop()`, `bridge.emitError(message, code, { href, httpStatus })`, then emit `failure`. On `retry`/inconclusive: emit `failure` with `AudioStreamNetworkError`, as the plain path does when its attempts run out. On `ignore`: do nothing.
-4. Latch per session so one bad track emits one error, not one per `error` event. Clear the latch on the next `play()`.
-5. Keep the rebuild-based recovery out of scope. The comment at `FlutterAudioNavigator.ts:800` already explains why (mapper cue state cannot resume).
+1. Pass the bridge from `initializeMediaOverlayNavigator` and `initializeGuidedNavigationNavigator` to `create`. With a bridge, `create` builds the recovery controller for every session.
+2. Pass the mapper and text callback through `rebuildAndVerifyPlayback`. The mapper only looks up the cue for an audio time in a fixed item list, so a rebuilt navigator keeps the text sync. (An older comment claimed the cue state could not resume. It could.)
+3. Pinned `loading`/`failure` states go through the mapper for Media Overlay, so they carry the text locator like every other state.
+4. `play()` after a terminal failure: `ReadiumReader` maps a text locator to audio, then calls `FlutterAudioNavigator.recreateAfterFailure`. It rebuilds with the session's mapper, instead of a bare `create` that dropped it.
+5. The rebuild keeps the track's media type instead of forcing `audio/mpeg`.
 
-Check that `resolveAudioResourceUrl` resolves against the synthetic publication. Its reading-order hrefs are absolute after `_resolveItemHrefs`, so the probe should hit the real track URL.
+The probe resolves against the synthetic publication. Its reading-order hrefs are absolute after `_resolveItemHrefs`, so it hits the real track URL.
 
 ## Tests
 
-- `flutter_readium/web/src/__tests__/FlutterAudioNavigatorStreamAuth.test.ts`: 401 via `MediaError` and via rejected `play()`, for plain and Media Overlay sessions. Media Overlay also covers an inconclusive probe, `MEDIA_ERR_ABORTED`, and the one-error-per-failure latch.
+- `flutter_readium/web/src/__tests__/FlutterAudioNavigatorStreamAuth.test.ts`: for plain and Media Overlay sessions, 401 via `MediaError` and via rejected `play()`, `MEDIA_ERR_ABORTED`, and network error with rebuild. Media Overlay also checks that the rebuilt navigator, the pinned states and `recreateAfterFailure` keep the text mapping.
+- `ReadiumReader.test.ts`: `play()` after failure maps a text locator to audio.
 - Gates: `npm test`, `bin/typecheck`, `bin/update_web_example`.
-- Manual: web example with a sync-narration fixture behind a server that returns 401 for one track.
-
-## Changelog
-
-Under Unreleased: web now reports `AudioStreamAuthError` / `AudioStreamHTTPError` for sync-narration audio, as iOS and Android do.
+- Not done: a browser run against a real 401.
 
 ## LYT4 follow-up
 
