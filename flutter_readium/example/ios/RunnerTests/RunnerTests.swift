@@ -37,9 +37,10 @@ class FlutterMediaOverlayItemTests: XCTestCase {
   func testIsAudioInRangeOfTimeMatchesWellFormedRange() {
     let item = makeItem(audio: "ch1.mp3#t=5,10")
 
-    XCTAssertFalse(item.isAudioInRangeOfTime(4, inHref: "ch1.mp3"))
+    XCTAssertTrue(item.isAudioInRangeOfTime(4, inHref: "ch1.mp3"))
     XCTAssertTrue(item.isAudioInRangeOfTime(5, inHref: "ch1.mp3"))
-    XCTAssertTrue(item.isAudioInRangeOfTime(10, inHref: "ch1.mp3"))
+    XCTAssertTrue(item.isAudioInRangeOfTime(9.999, inHref: "ch1.mp3"))
+    XCTAssertFalse(item.isAudioInRangeOfTime(10, inHref: "ch1.mp3"))
     XCTAssertFalse(item.isAudioInRangeOfTime(11, inHref: "ch1.mp3"))
   }
 
