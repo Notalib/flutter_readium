@@ -622,6 +622,7 @@ class EpubReaderFragment :
         val navigatorConfig =
             EpubNavigatorFragment
                 .Configuration(
+                    disablePageTurnsWhileScrolling = model.disablePageTurnsWhileScrolling,
                     // Padding should be added on Flutter side
                     shouldApplyInsetsPadding = false,
                     // Extra served asssets will be relative to your app's src/main/assets/ folder.

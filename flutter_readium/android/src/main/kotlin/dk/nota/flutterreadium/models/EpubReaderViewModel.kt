@@ -10,4 +10,6 @@ open class EpubReaderViewModel : ReaderViewModel() {
     var navigatorFactory: EpubNavigatorFactory? = null
 
     var fontFamilyDeclarations: List<ReaderFontFamily> = emptyList()
+
+    var disablePageTurnsWhileScrolling: Boolean = false
 }

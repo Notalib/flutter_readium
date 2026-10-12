@@ -37,6 +37,8 @@ private const val EPUB_PREFERENCES_KEY = "epubPreferences"
 
 private const val CURRENT_DECORATION_LIST_KEY = "currentDecorationsList"
 
+private const val DISABLE_PAGE_TURNS_WHILE_SCROLLING_KEY = "disablePageTurnsWhileScrolling"
+
 /**
  * EpubNavigator is a wrapper around the EpubReaderFragment and provides methods to interact with it.
  * It also listens to events from the fragment and forwards them to the VisualListener.
@@ -54,17 +56,21 @@ class EpubNavigator :
         initialPreferences: FlutterEpubPreferences = FlutterEpubPreferences(),
         initialDecorations: MutableMap<String, List<Decoration>> = mutableMapOf(),
         fontFamilyDeclarations: List<ReaderFontFamily> = emptyList(),
+        disablePageTurnsWhileScrolling: Boolean = false,
     ) : super(publication, initialLocator) {
         this.preferences = initialPreferences
         this.visualListener = visualListener
         this.currentDecorations = initialDecorations
         this.currentVisualLocator = initialLocator
         this.fontFamilyDeclarations = fontFamilyDeclarations
+        this.disablePageTurnsWhileScrolling = disablePageTurnsWhileScrolling
     }
 
     private var currentDecorations: MutableMap<String, List<Decoration>> = mutableMapOf()
 
     private var fontFamilyDeclarations: List<ReaderFontFamily> = emptyList()
+
+    private var disablePageTurnsWhileScrolling: Boolean = false
 
     val visualListener: VisualListener
 
@@ -142,6 +148,7 @@ class EpubNavigator :
                         locator = this@EpubNavigator.initialLocator
                         preferences = this@EpubNavigator.preferences
                         fontFamilyDeclarations = this@EpubNavigator.fontFamilyDeclarations
+                        disablePageTurnsWhileScrolling = this@EpubNavigator.disablePageTurnsWhileScrolling
                     }
                 listener = this@EpubNavigator
             }
@@ -285,6 +292,10 @@ class EpubNavigator :
             putString(
                 EPUB_PREFERENCES_KEY,
                 Json.encodeToString(FlutterEpubPreferences.serializer(), preferences),
+            )
+            putBoolean(
+                DISABLE_PAGE_TURNS_WHILE_SCROLLING_KEY,
+                disablePageTurnsWhileScrolling,
             )
         }
 
@@ -587,6 +598,8 @@ class EpubNavigator :
                     .getString(EPUB_PREFERENCES_KEY)
                     ?.let { string -> Json.decodeFromString<FlutterEpubPreferences>(string) }
                     ?: FlutterEpubPreferences()
+            val disablePageTurnsWhileScrolling =
+                state.getBoolean(DISABLE_PAGE_TURNS_WHILE_SCROLLING_KEY)
 
             val currentDecorations = mutableMapOf<String, List<Decoration>>()
             state.getBundle(CURRENT_DECORATION_LIST_KEY)?.let { bundle ->
@@ -598,7 +611,14 @@ class EpubNavigator :
 
             PluginLog.d(TAG, "::restoreState - locator: $locator, preferences: $preferences")
 
-            return EpubNavigator(publication, locator, listener, preferences, currentDecorations)
+            return EpubNavigator(
+                publication,
+                locator,
+                listener,
+                preferences,
+                currentDecorations,
+                disablePageTurnsWhileScrolling = disablePageTurnsWhileScrolling,
+            )
         }
     }
 }

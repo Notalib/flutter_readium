@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           tool-cache: false
           android: false
@@ -47,16 +47,18 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
-          cache: true
           pub-cache: true
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v6
+      # Restore only. `Save Gradle cache` at the end of the job writes from main
+      # alone, so PRs do not each store a 1 GB copy (ci.instructions.md#caching).
+      - name: Restore Gradle cache
+        id: gradle-cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts', 'flutter_readium/example/android/gradle/gradle-daemon-jvm.properties') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_readium/android/build.gradle', 'flutter_readium/example/android/build.gradle.kts', 'flutter_readium/example/android/app/build.gradle.kts') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -72,50 +74,27 @@ jobs:
       - name: Fetch test resources
         uses: ./.github/actions/fetch-test-resources
 
-      - name: Cache AVD
-        uses: actions/cache@v6
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          # Make sure the cache key changes if this workflow file changes, so AVD is recreated.
-          key: avd-${{ matrix.api-level }}-${{ hashFiles('.github/workflows/integration-test-android.yml') }}
-
-      - name: Create AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
-        with:
-          api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: echo "Generated AVD snapshot for caching."
-
       - name: Run integration tests
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        id: tests
+        continue-on-error: true
+        uses: ./.github/actions/run-android-integration-tests
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          working-directory: flutter_readium/example
-          # logcat is captured inside this action: the emulator is torn down when it
-          # ends. Per-line `sh -c` constraints: see ci.instructions.md.
-          script: |
-            sleep 10
-            # Larger buffer, or `chatty` drops our lines.
-            adb logcat -G 64M || true
-            adb logcat -c || true
-            # Bounded so a hang fails this step, not the job.
-            # pipefail + tee so a failing test stays a failure and its record survives.
-            bash -o pipefail -c 'timeout 30m flutter test integration_test/plugin_integration_test.dart --timeout=300s --dart-define=READIUM_TEST_SKIP_LOGS=true 2>&1 | tee "$GITHUB_WORKSPACE/android-test-api${{ matrix.api-level }}.log"' || (APP_PID=$(adb shell pidof -s com.example.flutter_readium_example | tr -d "\r"); adb logcat -d -v threadtime ${APP_PID:+--pid="$APP_PID"} > "$GITHUB_WORKSPACE/android-logcat-api${{ matrix.api-level }}.txt" 2>&1; exit 1)
+
+      # A boot failure kills the step before our script runs, so no test log exists
+      # (e.g. ReactiveCircus/android-emulator-runner#489). A missing test log means
+      # the suite never started, so that is the only case safe to retry — a real
+      # test failure always leaves its log behind and must stand.
+      - name: Retry integration tests after an emulator boot failure
+        id: tests-retry
+        if: steps.tests.outcome == 'failure' && hashFiles(format('android-test-api{0}.log', matrix.api-level)) == ''
+        uses: ./.github/actions/run-android-integration-tests
+        with:
+          api-level: ${{ matrix.api-level }}
+
+      - name: Report integration test failure
+        if: steps.tests.outcome == 'failure' && steps.tests-retry.outcome != 'success'
+        run: exit 1
 
       - name: Upload Android diagnostics
         if: failure()
@@ -127,3 +106,12 @@ jobs:
             ${{ github.workspace }}/android-test-api${{ matrix.api-level }}.log
             ${{ github.workspace }}/android-logcat-api${{ matrix.api-level }}.txt
           if-no-files-found: ignore
+
+      - name: Save Gradle cache
+        if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ steps.gradle-cache.outputs.cache-primary-key }}

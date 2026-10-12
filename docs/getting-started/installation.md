@@ -4,22 +4,15 @@
 
 | Requirement | Version |
 |-------------|---------|
-| Flutter SDK | ≥ 3.32.0 |
+| Flutter SDK | ≥ 3.44.8 |
 | Dart SDK | ≥ 3.8.0 |
 | Android minSdk | 24 |
 | iOS | 15.0+ |
-| Xcode | 14+ |
-| CocoaPods | 1.15+ |
 
 ## 1. Add the dependency
 
-```yaml
-dependencies:
-  flutter_readium: ^0.0.1
-```
-
 ```bash
-flutter pub get
+flutter pub add flutter_readium
 ```
 
 ## 2. Android setup
@@ -94,22 +87,23 @@ For TTS and audiobook background playback, add to `AndroidManifest.xml`:
 
 Add the Readium pods to your `ios/Podfile` inside the `target 'Runner'` block.
 
-To avoid version-drift, copy the exact Readium pod lines from:
-
-- `flutter_readium/example/ios/Podfile` (app integration source-of-truth)
-- and keep them aligned with `flutter_readium/ios/flutter_readium.podspec` (plugin pin)
+Add the following sources near the top of the Podfile, then copy the exact Readium pod lines from
+`flutter_readium/example/ios/Podfile` into your app's target. Keep them aligned with the plugin pin in
+`flutter_readium/ios/flutter_readium.podspec` when upgrading:
 
 ```ruby
+source 'https://github.com/readium/podspecs'
+source 'https://cdn.cocoapods.org/'
+
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumShared.podspec'
-  pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumInternal.podspec'
-  pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumStreamer.podspec'
-  pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumNavigator.podspec'
-  pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.9.0/Support/CocoaPods/ReadiumOPDS.podspec'
-  pod 'ReadiumZIPFoundation', podspec: 'https://raw.githubusercontent.com/readium/podspecs/refs/heads/main/ReadiumZIPFoundation/3.0.1/ReadiumZIPFoundation.podspec'
+  pod 'ReadiumShared', '~> 3.11.0'
+  pod 'ReadiumInternal', '~> 3.11.0'
+  pod 'ReadiumStreamer', '~> 3.11.0'
+  pod 'ReadiumNavigator', '~> 3.11.0'
+  pod 'ReadiumOPDS', '~> 3.11.0'
 end
 ```
 

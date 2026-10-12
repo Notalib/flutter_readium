@@ -1834,4 +1834,20 @@ void main() {
       expect(restored.spread, PresentationSpread.both);
     });
   });
+
+  group('Equatable runtime type', () {
+    // Collection and Episode share identical props; only the runtimeType check
+    // in Equatable.== keeps them apart. Guards against an equatable upgrade
+    // that drops it.
+    test('sibling BaseCollection types with equal props are not equal', () {
+      final name = LocalizedString.fromString('Name');
+      const position = 1.0;
+      final collection = Collection(localizedName: name, position: position);
+      final episode = Episode(localizedName: name, position: position);
+
+      expect(collection.props, episode.props);
+      expect(collection == episode, isFalse);
+      expect(collection, Collection(localizedName: name, position: position));
+    });
+  });
 }

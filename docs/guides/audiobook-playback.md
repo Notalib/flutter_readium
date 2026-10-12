@@ -2,6 +2,42 @@
 
 Covers pre-recorded audio publications and MediaOverlay (synchronised narration) books.
 
+## Start audio without a reader widget
+
+A Readium audiobook can play on iOS, Android, and Web without `ReadiumReaderWidget`. In an async
+callback (for example, a Play button handler), open the publication before enabling audio:
+
+```dart
+import 'package:flutter_readium/flutter_readium.dart';
+
+final reader = FlutterReadium();
+final publication = await reader.openPublication(audiobookUrl);
+if (!publication.conformsToReadiumAudiobook) {
+  await reader.closePublication();
+  throw StateError('Expected a Readium audiobook');
+}
+
+final playbackSubscription = reader.onTimebasedPlayerStateChanged.listen((state) {
+  // Update your playback controls and progress from state.
+});
+await reader.audioEnable();
+await reader.play(null);
+```
+
+Keep `reader` and `playbackSubscription` in the state or controller that owns playback. When that
+owner closes, stop playback and release the publication:
+
+```dart
+await playbackSubscription.cancel();
+await reader.stop();
+await reader.closePublication();
+```
+
+The same `audioEnable()` / `play(null)` calls can start Media Overlay or Guided Navigation audio
+without a reader widget; the audiobook-profile check above applies only to pure audiobooks. Mount
+`ReadiumReaderWidget` when you also want to display synchronized text or images. On Web, start
+playback from a user action so the browser can permit audio.
+
 ## Detecting publication type
 
 ```dart
@@ -21,7 +57,7 @@ await reader.audioEnable(
     seekInterval: 30,
     allowExternalSeeking: true, // lock screen controls
   ),
-  fromLocator: _savedLocator,   // null = from the beginning
+  fromLocator: _savedLocator,   // omit to use the current/default position
 );
 ```
 
