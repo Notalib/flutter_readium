@@ -861,12 +861,17 @@ class _ReadiumReader {
       // a mid-flight getPublication would otherwise record the new book as owning
       // this navigator.
       const retryPublication = this._audioNavPublication as ReadiumPublication;
-      FlutterAudioNavigator.recreateAfterFailure(resumeLocator, this._activeAudioPreferencesJson, (nav) => {
-        this._audioNav = nav;
-        this._audioNavPublication = retryPublication;
-        FlutterAudioNavigator.setPlaybackIntent(true);
-        nav.play();
-      });
+      const recreating = FlutterAudioNavigator.recreateAfterFailure(
+        resumeLocator,
+        this._activeAudioPreferencesJson,
+        (nav) => {
+          this._audioNav = nav;
+          this._audioNavPublication = retryPublication;
+          FlutterAudioNavigator.setPlaybackIntent(true);
+          nav.play();
+        }
+      );
+      if (!recreating) log.warn("play: no audio session to recreate after terminal failure");
       return;
     }
 

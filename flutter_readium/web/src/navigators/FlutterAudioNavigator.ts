@@ -538,7 +538,7 @@ async function rebuildAndVerifyPlayback(
   teardownCurrent();
   const resumeLocator = new Locator({
     href,
-    type: lastPosition?.type ?? "audio/mpeg",
+    type: findLinkByHref(publication.readingOrder.items, href)?.type ?? "audio/mpeg",
     locations: lastPosition?.locations,
   });
 
