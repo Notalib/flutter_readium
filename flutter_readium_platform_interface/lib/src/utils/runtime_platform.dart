@@ -5,9 +5,9 @@ class RuntimePlatform {
   static const mobile = 'mobile';
 
   static const isWeb = kIsWeb;
-  static var isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-  static var isAndroid = defaultTargetPlatform == TargetPlatform.android;
-  static var isMobile = isIOS || isAndroid;
+  static bool get isIOS => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  static bool get isAndroid => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get isMobile => isIOS || isAndroid;
 
   static const platform = isWeb ? web : mobile;
 }
