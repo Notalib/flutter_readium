@@ -123,7 +123,7 @@ async function _initializeFromItems(
   const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
 
   const audioInitialLocator = initialLocator
-    ? textLocatorToAudioLocator(resolvedItems, initialLocator)
+    ? textLocatorToAudioLocator(resolvedItems, initialLocator, true, sourceLabel === "SyncNarration")
     : undefined;
   if (initialLocator) {
     log.info(

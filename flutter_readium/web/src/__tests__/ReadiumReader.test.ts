@@ -8,7 +8,7 @@
  * can leak stale locators into the next opened publication (observed via the
  * singleton reader's broadcast stream during web integration tests).
  */
-import { Locator, LocatorLocations } from "@readium/shared";
+import { Link, Links, Locator, LocatorLocations } from "@readium/shared";
 import { FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
 import { __testing__ } from "../ReadiumReader";
 
@@ -257,7 +257,7 @@ describe("audio stop lifecycle", () => {
       jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
       jest.spyOn(FlutterAudioNavigator, "retryAfterFailure").mockImplementation(() => {});
 
-      const publication = {};
+      const publication = {readingOrder: new Links([])};
       (reader as any)._publication = publication;
       (reader as any)._audioNav = audioNav;
       (reader as any)._audioNavPublication = publication;
@@ -443,5 +443,70 @@ describe("audioEnable restore sequencing", () => {
 
     expect(settled).toBe(true);
     expect(audioNav.play).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("active Sync Narration navigation", () => {
+  function session(bothFormats = false) {
+    const reader = new ReadiumReader();
+    const publication = { readingOrder: new Links([new Link({href: "chap.xhtml", alternates: new Links([
+      new Link({href: "overlay.json", type: "application/vnd.readium.narration+json"}),
+    ])})]), manifest: {links: new Links(bothFormats ? [new Link({href: "guided.json", type: "application/guided-navigation+json"})] : [])} };
+    const currentLocator = new Locator({href: "chap.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
+    const nav = {currentLocator, currentTime: 12, isPlaying: true, go: jest.fn(), play: jest.fn()};
+    const seek = jest.spyOn(reader as any, "_seekAudioAndResume").mockResolvedValue(undefined);
+    Object.assign(reader as any, {_audioNav: nav, _audioNavPublication: publication,
+      _publication: {readingOrder: new Links([])}, _hasSyncNarration: false, _hasGuidedNavigation: true,
+      _syncItems: [{textHref: "chap.xhtml", textId: "p1", audioHref: "chap.mp3", audioStart: 0, audioEnd: 5, tocHref: "chap.xhtml#section"},
+        {textHref: "chap.xhtml", textId: "p2", audioHref: "chap.mp3", audioStart: 10, audioEnd: 15, tocHref: "chap.xhtml#section"}],
+      _stoppedAudioLocator: currentLocator,
+    });
+    return {reader, nav, seek, currentLocator};
+  }
+  const target = (id: string) => JSON.stringify(new Locator({href: "chap.xhtml", type: "text/html", locations: new LocatorLocations({fragments: [id]})}).serialize());
+  afterEach(() => jest.restoreAllMocks());
+  it("unknown same-file anchor preserves navigator/cache and play resumes existing position", async () => {
+    const {reader, nav, seek, currentLocator} = session();
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    await reader.goTo(target("unknown"));
+    expect(seek).not.toHaveBeenCalled();
+    expect(nav.go).not.toHaveBeenCalled();
+    expect(nav.currentLocator).toBe(currentLocator);
+    expect((reader as any)._stoppedAudioLocator).toBe(currentLocator);
+    reader.play();
+    expect(nav.play).toHaveBeenCalledTimes(1);
+    expect(seek).not.toHaveBeenCalled();
+  });
+  it("same-file structural goTo and explicit play follow installed format despite new flags", async () => {
+    const {reader, seek} = session();
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    await reader.goTo(target("section"));
+    expect((seek.mock.calls[0][0] as Locator).locations.fragments).toEqual(["t=0"]);
+    reader.play(target("section"));
+    expect((seek.mock.calls[1][0] as Locator).href).toBe("chap.mp3");
+    expect((seek.mock.calls[1][0] as Locator).locations.fragments).toEqual(["t=0"]);
+  });
+  it.each([true, false])("unmapped explicit Sync requests leave playback unchanged (playing=%s)", async playing => {
+    const {reader, nav, seek, currentLocator} = session();
+    nav.isPlaying = playing;
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    reader.play(target("t=30"));
+    expect(seek).not.toHaveBeenCalled();
+    expect(nav.play).not.toHaveBeenCalled();
+    expect(nav.currentLocator).toBe(currentLocator);
+    expect(nav.isPlaying).toBe(playing);
+    Object.assign(reader as any, {_publication: (reader as any)._audioNavPublication,
+      _hasSyncNarration: true, _hasGuidedNavigation: false});
+    await reader.audioEnable("{}", target("t=30"));
+    expect(seek).not.toHaveBeenCalled();
+    expect(nav.play).not.toHaveBeenCalled();
+    expect(nav.currentLocator).toBe(currentLocator);
+    expect(nav.isPlaying).toBe(playing);
+  });
+  it("both formats retain Guided priority for active goTo", async () => {
+    const {reader, seek} = session(true);
+    await reader.goTo(target("section"));
+    expect(seek).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Web narration follows ToC sections and seeks to their narrated children.**
+  Audio-less sections could lose their chapter reference or seek to the wrong cue because
+  section context was flattened away. Section ownership and same-file seeking now follow
+  the narrated children; unknown same-file anchors preserve playback position.
+
 - **Android media-overlay chapter references follow section and resource changes.**
   Narrated paragraphs could lose their subsection, and boundary page cues could retain
   the previous file's chapter. iOS and Android now preserve same-file heading references

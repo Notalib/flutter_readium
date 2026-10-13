@@ -3,7 +3,7 @@
  * `FlutterAudioNavigator.create`. Guards that wiring for both parsers.
  */
 
-import { Manifest } from "@readium/shared";
+import { Locator, LocatorLocations, Manifest } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
 import { SyncNarrationItem } from "../mediaoverlay/syncNarration";
@@ -18,6 +18,8 @@ const ITEMS: SyncNarrationItem[] = [
     audioEnd: 5,
     textHref: "chap.xhtml",
     textId: "p1",
+    tocHref: "chap.xhtml#section",
+    tocTitle: "Section",
   },
 ];
 
@@ -60,4 +62,24 @@ it.each([
   const args = create.mock.calls[0];
   expect(args[4]).toBeDefined(); // locatorMapper
   expect(args[7]).toBe(bridge);
+});
+
+
+it.each([
+  ["sync narration", initializeMediaOverlayNavigator, ["t=3"]],
+  ["guided navigation", initializeGuidedNavigationNavigator, ["t=0"]],
+] as const)("%s factory applies its own initial-locator policy", async (_label, initialize, expected) => {
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const locator = new Locator({href: "chap.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["t=npt:0:00:03", "section"]})});
+  await initialize(publication(), locator, "{}", () => {});
+  expect(create.mock.calls[0][1]?.locations.fragments).toEqual(expected);
+});
+
+it("combined bridge locator retains assigned owner and cue selector", async () => {
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  await initializeMediaOverlayNavigator(publication(), undefined, "{}", () => {});
+  const mapper = create.mock.calls[0][4]!;
+  const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=2"], progression: .4, totalProgression: .4})});
+  const mapped = mapper({currentTime: 2} as never, audio).stateLocator.serialize();
+  expect(mapped.locations).toMatchObject({cssSelector: "#p1", tocHref: "chap.xhtml#section", position: 2, progression: .4, totalProgression: .4});
 });

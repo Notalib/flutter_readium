@@ -263,7 +263,9 @@ class _ReadiumReader {
       const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime);
       const crossResource =
         !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
-      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource);
+      const useSyncNarrationLookup = !!this._audioNavPublication &&
+        detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource, useSyncNarrationLookup);
       if (audioLocator) {
         const wasPlaying = this._audioNav.isPlaying;
         log.info(
@@ -831,6 +833,8 @@ class _ReadiumReader {
       return;
     }
     if (!this._audioNav) return;
+    const useSyncNarrationLookup = this._syncItems.length > 0 && !!this._audioNavPublication &&
+      detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
 
     // Retrying after a terminal streaming failure: the failed navigator was
     // already stopped by the recovery controller and is never reusable (no
@@ -855,7 +859,7 @@ class _ReadiumReader {
         : this._audioNav.currentLocator;
       // MediaOverlay: a client locator is a text locator; the navigator needs audio.
       if (locatorJson && this._syncItems.length > 0) {
-        resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator) ?? this._audioNav.currentLocator;
+        resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator, true, useSyncNarrationLookup) ?? this._audioNav.currentLocator;
       }
       // Stamp the captured instance, not `this._publication`: create() is async and
       // a mid-flight getPublication would otherwise record the new book as owning
@@ -880,7 +884,9 @@ class _ReadiumReader {
       if (locator) {
         // MediaOverlay: map text locator → audio locator before seeking.
         if (this._syncItems.length > 0) {
-          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+          const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
+          if (useSyncNarrationLookup && !mapped) return;
+          locator = mapped ?? locator;
         }
         this._seekAudioAndResume(locator, true);
         return;
@@ -1364,7 +1370,10 @@ class _ReadiumReader {
       if (resolvedFromLocator) {
         let locator = resolvedFromLocator;
         if (this._syncItems.length > 0) {
-          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+          const useSyncNarrationLookup = this._hasSyncNarration && !this._hasGuidedNavigation;
+          const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
+          if (useSyncNarrationLookup && !mapped) return;
+          locator = mapped ?? locator;
         }
         // Must await: callers chain play() on this promise, and a play() that
         // lands while upstream go() still has _isNavigating true is swallowed
@@ -1400,7 +1409,7 @@ class _ReadiumReader {
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator, true, false)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (!this._comicNav && this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
@@ -1430,7 +1439,7 @@ class _ReadiumReader {
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator, true, true)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();

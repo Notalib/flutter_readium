@@ -50,8 +50,7 @@ void main() {
     });
 
     testWidgets(
-      'native ToC section navigates to its first narrated child',
-      skip: kIsWeb,
+      'ToC section navigates to its first narrated child',
       (tester) async {
         final path = harness.fixturePath(
           FixtureKeys.tocSectionChild,
@@ -149,6 +148,9 @@ void main() {
           () => states.any((state) => state.state == TimebasedState.playing && state.currentOffset != null),
           timeout: const Duration(seconds: 30),
           reason: 'Playback did not resume after the unknown same-resource anchor',
+          diagnostics: () => states
+              .map((state) => '${state.state}: offset=${state.currentOffset}, locator=${state.currentLocator}')
+              .join(' | '),
         );
         final resumed = states.firstWhere(
           (state) => state.state == TimebasedState.playing && state.currentOffset != null,

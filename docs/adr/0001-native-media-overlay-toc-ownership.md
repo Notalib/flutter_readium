@@ -1,9 +1,9 @@
-# ADR 0001: Native media-overlay ToC ownership and navigation
+# ADR 0001: Sync Narration ToC ownership and navigation
 
-- **Status:** Accepted; implemented locally and validated on native simulators.
+- **Status:** Accepted; native implementation validated on simulators. Web implementation validated by focused ChromeDriver integration with autoplay enabled.
 - **Date:** 2026-10-13
-- **Scope:** Sync Narration on iOS and Android.
-- **Tasks:** [Implementation checklist](../plans/native-media-overlay-toc-context.md)
+- **Scope:** Sync Narration on iOS, Android and web.
+- **Tasks:** [Native checklist](../plans/native-media-overlay-toc-context.md), [web checklist](../plans/web-media-overlay-toc-context.md)
 
 ## Context and evidence
 
@@ -48,7 +48,8 @@ caller. For a node in that list:
    use that resource's fragmentless ToC entry if present; otherwise clear the reference.
 2. A matching container supplies its own ToC reference to its children, even without audio.
 3. A directly matching playable cue becomes the current ToC reference for following
-   same-resource siblings. This preserves narrated-heading continuation over an ancestor.
+   same-resource siblings only when it has no narration children. This preserves
+   narrated-heading continuation over an ancestor.
 4. A non-matching cue uses the current reference. No known reference means no assigned owner.
 5. Recurse with the node's effective reference and preserve cue order, timing and position.
    State changes inside a nested list do not mutate its caller's current reference.
@@ -75,7 +76,7 @@ fallback is disabled. This intentionally gives iOS Android's existing behavior: 
 or tapping a known section anchor can seek to its first cue in the currently playing file.
 An unknown same-file anchor still cannot rewind playback through resource fallback
 (issue #139). The current locator API cannot distinguish a ToC click from a tap on the
-same known section anchor; this decision applies to both. Native integration tests must
+same known section anchor; this decision applies to both. Integration tests must
 check known section requests and unknown-anchor no-rewind behavior.
 
 An unmatched audio seek must also leave the cached resume locator unchanged. The Android
@@ -86,6 +87,14 @@ navigation acknowledgment remains unchanged; measure playback position, not that
 
 Fragmentless links retain their existing resource/progression navigation. Explicit audio
 time, image lookup and locator serialization keep their existing priorities and formats.
+
+On web, the shared mapper opts into this policy only for Sync Narration. Active `goTo`
+and `play` requests use the installed audio publication, which may differ from newly
+loaded publication flags. Guided Navigation retains its parser, global enrichment and
+legacy mapper defaults, including priority when both narration formats are present.
+Web keeps its existing href normalization and progression calculation. An unmapped
+explicit Sync play or reused-enable request leaves the active playback state and
+position untouched; retry after terminal failure retains its existing resume fallback.
 
 ### Case contract
 
@@ -117,7 +126,7 @@ time, image lookup and locator serialization keep their existing priorities and 
   cues owned by nested subsections, but the sampled fixtures do not demonstrate that case.
   This implementation does not claim such a parent has a precise seek destination.
 - Audio-less flat headings, cross-file inheritance of an anchored parent, URL-normalization
-  changes, web parity and Guided Navigation structural inheritance remain out of scope.
+  changes and Guided Navigation structural inheritance remain out of scope.
 
 No shared Dart API, preference, bridge field or native overlay storage/index is added.
 The implementation does not expand iOS's synthetic audio reading order to all audio files

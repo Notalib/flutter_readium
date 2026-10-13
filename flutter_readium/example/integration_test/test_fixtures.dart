@@ -71,6 +71,7 @@ abstract final class FixtureKeys {
     peterRabbitEpub,
     warmupWebpub,
     overlayWebpub,
+    tocSectionChild,
     audiobook,
     divina,
     remoteAudiobook,
