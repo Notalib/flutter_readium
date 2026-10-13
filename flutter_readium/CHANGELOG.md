@@ -18,6 +18,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Android: consuming apps must raise their Android build settings.**
   kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. It is also built with Kotlin language version 2.4, which needs Kotlin Gradle Plugin 2.3 or newer. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
 
+### Fixed
+
+- **Android: a PDF lost its layout and reading position after the app came back from the background.**
+  The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
+
 ## [0.6.2] - 2026-10-13
 
 ### Fixed

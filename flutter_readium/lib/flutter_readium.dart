@@ -146,6 +146,8 @@ class FlutterReadium {
       _readiumCall(() => _platform.setEPUBPreferences(preferences));
 
   /// Sets the PDF preferences for the currently opened PDF publication.
+  ///
+  /// Each call replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
   Future<void> setPDFPreferences(PDFPreferences preferences) =>
       _readiumCall(() => _platform.setPDFPreferences(preferences));
 

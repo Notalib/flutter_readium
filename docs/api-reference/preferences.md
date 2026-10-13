@@ -61,7 +61,7 @@ await reader.setEPUBPreferences(EPUBPreferences(
 
 ## PDFPreferences
 
-Controls the visual appearance of the PDF reader. All fields are optional; omitted fields leave the current value unchanged.
+Controls the visual appearance of the PDF reader. All fields are optional. Each `setPDFPreferences` call replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
 
 | Field | Type | Description |
 |-------|------|-------------|

@@ -89,6 +89,8 @@ class PdfReaderFragment :
 
     @OptIn(org.readium.r2.shared.ExperimentalReadiumApi::class)
     fun updatePreferences(preferences: PdfiumPreferences) {
+        // The stored preferences seed the navigator that attachNavigator() re-creates on resume.
+        pdfVm?.preferences = preferences
         val nav = pdfNavigator
         if (nav == null) {
             Log.d(TAG, "::updatePreferences - $instance - navigator not ready")
@@ -117,13 +119,19 @@ class PdfReaderFragment :
             return
         }
 
+        installNavigatorFactory(model)
+        super.onCreate(savedInstanceState)
+    }
+
+    // Reads the view model on every call so a re-created navigator gets the latest locator and preferences.
+    private fun installNavigatorFactory(model: PdfReaderViewModel) {
+        val navigatorFactory = model.navigatorFactory ?: return
         childFragmentManager.fragmentFactory =
             navigatorFactory.createFragmentFactory(
                 initialLocator = model.locator,
                 initialPreferences = model.preferences,
                 listener = this,
             )
-        super.onCreate(savedInstanceState)
     }
 
     override fun onViewCreated(
@@ -201,8 +209,9 @@ class PdfReaderFragment :
             return
         }
 
-        // The FragmentFactory was already installed in onCreate. We instantiate by
-        // class name via `replace`, and the FragmentManager calls the factory.
+        // Re-install the factory so the new navigator starts from the current locator and
+        // preferences; the one from onCreate holds the values from creation time.
+        pdfVm?.let { installNavigatorFactory(it) }
         childFragmentManager.commitNow {
             replace(
                 R.id.fragment_reader_container,
