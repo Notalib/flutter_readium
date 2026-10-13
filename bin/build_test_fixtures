@@ -87,6 +87,7 @@ copy_manifest() {
 }
 
 trim 38533_overlay_preview.webpub               test-fixtures/overlay            4
+trim 38533_overlay_preview-toc-section-child.webpub test-fixtures/toc-section-child 2
 trim 38533.audiobook                            test-fixtures/audiobook          3
 trim 38533_guided_navigation_preview.webpub     test-fixtures/guided-navigation  4
 trim 50272-nota-comics.webpub                   test-fixtures/comic

@@ -19,11 +19,18 @@ struct FlutterMediaOverlay {
   }
 
   func itemInRangeOfTime(_ time: Double, inHref href: String) -> FlutterMediaOverlayItem? {
-    if (href != audioFile && href != textFile) {
-      return nil
+    if let current = items.first(where: {
+      $0.isAudioInRangeOfTime(time, inHref: href)
+    }) {
+      return current
     }
 
-    return items.first(where: { $0.isAudioInRangeOfTime(time, inHref: href) })
+    // No cue contains this time, select the next upcoming cue
+    return items.first {item in guard item.audioFile == href || item.textFile == href, let start = item.audioStart else{
+      return false
+    }
+      return time < start
+    }
   }
   
   func itemFromTextId(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {
@@ -159,10 +166,10 @@ struct FlutterMediaOverlayItem {
       return false
     }
     guard let start = audioStart else { return false }
-    // A reversed or non-finite end (malformed `t=start,end` fragment) would trap
-    // `start...end`; treat it as open-ended from `start`, mirroring the no-end case.
+    // The end is exclusive so a shared boundary belongs to the next cue.
+    // Malformed or missing ends are treated as open-ended from the start.
     guard let end = audioEnd, end >= start else { return time >= start }
-    return (start...end).contains(time)
+    return (time >= start && time < end)
   }
   
   // MARK: Locators

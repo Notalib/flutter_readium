@@ -33,6 +33,7 @@ abstract final class FixtureKeys {
   /// (test-fixtures/peter-rabbit).
   static const warmupWebpub = 'test-peter-rabbit.webpub';
   static const overlayWebpub = '38533_overlay_preview.webpub';
+  static const tocSectionChild = '38533_overlay_preview-toc-section-child.webpub';
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';
   static const timeMachinePdf = 'time_machine.pdf';

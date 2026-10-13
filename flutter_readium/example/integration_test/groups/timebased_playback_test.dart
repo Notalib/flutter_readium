@@ -4,8 +4,8 @@ import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../readium_integration_harness.dart';
-import '../test_suite_setup.dart';
 import '../test_fixtures.dart';
+import '../test_suite_setup.dart';
 
 void main() {
   final harness = suiteHarness();
@@ -48,6 +48,78 @@ void main() {
         );
       }
     });
+
+    testWidgets(
+      'native ToC section navigates to its first narrated child',
+      skip: kIsWeb,
+      (tester) async {
+        final path = harness.fixturePath(
+          FixtureKeys.tocSectionChild,
+          reason: 'Fixture ${FixtureKeys.tocSectionChild} missing from asset bundle',
+        );
+        final pub = await harness.readium.openPublication(path);
+        final tocLink = pub.tocFlattened.singleWhere(
+          (link) => link.href == '38533-0002-generic.xhtml#toc-section',
+        );
+        final locator = pub.locatorFromLink(tocLink)!;
+        final textLocators = <Locator>[];
+        final textSub = harness.readium.onTextLocatorChanged.listen(textLocators.add);
+        addTearDown(textSub.cancel);
+        final states = <ReadiumTimebasedState>[];
+        final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => textLocators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Reader did not emit its initial text locator',
+        );
+        await harness.readium
+            .audioEnable(prefs: AudioPreferences(speed: 1.0))
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => fail('audioEnable did not complete within 30 seconds'),
+            );
+        final navigated = await harness.readium
+            .goToLocator(locator)
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => fail('goToLocator did not complete within 30 seconds'),
+            );
+        expect(navigated, isTrue, reason: 'goToLocator should find the section\'s first audio cue');
+        await harness.readium
+            .play(null)
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => fail('play did not complete within 30 seconds'),
+            );
+
+        // The ToC targets the section; its first playable cue targets the heading.
+        await waitWithPump(
+          tester,
+          () => states.any(
+            (state) =>
+                state.currentLocator?.href.endsWith('38533-0002-generic.xhtml') == true &&
+                state.currentLocator?.locations?.cssSelector == '#uwlh00008',
+          ),
+          timeout: const Duration(seconds: 30),
+          reason: 'Reader did not move to the section\'s first playable text cue',
+          diagnostics: () => 'states=$states',
+        );
+        await waitWithPump(
+          tester,
+          () => textLocators.any((item) => item.href.endsWith('38533-0002-generic.xhtml')),
+          timeout: const Duration(seconds: 30),
+          reason: 'Reader view did not navigate from the first chapter to the ToC section',
+          diagnostics: () => 'textLocators=$textLocators',
+        );
+
+        await harness.readium.pause();
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
 
     testWidgets(
       'media-overlay WebPub initializes synchronized text cues on web',
