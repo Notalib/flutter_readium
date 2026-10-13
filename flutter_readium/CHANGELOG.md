@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Web: sync-narration audio had no stream error recovery.**
+  A failing media-overlay audio track only gave `TimebasedState.failure`: no `AudioStreamAuthError`, no retries. The recovery was wired for plain audiobooks only. Media-overlay sessions now get the same classification, retries and `play()`-after-failure as audiobooks, as on iOS and Android.
 - **iOS: `resume()` after `audioEnable(fromLocator:)` played a media-overlay book from 0:00.**
   The initial locator was mapped before the media overlays loaded. It is now mapped after they load.
 - **Web could be reported as iOS or Android on mobile browsers.** The browser user agent can influence

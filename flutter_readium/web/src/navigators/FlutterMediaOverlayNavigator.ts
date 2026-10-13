@@ -16,6 +16,7 @@ import { ReadiumWebError, ReadiumWebErrorCode, ResourceReadErrorReason } from ".
 import { AudioNavigator } from "@readium/navigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
+import { ReadiumBridge } from "../bridge/ReadiumBridge";
 import { AudioLocatorMapper, FlutterAudioNavigator } from "../navigators/FlutterAudioNavigator";
 import {
   SyncNarrationItem,
@@ -42,17 +43,19 @@ const log = createLogger("MediaOverlay");
  *                               cue advances to a new text locator. Used by ReadiumReader to
  *                               apply utterance-level decorations on the visual navigator.
  *                               Receives the text locator and the cue duration in milliseconds.
+ * @param bridge                 Bridge for audio streaming error events (e.g. AudioStreamAuthError).
  */
 export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
-  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  bridge?: ReadiumBridge
 ): Promise<void> {
   const items = await parseSyncNarration(publication);
   return _initializeFromItems(
-    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "SyncNarration"
+    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "SyncNarration", bridge
   );
 }
 
@@ -68,11 +71,12 @@ export async function initializeGuidedNavigationNavigator(
   initialLocator: Locator | undefined,
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
-  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void
+  onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
+  bridge?: ReadiumBridge
 ): Promise<void> {
   const items = await parseGuidedNavigation(publication);
   return _initializeFromItems(
-    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "GuidedNavigation"
+    publication, items, initialLocator, prefsJson, setNav, onTextLocatorChanged, "GuidedNavigation", bridge
   );
 }
 
@@ -83,7 +87,8 @@ async function _initializeFromItems(
   prefsJson: string,
   setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
   onTextLocatorChanged: ((locator: Locator, durationMs: number | undefined) => void) | undefined,
-  sourceLabel: string
+  sourceLabel: string,
+  bridge: ReadiumBridge | undefined
 ): Promise<void> {
   log.info(
     `Initializing MediaOverlayNavigator (source: ${sourceLabel})`,
@@ -202,7 +207,8 @@ async function _initializeFromItems(
     // Media overlay cue synchronisation requires finer granularity than the
     // Dart-side updateIntervalSecs preference (which controls the progress bar).
     // 100ms keeps panel panning within one frame of the audio cue boundary.
-    100
+    100,
+    bridge
   );
 
   if (wrappedCallback) {

@@ -850,15 +850,18 @@ class _ReadiumReader {
       }
       log.info("play: retrying after terminal audio streaming failure");
       FlutterAudioNavigator.retryAfterFailure();
-      const resumeLocator = locatorJson
+      let resumeLocator = locatorJson
         ? Locator.deserialize(JSON.parse(locatorJson)) ?? this._audioNav.currentLocator
         : this._audioNav.currentLocator;
+      // MediaOverlay: a client locator is a text locator; the navigator needs audio.
+      if (locatorJson && this._syncItems.length > 0) {
+        resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator) ?? this._audioNav.currentLocator;
+      }
       // Stamp the captured instance, not `this._publication`: create() is async and
       // a mid-flight getPublication would otherwise record the new book as owning
       // this navigator.
       const retryPublication = this._audioNavPublication as ReadiumPublication;
-      void FlutterAudioNavigator.create(
-        retryPublication,
+      const recreating = FlutterAudioNavigator.recreateAfterFailure(
         resumeLocator,
         this._activeAudioPreferencesJson,
         (nav) => {
@@ -866,12 +869,9 @@ class _ReadiumReader {
           this._audioNavPublication = retryPublication;
           FlutterAudioNavigator.setPlaybackIntent(true);
           nav.play();
-        },
-        undefined,
-        undefined,
-        undefined,
-        this._bridge
+        }
       );
+      if (!recreating) log.warn("play: no audio session to recreate after terminal failure");
       return;
     }
 
@@ -1393,7 +1393,8 @@ class _ReadiumReader {
           if (this._publication === publication) {
             this._routeNarrationCue(textLocator, "GuidedNavigation", durationMs);
           }
-        }
+        },
+        this._bridge
       );
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
@@ -1422,7 +1423,8 @@ class _ReadiumReader {
           if (this._publication === publication) {
             this._routeNarrationCue(textLocator, "MediaOverlay", durationMs);
           }
-        }
+        },
+        this._bridge
       );
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
