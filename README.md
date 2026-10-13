@@ -63,7 +63,7 @@ flutter_readium is a federated plugin that delegates to the upstream Readium too
 platform:
 
 - **swift-toolkit 3.11.0** on iOS
-- **kotlin-toolkit 3.3.0** on Android
+- **kotlin-toolkit 3.4.0** on Android
 - **ts-toolkit** (`@readium/shared`, `@readium/navigator`) on Web
 
 The canonical version pins live in `flutter_readium/ios/flutter_readium.podspec`, `flutter_readium/android/build.gradle` (`ext.readium_version`), and `flutter_readium/package.json`. Run `bin/readium_versions` to print them at any time.
@@ -127,7 +127,7 @@ Complete the per-platform setup below before running the reader. See the full
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle`, and use Kotlin Gradle Plugin 2.3 or newer.
 - Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
   readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
   without it:

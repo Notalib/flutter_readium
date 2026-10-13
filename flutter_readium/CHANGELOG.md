@@ -15,8 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Android: PDFs now open paginated by default, like iOS.**
   The default was vertical scroll. Set `PDFLayout.scrollVertical` to keep the old behavior. Also upgrades kotlin-toolkit to 3.4.0.
 
-- **Android: consuming apps must now compile against SDK 37.**
-  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. Raise `compileSdk` in your app's `build.gradle`.
+- **Android: consuming apps must raise their Android build settings.**
+  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. It is also built with Kotlin language version 2.4, which needs Kotlin Gradle Plugin 2.3 or newer. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
 
 ## [0.6.2] - 2026-10-13
 

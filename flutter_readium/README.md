@@ -154,12 +154,12 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 ## Minimum requirements
 
-| Requirement | Version                |
-| ----------- | ---------------------- |
-| Flutter     | 3.44.8+                |
-| Dart SDK    | 3.8.0+                 |
-| Android     | `minSdkVersion` 24     |
-| iOS         | 15.0+                  |
+| Requirement | Version                                          |
+| ----------- | ------------------------------------------------ |
+| Flutter     | 3.44.8+                                          |
+| Dart SDK    | 3.8.0+                                           |
+| Android     | `minSdkVersion` 24, `compileSdk` 37, Kotlin 2.3+ |
+| iOS         | 15.0+                                            |
 
 ## Platform setup
 
@@ -169,7 +169,7 @@ for details.
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle`, and use Kotlin Gradle Plugin 2.3 or newer.
 - Enable core library desugaring in your app's Gradle build file. The Readium Android artifacts require it:
 
   ```kotlin

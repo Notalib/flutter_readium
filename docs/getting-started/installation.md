@@ -29,6 +29,18 @@ android {
 }
 ```
 
+### Compile SDK and Kotlin version
+
+kotlin-toolkit 3.4.0 needs `compileSdk` 37 or later and Kotlin Gradle Plugin 2.3 or newer. In `android/app/build.gradle`:
+
+```gradle
+android {
+  compileSdk 37
+}
+```
+
+Without the right `compileSdk` the build fails at `:app:checkDebugAarMetadata`. An older Kotlin Gradle Plugin fails to read the toolkit's Kotlin metadata, because the toolkit is built with Kotlin language version 2.4 and a compiler reads metadata only one minor version ahead of itself. Raise the `org.jetbrains.kotlin.android` plugin version in `android/settings.gradle` to 2.3 or newer.
+
 ### Core library desugaring
 
 The readium-kotlin-toolkit artifacts require it. In `android/app/build.gradle`:
@@ -48,7 +60,7 @@ dependencies {
 Without this the build fails at `:app:checkDebugAarMetadata` with one error per readium artifact:
 
 ```
-Dependency 'org.readium.kotlin-toolkit:readium-shared:3.3.0' requires core library desugaring
+Dependency 'org.readium.kotlin-toolkit:readium-shared:3.4.0' requires core library desugaring
 to be enabled for :app.
 ```
 

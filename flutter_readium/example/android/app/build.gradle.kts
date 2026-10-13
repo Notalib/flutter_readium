@@ -6,7 +6,7 @@ plugins {
 
 android {
   namespace = "com.example.flutter_readium_example"
-  compileSdk = 37
+  compileSdk = maxOf(flutter.compileSdkVersion, 37)
   ndkVersion = flutter.ndkVersion
 
   compileOptions {
