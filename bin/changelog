@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Compile changelog fragments (<package>/changelog.d/*.md) into each package's
+# CHANGELOG.md with towncrier. Fragments replace direct CHANGELOG.md edits so
+# concurrent PRs never conflict; how to write one: CONTRIBUTING.md#changelog.
+#
+# Usage:
+#   bin/changelog check              # validate fragments and print the draft
+#   bin/changelog build <version>    # write CHANGELOG.md, git rm the fragments
+#
+# Runs towncrier through uvx (or pipx, as on GitHub runners); nothing to install.
+
+# Bootstrap PATH / REPO_ROOT for non-interactive shells (repo convention).
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
+
+TOWNCRIER_VERSION=26.9.0
+PACKAGES=(flutter_readium flutter_readium_platform_interface)
+
+towncrier() {
+  if command -v uvx >/dev/null 2>&1; then
+    uvx "towncrier==$TOWNCRIER_VERSION" "$@"
+  elif command -v pipx >/dev/null 2>&1; then
+    pipx run "towncrier==$TOWNCRIER_VERSION" "$@"
+  else
+    echo "ERROR: towncrier needs uv (brew install uv) or pipx." >&2
+    exit 1
+  fi
+}
+
+# The template adds the bullet itself, so a leading "- " renders as "- - ".
+check_bullets() {
+  local pkg f bad=""
+  for pkg in "${PACKAGES[@]}"; do
+    for f in "$REPO_ROOT/$pkg"/changelog.d/*.md; do
+      [ -e "$f" ] && [ "$(basename "$f")" != README.md ] || continue
+      if grep -m1 -v '^[[:space:]]*$' "$f" | grep -qE '^[-*+][[:space:]]'; then
+        bad+="  $f"$'\n'
+      fi
+    done
+  done
+  if [ -n "$bad" ]; then
+    echo "ERROR: fragments must not start with a list bullet (towncrier adds it):" >&2
+    printf '%s' "$bad" >&2
+    exit 1
+  fi
+}
+
+cmd="${1:-}"
+case "$cmd" in
+  check)
+    check_bullets
+    for pkg in "${PACKAGES[@]}"; do
+      echo "=== $pkg"
+      towncrier build --draft --config "$REPO_ROOT/towncrier.toml" --dir "$REPO_ROOT/$pkg" \
+        --version Unreleased --date "$(date +%Y-%m-%d)"
+    done
+    ;;
+  build)
+    VERSION="${2:-}"
+    if [ -z "$VERSION" ]; then
+      echo "Usage: bin/changelog build <version>" >&2
+      exit 1
+    fi
+    check_bullets
+    for pkg in "${PACKAGES[@]}"; do
+      changelog="$REPO_ROOT/$pkg/CHANGELOG.md"
+      towncrier build --yes --config "$REPO_ROOT/towncrier.toml" --dir "$REPO_ROOT/$pkg" \
+        --version "$VERSION" --date "$(date +%Y-%m-%d)"
+      # towncrier leaves two blank lines between releases; the file uses one.
+      cat -s "$changelog" > "$changelog.tmp" && mv "$changelog.tmp" "$changelog"
+      git -C "$REPO_ROOT" add "$changelog"
+    done
+    ;;
+  *)
+    echo "Usage: bin/changelog check | build <version>" >&2
+    exit 1
+    ;;
+esac

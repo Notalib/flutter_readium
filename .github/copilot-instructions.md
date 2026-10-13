@@ -85,7 +85,7 @@ PDF position lives in `Locator.locations.position` as a **1-based page number**.
 
 ### Changelog & commits
 
-- Update `CHANGELOG.md` for every feature or bugfix. New entries go under `## Unreleased`.
+- Never edit `CHANGELOG.md` directly. Add a fragment file in `<package>/changelog.d/` for every consumer-visible feature or bugfix. Naming and types: `CONTRIBUTING.md#changelog`.
 - [Conventional Commits](https://www.conventionalcommits.org/) with scopes: `feat(android):`, `fix(ios):`, `chore(example):`, etc. Branch off `main`.
 
 > Platform-specific conventions (Android log format, navigator null guard, TypeScript locator serialization) are in the scoped instruction files under `.github/instructions/`.

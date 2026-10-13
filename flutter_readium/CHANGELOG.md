@@ -3,7 +3,7 @@
 All notable changes to `flutter_readium` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+<!-- towncrier release notes start -->
 
 ## [0.6.2] - 2026-10-13
 
