@@ -127,7 +127,7 @@ Complete the per-platform setup below before running the reader. See the full
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle`, and use Kotlin Gradle Plugin 2.3 or newer.
+- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle.kts`, and use Kotlin Gradle Plugin 2.3 or newer, declared in `android/settings.gradle.kts`. See the [installation guide](docs/getting-started/installation.md#2-android-setup) for the exact snippets.
 - Enable [core library desugaring](https://developer.android.com/studio/write/java8-support) — the
   readium-kotlin-toolkit artifacts require it, and the build fails at `checkDebugAarMetadata`
   without it:
