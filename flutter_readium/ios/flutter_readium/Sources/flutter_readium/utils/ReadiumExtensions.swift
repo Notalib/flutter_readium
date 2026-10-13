@@ -147,6 +147,7 @@ extension Publication {
 
   func getMediaOverlays() async -> [FlutterMediaOverlay]? {
     guard containsMediaOverlays else { return nil }
+    let toc = getFlattenedToC()
 
     let narrationLinks = readingOrder.enumerated().compactMap {
       position, resourceLink -> (position: Int, resource: Link, overlay: Link)? in
@@ -178,14 +179,15 @@ extension Publication {
         entry.json,
         atPosition: entry.position,
         atTocHref: nil,
-        readingOrderDuration: entry.resource.duration
+        readingOrderDuration: entry.resource.duration,
+        tocHrefs: toc.map { $0.href }
       )
     }
 
     // Templated optional sidecars can be unresolved; only parsed overlays are returned.
     assert(rawOverlays.count <= narrationLinks.count)
 
-    return enrichOverlaysWithToc(rawOverlays)
+    return rawOverlays.map { $0.withTocTitles(toc) }
   }
 
   func getGuidedNavigationMediaOverlays() async -> [FlutterMediaOverlay]? {

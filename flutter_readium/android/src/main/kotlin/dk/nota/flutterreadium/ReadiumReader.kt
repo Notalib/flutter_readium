@@ -90,7 +90,7 @@ private const val TAG = "ReadiumReader"
 private val HTTP_CONNECT_TIMEOUT = 10.seconds
 private val HTTP_READ_TIMEOUT = 30.seconds
 
-private const val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
+private const val STATE_KEY = "dk.nota.flutterreadium.ReadiumReaderState"
 
 private val currentPublicationUrlKey = "currentPublicationUrl"
 private val ttsEnabledKey = "ttsEnabled"
@@ -309,11 +309,11 @@ object ReadiumReader :
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
             savedStateRef = WeakReference(it)
-            it.registerSavedStateProvider(stateKey) {
+            it.registerSavedStateProvider(STATE_KEY) {
                 storeState()
             }
 
-            restoreState(it.consumeRestoredStateForKey(stateKey))
+            restoreState(it.consumeRestoredStateForKey(STATE_KEY))
         }
 
         currentReadiumTimebasedState
@@ -1471,7 +1471,12 @@ object ReadiumReader :
                 toLocator.copy(
                     text = Locator.Text(),
                 )
-            navigator.goToLocator(narrationLocator)
+            // An unmapped anchor must not replace the locator used by play(null).
+            if (navigator is SyncAudiobookNavigator) {
+                if (!navigator.seekToLocator(narrationLocator)) return
+            } else {
+                navigator.goToLocator(narrationLocator)
+            }
             // navigator.goToLocator blocks until the seek lands (see AudiobookNavigator),
             // so reflect the confirmed position in state before returning. This is what a
             // subsequent play(null) reads to resume from, closing the seek→play race.

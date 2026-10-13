@@ -102,7 +102,8 @@ void main() {
           () => states.any(
             (state) =>
                 state.currentLocator?.href.endsWith('38533-0002-generic.xhtml') == true &&
-                state.currentLocator?.locations?.cssSelector == '#uwlh00008',
+                state.currentLocator?.locations?.cssSelector == '#uwlh00008' &&
+                state.currentLocator?.locations?.tocHref == tocLink.href,
           ),
           timeout: const Duration(seconds: 30),
           reason: 'Reader did not move to the section\'s first playable text cue',
@@ -116,6 +117,59 @@ void main() {
           diagnostics: () => 'textLocators=$textLocators',
         );
 
+        await harness.readium.pause();
+        states.clear();
+        expect(
+          await harness.readium.goToLocator(
+            Locator(
+              href: '38533-0002-generic.xhtml',
+              type: 'application/xhtml+xml',
+              locations: const Locations(fragments: ['t=10']),
+            ),
+          ),
+          isTrue,
+        );
+        await waitWithPump(
+          tester,
+          () => states.any((state) => state.currentLocator?.locations?.cssSelector == '#uwlh00011'),
+          timeout: const Duration(seconds: 30),
+          reason: 'Reader did not seek to the later cue in the same section',
+        );
+        states.clear();
+        await harness.readium.goToLocator(
+          Locator(
+            href: '38533-0002-generic.xhtml',
+            type: 'application/xhtml+xml',
+            locations: const Locations(cssSelector: '#unknown-anchor'),
+          ),
+        );
+        await harness.readium.play(null);
+        await waitWithPump(
+          tester,
+          () => states.any((state) => state.state == TimebasedState.playing && state.currentOffset != null),
+          timeout: const Duration(seconds: 30),
+          reason: 'Playback did not resume after the unknown same-resource anchor',
+        );
+        final resumed = states.firstWhere(
+          (state) => state.state == TimebasedState.playing && state.currentOffset != null,
+        );
+        expect(
+          resumed.currentOffset,
+          greaterThanOrEqualTo(const Duration(seconds: 9)),
+          reason: 'An unknown same-resource anchor must not rewind audio',
+        );
+        states.clear();
+        expect(await harness.readium.goToLocator(locator), isTrue);
+        await waitWithPump(
+          tester,
+          () => states.any(
+            (state) =>
+                state.currentLocator?.locations?.cssSelector == '#uwlh00008' &&
+                state.currentLocator?.locations?.tocHref == tocLink.href,
+          ),
+          timeout: const Duration(seconds: 30),
+          reason: 'Known same-resource ToC section did not seek back to its first cue',
+        );
         await harness.readium.pause();
         await tester.pumpWidget(const SizedBox());
       },

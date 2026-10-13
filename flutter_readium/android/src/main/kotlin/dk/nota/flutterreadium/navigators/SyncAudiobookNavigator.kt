@@ -157,12 +157,17 @@ class SyncAudiobookNavigator(
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        val audioLocator = mapTextLocatorToMediaOverlayLocator(locator)
-        if (audioLocator != null) {
-            super.goToLocator(audioLocator)
-        } else {
-            PluginLog.d(TAG, "::goToLocator - no audio locator found for $locator")
-        }
+        seekToLocator(locator)
+    }
+
+    suspend fun seekToLocator(locator: Locator): Boolean {
+        val audioLocator =
+            mapTextLocatorToMediaOverlayLocator(locator) ?: run {
+                PluginLog.d(TAG, "::seekToLocator - no audio locator found for $locator")
+                return false
+            }
+        super.goToLocator(audioLocator)
+        return true
     }
 
     private suspend fun decorateCurrentUtterance(uttLocator: Locator) {
