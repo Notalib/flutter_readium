@@ -15,6 +15,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Android: Google Play rejected apps under its Photo and Video Permissions policy.**
+  The plugin declared `READ_EXTERNAL_STORAGE` without using it, and Play counts it as broad media access. The permission is now removed.
+  Apps that open books from shared storage on Android 12 or lower must declare it themselves.
 - **`ttsGetAvailableVoices()` now adds Readium Speech metadata on every platform.** Voice enrichment
   previously ran only on Android. Known voices now get a friendly `label` everywhere; catalog gender
   fills unspecified gender, and catalog quality fills missing quality. Reported gender and quality are preserved.
