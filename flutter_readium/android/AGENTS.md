@@ -1,6 +1,6 @@
 # flutter_readium — Android (Kotlin)
 
-Thin wrapper over [kotlin-toolkit](https://github.com/readium/kotlin-toolkit/); the pinned version is `ext.readium_version` in `build.gradle`. Repo-wide instructions: `../../CLAUDE.md`.
+Thin wrapper over [kotlin-toolkit](https://github.com/readium/kotlin-toolkit/); the pinned version is `ext.readium_version` in `build.gradle`. Repo-wide instructions: `../../AGENTS.md`.
 
 - **Before declaring any Kotlin changes done:** run `./gradlew :flutter_readium:compileDebugKotlin` in `../example/android/` and fix all errors.
 - **Gate scope:** for Kotlin-only changes, the Android checks are sufficient. Run the repo-wide Dart format/analyze gates only when Dart or shared API files also changed.

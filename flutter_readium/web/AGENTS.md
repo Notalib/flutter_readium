@@ -1,6 +1,6 @@
 # flutter_readium — Web (TypeScript)
 
-TS implementation bundled to JS and loaded in a webview. Wraps the npm ts-toolkit packages `@readium/{shared,navigator,navigator-html-injectables}` (versions in `../package.json`). Repo-wide instructions: `../../CLAUDE.md`.
+TS implementation bundled to JS and loaded in a webview. Wraps the npm ts-toolkit packages `@readium/{shared,navigator,navigator-html-injectables}` (versions in `../package.json`). Repo-wide instructions: `../../AGENTS.md`.
 
 - **Before declaring any web TS changes done:** run `bin/typecheck`, then `bin/update_web_example`. Never hand-edit built JS — bundles are generated and gitignored.
 - **Gate scope:** for TypeScript-only changes, the web checks are sufficient. Run the repo-wide Dart format/analyze gates only when Dart or shared API files also changed.

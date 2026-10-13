@@ -17,7 +17,7 @@
 # publish to pub.dev (OIDC), so it must land on notalib/flutter_readium.
 #
 # The changelog *content* stays hand-curated: write entries under `## Unreleased`
-# as you work (consumer-facing only — see CLAUDE.md), and this script just dates
+# as you work (consumer-facing only — see AGENTS.md), and this script just dates
 # and seals them. It never generates entries from commits.
 #
 # Usage:

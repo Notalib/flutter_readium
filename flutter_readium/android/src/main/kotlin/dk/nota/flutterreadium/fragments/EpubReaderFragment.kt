@@ -723,7 +723,7 @@ class EpubReaderFragment :
      *
      * Note: providing a custom selectionActionModeCallback to Readium fully replaces the
      * WebView's default ActionMode.Callback, so system items are not shown. Do NOT try to
-     * re-add them manually — see CLAUDE.md "Prefer honest limitations over brittle workarounds".
+     * re-add them manually — see AGENTS.md "Prefer honest limitations over brittle workarounds".
      */
     private fun createSelectionActionModeCallback(): ActionMode.Callback {
         // Menu item IDs start at this offset to avoid collisions with system items.
@@ -819,7 +819,7 @@ class EpubReaderFragment :
          *      matching element, so a higher-specificity CSS rule restores its text colour.
          *
          * `background-color` MUST be `!important`: Readium CSS forces every element's
-         * background to transparent when a custom theme is active (see Gotcha in CLAUDE.md);
+         * background to transparent when a custom theme is active (see Gotcha in AGENTS.md);
          * without `!important` the fill would be invisible.
          *
          * `z-index: -1` renders the fill behind the text glyphs (same as the upstream
