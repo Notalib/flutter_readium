@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **Android: `PDFLayout.paginated` is now a real paginated PDF layout.**
+  It previously fell back to horizontal scroll. It now snaps to one page at a time, like on iOS. Fixes #265.
+
+### Changed
+
+- **Android: PDFs now open paginated by default, like iOS.**
+  The default was vertical scroll. Set `PDFLayout.scrollVertical` to keep the old behavior. Also upgrades kotlin-toolkit to 3.4.0.
+
+- **Android: consuming apps must now compile against SDK 37.**
+  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. Raise `compileSdk` in your app's `build.gradle`.
+
 ## [0.6.2] - 2026-10-13
 
 ### Fixed

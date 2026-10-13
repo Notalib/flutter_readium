@@ -65,7 +65,7 @@ Controls the visual appearance of the PDF reader. All fields are optional; omitt
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. |
+| `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. Defaults to `paginated` on iOS and Android. |
 | `readingProgression` | `PDFReadingProgression?` | `ltr` or `rtl`. |
 | `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Must be `>= 0`. |
 | `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. |
