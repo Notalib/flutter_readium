@@ -74,9 +74,8 @@ export function ttsPreferencesFromJson(json: Record<string, any>): WebTTSPrefere
 
 /**
  * Serialises the browser voice list to a JSON string matching the Dart
- * ReaderTTSVoice schema.  Gender/quality are NOT emitted here — they are
- * enriched automatically by ReaderTTSVoiceUtils in the Dart platform-interface
- * layer using the bundled voices.json from https://readium.org/speech/.
+ * ReaderTTSVoice schema. Readium Speech label, gender, and quality metadata
+ * are added after deserialization by the Dart platform-interface layer.
  */
 export async function serializeVoices(): Promise<string> {
   const voices = await getAvailableVoicesAsync();
