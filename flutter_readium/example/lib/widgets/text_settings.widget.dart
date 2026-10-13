@@ -35,7 +35,7 @@ class _TextSettingsWidgetState extends State<TextSettingsWidget> {
     final state = textSettingsBloc.state;
     // On web, the Paginated/Scroll toggle (and other layout-affecting EPUB
     // preferences) only works for publications that declare the EPUB profile —
-    // see CLAUDE.md "Gotchas". Use the current publication's conformance to
+    // see AGENTS.md "Gotchas". Use the current publication's conformance to
     // decide whether to enable the toggle below.
     final publication = context.watch<PublicationBloc>().state.publication;
     final scrollToggleDisabled = kIsWeb && !(publication?.conformsToReadiumEbook ?? false);
@@ -257,7 +257,7 @@ class _LayoutSection extends StatelessWidget {
         // routed to WebPubNavigator — upstream `IWebPubPreferences` has no
         // `scroll` field, so the web mapper silently drops it. Only
         // EPUB-profile publications (`Profile.EPUB` in `metadata.conformsTo`)
-        // honor it on web. See `flutter_readium/CLAUDE.md` "Gotchas" and
+        // honor it on web. See `AGENTS.md` "Gotchas" and
         // `flutter_readium/web/src/preferences/FlutterWebPubPreferences.ts`
         // (`WEBPUB_UNSUPPORTED_KEYS`). We disable the toggle on web for
         // non-EPUB publications and surface the reason via a tooltip.

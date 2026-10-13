@@ -75,7 +75,7 @@ extension EPUBReaderView {
   ///
   /// `background-color` MUST be `!important`: Readium CSS forces every element's
   /// background to transparent when a custom theme is active (see Gotcha in
-  /// CLAUDE.md); without `!important` the fill would be invisible.
+  /// AGENTS.md); without `!important` the fill would be invisible.
   ///
   /// `z-index: -1` renders the fill behind the text glyphs (same as the upstream
   /// highlight/underline templates). This keeps the text colour

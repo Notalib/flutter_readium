@@ -1,6 +1,6 @@
 # flutter_readium
 
-> This file is derived from `CLAUDE.md` and intentionally condensed for Copilot. Keep behavior/tooling guidance in sync with `CLAUDE.md`.
+> This file is derived from `AGENTS.md` and intentionally condensed for Copilot. Keep behavior/tooling guidance in sync with `AGENTS.md`.
 
 A Flutter plugin wrapping the [Readium](https://readium.org) toolkits for EPUB / audiobook / WebPub reading. The Dart API is shared across iOS, Android, and Web; each platform delegates to the matching native Readium toolkit. macOS registers a no-op stub only — native macOS is unsupported by upstream swift-toolkit.
 

@@ -98,7 +98,7 @@ check_ios_sync() {
 
   if [ "$status" -ne 0 ]; then
     echo "" >&2
-    echo "Bump every iOS pin together. See Upstream toolkits in CLAUDE.md." >&2
+    echo "Bump every iOS pin together. See Upstream toolkits in AGENTS.md." >&2
   fi
   return "$status"
 }
