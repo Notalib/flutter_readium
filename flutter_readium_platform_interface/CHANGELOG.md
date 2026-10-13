@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+## [0.6.2] - 2026-10-13
+
 ### Fixed
 
 - **Web could be reported as iOS or Android on mobile browsers.** The browser user agent can influence
