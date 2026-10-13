@@ -9,6 +9,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - **iOS: `resume()` after `audioEnable(fromLocator:)` played a media-overlay book from 0:00.**
   The initial locator was mapped before the media overlays loaded. It is now mapped after they load.
+- **Android: Google Play rejected apps under its Photo and Video Permissions policy.**
+  The plugin declared `READ_EXTERNAL_STORAGE` without using it, and Play counts it as broad media access. The permission is removed. Apps that open books from shared storage on Android 12 or lower must declare it themselves.
 
 ## [0.6.1] - 2026-10-06
 
