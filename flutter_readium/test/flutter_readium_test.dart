@@ -17,6 +17,9 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   EPUBPreferences? defaultPreferences;
 
+  @override
+  PDFPreferences? defaultPDFPreferences;
+
   final _textLocatorController = StreamController<Locator>.broadcast();
   final _statusController = StreamController<ReadiumReaderStatus>.broadcast();
   final _timebasedController = StreamController<ReadiumTimebasedState>.broadcast();
@@ -59,6 +62,11 @@ class MockFlutterReadiumPlatform with MockPlatformInterfaceMixin implements Flut
   @override
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
+  }
+
+  @override
+  void setDefaultPDFPreferences(PDFPreferences preferences) {
+    defaultPDFPreferences = preferences;
   }
 
   static Publication _pub(String title) => Publication(
@@ -232,6 +240,14 @@ void main() {
       final prefs = EPUBPreferences(fontSize: 1.5);
       reader.setDefaultPreferences(prefs);
       expect(platform.defaultPreferences, prefs);
+    });
+  });
+
+  group('setDefaultPDFPreferences', () {
+    test('stores preferences on the platform', () {
+      const prefs = PDFPreferences(layout: PDFLayout.scrollVertical);
+      reader.setDefaultPDFPreferences(prefs);
+      expect(platform.defaultPDFPreferences, prefs);
     });
   });
 

@@ -81,6 +81,14 @@ await reader.setPDFPreferences(const PDFPreferences(
 ));
 ```
 
+To open every PDF in the same layout without a visible jump, set the default before the reader widget is built. `setPDFPreferences` also updates this default, so the last layout you chose is kept for the next PDF.
+
+```dart
+reader.setDefaultPDFPreferences(const PDFPreferences(
+  layout: PDFLayout.scrollVertical,
+));
+```
+
 ## TTSPreferences
 
 | Field | Type | Description |

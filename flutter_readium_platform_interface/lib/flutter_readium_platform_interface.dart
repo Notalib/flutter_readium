@@ -58,6 +58,17 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
     _defaultPreferences = value;
   }
 
+  PDFPreferences? _defaultPDFPreferences;
+
+  /// Default PDF preferences applied to every PDF opened by a reader widget.
+  /// Use [setDefaultPDFPreferences] to update.
+  PDFPreferences? get defaultPDFPreferences => _defaultPDFPreferences;
+
+  @protected
+  set defaultPDFPreferences(PDFPreferences? value) {
+    _defaultPDFPreferences = value;
+  }
+
   /// Sets custom HTTP headers forwarded to the native HTTP layer for all network requests.
   Future<void> setCustomHeaders(Map<String, String> headers) => throw UnimplementedError(
     'setCustomHeaders(headers) has not been implemented.',
@@ -91,6 +102,11 @@ abstract class FlutterReadiumPlatform extends PlatformInterface {
   /// Stores [preferences] as the default EPUB preferences applied to future publications.
   void setDefaultPreferences(EPUBPreferences preferences) {
     defaultPreferences = preferences;
+  }
+
+  /// Stores [preferences] as the default PDF preferences applied to future PDF readers.
+  void setDefaultPDFPreferences(PDFPreferences preferences) {
+    defaultPDFPreferences = preferences;
   }
 
   /// Load publication manifest from URL, which is usually a packaged ebook or direct URL to a manifest.
