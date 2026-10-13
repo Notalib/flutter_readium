@@ -24,6 +24,7 @@ example/test_driver/
 .github/
 .vscode/
 .dart_tool/
+node_modules/
 build/
 docs/
 
