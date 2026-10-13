@@ -19,7 +19,18 @@ struct FlutterMediaOverlay {
   }
 
   func itemInRangeOfTime(_ time: Double, inHref href: String) -> FlutterMediaOverlayItem? {
-    return items.first {item in item.isAudioInRangeOfTime(time, inHref: href)}
+    if let current = items.first(where: {
+      $0.isAudioInRangeOfTime(time, inHref: href)
+    }) {
+      return current
+    }
+
+    // No cue contains this time, select the next upcoming cue
+    return items.first {item in guard item.audioFile == href || item.textFile == href, let start = item.audioStart else{
+      return false
+    }
+      return time < start
+    }
   }
   
   func itemFromTextId(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {
@@ -158,7 +169,7 @@ struct FlutterMediaOverlayItem {
     // The end is exclusive so a shared boundary belongs to the next cue.
     // Malformed or missing ends are treated as open-ended from the start.
     guard let end = audioEnd, end >= start else { return time >= start }
-    return (time >= start && time < end) || time < start
+    return (time >= start && time < end)
   }
   
   // MARK: Locators

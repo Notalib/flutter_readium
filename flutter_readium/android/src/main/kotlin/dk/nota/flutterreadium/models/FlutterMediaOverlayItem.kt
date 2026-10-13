@@ -136,7 +136,7 @@ data class FlutterMediaOverlayItem(
         val start = audioStart ?: return false
         val end = audioEnd ?: return time >= start // No end value, check if time is after start.
         // Make the end exclusive so an exact cue boundary belongs to the next cue.
-        return (time in start..<end) || time < start
+        return (time in start..<end)
     }
 
     /**

@@ -91,7 +91,18 @@ data class FlutterMediaOverlay(
         time: Double,
     ): FlutterMediaOverlayItem? {
         val href = Url.invoke(fileHref) ?: return null
-        return items.firstOrNull { item -> item.isInRange(href, time) }
+
+        val current = items.firstOrNull { item -> item.isInRange(href, time) }
+        if (current != null) return current
+
+        return items.firstOrNull { item ->
+            val matchesResource =
+                href.isEquivalent(Url.invoke(item.audioFile)) ||
+                    href.isEquivalent(Url.invoke(item.textFile))
+            val start = item.audioStart
+
+            matchesResource && start != null && time < start
+        }
     }
 
     /**
