@@ -66,12 +66,12 @@ A live Android example app hot reload also passed after the Dart changes.
   previously passed the old suite and are removed from the validated source.
 - Five web boundary tests failed before the production fix. The Sync-only half-open interval
   correction resolves them while preserving Guided Navigation behavior.
-- One new synthetic fixture, `adr-sync-narration-ownership`, is committed locally in
-  `readium-test-resources` as `4a23591` on `test/sync-narration-adr`. It covers the missing
+- One new synthetic fixture, `adr-sync-narration-ownership`, was merged in
+  [readium-test-resources #3](https://github.com/Notalib/readium-test-resources/pull/3)
+  as `8173e3d`; its source matches the tested `4a23591` unchanged. It covers the missing
   integration shapes using two text files and one 22-second audio track. Parser-only
   edge cases use small inline inputs; no additional packaged fixtures are needed.
-  Merge the source fixture before dependent plugin CI runs: the fetch action clones
-  source `main` without pinning this new branch.
+  Dependent plugin CI can now fetch the fixture from source `main`.
 
 ## Build and analysis gates
 
@@ -92,5 +92,4 @@ Hosted CI has not been run for these edits.
 The integration tests do not cover every parser edge. Direct content taps/manual gesture
 dispatch, physical devices, multi-audio playback, and the full native integration aggregators remain
 unrun. Existing malformed/open-ended native timing differences are preserved outside
-this ADR's shared valid-cue contract. The synthetic source fixture is not yet available
-to hosted CI until its source change is merged.
+this ADR's shared valid-cue contract.
