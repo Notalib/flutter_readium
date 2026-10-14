@@ -92,7 +92,34 @@ an assertion failure. A [targeted rerun](https://github.com/Notalib/flutter_read
 passed 69 tests in 18 minutes 55 seconds overall on 2026-10-15. The unit workflow now has
 a 30-minute job budget, a 20-minute test-step limit, and retained Xcode log/result-bundle
 artifacts. Its new command also passed all 69 tests locally on iOS 26.5 and produced a
-valid result bundle; hosted validation of the updated workflow is pending.
+valid result bundle. The [updated hosted run](https://github.com/Notalib/flutter_readium/actions/runs/38652287144/job/116153745914)
+passed all 69 tests in 14 minutes overall on the standard runner.
+
+### iOS unit-test performance follow-up
+
+The unit job now uses `macos-26-xlarge`, matching the integration runner. It retains the
+separate simulator/job because XCTest previously shut down a simulator shared with
+integration tests. A dedicated `ReadiumUnitTests` DerivedData directory caches compiled
+outputs separately from integration builds. Keys include the actual Xcode version/build,
+runner architecture, Flutter pin, dependency manifests/locks and commit. Compatible source
+changes can restore the previous build, while toolchain/dependency changes start cold.
+Cache status and runner resources are logged; cold/warm hosted timings are pending.
+
+The ownership and locator tests could move into a smaller iOS logic-test target using
+`ReadiumShared`, the overlay model, media-time helper and relevant locator extensions.
+The model itself does not import Flutter. However, the current tests import the complete
+`flutter_readium` module; its package includes Flutter, ReadiumNavigator and the remaining
+plugin. Locator helpers also share a file with navigator/publication extensions. A useful
+split would compile these same production sources without duplicating their logic and
+keep bridge/playback tests in the app-hosted suite.
+
+An isolated local test on iOS 26.5 cleared `TEST_HOST` and `BUNDLE_LOADER` and selected
+`FlutterMediaOverlayTests` / `FlutterMediaOverlayTocTests`. Compilation succeeded, but
+XCTest could not load the bundle because `CryptoSwift.framework` was unavailable outside
+the app's framework embedding. No selected tests executed. The current scheme also still
+built Runner, so changing these settings alone does not remove the expensive build.
+A separate target and dependency separation are follow-up work; the CI suite retains all
+69 app-hosted tests. No Swift sources or test-target settings changed in this optimization.
 
 ## Limits and unrun checks
 
