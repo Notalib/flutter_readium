@@ -53,9 +53,9 @@ jobs:
           path: ~/Library/Developer/Xcode/DerivedData/ReadiumUnitTests
           # Keep unit and integration builds separate. Restore compatible builds
           # across source changes, but never across Xcode, Flutter or dependency changes.
-          key: ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-${{ github.sha }}
+          key: ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-${{ github.sha }}
           restore-keys: |
-            ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-
+            ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-
 
       - name: Report unit-test runner and cache status
         run: |
@@ -128,6 +128,8 @@ jobs:
             -scheme Runner \
             -derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/ReadiumUnitTests" \
             -only-testing:RunnerTests \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES \
             -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID,arch=$(uname -m)" \
             -resultBundlePath "$RUNNER_TEMP/ios-unit-tests.xcresult" \
             2>&1 | tee "$RUNNER_TEMP/ios-unit-tests.log"

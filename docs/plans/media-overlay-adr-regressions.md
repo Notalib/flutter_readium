@@ -101,9 +101,23 @@ The unit job now uses `macos-26-xlarge`, matching the integration runner. It ret
 separate simulator/job because XCTest previously shut down a simulator shared with
 integration tests. A dedicated `ReadiumUnitTests` DerivedData directory caches compiled
 outputs separately from integration builds. Keys include the actual Xcode version/build,
-runner architecture, Flutter pin, dependency manifests/locks and commit. Compatible source
+runner architecture, Flutter pin, CocoaPods/SwiftPM dependency manifests/locks and commit. Compatible source
 changes can restore the previous build, while toolchain/dependency changes start cold.
-Cache status and runner resources are logged; cold/warm hosted timings are pending.
+Cache status and runner resources are logged.
+
+On 2026-10-15, the [first optimized run](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116160517462)
+passed all 69 tests in 6 minutes 22 seconds with an empty compiled-output cache, versus
+14 minutes in the previous standard-runner run and 18 minutes 55 seconds in its earlier
+retry. Its build window was approximately 2 minutes 39 seconds, followed by roughly one
+minute for test launch/execution/reporting. The job saved a 699 MB compressed build cache.
+The full workflow, quality and Android/web unit checks also passed. The [same-commit warm
+rerun](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116164766289)
+passed all 69 tests in 6 minutes 14 seconds, but still scheduled all 1,293 Swift compile
+log entries. An exact DerivedData cache hit alone therefore did not establish incremental
+build reuse on fresh runners. The follow-up enables Xcode's supported compilation cache
+and its diagnostic remarks; its content-based results are stored within the cached
+DerivedData directory. This also adds the tracked SwiftPM lockfile to cache compatibility.
+Hosted cold/warm validation of this follow-up is pending.
 
 The ownership and locator tests could move into a smaller iOS logic-test target using
 `ReadiumShared`, the overlay model, media-time helper and relevant locator extensions.
