@@ -46,6 +46,7 @@ jobs:
               - 'flutter_readium/package-lock.json'
             ci:
               - '.github/workflows/ci.yml'
+              - '.github/workflows/ios-unit-tests.yml'
               - '.github/workflows/build-android.yml'
               - '.github/workflows/build-ios.yml'
               - '.github/workflows/build-web.yml'
@@ -78,6 +79,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.ios == 'true'
     uses: ./.github/workflows/integration-test-ios.yml
+
+  ios-unit-tests:
+    name: iOS Native Unit Tests
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/ios-unit-tests.yml
 
   integration-android:
     name: Integration Tests Android

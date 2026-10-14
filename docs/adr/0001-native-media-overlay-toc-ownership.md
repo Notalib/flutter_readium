@@ -1,6 +1,6 @@
 # ADR 0001: Sync Narration ToC ownership and navigation
 
-- **Status:** Accepted; native implementation validated on simulators. Web implementation validated by focused ChromeDriver integration with autoplay enabled.
+- **Status:** Accepted; see the [latest regression and validation record](../plans/media-overlay-adr-regressions.md) for current evidence and remaining checks.
 - **Date:** 2026-10-13
 - **Scope:** Sync Narration on iOS, Android and web.
 - **Tasks:** [Native checklist](../plans/native-media-overlay-toc-context.md), [web checklist](../plans/web-media-overlay-toc-context.md)
@@ -88,6 +88,13 @@ navigation acknowledgment remains unchanged; measure playback position, not that
 Fragmentless links retain their existing resource/progression navigation. Explicit audio
 time, image lookup and locator serialization keep their existing priorities and formats.
 
+Sync time ranges include the start and exclude the end: at a shared boundary, the
+starting cue owns the position. Apply this to both navigation and playback events;
+otherwise a correct section seek can still report the previous section. Keep existing
+platform behavior for untimed or malformed fragments; this decision does not introduce
+a common validation policy for those inputs. Guided Navigation keeps its existing
+boundary behavior.
+
 On web, the shared mapper opts into this policy only for Sync Narration. Active `goTo`
 and `play` requests use the installed audio publication, which may differ from newly
 loaded publication flags. Guided Navigation retains its parser, global enrichment and
@@ -136,9 +143,12 @@ multi-audio playback limitation is resolved.
 ## Validation and follow-up
 
 Keep equivalent Swift/Kotlin cases for ownership and lookup. Use the current #259 fixture
-for native integration tests that assert both `tocHref` and seek destination while audio
-is already in the same file. Include an unknown-anchor no-rewind check. Preserve the
+for shared integration tests that assert both `tocHref` and seek destination while audio
+is already in the same file. Include unknown-anchor no-rewind and cross-resource fallback
+checks. Use the synthetic ownership fixture for nested-list restoration, file boundaries
+and repeated structural anchors on all three platforms. Preserve the
 [locator-field compensation](../plans/locator-field-priority.md).
 
-Record actual test/build/device results in the task checklist. Mark implementation
-complete only after those checks; report unavailable device evidence explicitly.
+Record actual test/build/device results in the task checklists and the
+[regression record](../plans/media-overlay-adr-regressions.md). Report unavailable device
+evidence explicitly.

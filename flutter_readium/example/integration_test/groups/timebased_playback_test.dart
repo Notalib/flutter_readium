@@ -130,7 +130,11 @@ void main() {
         );
         await waitWithPump(
           tester,
-          () => states.any((state) => state.currentLocator?.locations?.cssSelector == '#uwlh00011'),
+          () => states.any(
+            (state) =>
+                state.currentLocator?.locations?.cssSelector == '#uwlh00011' &&
+                state.currentLocator?.locations?.tocHref == tocLink.href,
+          ),
           timeout: const Duration(seconds: 30),
           reason: 'Reader did not seek to the later cue in the same section',
         );
@@ -171,6 +175,113 @@ void main() {
           ),
           timeout: const Duration(seconds: 30),
           reason: 'Known same-resource ToC section did not seek back to its first cue',
+        );
+        states.clear();
+        final firstHref = pub.readingOrder.first.href;
+        await harness.readium.goToLocator(
+          Locator(
+            href: firstHref,
+            type: 'application/xhtml+xml',
+            locations: const Locations(cssSelector: '#unknown-anchor'),
+          ),
+        );
+        await waitWithPump(
+          tester,
+          () => states.any(
+            (state) =>
+                state.currentLocator?.href.endsWith(firstHref) == true &&
+                state.currentLocator?.locations?.cssSelector == '#uwlh00005' &&
+                state.currentOffset != null &&
+                state.currentOffset! < const Duration(seconds: 2),
+          ),
+          timeout: const Duration(seconds: 30),
+          reason: 'Unknown cross-resource anchor did not use the first cue fallback',
+          diagnostics: () => 'states=$states',
+        );
+        await harness.readium.pause();
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
+      'Sync Narration restores headings and follows text-resource boundaries',
+      (tester) async {
+        final path = harness.fixturePath(FixtureKeys.adrSyncOwnership);
+        final pub = await harness.readium.openPublication(path);
+        final states = <ReadiumTimebasedState>[];
+        final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+        final textLocators = <Locator>[];
+        final textSub = harness.readium.onTextLocatorChanged.listen(textLocators.add);
+        addTearDown(textSub.cancel);
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => textLocators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Synthetic ownership fixture did not mount',
+        );
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+        await waitWithPump(
+          tester,
+          () => states.any((state) => state.state == TimebasedState.playing && state.currentOffset != null),
+          timeout: const Duration(seconds: 30),
+          reason: 'Synthetic narration did not start playing',
+          diagnostics: () => 'states=$states',
+        );
+
+        final cases = <({int time, String href, String selector, String owner})>[
+          (time: 7, href: 'one.xhtml', selector: '#paragraph-b', owner: 'one.xhtml#heading-b'),
+          (time: 9, href: 'one.xhtml', selector: '#after-wrapper', owner: 'one.xhtml#heading-a'),
+          (time: 11, href: 'one.xhtml', selector: '#inside-section', owner: 'one.xhtml#shared-section'),
+          (time: 13, href: 'one.xhtml', selector: '#after-container', owner: 'one.xhtml#heading-a'),
+          (time: 15, href: 'two.xhtml', selector: '#boundary', owner: 'two.xhtml'),
+          (time: 17, href: 'two.xhtml', selector: '#inside-section', owner: 'two.xhtml#shared-section'),
+          (time: 19, href: 'two.xhtml', selector: '#after-boundary', owner: 'two.xhtml'),
+        ];
+        for (final item in cases) {
+          states.clear();
+          await harness.readium.goToLocator(
+            Locator(
+              href: item.href,
+              type: 'application/xhtml+xml',
+              locations: Locations(fragments: ['t=${item.time}']),
+            ),
+          );
+          await waitWithPump(
+            tester,
+            () => states.any(
+              (state) =>
+                  state.currentLocator?.href.endsWith(item.href) == true &&
+                  state.currentLocator?.locations?.cssSelector == item.selector &&
+                  state.currentLocator?.locations?.tocHref == item.owner,
+            ),
+            timeout: const Duration(seconds: 30),
+            reason: 'Wrong section at ${item.href}:${item.time}s; expected ${item.owner}',
+            diagnostics: () => 'states=$states',
+          );
+        }
+
+        states.clear();
+        final repeatedSection = pub.tocFlattened.singleWhere((link) => link.href == 'two.xhtml#shared-section');
+        final repeatedLocator = pub.locatorFromLink(repeatedSection)!;
+        await harness.readium.goToLocator(repeatedLocator);
+        await waitWithPump(
+          tester,
+          () => states.any(
+            (state) =>
+                state.currentLocator?.href.endsWith('two.xhtml') == true &&
+                state.currentLocator?.locations?.cssSelector == '#inside-section' &&
+                state.currentLocator?.locations?.tocHref == repeatedSection.href &&
+                state.currentOffset != null &&
+                state.currentOffset! >= const Duration(seconds: 16) &&
+                state.currentOffset! < const Duration(seconds: 18),
+          ),
+          timeout: const Duration(seconds: 30),
+          reason: 'Repeated structural ID selected the first resource instead of the second',
+          diagnostics: () =>
+              'request=${repeatedLocator.toJson()}, states=${states.map((state) => state.toJson()).toList()}',
         );
         await harness.readium.pause();
         await tester.pumpWidget(const SizedBox());

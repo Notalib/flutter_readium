@@ -2,7 +2,7 @@
 
 **Decision:** [ADR 0001](../adr/0001-native-media-overlay-toc-ownership.md).
 **Base:** `c23c3abc`; native dependency [PR #274](https://github.com/Notalib/flutter_readium/pull/274).
-**Status:** Implemented locally; focused ChromeDriver integration passed with autoplay enabled.
+**Status:** Implemented; see the [latest ADR 0001 regression record](media-overlay-adr-regressions.md). Both shared focused cases now pass on Chrome with autoplay enabled and range-capable fixture serving.
 
 ## Scope and tasks
 
@@ -32,7 +32,9 @@ outside this change. Web fragmentless/progression mapping keeps its existing beh
 this change does not promise identical native/web progression calculations. Browser
 coverage exercises API-driven navigation, not physical content-tap dispatch.
 
-## Validation
+## Initial implementation validation
+
+The record below predates the coverage follow-up linked above.
 
 ChromeDriver passed warm-up plus the shared ToC case, then passed again against the
 latest bundle and diagnostic-enhanced shared test: first cue/owner, later `t=10`

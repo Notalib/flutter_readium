@@ -1,14 +1,10 @@
 name: iOS Unit Tests
 
-# workflow_dispatch only, on purpose: this used to be a step inside
-# integration-test-ios.yml, but xcodebuild test runs RunnerTests on an
-# ephemeral "Clone N of <device>" and leaves the shared simulator Shutdown
-# once the test session ends — which broke the following `flutter test
-# --device-id` step there (see incident:
-# https://github.com/Notalib/flutter_readium/actions/runs/28591293702/job/84775289147).
-# Kept here, manually triggerable, until it gets its own runner/simulator and
-# is wired into ci.yml for real.
+# Give app-hosted unit tests their own runner; XCTest can shut down the simulator.
+# Sharing it with integration tests caused:
+# https://github.com/Notalib/flutter_readium/actions/runs/28591293702/job/84775289147.
 on:
+  workflow_call:
   workflow_dispatch:
 
 jobs:
