@@ -260,11 +260,11 @@ class _ReadiumReader {
       // the chapter top. See issue #139.
       const curAudioLoc = this._audioNav.currentLocator;
       const curTime = getTime(curAudioLoc.locations) ?? this._audioNav.currentTime;
-      const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime);
-      const crossResource =
-        !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
       const useSyncNarrationLookup = !!this._audioNavPublication &&
         detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+      const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime, useSyncNarrationLookup);
+      const crossResource =
+        !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
       const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource, useSyncNarrationLookup);
       if (audioLocator) {
         const wasPlaying = this._audioNav.isPlaying;

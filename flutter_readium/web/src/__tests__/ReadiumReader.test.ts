@@ -504,6 +504,18 @@ describe("active Sync Narration navigation", () => {
     expect(nav.currentLocator).toBe(currentLocator);
     expect(nav.isPlaying).toBe(playing);
   });
+  it("unknown target in the starting resource at a boundary cannot enable fallback", async () => {
+    const {reader, nav, seek} = session();
+    nav.currentLocator = new Locator({href: "chap.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=16"]})});
+    nav.currentTime = 16;
+    (reader as any)._syncItems = [
+      {textHref: "one.xhtml", textId: "boundary", audioHref: "chap.mp3", audioStart: 14, audioEnd: 16},
+      {textHref: "two.xhtml", textId: "heading", audioHref: "chap.mp3", audioStart: 16, audioEnd: 18},
+    ];
+    const locator = new Locator({href: "two.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["unknown"]})});
+    await reader.goTo(JSON.stringify(locator.serialize()));
+    expect(seek).not.toHaveBeenCalled();
+  });
   it("both formats retain Guided priority for active goTo", async () => {
     const {reader, seek} = session(true);
     await reader.goTo(target("section"));

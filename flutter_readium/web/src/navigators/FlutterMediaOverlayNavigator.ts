@@ -142,7 +142,7 @@ async function _initializeFromItems(
 
   const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
     const resolvedTime = getTime(audioLocator.locations) ?? _nav.currentTime;
-    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
+    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime, sourceLabel === "SyncNarration");
     if (item) {
       const detailedTextLocator = textLocatorForItem(item);
       const publicTextLocator = _coarseLocatorForPublicEvent(detailedTextLocator);
@@ -216,7 +216,7 @@ async function _initializeFromItems(
     const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
     const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
     const initItem = initHref
-      ? findItemByAudioTime(resolvedItems, initHref, initTime) ?? resolvedItems[0]
+      ? findItemByAudioTime(resolvedItems, initHref, initTime, sourceLabel === "SyncNarration") ?? resolvedItems[0]
       : resolvedItems[0];
     if (initItem) {
       const initDurationMs =

@@ -83,3 +83,34 @@ it("combined bridge locator retains assigned owner and cue selector", async () =
   const mapped = mapper({currentTime: 2} as never, audio).stateLocator.serialize();
   expect(mapped.locations).toMatchObject({cssSelector: "#p1", tocHref: "chap.xhtml#section", position: 2, progression: .4, totalProgression: .4});
 });
+
+
+it.each([
+  ["Sync", initializeMediaOverlayNavigator, "heading", "two.xhtml#section"],
+  ["Guided", initializeGuidedNavigationNavigator, "boundary", "one.xhtml#section"],
+] as const)("%s event mapper and initial cue respect their boundary policy", async (_label, initialize, id, owner) => {
+  const original = [...ITEMS];
+  const cue = (textHref: string, textId: string, start: number, end: number, tocHref: string): SyncNarrationItem => ({
+    audio: `audio/01.mp3#t=${start},${end}`, audioHref: "audio/01.mp3", audioStart: start, audioEnd: end,
+    text: `${textHref}#${textId}`, textHref, textId, position: 0, tocHref,
+  });
+  ITEMS.splice(0, ITEMS.length,
+    cue("one.xhtml", "boundary", 14, 16, "one.xhtml#section"),
+    cue("two.xhtml", "heading", 16, 18, "two.xhtml#section"));
+  try {
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const onText = jest.fn();
+    const initial = new Locator({href: "two.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["heading"]})});
+    await initialize(publication(), initial, "{}", () => {}, onText);
+    expect(onText.mock.calls[0][0].locations.otherLocations.get("cssSelector")).toBe(`#${id}`);
+    expect(onText.mock.calls[0][0].locations.otherLocations.get("tocHref")).toBe(owner);
+    const mapper = create.mock.calls[0][4]!;
+    const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=16"]})});
+    const mapped = mapper({currentTime: 16} as never, audio).stateLocator;
+    expect(mapped.locations.otherLocations?.get("cssSelector")).toBe(`#${id}`);
+    expect(mapped.locations.otherLocations?.get("tocHref")).toBe(owner);
+    expect(mapped.href).toBe(_label === "Sync" ? "two.xhtml" : "one.xhtml");
+  } finally {
+    ITEMS.splice(0, ITEMS.length, ...original);
+  }
+});

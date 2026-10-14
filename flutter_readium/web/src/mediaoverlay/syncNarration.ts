@@ -260,9 +260,7 @@ export function textLocatorToAudioLocator(
       normalizeHref(item.textHref) === targetHrefNormalized ||
       normalizeHref(item.audioHref) === targetHrefNormalized
     );
-    match = resourceItems.find((item) => item.audioStart !== null &&
-      requestedTime >= item.audioStart && (item.audioEnd === null || item.audioEnd < item.audioStart || requestedTime < item.audioEnd)
-    ) ?? resourceItems.find((item) => item.audioStart !== null && item.audioStart > requestedTime);
+    match = resourceItems.find((item) => _isSyncTimeInRange(item, requestedTime)) ?? resourceItems.find((item) => item.audioStart !== null && item.audioStart > requestedTime);
     if (!match) return undefined;
   } else if (targetId) {
     match = hrefMatches.find((item) => item.textId === targetId);
@@ -325,7 +323,7 @@ export function textLocatorToAudioLocator(
 
 /**
  * Finds the SyncNarrationItem that covers a given audio position.
- * Mirrors FlutterMediaOverlay.itemInRangeOfTime.
+ * Sync lookup uses native half-open intervals; Guided retains inclusive ends.
  *
  * @param items   All parsed items (ordered by position).
  * @param audioHref  The href of the currently-playing audio file.
@@ -334,7 +332,8 @@ export function textLocatorToAudioLocator(
 export function findItemByAudioTime(
   items: SyncNarrationItem[],
   audioHref: string,
-  timeSecs: number
+  timeSecs: number,
+  useSyncNarrationLookup = false
 ): SyncNarrationItem | undefined {
   // Normalise hrefs for comparison (strip leading slash / URL prefix if any).
   const normHref = normalizeHref(audioHref);
@@ -343,11 +342,19 @@ export function findItemByAudioTime(
     if (normalizeHref(item.audioHref) !== normHref) continue;
     const start = item.audioStart ?? 0;
     const end = item.audioEnd;
-    if (timeSecs >= start && (end === null || timeSecs <= end)) {
+    if (useSyncNarrationLookup
+      ? _isSyncTimeInRange(item, timeSecs)
+      : timeSecs >= start && (end === null || timeSecs <= end)) {
       return item;
     }
   }
   return undefined;
+}
+
+function _isSyncTimeInRange(item: SyncNarrationItem, time: number): boolean {
+  const start = item.audioStart;
+  const end = item.audioEnd;
+  return start !== null && time >= start && (end === null || end < start || time < end);
 }
 
 // ---------------------------------------------------------------------------
