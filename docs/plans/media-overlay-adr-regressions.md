@@ -41,8 +41,9 @@ The table below distinguishes end-to-end evidence from parser/lookup-only covera
 
 The full web integration aggregator passed, including Guided playback followed by reader
 mounting, image resource loading, decorations, fixed-layout and DiViNa navigation. Native
-full aggregators were not run; their two ADR-focused cases passed. Existing platform-gated
-cases retain their normal exclusions.
+full aggregators subsequently passed in hosted CI; local native integration validation
+covered the two ADR-focused cases. Existing platform-gated cases retain their normal
+exclusions.
 
 To reproduce the native focused runs from `flutter_readium/example`:
 
@@ -85,11 +86,16 @@ ignores Range requests: a fresh Chrome audio element returned to zero after seek
 new MP3 to 16 seconds, while the same bytes as a downloaded blob sought correctly.
 Changing encoding or pausing before the seek did not solve it. With the fixture server,
 the original playing-seek sequence and actual 16–18 second offset assertion pass.
-Hosted CI has not been run for these edits.
+The first hosted #276 run passed quality, Android/web unit tests and all three full
+integration aggregators. Its iOS unit job hit the 20-minute job timeout without reporting
+an assertion failure. A [targeted rerun](https://github.com/Notalib/flutter_readium/actions/runs/38573569292/job/116146080654)
+passed 69 tests in 18 minutes 55 seconds overall on 2026-10-15. The unit workflow now has
+a 30-minute job budget, a 20-minute test-step limit, and retained Xcode log/result-bundle
+artifacts. Its new command also passed all 69 tests locally on iOS 26.5 and produced a
+valid result bundle; hosted validation of the updated workflow is pending.
 
 ## Limits and unrun checks
 
 The integration tests do not cover every parser edge. Direct content taps/manual gesture
-dispatch, physical devices, multi-audio playback, and the full native integration aggregators remain
-unrun. Existing malformed/open-ended native timing differences are preserved outside
+dispatch, physical devices and multi-audio playback remain unrun. Existing malformed/open-ended native timing differences are preserved outside
 this ADR's shared valid-cue contract.
