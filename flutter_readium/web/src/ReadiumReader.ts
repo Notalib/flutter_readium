@@ -18,7 +18,14 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
-import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
+import {
+  FlutterAudioNavigator,
+  isPlayingOrResuming,
+  pauseForUser,
+  seekAudioAndResume,
+  setAudioEmissionsEnabled,
+  setResuming,
+} from "./navigators/FlutterAudioNavigator";
 import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
@@ -270,7 +277,7 @@ class _ReadiumReader {
       const anchored = useSyncNarrationLookup ? await this._anchorUncuedTextLocator(locator) : locator;
       const audioLocator = textLocatorToAudioLocator(this._syncItems, anchored, crossResource, useSyncNarrationLookup);
       if (audioLocator) {
-        const wasPlaying = this._audioNav.isPlaying;
+        const wasPlaying = isPlayingOrResuming(this._audioNav);
         log.info(
           "goTo: MediaOverlay — seeking audio to",
           audioLocator.href,
@@ -329,7 +336,7 @@ class _ReadiumReader {
         );
         return;
       }
-      const wasPlaying = this._audioNav.isPlaying;
+      const wasPlaying = isPlayingOrResuming(this._audioNav);
       await this._seekAudioAndResume(audioLocator, wasPlaying);
       return;
     }
@@ -915,6 +922,7 @@ class _ReadiumReader {
       }
     }
     FlutterAudioNavigator.setPlaybackIntent(true);
+    setResuming(this._audioNav, true);
     this._audioNav.play();
   }
 
@@ -922,14 +930,16 @@ class _ReadiumReader {
     log.debug("pause");
     if (this._ttsEngine) { this._ttsEngine.pause(); return; }
     FlutterAudioNavigator.setPlaybackIntent(false);
-    this._audioNav?.pause();
+    if (this._audioNav) pauseForUser(this._audioNav);
   }
 
   public resume(): void {
     log.debug("resume");
     if (this._ttsEngine) { this._ttsEngine.resume(); return; }
     FlutterAudioNavigator.setPlaybackIntent(true);
-    this._audioNav?.play();
+    if (!this._audioNav) return;
+    setResuming(this._audioNav, true);
+    this._audioNav.play();
   }
 
   public stop(): void {

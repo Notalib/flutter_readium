@@ -303,6 +303,55 @@ function isAlreadyAtPosition(
   return Math.abs(targetTime - nav.currentTime) <= SAME_POSITION_EPSILON_S;
 }
 
+// Upstream sets isPlaying only once mediaElement.play() resolves. A seek in that gap must still
+// pause and resume, or go() swallows the late "play" event and position polling stays off.
+const resuming = new WeakSet<SeekableAudioNavigator>();
+
+const pausing = new WeakSet<SeekableAudioNavigator>();
+
+/** True while playing, and after a play() request that has not taken effect yet. */
+export function isPlayingOrResuming(nav: SeekableAudioNavigator): boolean {
+  if (resuming.has(nav)) {
+    if (nav.isPlaying) resuming.delete(nav);
+    return true;
+  }
+  return !pausing.has(nav) && nav.isPlaying;
+}
+
+/**
+ * Pauses for the user. A play() that was already resolving still sets isPlaying after the pause,
+ * on a paused element. Its resolution task is already queued, so one task later we pause again.
+ */
+export function pauseForUser(nav: SeekableAudioNavigator): void {
+  resuming.delete(nav);
+  pausing.add(nav);
+  nav.pause();
+  setTimeout(() => {
+    pausing.delete(nav);
+    if (!resuming.has(nav) && nav.isPlaying) nav.pause();
+  }, 0);
+}
+
+/** Records a play() request (true), or a pause, stop or end that cancels it (false). */
+export function setResuming(nav: SeekableAudioNavigator, requested: boolean): void {
+  if (requested) resuming.add(nav);
+  else resuming.delete(nav);
+}
+
+function pauseIfPlaying(nav: SeekableAudioNavigator): void {
+  if (!isPlayingOrResuming(nav)) return;
+  nav.pause();
+  resuming.delete(nav);
+}
+
+// A play() that resolves after a pause and a track change still sets isPlaying upstream, while the
+// element stays paused. Upstream play() then returns early, so reset the flag with a pause first.
+function resume(nav: SeekableAudioNavigator): void {
+  if (nav.isPlaying) nav.pause();
+  resuming.add(nav);
+  nav.play();
+}
+
 /**
  * Seeks `nav` to `audioLocator` and (optionally) resumes playback afterwards,
  * restarting upstream position polling.
@@ -344,8 +393,7 @@ export function seekAudioAndResume(
   if (isAlreadyAtPosition(nav, audioLocator)) {
     log.debug("seekAudioAndResume: already at target", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "");
     if (resumePlaying) {
-      if (nav.isPlaying) nav.pause(); // force a paused→playing transition
-      nav.play();
+      resume(nav); // pauses first, which forces a paused→playing transition
     }
     return Promise.resolve();
   }
@@ -353,7 +401,7 @@ export function seekAudioAndResume(
   // Pausing here (when playing) guarantees the post-seek play() restarts the
   // upstream position poll; go() alone would leave it stopped.
   log.debug("seekAudioAndResume: seeking", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "", resumePlaying ? "and resuming" : "without resume");
-  if (nav.isPlaying) nav.pause();
+  pauseIfPlaying(nav);
   // Upstream go() never seeks to t=0, as it expects a newly loaded track to start there.
   // Within the playing track the position would then not move.
   const restartTrack =
@@ -366,7 +414,7 @@ export function seekAudioAndResume(
     }
     if (restartTrack) nav.seek(0);
     log.debug("seekAudioAndResume: seek completed", audioLocator.href);
-    if (resumePlaying) nav.play();
+    if (resumePlaying) resume(nav);
   });
 }
 
@@ -966,6 +1014,7 @@ export class FlutterAudioNavigator {
           if (!nav.canGoForward) {
             log.info("Publication ended (last track)");
             playbackRequested = false;
+            setResuming(nav, false);
             resetResourceLoadingWatchdog();
             emit("ended", locator, false);
           } else {

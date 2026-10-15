@@ -13,8 +13,11 @@
 import { Locator, LocatorLocations } from "@readium/shared";
 import {
   buildStatePayload,
+  isPlayingOrResuming,
+  pauseForUser,
   seekAudioAndResume,
   SeekableAudioNavigator,
+  setResuming,
   __testing__,
 } from "../navigators/FlutterAudioNavigator";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
@@ -435,6 +438,7 @@ function recordingNav(opts: {
     },
     pause() {
       calls.push("pause");
+      opts.isPlaying = false;
     },
     play() {
       calls.push("play");
@@ -530,5 +534,50 @@ describe("seekAudioAndResume", () => {
     const otherTrack = recordingNav({ isPlaying: true, currentHref: "chap2.mp3", currentTime: 30 });
     await seekAudioAndResume(otherTrack, start, true);
     expect(otherTrack.calls).toEqual(["pause", "go", "play"]);
+  });
+
+  it("treats a play() that has not taken effect yet as playing", async () => {
+    // The fake's play() never sets isPlaying, like upstream before mediaElement.play() resolves.
+    const opts = { isPlaying: true };
+    const nav = recordingNav(opts);
+    await seekAudioAndResume(nav, loc(), true);
+    expect(isPlayingOrResuming(nav)).toBe(true);
+
+    nav.calls.length = 0;
+    await seekAudioAndResume(nav, loc(), isPlayingOrResuming(nav));
+    expect(nav.calls).toEqual(["pause", "go", "play"]);
+
+    setResuming(nav, false);
+    expect(isPlayingOrResuming(nav)).toBe(false);
+  });
+
+  it("keeps a user pause when a play() that was resolving lands after it", () => {
+    jest.useFakeTimers();
+    try {
+      const opts = { isPlaying: false };
+      const nav = recordingNav(opts);
+      setResuming(nav, true);
+      pauseForUser(nav);
+      opts.isPlaying = true; // the late play() resolves
+      expect(isPlayingOrResuming(nav)).toBe(false);
+      jest.runAllTimers();
+      expect(nav.calls).toEqual(["pause", "pause"]);
+      expect(isPlayingOrResuming(nav)).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("resets a stale isPlaying before it resumes", async () => {
+    // A late play() can leave isPlaying true on a paused element; upstream play() then does nothing.
+    const opts = { isPlaying: false };
+    const nav = recordingNav(opts);
+    const go = nav.go.bind(nav);
+    nav.go = (locator, animated, cb) => {
+      opts.isPlaying = true;
+      return go(locator, animated, cb);
+    };
+    await seekAudioAndResume(nav, loc(), true);
+    expect(nav.calls).toEqual(["go", "pause", "play"]);
   });
 });

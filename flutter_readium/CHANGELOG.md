@@ -26,6 +26,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a narration container; only its paragraphs have cues. The playing locator got no `tocHref`, so `skipToNextTOC` fell back to the reading order ("At the last chapter" in single-file issues), and seeking to such an entry in the playing file failed. The entry now resolves to the first cue inside the element in the XHTML.
 - **Web: skipping back to a ToC item at the start of the playing audio file moves playback there.**
   The upstream audio navigator never seeks to `t=0`, so playback kept its position. The plugin now seeks to the track start itself.
+- **Web: fast repeated skips during Sync Narration playback keep playing and keep the highlight in sync.**
+  Before, a skip made just after another skip could leave the audio paused, or playing with no position or highlight updates.
 
 ## [0.6.2] - 2026-10-13
 
