@@ -123,13 +123,20 @@ Compiler reuse is confirmed, but these samples do not establish a total-time imp
 from caching alone. The last run spent 2m24s downloading/installing Flutter, roughly 30s
 restoring the build cache and 33s saving it, and 70s launching/testing/reporting. Its build
 window was approximately 3m13s versus 3m22s for the cache-populating run. Enabling the setup
-action's SDK cache addresses the repeated multi-gigabyte SDK download; its hosted validation
-is pending. Workflow lint, YAML parsing and embedded shell syntax checks pass.
+action's SDK cache addresses the repeated multi-gigabyte SDK download. The [final SDK-cache
+workflow](https://github.com/Notalib/flutter_readium/actions/runs/38699183359/job/116302993971)
+passed all 69 tests in 7m12s on 2026-10-15, restored the CocoaPods and Xcode caches, logged
+41 compiler-cache replays and saved the Flutter SDK cache. This validates the final workflow
+and cache population; a subsequent fully warm SDK-cache timing has not been measured.
+Workflow lint, YAML parsing and embedded shell syntax checks pass.
 
 The reuse run's iOS integration, API 36 Android integration, web integration, quality and
 Android/web units passed. Android API 24 hit the 30-minute job limit while installing the
 APK, before any tests ran; this cancelled the enclosing workflow despite the successful
-iOS unit job. No Android workflow or production code changed in this optimization.
+iOS unit job. The [final workflow run](https://github.com/Notalib/flutter_readium/actions/runs/38699183359)
+subsequently passed all three full integration aggregators, including both Android API 24
+and API 36 jobs. Quality and Android/web unit checks also passed on the same head. No
+Android workflow or production code changed in this optimization.
 
 The ownership and locator tests could move into a smaller iOS logic-test target using
 `ReadiumShared`, the overlay model, media-time helper and relevant locator extensions.
