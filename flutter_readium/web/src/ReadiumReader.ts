@@ -37,6 +37,7 @@ import {
   textLocatorToAudioLocator,
 } from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
+import { UncuedTocTargets } from "./mediaoverlay/uncuedTocTargets";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
@@ -119,6 +120,7 @@ class _ReadiumReader {
   private _hasGuidedNavigation = false;
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
+  private _uncuedTocTargets: UncuedTocTargets | undefined;
   /**
    * Unified runtime narration-sync flag. When true (default), audio-driven
    * visual sync is active: MediaOverlay cues scroll the EPUB navigator, and TTS
@@ -265,7 +267,8 @@ class _ReadiumReader {
       const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime, useSyncNarrationLookup);
       const crossResource =
         !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
-      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource, useSyncNarrationLookup);
+      const anchored = useSyncNarrationLookup ? await this._anchorUncuedTextLocator(locator) : locator;
+      const audioLocator = textLocatorToAudioLocator(this._syncItems, anchored, crossResource, useSyncNarrationLookup);
       if (audioLocator) {
         const wasPlaying = this._audioNav.isPlaying;
         log.info(
@@ -721,6 +724,7 @@ class _ReadiumReader {
       this._hasSyncNarration = false;
       this._hasGuidedNavigation = false;
       this._syncItems = [];
+      this._uncuedTocTargets = undefined;
       this._publication = undefined;
       this._lastDeferredSyncLocator = null;
       this._lastDeferredSyncDurationMs = undefined;
@@ -783,7 +787,8 @@ class _ReadiumReader {
   private _installAudioNavigator(
     publication: ReadiumPublication,
     nav: AudioNavigator,
-    syncItems?: SyncNarrationItem[]
+    syncItems?: SyncNarrationItem[],
+    uncuedTocTargets?: UncuedTocTargets
   ): boolean {
     if (this._publication !== publication) {
       log.info("Discarding audio navigator completed for a previous publication");
@@ -793,8 +798,16 @@ class _ReadiumReader {
     }
     this._audioNav = nav;
     this._audioNavPublication = publication;
-    if (syncItems !== undefined) this._syncItems = syncItems;
+    if (syncItems !== undefined) {
+      this._syncItems = syncItems;
+      this._uncuedTocTargets = uncuedTocTargets;
+    }
     return true;
+  }
+
+  /** Points an uncued ToC target at its first cue before text→audio mapping. See ADR 0001. */
+  private async _anchorUncuedTextLocator(locator: Locator): Promise<Locator> {
+    return (await this._uncuedTocTargets?.anchor(locator)) ?? locator;
   }
 
   /**
@@ -817,6 +830,7 @@ class _ReadiumReader {
     this._audioNavPublication = undefined;
     this._stoppedAudioLocator = undefined;
     this._syncItems = [];
+    this._uncuedTocTargets = undefined;
     this._lastMediaOverlayLocatorKey = null;
     this._lastDeferredSyncLocator = null;
     this._lastDeferredSyncDurationMs = undefined;
@@ -882,6 +896,14 @@ class _ReadiumReader {
     if (locatorJson) {
       let locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
+        // An uncued ToC target needs its XHTML: retry with the anchored locator. See ADR 0001.
+        const uncued = useSyncNarrationLookup ? this._uncuedTocTargets : undefined;
+        if (uncued?.isUncued(locator)) {
+          void uncued.anchor(locator).then((anchored) => {
+            if (this._uncuedTocTargets === uncued) this.play(JSON.stringify(anchored.serialize()));
+          });
+          return;
+        }
         // MediaOverlay: map text locator → audio locator before seeking.
         if (this._syncItems.length > 0) {
           const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
@@ -949,6 +971,7 @@ class _ReadiumReader {
     // Clear Media Overlay / Guided Navigation state when narration stops.
     if (this._hasSyncNarration || this._hasGuidedNavigation) {
       this._syncItems = [];
+      this._uncuedTocTargets = undefined;
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) {
         this.applyDecorations("media_overlay_utterance", "[]");
@@ -1371,6 +1394,7 @@ class _ReadiumReader {
         let locator = resolvedFromLocator;
         if (this._syncItems.length > 0) {
           const useSyncNarrationLookup = this._hasSyncNarration && !this._hasGuidedNavigation;
+          if (useSyncNarrationLookup) locator = await this._anchorUncuedTextLocator(locator);
           const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
           if (useSyncNarrationLookup && !mapped) return;
           locator = mapped ?? locator;
@@ -1425,8 +1449,8 @@ class _ReadiumReader {
         publication,
         fromLocator,
         prefsJson,
-        (nav, items) => {
-          this._installAudioNavigator(publication, nav, items);
+        (nav, items, uncuedTocTargets) => {
+          this._installAudioNavigator(publication, nav, items, uncuedTocTargets);
         },
         (textLocator, durationMs) => {
           if (this._publication === publication) {
@@ -1439,7 +1463,7 @@ class _ReadiumReader {
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, fromLocator, true, true)
+          ? textLocatorToAudioLocator(this._syncItems, await this._anchorUncuedTextLocator(fromLocator), true, true)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();

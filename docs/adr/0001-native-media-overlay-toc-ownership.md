@@ -100,6 +100,8 @@ Resolve these at lookup time from the XHTML element tree. Do not add them to par
 
 The element tree is the XML id nesting only. Content after an XML parse error is missing; the lookup then falls back to the existing behavior for those ids.
 
+Web has no content service and emits the Sync Narration locator synchronously. It applies the same rule to cues instead of content ids: on the first cue without a `tocHref` in a resource, it parses that resource (as HTML if the XML is malformed) and gives the resource's unowned cues their owner by document order. Cues emitted before that parse finishes keep no owner. Seeks to an uncued anchor wait for the parse; `play(locator)` stays synchronous and retries with the anchored locator.
+
 Fragmentless links retain their existing resource/progression navigation. Explicit audio
 time, image lookup and locator serialization keep their existing priorities and formats.
 

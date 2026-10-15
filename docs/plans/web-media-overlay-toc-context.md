@@ -23,11 +23,13 @@
 - [x] ChromeDriver example test: first section cue/owner, later `t=10` cue, unknown
   same-file anchor followed by `play(null)` without rewind, and known section seek back.
 
+- [x] Uncued ToC targets (ADR 0001 amendment, local newspapers): `mediaoverlay/uncuedTocTargets.ts` fills ToC owners by document order per resource and anchors seeks to the first cue inside an uncued element. Jest: `uncuedTocTargets.test.ts`.
+
 ## Limits
 
 No target index for parents whose cues all belong to nested subsections. No new audio-less
 flat-heading activation, cross-file anchored-parent inheritance, URL canonicalization,
-DOM-derived scope or Guided structural inheritance. iOS multi-audio playback remains
+DOM-derived scope beyond uncued ToC targets, or Guided structural inheritance. iOS multi-audio playback remains
 outside this change. Web fragmentless/progression mapping keeps its existing behavior;
 this change does not promise identical native/web progression calculations. Browser
 coverage exercises API-driven navigation, not physical content-tap dispatch.

@@ -22,7 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **iOS can seek to ToC sections without their own audio.**
   Such sections could report no current chapter or fail to seek within the active file.
   Their narrated children now supply the section reference and seek destination.
-- **iOS and Android: skip to next/previous ToC item works when ToC entries target elements that the narration does not list.**
+- **Skip to next/previous ToC item works when ToC entries target elements that the narration does not list.**
   Local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a narration container; only its paragraphs have cues. The playing locator got no `tocHref`, so `skipToNextTOC` fell back to the reading order ("At the last chapter" in single-file issues), and seeking to such an entry in the playing file failed. The entry now resolves to the first cue inside the element in the XHTML.
 
 ## [0.6.2] - 2026-10-13
