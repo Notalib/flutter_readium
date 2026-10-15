@@ -1,7 +1,7 @@
 # ADR 0001: Native media-overlay ToC ownership and navigation
 
 - **Status:** Accepted; implemented locally and validated on native simulators.
-- **Date:** 2026-10-13
+- **Date:** 2026-10-13; amended 2026-10-16 for uncued ToC targets.
 - **Scope:** Sync Narration on iOS and Android.
 - **Tasks:** [Implementation checklist](../plans/native-media-overlay-toc-context.md)
 
@@ -28,6 +28,12 @@ The fixture inspection covered 38 Sync Narration documents and 330 cues in seven
   Unrestricted inheritance assigns that boundary cue to the previous chapter.
 - All sampled JSON has one wrapper level followed by cues. It does not establish semantics
   for deeper subsection boundaries, headings without audio, or parents owning no cues.
+
+### Uncued ToC targets (local newspapers)
+
+Nota local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a Sync Narration container. The narration lists only the paragraphs inside it, with no `seq` for the section. EPUB 3.3 §9.3.2.1 makes that `seq` optional, so the content is valid, but parser ownership cannot see the section. The playing locator then got no `tocHref`, skip-to-next-ToC fell back to the reading order ("At the last chapter" in single-file issues), and a seek to such an entry in the playing file failed under #139.
+
+The synthetic fixture `synthetic_local_newspaper` ([readium-test-resources#4](https://github.com/Notalib/readium-test-resources/pull/4)) copies the structure of a real issue: 19 resources, 305 cues, 21 ToC entries. 18 entries target a cue-less `<section>`, one targets an `<aside>`, and one `h2` entry is itself a cue.
 
 The cross-file sequence also exists in the source SMIL. Narration grouping therefore
 cannot be assumed to mean strict DOM containment. These are fixture observations, not
@@ -84,6 +90,15 @@ no audio seek occurred, so `play(null)` later tried that anchor and did not resu
 the old cached locator when Sync Narration has no mapping. Android's existing public
 navigation acknowledgment remains unchanged; measure playback position, not that boolean.
 
+### Uncued ToC targets
+
+Resolve these at lookup time from the XHTML element tree. Do not add them to parser ownership. The parser has no XHTML, and one more ownership source there would compete with the narration nesting above. Both lookups parse only the XHTML resource being looked up, once per resource, and cache the result until the publication closes.
+
+- **Current ToC entry.** When the playing cue has no assigned `tocHref`, use the existing document-order lookup over the resource's content ids. Before that lookup, map each ToC fragment that is not a content id to the first content id inside its element. If a section and its first heading share that id, the later (deeper) ToC entry wins.
+- **Seek.** Apply this only after exact cue and assigned-ToC-reference matching fail. Rewrite a text locator whose anchor is neither to the first cue inside its element, then map it as usual. An anchor with no cue inside it is unchanged, so #139 still prevents a same-file rewind.
+
+The element tree is the XML id nesting only. Content after an XML parse error is missing; the lookup then falls back to the existing behavior for those ids.
+
 Fragmentless links retain their existing resource/progression navigation. Explicit audio
 time, image lookup and locator serialization keep their existing priorities and formats.
 
@@ -105,19 +120,20 @@ time, image lookup and locator serialization keep their existing priorities and 
 | No matching ToC / empty or invalid narration | No fabricated owner or cue; existing parser validation remains |
 | Node has its own audio and children | Emit own cue first, then children; preserve original traversal order |
 | Fragmentless or time-bearing locator | Preserve existing resource/progression and explicit-time behavior |
+| ToC target is an uncued element that is not a narration container | Current entry by document order from its first content descendant; seek to its first cue descendant |
+| Uncued ToC target shares its first content id with a deeper ToC entry | The deeper entry owns that id |
+| Uncued anchor with no cue inside it, same file | Return no match; leave playback untouched |
 
 ## Alternatives and deferred work
 
 - Keeping #273's precedence preserves parent inheritance but introduces the subsection-reset
   edge case and the observed cross-file misassignment.
 - Always preferring a global last match leaks references across recursive/resource boundaries.
-- DOM inspection adds content loading and another ownership source; it is unnecessary for
-  the cases in this change.
-- A separate target-to-first-descendant index is deferred. It is needed if a parent has only
-  cues owned by nested subsections, but the sampled fixtures do not demonstrate that case.
-  This implementation does not claim such a parent has a precise seek destination.
+- DOM inspection in the parser adds content loading and a second ownership source. The original fixtures did not need it. Local newspapers do, so the amendment adds it at lookup time instead (see Uncued ToC targets).
+- A parser-time target-to-first-descendant index would give the newspaper sections a `tocHref` on every cue. It needs every XHTML resource loaded when the publication opens, and it would compete with narration nesting. Lookup time parses only the resources in use.
+- Asking newspaper production to wrap each section in a narration `seq` would make parser ownership cover them. It does not fix issues already published, so the player handles both shapes.
 - Audio-less flat headings, cross-file inheritance of an anchored parent, URL-normalization
-  changes, web parity and Guided Navigation structural inheritance remain out of scope.
+  changes and Guided Navigation structural inheritance remain out of scope. Web parity for uncued ToC targets is a follow-up in [PR #276](https://github.com/Notalib/flutter_readium/pull/276).
 
 No shared Dart API, preference, bridge field or native overlay storage/index is added.
 The implementation does not expand iOS's synthetic audio reading order to all audio files
@@ -128,7 +144,7 @@ multi-audio playback limitation is resolved.
 
 Keep equivalent Swift/Kotlin cases for ownership and lookup. Use the current #259 fixture
 for native integration tests that assert both `tocHref` and seek destination while audio
-is already in the same file. Include an unknown-anchor no-rewind check. Preserve the
+is already in the same file. Include an unknown-anchor no-rewind check. Once readium-test-resources#4 merges, add the synthetic newspaper to those tests: skip across `np-0011.xhtml#e166` and `#e198`, and check `tocHref` at `t=0` and `t=43.5`. Preserve the
 [locator-field compensation](../plans/locator-field-priority.md).
 
 Record actual test/build/device results in the task checklist. Mark implementation

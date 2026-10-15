@@ -66,6 +66,18 @@ Run long-lived Flutter sessions asynchronously; follow [the testing guide](../ag
 No toolkit upgrades, web changes, broad native navigator refactors or unrelated audio-reading-order
 changes are included. TestResources and the dirty sibling fixture checkout remain unchanged.
 
+## Task 6 — Uncued ToC targets (local newspapers)
+
+ADR 0001 amendment, 2026-10-16. Lookup time only; parser ownership is unchanged.
+
+- [x] Build a synthetic fixture with the structure of a real local newspaper ([readium-test-resources#4](https://github.com/Notalib/readium-test-resources/pull/4)).
+- [x] Add an XHTML element id tree (`XhtmlIdTree`) on iOS and Android, cached per resource.
+- [x] Current ToC entry: map ToC fragments that are not content ids to their first content descendant before the document-order lookup.
+- [x] Seek: after exact cue and assigned-`tocHref` lookup fail, anchor the locator to the first cue inside its element.
+- [x] Unit tests for the id tree in Swift (`TocAnchorTests.swift`) and Kotlin (`XhtmlIdTreeTest.kt`).
+- [ ] Integration test with the synthetic newspaper, after readium-test-resources#4 merges.
+- [ ] Web parity in [PR #276](https://github.com/Notalib/flutter_readium/pull/276).
+
 ## Validation record
 
 Baseline was upstream main `c3b2225`, with iOS initially seeded from #273 `ae6b702` to
