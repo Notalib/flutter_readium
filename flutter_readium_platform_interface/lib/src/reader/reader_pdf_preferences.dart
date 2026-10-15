@@ -3,6 +3,9 @@ import 'package:meta/meta.dart';
 
 import '../index.dart';
 
+/// PDF reader preferences.
+///
+/// Submitting these replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
 @immutable
 class PDFPreferences with Equatable implements JSONable {
   const PDFPreferences({
