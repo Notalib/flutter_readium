@@ -111,6 +111,27 @@ internal fun shouldInjectMOColumnBreakCss(
     preventMOColumnBreaks: Boolean,
 ): Boolean = isMOActive && preventMOColumnBreaks
 
+/**
+ * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
+ * at or before it in document order, else the first entry. An uncued ToC target starts at its
+ * entry in [tocAnchors]. When entries share a start (a section and its first heading), the later
+ * (deeper) entry wins. Entries that resolve to no content id (e.g. a file-only entry) start
+ * before all content. See ADR 0001.
+ */
+internal fun tocEntryIndexFor(
+    cssSelector: String,
+    contentSelectors: List<String>,
+    tocSelectors: List<String>,
+    tocAnchors: Map<String, String>,
+): Int? {
+    val idx = contentSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: 0
+    val starts =
+        tocSelectors.indices
+            .associateBy { contentSelectors.indexOf(tocAnchors[tocSelectors[it]] ?: tocSelectors[it]) }
+            .toSortedMap()
+    return starts.entries.lastOrNull { it.key <= idx }?.value ?: starts.values.firstOrNull()
+}
+
 // TODO: Support custom headers and authentication header for content files.
 
 @ExperimentalCoroutinesApi
@@ -922,26 +943,18 @@ object ReadiumReader :
             }
 
         val documentCssSelectors = epubGetAllDocumentCssSelectors(resultLocator.href)
-        val idx =
-            documentCssSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: run {
-                // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
-                PluginLog.d(
-                    TAG,
-                    "::epubEnrichLocatorWithTocHref - cssSelector:$cssSelector not found in contentIds, assume idx = 0",
-                )
-                0
-            }
+        if (cssSelector !in documentCssSelectors) {
+            // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
+            PluginLog.d(
+                TAG,
+                "::epubEnrichLocatorWithTocHref - cssSelector:$cssSelector not found in contentIds, assume idx = 0",
+            )
+        }
 
         val tocSelectors = tocLinks.map { "#${it.href.resolve().fragment}" }
         val tocAnchors = epubGetTocAnchors(resultLocator.href, tocSelectors, documentCssSelectors)
-        // A section and its first heading can share one anchor; the later (deeper) entry wins.
-        val toc =
-            tocLinks.zip(tocSelectors).associate { (link, selector) ->
-                documentCssSelectors.indexOf(tocAnchors[selector] ?: selector) to link
-            }
-
         val tocItem =
-            toc.entries.lastOrNull { it.key <= idx }?.value ?: toc.entries.firstOrNull()?.value
+            tocEntryIndexFor(cssSelector, documentCssSelectors, tocSelectors, tocAnchors)?.let { tocLinks[it] }
                 ?: run {
                     PluginLog.d(TAG, "::epubEnrichLocatorWithTocHref - no tocItem found")
                     return resultLocator
