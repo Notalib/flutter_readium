@@ -97,33 +97,39 @@ passed all 69 tests in 14 minutes overall on the standard runner.
 
 ### iOS unit-test performance follow-up
 
-The unit job now uses `macos-26-xlarge`, matching the integration runner. It retains the
-separate simulator/job because XCTest previously shut down a simulator shared with
-integration tests. A dedicated `ReadiumUnitTests` DerivedData directory caches compiled
-outputs separately from integration builds. Keys include the actual Xcode version/build,
-runner architecture, Flutter pin, CocoaPods/SwiftPM dependency manifests/locks and commit. Compatible source
-changes can restore the previous build, while toolchain/dependency changes start cold.
-Cache status and runner resources are logged.
+The unit job uses `macos-26-xlarge`, matching integration, and keeps its own simulator/job
+because XCTest previously shut down a simulator shared with integration tests. The pinned
+Flutter SDK is cached through the existing setup action. CocoaPods has a dedicated unit-job
+cache keyed by architecture, Podfile and lockfile.
 
-On 2026-10-15, the [first optimized run](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116160517462)
-passed all 69 tests in 6 minutes 22 seconds with an empty compiled-output cache, versus
-14 minutes in the previous standard-runner run and 18 minutes 55 seconds in its earlier
-retry. Its build window was approximately 2 minutes 39 seconds, followed by roughly one
-minute for test launch/execution/reporting. The job saved a 699 MB compressed build cache.
-The full workflow, quality and Android/web unit checks also passed. The [same-commit warm
-rerun](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116164766289)
-passed all 69 tests in 6 minutes 14 seconds, but still scheduled all 1,293 Swift compile
-log entries. An exact DerivedData cache hit alone therefore did not establish incremental
-build reuse on fresh runners. The follow-up enables Xcode's supported compilation cache
-and its diagnostic remarks; its content-based results are stored within the cached
-DerivedData directory. This also adds the tracked SwiftPM lockfile to cache compatibility.
-The shared CocoaPods cache restored only about 1 MB and `pod install` downloaded every
-Readium dependency again despite the cache hit. The unit job therefore also uses a
-separate CocoaPods cache namespace keyed by its architecture, Podfile and lockfile.
-The [first compilation-cache run](https://github.com/Notalib/flutter_readium/actions/runs/38656617918/job/116167834492)
-passed all 69 tests in 7 minutes 40 seconds, emitted compiler-cache miss diagnostics and
-saved a 1,004 MB compressed cache. The first cold build pays the cost of populating that
-cache. Reuse on a fresh runner is pending.
+A dedicated `ReadiumUnitTests` DerivedData directory caches build outputs separately from
+integration. Keys include the actual Xcode version/build, runner architecture, Flutter pin,
+CocoaPods/SwiftPM manifests and locks, and commit. Compatible source changes can restore a
+previous build; toolchain/dependency changes start cold. Xcode compilation caching and its
+diagnostic remarks are enabled, with the compiler cache stored inside this directory.
+Plain DerivedData restoration alone rebuilt every Swift source on an exact cache hit, so a
+successful GitHub cache restore is not treated as proof of compiler reuse.
+
+Hosted evidence on 2026-10-15, with all 69 tests passing in each run:
+
+| Configuration | Total job time | Evidence |
+| --- | --- | --- |
+| Standard runner | 18m55s / 14m00s | [Retry](https://github.com/Notalib/flutter_readium/actions/runs/38573569292/job/116146080654), [diagnostic run](https://github.com/Notalib/flutter_readium/actions/runs/38652287144/job/116153745914) |
+| Larger runner, plain DerivedData cold / warm | 6m22s / 6m14s | [Cold](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116160517462), [warm](https://github.com/Notalib/flutter_readium/actions/runs/38654358067/job/116164766289); both logged 1,293 Swift compile entries |
+| Larger runner, compilation cache cold | 7m40s | [Cold](https://github.com/Notalib/flutter_readium/actions/runs/38656617918/job/116167834492); compiler cache populated |
+| Larger runner, compilation cache restored on a fresh runner | 10m11s | [Reuse](https://github.com/Notalib/flutter_readium/actions/runs/38657468635/job/116170764850); 269 compiler-cache replay hits |
+
+Compiler reuse is confirmed, but these samples do not establish a total-time improvement
+from caching alone. The last run spent 2m24s downloading/installing Flutter, roughly 30s
+restoring the build cache and 33s saving it, and 70s launching/testing/reporting. Its build
+window was approximately 3m13s versus 3m22s for the cache-populating run. Enabling the setup
+action's SDK cache addresses the repeated multi-gigabyte SDK download; its hosted validation
+is pending. Workflow lint, YAML parsing and embedded shell syntax checks pass.
+
+The reuse run's iOS integration, API 36 Android integration, web integration, quality and
+Android/web units passed. Android API 24 hit the 30-minute job limit while installing the
+APK, before any tests ran; this cancelled the enclosing workflow despite the successful
+iOS unit job. No Android workflow or production code changed in this optimization.
 
 The ownership and locator tests could move into a smaller iOS logic-test target using
 `ReadiumShared`, the overlay model, media-time helper and relevant locator extensions.
