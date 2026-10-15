@@ -273,6 +273,7 @@ export interface SeekableAudioNavigator {
   readonly currentTime: number;
   play(): void;
   pause(): void;
+  seek(time: number): void;
   go(locator: Locator, animated: boolean, cb: (ok: boolean) => void): Promise<void>;
 }
 
@@ -353,11 +354,17 @@ export function seekAudioAndResume(
   // upstream position poll; go() alone would leave it stopped.
   log.debug("seekAudioAndResume: seeking", audioLocator.href, audioLocator.locations?.fragments?.[0] ?? "", resumePlaying ? "and resuming" : "without resume");
   if (nav.isPlaying) nav.pause();
+  // Upstream go() never seeks to t=0, as it expects a newly loaded track to start there.
+  // Within the playing track the position would then not move.
+  const restartTrack =
+    getTime(audioLocator.locations) === 0 &&
+    audioLocator.href.split("#")[0] === nav.currentLocator.href.split("#")[0];
   return nav.go(audioLocator, false, (ok) => {
     if (!ok) {
       log.warn("seekAudioAndResume: audio seek failed for", audioLocator.href);
       return;
     }
+    if (restartTrack) nav.seek(0);
     log.debug("seekAudioAndResume: seek completed", audioLocator.href);
     if (resumePlaying) nav.play();
   });

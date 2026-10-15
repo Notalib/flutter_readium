@@ -439,6 +439,9 @@ function recordingNav(opts: {
     play() {
       calls.push("play");
     },
+    seek(time: number) {
+      calls.push(`seek ${time}`);
+    },
     go(_locator: Locator, _animated: boolean, cb: (ok: boolean) => void): Promise<void> {
       calls.push("go");
       cb(opts.goResolves ?? true);
@@ -512,5 +515,20 @@ describe("seekAudioAndResume", () => {
     const nav = recordingNav({ isPlaying: true, currentHref: "chap1.mp3", currentTime: 4 });
     await seekAudioAndResume(nav, loc(), true);
     expect(nav.calls).toEqual(["pause", "go", "play"]);
+  });
+
+  it("seeks to the track start itself when upstream go() would not", async () => {
+    const start = new Locator({
+      href: "chap1.mp3#t=0",
+      type: "audio/mpeg",
+      locations: new LocatorLocations({ fragments: ["t=0"] }),
+    });
+    const sameTrack = recordingNav({ isPlaying: true, currentHref: "chap1.mp3", currentTime: 30 });
+    await seekAudioAndResume(sameTrack, start, true);
+    expect(sameTrack.calls).toEqual(["pause", "go", "seek 0", "play"]);
+
+    const otherTrack = recordingNav({ isPlaying: true, currentHref: "chap2.mp3", currentTime: 30 });
+    await seekAudioAndResume(otherTrack, start, true);
+    expect(otherTrack.calls).toEqual(["pause", "go", "play"]);
   });
 });
