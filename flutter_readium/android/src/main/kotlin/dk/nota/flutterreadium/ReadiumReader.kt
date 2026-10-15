@@ -553,6 +553,12 @@ object ReadiumReader :
     private var currentPublicationCssSelectorMap: MutableMap<Url, List<String>>? = null
 
     /**
+     * For EPUB profile, maps document [Url] to "#tocTarget" -> "#firstContentId" for ToC targets
+     * that are not content ids themselves. See [epubGetTocAnchors].
+     */
+    private var currentPublicationTocAnchorMap: MutableMap<Url, Map<String, String>>? = null
+
+    /**
      * Sets the headers used in the HTTP requests for fetching publication resources, including
      * resources in already created `Publication` objects.
      *
@@ -810,6 +816,7 @@ object ReadiumReader :
         _currentPublication = null
         pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
+        currentPublicationTocAnchorMap = null
         ResourceFileCache.purgeAll()
 
         state.clear()
@@ -925,8 +932,13 @@ object ReadiumReader :
                 0
             }
 
+        val tocSelectors = tocLinks.map { "#${it.href.resolve().fragment}" }
+        val tocAnchors = epubGetTocAnchors(resultLocator.href, tocSelectors, documentCssSelectors)
+        // A section and its first heading can share one anchor; the later (deeper) entry wins.
         val toc =
-            tocLinks.associateBy { documentCssSelectors.indexOf("#${it.href.resolve().fragment}") }
+            tocLinks.zip(tocSelectors).associate { (link, selector) ->
+                documentCssSelectors.indexOf(tocAnchors[selector] ?: selector) to link
+            }
 
         val tocItem =
             toc.entries.lastOrNull { it.key <= idx }?.value ?: toc.entries.firstOrNull()?.value
@@ -1836,6 +1848,34 @@ object ReadiumReader :
                 cleanHref,
             ) ?: listOf()
         }
+    }
+
+    /**
+     * Map each ToC selector that is not a content id (e.g. a newspaper `<section>` with no cue)
+     * to the first content id inside its element. See ADR 0001.
+     */
+    private suspend fun epubGetTocAnchors(
+        href: Url,
+        tocSelectors: List<String>,
+        contentSelectors: List<String>,
+    ): Map<String, String> {
+        val anchorMap = currentPublicationTocAnchorMap ?: mutableMapOf()
+        currentPublicationTocAnchorMap = anchorMap
+
+        val cleanHref = href.cleanHref()
+        anchorMap[cleanHref]?.let { return it }
+
+        val contentIds = contentSelectors.map { it.removePrefix("#") }.toSet()
+        val containers = tocSelectors.map { it.removePrefix("#") }.filter { it.isNotEmpty() && it !in contentIds }
+        val tree = if (containers.isEmpty()) null else currentPublication?.xhtmlIdTree(cleanHref)
+        val anchors =
+            containers
+                .mapNotNull { container ->
+                    tree?.firstDescendant(container, contentIds)?.let { "#$container" to "#$it" }
+                }.toMap()
+
+        anchorMap[cleanHref] = anchors
+        return anchors
     }
 
     /**

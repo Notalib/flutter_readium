@@ -317,6 +317,15 @@ extension Publication {
     return ids
   }
 
+  /// Parses the element ids of an XHTML resource, or nil if it cannot be read.
+  func xhtmlIdTree(hrefRelativePath: String) async -> XhtmlIdTree? {
+    guard let url = RelativeURL(string: hrefRelativePath),
+          let data = try? await get(url)?.read().get() else {
+      return nil
+    }
+    return XhtmlIdTree(xhtml: data)
+  }
+
   /// Get a flattened Table of Contents from the manifest.
   /// This does not support LCP PDFs, as that would require using the TableOfContentsService.
   func getFlattenedToC() -> [Link] {

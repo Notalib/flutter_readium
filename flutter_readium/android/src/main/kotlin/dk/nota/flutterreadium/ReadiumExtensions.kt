@@ -702,6 +702,18 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
 }
 
 /**
+ * Parse the element id tree of an XHTML resource, or null when it cannot be read.
+ */
+suspend fun Publication.xhtmlIdTree(href: Url): XhtmlIdTree? {
+    val bytes =
+        get(href.cleanHref())?.read()?.getOrNull() ?: run {
+            PluginLog.w(TAG, "::xhtmlIdTree - unable to read $href")
+            return null
+        }
+    return XhtmlIdTree(bytes)
+}
+
+/**
  * Get the Table of Content title from a href.
  */
 fun Publication.getTitleFromTocHref(tocHref: String?): String? {
