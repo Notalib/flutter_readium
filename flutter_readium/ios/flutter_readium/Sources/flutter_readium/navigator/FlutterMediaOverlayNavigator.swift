@@ -13,6 +13,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 {
   internal var mediaOverlays: [FlutterMediaOverlay] = []
   private var pendingTextInitialLocator: Locator?
+  /// Parsed XHTML per resource path, for seeks to ToC containers absent from the narration.
+  private var xhtmlIdTrees: [String: XhtmlIdTree?] = [:]
   
   public override var currentLocator: Locator? {
     get {
@@ -87,11 +89,16 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
-    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
+    var anchored = fromLocator
+    if let fromLocator {
+      anchored = await anchorUncuedTextLocator(fromLocator)
+    }
+    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored)
     await super.play(fromLocator: audioFromLocator ?? initialLocator)
   }
   
   public override func seek(toLocator: Locator) async -> Bool {
+    let toLocator = await anchorUncuedTextLocator(toLocator)
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       Log.navigator.warn("seekToLocator - Could not map to an Audio Locator for: \(toLocator)")
@@ -183,6 +190,39 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     }
   }
   
+  /// Moves a text locator whose id is neither a cue nor a known ToC section to the first cue
+  /// inside that element in the XHTML. ToC entries can target a container (e.g. a newspaper
+  /// `<section>`) absent from the narration; without this, seeking to one inside the playing
+  /// resource fails (#139 forbids the resource fallback there). See ADR 0001.
+  private func anchorUncuedTextLocator(_ locator: Locator) async -> Locator {
+    let href = locator.href.string
+    guard let textId = locator.textId,
+          !mediaOverlays.contains(where: {
+            $0.itemFromTextId(textId, inHref: href) != nil || $0.itemFromTocHref(textId, inHref: href) != nil
+          }) else {
+      return locator
+    }
+    let cueIds = Set(mediaOverlays.flatMap(\.items).filter { $0.textFile == href }.map(\.textId))
+    guard let tree = await xhtmlIdTree(href: locator.href.path),
+          let first = tree.firstDescendant(of: textId, in: cueIds) else {
+      return locator
+    }
+    Log.navigator.debug("anchorUncuedTextLocator: \(href)#\(textId) -> #\(first)")
+    return locator.copy(locations: {
+      $0.fragments = [first]
+      $0.cssSelector = "#\(first)"
+    })
+  }
+
+  private func xhtmlIdTree(href: String) async -> XhtmlIdTree? {
+    if let cached = xhtmlIdTrees[href] {
+      return cached
+    }
+    let tree = await publication.xhtmlIdTree(hrefRelativePath: href)
+    xhtmlIdTrees[href] = .some(tree)
+    return tree
+  }
+
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator else {
       Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - nil text locator")

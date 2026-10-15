@@ -4,12 +4,17 @@ import android.os.Bundle
 import dk.nota.flutterreadium.FlutterAudioPreferences
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReadiumReader
+import dk.nota.flutterreadium.XhtmlIdTree
+import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
 import dk.nota.flutterreadium.findReadingOrderLink
 import dk.nota.flutterreadium.getReadingOrderItemDuration
+import dk.nota.flutterreadium.getTextId
 import dk.nota.flutterreadium.models.FlutterMediaOverlay
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
+import dk.nota.flutterreadium.tocHref
+import dk.nota.flutterreadium.xhtmlIdTree
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
@@ -17,6 +22,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.extensions.time
@@ -25,6 +32,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.util.Url
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -50,6 +58,11 @@ class SyncAudiobookNavigator(
     }
 
     val decorationGroup = "sync-audio"
+
+    private val locatorEmitMutex = Mutex()
+
+    /** Parsed XHTML id trees by resource, null when a resource could not be read. */
+    private val xhtmlIdTrees = mutableMapOf<Url, XhtmlIdTree?>()
 
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
@@ -132,9 +145,21 @@ class SyncAudiobookNavigator(
             return
         }
 
-        // NOTE: Important, don't call base classes here, as they will trigger incorrect values for
-        // readingOrderLink
-        timebaseListener.onTimebasedCurrentLocatorChanges(audioLocator, readingOrderLink)
+        // A cue the narration nesting gives no ToC owner (e.g. inside a newspaper <section>) gets
+        // one from document order. The lookup suspends, so the lock keeps emissions in order.
+        launch {
+            locatorEmitMutex.withLock {
+                val emittingLocator =
+                    if (audioLocator.locations.tocHref == null && audioLocator.locations.cssSelector != null) {
+                        ReadiumReader.epubEnrichLocatorWithTocHref(audioLocator)
+                    } else {
+                        audioLocator
+                    }
+                // NOTE: Important, don't call base classes here, as they will trigger incorrect values for
+                // readingOrderLink
+                timebaseListener.onTimebasedCurrentLocatorChanges(emittingLocator, readingOrderLink)
+            }
+        }
     }
 
     override fun storeState(): Bundle {
@@ -148,7 +173,7 @@ class SyncAudiobookNavigator(
             return super.play(fromLocator)
         }
 
-        val audioLocator = mapTextLocatorToMediaOverlayLocator(fromLocator)
+        val audioLocator = mapTextLocatorToMediaOverlayLocator(anchorUncuedTextLocator(fromLocator))
         if (audioLocator != null) {
             super.play(audioLocator)
         } else {
@@ -162,12 +187,52 @@ class SyncAudiobookNavigator(
 
     suspend fun seekToLocator(locator: Locator): Boolean {
         val audioLocator =
-            mapTextLocatorToMediaOverlayLocator(locator) ?: run {
+            mapTextLocatorToMediaOverlayLocator(anchorUncuedTextLocator(locator)) ?: run {
                 PluginLog.d(TAG, "::seekToLocator - no audio locator found for $locator")
                 return false
             }
         super.goToLocator(audioLocator)
         return true
+    }
+
+    /**
+     * Point a text locator at the first cue inside its element when the element is neither a cue
+     * nor a known ToC anchor (e.g. a newspaper `<section>` absent from the narration). Without
+     * this, seeking to one inside the playing resource fails (#139 forbids the resource fallback
+     * there). See ADR 0001.
+     */
+    private suspend fun anchorUncuedTextLocator(locator: Locator): Locator {
+        val href = locator.href
+        val textId = locator.getTextId() ?: return locator
+        val known =
+            mediaOverlays.any { mo ->
+                mo?.findItemFromTextId(href, textId) != null || mo?.findItemFromTocHref(href, textId) != null
+            }
+        if (known) return locator
+
+        val path = href.cleanHref()
+        val tree =
+            if (xhtmlIdTrees.containsKey(path)) {
+                xhtmlIdTrees[path]
+            } else {
+                publication.xhtmlIdTree(path).also { xhtmlIdTrees[path] = it }
+            }
+        val cueIds =
+            mediaOverlays
+                .flatMap { it?.items.orEmpty() }
+                .filter { item -> Url.invoke(item.textFile)?.let { path.isEquivalent(it) } == true }
+                .map { it.textId }
+                .toSet()
+        val first = tree?.firstDescendant(textId, cueIds) ?: return locator
+
+        PluginLog.d(TAG, "::anchorUncuedTextLocator - $href#$textId -> #$first")
+        return locator.copy(
+            locations =
+                locator.locations.copy(
+                    fragments = listOf(first),
+                    otherLocations = locator.locations.otherLocations + ("cssSelector" to "#$first"),
+                ),
+        )
     }
 
     private suspend fun decorateCurrentUtterance(uttLocator: Locator) {
