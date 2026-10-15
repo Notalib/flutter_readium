@@ -289,6 +289,81 @@ void main() {
     );
 
     testWidgets(
+      'Sync Narration resolves ToC targets the narration does not list',
+      (tester) async {
+        final path = harness.fixturePath(FixtureKeys.syntheticNewspaper);
+        final pub = await harness.readium.openPublication(path);
+        final states = <ReadiumTimebasedState>[];
+        final sub = harness.readium.onTimebasedPlayerStateChanged.listen(states.add);
+        addTearDown(sub.cancel);
+        final textLocators = <Locator>[];
+        final textSub = harness.readium.onTextLocatorChanged.listen(textLocators.add);
+        addTearDown(textSub.cancel);
+        await tester.pumpWidget(bareReaderApp(pub));
+        await waitWithPump(
+          tester,
+          () => textLocators.isNotEmpty,
+          timeout: firstMountTimeout,
+          reason: 'Synthetic newspaper did not mount',
+        );
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
+        await harness.readium.play(null);
+        await waitWithPump(
+          tester,
+          () => states.any((state) => state.state == TimebasedState.playing && state.currentOffset != null),
+          timeout: const Duration(seconds: 30),
+          reason: 'Synthetic newspaper narration did not start playing',
+          diagnostics: () => 'states=$states',
+        );
+
+        // np-0011.xhtml: ToC entries target <section id="e166"> and <aside id="e198">. Neither is
+        // a cue; their first cues are #e168 (t=0) and #e199 (t=43.5) in the same audio file.
+        // The second seek goes back to t=0 within the playing file.
+        final cases = <({String toc, String cue})>[
+          (toc: 'np-0011.xhtml#e198', cue: '#e199'),
+          (toc: 'np-0011.xhtml#e166', cue: '#e168'),
+          (toc: 'np-0011.xhtml#e198', cue: '#e199'),
+        ];
+        for (final item in cases) {
+          final link = pub.tocFlattened.singleWhere((link) => link.href == item.toc);
+          states.clear();
+          expect(
+            await harness.readium.goToLocator(pub.locatorFromLink(link)!),
+            isTrue,
+            reason: 'Seek to uncued ToC target ${item.toc} failed',
+          );
+          await waitWithPump(
+            tester,
+            () => states.any(
+              (state) =>
+                  state.currentLocator?.href.endsWith('np-0011.xhtml') == true &&
+                  state.currentLocator?.locations?.cssSelector == item.cue &&
+                  state.currentLocator?.locations?.tocHref == item.toc,
+            ),
+            timeout: const Duration(seconds: 30),
+            reason: 'Seek to ${item.toc} did not play ${item.cue} with that ToC entry',
+            diagnostics: () => 'states=$states',
+          );
+        }
+
+        // Later cues inside the aside keep its ToC entry.
+        await waitWithPump(
+          tester,
+          () => states.any(
+            (state) =>
+                state.currentLocator?.locations?.cssSelector == '#e200' &&
+                state.currentLocator?.locations?.tocHref == 'np-0011.xhtml#e198',
+          ),
+          timeout: const Duration(seconds: 30),
+          reason: 'Cue #e200 did not keep the aside ToC entry',
+          diagnostics: () => 'states=$states',
+        );
+        await harness.readium.pause();
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
       'media-overlay WebPub initializes synchronized text cues on web',
       skip: !kIsWeb,
       (tester) async {
