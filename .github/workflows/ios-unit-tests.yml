@@ -36,9 +36,10 @@ jobs:
           path: |
             flutter_readium/example/ios/Pods
             ~/.cocoapods
-          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          # The unit job installs the full CocoaPods dependency set.
+          key: ios-units-pods-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Podfile') }}
           restore-keys: |
-            pods-${{ runner.os }}-
+            ios-units-pods-v1-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Read Xcode build version
         id: xcode_version

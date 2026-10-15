@@ -117,7 +117,13 @@ log entries. An exact DerivedData cache hit alone therefore did not establish in
 build reuse on fresh runners. The follow-up enables Xcode's supported compilation cache
 and its diagnostic remarks; its content-based results are stored within the cached
 DerivedData directory. This also adds the tracked SwiftPM lockfile to cache compatibility.
-Hosted cold/warm validation of this follow-up is pending.
+The shared CocoaPods cache restored only about 1 MB and `pod install` downloaded every
+Readium dependency again despite the cache hit. The unit job therefore also uses a
+separate CocoaPods cache namespace keyed by its architecture, Podfile and lockfile.
+The [first compilation-cache run](https://github.com/Notalib/flutter_readium/actions/runs/38656617918/job/116167834492)
+passed all 69 tests in 7 minutes 40 seconds, emitted compiler-cache miss diagnostics and
+saved a 1,004 MB compressed cache. The first cold build pays the cost of populating that
+cache. Reuse on a fresh runner is pending.
 
 The ownership and locator tests could move into a smaller iOS logic-test target using
 `ReadiumShared`, the overlay model, media-time helper and relevant locator extensions.
@@ -133,7 +139,10 @@ XCTest could not load the bundle because `CryptoSwift.framework` was unavailable
 the app's framework embedding. No selected tests executed. The current scheme also still
 built Runner, so changing these settings alone does not remove the expensive build.
 A separate target and dependency separation are follow-up work; the CI suite retains all
-69 app-hosted tests. No Swift sources or test-target settings changed in this optimization.
+69 app-hosted tests. Separating the pure subset would speed focused checks, but the
+remaining app-hosted tests would still build Runner in full CI; the split alone does not
+remove that job's build from the critical path. No Swift sources or test-target settings
+changed in this optimization.
 
 ## Limits and unrun checks
 
