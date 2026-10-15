@@ -1021,6 +1021,7 @@ object ReadiumReader :
     @OptIn(InternalReadiumApi::class)
     suspend fun pdfEnable(
         initialLocator: Locator?,
+        initialPreferences: FlutterPdfPreferences,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1045,7 +1046,7 @@ object ReadiumReader :
                 return@withMainContext
             }
 
-            PdfNavigator(pub, initialLocator, this@ReadiumReader).apply {
+            PdfNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
                 visualNavigator = this
                 attachPdfNavigator(fragmentManager, viewGroup)
@@ -1205,6 +1206,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        initialPdfPreferences: FlutterPdfPreferences,
         fontFamilyDeclarations: List<ReaderFontFamily>,
         disablePageTurnsWhileScrolling: Boolean,
         fragmentManager: FragmentManager,
@@ -1233,7 +1235,7 @@ object ReadiumReader :
 
         when {
             isPdf -> {
-                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+                pdfEnable(initialLocator, initialPdfPreferences, fragmentManager, viewGroup, readerWidget)
             }
 
             isComic -> {

@@ -130,6 +130,14 @@ void main() {
       expect(methodChannelReadium.onExternalPlaybackCommand, same(stream));
     });
 
+    test('setPDFPreferences stores the preferences as the default for later readers', () async {
+      const preferences = PDFPreferences(layout: PDFLayout.paginated);
+
+      await methodChannelReadium.setPDFPreferences(preferences);
+
+      expect(methodChannelReadium.defaultPDFPreferences?.toJson(), preferences.toJson());
+    });
+
     test('setNarrationSyncEnabled invokes the channel with the bool argument', () async {
       await methodChannelReadium.setNarrationSyncEnabled(true);
       await methodChannelReadium.setNarrationSyncEnabled(false);
