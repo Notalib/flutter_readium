@@ -113,10 +113,9 @@ internal fun shouldInjectMOColumnBreakCss(
 
 /**
  * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
- * at or before it in document order, else the first entry. An uncued ToC target starts at its
+ * at or before it in document order; preludes use a file-only entry or remain unowned. An uncued ToC target starts at its
  * entry in [tocAnchors]. When entries share a start (a section and its first heading), the later
- * (deeper) entry wins. Entries that resolve to no content id (e.g. a file-only entry) start
- * before all content. See ADR 0001.
+ * (deeper) entry wins. File-only entries start before all content; unresolved anchored entries own nothing. See ADR 0001.
  */
 internal fun tocEntryIndexFor(
     cssSelector: String,
@@ -124,12 +123,20 @@ internal fun tocEntryIndexFor(
     tocSelectors: List<String>,
     tocAnchors: Map<String, String>,
 ): Int? {
-    val idx = contentSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: 0
-    val starts =
-        tocSelectors.indices
-            .associateBy { contentSelectors.indexOf(tocAnchors[tocSelectors[it]] ?: tocSelectors[it]) }
-            .toSortedMap()
-    return starts.entries.lastOrNull { it.key <= idx }?.value ?: starts.values.firstOrNull()
+    val idx = contentSelectors.indexOf(cssSelector).takeIf { it >= 0 } ?: 0
+    val starts = mutableMapOf<Int, Int>()
+    tocSelectors.forEachIndexed { index, selector ->
+        if (selector in listOf("", "#", "#null")) {
+            starts[-1] = index
+        } else {
+            val start = contentSelectors.indexOf(tocAnchors[selector] ?: selector)
+            if (start >= 0) starts[start] = index
+        }
+    }
+    return starts.entries
+        .filter { it.key <= idx }
+        .maxByOrNull { it.key }
+        ?.value
 }
 
 // TODO: Support custom headers and authentication header for content files.

@@ -961,12 +961,6 @@ extension FlutterReadiumPlugin {
     let cleanHrefPath = locator.href.path
     let contentIds = try await epubGetAllDocumentCssSelectors(hrefPath: cleanHrefPath)
 
-    var idx = contentIds.firstIndex(of: cssSelector)
-    if idx == nil {
-      Log.toc.debug("cssSelector:\(cssSelector) not found in current href, assuming 0")
-      idx = 0
-    }
-
     /// Note this uses ToC directly from manifest, and thus does not support LCP PDFs.
     let tocForHref = publication.getFlattenedToC()
       .filter { RelativeURL(epubHREF: $0.href)?.path == cleanHrefPath }
@@ -977,22 +971,13 @@ extension FlutterReadiumPlugin {
       contentIds: contentIds
     )
 
-    // Several ToC items can share an anchor (e.g. a section and its first heading).
-    // Keep the last, the deepest in the flattened ToC.
-    let indexedToc = Dictionary(
-      tocForHref.compactMap { item -> (Int, Link)? in
-        let selector = contentIds.contains(item.selector) ? item.selector : anchors[item.selector]
-        guard let selector, let index = contentIds.firstIndex(of: selector) else { return nil }
-        return (index, item.link)
-      },
-      uniquingKeysWith: { _, last in last }
-    )
-
-    let tocItem = (indexedToc.filter { $0.key <= idx! }
-                     .sorted { $0.key < $1.key }
-                     .last?.value
-    ?? indexedToc.sorted { $0.key < $1.key }.first?.value)
-    return tocItem
+    guard let index = tocEntryIndexFor(
+      cssSelector: cssSelector,
+      contentSelectors: contentIds,
+      tocSelectors: tocForHref.map(\.selector),
+      tocAnchors: anchors
+    ) else { return nil }
+    return tocForHref[index].link
   }
 
   func currentTocLinkFromTimeLocator(_ timeLocator: Locator) -> Link? {

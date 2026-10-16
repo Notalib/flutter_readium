@@ -1,6 +1,6 @@
 # Native media-overlay ToC context implementation tasks
 
-**Decision:** [ADR 0001](../adr/0001-native-media-overlay-toc-ownership.md).
+**Decision:** [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 **Branch:** `fix/media-overlay-toc-context`, from main `c3b2225`.
 > **Implemented locally.** Publication requires user confirmation; no push or PR has occurred.
 
@@ -126,3 +126,53 @@ Once this work is reviewable, ask the user before pushing. Link the ADR and impl
 PR to the contributor only with explicit authorization. Explain the retained parent fix,
 resource-boundary correction, and measured owner/seek behavior; separate synthetic edge-case
 coverage from cases seen in the fixture corpus.
+
+## Original fixture evidence and review follow-up
+
+
+A Table of Contents (ToC) target can be an audio-less section containing narrated
+children. [PR #259](https://github.com/Notalib/flutter_readium/pull/259) added inheritance
+and structural seeking on Android. [PR #273](https://github.com/Notalib/flutter_readium/pull/273)
+adds inheritance on iOS, but not structural seeking. Its reviewed head is `ae6b702`;
+this implementation starts from main `c3b2225`.
+
+The fixture inspection covered 38 Sync Narration documents and 330 cues in seven WebPubs:
+`TestResources` at `05abfbeb`, and current `readium-test-resources` at `fd0c3d6d`.
+
+- The current `38533_overlay_preview-toc-section-child` fixture targets an XHTML section
+  without audio. Its narrated heading and paragraphs must inherit that section.
+- Ordinary previews target narrated headings followed by paragraphs inside a wrapper.
+  Continuing the heading's ToC reference is existing behavior worth preserving.
+- No sampled JSON combines a matching container with a different matching descendant
+  heading. The parent-reset regression is reproducible with that synthetic combination:
+  #273 and Android give the heading its subsection, then the next paragraph its ancestor.
+- Five `TestResources/WebPub/ValidWithAudio` documents contain the next file's first page
+  cue under the previous file's container. Both files have their own fragmentless ToC entry.
+  Unrestricted inheritance assigns that boundary cue to the previous chapter.
+- All sampled JSON has one wrapper level followed by cues. It does not establish semantics
+  for deeper subsection boundaries, headings without audio, or parents owning no cues.
+
+### Uncued ToC targets (local newspapers)
+
+Nota local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a Sync Narration container. The narration lists only the paragraphs inside it, with no `seq` for the section. EPUB 3.3 §9.3.2.1 makes that `seq` optional, so the content is valid, but parser ownership cannot see the section. The playing locator then got no `tocHref`, skip-to-next-ToC fell back to the reading order ("At the last chapter" in single-file issues), and a seek to such an entry in the playing file failed under #139.
+
+The synthetic fixture `synthetic_local_newspaper` ([readium-test-resources#4](https://github.com/Notalib/readium-test-resources/pull/4)) copies the structure of a real issue: 19 resources, 305 cues, 21 ToC entries. 18 entries target a cue-less `<section>`, one targets an `<aside>`, and one `h2` entry is itself a cue.
+
+The cross-file sequence also exists in the source SMIL. Narration grouping therefore
+cannot be assumed to mean strict DOM containment. These are fixture observations, not
+claims that upstream Readium specifies the ownership policy below.
+
+
+The original native implementation began at `c3b2225`, with #273 reviewed at `ae6b702`. Reviewed native head `e8a324f6` was merged with main `43ac49ee` before this follow-up. These are historical evidence points, not part of the ADR contract.
+
+An integration run also exposed an Android caller bug: a rejected seek replaced the cached resume locator. Preserve it when no audio mapping exists, and assert playback position rather than the public navigation acknowledgment.
+
+The October 16 review identified prelude ownership, cue-less heading navigation, equivalent owner-lookup tests, actual locator rewriting, asynchronous web caller coverage, and cross-resource skip coverage. The accepted policies are recorded in ADR 0001. Fixture updates are pending user review in the source repository; do not claim CI coverage until that revision is published.
+
+### Follow-up validation (2026-10-16)
+
+- iOS example device build without codesigning: passed. Native XCTest result bundle: 75 passed, no failures or skips.
+- Android example compilation: passed. Native JUnit/Robolectric suite: 98 passed, one existing ignored test, no failures.
+- Equivalent tests now cover prelude file-only/unowned policy and actual locator rewriting for forward, unknown, after-last, explicit-time, and metadata-preservation cases.
+- Initial locators use the same XHTML resolution before audio navigator initialization. The shared one-minute fixture integration test is developed in PR #276; simulator/browser qualification and fixture publication are pending.
+- The Xcode build removed the tracked generated SwiftPM `Package.resolved`; it is deliberately excluded from the scoped implementation commit.

@@ -1,6 +1,7 @@
 package dk.nota.flutterreadium
 
 import android.util.Xml
+import org.readium.r2.shared.publication.Locator
 import org.xmlpull.v1.XmlPullParser
 import java.io.ByteArrayInputStream
 
@@ -49,7 +50,7 @@ class XhtmlIdTree(
                 event = parser.next()
             }
         } catch (e: Exception) {
-            PluginLog.d(TAG, "XML parse stopped: $e")
+            PluginLog.d(TAG, "::init - XML parse stopped: $e")
         }
         open.filterNotNull().forEach { subtreeEnd[it] = ids.size }
     }
@@ -61,5 +62,23 @@ class XhtmlIdTree(
     ): String? {
         val start = ids.indexOf(id).takeIf { it >= 0 } ?: return null
         return ids.subList(start + 1, subtreeEnd[start]).firstOrNull { it in candidates }
+    }
+
+    /** A known cue-less element seeks forward; a missing id keeps the caller's fallback policy. */
+    fun anchor(
+        locator: Locator,
+        textId: String,
+        cueIds: Set<String>,
+    ): Locator? {
+        if (locator.locations.fragments.any { it.startsWith("t=") }) return locator
+        val start = ids.indexOf(textId).takeIf { it >= 0 } ?: return locator
+        val first = ids.subList(start, ids.size).firstOrNull { it in cueIds } ?: return null
+        return locator.copy(
+            locations =
+                locator.locations.copy(
+                    fragments = listOf(first),
+                    otherLocations = locator.locations.otherLocations + ("cssSelector" to "#$first"),
+                ),
+        )
     }
 }

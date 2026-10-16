@@ -26,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Android: a PDF lost its layout and reading position after the app came back from the background.**
   The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
 
-- **Android media-overlay chapter references follow section and resource changes.**
+- **iOS and Android media-overlay chapter references follow section and resource changes.**
   Narrated paragraphs could lose their subsection, and boundary page cues could retain
   the previous file's chapter. iOS and Android now preserve same-file heading references
   and use the new file's chapter at resource boundaries.
@@ -36,8 +36,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **iOS can seek to ToC sections without their own audio.**
   Such sections could report no current chapter or fail to seek within the active file.
   Their narrated children now supply the section reference and seek destination.
-- **iOS and Android: skip to next/previous ToC item works when ToC entries target elements that the narration does not list.**
-  Local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a narration container; only its paragraphs have cues. The playing locator got no `tocHref`, so `skipToNextTOC` fell back to the reading order ("At the last chapter" in single-file issues), and seeking to such an entry in the playing file failed. The entry now resolves to the first cue inside the element in the XHTML.
+- **iOS and Android can navigate newspaper sections without their own audio.**
+  Section changes could fail or report no current chapter when only the paragraphs were narrated.
+  ToC navigation now finds the narrated content, including the next cue after a heading without audio.
 
 
 ## [0.6.2] - 2026-10-13

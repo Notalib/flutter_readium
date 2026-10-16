@@ -30,8 +30,8 @@ internal class TocEntryIndexTest {
     }
 
     @Test
-    fun cueBeforeEveryEntryGetsTheFirstEntry() {
-        assertEquals(0, owner("#h", "#side", "#sec2"))
+    fun cueBeforeEveryEntryHasNoOwner() {
+        assertNull(owner("#h", "#side", "#sec2"))
     }
 
     @Test

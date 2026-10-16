@@ -1,4 +1,5 @@
 import Foundation
+import ReadiumShared
 
 /// Element ids of an XHTML document in document order, with each element's subtree.
 ///
@@ -30,6 +31,16 @@ struct XhtmlIdTree {
   func firstDescendant(of id: String, in candidates: Set<String>) -> String? {
     guard let start = ids.firstIndex(of: id) else { return nil }
     return ids[(start + 1)..<subtreeEnd[start]].first(where: candidates.contains)
+  }
+
+  /// A known cue-less element seeks forward; a missing id keeps the caller's fallback policy.
+  func anchor(_ locator: Locator, textId: String, cueIds: Set<String>) -> Locator? {
+    guard locator.locations.time == nil, let start = ids.firstIndex(of: textId) else { return locator }
+    guard let first = ids[start...].first(where: cueIds.contains) else { return nil }
+    return locator.copy(locations: {
+      $0.fragments = [first]
+      $0.cssSelector = "#\(first)"
+    })
   }
 
   private final class Collector: NSObject, XMLParserDelegate {
@@ -65,4 +76,24 @@ struct XhtmlIdTree {
       }
     }
   }
+}
+
+/// Match current content to the last ToC start, preserving the deeper entry on ties.
+/// A prelude uses a file-only entry, never the anchored section that follows it.
+func tocEntryIndexFor(
+  cssSelector: String,
+  contentSelectors: [String],
+  tocSelectors: [String],
+  tocAnchors: [String: String]
+) -> Int? {
+  let current = contentSelectors.firstIndex(of: cssSelector) ?? 0
+  var starts: [Int: Int] = [:]
+  for (index, selector) in tocSelectors.enumerated() {
+    if selector.isEmpty || selector == "#" {
+      starts[-1] = index
+    } else if let start = contentSelectors.firstIndex(of: tocAnchors[selector] ?? selector) {
+      starts[start] = index
+    }
+  }
+  return starts.filter { $0.key <= current }.max { $0.key < $1.key }?.value
 }
