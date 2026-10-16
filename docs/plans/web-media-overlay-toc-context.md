@@ -1,6 +1,6 @@
 # Web Sync Narration ToC ownership and navigation
 
-**Decision:** [ADR 0001](../adr/0001-native-media-overlay-toc-ownership.md).
+**Decision:** [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 **Base:** `c23c3abc`; native dependency [PR #274](https://github.com/Notalib/flutter_readium/pull/274).
 **Status:** Implemented; see the [latest ADR 0001 regression record](media-overlay-adr-regressions.md). Both shared focused cases now pass on Chrome with autoplay enabled and range-capable fixture serving.
 

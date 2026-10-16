@@ -32,7 +32,7 @@ A Flutter plugin for reading EPUB, audiobook, and WebPub publications, wrapping 
 
 ### Architecture
 - [Overview](architecture.md)
-- [ADR 0001: Sync Narration ToC ownership and navigation](adr/0001-native-media-overlay-toc-ownership.md) — section ownership and seek rules on native and web
+- [ADR 0001: Sync Narration ToC ownership and navigation](adr/0001-media-overlay-toc-ownership.md) — section ownership and seek rules on native and web
 
 ### Nota Comics
 - [XHTML Structure](nota-comics/xhtml-structure.md) — page and panel structure for Nota digital comics in Nordic EPUB

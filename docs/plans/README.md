@@ -37,7 +37,7 @@ This directory holds implementation plans, parity audits, and retained reference
 
 - **[web-media-overlay-toc-context.md](web-media-overlay-toc-context.md)** — web Sync Narration ownership and precise seeking, validated by focused ChromeDriver integration.
 
-- **[native-media-overlay-toc-context.md](native-media-overlay-toc-context.md)** — native ToC ownership, resource boundaries and anchored seeking, following [ADR 0001](../adr/0001-native-media-overlay-toc-ownership.md).
+- **[native-media-overlay-toc-context.md](native-media-overlay-toc-context.md)** — native ToC ownership, resource boundaries and anchored seeking, following [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 
 - **[web-decorations.md](web-decorations.md)** — web decoration rendering and interaction.
 - **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — full-locator web navigation.

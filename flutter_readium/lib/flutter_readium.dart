@@ -65,6 +65,12 @@ class FlutterReadium {
     _platform.setDefaultPreferences(preferences);
   }
 
+  /// Sets the default PDF preferences, read when a reader widget is built so the PDF starts in the right layout.
+  /// It does not change a reader that is already open; use [setPDFPreferences] for that, which also updates this default.
+  void setDefaultPDFPreferences(PDFPreferences preferences) {
+    _platform.setDefaultPDFPreferences(preferences);
+  }
+
   /// Registers extra CSS assets to inject into every EPUB HTML resource,
   /// in addition to the built-in `flutterReadiumTools.css`.
   /// Call before opening a publication so the injections are active when the reader view is created.
@@ -146,6 +152,8 @@ class FlutterReadium {
       _readiumCall(() => _platform.setEPUBPreferences(preferences));
 
   /// Sets the PDF preferences for the currently opened PDF publication.
+  ///
+  /// Each call replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
   Future<void> setPDFPreferences(PDFPreferences preferences) =>
       _readiumCall(() => _platform.setPDFPreferences(preferences));
 

@@ -55,6 +55,8 @@ ReadiumIntegrationHarness _setUpHarness({required bool warmUp}) {
 
   tearDown(() async {
     await harness.closePublication();
+    // setPDFPreferences also writes the shared default, so reset it to keep PDF tests independent.
+    harness.readium.setDefaultPDFPreferences(const PDFPreferences());
   });
 
   if (warmUp) defineWarmUpTests(harness);

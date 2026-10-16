@@ -154,12 +154,12 @@ LCP-protected publications are not currently supported. The underlying toolkits 
 
 ## Minimum requirements
 
-| Requirement | Version                |
-| ----------- | ---------------------- |
-| Flutter     | 3.44.8+                |
-| Dart SDK    | 3.8.0+                 |
-| Android     | `minSdkVersion` 24     |
-| iOS         | 15.0+                  |
+| Requirement | Version                                                        |
+| ----------- | -------------------------------------------------------------- |
+| Flutter     | 3.44.8+                                                        |
+| Dart SDK    | 3.8.0+                                                         |
+| Android     | `minSdkVersion` 24, `compileSdk` 37, Kotlin Gradle Plugin 2.3+ |
+| iOS         | 15.0+                                                          |
 
 ## Platform setup
 
@@ -169,7 +169,7 @@ for details.
 
 ### Android
 
-- Set `minSdkVersion` to 24 or higher in `android/app/build.gradle`.
+- Set `minSdkVersion` to 24 or higher and `compileSdk` to 37 or higher in `android/app/build.gradle.kts`, and use Kotlin Gradle Plugin 2.3 or newer, declared in `android/settings.gradle.kts`. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#2-android-setup) for the exact snippets.
 - Enable core library desugaring in your app's Gradle build file. The Readium Android artifacts require it:
 
   ```kotlin
@@ -183,8 +183,6 @@ for details.
       coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
   }
   ```
-
-  For Groovy Gradle files, see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
 - Change your `MainActivity` to extend `FlutterFragmentActivity` (not `FlutterActivity`) — otherwise the reader view will crash at runtime.
 - If using TTS or background audio, add to `android/app/src/main/AndroidManifest.xml`:
 

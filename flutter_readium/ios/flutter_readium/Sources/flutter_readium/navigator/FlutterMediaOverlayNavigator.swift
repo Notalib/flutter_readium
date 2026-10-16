@@ -76,7 +76,11 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     
     Log.navigator.info("New audio readingOrder found: \(audioReadingOrder)")
     applyMediaOverlays(mediaOverlays)
-    
+    if let pending = pendingTextInitialLocator {
+      _initialLocator = mapTextLocatorToMediaOverlayAudioLocator(await anchorUncuedTextLocator(pending))
+      pendingTextInitialLocator = nil
+    }
+
     try await super.initNavigator()
   }
   
@@ -93,7 +97,9 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     if let fromLocator {
       anchored = await anchorUncuedTextLocator(fromLocator)
     }
+    if fromLocator != nil && anchored == nil { return }
     let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored)
+    if fromLocator != nil && audioFromLocator == nil { return }
     await super.play(fromLocator: audioFromLocator ?? initialLocator)
   }
   
@@ -190,11 +196,9 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     }
   }
   
-  /// Moves a text locator whose id is neither a cue nor a known ToC section to the first cue
-  /// inside that element in the XHTML. ToC entries can target a container (e.g. a newspaper
-  /// `<section>`) absent from the narration; without this, seeking to one inside the playing
-  /// resource fails (#139 forbids the resource fallback there). See ADR 0001.
-  private func anchorUncuedTextLocator(_ locator: Locator) async -> Locator {
+  /// Resolve XHTML targets absent from the narration before applying same-file fallback guards.
+  /// A cue-less heading can seek forward without becoming that cue's ToC owner. See ADR 0001.
+  private func anchorUncuedTextLocator(_ locator: Locator) async -> Locator? {
     let href = locator.href.string
     guard let textId = locator.textId,
           !mediaOverlays.contains(where: {
@@ -203,15 +207,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
       return locator
     }
     let cueIds = Set(mediaOverlays.flatMap(\.items).filter { $0.textFile == href }.map(\.textId))
-    guard let tree = await xhtmlIdTree(href: locator.href.path),
-          let first = tree.firstDescendant(of: textId, in: cueIds) else {
-      return locator
-    }
-    Log.navigator.debug("anchorUncuedTextLocator: \(href)#\(textId) -> #\(first)")
-    return locator.copy(locations: {
-      $0.fragments = [first]
-      $0.cssSelector = "#\(first)"
-    })
+    guard let tree = await xhtmlIdTree(href: locator.href.path) else { return locator }
+    return tree.anchor(locator, textId: textId, cueIds: cueIds)
   }
 
   private func xhtmlIdTree(href: String) async -> XhtmlIdTree? {

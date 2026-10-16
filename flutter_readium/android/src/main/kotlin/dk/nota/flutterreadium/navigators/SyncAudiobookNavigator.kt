@@ -57,6 +57,16 @@ class SyncAudiobookNavigator(
             initialLocator?.let { locator -> mapTextLocatorToMediaOverlayLocator(locator) }
     }
 
+    private var pendingTextInitialLocator = initialLocator
+
+    override suspend fun initNavigator() {
+        pendingTextInitialLocator?.let { pending ->
+            initialLocator = anchorUncuedTextLocator(pending)?.let { mapTextLocatorToMediaOverlayLocator(it) }
+            pendingTextInitialLocator = null
+        }
+        super.initNavigator()
+    }
+
     val decorationGroup = "sync-audio"
 
     private val locatorEmitMutex = Mutex()
@@ -173,7 +183,7 @@ class SyncAudiobookNavigator(
             return super.play(fromLocator)
         }
 
-        val audioLocator = mapTextLocatorToMediaOverlayLocator(anchorUncuedTextLocator(fromLocator))
+        val audioLocator = anchorUncuedTextLocator(fromLocator)?.let { mapTextLocatorToMediaOverlayLocator(it) }
         if (audioLocator != null) {
             super.play(audioLocator)
         } else {
@@ -187,7 +197,7 @@ class SyncAudiobookNavigator(
 
     suspend fun seekToLocator(locator: Locator): Boolean {
         val audioLocator =
-            mapTextLocatorToMediaOverlayLocator(anchorUncuedTextLocator(locator)) ?: run {
+            anchorUncuedTextLocator(locator)?.let { mapTextLocatorToMediaOverlayLocator(it) } ?: run {
                 PluginLog.d(TAG, "::seekToLocator - no audio locator found for $locator")
                 return false
             }
@@ -195,13 +205,8 @@ class SyncAudiobookNavigator(
         return true
     }
 
-    /**
-     * Point a text locator at the first cue inside its element when the element is neither a cue
-     * nor a known ToC anchor (e.g. a newspaper `<section>` absent from the narration). Without
-     * this, seeking to one inside the playing resource fails (#139 forbids the resource fallback
-     * there). See ADR 0001.
-     */
-    private suspend fun anchorUncuedTextLocator(locator: Locator): Locator {
+    /** Resolve XHTML targets before same-file fallback guards; seeking does not assign ownership. */
+    private suspend fun anchorUncuedTextLocator(locator: Locator): Locator? {
         val href = locator.href
         val textId = locator.getTextId() ?: return locator
         val known =
@@ -223,16 +228,8 @@ class SyncAudiobookNavigator(
                 .filter { item -> Url.invoke(item.textFile)?.let { path.isEquivalent(it) } == true }
                 .map { it.textId }
                 .toSet()
-        val first = tree?.firstDescendant(textId, cueIds) ?: return locator
-
-        PluginLog.d(TAG, "::anchorUncuedTextLocator - $href#$textId -> #$first")
-        return locator.copy(
-            locations =
-                locator.locations.copy(
-                    fragments = listOf(first),
-                    otherLocations = locator.locations.otherLocations + ("cssSelector" to "#$first"),
-                ),
-        )
+        if (tree == null) return locator
+        return tree.anchor(locator, textId, cueIds)
     }
 
     private suspend fun decorateCurrentUtterance(uttLocator: Locator) {

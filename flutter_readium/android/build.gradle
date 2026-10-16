@@ -1,6 +1,6 @@
 buildscript {
   ext.kotlin_version = '2.3.21'
-  ext.readium_version = '3.3.0'
+  ext.readium_version = '3.4.0'
 
   repositories {
     google()
@@ -49,7 +49,7 @@ android {
     }
   }
 
-  compileSdkVersion 36
+  compileSdkVersion 37
 
   sourceSets {
     main.res.srcDirs += 'src/main/res'

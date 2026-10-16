@@ -61,11 +61,11 @@ await reader.setEPUBPreferences(EPUBPreferences(
 
 ## PDFPreferences
 
-Controls the visual appearance of the PDF reader. All fields are optional; omitted fields leave the current value unchanged.
+Controls the visual appearance of the PDF reader. All fields are optional. Each `setPDFPreferences` call replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. |
+| `layout` | `PDFLayout?` | One of `paginated`, `scrollVertical`, `scrollHorizontal`. Defaults to `paginated` on iOS and Android. |
 | `readingProgression` | `PDFReadingProgression?` | `ltr` or `rtl`. |
 | `pageSpacing` | `double?` | Spacing between pages. Supported on iOS + Android. Must be `>= 0`. |
 | `fit` | `PDFFit?` | One of `auto`, `page`, `width`. iOS supports all values. Android supports `page` + `width`; `auto` is ignored on Android. |
@@ -78,6 +78,14 @@ await reader.setPDFPreferences(const PDFPreferences(
   layout: PDFLayout.paginated,
   pageSpacing: 12,
   fit: PDFFit.page,
+));
+```
+
+To open every PDF in the same layout without a visible jump, set the default before the reader widget is built. `setPDFPreferences` also updates this default, so the last layout you chose is kept for the next PDF.
+
+```dart
+reader.setDefaultPDFPreferences(const PDFPreferences(
+  layout: PDFLayout.scrollVertical,
 ));
 ```
 

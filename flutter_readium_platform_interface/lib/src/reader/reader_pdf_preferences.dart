@@ -3,6 +3,9 @@ import 'package:meta/meta.dart';
 
 import '../index.dart';
 
+/// PDF reader preferences.
+///
+/// Submitting these replaces all PDF preferences: omitted fields fall back to the platform default, so always send the full set.
 @immutable
 class PDFPreferences with Equatable implements JSONable {
   const PDFPreferences({
@@ -32,8 +35,9 @@ class PDFPreferences with Equatable implements JSONable {
     );
   }
 
-  /// Page layout / scroll mode. Unifies the iOS `scroll` + `scrollAxis` knobs
-  /// and the Android Pdfium `scrollAxis` knob into one cross-platform setting.
+  /// Page layout / scroll mode. Unifies the `scroll` + `scrollAxis` knobs of
+  /// iOS PDFKit and Android Pdfium into one cross-platform setting. Defaults to
+  /// [PDFLayout.paginated] on both platforms.
   /// See [PDFLayout] for the per-platform mapping.
   final PDFLayout? layout;
 
@@ -121,16 +125,13 @@ class PDFPreferences with Equatable implements JSONable {
 /// - [paginated]
 ///   - iOS (PDFKit): `scroll = false` — true paginated mode with page-flip
 ///     animation and snap.
-///   - Android (Pdfium): `scrollAxis = horizontal` — Pdfium has no paginated
-///     mode, but a single-page-wide viewport gives one-page-per-swipe
-///     navigation as the closest equivalent.
+///   - Android (Pdfium): `scroll = false` — snap-to-page, horizontal.
 /// - [scrollVertical]
 ///   - iOS: `scroll = true, scrollAxis = vertical`.
-///   - Android: `scrollAxis = vertical`.
+///   - Android: `scroll = true, scrollAxis = vertical`.
 /// - [scrollHorizontal]
 ///   - iOS: `scroll = true, scrollAxis = horizontal`.
-///   - Android: `scrollAxis = horizontal` (same wire mapping as [paginated]
-///     but kept distinct because iOS treats the two differently).
+///   - Android: `scroll = true, scrollAxis = horizontal`.
 enum PDFLayout {
   paginated,
   scrollVertical,

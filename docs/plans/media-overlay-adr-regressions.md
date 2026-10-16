@@ -1,6 +1,6 @@
 # ADR 0001 regression and validation record
 
-This page records the latest focused regression evidence for [ADR 0001](../adr/0001-native-media-overlay-toc-ownership.md).
+This page records the latest focused regression evidence for [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 It complements the implementation details in the [native checklist](native-media-overlay-toc-context.md)
 and [web checklist](web-media-overlay-toc-context.md). Counts below are from the current worktree
 validation on 2026-10-14 unless explicitly marked historical.

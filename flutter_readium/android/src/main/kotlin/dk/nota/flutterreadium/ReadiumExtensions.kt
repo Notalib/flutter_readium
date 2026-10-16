@@ -846,7 +846,7 @@ data class ComicInfoMetadata(
  *
  * WORKAROUND for a kotlin-toolkit gap: swift-toolkit's `ImageParser` parses `ComicInfo.xml`
  * into the publication [org.readium.r2.shared.publication.Metadata] (title, authors, …), but
- * kotlin-toolkit (≤ 3.3.0 / main) does not — its `ImageParser` emits only
+ * kotlin-toolkit (≤ 3.4.0 / main) does not — its `ImageParser` emits only
  * `Metadata(conformsTo = [DIVINA])`, so CBZ titles come back blank on Android. This reads the
  * standard fields we display so Android matches iOS.
  *

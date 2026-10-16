@@ -113,10 +113,9 @@ internal fun shouldInjectMOColumnBreakCss(
 
 /**
  * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
- * at or before it in document order, else the first entry. An uncued ToC target starts at its
+ * at or before it in document order; preludes use a file-only entry or remain unowned. An uncued ToC target starts at its
  * entry in [tocAnchors]. When entries share a start (a section and its first heading), the later
- * (deeper) entry wins. Entries that resolve to no content id (e.g. a file-only entry) start
- * before all content. See ADR 0001.
+ * (deeper) entry wins. File-only entries start before all content; unresolved anchored entries own nothing. See ADR 0001.
  */
 internal fun tocEntryIndexFor(
     cssSelector: String,
@@ -124,12 +123,20 @@ internal fun tocEntryIndexFor(
     tocSelectors: List<String>,
     tocAnchors: Map<String, String>,
 ): Int? {
-    val idx = contentSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: 0
-    val starts =
-        tocSelectors.indices
-            .associateBy { contentSelectors.indexOf(tocAnchors[tocSelectors[it]] ?: tocSelectors[it]) }
-            .toSortedMap()
-    return starts.entries.lastOrNull { it.key <= idx }?.value ?: starts.values.firstOrNull()
+    val idx = contentSelectors.indexOf(cssSelector).takeIf { it >= 0 } ?: 0
+    val starts = mutableMapOf<Int, Int>()
+    tocSelectors.forEachIndexed { index, selector ->
+        if (selector in listOf("", "#", "#null")) {
+            starts[-1] = index
+        } else {
+            val start = contentSelectors.indexOf(tocAnchors[selector] ?: selector)
+            if (start >= 0) starts[start] = index
+        }
+    }
+    return starts.entries
+        .filter { it.key <= idx }
+        .maxByOrNull { it.key }
+        ?.value
 }
 
 // TODO: Support custom headers and authentication header for content files.
@@ -989,7 +996,7 @@ object ReadiumReader :
         // already disables synchronization, start in manual mode.
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
-        // EpubNavigatorFragment 3.3.0 reads this position list with runBlocking from its
+        // EpubNavigatorFragment 3.4.0 reads this position list with runBlocking from its
         // constructor. For a streamed Web Publication that can be a network request, which would
         // otherwise park Android's main thread for seconds or minutes. Populate the service cache
         // first on the I/O dispatcher so the constructor's lookup is immediate.
@@ -1046,6 +1053,7 @@ object ReadiumReader :
     @OptIn(InternalReadiumApi::class)
     suspend fun pdfEnable(
         initialLocator: Locator?,
+        initialPreferences: FlutterPdfPreferences,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1070,7 +1078,7 @@ object ReadiumReader :
                 return@withMainContext
             }
 
-            PdfNavigator(pub, initialLocator, this@ReadiumReader).apply {
+            PdfNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
                 visualNavigator = this
                 attachPdfNavigator(fragmentManager, viewGroup)
@@ -1160,7 +1168,7 @@ object ReadiumReader :
             throw Exception("Publication is not a comic (CBZ/DiViNa), cannot enable comic navigator")
         }
 
-        // ImageNavigatorFragment 3.3.0 reads the position list with runBlocking from onCreateView.
+        // ImageNavigatorFragment 3.4.0 reads the position list with runBlocking from onCreateView.
         // For a streamed DiViNa that can be a network request, which would otherwise park Android's
         // main thread. Populate the service cache first on the I/O dispatcher.
         withIOContext {
@@ -1230,6 +1238,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        initialPdfPreferences: FlutterPdfPreferences,
         fontFamilyDeclarations: List<ReaderFontFamily>,
         disablePageTurnsWhileScrolling: Boolean,
         fragmentManager: FragmentManager,
@@ -1258,7 +1267,7 @@ object ReadiumReader :
 
         when {
             isPdf -> {
-                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+                pdfEnable(initialLocator, initialPdfPreferences, fragmentManager, viewGroup, readerWidget)
             }
 
             isComic -> {

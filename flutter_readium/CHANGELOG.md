@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **`setDefaultPDFPreferences()` sets the layout a PDF opens with.**
+  Before, a PDF always opened in the platform default and jumped when `setPDFPreferences` was applied afterwards. It now opens with the given preferences on iOS and Android. `setPDFPreferences` also updates the default.
+
+- **Android: `PDFLayout.paginated` is now a real paginated PDF layout.**
+  It previously fell back to horizontal scroll. It now snaps to one page at a time, like on iOS. Fixes #265.
+
+### Changed
+
+- **Android: PDFs now open paginated by default, like iOS.**
+  The default was vertical scroll. Call `setDefaultPDFPreferences(PDFPreferences(layout: PDFLayout.scrollVertical))` to keep the old behavior. Also upgrades kotlin-toolkit to 3.4.0.
+
+- **Android: consuming apps must raise their Android build settings.**
+  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. It is also built with Kotlin language version 2.4, which needs Kotlin Gradle Plugin 2.3 or newer. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
+
 ### Fixed
 
 - **Web narration follows ToC sections and seeks to their narrated children.**
@@ -12,7 +28,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   section context was flattened away. Section ownership and same-file seeking now follow
   the narrated children; unknown same-file anchors preserve playback position.
 
-- **Android media-overlay chapter references follow section and resource changes.**
+- **Android: a PDF lost its layout and reading position after the app came back from the background.**
+  The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
+
+- **iOS and Android media-overlay chapter references follow section and resource changes.**
   Narrated paragraphs could lose their subsection, and boundary page cues could retain
   the previous file's chapter. iOS and Android now preserve same-file heading references
   and use the new file's chapter at resource boundaries.
@@ -22,12 +41,170 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **iOS can seek to ToC sections without their own audio.**
   Such sections could report no current chapter or fail to seek within the active file.
   Their narrated children now supply the section reference and seek destination.
-- **Skip to next/previous ToC item works when ToC entries target elements that the narration does not list.**
-  Local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a narration container; only its paragraphs have cues. The playing locator got no `tocHref`, so `skipToNextTOC` fell back to the reading order ("At the last chapter" in single-file issues), and seeking to such an entry in the playing file failed. The entry now resolves to the first cue inside the element in the XHTML.
+- **iOS, Android, and web can navigate newspaper sections without their own audio.**
+  Section changes could fail or report no current chapter when only the paragraphs were narrated.
+  ToC navigation now finds the narrated content, including the next cue after a heading without audio.
+
 - **Web: skipping back to a ToC item at the start of the playing audio file moves playback there.**
   The upstream audio navigator never seeks to `t=0`, so playback kept its position. The plugin now seeks to the track start itself.
 - **Web: fast repeated skips during Sync Narration playback keep playing and keep the highlight in sync.**
   Before, a skip made just after another skip could leave the audio paused, or playing with no position or highlight updates.
+
+- **Web: sync-narration audio had no stream error recovery.**
+  A failing media-overlay audio track only gave `TimebasedState.failure`: no `AudioStreamAuthError`, no retries. The recovery was wired for plain audiobooks only. Media-overlay sessions now get the same classification, retries and `play()`-after-failure as audiobooks, as on iOS and Android.
+- **Web could be reported as iOS or Android on mobile browsers.** The browser user agent can influence
+  `defaultTargetPlatform`, which sent web code down native platform paths. Runtime platform flags now
+  report iOS and Android only for native apps.
+- **Web: TTS could stop for good after a speechSynthesis stall.**
+  The stall watchdog treated `speaking: true` with no `onstart` yet as a wedge, which is
+  also what a perfectly normal queued utterance looks like. After two timeouts it emitted
+  `failure` and left the engine stuck, so playback only came back by reloading. The
+  watchdog now waits for real silence, always resets the engine before reporting failure,
+  and can no longer cancel the utterance that replaced it or speak again after `stop()`.
+
+### Added
+
+- **Web: synchronised audio never started until the reader view was on screen.** `audioEnable` issued right after `openPublication` hit a publication whose audio capability had not been detected yet, and gave up silently. Audio capability is now detected as the publication loads, so `audioEnable` builds the audio navigator without a reader view — matching iOS and Android, where audio can play without showing book content. Mounting the reader view no longer stops a book that is already narrating.
+- **Web: `audioEnable` now requires an awaited `openPublication`.** A call that arrives before the publication is loaded used to be remembered and replayed; it now fails with `NoPublication`, matching Android's awaited error contract.
+
+- **Web: `audioEnable` called before the reader view mounted was silently dropped**, so
+  synchronised audio for a text publication could never start. It's now remembered and replayed
+  once the publication opens.
+- **Web: reopening an audiobook restored the saved position but stayed paused**, because
+  `audioEnable` didn't await its restore seek. The seek is now awaited before it resolves.
+
+- **Web: audio/TTS/decoration control calls no longer leak raw JS errors** —
+  `goBackward`/`goForward`, playback controls, decoration application, and
+  TTS/audio preference and voice setters called straight into the JS bundle
+  with no error handling; a thrown JS error surfaced as an unconverted
+  exception instead of `ReadiumException`.
+- **Web `stop()` now tears down the active audio/TTS navigator**, matching iOS and Android.
+  Call `audioEnable()` or `ttsEnable()` again before resuming audiobook, Media Overlay,
+  Guided Navigation, or TTS playback after `stop()`.
+
+### Added
+
+- **Web comic navigation** — DiViNa/CBZ publications page one image at a time, emit page locators
+  (`onPageChanged`), and support `goToLocator` / `goToProgression`.
+
+### Fixed
+
+- **Web: Improved error-handling** - `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices` failures are
+  now caught and `.stack` is now included in `PlatformException.message`.
+- **Web: Audio Navigator** — audiobook publications now play on web. `audioEnable`,
+  `play`, `pause`, `resume`, `stop`, `next`, `previous`, `audioSetPreferences` are all
+  wired up via the upstream `AudioNavigator` (ts-toolkit 2.4.0+). Playback state
+  (offset, duration, locator) streams through `onTimebasedPlayerStateChanged`, matching
+  the iOS / Android contract.
+- **Web: Media Overlay (Sync Narration)** — EPUBs with embedded Sync Narration JSON
+  alternates (`application/vnd.readium.narration+json`) can now play their synchronized
+  narration. `audioEnable()` parses the narration, builds a synthetic audio reading
+  order, and drives `AudioNavigator`; audio time is mapped back to text locators so
+  `onTextLocatorChanged` emits text-href locators as narration advances (matching
+  iOS / Android `reachedLocator`). Enabling audio resumes from the visual reader's
+  current position, `goToLocator` and ToC / bookmark taps seek the audio to the matching
+  narration item, and `audioSeekBy` is wired up via `AudioNavigator.jump()`.
+- **Web: TTS (text-to-speech)** — `ttsEnable`, `ttsGetAvailableVoices`, `ttsSetVoice`,
+  `ttsSetPreferences` are implemented on web using the browser's `SpeechSynthesis` API
+  and `@readium/shared`'s `PublicationContentIterator` + `HTMLResourceContentIterator`
+  for paragraph-level text extraction. Playback state streams through
+  `onTimebasedPlayerStateChanged` and position bookmarks through `onTextLocatorChanged`.
+  Voice gender / quality is enriched via the bundled `voices.json` from
+  https://readium.org/speech/. `play`, `pause`, `resume`, `stop`, `next`, `previous`
+  dispatch to the TTS engine when active, falling back to `AudioNavigator` otherwise.
+- **Web: Guided Navigation support** — the web platform now detects EPUBs carrying
+  `application/guided-navigation+json` (publication-level link or reading-order
+  alternate) and plays them through the Media Overlay pipeline, mirroring iOS / Android.
+  When both Guided Navigation and Sync Narration are present, Guided Navigation takes
+  precedence — matching native behaviour. Playback keeps the visual reader scrolled in
+  sync.
+- **Web: comic / FXL publication support** — fixed-layout (Nota comic) publications
+  now render on web.
+- **Web: `goToProgression`** — navigates to an absolute progression (0.0–1.0) on web.
+  Supports EPUB (position-list lookup), audiobook (seek to `progression × duration`),
+  and Media Overlay content types.
+- **Web: `audioSeekBy`** — `audioSeekBy(Duration offset)` is implemented for audiobook
+  and Media Overlay playback via `AudioNavigator.jump()`.
+- **Web: `onErrorEvent` stream implemented** — subscribing to
+  `FlutterReadium().onErrorEvent` on web no longer returns an empty stream. A broadcast
+  `StreamController<ReadiumError>` now backs the stream; `openPublication` failures in
+  the JS bundle are forwarded to Dart via an `onErrorCallback` window setter. Pure
+  audiobook paths register the same callback via `_AudiobookCallbacks`.
+- **Web: ToC enrichment for media-overlay items** — Sync Narration and Guided
+  Navigation items are enriched with `tocTitle` / `tocHref` derived from the
+  publication's table of contents, matching `enrichOverlaysWithToc` on iOS / Android.
+- **Web: `onTextLocatorChanged` locators now carry `tocHref`** — the EPUB navigator
+  enriches each emitted locator with the current chapter's ToC href, matching the
+  iOS / Android contract and unblocking chapter-skip features on the consumer side.
+- **Web: TTS locators now carry `tocHref`** — `Locator.locations.tocHref` is now
+  populated on every locator emitted during TTS playback (utterance-start and
+  word-boundary events), so chapter-aware features work during TTS on web — matching
+  the existing behaviour for visual navigation and audiobook / media-overlay playback.
+- **Web: reading-order item duration propagated to media-overlay items** — the parent
+  reading-order link's declared `duration` (when present) is carried on each item and
+  used as the authoritative fallback for the synthetic audio Link's duration, replacing
+  the cue-sum-only computation that underestimated total length when cues left gaps.
+- **Web: `scrollPaddingLeft` / `scrollPaddingRight` EPUB preferences** — new fields in
+  ts-toolkit 2.5.x are now passed through to the navigator.
+- **Web: structured console logging** — all web TS modules now log through a tagged
+  logger (`[Readium/<Module>] LEVEL: message`) with runtime level control. `setLogLevel`
+  now propagates to the JS bundle so web logging verbosity is controlled from Dart
+  alongside the native platforms.
+- **Web: ts-toolkit version bump** — `@readium/navigator` `^2.2.4` → `^2.5.5`,
+  `@readium/navigator-html-injectables` `^2.2.1` → `^2.4.2`,
+  `@readium/shared` `^2.1.1` → `^2.2.0`. Picks up FXL `positionChanged` reliability fix
+  (navigator #218), vertical / RTL writing-mode support, Readium CSS v2.0.0, and
+  content-protection infrastructure.
+- **Web Decorator API** — `applyDecorations` and `setDecorationStyle` are now functional
+  on web. `applyDecorations` replaces a group's decorations by sending a `"clear"` then
+  an `"add"` per decoration via the upstream `@readium/navigator-html-injectables`
+  FrameComms `"decorate"` command. The `highlight` (filled box) and `underline`
+  (border-bottom) styles are both supported.
+- **Web underline-style decorations** — `DecorationStyle.underline` renders as a
+  border-bottom in the tint colour rather than a filled box, routed to a separate
+  upstream group (`<group>__underline`) with an injected stylesheet + `MutationObserver`
+  per iframe. The same distinction works in the CSS Custom Highlight API path (modern
+  Chrome) via a paired sibling `<style>` whose `::highlight()` rule wins by cascade order.
+- **Web: EPUB preferences mapping cleanup** — `epubPreferences.ts` now mirrors the Dart
+  `EPUBPreferences` shape (one preference per Dart field), with documented conversions:
+  `columnCount` enum (auto/one/two) → `number | null`, `imageFilter` enum (darken/invert)
+  → `darkenFilter` / `invertFilter`, and `fontSize` divided by 100 to match the iOS
+  plugin (Dart `120` → web `1.2`). Dart fields the web navigator can't honor
+  (`publisherStyles`, `readingProgression`, `spread`, `typeScale`, `verticalText`,
+  `language`, `blackAndWhiteComicMode`, `firstElementTopMargin`) are dropped with inline
+  rationale.
+- **Web: content-protection, peripheral, and context-menu listener stubs** — new
+  required listener fields from ts-toolkit 2.3.0 are now present on both EPUB and WebPub
+  navigator configurations.
+- **Web: improved error-handling** — `ttsEnable`, `audioEnable`, and `ttsGetAvailableVoices`
+  failures are now caught and `.stack` is now included in `PlatformException.message`.
+- **Web: `setEPUBPreferences` no longer wipes existing preferences** — the converter now
+  emits only fields the Dart caller explicitly set, leaving prior preferences untouched
+  on merge. Previously every unset field was sent as `null`, which the navigator's
+  `merging()` does not skip (only `undefined`), so a partial update reset everything.
+- **Web: `onTextLocatorChanged` no longer floods consumers during scroll** — text-locator
+  events are trailing-edge debounced at 250 ms, matching the per-page cadence of the
+  iOS / Android plugins (the ts-toolkit emits ~60 events/sec in scroll mode).
+- **Web: EPUB navigation (`goTo`, `goForward`, `goBackward`, ToC links) now works** —
+  `ReadiumReader.goTo` searches `readingOrder` before `resources` (ToC chapter links
+  point into reading order, so the previous resources-only lookup always failed), and the
+  JS bridge now implements the progression-aware navigation methods `goForward` /
+  `goBackward` call (previously errored with `is not a function`).
+- **Web: nested ToC entries are no longer dropped** — `flattenToc` treated
+  `@readium/shared`'s `Links` as a plain array, silently discarding nested children;
+  it now uses the `Links` API.
+- **Web: `WebPubNavigator` now debounces `onTextLocatorChanged` during scroll** —
+  matches the existing EPUB debounce. The WebPub navigator was emitting
+  position-changed events at rAF rate (~60 Hz), flooding the Dart-side text-locator
+  stream with redundant updates.
+- **Web: spotlight decoration now honours its tint and dims reliably on EPUB-profile
+  publications** — the spotlight CSS no longer strips the caller-supplied tint (it
+  used to force `background-color: transparent !important`, silently dropping any
+  fill colour), and the body-wide dim selector is now specific enough to beat the
+  ReadiumCSS `customColors_pref.css` user-text-colour rule that previously won the
+  cascade on EPUB-profile publications.
+
+---
 
 ## [0.6.2] - 2026-10-13
 

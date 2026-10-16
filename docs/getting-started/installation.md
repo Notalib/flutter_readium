@@ -7,6 +7,8 @@
 | Flutter SDK | ≥ 3.44.8 |
 | Dart SDK | ≥ 3.8.0 |
 | Android minSdk | 24 |
+| Android compileSdk | ≥ 37 |
+| Kotlin Gradle Plugin | ≥ 2.3 |
 | iOS | 15.0+ |
 
 ## 1. Add the dependency
@@ -19,36 +21,48 @@ flutter pub add flutter_readium
 
 ### Minimum SDK
 
-In `android/app/build.gradle`:
+In `android/app/build.gradle.kts`:
 
-```gradle
+```kotlin
 android {
   defaultConfig {
-    minSdkVersion 24
+    minSdk = 24
   }
 }
 ```
 
+### Compile SDK and Kotlin version
+
+kotlin-toolkit 3.4.0 needs `compileSdk` 37 or later and Kotlin Gradle Plugin 2.3 or newer. In `android/app/build.gradle.kts`:
+
+```kotlin
+android {
+  compileSdk = maxOf(flutter.compileSdkVersion, 37)
+}
+```
+
+Without the right `compileSdk` the build fails at `:app:checkDebugAarMetadata`. An older Kotlin Gradle Plugin fails to read the toolkit's Kotlin metadata, because the toolkit is built with Kotlin language version 2.4 and a compiler reads metadata only one minor version ahead of itself. Raise the `org.jetbrains.kotlin.android` plugin version in `android/settings.gradle.kts` to 2.3 or newer. If the `plugins` block there has no `org.jetbrains.kotlin.android` entry, add `id("org.jetbrains.kotlin.android") version "2.3.21" apply false`.
+
 ### Core library desugaring
 
-The readium-kotlin-toolkit artifacts require it. In `android/app/build.gradle`:
+The readium-kotlin-toolkit artifacts require it. In `android/app/build.gradle.kts`:
 
-```gradle
+```kotlin
 android {
   compileOptions {
-    coreLibraryDesugaringEnabled true
+    isCoreLibraryDesugaringEnabled = true
   }
 }
 
 dependencies {
-  coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
 ```
 
 Without this the build fails at `:app:checkDebugAarMetadata` with one error per readium artifact:
 
 ```
-Dependency 'org.readium.kotlin-toolkit:readium-shared:3.3.0' requires core library desugaring
+Dependency 'org.readium.kotlin-toolkit:readium-shared:3.4.0' requires core library desugaring
 to be enabled for :app.
 ```
 
