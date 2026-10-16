@@ -3,7 +3,40 @@
 This page records the latest focused regression evidence for [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 It complements the implementation details in the [native checklist](native-media-overlay-toc-context.md)
 and [web checklist](web-media-overlay-toc-context.md). Counts below are from the current worktree
-validation on 2026-10-14 unless explicitly marked historical.
+validation on 2026-10-14 unless explicitly dated below. The October 16 follow-up supersedes those counts.
+
+
+## Review follow-up, 2026-10-16
+
+Fixture source: [`fc12500`](https://github.com/Notalib/readium-test-resources/commit/fc12500bd36fbfe68bab15e24067c53a576c3e62). The synthetic newspaper is now three resources, six ten-second cues, and one minute of generated tones. It retains an unowned prelude, a cue-less heading before narrated content, a section/deeper-heading shared start, an uncued section and aside, and a following resource. Manifest anchors, audio durations, and archive construction were checked locally.
+
+The web seek-instability regression failed before the fix: the same section selected cue 1 before `fillOwners()` and cue 0 afterward. It now selects cue 1 both times. Prelude ownership uses a file-only entry or remains unowned on every platform. Navigation to a known cue-less element selects the first cue at or after it, separately from ownership; unknown and after-last targets retain the ADR's fallback/no-match rules.
+
+| Layer | Follow-up evidence |
+| --- | --- |
+| Swift units | 75 passed; equivalent owner-index policy and actual locator rewrite checks |
+| Kotlin units | 99 passed, one existing ignored test; includes slow enrichment followed by an already-owned cue |
+| Web units | 25 suites / 396 passed. Real DOMParser XHTML/HTML recovery, prelude policy, before/after-fill seek stability, metadata/time preservation, initial locator, goTo/play/audioEnable callers, terminal recovery, stale-session rejection, and first event while owner loading is pending |
+| iOS reader integration | Expanded committed newspaper case passed on iPhone 18 Pro / iOS 27 simulator |
+| Chrome reader integration | Expanded committed newspaper case passed on Chrome 155 with autoplay and range-capable local fixture serving |
+| Android audio integration | Same case passed on API 36 with reader mounting omitted in a temporary diagnostic runner |
+| Android full reader integration | Blocked during warm-up by the upstream 3.4.0 WebView crash below; narration case never started |
+
+The shared case checks initial seeking from the empty heading, prelude ownership, the deeper heading winning a shared cue, identical seeks after enrichment, same-file unknown-anchor resume without rewind, section/aside seeking in both directions, owner continuation at the next cue, and next/previous ToC navigation across a resource boundary. It waits for cue, owner, and offset to agree. After paused seeking it explicitly resumes playback, so a missing duplicate paused event cannot masquerade as a failed seek. Timing assertions allow the full ten-second cue window; exact lookup offsets are covered in units.
+
+Focused runs use a temporary runner containing the committed newspaper test body verbatim, plus the normal warm-up/result reporter. The separate Android diagnostic omits reader mounting and warm-up only; it does not replace or weaken the committed full-reader test. Full integration aggregators and physical-device/content-tap checks were not rerun for this follow-up. The historical full-suite results below do not qualify this head.
+
+### Android reader blocker
+
+The API 36 app crashes in warm-up before any narration request:
+
+```text
+java.lang.NullPointerException: getResponseHeaders(...) must not be null
+  at org.readium.r2.navigator.epub.WebViewServer.allowCors(WebViewServer.kt:262)
+  at org.readium.r2.navigator.epub.WebViewServer.shouldInterceptRequest(WebViewServer.kt:116)
+```
+
+The pinned [Readium 3.4.0 source](https://github.com/readium/kotlin-toolkit/blob/3.4.0/readium/navigator/src/main/java/org/readium/r2/navigator/epub/WebViewServer.kt#L262) adds a CORS header to `responseHeaders` without handling null for asset responses. This needs an upstream null-safe header merge and a published toolkit fix; no library artifact was decompiled or patched locally. Audio-only qualification establishes the ADR's navigation behavior but cannot substitute for a successful reader run.
 
 ## Coverage matrix
 

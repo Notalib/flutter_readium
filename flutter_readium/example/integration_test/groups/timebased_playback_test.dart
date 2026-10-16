@@ -307,22 +307,32 @@ void main() {
           reason: 'Synthetic newspaper did not mount',
         );
         Future<void> expectCue(String resource, String cue, String? owner, {int? offset}) async {
+          // Busy simulators can deliver state after playback has advanced within the cue.
           bool matches(ReadiumTimebasedState state) =>
               state.currentLocator?.href.endsWith(resource) == true &&
               state.currentLocator?.locations?.cssSelector == cue &&
-              state.currentLocator?.locations?.tocHref == owner;
+              state.currentLocator?.locations?.tocHref == owner &&
+              (offset == null ||
+                  (state.currentOffset != null &&
+                      state.currentOffset! >= Duration(seconds: offset) &&
+                      state.currentOffset! < Duration(seconds: offset + 10)));
           await waitWithPump(
             tester,
             () => states.any(matches),
             timeout: const Duration(seconds: 30),
             reason: 'Expected $resource $cue with owner $owner',
-            diagnostics: () => 'states=$states',
+            diagnostics: () => states
+                .map(
+                  (state) =>
+                      '${state.currentLocator?.href} ${state.currentLocator?.locations?.cssSelector} owner=${state.currentLocator?.locations?.tocHref} offset=${state.currentOffset}',
+                )
+                .join(' | '),
           );
           if (offset != null) {
             final actual = states.firstWhere(matches).currentOffset;
             expect(actual, isNotNull);
             expect(actual, greaterThanOrEqualTo(Duration(seconds: offset)));
-            expect(actual, lessThan(Duration(seconds: offset + 3)));
+            expect(actual, lessThan(Duration(seconds: offset + 10)));
           }
         }
 
@@ -342,6 +352,7 @@ void main() {
             locations: const Locations(fragments: ['t=0']),
           ),
         );
+        await harness.readium.play(null);
         await expectCue('np-0001.xhtml', '#prelude', null, offset: 0);
 
         // The section shares its first cue with the deeper heading. Empty-heading
@@ -349,6 +360,7 @@ void main() {
         for (final href in ['np-0001.xhtml#e2', 'np-0001.xhtml#e3']) {
           states.clear();
           await harness.readium.goToLocator(target(href));
+          await harness.readium.play(null);
           await expectCue('np-0001.xhtml', '#e4', 'np-0001.xhtml#e4', offset: 10);
         }
 

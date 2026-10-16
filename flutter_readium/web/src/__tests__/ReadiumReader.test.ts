@@ -546,6 +546,24 @@ describe("active Sync Narration navigation", () => {
       expect((call[0] as Locator).locations.fragments).toEqual(["t=10"]);
     }
   });
+  it("resolves an uncued target before recreating a terminally failed session", async () => {
+    const {reader, seek} = session();
+    (reader as any)._publication = (reader as any)._audioNavPublication;
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(true);
+    jest.spyOn(FlutterAudioNavigator, "retryAfterFailure").mockImplementation(() => {});
+    const recreate = jest.spyOn(FlutterAudioNavigator, "recreateAfterFailure").mockReturnValue(true);
+    const anchored = Locator.deserialize(JSON.parse(target("p2")))!;
+    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments.some((f) => f.startsWith("t=")),
+      anchor: jest.fn(async () => anchored)};
+    (reader as any)._uncuedTocTargets = resolver;
+    reader.play(target("empty-heading"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolver.anchor).toHaveBeenCalledTimes(1);
+    expect(recreate).toHaveBeenCalledTimes(1);
+    expect(recreate.mock.calls[0][0]?.locations.fragments).toEqual(["t=10"]);
+    expect(seek).not.toHaveBeenCalled();
+  });
   it("discards an uncued play resolved after its session has been replaced", async () => {
     const {reader, seek} = session();
     jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);

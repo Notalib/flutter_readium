@@ -23,7 +23,7 @@
 - [x] ChromeDriver example test: first section cue/owner, later `t=10` cue, unknown
   same-file anchor followed by `play(null)` without rewind, and known section seek back.
 
-- [x] Uncued ToC targets (ADR 0001 amendment, local newspapers): `mediaoverlay/uncuedTocTargets.ts` fills ToC owners by document order per resource and anchors seeks to the first cue inside an uncued element. Jest: `uncuedTocTargets.test.ts`.
+- [x] Uncued ToC targets (ADR 0001 amendment, local newspapers): `mediaoverlay/uncuedTocTargets.ts` fills ToC owners by document order per resource and anchors seeks to the first cue at or after a known uncued element. Jest: `uncuedTocTargets.test.ts`.
 
 ## Limits
 
@@ -60,3 +60,13 @@ playing state. Automated playback needs this allowance; manual user-gesture play
 and physical content taps were not exercised. The full integration aggregator was not run.
 
 Native production files are unchanged; native builds and simulator runs are outside this web-only gate scope.
+
+## October 16 review follow-up
+
+Current main and native follow-ups are merged without rewriting published history. The shared ADR filename now reflects all three platforms. Prelude ownership is file-only or unowned; document-order navigation can seek forward from a cue-less heading without assigning it ownership.
+
+Web initialization anchors an initial text locator before creating the audio navigator. Active goTo/play/audioEnable mapping preserves the same-file fallback guard. Async play retries once using the resolved audio locator, including terminal-session recreation; unknown targets cannot recursively retry forever. Stale session results are discarded. Real DOMParser tests use Jest's jsdom environment; existing node-only suites retain their environment.
+
+The first emitted cue remains synchronous while lazy owner enrichment runs. Its subsequent state/text event can acquire the owner, but an identical section request must resolve to the same audio cue before and after enrichment. Implementation details stay here; the shared case contract remains in ADR 0001.
+
+The expanded integration test uses fixture source `fc12500` (three resources, six ten-second cues). See the dated [regression record](media-overlay-adr-regressions.md#review-follow-up-2026-10-16) for current unit, simulator/browser evidence and the separate Android WebView blocker.
