@@ -306,58 +306,83 @@ void main() {
           timeout: firstMountTimeout,
           reason: 'Synthetic newspaper did not mount',
         );
-        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0));
-        await harness.readium.play(null);
-        await waitWithPump(
-          tester,
-          () => states.any((state) => state.state == TimebasedState.playing && state.currentOffset != null),
-          timeout: const Duration(seconds: 30),
-          reason: 'Synthetic newspaper narration did not start playing',
-          diagnostics: () => 'states=$states',
-        );
-
-        // np-0011.xhtml: ToC entries target <section id="e166"> and <aside id="e198">. Neither is
-        // a cue; their first cues are #e168 (t=0) and #e199 (t=43.5) in the same audio file.
-        // The second seek goes back to t=0 within the playing file.
-        final cases = <({String toc, String cue})>[
-          (toc: 'np-0011.xhtml#e198', cue: '#e199'),
-          (toc: 'np-0011.xhtml#e166', cue: '#e168'),
-          (toc: 'np-0011.xhtml#e198', cue: '#e199'),
-        ];
-        for (final item in cases) {
-          final link = pub.tocFlattened.singleWhere((link) => link.href == item.toc);
-          states.clear();
-          expect(
-            await harness.readium.goToLocator(pub.locatorFromLink(link)!),
-            isTrue,
-            reason: 'Seek to uncued ToC target ${item.toc} failed',
-          );
+        Future<void> expectCue(String resource, String cue, String? owner, {int? offset}) async {
+          bool matches(ReadiumTimebasedState state) =>
+              state.currentLocator?.href.endsWith(resource) == true &&
+              state.currentLocator?.locations?.cssSelector == cue &&
+              state.currentLocator?.locations?.tocHref == owner;
           await waitWithPump(
             tester,
-            () => states.any(
-              (state) =>
-                  state.currentLocator?.href.endsWith('np-0011.xhtml') == true &&
-                  state.currentLocator?.locations?.cssSelector == item.cue &&
-                  state.currentLocator?.locations?.tocHref == item.toc,
-            ),
+            () => states.any(matches),
             timeout: const Duration(seconds: 30),
-            reason: 'Seek to ${item.toc} did not play ${item.cue} with that ToC entry',
+            reason: 'Expected $resource $cue with owner $owner',
             diagnostics: () => 'states=$states',
           );
+          if (offset != null) {
+            final actual = states.firstWhere(matches).currentOffset;
+            expect(actual, isNotNull);
+            expect(actual, greaterThanOrEqualTo(Duration(seconds: offset)));
+            expect(actual, lessThan(Duration(seconds: offset + 3)));
+          }
         }
 
-        // Later cues inside the aside keep its ToC entry.
-        await waitWithPump(
-          tester,
-          () => states.any(
-            (state) =>
-                state.currentLocator?.locations?.cssSelector == '#e200' &&
-                state.currentLocator?.locations?.tocHref == 'np-0011.xhtml#e198',
+        Locator target(String href) => pub.locatorFromLink(pub.tocFlattened.singleWhere((link) => link.href == href))!;
+
+        // Initial-locator mapping must skip the prelude and the cue-less heading.
+        await harness.readium.audioEnable(prefs: AudioPreferences(speed: 1.0), fromLocator: target('np-0001.xhtml#e2'));
+        await harness.readium.play(null);
+        await expectCue('np-0001.xhtml', '#e4', 'np-0001.xhtml#e4', offset: 10);
+        await harness.readium.pause();
+
+        states.clear();
+        await harness.readium.goToLocator(
+          Locator(
+            href: 'np-0001.xhtml',
+            type: 'application/xhtml+xml',
+            locations: const Locations(fragments: ['t=0']),
           ),
-          timeout: const Duration(seconds: 30),
-          reason: 'Cue #e200 did not keep the aside ToC entry',
-          diagnostics: () => 'states=$states',
         );
+        await expectCue('np-0001.xhtml', '#prelude', null, offset: 0);
+
+        // The section shares its first cue with the deeper heading. Empty-heading
+        // and section seeks must stay identical after owner enrichment has run.
+        for (final href in ['np-0001.xhtml#e2', 'np-0001.xhtml#e3']) {
+          states.clear();
+          await harness.readium.goToLocator(target(href));
+          await expectCue('np-0001.xhtml', '#e4', 'np-0001.xhtml#e4', offset: 10);
+        }
+
+        states.clear();
+        await harness.readium.goToLocator(
+          Locator(
+            href: 'np-0001.xhtml',
+            type: 'application/xhtml+xml',
+            locations: const Locations(cssSelector: '#missing'),
+          ),
+        );
+        await harness.readium.play(null);
+        await expectCue('np-0001.xhtml', '#e4', 'np-0001.xhtml#e4', offset: 10);
+
+        // Main section and aside resolve within the same audio track in both directions.
+        final cases = <({String toc, String cue, int offset})>[
+          (toc: 'np-0011.xhtml#e198', cue: '#e199', offset: 10),
+          (toc: 'np-0011.xhtml#e166', cue: '#e168', offset: 0),
+          (toc: 'np-0011.xhtml#e198', cue: '#e199', offset: 10),
+        ];
+        for (final item in cases) {
+          states.clear();
+          expect(await harness.readium.goToLocator(target(item.toc)), isTrue);
+          await expectCue('np-0011.xhtml', item.cue, item.toc, offset: item.offset);
+        }
+        await harness.readium.play(null);
+        await expectCue('np-0011.xhtml', '#e200', 'np-0011.xhtml#e198', offset: 20);
+
+        states.clear();
+        await harness.readium.skipToNextTOC(publication: pub, currentTocHref: 'np-0011.xhtml#e198');
+        await expectCue('np-0012.xhtml', '#e204', 'np-0012.xhtml#e202', offset: 0);
+        states.clear();
+        await harness.readium.skipToPreviousTOC(publication: pub, currentTocHref: 'np-0012.xhtml#e202');
+        await expectCue('np-0011.xhtml', '#e199', 'np-0011.xhtml#e198', offset: 10);
         await harness.readium.pause();
         await tester.pumpWidget(const SizedBox());
       },

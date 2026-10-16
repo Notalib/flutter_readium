@@ -267,7 +267,8 @@ class _ReadiumReader {
       // crosses into a *different* resource than the one currently playing —
       // an uncued anchor within the current chapter must not rewind audio to
       // the chapter top. See issue #139.
-      const curAudioLoc = this._audioNav.currentLocator;
+      const activeNav = this._audioNav;
+      const curAudioLoc = activeNav.currentLocator;
       const curTime = getTime(curAudioLoc.locations) ?? this._audioNav.currentTime;
       const useSyncNarrationLookup = !!this._audioNavPublication &&
         detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
@@ -275,7 +276,8 @@ class _ReadiumReader {
       const crossResource =
         !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
       const anchored = useSyncNarrationLookup ? await this._anchorUncuedTextLocator(locator) : locator;
-      const audioLocator = textLocatorToAudioLocator(this._syncItems, anchored, crossResource, useSyncNarrationLookup);
+      if (this._audioNav !== activeNav) return;
+      const audioLocator = anchored ? textLocatorToAudioLocator(this._syncItems, anchored, crossResource, useSyncNarrationLookup) : undefined;
       if (audioLocator) {
         const wasPlaying = isPlayingOrResuming(this._audioNav);
         log.info(
@@ -813,8 +815,17 @@ class _ReadiumReader {
   }
 
   /** Points an uncued ToC target at its first cue before text→audio mapping. See ADR 0001. */
-  private async _anchorUncuedTextLocator(locator: Locator): Promise<Locator> {
-    return (await this._uncuedTocTargets?.anchor(locator)) ?? locator;
+  private async _anchorUncuedTextLocator(locator: Locator): Promise<Locator | undefined> {
+    return this._uncuedTocTargets ? this._uncuedTocTargets.anchor(locator) : locator;
+  }
+
+  private _mapActiveTextLocator(locator: Locator, useSyncNarrationLookup: boolean): Locator | undefined {
+    const current = this._audioNav?.currentLocator;
+    const item = current && findItemByAudioTime(this._syncItems, current.href,
+      getTime(current.locations) ?? this._audioNav!.currentTime, useSyncNarrationLookup);
+    const crossResource = !item || normalizeHref(item.textHref) !== normalizeHref(locator.href);
+    return textLocatorToAudioLocator(this._syncItems, locator,
+      !useSyncNarrationLookup || crossResource, useSyncNarrationLookup);
   }
 
   /**
@@ -856,6 +867,18 @@ class _ReadiumReader {
     if (!this._audioNav) return;
     const useSyncNarrationLookup = this._syncItems.length > 0 && !!this._audioNavPublication &&
       detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+
+    const requested = locatorJson ? Locator.deserialize(JSON.parse(locatorJson)) : undefined;
+    const uncued = useSyncNarrationLookup ? this._uncuedTocTargets : undefined;
+    if (requested && uncued?.isUncued(requested)) {
+      void uncued.anchor(requested).then((anchored) => {
+        if (this._uncuedTocTargets !== uncued || !anchored) return;
+        const mapped = this._mapActiveTextLocator(anchored, true);
+        // Retry once with an audio locator. It cannot re-enter XHTML resolution.
+        if (mapped) this.play(JSON.stringify(mapped.serialize()));
+      });
+      return;
+    }
 
     // Retrying after a terminal streaming failure: the failed navigator was
     // already stopped by the recovery controller and is never reusable (no
@@ -903,17 +926,9 @@ class _ReadiumReader {
     if (locatorJson) {
       let locator = Locator.deserialize(JSON.parse(locatorJson));
       if (locator) {
-        // An uncued ToC target needs its XHTML: retry with the anchored locator. See ADR 0001.
-        const uncued = useSyncNarrationLookup ? this._uncuedTocTargets : undefined;
-        if (uncued?.isUncued(locator)) {
-          void uncued.anchor(locator).then((anchored) => {
-            if (this._uncuedTocTargets === uncued) this.play(JSON.stringify(anchored.serialize()));
-          });
-          return;
-        }
         // MediaOverlay: map text locator → audio locator before seeking.
         if (this._syncItems.length > 0) {
-          const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
+          const mapped = this._mapActiveTextLocator(locator, useSyncNarrationLookup);
           if (useSyncNarrationLookup && !mapped) return;
           locator = mapped ?? locator;
         }
@@ -1404,8 +1419,12 @@ class _ReadiumReader {
         let locator = resolvedFromLocator;
         if (this._syncItems.length > 0) {
           const useSyncNarrationLookup = this._hasSyncNarration && !this._hasGuidedNavigation;
-          if (useSyncNarrationLookup) locator = await this._anchorUncuedTextLocator(locator);
-          const mapped = textLocatorToAudioLocator(this._syncItems, locator, true, useSyncNarrationLookup);
+          if (useSyncNarrationLookup) {
+            const anchored = await this._anchorUncuedTextLocator(locator);
+            if (!anchored) return;
+            locator = anchored;
+          }
+          const mapped = this._mapActiveTextLocator(locator, useSyncNarrationLookup);
           if (useSyncNarrationLookup && !mapped) return;
           locator = mapped ?? locator;
         }
@@ -1472,8 +1491,12 @@ class _ReadiumReader {
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
-        const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, await this._anchorUncuedTextLocator(fromLocator), true, true)
+        const targets = this._uncuedTocTargets;
+        const anchored = fromLocator ? await this._anchorUncuedTextLocator(fromLocator) : undefined;
+        if (this._uncuedTocTargets !== targets || this._audioNavPublication !== publication) return;
+        if (fromLocator && !anchored) return;
+        const mappedStart = anchored
+          ? textLocatorToAudioLocator(this._syncItems, anchored, true, true)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();

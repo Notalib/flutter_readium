@@ -516,6 +516,48 @@ describe("active Sync Narration navigation", () => {
     await reader.goTo(JSON.stringify(locator.serialize()));
     expect(seek).not.toHaveBeenCalled();
   });
+  it("resolves uncued play once and does not recurse for an unknown anchor", async () => {
+    const {reader, seek} = session();
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    const unknown = Locator.deserialize(JSON.parse(target("unknown")))!;
+    const resolver = {isUncued: jest.fn(() => true), anchor: jest.fn(async () => unknown)};
+    (reader as any)._uncuedTocTargets = resolver;
+    reader.play(target("unknown"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolver.anchor).toHaveBeenCalledTimes(1);
+    expect(seek).not.toHaveBeenCalled();
+  });
+  it("resolves an uncued target for goTo, play, and a reused audioEnable", async () => {
+    const {reader, seek} = session();
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    const anchored = Locator.deserialize(JSON.parse(target("p2")))!;
+    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments.some((f) => f.startsWith("t=")), anchor: jest.fn(async () => anchored)};
+    (reader as any)._uncuedTocTargets = resolver;
+    await reader.goTo(target("empty-heading"));
+    reader.play(target("empty-heading"));
+    await Promise.resolve();
+    Object.assign(reader as any, {_publication: (reader as any)._audioNavPublication,
+      _hasSyncNarration: true, _hasGuidedNavigation: false});
+    await reader.audioEnable("{}", target("empty-heading"));
+    expect(resolver.anchor).toHaveBeenCalledTimes(3);
+    expect(seek).toHaveBeenCalledTimes(3);
+    for (const call of seek.mock.calls) {
+      expect((call[0] as Locator).locations.fragments).toEqual(["t=10"]);
+    }
+  });
+  it("discards an uncued play resolved after its session has been replaced", async () => {
+    const {reader, seek} = session();
+    jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
+    let resolve!: (locator: Locator) => void;
+    (reader as any)._uncuedTocTargets = {isUncued: () => true,
+      anchor: () => new Promise<Locator>((done) => {resolve = done;})};
+    reader.play(target("empty-heading"));
+    (reader as any)._uncuedTocTargets = undefined;
+    resolve(Locator.deserialize(JSON.parse(target("p2")))!);
+    await Promise.resolve();
+    expect(seek).not.toHaveBeenCalled();
+  });
   it("both formats retain Guided priority for active goTo", async () => {
     const {reader, seek} = session(true);
     await reader.goTo(target("section"));

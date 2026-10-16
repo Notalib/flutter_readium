@@ -58,7 +58,7 @@ export class XhtmlIdTree {
  * Gives each cue of one resource that has no `tocHref` the ToC entry that precedes it in
  * document order. An uncued ToC target counts at its first cue descendant; when a target
  * and a deeper entry share that cue, the deeper (later) entry wins. Cues before every
- * entry get the resource's first entry, as the native document-order lookup does.
+ * entry use the resource's file-only entry when present, otherwise remain unowned.
  */
 export function assignUncuedTocOwners(
   resourceItems: SyncNarrationItem[],
@@ -69,6 +69,10 @@ export function assignUncuedTocOwners(
   const entries = new Map<number, Link>();
   for (const link of resourceToc) {
     const { textId } = parseTextField(link.href);
+    if (!textId) {
+      entries.set(-1, link);
+      continue;
+    }
     const target = cueIds.has(textId) ? textId : tree?.firstDescendant(textId, cueIds);
     const index = resourceItems.findIndex((item) => item.textId === target);
     if (index !== -1) entries.set(index, link);
@@ -78,7 +82,8 @@ export function assignUncuedTocOwners(
   const sorted = [...entries.entries()].sort(([a], [b]) => a - b);
   resourceItems.forEach((item, index) => {
     if (item.tocHref) return;
-    const owner = [...sorted].reverse().find(([start]) => start <= index)?.[1] ?? sorted[0][1];
+    const owner = [...sorted].reverse().find(([start]) => start <= index)?.[1];
+    if (!owner) return;
     item.tocHref = owner.href;
     item.tocTitle = owner.title;
   });
@@ -111,19 +116,22 @@ export class UncuedTocTargets {
   }
 
   /**
-   * Points a text locator at the first cue inside its element when the element is neither a
+   * Points a text locator at the first cue at or after its element when the element is neither a
    * cue nor a known ToC anchor. Without this, seeking to one inside the playing resource
    * fails (#139 forbids the resource fallback there).
    */
-  async anchor(locator: Locator): Promise<Locator> {
+  async anchor(locator: Locator): Promise<Locator | undefined> {
     const textId = this.uncuedTextId(locator);
     if (!textId) return locator;
 
     const resource = normalizeHref(locator.href);
     const resourceItems = this.items.filter((item) => normalizeHref(item.textHref) === resource);
     const cueIds = new Set(resourceItems.map((item) => item.textId));
-    const first = (await this.tree(resource))?.firstDescendant(textId, cueIds);
-    if (!first) return locator;
+    const tree = await this.tree(resource);
+    const start = tree?.ids.indexOf(textId) ?? -1;
+    if (!tree || start === -1) return locator;
+    const first = tree.ids.slice(start).find((id) => cueIds.has(id));
+    if (!first) return undefined;
 
     log.debug(`anchor: ${resource}#${textId} -> #${first}`);
     const otherLocations = new Map(locator.locations?.otherLocations ?? []);
@@ -150,6 +158,7 @@ export class UncuedTocTargets {
 
   /** The locator's text id when it is neither a cue nor a known ToC anchor in its resource. */
   private uncuedTextId(locator: Locator): string | undefined {
+    if (locator.locations?.fragments?.some((fragment) => fragment.startsWith("t="))) return undefined;
     const resource = normalizeHref(locator.href);
     const textId =
       locator.locations?.fragments?.find((fragment) => !fragment.startsWith("t=")) ??

@@ -6,6 +6,7 @@
 import { Locator, LocatorLocations, Manifest } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { ReadiumBridge } from "../bridge/ReadiumBridge";
+import { UncuedTocTargets } from "../mediaoverlay/uncuedTocTargets";
 import { SyncNarrationItem } from "../mediaoverlay/syncNarration";
 
 const ITEMS: SyncNarrationItem[] = [
@@ -111,6 +112,51 @@ it.each([
     expect(mapped.locations.otherLocations?.get("tocHref")).toBe(owner);
     expect(mapped.href).toBe(_label === "Sync" ? "two.xhtml" : "one.xhtml");
   } finally {
+    ITEMS.splice(0, ITEMS.length, ...original);
+  }
+});
+
+
+it("anchors an uncued initial locator before creating the audio navigator", async () => {
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+  const anchored = new Locator({href: "chap.xhtml", type: "application/xhtml+xml",
+    locations: new LocatorLocations({fragments: ["p1"]})});
+  const anchor = jest.spyOn(UncuedTocTargets.prototype, "anchor").mockResolvedValue(anchored);
+  const initial = new Locator({href: "chap.xhtml", type: "application/xhtml+xml",
+    locations: new LocatorLocations({fragments: ["empty-heading"]})});
+  await initializeMediaOverlayNavigator(publication(), initial, "{}", () => {});
+  expect(anchor).toHaveBeenCalledWith(initial);
+  expect(create.mock.calls[0][1]?.locations.fragments).toEqual(["t=0"]);
+});
+
+it("emits the first cue without waiting for its owner and enriches subsequent events", async () => {
+  const original = [...ITEMS];
+  ITEMS.splice(0, ITEMS.length, {...ITEMS[0], tocHref: undefined, tocTitle: undefined});
+  let items: SyncNarrationItem[] = [];
+  let release!: () => void;
+  const pending = new Promise<void>((done) => {release = done;});
+  jest.spyOn(UncuedTocTargets.prototype, "fillOwners").mockImplementation(async () => {
+    await pending;
+    items[0].tocHref = "chap.xhtml#section";
+  });
+  const create = jest.spyOn(FlutterAudioNavigator, "create").mockImplementation(async (...args) => {
+    args[3]({} as never);
+  });
+  try {
+    await initializeMediaOverlayNavigator(publication(), undefined, "{}", (_nav, installed) => {items = installed;});
+    const mapper = create.mock.calls[0][4]!;
+    const audio = new Locator({href: items[0].audioHref, type: "audio/mpeg",
+      locations: new LocatorLocations({fragments: ["t=2"]})});
+    const before = mapper({currentTime: 2} as never, audio);
+    expect(before.stateLocator.locations.otherLocations?.get("tocHref")).toBeUndefined();
+    expect(before.textLocator?.locations.otherLocations?.get("cssSelector")).toBe("#p1");
+    release();
+    await pending;
+    const after = mapper({currentTime: 2} as never, audio);
+    expect(after.stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#section");
+    expect(after.textLocator?.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#section");
+  } finally {
+    release();
     ITEMS.splice(0, ITEMS.length, ...original);
   }
 });

@@ -129,8 +129,11 @@ async function _initializeFromItems(
       ? new UncuedTocTargets(publication, resolvedItems, flattenToc(publication))
       : undefined;
 
-  const audioInitialLocator = initialLocator
-    ? textLocatorToAudioLocator(resolvedItems, initialLocator, true, sourceLabel === "SyncNarration")
+  const anchoredInitialLocator = initialLocator && uncuedTocTargets
+    ? await uncuedTocTargets.anchor(initialLocator)
+    : initialLocator;
+  const audioInitialLocator = anchoredInitialLocator
+    ? textLocatorToAudioLocator(resolvedItems, anchoredInitialLocator, true, sourceLabel === "SyncNarration")
     : undefined;
   if (initialLocator) {
     log.info(
