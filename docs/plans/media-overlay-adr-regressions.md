@@ -3,8 +3,20 @@
 This page records the latest focused regression evidence for [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 It complements the implementation details in the [native checklist](native-media-overlay-toc-context.md)
 and [web checklist](web-media-overlay-toc-context.md). Counts below are from the current worktree
-validation on 2026-10-14 unless explicitly dated below. The October 16 follow-up supersedes those counts.
+validation on 2026-10-14 unless explicitly dated below. The dated follow-ups supersede older counts; the October 17 entry is the latest.
 
+
+## Android asset-response fix, 2026-10-17
+
+Official Readium 3.4.0 reproduced the `WebViewServer.allowCors` null-header crash on API 36 / WebView 154, including the original #268 source and a clean-data control. Its cached navigator AAR matched Maven Central. Passing API 36 CI used WebView 133; this identifies an environment gap without proving which difference triggers the crash.
+
+The [portable source fix](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78) handles null headers as an empty map in both Kotlin toolkit servers. Four focused toolkit tests pass across the two modules, including preserved immutable headers. Removing the guard makes the null-header regression fail. Both module Kotlin lint gates pass.
+
+The temporary [Nota fork revision](https://github.com/Notalib/kotlin-toolkit/commit/2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0) was built successfully by JitPack. It publishes only the navigator as `com.github.Notalib:kotlin-toolkit:2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0`; other Readium dependencies remain official 3.4.0. Dependency substitution covers direct and transitive navigator requests. See the [workaround and removal condition](../troubleshooting.md#android-reader-crashes-in-webviewserverallowcors).
+
+Validation against the public artifact: Kotlin compilation passed; 111 plugin unit tests passed, with one existing skip. The full mounted-reader integration suite against that public artifact passed on API 36 / WebView 154: 54 passed with five platform skips, including both new synthetic fixtures and immediate navigation. This supersedes the earlier audio-only qualification.
+
+Before the dependency update, both [native #274](https://github.com/Notalib/flutter_readium/actions/runs/38971389290) and [web #276](https://github.com/Notalib/flutter_readium/actions/runs/38971520708) passed Android API 24 and API 36: 54 tests passed with five skips per job, with both synthetic cases explicitly executed. Web also passed. New iOS jobs never started because GitHub reported an account payment/spending-limit problem. Those baseline checks do not qualify the dependency update; use the PR checks for its CI results. Physical-device and direct content-tap validation remain unrun.
 
 ## Review follow-up, 2026-10-16
 
@@ -26,7 +38,7 @@ The shared case checks initial seeking from the empty heading, prelude ownership
 
 Focused runs use a temporary runner containing the committed newspaper test body verbatim, plus the normal warm-up/result reporter. The separate Android diagnostic omits reader mounting and warm-up only; it does not replace or weaken the committed full-reader test. Full integration aggregators and physical-device/content-tap checks were not rerun for this follow-up. The historical full-suite results below do not qualify this head.
 
-### Android reader blocker
+### Android reader blocker (historical)
 
 The API 36 app crashes in warm-up before any narration request:
 

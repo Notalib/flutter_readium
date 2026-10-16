@@ -23,6 +23,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Android: fixed a crash when opening the reader.**
+  Some Android environments could terminate the app while loading EPUB/WebPub assets.
+  A temporary Readium navigator patch restores reader startup.
+
 - **Web narration follows ToC sections and seeks to their narrated children.**
   Audio-less sections could lose their chapter reference or seek to the wrong cue because
   section context was flattened away. Section ownership and same-file seeking now follow
