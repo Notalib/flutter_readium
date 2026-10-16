@@ -989,7 +989,7 @@ object ReadiumReader :
         // already disables synchronization, start in manual mode.
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
-        // EpubNavigatorFragment 3.3.0 reads this position list with runBlocking from its
+        // EpubNavigatorFragment 3.4.0 reads this position list with runBlocking from its
         // constructor. For a streamed Web Publication that can be a network request, which would
         // otherwise park Android's main thread for seconds or minutes. Populate the service cache
         // first on the I/O dispatcher so the constructor's lookup is immediate.
@@ -1046,6 +1046,7 @@ object ReadiumReader :
     @OptIn(InternalReadiumApi::class)
     suspend fun pdfEnable(
         initialLocator: Locator?,
+        initialPreferences: FlutterPdfPreferences,
         fragmentManager: FragmentManager,
         viewGroup: ViewGroup,
         readerWidget: ReadiumReaderWidget,
@@ -1070,7 +1071,7 @@ object ReadiumReader :
                 return@withMainContext
             }
 
-            PdfNavigator(pub, initialLocator, this@ReadiumReader).apply {
+            PdfNavigator(pub, initialLocator, this@ReadiumReader, initialPreferences).apply {
                 initNavigator()
                 visualNavigator = this
                 attachPdfNavigator(fragmentManager, viewGroup)
@@ -1160,7 +1161,7 @@ object ReadiumReader :
             throw Exception("Publication is not a comic (CBZ/DiViNa), cannot enable comic navigator")
         }
 
-        // ImageNavigatorFragment 3.3.0 reads the position list with runBlocking from onCreateView.
+        // ImageNavigatorFragment 3.4.0 reads the position list with runBlocking from onCreateView.
         // For a streamed DiViNa that can be a network request, which would otherwise park Android's
         // main thread. Populate the service cache first on the I/O dispatcher.
         withIOContext {
@@ -1230,6 +1231,7 @@ object ReadiumReader :
     suspend fun visualEnable(
         initialLocator: Locator?,
         initialPreferences: FlutterEpubPreferences,
+        initialPdfPreferences: FlutterPdfPreferences,
         fontFamilyDeclarations: List<ReaderFontFamily>,
         disablePageTurnsWhileScrolling: Boolean,
         fragmentManager: FragmentManager,
@@ -1258,7 +1260,7 @@ object ReadiumReader :
 
         when {
             isPdf -> {
-                pdfEnable(initialLocator, fragmentManager, viewGroup, readerWidget)
+                pdfEnable(initialLocator, initialPdfPreferences, fragmentManager, viewGroup, readerWidget)
             }
 
             isComic -> {

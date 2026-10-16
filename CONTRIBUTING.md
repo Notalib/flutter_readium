@@ -12,7 +12,7 @@ Thank you for considering a contribution! This guide covers everything you need 
 | Dart SDK | 3.8.0 | Bundled with Flutter |
 | Xcode | 15+ | macOS / iOS targets |
 | CocoaPods | 1.15+ | `gem install cocoapods` |
-| Android Studio / JDK | Java 18 | `compileSdk 36` |
+| Android Studio / JDK | Java 18 | `compileSdk 37` |
 | Node.js | 18+ | Web TypeScript build only |
 
 ---

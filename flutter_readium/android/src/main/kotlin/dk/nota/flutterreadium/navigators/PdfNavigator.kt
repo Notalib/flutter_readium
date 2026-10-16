@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
-import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.pdf.PdfNavigatorFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
@@ -37,9 +36,7 @@ private const val CURRENT_VISUAL_LOCATOR_KEY = "currentVisualCurrentLocator"
  * `BaseNavigator` shape that [EpubNavigator] uses, so the rest of the plugin
  * (ReadiumReader, ReadiumReaderWidget) can treat the two interchangeably.
  *
- * No preferences/decorations support yet — preferences land in Phase 5 of the
- * PDF support roadmap. Decorations are not exposed by the upstream PDF
- * navigator in kotlin-toolkit.
+ * Decorations are not exposed by the upstream PDF navigator in kotlin-toolkit.
  */
 @ExperimentalCoroutinesApi
 @OptIn(ExperimentalReadiumApi::class)
@@ -51,12 +48,16 @@ class PdfNavigator :
         publication: Publication,
         initialLocator: Locator?,
         visualListener: EpubNavigator.VisualListener,
+        initialPreferences: FlutterPdfPreferences,
     ) : super(publication, initialLocator) {
         this.visualListener = visualListener
+        this.initialPreferences = initialPreferences
         this.currentVisualLocator = initialLocator
     }
 
     val visualListener: EpubNavigator.VisualListener
+
+    private val initialPreferences: FlutterPdfPreferences
 
     private var currentVisualLocator: Locator?
         get() = state[CURRENT_VISUAL_LOCATOR_KEY] as? Locator
@@ -83,7 +84,7 @@ class PdfNavigator :
                                 pdfEngineProvider = PdfiumEngineProvider(),
                             )
                         locator = this@PdfNavigator.initialLocator
-                        preferences = PdfiumPreferences()
+                        preferences = initialPreferences.toPdfiumPreferences()
                     }
                 listener = this@PdfNavigator
             }
@@ -279,7 +280,7 @@ class PdfNavigator :
                     .getString(CURRENT_VISUAL_LOCATOR_KEY)
                     ?.let { json -> Locator.fromJSON(JSONObject(json)) }
             Log.d(TAG, "::restoreState - locator: $locator")
-            return PdfNavigator(publication, locator, listener)
+            return PdfNavigator(publication, locator, listener, FlutterPdfPreferences())
         }
     }
 }

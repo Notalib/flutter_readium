@@ -53,7 +53,10 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     Log.reader.info("Publication: (identifier=\(String(describing: publication.metadata.identifier)),title=\(String(describing: publication.metadata.title)))")
     Log.reader.info("Added PDF publication at \(String(describing: publication.baseURL))")
 
-    let config = PDFNavigatorViewController.Configuration()
+    var config = PDFNavigatorViewController.Configuration()
+    if let prefsMap = creationParams["pdfPreferences"] as? [String: Any] {
+      config.preferences = FlutterPDFPreferences(fromMap: prefsMap).readium
+    }
 
     pdfViewController = try! PDFNavigatorViewController(
       publication: publication,

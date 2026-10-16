@@ -5,7 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
 
+### Added
+
+- **`setDefaultPDFPreferences()` sets the layout a PDF opens with.**
+  Before, a PDF always opened in the platform default and jumped when `setPDFPreferences` was applied afterwards. It now opens with the given preferences on iOS and Android. `setPDFPreferences` also updates the default.
+
+- **Android: `PDFLayout.paginated` is now a real paginated PDF layout.**
+  It previously fell back to horizontal scroll. It now snaps to one page at a time, like on iOS. Fixes #265.
+
+### Changed
+
+- **Android: PDFs now open paginated by default, like iOS.**
+  The default was vertical scroll. Call `setDefaultPDFPreferences(PDFPreferences(layout: PDFLayout.scrollVertical))` to keep the old behavior. Also upgrades kotlin-toolkit to 3.4.0.
+
+- **Android: consuming apps must raise their Android build settings.**
+  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. It is also built with Kotlin language version 2.4, which needs Kotlin Gradle Plugin 2.3 or newer. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
+
 ### Fixed
+
+- **Android: a PDF lost its layout and reading position after the app came back from the background.**
+  The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
 
 - **Android media-overlay chapter references follow section and resource changes.**
   Narrated paragraphs could lose their subsection, and boundary page cues could retain
@@ -19,6 +38,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Their narrated children now supply the section reference and seek destination.
 - **iOS and Android: skip to next/previous ToC item works when ToC entries target elements that the narration does not list.**
   Local newspapers point ToC entries at a `<section>` or `<aside>` that is neither a cue nor a narration container; only its paragraphs have cues. The playing locator got no `tocHref`, so `skipToNextTOC` fell back to the reading order ("At the last chapter" in single-file issues), and seeking to such an entry in the playing file failed. The entry now resolves to the first cue inside the element in the XHTML.
+
 
 ## [0.6.2] - 2026-10-13
 

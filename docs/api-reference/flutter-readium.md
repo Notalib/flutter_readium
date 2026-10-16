@@ -34,7 +34,9 @@ await FlutterReadium().closePublication();
 | Method | Description |
 |--------|-------------|
 | `setDefaultPreferences(prefs)` | Set EPUB defaults applied to all future publications. See [preferences.md](./preferences.md#preferences) |
+| `setDefaultPDFPreferences(prefs)` | Set PDF defaults applied to every PDF opened afterwards. `setPDFPreferences` also updates them. See [preferences.md](./preferences.md#pdfpreferences) |
 | `setEPUBPreferences(prefs)` | Apply EPUB display preferences to the current publication. See [preferences.md](./preferences.md#preferences) |
+| `setPDFPreferences(prefs)` | Apply PDF display preferences to the current publication and update the PDF defaults. See [preferences.md](./preferences.md#pdfpreferences) |
 | `setCustomHeaders(headers)` | Set HTTP headers used for all network requests |
 | `setLogLevel(level)` | Set the plugin's internal log verbosity |
 | `setAudioRecoveryPolicy(policy)` | Configure audio-stream error recovery and resource-loading watchdog reporting/recovery. See [error-codes.md](./error-codes.md#audiorecoverypolicy) |

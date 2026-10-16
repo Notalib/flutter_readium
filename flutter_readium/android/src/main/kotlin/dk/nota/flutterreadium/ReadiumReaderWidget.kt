@@ -112,6 +112,11 @@ class ReadiumReaderWidget(
         @Suppress("UNCHECKED_CAST")
         val initPrefsMap =
             creationParams["preferences"] as Map<String, String>?
+
+        @Suppress("UNCHECKED_CAST")
+        val initialPdfPreferences =
+            (creationParams["pdfPreferences"] as? Map<String, Any>)?.let { FlutterPdfPreferences.fromMap(it) }
+                ?: FlutterPdfPreferences()
         val publication = ReadiumReader.currentPublication
         val locatorString = creationParams["initialLocator"] as String?
         val allowScreenReaderNavigation = creationParams["allowScreenReaderNavigation"] as Boolean?
@@ -192,6 +197,7 @@ class ReadiumReaderWidget(
                 ReadiumReader.visualEnable(
                     initialLocator,
                     initialPreferences,
+                    initialPdfPreferences,
                     fontFamilyDeclarations,
                     disablePageTurnsWhileScrolling,
                     fragmentManager,
