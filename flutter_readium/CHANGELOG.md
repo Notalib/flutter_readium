@@ -23,6 +23,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Android honors navigation requested while the reader is opening.**
+  An early `goToLocator` could be discarded while publication positions loaded,
+  leaving the reader at its initial page. It now waits for the current reader to initialize.
+
 - **Android: fixed a crash when opening the reader.**
   Some Android environments could terminate the app while loading EPUB/WebPub assets.
   A temporary Readium navigator patch restores reader startup.
