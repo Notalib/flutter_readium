@@ -27,6 +27,12 @@ runs:
         # ends. Per-line `sh -c` constraints: see ci.instructions.md.
         script: |
           sleep 10
+          echo "Android fingerprint:"
+          timeout 10s adb shell getprop ro.build.fingerprint || true
+          echo "Android ABI:"
+          timeout 10s adb shell getprop ro.product.cpu.abi || true
+          echo "WebView provider:"
+          timeout 10s adb shell dumpsys webviewupdate 2>/dev/null | grep -F "Current WebView package" || true
           # Larger buffer, or `chatty` drops our lines.
           adb logcat -G 64M || true
           adb logcat -c || true
