@@ -197,4 +197,146 @@ internal class FlutterMediaOverlayTest {
             )
         assertEquals(5.0, overlay.findItemFromLocator(locator("ch.xhtml", "#section"), allowResourceFallback = false)!!.audioStart!!, 0.001)
     }
+
+    @Test
+    fun activeHeadingSurvivesMatchingNestedContainer() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#parent","narration":[
+  {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+  {"text":"ch.xhtml#B","narration":[{"text":"ch.xhtml#inside","audio":"ch.mp3#t=5,10"}]},
+  {"text":"ch.xhtml#after","audio":"ch.mp3#t=10,15"}
+]}]}""",
+                "ch.xhtml#parent",
+                "ch.xhtml#A",
+                "ch.xhtml#B",
+            )
+        assertEquals(listOf("ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#A"), overlay.items.map { it.tocHref?.toString() })
+    }
+
+    @Test
+    fun activeHeadingSurvivesGenericWrapperHeading() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#parent","narration":[
+  {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+  {"narration":[{"text":"ch.xhtml#B","audio":"ch.mp3#t=5,10"},{"text":"ch.xhtml#inside","audio":"ch.mp3#t=10,15"}]},
+  {"text":"ch.xhtml#after","audio":"ch.mp3#t=15,20"}
+]}]}""",
+                "ch.xhtml#parent",
+                "ch.xhtml#A",
+                "ch.xhtml#B",
+            )
+        assertEquals(listOf("ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#B", "ch.xhtml#A"), overlay.items.map { it.tocHref?.toString() })
+    }
+
+    @Test
+    fun ownAudioAndChildrenPreserveOrderAndCallersActiveHeading() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#parent","narration":[
+  {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+  {"text":"ch.xhtml#B","audio":"ch.mp3#t=5,10","narration":[{"text":"ch.xhtml#inside","audio":"ch.mp3#t=10,15"}]},
+  {"text":"ch.xhtml#after","audio":"ch.mp3#t=15,20"}
+]}]}""",
+                "ch.xhtml#parent",
+                "ch.xhtml#A",
+                "ch.xhtml#B",
+            )
+        assertEquals(listOf("ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#B", "ch.xhtml#A"), overlay.items.map { it.tocHref?.toString() })
+        assertEquals(listOf("A", "B", "inside", "after"), overlay.items.map { it.textId })
+        assertEquals(listOf(0.0, 5.0, 10.0, 15.0), overlay.items.map { it.audioStart })
+    }
+
+    @Test
+    fun duplicateStructuralIdsMatchSecondResourceWithoutExactCue() {
+        val overlay =
+            parse(
+                """{"narration":[
+  {"text":"one.xhtml#section","narration":[{"text":"one.xhtml#p1","audio":"one.mp3#t=0,5"}]},
+  {"text":"two.xhtml#section","narration":[{"text":"two.xhtml#p2","audio":"two.mp3#t=7,12"}]}
+]}""",
+                "one.xhtml#section",
+                "two.xhtml#section",
+            )
+        val item = overlay.findItemFromLocator(locator("two.xhtml", "#section"), allowResourceFallback = false)
+        assertEquals("p2", item?.textId)
+        assertEquals("two.mp3", item?.audioFile)
+        assertEquals(7.0, item!!.audioStart!!, 0.001)
+    }
+
+    @Test
+    fun audioLessFlatHeadingDoesNotActivateContinuation() {
+        val overlay = parse("""{"narration":[{"text":"ch.xhtml#A"},{"text":"ch.xhtml#after","audio":"ch.mp3#t=0,5"}]}""", "ch.xhtml#A")
+        assertEquals(1, overlay.items.size)
+        assertNull(overlay.items.first().tocHref)
+    }
+
+    @Test
+    fun noTocDoesNotFabricateOwnership() {
+        val overlay = parse("""{"narration":[{"text":"ch.xhtml#p1","audio":"ch.mp3#t=0,5"}]}""")
+        assertEquals(1, overlay.items.size)
+        assertNull(overlay.items.first().tocHref)
+    }
+
+    @Test
+    fun emptyNarrationAndInvalidCueFieldsEmitNoItems() {
+        assertEquals(emptyList<FlutterMediaOverlayItem>(), parse("""{"narration":[]}""").items)
+        assertEquals(
+            emptyList<FlutterMediaOverlayItem>(),
+            parse("""{"narration":[{},{"text":"ch.xhtml#p1"},{"text":"ch.xhtml#p2","audio":""},{"audio":"ch.mp3#t=0,5"}]}""").items,
+        )
+    }
+
+    @Test
+    fun invalidRootNarrationIsRejected() {
+        for (json in listOf("{}", """{"narration":"invalid"}""", """{"narration":null}""")) {
+            assertNull(FlutterMediaOverlay.fromJson(JSONObject(json), 0, null, "", 20.0))
+        }
+    }
+
+    @Test(expected = org.json.JSONException::class)
+    fun nonObjectNarrationEntryRetainsJsonRejection() {
+        parse("""{"narration":[null]}""")
+    }
+
+    @Test
+    fun resourceFallbackRemainsGatedAndWrongResourceIsRejected() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#p1","audio":"first.mp3#t=0,5"},{"text":"ch.xhtml#p2","audio":"second.mp3#t=10,15"}]}""",
+            )
+        for (fragments in listOf(emptyArray(), arrayOf("#unknown"))) {
+            val allowed = overlay.findItemFromLocator(locator("ch.xhtml", *fragments), allowResourceFallback = true)
+            assertEquals("first.mp3", allowed?.audioFile)
+            assertEquals(0.0, allowed!!.audioStart!!, 0.001)
+            assertNull(overlay.findItemFromLocator(locator("ch.xhtml", *fragments), allowResourceFallback = false))
+        }
+        assertNull(overlay.findItemFromLocator(locator("unknown.xhtml", "#p1"), allowResourceFallback = true))
+    }
+
+    @Test
+    fun explicitTimeGapSelectsNextCueAndAfterLastReturnsNoMatch() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#p1","audio":"first.mp3#t=0,5"},{"text":"ch.xhtml#p2","audio":"second.mp3#t=10,15"}]}""",
+            )
+        for (href in listOf("ch.xhtml", "second.mp3")) {
+            val item = overlay.findItemFromLocator(locator(href, "#p1", "t=7"), allowResourceFallback = false)
+            assertEquals("second.mp3", item?.audioFile)
+            assertEquals(10.0, item!!.audioStart!!, 0.001)
+            assertNull(overlay.findItemFromLocator(locator(href, "#p1", "t=20"), allowResourceFallback = true))
+        }
+    }
+
+    @Test
+    fun exactAudioBoundarySelectsStartingCue() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"one.xhtml#ending","audio":"track.mp3#t=14,16"},{"text":"two.xhtml#starting","audio":"track.mp3#t=16,18"}]}""",
+            )
+        assertEquals("starting", overlay.findItemInRange("track.mp3", 16.0)?.textId)
+        assertEquals("starting", overlay.findItemFromLocator(locator("track.mp3", "t=16"), allowResourceFallback = false)?.textId)
+        assertNull(overlay.findItemInRange("track.mp3", 18.0))
+    }
 }
