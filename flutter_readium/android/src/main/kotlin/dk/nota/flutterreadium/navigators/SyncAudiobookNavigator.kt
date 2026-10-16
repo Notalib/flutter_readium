@@ -2,6 +2,7 @@ package dk.nota.flutterreadium.navigators
 
 import android.os.Bundle
 import dk.nota.flutterreadium.FlutterAudioPreferences
+import dk.nota.flutterreadium.OrderedLocatorEmitter
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReadiumReader
 import dk.nota.flutterreadium.XhtmlIdTree
@@ -22,8 +23,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.extensions.time
@@ -69,7 +68,11 @@ class SyncAudiobookNavigator(
 
     val decorationGroup = "sync-audio"
 
-    private val locatorEmitMutex = Mutex()
+    private val locatorEmitter =
+        OrderedLocatorEmitter(
+            enrich = { ReadiumReader.epubEnrichLocatorWithTocHref(it) },
+            onLocator = { locator, link -> timebaseListener.onTimebasedCurrentLocatorChanges(locator, link) },
+        )
 
     /** Parsed XHTML id trees by resource, null when a resource could not be read. */
     private val xhtmlIdTrees = mutableMapOf<Url, XhtmlIdTree?>()
@@ -155,21 +158,8 @@ class SyncAudiobookNavigator(
             return
         }
 
-        // A cue the narration nesting gives no ToC owner (e.g. inside a newspaper <section>) gets
-        // one from document order. The lookup suspends, so the lock keeps emissions in order.
-        launch {
-            locatorEmitMutex.withLock {
-                val emittingLocator =
-                    if (audioLocator.locations.tocHref == null && audioLocator.locations.cssSelector != null) {
-                        ReadiumReader.epubEnrichLocatorWithTocHref(audioLocator)
-                    } else {
-                        audioLocator
-                    }
-                // NOTE: Important, don't call base classes here, as they will trigger incorrect values for
-                // readingOrderLink
-                timebaseListener.onTimebasedCurrentLocatorChanges(emittingLocator, readingOrderLink)
-            }
-        }
+        // Enrichment suspends; preserve cue order even when a later cue already has its owner.
+        launch { locatorEmitter.emit(audioLocator, readingOrderLink) }
     }
 
     override fun storeState(): Bundle {

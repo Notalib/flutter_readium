@@ -177,3 +177,6 @@ The October 16 review identified prelude ownership, cue-less heading navigation,
 - Equivalent tests now cover prelude file-only/unowned policy and actual locator rewriting for forward, unknown, after-last, explicit-time, and metadata-preservation cases.
 - Initial locators use the same XHTML resolution before audio navigator initialization. The shared one-minute fixture integration test is developed in PR #276; simulator/browser qualification and fixture publication are pending.
 - The Xcode build removed the tracked generated SwiftPM `Package.resolved`; it is deliberately excluded from the scoped implementation commit.
+
+- Android delayed-enrichment regression: passed. The existing serialized emission step is now tested with a blocked first lookup and an already-owned second cue; delivery stays in order. Full native suite: 99 passed, one existing ignored test.
+- Shared compact-fixture integration on iPhone 18 Pro / iOS 27 simulator: passed (warm-up, committed newspaper case, result reporter; approximately 30 seconds test execution). This run used the local uncommitted fixture revision and includes initial forward seeking, prelude/deeper owner rules, same-file no-rewind/resume, and cross-resource next/previous.
