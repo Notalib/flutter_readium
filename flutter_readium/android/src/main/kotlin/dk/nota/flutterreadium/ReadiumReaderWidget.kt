@@ -21,6 +21,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.platform.PlatformView
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +57,9 @@ class ReadiumReaderWidget(
     CoroutineScope by CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) {
     internal val channel: ReadiumReaderChannel
 
+    // Explicit navigation can arrive while publication positions are still being loaded.
+    internal val navigatorReady = CompletableDeferred<Unit>()
+
     /**
      * Make sure we only sent ready status once.
      */
@@ -83,6 +87,7 @@ class ReadiumReaderWidget(
 
     override fun dispose() {
         PluginLog.d(TAG, "::dispose")
+        navigatorReady.cancel()
         ReadiumReader.visualClose()
 
         ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Closed)
@@ -204,9 +209,12 @@ class ReadiumReaderWidget(
                     layout,
                     this@ReadiumReaderWidget,
                 )
+                navigatorReady.complete(Unit)
             } catch (e: CancellationException) {
+                navigatorReady.cancel(e)
                 throw e
             } catch (e: Exception) {
+                navigatorReady.completeExceptionally(e)
                 PluginLog.e(TAG, "::init - visualEnable failed: ${e.message}", e)
                 ReadiumReader.emitReaderStatusUpdate(ReadiumReaderStatus.Error)
                 // Heterogeneous failure surface (fragment/navigator-creation errors from

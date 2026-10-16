@@ -64,6 +64,20 @@ final class TocAnchorTests: XCTestCase {
     XCTAssertEqual(tree.anchor(locator, textId: "empty", cueIds: content), locator)
   }
 
+  func testUndeclaredHtmlEntityLeavesLaterAnchorsUnknown() {
+    let broken = XhtmlIdTree(xhtml: Data(#"<html><body><p id="before">x&nbsp;</p><section id="empty"><p id="p1"/></section></body></html>"#.utf8))
+    let locator = Locator(href: URL(string: "page.xhtml")!, mediaType: .xhtml,
+                          locations: .init(fragments: ["empty"]))
+    XCTAssertEqual(broken.ids, ["before"])
+    XCTAssertEqual(broken.anchor(locator, textId: "empty", cueIds: ["p1"]), locator)
+  }
+
+  func testNumericEntityAllowsLaterAnchorsToBeIndexed() {
+    let valid = XhtmlIdTree(xhtml: Data(#"<html><body><p id="before">x&#160;</p><section id="empty"><p id="p1"/></section></body></html>"#.utf8))
+    XCTAssertEqual(valid.ids, ["before", "empty", "p1"])
+    XCTAssertEqual(valid.firstDescendant(of: "empty", in: ["p1"]), "p1")
+  }
+
   func testParseErrorKeepsIdsReadBeforeIt() {
     let broken = XhtmlIdTree(xhtml: Data(#"<html><body><section id="s"><p id="p">x</p><br></section>"#.utf8))
     XCTAssertEqual(broken.firstDescendant(of: "s", in: ["p"]), "p")

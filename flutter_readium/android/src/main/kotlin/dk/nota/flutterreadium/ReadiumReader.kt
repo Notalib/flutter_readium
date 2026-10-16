@@ -1308,6 +1308,13 @@ object ReadiumReader :
         navigator.goForward(animated)
     }
 
+    private suspend fun awaitVisualNavigator(publication: Publication): FlutterVisualNavigator? =
+        withMainContext {
+            val widget = currentReaderWidget
+            widget?.navigatorReady?.await()
+            visualNavigator.takeIf { currentReaderWidget === widget && currentPublication === publication }
+        }
+
     /** Go to the given locator in the active visual navigator. */
     suspend fun visualGoToLocator(
         locator: Locator,
@@ -1320,7 +1327,7 @@ object ReadiumReader :
             }
         val toLocator = publication.normalizeLocator(locator)
         val navigator =
-            visualNavigator ?: run {
+            awaitVisualNavigator(publication) ?: run {
                 PluginLog.d(TAG, "::visualGoToLocator. Navigator not ready.")
                 return
             }
@@ -1771,7 +1778,7 @@ object ReadiumReader :
         val toLocator = publication.normalizeLocator(locator)
 
         val navigator =
-            visualNavigator ?: run {
+            awaitVisualNavigator(publication) ?: run {
                 PluginLog.d(TAG, "::epubGoToLocator called without a visualNavigator")
                 return
             }
