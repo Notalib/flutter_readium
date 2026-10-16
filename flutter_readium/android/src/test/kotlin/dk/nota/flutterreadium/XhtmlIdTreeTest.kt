@@ -99,6 +99,20 @@ internal class XhtmlIdTreeTest {
     }
 
     @Test
+    fun undeclaredHtmlEntityLeavesLaterAnchorsUnknown() {
+        val tree = tree("""<p id="before">x&nbsp;</p><section id="empty"><p id="p1"/></section>""")
+        assertEquals(listOf("before"), tree.ids)
+        assertEquals(locator(), tree.anchor(locator(), "empty", setOf("p1")))
+    }
+
+    @Test
+    fun numericEntityAllowsLaterAnchorsToBeIndexed() {
+        val tree = tree("""<p id="before">x&#160;</p><section id="empty"><p id="p1"/></section>""")
+        assertEquals(listOf("before", "empty", "p1"), tree.ids)
+        assertEquals(listOf("p1"), tree.anchor(locator(), "empty", setOf("p1"))!!.locations.fragments)
+    }
+
+    @Test
     fun idsBeforeAParseErrorAreKept() {
         val tree = tree("""<section id="s1"><p id="p1">P &undefined; </p><p id="p2">Q</p></section>""")
 

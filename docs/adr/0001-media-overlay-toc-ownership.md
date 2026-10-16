@@ -75,7 +75,7 @@ The locator API does not distinguish a ToC selection from a tap that produces th
 
 ## Consequences and limits
 
-Enrichment adds titles and document-order owners without replacing narration-derived ownership. XHTML lookup can be lazy and publication-scoped. If parsing fails, only known ids are usable; unknown ids retain the fallback policy above. Strict native XML parsing and browser HTML recovery are implementation limitations, not a promise of identical malformed-document repair.
+Enrichment adds titles and document-order owners without replacing narration-derived ownership. XHTML lookup can be lazy and publication-scoped. If parsing fails, only known ids are usable; unknown ids retain the fallback policy above. Strict native XML parsing and browser HTML recovery are implementation limitations, not a promise of identical malformed-document repair. Native regression tests explicitly cover an undeclared `&nbsp;` stopping the index and the equivalent numeric `&#160;` allowing later targets to resolve. Publications should use well-formed XHTML with predefined or numeric entities; we do not enable external DTD loading to repair them.
 
 Guided Navigation retains its existing behavior. This decision adds no public API or bridge fields. URL canonicalization changes, DOM-derived narration scope, cross-resource inheritance of anchored parents, and iOS playback of multiple audio files inside one overlay remain outside its scope.
 
