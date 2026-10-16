@@ -23,6 +23,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 
+- **Android: fixed a crash when opening the reader.**
+  Some Android environments could terminate the app while loading EPUB/WebPub assets.
+  A temporary Readium navigator patch restores reader startup.
+
 - **Android: a PDF lost its layout and reading position after the app came back from the background.**
   The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
 

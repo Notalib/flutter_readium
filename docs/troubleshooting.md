@@ -13,6 +13,28 @@ class MainActivity : FlutterFragmentActivity()
 
 Set `minSdkVersion 24` in `android/app/build.gradle`.
 
+## Android: reader crashes in `WebViewServer.allowCors`
+
+Readium Kotlin 3.4.0 assumes that reader-asset responses always have a header map.
+A response without headers can terminate the app with
+`NullPointerException: getResponseHeaders(...) must not be null`.
+
+The Android build temporarily substitutes a pinned [Nota navigator patch](https://github.com/Notalib/kotlin-toolkit/commit/2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0)
+that treats missing headers as an empty map and preserves existing headers when adding CORS.
+JitPack names this navigator-only artifact `com.github.Notalib:kotlin-toolkit`.
+Other Readium modules remain at official 3.4.0. The substitution covers transitive navigator
+dependencies too, so the official and patched classes are not bundled together.
+Run `bin/readium_versions` to see the upstream version and exact patch coordinate.
+
+Remove this substitution when adopting an upstream release that includes the fix.
+Changing only `readium_version` leaves the temporary navigator substitution in effect.
+The portable [source fix and regression tests](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78)
+are separate from the fork's publication setup.
+
+Validation used Android API 36 with WebView 154; the complete mounted-reader integration
+suite passed, including the synthetic narration fixtures. Passing API 36 CI used WebView 133.
+This identifies a coverage difference; it does not establish WebView version as the cause.
+
 ## iOS: pod install fails
 
 ```bash
