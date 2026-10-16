@@ -207,4 +207,98 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
     ])
     XCTAssertEqual(overlay.itemFromLocator(htmlLocator(href: "ch.xhtml", fragment: "section"), allowResourceFallback: false)?.audioStart, 5)
   }
+
+  func testActiveHeadingSurvivesMatchingNestedContainer() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#parent","narration":[
+        {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#B","narration":[{"text":"ch.xhtml#inside","audio":"ch.mp3#t=5,10"}]},
+        {"text":"ch.xhtml#after","audio":"ch.mp3#t=10,15"}
+      ]}]}
+      """, toc: ["ch.xhtml#parent", "ch.xhtml#A", "ch.xhtml#B"])
+    XCTAssertEqual(overlay.items.map { $0.tocHref }, ["ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#A"])
+  }
+
+  func testActiveHeadingSurvivesGenericWrapperHeading() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#parent","narration":[
+        {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+        {"narration":[{"text":"ch.xhtml#B","audio":"ch.mp3#t=5,10"},{"text":"ch.xhtml#inside","audio":"ch.mp3#t=10,15"}]},
+        {"text":"ch.xhtml#after","audio":"ch.mp3#t=15,20"}
+      ]}]}
+      """, toc: ["ch.xhtml#parent", "ch.xhtml#A", "ch.xhtml#B"])
+    XCTAssertEqual(overlay.items.map { $0.tocHref }, ["ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#B", "ch.xhtml#A"])
+  }
+
+  func testOwnAudioAndChildrenPreserveOrderAndCallersActiveHeading() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#parent","narration":[
+        {"text":"ch.xhtml#A","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#B","audio":"ch.mp3#t=5,10","narration":[{"text":"ch.xhtml#inside","audio":"ch.mp3#t=10,15"}]},
+        {"text":"ch.xhtml#after","audio":"ch.mp3#t=15,20"}
+      ]}]}
+      """, toc: ["ch.xhtml#parent", "ch.xhtml#A", "ch.xhtml#B"])
+    XCTAssertEqual(overlay.items.map { $0.tocHref }, ["ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#B", "ch.xhtml#A"])
+    XCTAssertEqual(overlay.items.map { $0.textId }, ["A", "B", "inside", "after"])
+    XCTAssertEqual(overlay.items.map { $0.audioStart }, [0, 5, 10, 15])
+  }
+
+  func testDuplicateStructuralIdsMatchSecondResourceWithoutExactCue() {
+    let overlay = parse("""
+      {"narration":[
+        {"text":"one.xhtml#section","narration":[{"text":"one.xhtml#p1","audio":"one.mp3#t=0,5"}]},
+        {"text":"two.xhtml#section","narration":[{"text":"two.xhtml#p2","audio":"two.mp3#t=7,12"}]}
+      ]}
+      """, toc: ["one.xhtml#section", "two.xhtml#section"])
+    let item = overlay.itemFromLocator(htmlLocator(href: "two.xhtml", fragment: "section"), allowResourceFallback: false)
+    XCTAssertEqual(item?.textId, "p2")
+    XCTAssertEqual(item?.audioFile, "two.mp3")
+    XCTAssertEqual(item?.audioStart, 7)
+  }
+
+  func testAudioLessFlatHeadingDoesNotActivateContinuation() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#A"},{"text":"ch.xhtml#after","audio":"ch.mp3#t=0,5"}]}
+      """, toc: ["ch.xhtml#A"])
+    XCTAssertEqual(overlay.items.count, 1)
+    XCTAssertNil(overlay.items.first?.tocHref)
+  }
+
+  func testNoTocDoesNotFabricateOwnership() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#p1","audio":"ch.mp3#t=0,5"}]}
+      """, toc: [])
+    XCTAssertEqual(overlay.items.count, 1)
+    XCTAssertNil(overlay.items.first?.tocHref)
+    XCTAssertNil(overlay.items.first?.tocTitle)
+  }
+
+  func testEmptyNarrationAndInvalidCueFieldsEmitNoItems() {
+    XCTAssertTrue(parse("""
+      {"narration":[]}
+      """, toc: []).items.isEmpty)
+    XCTAssertTrue(parse("""
+      {"narration":[{},{"text":"ch.xhtml#p1"},{"text":"ch.xhtml#p2","audio":""},{"audio":"ch.mp3#t=0,5"}]}
+      """, toc: []).items.isEmpty)
+  }
+
+  func testInvalidRootNarrationIsRejected() {
+    for json in [[:], ["narration": "invalid"], ["narration": NSNull()], ["narration": [NSNull()]]] as [[String: Any]] {
+      XCTAssertNil(FlutterMediaOverlay.fromJson(json, atPosition: 0))
+    }
+  }
+
+  func testExplicitTimeGapSelectsNextCueAndAfterLastReturnsNoMatch() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#p1","audio":"first.mp3#t=0,5"},{"text":"ch.xhtml#p2","audio":"second.mp3#t=10,15"}]}
+      """, toc: [])
+    for href in ["ch.xhtml", "second.mp3"] {
+      let gap = Locator(href: URL(string: href)!, mediaType: .xhtml, locations: .init(fragments: ["#p1", "t=7"]))
+      let item = overlay.itemFromLocator(gap, allowResourceFallback: false)
+      XCTAssertEqual(item?.audioFile, "second.mp3")
+      XCTAssertEqual(item?.audioStart, 10)
+      let after = Locator(href: URL(string: href)!, mediaType: .xhtml, locations: .init(fragments: ["#p1", "t=20"]))
+      XCTAssertNil(overlay.itemFromLocator(after, allowResourceFallback: true))
+    }
+  }
 }
