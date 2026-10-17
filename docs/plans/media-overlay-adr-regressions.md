@@ -6,17 +6,17 @@ and [web checklist](web-media-overlay-toc-context.md). Counts below are from the
 validation on 2026-10-14 unless explicitly dated below. The dated follow-ups supersede older counts; the October 17 entry is the latest.
 
 
-## Android asset-response fix, 2026-10-17
+## Confirmed Android asset-preparation trigger, 2026-10-17
 
-Official Readium 3.4.0 reproduced the `WebViewServer.allowCors` null-header crash on API 36 / WebView 154, including the original #268 source and a clean-data control. Its cached navigator AAR matched Maven Central. Passing API 36 CI used WebView 133; this identifies an environment gap without proving which difference triggers the crash.
+The physical-device control supersedes the earlier suggestion that the local/CI WebView difference explained the crash. On a Samsung SM-S911B, Android API 36 / WebView 155.0.8059.43, official Readium 3.4.0 crashed during ordinary reader warm-up when generated `flutterReadiumTools.js` and `.css` assets were absent from the local APK. The app-scoped native log recorded those exact missing paths and `FileNotFoundException` immediately before `WebViewServer.allowCors` threw its null-header exception.
 
-The [portable source fix](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78) handles null headers as an empty map in both Kotlin toolkit servers. Four focused toolkit tests pass across the two modules, including preserved immutable headers. Removing the guard makes the null-header regression fail. Both module Kotlin lint gates pass.
+Generating the helpers made the same original-#268 warm-up pass on the same phone, without changing Readium or WebView. CI already builds them through `build-webview-helpers`; `bin/install` also generates them. The local control had omitted that required preparation. The previously observed WebView 133/154 gap was a correlation, not an identified cause.
 
-The temporary [Nota fork revision](https://github.com/Notalib/kotlin-toolkit/commit/2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0) was built successfully by JitPack. It publishes only the navigator as `com.github.Notalib:kotlin-toolkit:2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0`; other Readium dependencies remain official 3.4.0. Dependency substitution covers direct and transitive navigator requests. See the [workaround and removal condition](../troubleshooting.md#android-reader-crashes-in-webviewserverallowcors).
+The temporary Nota navigator substitution was removed. These PRs use official Readium 3.4.0. The separate [upstream null-header fix and tests](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78) remain valid hardening: a missing asset should produce a resource-load failure rather than an app crash. It does not replace building the required assets.
 
-Validation against the public artifact: Kotlin compilation passed; 111 plugin unit tests passed, with one existing skip. The full mounted-reader integration suite against that public artifact passed on API 36 / WebView 154: 54 passed with five platform skips, including both new synthetic fixtures and immediate navigation. This supersedes the earlier audio-only qualification.
+With the final native implementation, official 3.4.0 and generated helpers, the full physical-phone integration suite passed: 54 tests with five platform skips, including immediate navigation and both synthetic ADR fixtures. Kotlin compilation and 113 native unit tests passed, with one existing skip. An earlier full phone run using the fork passed the ADR cases but failed the separate end-of-book progress assertion (53 passed, five skipped, one failed); its cause was not isolated, and it is not evidence that the null-header patch caused that failure.
 
-Before the dependency update, both [native #274](https://github.com/Notalib/flutter_readium/actions/runs/38971389290) and [web #276](https://github.com/Notalib/flutter_readium/actions/runs/38971520708) passed Android API 24 and API 36: 54 tests passed with five skips per job, with both synthetic cases explicitly executed. Web also passed. New iOS jobs never started because GitHub reported an account payment/spending-limit problem. Those baseline checks do not qualify the dependency update; use the PR checks for its CI results. Physical-device and direct content-tap validation remain unrun.
+The final dependency change requires fresh CI; use the checks on [native #274](https://github.com/Notalib/flutter_readium/pull/274) and [web #276](https://github.com/Notalib/flutter_readium/pull/276) for current qualification. This phone run does not qualify physical iOS devices, direct content taps/manual gestures or iOS multi-audio playback.
 
 ## Review follow-up, 2026-10-16
 
@@ -205,5 +205,6 @@ changed in this optimization.
 ## Limits and unrun checks
 
 The integration tests do not cover every parser edge. Direct content taps/manual gesture
-dispatch, physical devices and multi-audio playback remain unrun. Existing malformed/open-ended native timing differences are preserved outside
-this ADR's shared valid-cue contract.
+dispatch, physical iOS devices and iOS multi-audio playback remain unrun. Android physical-device
+evidence is recorded in the October 17 correction above. Existing malformed/open-ended native
+timing differences are preserved outside this ADR's shared valid-cue contract.

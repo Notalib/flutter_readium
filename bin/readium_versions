@@ -39,9 +39,6 @@ android_version="$(
   uncommented "$ANDROID_BUILD_GRADLE" |
     sed -n "s/.*ext.readium_version = '\\([^']*\\)'.*/\\1/p" | head -n1
 )"
-android_navigator_patch="$(
-  sed -n "s/.*def patchedReadiumNavigator = '\([^']*\)'.*/\1/p" "$ANDROID_BUILD_GRADLE" | head -n1
-)"
 ios_swift_toolkit_version="$(
   uncommented "$IOS_PODSPEC" |
     sed -n "s/.*s.dependency 'ReadiumShared', '~> \\([^']*\\)'.*/\\1/p" | head -n1
@@ -60,9 +57,6 @@ print_versions() {
   echo "Readium toolkit version pins"
   echo "----------------------------"
   echo "Android kotlin-toolkit: $android_version"
-  if [ -n "$android_navigator_patch" ]; then
-    echo "Android navigator patch: $android_navigator_patch"
-  fi
   echo "iOS swift-toolkit:      $ios_swift_toolkit_version"
   echo "Web @readium/shared:    $web_readium_shared"
   echo "Web @readium/navigator: $web_readium_navigator"

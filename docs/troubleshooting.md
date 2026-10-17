@@ -15,25 +15,30 @@ Set `minSdkVersion 24` in `android/app/build.gradle`.
 
 ## Android: reader crashes in `WebViewServer.allowCors`
 
-Readium Kotlin 3.4.0 assumes that reader-asset responses always have a header map.
-A response without headers can terminate the app with
-`NullPointerException: getResponseHeaders(...) must not be null`.
+Check for `WebViewAssetLoader: Error opening asset path` before
+`NullPointerException: getResponseHeaders(...) must not be null`. Readium Kotlin 3.4.0
+assumes asset responses have headers, but AndroidX returns a headerless error response
+when an asset cannot be opened.
 
-The Android build temporarily substitutes a pinned [Nota navigator patch](https://github.com/Notalib/kotlin-toolkit/commit/2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0)
-that treats missing headers as an empty map and preserves existing headers when adding CORS.
-JitPack names this navigator-only artifact `com.github.Notalib:kotlin-toolkit`.
-Other Readium modules remain at official 3.4.0. The substitution covers transitive navigator
-dependencies too, so the official and patched classes are not bundled together.
-Run `bin/readium_versions` to see the upstream version and exact patch coordinate.
+Our reproduction was missing generated `assets/helpers/flutterReadiumTools.js` and `.css`
+from the local app bundle. Run `bin/install` after creating a checkout, or build the helpers
+before rebuilding the app:
 
-Remove this substitution when adopting an upstream release that includes the fix.
-Changing only `readium_version` leaves the temporary navigator substitution in effect.
-The portable [source fix and regression tests](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78)
-are separate from the fork's publication setup.
+```bash
+cd flutter_readium/assets/_helper_scripts
+npm ci --ignore-scripts
+npm run build
+```
 
-Validation used Android API 36 with WebView 154; the complete mounted-reader integration
-suite passed, including the synthetic narration fixtures. Passing API 36 CI used WebView 133.
-This identifies a coverage difference; it does not establish WebView version as the cause.
+CI already generates these files through `.github/actions/build-webview-helpers`.
+On the same physical Android API 36 phone with WebView 155, official Readium 3.4.0 crashed
+without the files and passed reader warm-up after they were generated. WebView version
+was not the demonstrated cause; the different asset preparation explains the passing CI.
+
+The separate [upstream fix and regression tests](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78)
+treat missing headers as an empty map when adding CORS. That prevents missing assets from
+crashing the app; it does not supply those assets. This plugin uses official Readium 3.4.0
+without a navigator substitution.
 
 ## iOS: pod install fails
 
