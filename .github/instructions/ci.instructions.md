@@ -5,6 +5,19 @@ applyTo: '.github/workflows/*.yml'
 
 # CI/CD Conventions
 
+## Change detection
+
+`ci.yml` filters PR updates and `main` pushes by platform. Shared Dart,
+dependency, helper-asset and CI changes select all platforms.
+
+Reuse only successful ancestor runs; PRs must also match the tested base.
+Without a verified baseline, check the full PR diff or run all platforms on
+`main`. Manual dispatches and workflow reruns always run all platforms.
+
+Skip individual jobs, not the workflow. Include every CI job in `CI result`'s
+`needs` list so failures cannot be hidden by skips. After changes, run
+`node --test .github/scripts/ci-baseline.test.cjs` and `actionlint`.
+
 ## Caching
 
 All workflows that build iOS or Android must include the relevant caches:

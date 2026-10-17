@@ -15,22 +15,58 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      ios: ${{ github.event_name != 'pull_request' || steps.filter.outputs.ios == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
-      android: ${{ github.event_name != 'pull_request' || steps.filter.outputs.android == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
-      web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+      ios: ${{ steps.baseline.outputs.force == 'true' || steps.filter.outputs.ios == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+      android: ${{ steps.baseline.outputs.force == 'true' || steps.filter.outputs.android == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
+      web: ${{ steps.baseline.outputs.force == 'true' || steps.filter.outputs.web == 'true' || steps.filter.outputs.dart == 'true' || steps.filter.outputs.ci == 'true' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Test CI baseline selection
+        run: node --test .github/scripts/ci-baseline.test.cjs
+
+      - name: Find successful CI baseline
+        id: baseline
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          script: |
+            const plan = await require('./.github/scripts/ci-baseline.cjs')({ github, context, core });
+            for (const [key, value] of Object.entries(plan)) core.setOutput(key, value);
+            await core.summary.addHeading('Platform change detection').addRaw(plan.reason).write();
+            require('node:fs').writeFileSync(`${process.env.RUNNER_TEMP}/ci-context.json`, JSON.stringify({
+              head: context.payload.pull_request?.head.sha, base: context.payload.pull_request?.base.sha,
+            }));
+
+      - name: Record tested PR base
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-baseline-v1-pr-${{ github.event.number }}-base-${{ github.event.pull_request.base.sha }}
+          path: ${{ runner.temp }}/ci-context.json
+          retention-days: 7
+          overwrite: true
 
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
-        if: github.event_name == 'pull_request'
+        if: steps.baseline.outputs.force != 'true'
         with:
+          token: ''
+          base: ${{ steps.baseline.outputs.base }}
+          ref: ${{ steps.baseline.outputs.ref }}
           filters: |
             dart:
               - '**/*.dart'
               - '**/pubspec.yaml'
+              - '**/pubspec.lock'
+              - '**/pubspec_overrides.yaml'
               - '.flutter-version'
+              - 'flutter_readium/assets/_helper_scripts/**'
             ios:
               - 'flutter_readium/ios/**'
               - 'flutter_readium/example/ios/**'
@@ -40,11 +76,14 @@ jobs:
             web:
               - 'flutter_readium/web/**'
               - 'flutter_readium/example/web/**'
-              - 'flutter_readium/assets/_helper_scripts/**'
               - 'flutter_readium/package.json'
               - 'flutter_readium/package-lock.json'
             ci:
+              - '.github/scripts/ci-baseline*'
+              - '.github/actions/**'
+              - 'bin/**'
               - '.github/workflows/ci.yml'
+              - '.github/workflows/ios-unit-tests.yml'
               - '.github/workflows/build-android.yml'
               - '.github/workflows/build-ios.yml'
               - '.github/workflows/build-web.yml'
@@ -89,3 +128,20 @@ jobs:
     needs: changes
     if: needs.changes.outputs.web == 'true'
     uses: ./.github/workflows/integration-test-web.yml
+
+  result:
+    name: CI result
+    if: always()
+    needs: [changes, build-ios, build-android, build-web, integration-ios, integration-android, integration-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check required jobs
+        env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          JOB_RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          test "$CHANGE_RESULT" = success
+          case ",$JOB_RESULTS," in
+            *,failure,*|*,cancelled,*) exit 1 ;;
+          esac
