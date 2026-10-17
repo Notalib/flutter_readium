@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_readium/flutter_readium.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -49,6 +50,7 @@ ReadiumIntegrationHarness _setUpHarness({required bool warmUp}) {
   final harness = ReadiumIntegrationHarness();
 
   setUpAll(() async {
+    await _checkNativeHelpers();
     await harness.readium.setLogLevel(LogLevel.debug);
     await harness.loadFixtures();
   });
@@ -62,4 +64,19 @@ ReadiumIntegrationHarness _setUpHarness({required bool warmUp}) {
   if (warmUp) defineWarmUpTests(harness);
 
   return harness;
+}
+
+// Read the packaged assets as well as checking source files during native builds.
+Future<void> _checkNativeHelpers() async {
+  if (kIsWeb) return;
+
+  for (final name in ['flutterReadiumTools.js', 'flutterReadiumTools.css']) {
+    final path = 'packages/flutter_readium/assets/helpers/$name';
+    try {
+      final asset = await rootBundle.load(path);
+      if (asset.lengthInBytes == 0) throw StateError('Asset is empty.');
+    } catch (error) {
+      fail('Generated reader helpers are missing. Run bin/install and rebuild.\n$path: $error');
+    }
+  }
 }

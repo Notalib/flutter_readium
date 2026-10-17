@@ -31,6 +31,8 @@ npm run build
 ```
 
 CI already generates these files through `.github/actions/build-webview-helpers`.
+`bin/doctor` and native example builds reject missing or empty helpers. Native integration
+tests also load both helpers from the packaged Flutter assets before opening a publication.
 On the same physical Android API 36 phone with WebView 155, official Readium 3.4.0 crashed
 without the files and passed reader warm-up after they were generated. WebView version
 was not the demonstrated cause; the different asset preparation explains the passing CI.
