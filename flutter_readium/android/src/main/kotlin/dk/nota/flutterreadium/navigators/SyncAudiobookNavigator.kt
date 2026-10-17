@@ -2,14 +2,20 @@ package dk.nota.flutterreadium.navigators
 
 import android.os.Bundle
 import dk.nota.flutterreadium.FlutterAudioPreferences
+import dk.nota.flutterreadium.OrderedLocatorEmitter
 import dk.nota.flutterreadium.PluginLog
 import dk.nota.flutterreadium.ReadiumReader
+import dk.nota.flutterreadium.XhtmlIdTree
+import dk.nota.flutterreadium.cleanHref
 import dk.nota.flutterreadium.copyWithTimeFragment
 import dk.nota.flutterreadium.findReadingOrderLink
 import dk.nota.flutterreadium.getReadingOrderItemDuration
+import dk.nota.flutterreadium.getTextId
 import dk.nota.flutterreadium.models.FlutterMediaOverlay
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.timeWithDuration
+import dk.nota.flutterreadium.tocHref
+import dk.nota.flutterreadium.xhtmlIdTree
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
@@ -25,6 +31,7 @@ import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.util.Url
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -49,7 +56,26 @@ class SyncAudiobookNavigator(
             initialLocator?.let { locator -> mapTextLocatorToMediaOverlayLocator(locator) }
     }
 
+    private var pendingTextInitialLocator = initialLocator
+
+    override suspend fun initNavigator() {
+        pendingTextInitialLocator?.let { pending ->
+            initialLocator = anchorUncuedTextLocator(pending)?.let { mapTextLocatorToMediaOverlayLocator(it) }
+            pendingTextInitialLocator = null
+        }
+        super.initNavigator()
+    }
+
     val decorationGroup = "sync-audio"
+
+    private val locatorEmitter =
+        OrderedLocatorEmitter(
+            enrich = { ReadiumReader.epubEnrichLocatorWithTocHref(it) },
+            onLocator = { locator, link -> timebaseListener.onTimebasedCurrentLocatorChanges(locator, link) },
+        )
+
+    /** Parsed XHTML id trees by resource, null when a resource could not be read. */
+    private val xhtmlIdTrees = mutableMapOf<Url, XhtmlIdTree?>()
 
     override fun setupNavigatorListeners() {
         val navigator = audioNavigator
@@ -132,9 +158,8 @@ class SyncAudiobookNavigator(
             return
         }
 
-        // NOTE: Important, don't call base classes here, as they will trigger incorrect values for
-        // readingOrderLink
-        timebaseListener.onTimebasedCurrentLocatorChanges(audioLocator, readingOrderLink)
+        // Enrichment suspends; preserve cue order even when a later cue already has its owner.
+        launch { locatorEmitter.emit(audioLocator, readingOrderLink) }
     }
 
     override fun storeState(): Bundle {
@@ -148,7 +173,7 @@ class SyncAudiobookNavigator(
             return super.play(fromLocator)
         }
 
-        val audioLocator = mapTextLocatorToMediaOverlayLocator(fromLocator)
+        val audioLocator = anchorUncuedTextLocator(fromLocator)?.let { mapTextLocatorToMediaOverlayLocator(it) }
         if (audioLocator != null) {
             super.play(audioLocator)
         } else {
@@ -157,12 +182,44 @@ class SyncAudiobookNavigator(
     }
 
     override suspend fun goToLocator(locator: Locator) {
-        val audioLocator = mapTextLocatorToMediaOverlayLocator(locator)
-        if (audioLocator != null) {
-            super.goToLocator(audioLocator)
-        } else {
-            PluginLog.d(TAG, "::goToLocator - no audio locator found for $locator")
-        }
+        seekToLocator(locator)
+    }
+
+    suspend fun seekToLocator(locator: Locator): Boolean {
+        val audioLocator =
+            anchorUncuedTextLocator(locator)?.let { mapTextLocatorToMediaOverlayLocator(it) } ?: run {
+                PluginLog.d(TAG, "::seekToLocator - no audio locator found for $locator")
+                return false
+            }
+        super.goToLocator(audioLocator)
+        return true
+    }
+
+    /** Resolve XHTML targets before same-file fallback guards; seeking does not assign ownership. */
+    private suspend fun anchorUncuedTextLocator(locator: Locator): Locator? {
+        val href = locator.href
+        val textId = locator.getTextId() ?: return locator
+        val known =
+            mediaOverlays.any { mo ->
+                mo?.findItemFromTextId(href, textId) != null || mo?.findItemFromTocHref(href, textId) != null
+            }
+        if (known) return locator
+
+        val path = href.cleanHref()
+        val tree =
+            if (xhtmlIdTrees.containsKey(path)) {
+                xhtmlIdTrees[path]
+            } else {
+                publication.xhtmlIdTree(path).also { xhtmlIdTrees[path] = it }
+            }
+        val cueIds =
+            mediaOverlays
+                .flatMap { it?.items.orEmpty() }
+                .filter { item -> Url.invoke(item.textFile)?.let { path.isEquivalent(it) } == true }
+                .map { it.textId }
+                .toSet()
+        if (tree == null) return locator
+        return tree.anchor(locator, textId, cueIds)
     }
 
     private suspend fun decorateCurrentUtterance(uttLocator: Locator) {

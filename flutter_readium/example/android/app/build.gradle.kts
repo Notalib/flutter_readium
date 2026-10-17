@@ -53,3 +53,12 @@ flutter {
 dependencies {
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
+
+// Keep direct flutter run/test builds from packaging an incomplete native reader.
+val checkNativeHelpers by tasks.registering(Exec::class) {
+  commandLine("bash", rootProject.file("../../../bin/check_native_helpers").absolutePath)
+}
+
+tasks.named("preBuild") {
+  dependsOn(checkNativeHelpers)
+}

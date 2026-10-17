@@ -90,7 +90,7 @@ private const val TAG = "ReadiumReader"
 private val HTTP_CONNECT_TIMEOUT = 10.seconds
 private val HTTP_READ_TIMEOUT = 30.seconds
 
-private const val stateKey = "dk.nota.flutterreadium.ReadiumReaderState"
+private const val STATE_KEY = "dk.nota.flutterreadium.ReadiumReaderState"
 
 private val currentPublicationUrlKey = "currentPublicationUrl"
 private val ttsEnabledKey = "ttsEnabled"
@@ -110,6 +110,34 @@ internal fun shouldInjectMOColumnBreakCss(
     isMOActive: Boolean,
     preventMOColumnBreaks: Boolean,
 ): Boolean = isMOActive && preventMOColumnBreaks
+
+/**
+ * Index into [tocSelectors] of the ToC entry that owns [cssSelector]: the last entry that starts
+ * at or before it in document order; preludes use a file-only entry or remain unowned. An uncued ToC target starts at its
+ * entry in [tocAnchors]. When entries share a start (a section and its first heading), the later
+ * (deeper) entry wins. File-only entries start before all content; unresolved anchored entries own nothing. See ADR 0001.
+ */
+internal fun tocEntryIndexFor(
+    cssSelector: String,
+    contentSelectors: List<String>,
+    tocSelectors: List<String>,
+    tocAnchors: Map<String, String>,
+): Int? {
+    val idx = contentSelectors.indexOf(cssSelector).takeIf { it >= 0 } ?: 0
+    val starts = mutableMapOf<Int, Int>()
+    tocSelectors.forEachIndexed { index, selector ->
+        if (selector in listOf("", "#", "#null")) {
+            starts[-1] = index
+        } else {
+            val start = contentSelectors.indexOf(tocAnchors[selector] ?: selector)
+            if (start >= 0) starts[start] = index
+        }
+    }
+    return starts.entries
+        .filter { it.key <= idx }
+        .maxByOrNull { it.key }
+        ?.value
+}
 
 // TODO: Support custom headers and authentication header for content files.
 
@@ -309,11 +337,11 @@ object ReadiumReader :
         // store weak ref only
         (activity as? SavedStateRegistryOwner)?.savedStateRegistry?.let {
             savedStateRef = WeakReference(it)
-            it.registerSavedStateProvider(stateKey) {
+            it.registerSavedStateProvider(STATE_KEY) {
                 storeState()
             }
 
-            restoreState(it.consumeRestoredStateForKey(stateKey))
+            restoreState(it.consumeRestoredStateForKey(STATE_KEY))
         }
 
         currentReadiumTimebasedState
@@ -551,6 +579,12 @@ object ReadiumReader :
      * This is used to find the current toc item.
      */
     private var currentPublicationCssSelectorMap: MutableMap<Url, List<String>>? = null
+
+    /**
+     * For EPUB profile, maps document [Url] to "#tocTarget" -> "#firstContentId" for ToC targets
+     * that are not content ids themselves. See [epubGetTocAnchors].
+     */
+    private var currentPublicationTocAnchorMap: MutableMap<Url, Map<String, String>>? = null
 
     /**
      * Sets the headers used in the HTTP requests for fetching publication resources, including
@@ -810,6 +844,7 @@ object ReadiumReader :
         _currentPublication = null
         pageBreakIteratorFactory = null
         currentPublicationCssSelectorMap = null
+        currentPublicationTocAnchorMap = null
         ResourceFileCache.purgeAll()
 
         state.clear()
@@ -915,21 +950,18 @@ object ReadiumReader :
             }
 
         val documentCssSelectors = epubGetAllDocumentCssSelectors(resultLocator.href)
-        val idx =
-            documentCssSelectors.indexOf(cssSelector).takeIf { it > -1 } ?: run {
-                // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
-                PluginLog.d(
-                    TAG,
-                    "::epubEnrichLocatorWithTocHref - cssSelector:$cssSelector not found in contentIds, assume idx = 0",
-                )
-                0
-            }
+        if (cssSelector !in documentCssSelectors) {
+            // cssSelector wasn't found in the list of document cssSelectors, best effort is to assume first
+            PluginLog.d(
+                TAG,
+                "::epubEnrichLocatorWithTocHref - cssSelector:$cssSelector not found in contentIds, assume idx = 0",
+            )
+        }
 
-        val toc =
-            tocLinks.associateBy { documentCssSelectors.indexOf("#${it.href.resolve().fragment}") }
-
+        val tocSelectors = tocLinks.map { "#${it.href.resolve().fragment}" }
+        val tocAnchors = epubGetTocAnchors(resultLocator.href, tocSelectors, documentCssSelectors)
         val tocItem =
-            toc.entries.lastOrNull { it.key <= idx }?.value ?: toc.entries.firstOrNull()?.value
+            tocEntryIndexFor(cssSelector, documentCssSelectors, tocSelectors, tocAnchors)?.let { tocLinks[it] }
                 ?: run {
                     PluginLog.d(TAG, "::epubEnrichLocatorWithTocHref - no tocItem found")
                     return resultLocator
@@ -1276,6 +1308,13 @@ object ReadiumReader :
         navigator.goForward(animated)
     }
 
+    private suspend fun awaitVisualNavigator(publication: Publication): FlutterVisualNavigator? =
+        withMainContext {
+            val widget = currentReaderWidget
+            widget?.navigatorReady?.await()
+            visualNavigator.takeIf { currentReaderWidget === widget && currentPublication === publication }
+        }
+
     /** Go to the given locator in the active visual navigator. */
     suspend fun visualGoToLocator(
         locator: Locator,
@@ -1288,7 +1327,7 @@ object ReadiumReader :
             }
         val toLocator = publication.normalizeLocator(locator)
         val navigator =
-            visualNavigator ?: run {
+            awaitVisualNavigator(publication) ?: run {
                 PluginLog.d(TAG, "::visualGoToLocator. Navigator not ready.")
                 return
             }
@@ -1473,7 +1512,12 @@ object ReadiumReader :
                 toLocator.copy(
                     text = Locator.Text(),
                 )
-            navigator.goToLocator(narrationLocator)
+            // An unmapped anchor must not replace the locator used by play(null).
+            if (navigator is SyncAudiobookNavigator) {
+                if (!navigator.seekToLocator(narrationLocator)) return
+            } else {
+                navigator.goToLocator(narrationLocator)
+            }
             // navigator.goToLocator blocks until the seek lands (see AudiobookNavigator),
             // so reflect the confirmed position in state before returning. This is what a
             // subsequent play(null) reads to resume from, closing the seek→play race.
@@ -1734,7 +1778,7 @@ object ReadiumReader :
         val toLocator = publication.normalizeLocator(locator)
 
         val navigator =
-            visualNavigator ?: run {
+            awaitVisualNavigator(publication) ?: run {
                 PluginLog.d(TAG, "::epubGoToLocator called without a visualNavigator")
                 return
             }
@@ -1833,6 +1877,34 @@ object ReadiumReader :
                 cleanHref,
             ) ?: listOf()
         }
+    }
+
+    /**
+     * Map each ToC selector that is not a content id (e.g. a newspaper `<section>` with no cue)
+     * to the first content id inside its element. See ADR 0001.
+     */
+    private suspend fun epubGetTocAnchors(
+        href: Url,
+        tocSelectors: List<String>,
+        contentSelectors: List<String>,
+    ): Map<String, String> {
+        val anchorMap = currentPublicationTocAnchorMap ?: mutableMapOf()
+        currentPublicationTocAnchorMap = anchorMap
+
+        val cleanHref = href.cleanHref()
+        anchorMap[cleanHref]?.let { return it }
+
+        val contentIds = contentSelectors.map { it.removePrefix("#") }.toSet()
+        val containers = tocSelectors.map { it.removePrefix("#") }.filter { it.isNotEmpty() && it !in contentIds }
+        val tree = if (containers.isEmpty()) null else currentPublication?.xhtmlIdTree(cleanHref)
+        val anchors =
+            containers
+                .mapNotNull { container ->
+                    tree?.firstDescendant(container, contentIds)?.let { "#$container" to "#$it" }
+                }.toMap()
+
+        anchorMap[cleanHref] = anchors
+        return anchors
     }
 
     /**

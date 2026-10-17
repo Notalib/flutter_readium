@@ -147,6 +147,7 @@ extension Publication {
 
   func getMediaOverlays() async -> [FlutterMediaOverlay]? {
     guard containsMediaOverlays else { return nil }
+    let toc = getFlattenedToC()
 
     let narrationLinks = readingOrder.enumerated().compactMap {
       position, resourceLink -> (position: Int, resource: Link, overlay: Link)? in
@@ -178,14 +179,15 @@ extension Publication {
         entry.json,
         atPosition: entry.position,
         atTocHref: nil,
-        readingOrderDuration: entry.resource.duration
+        readingOrderDuration: entry.resource.duration,
+        tocHrefs: toc.map { $0.href }
       )
     }
 
     // Templated optional sidecars can be unresolved; only parsed overlays are returned.
     assert(rawOverlays.count <= narrationLinks.count)
 
-    return enrichOverlaysWithToc(rawOverlays)
+    return rawOverlays.map { $0.withTocTitles(toc) }
   }
 
   func getGuidedNavigationMediaOverlays() async -> [FlutterMediaOverlay]? {
@@ -313,6 +315,15 @@ extension Publication {
       Log.readium.warn("ContentService failed to fetch next element: \(err)")
     }
     return ids
+  }
+
+  /// Parses the element ids of an XHTML resource, or nil if it cannot be read.
+  func xhtmlIdTree(hrefRelativePath: String) async -> XhtmlIdTree? {
+    guard let url = RelativeURL(string: hrefRelativePath),
+          let data = try? await get(url)?.read().get() else {
+      return nil
+    }
+    return XhtmlIdTree(xhtml: data)
   }
 
   /// Get a flattened Table of Contents from the manifest.

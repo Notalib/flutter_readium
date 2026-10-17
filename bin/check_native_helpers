@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+status=0
+for asset in flutterReadiumTools.js flutterReadiumTools.css; do
+  asset_path="$repo_root/flutter_readium/assets/helpers/$asset"
+  if [ ! -s "$asset_path" ]; then
+    printf 'Missing or empty reader helper: %s\n' "$asset_path" >&2
+    status=1
+  fi
+done
+
+if [ "$status" -ne 0 ]; then
+  echo 'Generated reader helpers are missing. Run bin/install and rebuild.' >&2
+fi
+exit "$status"

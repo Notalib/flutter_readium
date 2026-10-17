@@ -13,6 +13,35 @@ class MainActivity : FlutterFragmentActivity()
 
 Set `minSdkVersion 24` in `android/app/build.gradle`.
 
+## Android: reader crashes in `WebViewServer.allowCors`
+
+Check for `WebViewAssetLoader: Error opening asset path` before
+`NullPointerException: getResponseHeaders(...) must not be null`. Readium Kotlin 3.4.0
+assumes asset responses have headers, but AndroidX returns a headerless error response
+when an asset cannot be opened.
+
+Our reproduction was missing generated `assets/helpers/flutterReadiumTools.js` and `.css`
+from the local app bundle. Run `bin/install` after creating a checkout, or build the helpers
+before rebuilding the app:
+
+```bash
+cd flutter_readium/assets/_helper_scripts
+npm ci --ignore-scripts
+npm run build
+```
+
+CI already generates these files through `.github/actions/build-webview-helpers`.
+`bin/doctor` and native example builds reject missing or empty helpers. Native integration
+tests also load both helpers from the packaged Flutter assets before opening a publication.
+On the same physical Android API 36 phone with WebView 155, official Readium 3.4.0 crashed
+without the files and passed reader warm-up after they were generated. WebView version
+was not the demonstrated cause; the different asset preparation explains the passing CI.
+
+The separate [upstream fix and regression tests](https://github.com/Notalib/kotlin-toolkit/commit/d88ccc78)
+treat missing headers as an empty map when adding CORS. That prevents missing assets from
+crashing the app; it does not supply those assets. This plugin uses official Readium 3.4.0
+without a navigator substitution.
+
 ## iOS: pod install fails
 
 ```bash

@@ -352,7 +352,8 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 ?.copy(title = resourceLink.title)
                 ?.let { overlayLink -> Triple(position, resourceLink, overlayLink) }
         }
-    val tocHrefs = tableOfContents.flattenChildren().map { it.href.resolve() }
+    val toc = tableOfContents.flattenChildren()
+    val tocHrefs = toc.map { it.href.resolve() }
 
     // Fetch+parse every overlay JSON in parallel on IO. Cap is configurable so we don't open
     // dozens of sockets to the origin at once.
@@ -398,7 +399,7 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    return enrichOverlaysWithToc(parsed)
+    return parsed.map { it?.withTocTitles(toc) }
 }
 
 /**
@@ -698,6 +699,18 @@ suspend fun Publication.findAllCssSelectors(href: Url): List<String>? {
     }
 
     return ids
+}
+
+/**
+ * Parse the element id tree of an XHTML resource, or null when it cannot be read.
+ */
+suspend fun Publication.xhtmlIdTree(href: Url): XhtmlIdTree? {
+    val bytes =
+        get(href.cleanHref())?.read()?.getOrNull() ?: run {
+            PluginLog.w(TAG, "::xhtmlIdTree - unable to read $href")
+            return null
+        }
+    return XhtmlIdTree(bytes)
 }
 
 /**
