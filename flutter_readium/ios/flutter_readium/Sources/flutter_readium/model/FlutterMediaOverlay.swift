@@ -84,16 +84,40 @@ struct FlutterMediaOverlay {
     return nil
   }
   
-  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String? = nil, readingOrderDuration: TimeInterval? = nil) -> FlutterMediaOverlay? {
+  static func fromJson(
+    _ json: [String: Any],
+    atPosition position: Int,
+    atTocHref: String? = nil,
+    readingOrderDuration: TimeInterval? = nil,
+    tocHrefs: [String] = []
+  ) -> FlutterMediaOverlay? {
     guard let topNarration = json["narration"] as? [[String: Any]] else { return nil }
     var acc: [FlutterMediaOverlayItem] = []
     
     for obj in topNarration {
-      if let item = FlutterMediaOverlayItem.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
+      // Children inherit the closest matching structural ToC reference
+      let matchingTocHref = (obj["text"] as? String).flatMap { text in
+        tocHrefs.first(where: { $0 == text })
+      }
+      
+      let nodeTocHref = matchingTocHref ?? atTocHref
+      
+      if let item = FlutterMediaOverlayItem.fromJson(
+        obj,
+        atPosition: position,
+        atTocHref: nodeTocHref,
+        readingOrderDuration: readingOrderDuration
+      ) {
         acc.append(item)
       }
       // recurse if nested containers also have "narration"
-      if let nested = FlutterMediaOverlay.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
+      if let nested = FlutterMediaOverlay.fromJson(
+        obj,
+        atPosition: position,
+        atTocHref: nodeTocHref,
+        readingOrderDuration: readingOrderDuration,
+        tocHrefs: tocHrefs
+      ) {
         acc.append(contentsOf: nested.items)
       }
     }

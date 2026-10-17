@@ -115,23 +115,33 @@ extension Publication {
     containsMediaOverlays || containsGuidedNavigationMediaOverlays
   }
 
-  /// Enriches a list of overlays with title and tocHref from the publication's table of contents.
-  /// Uses a sliding-window approach: items that don't match a ToC entry directly inherit the last
-  /// matched entry when they share the same text file.
+  /// Enriches overlays using direct or inherited structural ToC references.
+  /// Items without a match inherit the last matched entry within the same text file
   private func enrichOverlaysWithToc(_ overlays: [FlutterMediaOverlay]) -> [FlutterMediaOverlay] {
     let toc = getFlattenedToC()
     var lastTocMatch: Link? = nil
+    
     return overlays.map { overlay in
       let items = overlay.items.map { item -> FlutterMediaOverlayItem in
-        if let match = toc.first(where: { $0.href == item.text }) {
+        let match = toc.first(where: { $0.href == item.text })
+          ?? item.tocHref.flatMap{ tocHref in
+            toc.first(where: { $0.href == tocHref })
+          }
+        
+        if let match = match {
           lastTocMatch = match
           return item.copyWith(tocTitle: match.title, tocHref: match.href)
-        } else if let last = lastTocMatch, last.href.substringBeforeLast("#") == item.textFile {
+        } else if let last = lastTocMatch,
+                    last.href.substringBeforeLast("#") == item.textFile {
           return item.copyWith(tocTitle: last.title, tocHref: last.href)
         }
+        
         return item
       }
-      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
+      
+      return FlutterMediaOverlay(
+        items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration
+      )
     }
   }
 
@@ -147,6 +157,8 @@ extension Publication {
 
   func getMediaOverlays() async -> [FlutterMediaOverlay]? {
     guard containsMediaOverlays else { return nil }
+    
+    let tocHrefs = getFlattenedToC().map{$0.href}
 
     let narrationLinks = readingOrder.enumerated().compactMap {
       position, resourceLink -> (position: Int, resource: Link, overlay: Link)? in
@@ -178,7 +190,8 @@ extension Publication {
         entry.json,
         atPosition: entry.position,
         atTocHref: nil,
-        readingOrderDuration: entry.resource.duration
+        readingOrderDuration: entry.resource.duration,
+        tocHrefs: tocHrefs
       )
     }
 
