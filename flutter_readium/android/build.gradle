@@ -17,20 +17,10 @@ plugins {
   id 'org.jetbrains.kotlin.plugin.serialization' version '2.3.21'
 }
 
-// Readium 3.4.0 assumes asset responses have headers. Remove this substitution
-// when upgrading to an upstream release with the null-header fix.
-def patchedReadiumNavigator = 'com.github.Notalib:kotlin-toolkit:2c6395cecf529f6fa6beaeb9a0c30e46747b7dc0'
-
 group 'dk.nota.flutterreadium'
 version '1.0-SNAPSHOT'
 
 rootProject.allprojects {
-  configurations.configureEach {
-    resolutionStrategy.dependencySubstitution {
-      substitute module('org.readium.kotlin-toolkit:readium-navigator') using module(patchedReadiumNavigator)
-    }
-  }
-
   repositories {
     google()
     mavenCentral()
