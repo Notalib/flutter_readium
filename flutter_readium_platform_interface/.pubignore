@@ -7,3 +7,6 @@ docs/
 
 # Root-level development files
 CONTRIBUTING.md
+
+# Changelog fragments, compiled into CHANGELOG.md at release time
+changelog.d/

@@ -7,18 +7,17 @@
 #   1. bump `version:` in both pubspecs,
 #   2. bump flutter_readium's constraint on flutter_readium_platform_interface
 #      to match (a `^0.0.x` caret excludes the next patch, so this MUST move),
-#   3. stamp the curated `## Unreleased` changelog content into a dated
-#      `## [<version>] - <date>` section in both packages, leaving a fresh
-#      empty `## Unreleased` on top,
+#   3. compile each package's changelog fragments (<package>/changelog.d/)
+#      into a dated `## [<version>] - <date>` section via bin/changelog,
 #   4. commit + annotated-tag `v<version>`.
 #
 # It deliberately does NOT push — you decide when the tag reaches the canonical
 # repo. Pushing the tag is what triggers .github/workflows/release.yml to
 # publish to pub.dev (OIDC), so it must land on notalib/flutter_readium.
 #
-# The changelog *content* stays hand-curated: write entries under `## Unreleased`
-# as you work (consumer-facing only — see AGENTS.md), and this script just dates
-# and seals them. It never generates entries from commits.
+# The changelog *content* stays hand-curated: add a fragment per change as you
+# work (consumer-facing only — see CONTRIBUTING.md#changelog), and this script
+# just dates and seals them. It never generates entries from commits.
 #
 # Usage:
 #   bin/release_prep <version>          # e.g. bin/release_prep 0.0.2
@@ -78,11 +77,13 @@ for changelog in "$PLUGIN_CHANGELOG" "$IFACE_CHANGELOG"; do
     echo "ERROR: $changelog already has a section for [$VERSION]"
     exit 1
   fi
-  if ! grep -q '^## Unreleased' "$changelog"; then
-    echo "ERROR: $changelog has no '## Unreleased' section to seal"
-    exit 1
-  fi
 done
+
+# Fail on misnamed fragments before anything is modified.
+"$REPO_ROOT/bin/changelog" check >/dev/null 2>&1 || {
+  echo "ERROR: invalid changelog fragments. Run bin/changelog check for details."
+  exit 1
+}
 
 if [ "$NO_TAG" -eq 0 ] && git -C "$REPO_ROOT" rev-parse "v$VERSION" >/dev/null 2>&1; then
   echo "ERROR: tag v$VERSION already exists"
@@ -112,9 +113,9 @@ if ! grep -qE "^[[:space:]]*flutter_readium_platform_interface:[[:space:]]+\^$VE
 fi
 echo "  $PLUGIN_PUBSPEC → flutter_readium_platform_interface: ^$VERSION"
 
-# --- 3. Seal the curated Unreleased changelog into a dated section ----------
+# --- 3. Compile changelog fragments into a dated section --------------------
+"$REPO_ROOT/bin/changelog" build "$VERSION"
 for changelog in "$PLUGIN_CHANGELOG" "$IFACE_CHANGELOG"; do
-  sed -i '' "s/^## Unreleased\$/## Unreleased\n\n## [$VERSION] - $DATE/" "$changelog"
   if ! grep -q "^## \[$VERSION\] - $DATE\$" "$changelog"; then
     echo "ERROR: failed to add [$VERSION] section to $changelog"
     exit 1

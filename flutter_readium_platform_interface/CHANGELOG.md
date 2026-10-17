@@ -3,7 +3,7 @@
 All notable changes to `flutter_readium_platform_interface` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## Unreleased
+<!-- towncrier release notes start -->
 
 ### Added
 
@@ -153,7 +153,6 @@ No changes — version bumped to stay in lockstep with `flutter_readium`.
   media-overlay path the same way narrated EPUBs do.
 - `EPUBPreferences.fontSize` is now clamped to Readium's supported ratio range
   `[0.1, 5.0]` on serialization, logging a warning when an out-of-range value is passed.
-
 
 ## [0.1.1] - 2026-06-26
 
