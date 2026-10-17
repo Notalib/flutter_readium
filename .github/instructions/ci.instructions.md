@@ -5,6 +5,25 @@ applyTo: '.github/workflows/*.yml'
 
 # CI/CD Conventions
 
+## Change detection
+
+`ci.yml` applies the same platform filters to PR updates and pushes to `main`.
+Swift/iOS paths select iOS, Android paths select Android, and web paths select
+web. Shared Dart, dependency, helper-asset and CI inputs select all platforms.
+
+Compare against an ancestor with a successful CI run, rather than the previous
+push: a cancelled run may leave code untested. PR reuse also requires a matching
+PR number, head repository and tested base SHA, recorded by the small
+`ci-baseline-v1` artifact. Missing/expired provenance falls back to the full PR
+diff; no usable baseline on `main` runs all platforms. Manual dispatches and
+workflow reruns always run all platforms.
+The lookup checks at most 20 successful runs and inspects at most five candidates.
+
+Keep the workflow trigger unconditional and skip jobs through their platform
+conditions. `CI result` checks change detection and rejects failed/cancelled jobs
+while allowing intentional skips. Include new CI jobs in its `needs` list.
+Run `node --test .github/scripts/ci-baseline.test.cjs` and `actionlint` after changes.
+
 ## Caching
 
 All workflows that build iOS or Android must include the relevant caches:
