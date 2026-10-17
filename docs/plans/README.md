@@ -33,6 +33,12 @@ This directory holds implementation plans, parity audits, and retained reference
 
 ## Implemented reference plans
 
+- **[media-overlay-adr-regressions.md](media-overlay-adr-regressions.md)** — current regression coverage and validation evidence for ADR 0001.
+
+- **[web-media-overlay-toc-context.md](web-media-overlay-toc-context.md)** — web Sync Narration ownership and precise seeking, validated by focused ChromeDriver integration.
+
+- **[native-media-overlay-toc-context.md](native-media-overlay-toc-context.md)** — native ToC ownership, resource boundaries and anchored seeking, following [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
+
 - **[web-decorations.md](web-decorations.md)** — web decoration rendering and interaction.
 - **[web-goto-locator-precision.md](web-goto-locator-precision.md)** — full-locator web navigation.
 - **[web-error-event.md](web-error-event.md)** — web error event stream.

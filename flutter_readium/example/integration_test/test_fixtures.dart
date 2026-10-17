@@ -34,6 +34,11 @@ abstract final class FixtureKeys {
   static const warmupWebpub = 'test-peter-rabbit.webpub';
   static const overlayWebpub = '38533_overlay_preview.webpub';
   static const tocSectionChild = '38533_overlay_preview-toc-section-child.webpub';
+  static const adrSyncOwnership = 'adr-sync-narration-ownership.webpub';
+
+  /// Synthetic local newspaper whose ToC entries target `<section>`/`<aside>` elements that the
+  /// Sync Narration does not list. See ADR 0001.
+  static const syntheticNewspaper = 'synthetic_local_newspaper.webpub';
   static const audiobook = '38533.audiobook';
   static const pdfTest = 'pdf_test.pdf';
   static const timeMachinePdf = 'time_machine.pdf';
@@ -71,6 +76,9 @@ abstract final class FixtureKeys {
     peterRabbitEpub,
     warmupWebpub,
     overlayWebpub,
+    tocSectionChild,
+    adrSyncOwnership,
+    syntheticNewspaper,
     audiobook,
     divina,
     remoteAudiobook,

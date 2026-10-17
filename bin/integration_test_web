@@ -105,4 +105,6 @@ cd "$EXAMPLE_DIR"
 flutter drive \
   --driver=test_driver/integration_test.dart \
   --target=integration_test/plugin_integration_test.dart \
+  --web-browser-flag=--autoplay-policy=no-user-gesture-required \
+  --web-browser-flag=--mute-audio \
   -d web-server

@@ -130,11 +130,6 @@ jobs:
         run: ./gradlew :flutter_readium:testDebugUnitTest
         working-directory: flutter_readium/example/android
 
-  # TODO: ios-unit-tests.yml (RunnerTests, analogous to android-unit-test above)
-  # is workflow_dispatch-only for now — it needs a macos runner + simulator boot,
-  # unlike this file's ubuntu-only jobs. Roll it in as a job here once that's
-  # sorted out, so it runs on every push/PR like the others.
-
       - name: Save Gradle cache
         if: github.ref == 'refs/heads/main' && steps.gradle-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6

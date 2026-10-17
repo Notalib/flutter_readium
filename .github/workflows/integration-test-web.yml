@@ -34,6 +34,10 @@ jobs:
       - name: Fetch test resources
         uses: ./.github/actions/fetch-test-resources
 
+      - name: Test fixture HTTP server
+        run: flutter test test/web_fixture_server_test.dart
+        working-directory: flutter_readium/example
+
       - name: Install ChromeDriver
         uses: nanasess/setup-chromedriver@e913548694400f275b4070efcd90f47dbbc8914c # v3.0.0
 
@@ -49,4 +53,5 @@ jobs:
             --driver=test_driver/integration_test.dart \
             --target=integration_test/plugin_integration_test.dart \
             --dart-define=READIUM_TEST_SKIP_LOGS=true \
+            --web-browser-flag=--autoplay-policy=no-user-gesture-required \
             -d web-server

@@ -13,6 +13,8 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
 {
   internal var mediaOverlays: [FlutterMediaOverlay] = []
   private var pendingTextInitialLocator: Locator?
+  /// Parsed XHTML per resource path, for seeks to ToC containers absent from the narration.
+  private var xhtmlIdTrees: [String: XhtmlIdTree?] = [:]
   
   public override var currentLocator: Locator? {
     get {
@@ -74,7 +76,11 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     
     Log.navigator.info("New audio readingOrder found: \(audioReadingOrder)")
     applyMediaOverlays(mediaOverlays)
-    
+    if let pending = pendingTextInitialLocator {
+      _initialLocator = mapTextLocatorToMediaOverlayAudioLocator(await anchorUncuedTextLocator(pending))
+      pendingTextInitialLocator = nil
+    }
+
     try await super.initNavigator()
   }
   
@@ -87,11 +93,18 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
   
   public override func play(fromLocator: Locator?) async {
     // Map the initial Text-based locator to Audio-based MediaOverlay Locator.
-    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(fromLocator)
+    var anchored = fromLocator
+    if let fromLocator {
+      anchored = await anchorUncuedTextLocator(fromLocator)
+    }
+    if fromLocator != nil && anchored == nil { return }
+    let audioFromLocator = mapTextLocatorToMediaOverlayAudioLocator(anchored)
+    if fromLocator != nil && audioFromLocator == nil { return }
     await super.play(fromLocator: audioFromLocator ?? initialLocator)
   }
   
   public override func seek(toLocator: Locator) async -> Bool {
+    let toLocator = await anchorUncuedTextLocator(toLocator)
     guard let navigator = _audioNavigator,
           let audioLocator = mapTextLocatorToMediaOverlayAudioLocator(toLocator) else {
       Log.navigator.warn("seekToLocator - Could not map to an Audio Locator for: \(toLocator)")
@@ -183,6 +196,30 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     }
   }
   
+  /// Resolve XHTML targets absent from the narration before applying same-file fallback guards.
+  /// A cue-less heading can seek forward without becoming that cue's ToC owner. See ADR 0001.
+  private func anchorUncuedTextLocator(_ locator: Locator) async -> Locator? {
+    let href = locator.href.string
+    guard let textId = locator.textId,
+          !mediaOverlays.contains(where: {
+            $0.itemFromTextId(textId, inHref: href) != nil || $0.itemFromTocHref(textId, inHref: href) != nil
+          }) else {
+      return locator
+    }
+    let cueIds = Set(mediaOverlays.flatMap(\.items).filter { $0.textFile == href }.map(\.textId))
+    guard let tree = await xhtmlIdTree(href: locator.href.path) else { return locator }
+    return tree.anchor(locator, textId: textId, cueIds: cueIds)
+  }
+
+  private func xhtmlIdTree(href: String) async -> XhtmlIdTree? {
+    if let cached = xhtmlIdTrees[href] {
+      return cached
+    }
+    let tree = await publication.xhtmlIdTree(hrefRelativePath: href)
+    xhtmlIdTrees[href] = .some(tree)
+    return tree
+  }
+
   internal func mapTextLocatorToMediaOverlayAudioLocator(_ textLocator: Locator?) -> Locator? {
     guard let textLocator = textLocator else {
       Log.navigator.debug("mapTextLocatorToMediaOverlayAudioLocator - nil text locator")

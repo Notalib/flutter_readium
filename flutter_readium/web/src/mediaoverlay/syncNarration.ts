@@ -15,7 +15,7 @@
  *   application/vnd.readium.narration+json
  */
 
-import { Link, Locator, LocatorLocations, LocatorText, Resource } from "@readium/shared";
+import { getTime, Link, Locator, LocatorLocations, LocatorText, Resource } from "@readium/shared";
 import { ReadiumPublication } from "../utils/ReadiumExtensions";
 import { createLogger } from "../utils/ReadiumPluginLogger";
 import { linkTemplateContext, resolveLink } from "../utils/linkTemplate";
@@ -104,6 +104,7 @@ export async function parseSyncNarration(
   publication: ReadiumPublication
 ): Promise<SyncNarrationItem[]> {
   const result: SyncNarrationItem[] = [];
+  const toc = flattenToc(publication);
 
   for (let i = 0; i < publication.readingOrder.items.length; i++) {
     const link = publication.readingOrder.items[i];
@@ -119,14 +120,17 @@ export async function parseSyncNarration(
     try {
       const resource: Resource = publication.get(resolved.link);
       const json = await resource.readAsJSON();
-      const items = _parseNarrationJson(json, i, link.duration);
+      const items = _parseNarrationJson(json, i, link.duration, toc);
       result.push(...items);
     } catch (err) {
       log.warn("Failed to fetch/parse alternate for", link.href, err);
     }
   }
 
-  return enrichItemsWithToc(result, publication);
+  return result.map((item) => ({
+    ...item,
+    tocTitle: toc.find((link) => link.href === item.tocHref)?.title,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -140,8 +144,7 @@ export async function parseSyncNarration(
  * `otherLocations` carries:
  *   - `cssSelector` — CSS ID selector for the active cue element (when textId is set).
  *   - `tocHref`     — TOC chapter href, so Dart-side `Locator.locations.tocHref`
- *                     returns the current chapter (when the item was enriched by
- *                     `enrichItemsWithToc`).
+ *                     returns the current chapter assigned to this cue.
  */
 export function textLocatorForItem(item: SyncNarrationItem): Locator {
   const otherLocationEntries: [string, any][] = [];
@@ -219,24 +222,27 @@ export function combinedLocatorForItem(
  * unmatched text id, or no id at all): when true, an uncued anchor maps to the
  * first cue of the resource; when false, it returns undefined so the caller
  * leaves playback untouched. Callers pass false when audio is already playing
- * *within the same resource* — a ToC tap at a cue-less heading in the current
- * chapter shouldn't rewind audio to the chapter top. See issue #139.
+ * *within the same resource* — an unknown anchor in the current chapter
+ * should not rewind audio to the chapter top. See issue #139.
  *
- * Mirrors FlutterMediaOverlayNavigator.mapTextLocatorToMediaOverlayAudioLocator
- * (iOS) and SyncAudiobookNavigator.mapTextLocatorToMediaOverlayLocator (Android).
+ * `useSyncNarrationLookup` opts into time-first and assigned-owner lookup for
+ * Sync Narration. Guided Navigation keeps the legacy default lookup behavior.
  */
 export function textLocatorToAudioLocator(
   items: SyncNarrationItem[],
   textLocator: Locator,
-  allowResourceFallback = true
+  allowResourceFallback = true,
+  useSyncNarrationLookup = false
 ): Locator | undefined {
   const targetHref = textLocator.href;
   log.debug(`Mapping text locator to audio: href="${targetHref}", ${items.length} items`);
   // Strip any fragment leaking into the href (e.g. ToC links like "chap1.xhtml#sec1")
   // so the href-only fallback still matches the right resource.
   const targetHrefNormalized = normalizeHref(targetHref);
+  const fragments = textLocator.locations?.fragments ?? [];
+  const requestedTime = useSyncNarrationLookup ? getTime(textLocator.locations) : undefined;
   const targetId =
-    (textLocator.locations as any)?.fragments?.[0] ??
+    (useSyncNarrationLookup ? fragments.find((fragment) => !fragment.startsWith("t=")) : fragments[0]) ??
     // cssSelector lives in otherLocations (a Map) — JSON.stringify would drop it,
     // so we access it via Map.get rather than as a direct property.
     textLocator.locations?.otherLocations?.get?.("cssSelector")?.replace(/^#/, "") ??
@@ -246,16 +252,25 @@ export function textLocatorToAudioLocator(
     (item) => normalizeHref(item.textHref) === targetHrefNormalized
   );
 
-  // Primary: exact href + textId match (ID-anchored ToC entry, decoration callback, etc.).
-  // Fallback: first item in matching href (covers ToC entries whose fragment points at a
-  // heading or section that has no Sync Narration item — e.g. `chap1.xhtml#title`).
-  // The fallback is *imprecise* (resource start, not the anchor), so it's gated by
-  // `allowResourceFallback` — suppressed when audio is already in this same resource.
-  // Mirrors iOS/Android's gated resource-first fallback in
-  // FlutterMediaOverlay.itemFromLocator / findItemFromLocator.
+  // Sync time selects its cue first; otherwise exact anchors beat assigned owners.
+  // Resource-start fallback remains gated for unknown same-file anchors.
   let match: SyncNarrationItem | undefined;
-  if (targetId) {
+  if (requestedTime !== undefined && Number.isFinite(requestedTime) && requestedTime >= 0) {
+    const resourceItems = items.filter((item) =>
+      normalizeHref(item.textHref) === targetHrefNormalized ||
+      normalizeHref(item.audioHref) === targetHrefNormalized
+    );
+    match = resourceItems.find((item) => _isSyncTimeInRange(item, requestedTime)) ?? resourceItems.find((item) => item.audioStart !== null && item.audioStart > requestedTime);
+    if (!match) return undefined;
+  } else if (targetId) {
     match = hrefMatches.find((item) => item.textId === targetId);
+    if (!match && useSyncNarrationLookup) {
+      match = items.find((item) => {
+        if (!item.tocHref) return false;
+        const owner = parseTextField(item.tocHref);
+        return normalizeHref(owner.textHref) === targetHrefNormalized && owner.textId === targetId;
+      });
+    }
     if (!match && allowResourceFallback && hrefMatches.length > 0) {
       log.warn(
         `textLocatorToAudioLocator: no SyncNarrationItem matched textId "${targetId}" in ${targetHrefNormalized}; falling back to first item in resource.`
@@ -278,7 +293,9 @@ export function textLocatorToAudioLocator(
     (f: string) => f.startsWith("t=")
   );
   let timeOffset: number = match.audioStart;
-  if (tFragment) {
+  if (useSyncNarrationLookup && requestedTime !== undefined && Number.isFinite(requestedTime) && requestedTime >= 0) {
+    timeOffset = requestedTime;
+  } else if (!useSyncNarrationLookup && tFragment) {
     const parsed = parseFloat(tFragment.slice(2));
     if (!isNaN(parsed)) timeOffset = parsed;
   } else if (
@@ -306,7 +323,7 @@ export function textLocatorToAudioLocator(
 
 /**
  * Finds the SyncNarrationItem that covers a given audio position.
- * Mirrors FlutterMediaOverlay.itemInRangeOfTime.
+ * Sync lookup uses native half-open intervals; Guided retains inclusive ends.
  *
  * @param items   All parsed items (ordered by position).
  * @param audioHref  The href of the currently-playing audio file.
@@ -315,7 +332,8 @@ export function textLocatorToAudioLocator(
 export function findItemByAudioTime(
   items: SyncNarrationItem[],
   audioHref: string,
-  timeSecs: number
+  timeSecs: number,
+  useSyncNarrationLookup = false
 ): SyncNarrationItem | undefined {
   // Normalise hrefs for comparison (strip leading slash / URL prefix if any).
   const normHref = normalizeHref(audioHref);
@@ -324,11 +342,19 @@ export function findItemByAudioTime(
     if (normalizeHref(item.audioHref) !== normHref) continue;
     const start = item.audioStart ?? 0;
     const end = item.audioEnd;
-    if (timeSecs >= start && (end === null || timeSecs <= end)) {
+    if (useSyncNarrationLookup
+      ? _isSyncTimeInRange(item, timeSecs)
+      : timeSecs >= start && (end === null || timeSecs <= end)) {
       return item;
     }
   }
   return undefined;
+}
+
+function _isSyncTimeInRange(item: SyncNarrationItem, time: number): boolean {
+  const start = item.audioStart;
+  const end = item.audioEnd;
+  return start !== null && time >= start && (end === null || end < start || time < end);
 }
 
 // ---------------------------------------------------------------------------
@@ -370,8 +396,7 @@ export function flattenToc(publication: ReadiumPublication): Link[] {
  *      (ignoring its fragment) as the current item, inherit title/href from it.
  *   3. Otherwise, leave the item unenriched.
  *
- * Mirrors `enrichOverlaysWithToc()` in the native plugin
- * (ReadiumExtensions.swift on iOS, ReadiumExtensions.kt on Android).
+ * Retained for Guided Navigation; Sync Narration assigns owners before flattening.
  */
 export function enrichItemsWithToc(
   items: SyncNarrationItem[],
@@ -495,21 +520,35 @@ function _narrationAlternate(link: Link): Link | null {
 function _parseNarrationJson(
   json: unknown,
   position: number,
-  readingOrderDuration: number | undefined
+  readingOrderDuration: number | undefined,
+  toc: Link[],
+  inheritedTocHref?: string
 ): SyncNarrationItem[] {
   const items: SyncNarrationItem[] = [];
 
   if (!isJsonObject(json) || !Array.isArray(json["narration"])) return items;
 
+  let currentTocHref = inheritedTocHref;
   for (const entry of json["narration"]) {
     if (!isJsonObject(entry)) continue;
     const audio = entry["audio"];
     const text = entry["text"];
+    const hasChildren = Array.isArray(entry["narration"]) && entry["narration"].length > 0;
+    let direct: Link | undefined;
+    if (typeof text === "string" && text.length > 0) {
+      const resource = normalizeHref(text);
+      if (!currentTocHref || normalizeHref(currentTocHref) !== resource) {
+        currentTocHref = toc.find((link) => !link.href.includes("#") && normalizeHref(link.href) === resource)?.href;
+      }
+      direct = toc.find((link) => link.href === text);
+    }
+    const effectiveTocHref = direct?.href ?? currentTocHref;
     if (typeof audio === "string" && typeof text === "string") {
-      items.push(_parseEntry(audio, text, position, readingOrderDuration));
-    } else if (Array.isArray(entry["narration"])) {
-      // Nested narration (body element groups in some authoring tools).
-      items.push(..._parseNarrationJson(entry, position, readingOrderDuration));
+      items.push({ ..._parseEntry(audio, text, position, readingOrderDuration), tocHref: effectiveTocHref });
+      if (direct && !hasChildren) currentTocHref = direct.href;
+    }
+    if (hasChildren) {
+      items.push(..._parseNarrationJson(entry, position, readingOrderDuration, toc, effectiveTocHref));
     }
   }
 

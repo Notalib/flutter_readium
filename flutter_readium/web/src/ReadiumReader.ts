@@ -18,7 +18,14 @@ import { ReadiumPublication, findLinkByHref } from "./utils/ReadiumExtensions";
 import { FlutterEpubNavigator } from "./navigators/FlutterEpubNavigator";
 import { FlutterWebPubNavigator } from "./navigators/FlutterWebPubNavigator";
 import { FlutterDivinaNavigator } from "./navigators/FlutterDivinaNavigator";
-import { FlutterAudioNavigator, setAudioEmissionsEnabled, seekAudioAndResume } from "./navigators/FlutterAudioNavigator";
+import {
+  FlutterAudioNavigator,
+  isPlayingOrResuming,
+  pauseForUser,
+  seekAudioAndResume,
+  setAudioEmissionsEnabled,
+  setResuming,
+} from "./navigators/FlutterAudioNavigator";
 import { AudioRecoveryPolicy, setCurrentAudioRecoveryPolicy } from "./navigators/AudioStreamErrorPolicy";
 import { FlutterTTSNavigator } from "./navigators/FlutterTTSNavigator";
 import { initializeMediaOverlayNavigator, initializeGuidedNavigationNavigator } from "./navigators/FlutterMediaOverlayNavigator";
@@ -37,6 +44,7 @@ import {
   textLocatorToAudioLocator,
 } from "./mediaoverlay/syncNarration";
 import { detectGuidedNavigation } from "./mediaoverlay/guidedNavigation";
+import { UncuedTocTargets } from "./mediaoverlay/uncuedTocTargets";
 // Decoration overrides (for comic/visual sync)
 import { navIframeWindows } from "./decorations/decorationFrameUtils";
 // Iframe injection utilities
@@ -119,6 +127,7 @@ class _ReadiumReader {
   private _hasGuidedNavigation = false;
   /** Parsed sync-narration items for the current MediaOverlay publication. Empty for plain audiobooks. */
   private _syncItems: SyncNarrationItem[] = [];
+  private _uncuedTocTargets: UncuedTocTargets | undefined;
   /**
    * Unified runtime narration-sync flag. When true (default), audio-driven
    * visual sync is active: MediaOverlay cues scroll the EPUB navigator, and TTS
@@ -258,14 +267,19 @@ class _ReadiumReader {
       // crosses into a *different* resource than the one currently playing —
       // an uncued anchor within the current chapter must not rewind audio to
       // the chapter top. See issue #139.
-      const curAudioLoc = this._audioNav.currentLocator;
+      const activeNav = this._audioNav;
+      const curAudioLoc = activeNav.currentLocator;
       const curTime = getTime(curAudioLoc.locations) ?? this._audioNav.currentTime;
-      const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime);
+      const useSyncNarrationLookup = !!this._audioNavPublication &&
+        detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+      const curItem = findItemByAudioTime(this._syncItems, curAudioLoc.href, curTime, useSyncNarrationLookup);
       const crossResource =
         !curItem || normalizeHref(curItem.textHref) !== normalizeHref(locator.href);
-      const audioLocator = textLocatorToAudioLocator(this._syncItems, locator, crossResource);
+      const anchored = useSyncNarrationLookup ? await this._anchorUncuedTextLocator(locator) : locator;
+      if (this._audioNav !== activeNav) return;
+      const audioLocator = anchored ? textLocatorToAudioLocator(this._syncItems, anchored, crossResource, useSyncNarrationLookup) : undefined;
       if (audioLocator) {
-        const wasPlaying = this._audioNav.isPlaying;
+        const wasPlaying = isPlayingOrResuming(this._audioNav);
         log.info(
           "goTo: MediaOverlay — seeking audio to",
           audioLocator.href,
@@ -324,7 +338,7 @@ class _ReadiumReader {
         );
         return;
       }
-      const wasPlaying = this._audioNav.isPlaying;
+      const wasPlaying = isPlayingOrResuming(this._audioNav);
       await this._seekAudioAndResume(audioLocator, wasPlaying);
       return;
     }
@@ -719,6 +733,7 @@ class _ReadiumReader {
       this._hasSyncNarration = false;
       this._hasGuidedNavigation = false;
       this._syncItems = [];
+      this._uncuedTocTargets = undefined;
       this._publication = undefined;
       this._lastDeferredSyncLocator = null;
       this._lastDeferredSyncDurationMs = undefined;
@@ -781,7 +796,8 @@ class _ReadiumReader {
   private _installAudioNavigator(
     publication: ReadiumPublication,
     nav: AudioNavigator,
-    syncItems?: SyncNarrationItem[]
+    syncItems?: SyncNarrationItem[],
+    uncuedTocTargets?: UncuedTocTargets
   ): boolean {
     if (this._publication !== publication) {
       log.info("Discarding audio navigator completed for a previous publication");
@@ -791,8 +807,25 @@ class _ReadiumReader {
     }
     this._audioNav = nav;
     this._audioNavPublication = publication;
-    if (syncItems !== undefined) this._syncItems = syncItems;
+    if (syncItems !== undefined) {
+      this._syncItems = syncItems;
+      this._uncuedTocTargets = uncuedTocTargets;
+    }
     return true;
+  }
+
+  /** Points an uncued ToC target at its first cue before text→audio mapping. See ADR 0001. */
+  private async _anchorUncuedTextLocator(locator: Locator): Promise<Locator | undefined> {
+    return this._uncuedTocTargets ? this._uncuedTocTargets.anchor(locator) : locator;
+  }
+
+  private _mapActiveTextLocator(locator: Locator, useSyncNarrationLookup: boolean): Locator | undefined {
+    const current = this._audioNav?.currentLocator;
+    const item = current && findItemByAudioTime(this._syncItems, current.href,
+      getTime(current.locations) ?? this._audioNav!.currentTime, useSyncNarrationLookup);
+    const crossResource = !item || normalizeHref(item.textHref) !== normalizeHref(locator.href);
+    return textLocatorToAudioLocator(this._syncItems, locator,
+      !useSyncNarrationLookup || crossResource, useSyncNarrationLookup);
   }
 
   /**
@@ -815,6 +848,7 @@ class _ReadiumReader {
     this._audioNavPublication = undefined;
     this._stoppedAudioLocator = undefined;
     this._syncItems = [];
+    this._uncuedTocTargets = undefined;
     this._lastMediaOverlayLocatorKey = null;
     this._lastDeferredSyncLocator = null;
     this._lastDeferredSyncDurationMs = undefined;
@@ -831,6 +865,20 @@ class _ReadiumReader {
       return;
     }
     if (!this._audioNav) return;
+    const useSyncNarrationLookup = this._syncItems.length > 0 && !!this._audioNavPublication &&
+      detectSyncNarration(this._audioNavPublication) && !detectGuidedNavigation(this._audioNavPublication);
+
+    const requested = locatorJson ? Locator.deserialize(JSON.parse(locatorJson)) : undefined;
+    const uncued = useSyncNarrationLookup ? this._uncuedTocTargets : undefined;
+    if (requested && uncued?.isUncued(requested)) {
+      void uncued.anchor(requested).then((anchored) => {
+        if (this._uncuedTocTargets !== uncued || !anchored) return;
+        const mapped = this._mapActiveTextLocator(anchored, true);
+        // Retry once with an audio locator. It cannot re-enter XHTML resolution.
+        if (mapped) this.play(JSON.stringify(mapped.serialize()));
+      });
+      return;
+    }
 
     // Retrying after a terminal streaming failure: the failed navigator was
     // already stopped by the recovery controller and is never reusable (no
@@ -855,7 +903,7 @@ class _ReadiumReader {
         : this._audioNav.currentLocator;
       // MediaOverlay: a client locator is a text locator; the navigator needs audio.
       if (locatorJson && this._syncItems.length > 0) {
-        resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator) ?? this._audioNav.currentLocator;
+        resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator, true, useSyncNarrationLookup) ?? this._audioNav.currentLocator;
       }
       // Stamp the captured instance, not `this._publication`: create() is async and
       // a mid-flight getPublication would otherwise record the new book as owning
@@ -880,13 +928,16 @@ class _ReadiumReader {
       if (locator) {
         // MediaOverlay: map text locator → audio locator before seeking.
         if (this._syncItems.length > 0) {
-          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+          const mapped = this._mapActiveTextLocator(locator, useSyncNarrationLookup);
+          if (useSyncNarrationLookup && !mapped) return;
+          locator = mapped ?? locator;
         }
         this._seekAudioAndResume(locator, true);
         return;
       }
     }
     FlutterAudioNavigator.setPlaybackIntent(true);
+    setResuming(this._audioNav, true);
     this._audioNav.play();
   }
 
@@ -894,14 +945,16 @@ class _ReadiumReader {
     log.debug("pause");
     if (this._ttsEngine) { this._ttsEngine.pause(); return; }
     FlutterAudioNavigator.setPlaybackIntent(false);
-    this._audioNav?.pause();
+    if (this._audioNav) pauseForUser(this._audioNav);
   }
 
   public resume(): void {
     log.debug("resume");
     if (this._ttsEngine) { this._ttsEngine.resume(); return; }
     FlutterAudioNavigator.setPlaybackIntent(true);
-    this._audioNav?.play();
+    if (!this._audioNav) return;
+    setResuming(this._audioNav, true);
+    this._audioNav.play();
   }
 
   public stop(): void {
@@ -943,6 +996,7 @@ class _ReadiumReader {
     // Clear Media Overlay / Guided Navigation state when narration stops.
     if (this._hasSyncNarration || this._hasGuidedNavigation) {
       this._syncItems = [];
+      this._uncuedTocTargets = undefined;
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) {
         this.applyDecorations("media_overlay_utterance", "[]");
@@ -1364,7 +1418,15 @@ class _ReadiumReader {
       if (resolvedFromLocator) {
         let locator = resolvedFromLocator;
         if (this._syncItems.length > 0) {
-          locator = textLocatorToAudioLocator(this._syncItems, locator) ?? locator;
+          const useSyncNarrationLookup = this._hasSyncNarration && !this._hasGuidedNavigation;
+          if (useSyncNarrationLookup) {
+            const anchored = await this._anchorUncuedTextLocator(locator);
+            if (!anchored) return;
+            locator = anchored;
+          }
+          const mapped = this._mapActiveTextLocator(locator, useSyncNarrationLookup);
+          if (useSyncNarrationLookup && !mapped) return;
+          locator = mapped ?? locator;
         }
         // Must await: callers chain play() on this promise, and a play() that
         // lands while upstream go() still has _isNavigating true is swallowed
@@ -1400,7 +1462,7 @@ class _ReadiumReader {
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
         const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+          ? textLocatorToAudioLocator(this._syncItems, fromLocator, true, false)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (!this._comicNav && this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();
@@ -1416,8 +1478,8 @@ class _ReadiumReader {
         publication,
         fromLocator,
         prefsJson,
-        (nav, items) => {
-          this._installAudioNavigator(publication, nav, items);
+        (nav, items, uncuedTocTargets) => {
+          this._installAudioNavigator(publication, nav, items, uncuedTocTargets);
         },
         (textLocator, durationMs) => {
           if (this._publication === publication) {
@@ -1429,8 +1491,12 @@ class _ReadiumReader {
       if (this._audioNavPublication !== publication) return;
       const nav = this._audioNav as AudioNavigator | undefined;
       if (nav) {
-        const mappedStart = fromLocator
-          ? textLocatorToAudioLocator(this._syncItems, fromLocator)
+        const targets = this._uncuedTocTargets;
+        const anchored = fromLocator ? await this._anchorUncuedTextLocator(fromLocator) : undefined;
+        if (this._uncuedTocTargets !== targets || this._audioNavPublication !== publication) return;
+        if (fromLocator && !anchored) return;
+        const mappedStart = anchored
+          ? textLocatorToAudioLocator(this._syncItems, anchored, true, true)
           : undefined;
         await this._seekAudioAndResume(mappedStart ?? nav.currentLocator, true);
         if (this._preventMOColumnBreaks) this._injectMOBreakCSSOnIframes();

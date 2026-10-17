@@ -1,21 +1,18 @@
 name: iOS Unit Tests
 
-# workflow_dispatch only, on purpose: this used to be a step inside
-# integration-test-ios.yml, but xcodebuild test runs RunnerTests on an
-# ephemeral "Clone N of <device>" and leaves the shared simulator Shutdown
-# once the test session ends — which broke the following `flutter test
-# --device-id` step there (see incident:
-# https://github.com/Notalib/flutter_readium/actions/runs/28591293702/job/84775289147).
-# Kept here, manually triggerable, until it gets its own runner/simulator and
-# is wired into ci.yml for real.
+# Give app-hosted unit tests their own runner; XCTest can shut down the simulator.
+# Sharing it with integration tests caused:
+# https://github.com/Notalib/flutter_readium/actions/runs/28591293702/job/84775289147.
 on:
+  workflow_call:
   workflow_dispatch:
 
 jobs:
   ios-unit-tests:
     name: iOS (Native Unit Tests)
-    runs-on: macos-26
-    timeout-minutes: 20
+    # Match the integration job's larger runner for native compilation.
+    runs-on: macos-26-xlarge
+    timeout-minutes: 30
 
     env:
       SIMULATOR_DEVICE: iPhone 16e
@@ -31,6 +28,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ steps.flutter_version.outputs.version }}
+          cache: true
 
       - name: Cache CocoaPods
         uses: actions/cache@v6
@@ -39,9 +37,35 @@ jobs:
           path: |
             flutter_readium/example/ios/Pods
             ~/.cocoapods
-          key: pods-${{ runner.os }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock') }}
+          # The unit job installs the full CocoaPods dependency set.
+          key: ios-units-pods-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Podfile') }}
           restore-keys: |
-            pods-${{ runner.os }}-
+            ios-units-pods-v1-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Read Xcode build version
+        id: xcode_version
+        run: |
+          xcodebuild -version
+          echo "hash=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache iOS unit-test build outputs
+        uses: actions/cache@v6
+        id: deriveddata-cache
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/ReadiumUnitTests
+          # Keep unit and integration builds separate. Restore compatible builds
+          # across source changes, but never across Xcode, Flutter or dependency changes.
+          key: ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ios-units-deriveddata-v1-macos26-${{ runner.arch }}-xcode${{ steps.xcode_version.outputs.hash }}-flutter${{ steps.flutter_version.outputs.version }}-${{ hashFiles('flutter_readium/example/ios/Podfile.lock', 'flutter_readium/example/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'flutter_readium/example/ios/Podfile', 'flutter_readium/example/pubspec.lock', 'flutter_readium/ios/flutter_readium.podspec', 'flutter_readium/ios/flutter_readium/Package.swift', 'flutter_readium/**/pubspec.yaml', 'flutter_readium_platform_interface/pubspec.yaml') }}-
+
+      - name: Report unit-test runner and cache status
+        run: |
+          echo "Runner: $(uname -mrs)"
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "CocoaPods cache hit: ${{ steps.pods-cache.outputs.cache-hit }}"
+          echo "Build cache exact hit: ${{ steps.deriveddata-cache.outputs.cache-hit }}"
+          du -sh "$HOME/Library/Developer/Xcode/DerivedData/ReadiumUnitTests" 2>/dev/null || true
 
       # Build the gitignored webview helper assets before the Xcode build:
       # assets/helpers/ is a declared asset dir in flutter_readium/pubspec.yaml,
@@ -95,14 +119,30 @@ jobs:
           echo "IOS_SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
 
       - name: Run iOS native unit tests
-        # arch pinned to the runner's native arch (a bare id= destination lists both
-        # arm64 + x86_64 and can pick the Rosetta x86_64 slice); -quiet keeps only
-        # test results + errors.
+        # Leave time for setup and diagnostics outside this bounded test step.
+        # Keep build and launch output: -quiet hid the phase of the first CI timeout.
+        # Pin the host architecture to avoid a Rosetta simulator build.
+        timeout-minutes: 20
         run: |
+          set -o pipefail
           xcodebuild test \
             -workspace Runner.xcworkspace \
             -scheme Runner \
+            -derivedDataPath "$HOME/Library/Developer/Xcode/DerivedData/ReadiumUnitTests" \
             -only-testing:RunnerTests \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES \
             -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID,arch=$(uname -m)" \
-            -quiet
+            -resultBundlePath "$RUNNER_TEMP/ios-unit-tests.xcresult" \
+            2>&1 | tee "$RUNNER_TEMP/ios-unit-tests.log"
         working-directory: flutter_readium/example/ios
+
+      - name: Upload iOS unit test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-unit-test-results
+          path: |
+            ${{ runner.temp }}/ios-unit-tests.log
+            ${{ runner.temp }}/ios-unit-tests.xcresult
+          if-no-files-found: ignore

@@ -11,6 +11,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.readium.r2.navigator.extensions.time
 import org.readium.r2.shared.InternalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.util.Url
 import kotlin.time.Duration
@@ -111,11 +112,10 @@ data class FlutterMediaOverlay(
     fun findItemFromTextId(
         href: Url,
         textId: String,
-    ): FlutterMediaOverlayItem? {
-        return items.firstOrNull { item ->
+    ): FlutterMediaOverlayItem? =
+        items.firstOrNull { item ->
             item.textId == textId && href.isEquivalent(Url.invoke(item.textFile))
         }
-    }
 
     /**
      * Find the first media overlay item assigned to the given ToC text reference.
@@ -129,6 +129,15 @@ data class FlutterMediaOverlay(
             tocHref.fragment == textId && href.isEquivalent(tocHref.removeFragment())
         }
     }
+
+    fun withTocTitles(toc: List<Link>): FlutterMediaOverlay =
+        copy(
+            items =
+                items.map { item ->
+                    val match = toc.firstOrNull { item.tocHref?.isEquivalent(it.href.resolve()) == true }
+                    if (match == null) item else item.copy(title = match.title ?: "", tocHref = match.href.resolve())
+                },
+        )
 
     /**
      * Find the media overlay item from the given locator.
@@ -196,10 +205,7 @@ data class FlutterMediaOverlay(
     }
 
     /**
-     * Creates a flat media overlay from sync narration JSON.
-     *
-     * [tocHrefs] is used while flattening to attach the closest matching structural ToC ref to
-     * each concrete media overlay item.
+     * Flattens narration with resource-bound section inheritance and local heading continuation.
      */
     companion object {
         fun fromJson(
@@ -211,65 +217,36 @@ data class FlutterMediaOverlay(
             tocHrefs: List<Url> = emptyList(),
         ): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
-            val items =
-                topNarration.flatMapJsonObjects { itemJson ->
-                    itemJson.toItems(
+            val items = mutableListOf<FlutterMediaOverlayItem>()
+            var currentTocHref = tocHref
+
+            for (i in 0 until topNarration.length()) {
+                val obj = topNarration.getJSONObject(i)
+                val text = obj.optString("text").takeIf { it.isNotEmpty() }?.let { Url(it) }
+                val textFile = text?.removeFragment()
+                // Boundary page cues can reference the next file inside the previous file's container.
+                if (textFile != null && currentTocHref?.removeFragment()?.isEquivalent(textFile) != true) {
+                    currentTocHref = tocHrefs.firstOrNull { it.isEquivalent(textFile) }
+                }
+                val matchingTocHref = text?.let { href -> tocHrefs.firstOrNull { it.isEquivalent(href) } }
+                val nodeTocHref = matchingTocHref ?: currentTocHref
+                val hasChildren = (obj.optJSONArray("narration")?.length() ?: 0) > 0
+
+                FlutterMediaOverlayItem
+                    .fromJson(
+                        obj,
                         position,
-                        tocHref,
+                        nodeTocHref,
                         title,
                         readiumOrderItemDuration,
-                        tocHrefs,
-                    )
-                }
-
+                    )?.let { item ->
+                        items.add(item)
+                        if (!hasChildren && matchingTocHref != null) currentTocHref = matchingTocHref
+                    }
+                fromJson(obj, position, nodeTocHref, title, readiumOrderItemDuration, tocHrefs)
+                    ?.let { items.addAll(it.items) }
+            }
             return FlutterMediaOverlay(items)
         }
     }
 }
-
-/**
- * Flattens sync narration into concrete media overlay items while preserving the closest matching
- * structural ToC reference on [FlutterMediaOverlayItem.tocHref].
- */
-private fun JSONObject.toItems(
-    position: Int,
-    inheritedTocHref: Url?,
-    title: String,
-    readiumOrderItemDuration: Double,
-    tocHrefs: List<Url>,
-): List<FlutterMediaOverlayItem> {
-    val nodeTocHref = optString("text").matchingTocHref(tocHrefs) ?: inheritedTocHref
-    val item =
-        FlutterMediaOverlayItem.fromJson(
-            this,
-            position,
-            nodeTocHref,
-            title,
-            readiumOrderItemDuration,
-        )
-    val children =
-        (opt("narration") as? JSONArray)
-            ?.flatMapJsonObjects { childJson ->
-                childJson.toItems(
-                    position,
-                    nodeTocHref,
-                    title,
-                    readiumOrderItemDuration,
-                    tocHrefs,
-                )
-            }.orEmpty()
-
-    return listOfNotNull(item) + children
-}
-
-private fun String.matchingTocHref(tocHrefs: List<Url>): Url? {
-    val href = Url.invoke(this) ?: return null
-    return tocHrefs.firstOrNull { it.isEquivalent(href) }
-}
-
-private inline fun <T> JSONArray.flatMapJsonObjects(transform: (JSONObject) -> List<T>): List<T> =
-    buildList {
-        for (i in 0 until length()) {
-            addAll(transform(getJSONObject(i)))
-        }
-    }

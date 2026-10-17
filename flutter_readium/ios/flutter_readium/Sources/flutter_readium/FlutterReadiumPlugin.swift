@@ -72,6 +72,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
   /// This is used to find the current toc item.
   private var currentPublicationCssSelectorMap: [String: [String]]?
 
+  /// For EPUB profile, maps document path to ToC container selectors (not yielded by the
+  /// ContentService) and the first content selector inside each.
+  private var currentPublicationTocAnchorMap: [String: [String: String]]?
+
   /// TTS-only: handles page-break *elements* during content iteration. Not
   /// related to `EPUBReaderView.setMOActive`'s column-break CSS (MO-only).
   private var pageBreakIteratorFactory: PageBreakSkippingContentIteratorFactory?
@@ -732,7 +736,10 @@ public class FlutterReadiumPlugin: NSObject, FlutterPlugin, ReadiumShared.Warnin
         /// Find ToC link via time fragment if present, or via the ContentService if not.
         if locator.locations.time?.begin != nil {
           tocLink = self.currentTocLinkFromTimeLocator(locator)
-        } else {
+        }
+        // Sync Narration locators have a time but their ToC links point at text ids,
+        // so fall back to the text position when the time lookup finds nothing.
+        if tocLink == nil, locator.locations.cssSelector != nil || locator.locations.time?.begin == nil {
           tocLink = try? await self.currentTocLinkFromLocator(locator)
         }
         if let tocLink = tocLink {
@@ -919,6 +926,7 @@ extension FlutterReadiumPlugin {
     currentPublication = nil
     currentPublicationUrlStr = nil
     currentPublicationCssSelectorMap = [:]
+    currentPublicationTocAnchorMap = [:]
     pageBreakIteratorFactory = nil
     ResourceFileCache.purgeAll()
     // Clear the stream buffers so that a subscriber opening the next publication
@@ -953,31 +961,23 @@ extension FlutterReadiumPlugin {
     let cleanHrefPath = locator.href.path
     let contentIds = try await epubGetAllDocumentCssSelectors(hrefPath: cleanHrefPath)
 
-    var idx = contentIds.firstIndex(of: cssSelector)
-    if idx == nil {
-      Log.toc.debug("cssSelector:\(cssSelector) not found in current href, assuming 0")
-      idx = 0
-    }
-
     /// Note this uses ToC directly from manifest, and thus does not support LCP PDFs.
-    let flattenedToc = publication.getFlattenedToC()
-
-    let indexedToc = Dictionary(
-      uniqueKeysWithValues:
-        flattenedToc
-        .filter { RelativeURL(epubHREF: $0.href)?.path == cleanHrefPath }
-        .compactMap { item -> (Int, Link)? in
-          let fragment = RelativeURL(epubHREF: item.href)?.fragment ?? ""
-          guard let index = contentIds.firstIndex(of: "#\(fragment)") else { return nil }
-          return (index, item)
-        }
+    let tocForHref = publication.getFlattenedToC()
+      .filter { RelativeURL(epubHREF: $0.href)?.path == cleanHrefPath }
+      .map { (selector: "#\(RelativeURL(epubHREF: $0.href)?.fragment ?? "")", link: $0) }
+    let anchors = try await epubGetTocAnchors(
+      hrefPath: cleanHrefPath,
+      tocSelectors: tocForHref.map(\.selector),
+      contentIds: contentIds
     )
 
-    let tocItem = (indexedToc.filter { $0.key <= idx! }
-                     .sorted { $0.key < $1.key }
-                     .last?.value
-    ?? indexedToc.sorted { $0.key < $1.key }.first?.value)
-    return tocItem
+    guard let index = tocEntryIndexFor(
+      cssSelector: cssSelector,
+      contentSelectors: contentIds,
+      tocSelectors: tocForHref.map(\.selector),
+      tocAnchors: anchors
+    ) else { return nil }
+    return tocForHref[index].link
   }
 
   func currentTocLinkFromTimeLocator(_ timeLocator: Locator) -> Link? {
@@ -1017,5 +1017,31 @@ extension FlutterReadiumPlugin {
 
     currentPublicationCssSelectorMap?[hrefPath] = selectors
     return selectors
+  }
+
+  /// Get the first content selector inside each ToC target that is not itself content.
+  @MainActor
+  func epubGetTocAnchors(hrefPath: String, tocSelectors: [String], contentIds: [String]) async throws -> [String: String] {
+    if currentPublicationTocAnchorMap == nil {
+      currentPublicationTocAnchorMap = [:]
+    }
+
+    if let cached = currentPublicationTocAnchorMap?[hrefPath] {
+      return cached
+    }
+
+    let contentSet = Set(contentIds.map { String($0.dropFirst()) })
+    let containers = tocSelectors.map { String($0.dropFirst()) }.filter { !$0.isEmpty && !contentSet.contains($0) }
+    var anchors: [String: String] = [:]
+    if !containers.isEmpty, let tree = await currentPublication?.xhtmlIdTree(hrefRelativePath: hrefPath) {
+      for container in containers {
+        if let first = tree.firstDescendant(of: container, in: contentSet) {
+          anchors["#\(container)"] = "#\(first)"
+        }
+      }
+    }
+
+    currentPublicationTocAnchorMap?[hrefPath] = anchors
+    return anchors
   }
 }
