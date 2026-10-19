@@ -20,7 +20,7 @@ void main() {
           reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
         );
 
-        await harness.readium.openPublication(path);
+        await timedPhase('TTS openPublication', () => harness.readium.openPublication(path));
 
         await exerciseAudioPlayback(
           harness.readium,
@@ -386,6 +386,22 @@ void main() {
           expect(await harness.readium.goToLocator(target(item.toc)), isTrue);
           await expectCue('np-0011.xhtml', item.cue, item.toc, offset: item.offset);
         }
+        // Keep a natural cue transition, with four seconds of playback runway
+        // instead of replaying the entire ten-second cue.
+        await harness.readium.pause();
+        states.clear();
+        expect(
+          await harness.readium.goToLocator(
+            Locator(
+              href: 'np-0011.xhtml',
+              type: 'application/xhtml+xml',
+              locations: const Locations(fragments: ['t=16']),
+            ),
+          ),
+          isTrue,
+        );
+        await expectCue('np-0011.xhtml', '#e199', 'np-0011.xhtml#e198', offset: 16);
+        states.clear();
         await harness.readium.play(null);
         await expectCue('np-0011.xhtml', '#e200', 'np-0011.xhtml#e198', offset: 20);
 
@@ -680,10 +696,9 @@ void main() {
           final errorsBeforePause = errors.length;
 
           await harness.readium.pause();
-          await Future<void>.delayed(const Duration(seconds: 3));
-          expect(
-            _retriesAfter(errors, errorsBeforePause),
-            isEmpty,
+          await expectConditionHolds(
+            () => _retriesAfter(errors, errorsBeforePause).isEmpty,
+            duration: const Duration(seconds: 3),
             reason: 'An explicit pause was mistaken for a stall',
           );
 
@@ -804,18 +819,13 @@ void main() {
                 'Last state seen: ${states.isEmpty ? "<none>" : states.last.state}',
           );
 
-          await Future<void>.delayed(const Duration(seconds: 2));
-          expect(
-            states.last.state,
-            equals(TimebasedState.ended),
-            reason:
-                'ended was reported but a later state overwrote it as the last emission: '
-                '${states.last.state}',
-          );
-          expect(
-            _retriesAfter(errors, errorsBeforeProgress),
-            isEmpty,
-            reason: 'Final ended state must cancel resource-loading recovery',
+          final endedCount = states.length;
+          await expectConditionHolds(
+            () =>
+                states.skip(endedCount).every((state) => state.state == TimebasedState.ended) &&
+                _retriesAfter(errors, errorsBeforeProgress).isEmpty,
+            duration: const Duration(seconds: 2),
+            reason: 'Final ended state was overwritten or resource-loading recovery restarted',
           );
 
           await harness.readium.pause();
@@ -1069,14 +1079,12 @@ void main() {
 
             await waitWithPump(
               tester,
-              () => locators.last != beforeJump,
+              () => locators.last != beforeJump && _chapterFile(locators.last.href) == _chapterFile(targetChapter.href),
               timeout: const Duration(seconds: 30),
               reason:
                   'Reader page did not sync after a paused media-overlay jump '
                   '(still ${beforeJump.href}); the landed location was never reported.',
             );
-            await waitForListStable(tester, locators);
-
             expect(
               _chapterFile(locators.last.href),
               equals(_chapterFile(targetChapter.href)),

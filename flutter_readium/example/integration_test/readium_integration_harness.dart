@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
@@ -125,26 +126,13 @@ Future<void> exerciseAudioPlayback(
   FlutterReadium reader, {
   required Future<void> Function() enable,
   Duration timeout = const Duration(seconds: 20),
-}) async {
-  // Subscribe now so a state event emitted during enable()/play() is still captured.
-  final reachedPlaying = reader.onTimebasedPlayerStateChanged.firstWhere(
-    (s) => s.state == TimebasedState.playing && s.currentLocator != null,
-  );
-
-  await enable();
-  await reader.play(null);
-
-  // Arm the timeout only after enable()/play() return: their throw path must not
-  // leave a timer that fires under a later test.
-  final playingState = await reachedPlaying.timeout(timeout);
-  expect(
-    playingState.currentLocator,
-    isNotNull,
-    reason: 'A playing state event should carry the current playback locator',
-  );
-
-  await reader.pause();
-}
+}) => _expectAudioState(
+  reader,
+  enable: enable,
+  matches: (state) => state.state == TimebasedState.playing && state.currentLocator != null,
+  timeout: timeout,
+  reason: 'Playback did not reach playing with a current locator',
+);
 
 /// Asserts that a timebased session actually starts, without requiring sound.
 ///
@@ -157,24 +145,71 @@ Future<void> expectAudioSessionStarts(
   required Future<void> Function() enable,
   Duration timeout = const Duration(seconds: 30),
   String? reason,
+}) => _expectAudioState(
+  reader,
+  enable: enable,
+  matches: (state) => state.currentLocator != null,
+  timeout: timeout,
+  reason: reason ?? 'audioEnable produced no playback state with a current locator',
+);
+
+Future<void> _expectAudioState(
+  FlutterReadium reader, {
+  required Future<void> Function() enable,
+  required bool Function(ReadiumTimebasedState) matches,
+  required Duration timeout,
+  required String reason,
 }) async {
-  // Subscribe now so a state event emitted during enable()/play() is still captured.
-  final gotLocator = reader.onTimebasedPlayerStateChanged.firstWhere((s) => s.currentLocator != null);
+  final reachedState = Completer<void>();
+  // Capture events during enable/play, and cancel even when either call fails.
+  final sub = reader.onTimebasedPlayerStateChanged.listen((state) {
+    if (matches(state) && !reachedState.isCompleted) reachedState.complete();
+  });
+  try {
+    await timedPhase('audio enable', enable);
+    await timedPhase('audio play', () => reader.play(null));
+    await timedPhase(
+      'audio state',
+      () => reachedState.future.timeout(timeout, onTimeout: () => fail(reason)),
+      timeout: timeout + const Duration(seconds: 1),
+    );
+    await timedPhase('audio pause', reader.pause);
+  } finally {
+    await sub.cancel();
+  }
+}
 
-  await enable();
-  await reader.play(null);
+Future<T> timedPhase<T>(
+  String name,
+  Future<T> Function() action, {
+  Duration timeout = const Duration(seconds: 60),
+}) async {
+  final watch = Stopwatch()..start();
+  try {
+    return await action().timeout(
+      timeout,
+      onTimeout: () => fail('$name did not complete within $timeout'),
+    );
+  } finally {
+    debugPrint('integration phase "$name": ${watch.elapsedMilliseconds}ms');
+  }
+}
 
-  // Arm the timeout only after enable()/play() return: their throw path must not
-  // leave a timer that calls fail() under a later test.
-  final state = await gotLocator.timeout(
-    timeout,
-    onTimeout: () => fail(
-      reason ?? 'audioEnable produced no playback state within $timeout',
-    ),
-  );
-  expect(state.currentLocator, isNotNull);
-
-  await reader.pause();
+/// Observes the full window on success, but fails as soon as a violation is recorded.
+Future<void> expectConditionHolds(
+  bool Function() predicate, {
+  required Duration duration,
+  required String reason,
+}) async {
+  final watch = Stopwatch()..start();
+  while (true) {
+    expect(predicate(), isTrue, reason: reason);
+    final remaining = duration - watch.elapsed;
+    if (remaining <= Duration.zero) return;
+    await Future<void>.delayed(
+      remaining < const Duration(milliseconds: 100) ? remaining : const Duration(milliseconds: 100),
+    );
+  }
 }
 
 Future<void> waitUntil(
@@ -218,6 +253,9 @@ Future<void> waitWithPump(
       return;
     }
     await tester.pump(pollInterval);
+  }
+  if (reason != null) {
+    debugPrint('integration wait: ${DateTime.now().difference(start).inMilliseconds}ms | $reason');
   }
 }
 

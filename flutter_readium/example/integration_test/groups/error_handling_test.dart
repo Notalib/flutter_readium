@@ -134,10 +134,9 @@ void main() {
           reason: 'The watchdog fired while the partial audio was still starting',
         );
 
-        await Future<void>.delayed(stallObservation);
-        expect(
-          errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
-          isEmpty,
+        await expectConditionHolds(
+          () => !errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          duration: stallObservation,
           reason: 'A later mid-resource stall must not restart resource-loading recovery',
         );
       },
@@ -177,11 +176,10 @@ void main() {
           timeout: const Duration(seconds: 5),
           reason: 'The stuck resource never entered loading state',
         );
-        await Future<void>.delayed(const Duration(seconds: 2));
-
-        expect(
-          errors.where((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
-          isEmpty,
+        await expectConditionHolds(
+          () => !errors.any((error) => error.codeEnum == ReadiumErrorCode.audioStreamRetry),
+          duration: const Duration(seconds: 2),
+          reason: 'Default resource-loading policy must not retry',
         );
         expect(server.loadingRequestCount, greaterThanOrEqualTo(1));
       },
