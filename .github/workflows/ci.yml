@@ -117,6 +117,12 @@ jobs:
     if: needs.changes.outputs.ios == 'true'
     uses: ./.github/workflows/integration-test-ios.yml
 
+  ios-unit-tests:
+    name: iOS Native Unit Tests
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    uses: ./.github/workflows/ios-unit-tests.yml
+
   integration-android:
     name: Integration Tests Android
     needs: changes

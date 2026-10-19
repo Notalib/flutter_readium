@@ -34,11 +34,19 @@ struct FlutterMediaOverlay {
   }
   
   func itemFromTextId(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {
-    if (textFile != href && audioFile != href) {
-      return nil
+    items.first(where: { $0.textFile == href && $0.textId == textId })
+  }
+
+  func itemFromTocHref(_ textId: String, inHref href: String) -> FlutterMediaOverlayItem? {
+    items.first(where: { $0.tocHref == "\(href)#\(textId)" })
+  }
+
+  func withTocTitles(_ toc: [Link]) -> FlutterMediaOverlay {
+    let enriched = items.map { item -> FlutterMediaOverlayItem in
+      guard let match = toc.first(where: { $0.href == item.tocHref }) else { return item }
+      return item.copyWith(tocTitle: match.title, tocHref: match.href)
     }
-    
-    return items.first(where: { $0.textId == textId })
+    return FlutterMediaOverlay(items: enriched, readingOrderDuration: readingOrderDuration ?? totalDuration)
   }
   
   /// `allowResourceFallback` gates the *imprecise* resource-first fallbacks (an
@@ -49,9 +57,6 @@ struct FlutterMediaOverlay {
   /// See issue #139.
   func itemFromLocator(_ locator: Locator, allowResourceFallback: Bool = true) -> FlutterMediaOverlayItem? {
     let href = locator.href.string
-    if (textFile != href && audioFile != href) {
-      return nil
-    }
 
     // Audio time fragment → exact item by time range.
     let timeOffset = locator.timeOffset
@@ -66,9 +71,10 @@ struct FlutterMediaOverlay {
       return items.first(where: { $0.textFile == href })
     }
 
-    // Reflowable text: try exact DOM element id match first.
-    if let textId = locator.textId, let item = itemFromTextId(textId, inHref: href) {
-      return item
+    // Known section anchors are precise matches even when resource fallback is disabled.
+    if let textId = locator.textId {
+      if let item = itemFromTextId(textId, inHref: href) { return item }
+      if let item = itemFromTocHref(textId, inHref: href) { return item }
     }
 
     // No id, or id matched no cue → resource-first fallback, gated by policy.
@@ -84,16 +90,43 @@ struct FlutterMediaOverlay {
     return nil
   }
   
-  static func fromJson(_ json: [String: Any], atPosition position: Int, atTocHref: String? = nil, readingOrderDuration: TimeInterval? = nil) -> FlutterMediaOverlay? {
+  static func fromJson(
+    _ json: [String: Any],
+    atPosition position: Int,
+    atTocHref: String? = nil,
+    readingOrderDuration: TimeInterval? = nil,
+    tocHrefs: [String] = []
+  ) -> FlutterMediaOverlay? {
     guard let topNarration = json["narration"] as? [[String: Any]] else { return nil }
     var acc: [FlutterMediaOverlayItem] = []
-    
+    var currentTocHref = atTocHref
+
     for obj in topNarration {
-      if let item = FlutterMediaOverlayItem.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
-        acc.append(item)
+      let text = obj["text"] as? String
+      if let text, !text.isEmpty {
+        let textFile = text.substringBeforeLast("#")
+        // Boundary page cues can reference the next file inside the previous file's container.
+        if currentTocHref?.substringBeforeLast("#") != textFile {
+          currentTocHref = tocHrefs.first(where: { $0 == textFile })
+        }
       }
-      // recurse if nested containers also have "narration"
-      if let nested = FlutterMediaOverlay.fromJson(obj, atPosition: position, atTocHref: atTocHref, readingOrderDuration: readingOrderDuration) {
+      let matchingTocHref = text.flatMap { text in tocHrefs.first(where: { $0 == text }) }
+      let nodeTocHref = matchingTocHref ?? currentTocHref
+      let hasChildren = (obj["narration"] as? [[String: Any]])?.isEmpty == false
+
+      if let item = FlutterMediaOverlayItem.fromJson(
+        obj, atPosition: position, atTocHref: nodeTocHref, readingOrderDuration: readingOrderDuration
+      ) {
+        acc.append(item)
+        if !hasChildren, let matchingTocHref { currentTocHref = matchingTocHref }
+      }
+      if let nested = FlutterMediaOverlay.fromJson(
+        obj,
+        atPosition: position,
+        atTocHref: nodeTocHref,
+        readingOrderDuration: readingOrderDuration,
+        tocHrefs: tocHrefs
+      ) {
         acc.append(contentsOf: nested.items)
       }
     }

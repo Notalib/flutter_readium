@@ -6,7 +6,8 @@ description: >
   ReadiumExtensions.kt). They are gitignored build artifacts compiled from
   assets/_helper_scripts/src and are absent on a fresh checkout, so every job
   that builds the native app must generate them first — otherwise the bundle
-  ships without them (iOS force-unwrap crash; Android degrades silently).
+  ships without them. Missing helpers break native reader behavior; Readium Kotlin
+  3.4.0 can crash while handling the resulting missing-asset response.
   Requires the repository to already be checked out. Web does not use these
   assets (its JS comes from the lib/helpers navigator bundle).
 runs:

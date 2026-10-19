@@ -4,6 +4,11 @@ Operational guide for AI agents (and humans driving the same tooling) exercising
 
 ## Launching the app (marionette)
 
+Run `bin/install` after checkout or dependency changes, then `bin/doctor` before native testing.
+Android and iOS example builds reject missing or empty generated reader helpers;
+the native integration suite also checks the packaged Flutter assets before opening a publication.
+If either check fails, run `bin/install` and rebuild the app. Web uses a separate navigator bundle.
+
 Run `flutter run` with `run_in_background: true` — the command never terminates while the app is running, so a foreground call will always hit the timeout. Poll the background task output for the Dart VM Service URI, extract it, then register marionette:
 
 ```bash
