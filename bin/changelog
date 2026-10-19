@@ -7,6 +7,8 @@
 # Usage:
 #   bin/changelog check              # validate fragments and print the draft
 #   bin/changelog build <version>    # write CHANGELOG.md, git rm the fragments
+#   bin/changelog stage <version> <package-dir>
+#                                    # render a temporary copy, keep fragments
 #
 # Runs towncrier through uvx (or pipx, as on GitHub runners); nothing to install.
 
@@ -71,8 +73,20 @@ case "$cmd" in
       git -C "$REPO_ROOT" add "$changelog"
     done
     ;;
+  stage)
+    VERSION="${2:-}"
+    package_dir="${3:-}"
+    if [ -z "$VERSION" ] || [ ! -d "$package_dir/changelog.d" ]; then
+      echo "Usage: bin/changelog stage <version> <package-dir>" >&2
+      exit 1
+    fi
+    towncrier build --keep --config "$REPO_ROOT/towncrier.toml" --dir "$package_dir" \
+      --version "$VERSION" --date "$(date +%Y-%m-%d)"
+    changelog="$package_dir/CHANGELOG.md"
+    cat -s "$changelog" > "$changelog.tmp" && mv "$changelog.tmp" "$changelog"
+    ;;
   *)
-    echo "Usage: bin/changelog check | build <version>" >&2
+    echo "Usage: bin/changelog check | build <version> | stage <version> <package-dir>" >&2
     exit 1
     ;;
 esac

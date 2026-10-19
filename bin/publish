@@ -136,14 +136,13 @@ stage_package_copy() {
 
   if [ -n "$RELEASE_VERSION" ]; then
     sed -i '' "s/^version: .*/version: $RELEASE_VERSION/" "$STAGED_PKG_DIR/pubspec.yaml"
-    sed -i '' "s/^## Unreleased\$/## Unreleased\n\n## [$RELEASE_VERSION]/" \
-      "$STAGED_PKG_DIR/CHANGELOG.md"
+    "$PROJECT_ROOT/bin/changelog" stage "$RELEASE_VERSION" "$STAGED_PKG_DIR"
 
     if [ "$pkg" = "flutter_readium" ]; then
       sed -i '' "s/^version: .*/version: $RELEASE_VERSION/" \
         "$stage_root/flutter_readium_platform_interface/pubspec.yaml"
-      sed -i '' "s/^## Unreleased\$/## Unreleased\n\n## [$RELEASE_VERSION]/" \
-        "$stage_root/flutter_readium_platform_interface/CHANGELOG.md"
+      "$PROJECT_ROOT/bin/changelog" stage "$RELEASE_VERSION" \
+        "$stage_root/flutter_readium_platform_interface"
       sed -i '' -E \
         "s|^([[:space:]]*flutter_readium_platform_interface:)[[:space:]]+\^?[0-9][0-9.]*.*$|\1 ^$RELEASE_VERSION|" \
         "$STAGED_PKG_DIR/pubspec.yaml"

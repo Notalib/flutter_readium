@@ -207,6 +207,8 @@ Do **not** hand-edit the compiled JS in `example/web/`.
 
 Each package's `CHANGELOG.md` is compiled at release time from fragment files in `<package>/changelog.d/`. One file per change means PRs never conflict on the changelog. `bin/release_prep` runs [towncrier](https://towncrier.readthedocs.io/) through `bin/changelog`, which writes the dated section and deletes the fragments.
 
+Before changing the checkout, `bin/release_prep` validates temporary package copies with `bin/publish --dry-run --use-local-interface --release-version=<version>`. These copies include the versioned changelogs rendered from fragments; validation leaves the checkout's changelogs and fragments unchanged.
+
 Add a fragment only for changes a consumer would notice on upgrade. Skip internal refactors, CI, and example-app changes.
 
 **File name**: `<issue>.<type>.md` links the issue or PR, e.g. `123.fixed.md`. Use `+<slug>.<type>.md` when there is no number, e.g. `+web-tts-stall.fixed.md`.
