@@ -2,7 +2,7 @@
 
 **Decision:** [ADR 0001](../adr/0001-media-overlay-toc-ownership.md).
 **Branch:** `fix/media-overlay-toc-context`, from main `c3b2225`.
-> **Implemented locally.** Publication requires user confirmation; no push or PR has occurred.
+> **Published in [PR #274](https://github.com/Notalib/flutter_readium/pull/274).** Current test totals and focused integration coverage are in the [ADR 0001 regression record](media-overlay-adr-regressions.md); the earlier validation table below is retained as historical context.
 
 ## Task 1 — Revise the decision from fixture evidence
 
@@ -76,11 +76,12 @@ ADR 0001 amendment, 2026-10-16. Lookup time only; parser ownership is unchanged.
 - [x] Seek: after exact cue and assigned-`tocHref` lookup fail, anchor the locator to the first cue inside its element.
 - [x] Unit tests for the id tree in Swift (`TocAnchorTests.swift`) and Kotlin (`XhtmlIdTreeTest.kt`).
 - [ ] Integration test with the synthetic newspaper, after readium-test-resources#4 merges.
-- [ ] Web parity in [PR #276](https://github.com/Notalib/flutter_readium/pull/276).
+- [x] Web parity: see the [web checklist](web-media-overlay-toc-context.md).
 
-## Validation record
+## Historical validation record
 
-Baseline was upstream main `c3b2225`, with iOS initially seeded from #273 `ae6b702` to
+The following counts record the earlier validation pass; they are historical and superseded
+by the latest coverage record linked above. Baseline was upstream main `c3b2225`, with iOS initially seeded from #273 `ae6b702` to
 exercise its inheritance behavior. Fixture generation used `readium-test-resources`
 `fd0c3d6d`; the existing TestResources cross-file shape was also captured in native tests.
 

@@ -50,8 +50,7 @@ void main() {
     });
 
     testWidgets(
-      'native ToC section navigates to its first narrated child',
-      skip: kIsWeb,
+      'ToC section navigates to its first narrated child',
       (tester) async {
         final path = harness.fixturePath(
           FixtureKeys.tocSectionChild,
@@ -206,7 +205,6 @@ void main() {
 
     testWidgets(
       'Sync Narration restores headings and follows text-resource boundaries',
-      skip: kIsWeb,
       (tester) async {
         final path = harness.fixturePath(FixtureKeys.adrSyncOwnership);
         final pub = await harness.readium.openPublication(path);
@@ -292,7 +290,6 @@ void main() {
 
     testWidgets(
       'Sync Narration resolves ToC targets the narration does not list',
-      skip: kIsWeb,
       (tester) async {
         final path = harness.fixturePath(FixtureKeys.syntheticNewspaper);
         final pub = await harness.readium.openPublication(path);

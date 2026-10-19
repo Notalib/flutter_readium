@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-10-13; amended 2026-10-16
 - **Scope:** Sync Narration on iOS, Android, and web
-- **Implementation and evidence:** [Native plan](../plans/native-media-overlay-toc-context.md); web adoption and its regression record are in [PR #276](https://github.com/Notalib/flutter_readium/pull/276)
+- **Implementation and evidence:** [Native plan](../plans/native-media-overlay-toc-context.md), [web plan](../plans/web-media-overlay-toc-context.md), [regression record](../plans/media-overlay-adr-regressions.md)
 
 ## Context
 

@@ -27,6 +27,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   An early `goToLocator` could be discarded while publication positions loaded,
   leaving the reader at its initial page. It now waits for the current reader to initialize.
 
+- **Web narration follows ToC sections and seeks to their narrated children.**
+  Audio-less sections could lose their chapter reference or seek to the wrong cue because
+  section context was flattened away. Section ownership and same-file seeking now follow
+  the narrated children; unknown same-file anchors preserve playback position.
+
 - **Android: a PDF lost its layout and reading position after the app came back from the background.**
   The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
 
@@ -40,10 +45,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **iOS can seek to ToC sections without their own audio.**
   Such sections could report no current chapter or fail to seek within the active file.
   Their narrated children now supply the section reference and seek destination.
-- **iOS and Android can navigate newspaper sections without their own audio.**
+- **iOS, Android, and web can navigate newspaper sections without their own audio.**
   Section changes could fail or report no current chapter when only the paragraphs were narrated.
   ToC navigation now finds the narrated content, including the next cue after a heading without audio.
 
+- **Web: skipping back to a ToC item at the start of the playing audio file moves playback there.**
+  The upstream audio navigator never seeks to `t=0`, so playback kept its position. The plugin now seeks to the track start itself.
+- **Web: fast repeated skips during Sync Narration playback keep playing and keep the highlight in sync.**
+  Before, a skip made just after another skip could leave the audio paused, or playing with no position or highlight updates.
 
 ## [0.6.2] - 2026-10-13
 

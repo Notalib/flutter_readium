@@ -10,9 +10,22 @@
 
 // ignore_for_file: avoid_print
 
+import 'dart:io';
+
 import 'package:integration_test/integration_test_driver.dart';
 
-Future<void> main() => integrationDriver(responseDataCallback: reportTestResults);
+import 'web_fixture_server.dart';
+
+Future<void> main() async {
+  final server = await startWebFixtureServer(Directory('web/test-fixtures'));
+  await integrationDriver(
+    responseDataCallback: (data) async {
+      // integrationDriver exits the process; a finally block cannot close on success.
+      await server.close(force: true);
+      reportTestResults(data);
+    },
+  );
+}
 
 void reportTestResults(Map<String, dynamic>? data) {
   final testCount = data?['testCount'];

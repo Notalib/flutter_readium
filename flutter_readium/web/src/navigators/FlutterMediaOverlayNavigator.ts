@@ -22,11 +22,13 @@ import {
   SyncNarrationItem,
   combinedLocatorForItem,
   findItemByAudioTime,
+  flattenToc,
   parseSyncNarration,
   textLocatorForItem,
   textLocatorToAudioLocator,
 } from "../mediaoverlay/syncNarration";
 import { parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
+import { UncuedTocTargets } from "../mediaoverlay/uncuedTocTargets";
 
 const log = createLogger("MediaOverlay");
 
@@ -37,8 +39,9 @@ const log = createLogger("MediaOverlay");
  * @param initialLocator         Optional starting text locator (will be mapped to audio time).
  * @param prefsJson              Dart AudioPreferences JSON string.
  * @param setNav                 Callback invoked once AudioNavigator is ready. Receives the
- *                               navigator and the parsed SyncNarrationItem list so callers can
- *                               run text→audio mapping on subsequent navigation events.
+ *                               navigator, the parsed SyncNarrationItem list and the uncued
+ *                               ToC target resolver so callers can run text→audio mapping on
+ *                               subsequent navigation events.
  * @param onTextLocatorChanged   Optional callback fired each time the active Sync Narration
  *                               cue advances to a new text locator. Used by ReadiumReader to
  *                               apply utterance-level decorations on the visual navigator.
@@ -49,7 +52,7 @@ export async function initializeMediaOverlayNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   bridge?: ReadiumBridge
 ): Promise<void> {
@@ -70,7 +73,7 @@ export async function initializeGuidedNavigationNavigator(
   publication: ReadiumPublication,
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
   onTextLocatorChanged?: (locator: Locator, durationMs: number | undefined) => void,
   bridge?: ReadiumBridge
 ): Promise<void> {
@@ -85,7 +88,7 @@ async function _initializeFromItems(
   items: SyncNarrationItem[],
   initialLocator: Locator | undefined,
   prefsJson: string,
-  setNav: (nav: AudioNavigator, items: SyncNarrationItem[]) => void,
+  setNav: (nav: AudioNavigator, items: SyncNarrationItem[], uncuedTocTargets?: UncuedTocTargets) => void,
   onTextLocatorChanged: ((locator: Locator, durationMs: number | undefined) => void) | undefined,
   sourceLabel: string,
   bridge: ReadiumBridge | undefined
@@ -121,9 +124,16 @@ async function _initializeFromItems(
   // three consumers — the mapper, textLocatorToAudioLocator (initial seek /
   // goToLocator), and the setNav callback — must see the same absolute hrefs.
   const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
+  const uncuedTocTargets =
+    sourceLabel === "SyncNarration"
+      ? new UncuedTocTargets(publication, resolvedItems, flattenToc(publication))
+      : undefined;
 
-  const audioInitialLocator = initialLocator
-    ? textLocatorToAudioLocator(resolvedItems, initialLocator)
+  const anchoredInitialLocator = initialLocator && uncuedTocTargets
+    ? await uncuedTocTargets.anchor(initialLocator)
+    : initialLocator;
+  const audioInitialLocator = anchoredInitialLocator
+    ? textLocatorToAudioLocator(resolvedItems, anchoredInitialLocator, true, sourceLabel === "SyncNarration")
     : undefined;
   if (initialLocator) {
     log.info(
@@ -142,8 +152,9 @@ async function _initializeFromItems(
 
   const mapper: AudioLocatorMapper = (_nav, audioLocator) => {
     const resolvedTime = getTime(audioLocator.locations) ?? _nav.currentTime;
-    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime);
+    const item = findItemByAudioTime(resolvedItems, audioLocator.href, resolvedTime, sourceLabel === "SyncNarration");
     if (item) {
+      if (!item.tocHref) void uncuedTocTargets?.fillOwners(item.textHref);
       const detailedTextLocator = textLocatorForItem(item);
       const publicTextLocator = _coarseLocatorForPublicEvent(detailedTextLocator);
 
@@ -201,7 +212,7 @@ async function _initializeFromItems(
     syntheticPub,
     audioInitialLocator,
     prefsJson,
-    (nav: AudioNavigator) => setNav(nav, resolvedItems),
+    (nav: AudioNavigator) => setNav(nav, resolvedItems, uncuedTocTargets),
     mapper,
     wrappedCallback,
     // Media overlay cue synchronisation requires finer granularity than the
@@ -216,7 +227,7 @@ async function _initializeFromItems(
     const initTime = fragment?.startsWith("t=") ? parseFloat(fragment.slice(2)) : 0;
     const initHref = audioInitialLocator?.href ?? resolvedItems[0]?.audioHref;
     const initItem = initHref
-      ? findItemByAudioTime(resolvedItems, initHref, initTime) ?? resolvedItems[0]
+      ? findItemByAudioTime(resolvedItems, initHref, initTime, sourceLabel === "SyncNarration") ?? resolvedItems[0]
       : resolvedItems[0];
     if (initItem) {
       const initDurationMs =

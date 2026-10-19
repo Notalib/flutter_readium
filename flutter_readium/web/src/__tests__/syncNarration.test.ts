@@ -65,7 +65,8 @@ function textLocator(href: string, id?: string, progression?: number): Locator {
 
 function makeNarrationPublication(
   readingOrder: Link[],
-  responses: Record<string, unknown>
+  responses: Record<string, unknown>,
+  toc: Link[] = []
 ): {
   publication: ReadiumPublication;
   get: jest.Mock;
@@ -76,7 +77,7 @@ function makeNarrationPublication(
   const publication = {
     baseURL: "https://example.test/book/",
     readingOrder: { items: readingOrder },
-    manifest: { toc: undefined },
+    manifest: { toc: new Links(toc) },
     get,
   } as unknown as ReadiumPublication;
   return { publication, get };
@@ -460,9 +461,7 @@ describe("findItemByAudioTime", () => {
 
   it("finds the first item at an exact shared boundary — p1.audioEnd === p2.audioStart", () => {
     // At time=5.0: p1 has audioEnd=5, so `timeSecs <= 5` is true — p1 wins (first match wins).
-    // NOTE: this means exact cue-boundary time returns the ending cue, not the starting one.
-    // This mirrors the upstream itemInRangeOfTime behaviour — the boundary belongs to
-    // the cue that ends there, not the cue that starts there.
+    // This retains Guided Navigation's legacy boundary behavior.
     const item = findItemByAudioTime(items, "chap1.mp3", 5.0);
     expect(item!.textId).toBe("p1");
   });
@@ -503,5 +502,210 @@ describe("findItemByAudioTime", () => {
     const item = findItemByAudioTime(items, "chap2.mp3", 4.0);
     expect(item!.textId).toBe("q1");
     expect(item!.audioHref).toBe("chap2.mp3");
+  });
+});
+
+
+describe("Sync Narration scoped ToC ownership", () => {
+  const cue = (id: string, start = 0, file = "chap.xhtml") => ({
+    text: `${file}#${id}`, audio: `chap.mp3#t=${start},${start + 2}`,
+  });
+  const toc = [
+    new Link({ href: "chap.xhtml#parent", title: "Parent", children: new Links([
+      new Link({ href: "chap.xhtml#sub", title: "Sub" }),
+    ]) }),
+    new Link({ href: "other.xhtml", title: "Other" }),
+  ];
+  async function parse(narration: unknown[], links = toc) {
+    const chapter = new Link({ href: "chap.xhtml", duration: 30, alternates: new Links([
+      new Link({ href: "overlay.json", type: "application/vnd.readium.narration+json" }),
+    ]) });
+    const { publication } = makeNarrationPublication([chapter], { "overlay.json": { narration } }, links);
+    return parseSyncNarration(publication);
+  }
+  it("assigns an audio-less parent and restores it after nested heading lists", async () => {
+    const items = await parse([{ text: "chap.xhtml#parent", narration: [
+      cue("p1"), { narration: [cue("sub", 2), cue("p2", 4)] }, cue("p3", 6),
+    ] }]);
+    expect(items.map(i => i.tocHref)).toEqual([
+      "chap.xhtml#parent", "chap.xhtml#sub", "chap.xhtml#sub", "chap.xhtml#parent",
+    ]);
+    expect(items.map(i => i.tocTitle)).toEqual(["Parent", "Sub", "Sub", "Parent"]);
+    expect(items.map(i => i.audioStart)).toEqual([0, 2, 4, 6]);
+    expect(items.every(i => i.position === 0 && i.readingOrderDuration === 30)).toBe(true);
+  });
+  it("emits own audio before children without activating caller continuation", async () => {
+    const items = await parse([{ text: "chap.xhtml#parent", narration: [
+      { ...cue("sub", 2), narration: [cue("p2", 4)] }, cue("p3", 6),
+    ] }]);
+    expect(items.map(i => i.textId)).toEqual(["sub", "p2", "p3"]);
+    expect(items.map(i => i.tocHref)).toEqual(["chap.xhtml#sub", "chap.xhtml#sub", "chap.xhtml#parent"]);
+  });
+  it("switches to file-only ownership and clears stale owners across resources", async () => {
+    const items = await parse([cue("sub"), cue("p2", 2, "other.xhtml"),
+      cue("p3", 4, "unknown.xhtml"), cue("p4", 6)]);
+    expect(items.map(i => i.tocHref)).toEqual(["chap.xhtml#sub", "other.xhtml", undefined, undefined]);
+    expect(items[1].tocTitle).toBe("Other");
+  });
+  it("continues a direct narrated subsection over an inherited parent", async () => {
+    const items = await parse([{ text: "chap.xhtml#parent", narration: [cue("sub"), cue("p2", 2)] }]);
+    expect(items.map(i => i.tocHref)).toEqual(["chap.xhtml#sub", "chap.xhtml#sub"]);
+    expect(textLocatorToAudioLocator(items, textLocator("chap.xhtml", "parent"), false, true)).toBeUndefined();
+  });
+  it("does not activate audio-less flat headings", async () => {
+    const items = await parse([{text: "chap.xhtml#sub"}, cue("p2", 2)]);
+    expect(items[0].tocHref).toBeUndefined();
+  });
+  it("keeps flat narrated headings active and does not fabricate owners without ToC", async () => {
+    expect((await parse([cue("sub"), cue("p2", 2)])).map(i => i.tocHref))
+      .toEqual(["chap.xhtml#sub", "chap.xhtml#sub"]);
+    expect((await parse([cue("sub")], []))[0].tocHref).toBeUndefined();
+    expect(await parse([null, {}, { narration: [] }])).toEqual([]);
+  });
+});
+
+
+describe("Sync Narration precise lookup policy", () => {
+  const items = [
+    makeItem({textHref: "other.xhtml", textId: "p1", tocHref: "other.xhtml#section", audioHref: "other.mp3", audioStart: 0, audioEnd: 5}),
+    makeItem({textHref: "chap.xhtml", textId: "p1", tocHref: "chap.xhtml#section", audioHref: "chap.mp3", audioStart: 0, audioEnd: 5}),
+    makeItem({textHref: "chap.xhtml", textId: "section", tocHref: "chap.xhtml#sub", audioHref: "chap.mp3", audioStart: 5, audioEnd: 8}),
+    makeItem({textHref: "chap.xhtml", textId: "p3", tocHref: "chap.xhtml#parent", audioHref: "chap.mp3", audioStart: 10, audioEnd: 15}),
+  ];
+  const map = (locator: Locator, fallback = false) =>
+    textLocatorToAudioLocator(items, locator, fallback, true);
+  it("seeks assigned structural owners with fallback disabled and exact cues win", () => {
+    expect(map(textLocator("chap.xhtml", "parent"))?.locations.fragments).toEqual(["t=10"]);
+    expect(map(textLocator("chap.xhtml", "section"))?.locations.fragments).toEqual(["t=5"]);
+    expect(map(textLocator("other.xhtml", "section"))?.href).toBe("other.mp3");
+    expect(map(textLocator("chap.xhtml", "unknown"))).toBeUndefined();
+    expect(textLocatorToAudioLocator(items, textLocator("chap.xhtml", "parent"), false)).toBeUndefined();
+  });
+  it.each(["chap.xhtml", "chap.mp3"])("selects explicit time in text or audio resource %s", href => {
+    const loc = new Locator({href, type: "text/html", locations: new LocatorLocations({fragments: ["p1", "t=10"]})});
+    expect(map(loc)?.locations.fragments).toEqual(["t=10"]);
+    expect(map(new Locator({href, type: "text/html", locations: new LocatorLocations({fragments: ["t=9"]})}))?.locations.fragments).toEqual(["t=9"]);
+    expect(map(new Locator({href, type: "text/html", locations: new LocatorLocations({fragments: ["t=5"]})}))?.locations.fragments).toEqual(["t=5"]);
+    expect(map(new Locator({href, type: "text/html", locations: new LocatorLocations({fragments: ["p1", "t=20"]})}), true)).toBeUndefined();
+  });
+  it("time chooses a distinct audio resource at shared boundaries and gaps before an anchor", () => {
+    const cues = [
+      makeItem({textHref: "chap.xhtml", textId: "p1", audioHref: "first.mp3", audioStart: 0, audioEnd: 5}),
+      makeItem({textHref: "chap.xhtml", textId: "p2", audioHref: "second.mp3", audioStart: 5, audioEnd: 8}),
+      makeItem({textHref: "chap.xhtml", textId: "p3", audioHref: "third.mp3", audioStart: 10, audioEnd: 15}),
+    ];
+    for (const [time, href] of [[5, "second.mp3"], [9, "third.mp3"], [10, "third.mp3"]] as const) {
+      const locator = new Locator({href: "chap.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["p1", `t=${time}`]})});
+      const mapped = textLocatorToAudioLocator(cues, locator, false, true);
+      expect(mapped?.href).toBe(href);
+      expect(mapped?.locations.fragments).toEqual([`t=${time}`]);
+    }
+  });
+  it("skips a zero-duration boundary cue when seeking to an upcoming cue", () => {
+    const cues = [makeItem({textHref: "chap.xhtml", textId: "empty", audioHref: "empty.mp3", audioStart: 5, audioEnd: 5}),
+      makeItem({textHref: "chap.xhtml", textId: "next", audioHref: "next.mp3", audioStart: 10, audioEnd: 15})];
+    const mapped = textLocatorToAudioLocator(cues, textLocator("chap.xhtml", "t=5"), false, true);
+    expect(mapped?.href).toBe("next.mp3");
+    expect(mapped?.locations.fragments).toEqual(["t=5"]);
+    expect(textLocatorToAudioLocator(cues.slice(0, 1), textLocator("chap.xhtml", "t=5"), false, true)).toBeUndefined();
+  });
+  it.each([null, 2])("treats missing or malformed end %s as open-ended", end => {
+    const cues = [makeItem({textHref: "chap.xhtml", textId: "p1", audioHref: "open.mp3", audioStart: 5, audioEnd: end}),
+      makeItem({textHref: "chap.xhtml", textId: "p2", audioHref: "next.mp3", audioStart: 10, audioEnd: 15})];
+    const mapped = textLocatorToAudioLocator(cues, textLocator("chap.xhtml", "t=12"), false, true);
+    expect(mapped?.href).toBe("open.mp3");
+    expect(mapped?.locations.fragments).toEqual(["t=12"]);
+  });
+  it("ignores malformed time as an anchor while preserving fragmentless progression", () => {
+    const loc = new Locator({href: "chap.xhtml", type: "text/html", locations: new LocatorLocations({fragments: ["t=oops", "parent"]})});
+    expect(map(loc)?.locations.fragments).toEqual(["t=10"]);
+    expect(map(textLocator("chap.xhtml", undefined, .5), true)?.locations.fragments).toEqual(["t=2.5"]);
+    expect(map(textLocator("chap.xhtml"))).toBeUndefined();
+  });
+});
+
+
+describe("ADR scoped heading and structural-resource regressions", () => {
+  async function parse(json: unknown, toc: string[] = []) {
+    const chapter = new Link({ href: "ch.xhtml", alternates: new Links([
+      new Link({ href: "overlay.json", type: "application/vnd.readium.narration+json" }),
+    ]) });
+    const { publication } = makeNarrationPublication([chapter], { "overlay.json": json },
+      toc.map(href => new Link({ href })));
+    return parseSyncNarration(publication);
+  }
+  const cue = (text: string, audio: string) => ({ text, audio });
+  const sectionCues = {
+    narration: [
+      { text: "one.xhtml#section", narration: [cue("one.xhtml#p1", "one.mp3#t=0,5")] },
+      { text: "two.xhtml#section", narration: [cue("two.xhtml#p2", "two.mp3#t=7,12")] },
+    ],
+  };
+
+  it("restores active heading A after matching container B", async () => {
+    const items = await parse({ narration: [{ text: "ch.xhtml#parent", narration: [
+      cue("ch.xhtml#A", "ch.mp3#t=0,5"),
+      { text: "ch.xhtml#B", narration: [cue("ch.xhtml#inside", "ch.mp3#t=5,10")] },
+      cue("ch.xhtml#after", "ch.mp3#t=10,15"),
+    ] }] }, ["ch.xhtml#parent", "ch.xhtml#A", "ch.xhtml#B"]);
+    expect(items.map(item => item.tocHref)).toEqual(["ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#A"]);
+  });
+
+  it("restores active heading A after a generic wrapper containing B", async () => {
+    const items = await parse({ narration: [{ text: "ch.xhtml#parent", narration: [
+      cue("ch.xhtml#A", "ch.mp3#t=0,5"),
+      { narration: [cue("ch.xhtml#B", "ch.mp3#t=5,10"), cue("ch.xhtml#inside", "ch.mp3#t=10,15")] },
+      cue("ch.xhtml#after", "ch.mp3#t=15,20"),
+    ] }] }, ["ch.xhtml#parent", "ch.xhtml#A", "ch.xhtml#B"]);
+    expect(items.map(item => item.tocHref)).toEqual(["ch.xhtml#A", "ch.xhtml#B", "ch.xhtml#B", "ch.xhtml#A"]);
+  });
+
+  it("distinguishes duplicate audio-less structural IDs by resource", async () => {
+    const items = await parse(sectionCues, ["one.xhtml#section", "two.xhtml#section"]);
+    const mapped = textLocatorToAudioLocator(items, textLocator("two.xhtml", "section"), false, true);
+    expect(mapped?.href).toBe("two.mp3");
+    expect(mapped?.locations.fragments).toEqual(["t=7"]);
+  });
+
+  it("allows cross-resource unknown-anchor fallback under Sync policy", async () => {
+    const items = await parse(sectionCues, ["one.xhtml#section", "two.xhtml#section"]);
+    const mapped = textLocatorToAudioLocator(items, textLocator("two.xhtml", "unknown"), true, true);
+    expect(mapped?.href).toBe("two.mp3");
+    expect(mapped?.locations.fragments).toEqual(["t=7"]);
+    expect(textLocatorToAudioLocator(items, textLocator("two.xhtml", "unknown"), false, true)).toBeUndefined();
+  });
+
+  const invalidSidecars: unknown[] = [null, undefined, [], 7, "invalid", {},
+    { narration: null }, { narration: "invalid" }, { narration: [] }];
+  it.each(invalidSidecars.map(json => [json]))(
+    "does not invent cues for invalid or empty top-level sidecar %j", async json => {
+      expect(await parse(json)).toEqual([]);
+    }
+  );
+});
+
+
+describe("Sync playback cue boundaries", () => {
+  const ending = makeItem({textHref: "one.xhtml", textId: "boundary", tocHref: "one.xhtml#section",
+    audioHref: "track.mp3", audioStart: 14, audioEnd: 16});
+  const starting = makeItem({textHref: "two.xhtml", textId: "heading", tocHref: "two.xhtml#section",
+    audioHref: "track.mp3", audioStart: 16, audioEnd: 18});
+  const lookup = (items: SyncNarrationItem[], time: number) =>
+    findItemByAudioTime(items, "track.mp3", time, true);
+  it("Sync selects the starting cue at 16 while Guided default keeps the ending cue", () => {
+    const unrelated = {...starting, audioHref: "other.mp3"};
+    const items = [unrelated, ending, starting];
+    expect(lookup(items, 16)).toBe(starting);
+    expect(findItemByAudioTime(items, "track.mp3", 16)).toBe(ending);
+    expect(lookup(items, 18)).toBeUndefined();
+  });
+  it.each([null, 2])("Sync retains open-ended matching for missing or malformed end %s", end => {
+    const item = {...starting, audioStart: 5, audioEnd: end};
+    expect(lookup([item], 99)).toBe(item);
+  });
+  it("Sync does not fabricate a start for an untimed cue", () => {
+    const item = {...starting, audioStart: null, audioEnd: null};
+    expect(lookup([item], 16)).toBeUndefined();
+    expect(findItemByAudioTime([item], "track.mp3", 16)).toBe(item);
   });
 });
