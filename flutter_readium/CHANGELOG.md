@@ -5,6 +5,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.7.0] - 2026-10-19
+
+### Changed (breaking)
+
+- **Android PDFs now open in paginated mode by default.**
+
+  Previously, they opened in vertical scroll mode. To preserve that behavior, call `setDefaultPDFPreferences(PDFPreferences(layout: PDFLayout.scrollVertical))` before opening the reader.
+- **Android apps now require `compileSdk` 37 or later and Kotlin Gradle Plugin 2.3 or later.**
+
+  The Readium kotlin-toolkit 3.4.0 upgrade raises these build requirements. Update your app's Android configuration before upgrading; see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#compile-sdk-and-kotlin-version).
+
+### Added
+
+- **Android now supports page-by-page PDF navigation with `PDFLayout.paginated`.**
+
+  Previously, this setting used horizontal scrolling without snapping to individual pages. It now snaps to one page at a time, matching iOS. ([#265](https://github.com/Notalib/flutter_readium/issues/265))
+- **Set the initial PDF layout with `setDefaultPDFPreferences()` on iOS and Android.**
+
+  PDFs can now open with your chosen layout without switching after the reader appears. Calling `setPDFPreferences()` also updates the default for subsequent PDF readers.
+
+### Fixed
+
+- **Android PDFs retain their layout and reading position after returning from the background.**
+
+  Previously, recreating the reader could revert to its initial layout and position. It now uses the current preferences and reading position.
+- **Android and web preserve the narration position after a seek to an unknown anchor in the current content file.**
+
+  Unknown anchors now leave playback at its previous position. On Android, these seeks could also prevent `play(null)` from resuming; the last valid playback position is now retained.
+- **Android now honors `goToLocator` calls made while the reader is opening.**
+
+  Previously, navigation could be ignored while the reader initialized, leaving it at the initial location. Navigation now waits for the current reader to initialize.
+- **Rapid repeated skips no longer interrupt web Sync Narration playback or highlighting.**
+
+  Previously, closely spaced skips could leave playback paused or continuing without position and highlight updates. Playback and highlighting now remain in sync across repeated skips.
+- **Sync Narration now navigates to table-of-contents sections that have no audio of their own on iOS, Android, and web.**
+
+  Sections whose child paragraphs contain narration could fail to navigate or report no current chapter. Navigation now finds the narrated content within those sections, including the next narrated passage after a heading without audio.
+- **Sync Narration reports the correct chapter when moving between subsections and content files on iOS, Android, and web.**
+
+  Previously, chapter references could disappear or continue to identify the previous file. Narrated passages now retain their section's chapter reference and use the new file's chapter when crossing a file boundary.
+- **Web audiobook playback can seek back to a table-of-contents entry at the start of the current audio file.**
+
+  Previously, seeking to the track's beginning left playback at its current position. Playback now returns to the start of the track.
+
 ## [0.6.2] - 2026-10-13
 
 ### Fixed

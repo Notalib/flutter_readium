@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
+## [0.7.0] - 2026-10-19
+
+### Added
+
+- **`FlutterReadiumPlatform` now exposes `setDefaultPDFPreferences()` and `defaultPDFPreferences`.**
+
+  Platform implementations can use these preferences when creating a PDF reader. Calling `setPDFPreferences()` also updates the stored defaults.
+
 ## [0.6.2] - 2026-10-13
 
 ### Fixed
