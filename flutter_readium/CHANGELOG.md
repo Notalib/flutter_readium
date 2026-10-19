@@ -5,55 +5,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
-### Added
-
-- **`setDefaultPDFPreferences()` sets the layout a PDF opens with.**
-  Before, a PDF always opened in the platform default and jumped when `setPDFPreferences` was applied afterwards. It now opens with the given preferences on iOS and Android. `setPDFPreferences` also updates the default.
-
-- **Android: `PDFLayout.paginated` is now a real paginated PDF layout.**
-  It previously fell back to horizontal scroll. It now snaps to one page at a time, like on iOS. Fixes #265.
-
-### Changed
-
-- **Android: PDFs now open paginated by default, like iOS.**
-  The default was vertical scroll. Call `setDefaultPDFPreferences(PDFPreferences(layout: PDFLayout.scrollVertical))` to keep the old behavior. Also upgrades kotlin-toolkit to 3.4.0.
-
-- **Android: consuming apps must raise their Android build settings.**
-  kotlin-toolkit 3.4.0 requires `compileSdk` 37 or later, so apps on 36 fail the AAR metadata check. It is also built with Kotlin language version 2.4, which needs Kotlin Gradle Plugin 2.3 or newer. See the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md).
-
-### Fixed
-
-- **Android honors navigation requested while the reader is opening.**
-  An early `goToLocator` could be discarded while publication positions loaded,
-  leaving the reader at its initial page. It now waits for the current reader to initialize.
-
-- **Web narration follows ToC sections and seeks to their narrated children.**
-  Audio-less sections could lose their chapter reference or seek to the wrong cue because
-  section context was flattened away. Section ownership and same-file seeking now follow
-  the narrated children; unknown same-file anchors preserve playback position.
-
-- **Android: a PDF lost its layout and reading position after the app came back from the background.**
-  The reader re-created its navigator from the settings it was opened with, ignoring `setPDFPreferences` and the page you were on. It now re-creates it from the current ones.
-
-- **iOS and Android media-overlay chapter references follow section and resource changes.**
-  Narrated paragraphs could lose their subsection, and boundary page cues could retain
-  the previous file's chapter. iOS and Android now preserve same-file heading references
-  and use the new file's chapter at resource boundaries.
-- **Android can resume narration after ignoring an unknown same-file anchor.**
-  A rejected anchor could replace the saved playback locator, preventing `play(null)`
-  from resuming. Unmapped seeks now preserve the last playback locator.
-- **iOS can seek to ToC sections without their own audio.**
-  Such sections could report no current chapter or fail to seek within the active file.
-  Their narrated children now supply the section reference and seek destination.
-- **iOS, Android, and web can navigate newspaper sections without their own audio.**
-  Section changes could fail or report no current chapter when only the paragraphs were narrated.
-  ToC navigation now finds the narrated content, including the next cue after a heading without audio.
-
-- **Web: skipping back to a ToC item at the start of the playing audio file moves playback there.**
-  The upstream audio navigator never seeks to `t=0`, so playback kept its position. The plugin now seeks to the track start itself.
-- **Web: fast repeated skips during Sync Narration playback keep playing and keep the highlight in sync.**
-  Before, a skip made just after another skip could leave the audio paused, or playing with no position or highlight updates.
-
 ## [0.6.2] - 2026-10-13
 
 ### Fixed

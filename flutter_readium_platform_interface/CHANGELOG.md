@@ -5,10 +5,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 <!-- towncrier release notes start -->
 
-### Added
-
-- **`FlutterReadiumPlatform.setDefaultPDFPreferences()` and `defaultPDFPreferences`.** Mirror the EPUB default preferences so a PDF reader widget can open with the app's layout. The method channel also updates the default from `setPDFPreferences`.
-
 ## [0.6.2] - 2026-10-13
 
 ### Fixed
