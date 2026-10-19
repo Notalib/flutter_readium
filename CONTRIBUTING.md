@@ -14,6 +14,7 @@ Thank you for considering a contribution! This guide covers everything you need 
 | CocoaPods | 1.15+ | `gem install cocoapods` |
 | Android Studio / JDK | Java 18 | `compileSdk 37` |
 | Node.js | 18+ | Web TypeScript build only |
+| uv | any | Optional. Runs towncrier for `bin/changelog`; `brew install uv` |
 
 ---
 
@@ -196,9 +197,44 @@ Do **not** hand-edit the compiled JS in `example/web/`.
 2. Keep PRs focused on a single logical change, commits should follow Conventional Commits.
 3. Ensure `flutter analyze` and both test suites pass locally before opening a PR.
 4. Test changes in the example app on at least one platform.
-5. Update `CHANGELOG.md` in the affected package(s) under the Unreleased section.
+5. Add a [changelog fragment](#changelog) for each consumer-visible change. Do not edit `CHANGELOG.md` directly.
 6. Update relevant documentation in the [docs](./docs/) folder if necessary.
 7. Use a Conventional Commits-like PR title.
+
+---
+
+## Changelog
+
+Each package's `CHANGELOG.md` is compiled at release time from fragment files in `<package>/changelog.d/`. One file per change means PRs never conflict on the changelog. `bin/release_prep` runs [towncrier](https://towncrier.readthedocs.io/) through `bin/changelog`, which writes the dated section and deletes the fragments.
+
+Add a fragment only for changes a consumer would notice on upgrade. Skip internal refactors, CI, and example-app changes.
+
+**File name**: `<issue>.<type>.md` links the issue or PR, e.g. `123.fixed.md`. Use `+<slug>.<type>.md` when there is no number, e.g. `+web-tts-stall.fixed.md`.
+
+| Type | Heading |
+|------|---------|
+| `breaking` | Changed (breaking) |
+| `added` | Added |
+| `changed` | Changed |
+| `deprecated` | Deprecated |
+| `removed` | Removed |
+| `fixed` | Fixed |
+| `security` | Security |
+
+**Content**: a bold one-line lead, then 2–4 lines: symptom, cause in a clause, fix. Do not start with `- `; the bullet is added for you.
+
+```markdown
+**Web: TTS could stop for good after a speechSynthesis stall.**
+The stall watchdog mistook a queued utterance for a wedge. It now waits for real silence.
+```
+
+**Which package**: put the fragment in the package whose consumers notice the change. A change to both packages needs a fragment in each, usually with the same text.
+
+Preview the rendered result and validate file names (CI runs the same check):
+
+```bash
+bin/changelog check
+```
 
 ---
 

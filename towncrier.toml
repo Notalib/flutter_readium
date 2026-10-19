@@ -1,0 +1,48 @@
+# Changelog fragments, compiled into each package's CHANGELOG.md by bin/release_prep.
+# Shared by both packages: bin/changelog runs towncrier with --dir <package>, so
+# `directory` and `filename` resolve inside that package. How to write one: CONTRIBUTING.md#changelog.
+[tool.towncrier]
+directory = "changelog.d"
+filename = "CHANGELOG.md"
+start_string = "<!-- towncrier release notes start -->\n"
+title_format = "## [{version}] - {project_date}"
+issue_format = "[#{issue}](https://github.com/Notalib/flutter_readium/issues/{issue})"
+# Numeric issue/PR ids only; anything else must be an orphan (`+slug.type.md`).
+issue_pattern = "\\d+"
+# Setting `ignore` makes towncrier fail on misnamed fragments instead of skipping them.
+ignore = []
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Changed (breaking)"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "added"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removed"
+name = "Removed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fixed"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
+showcontent = true

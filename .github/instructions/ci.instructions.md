@@ -47,10 +47,12 @@ The release workflow supports both tag-push and `workflow_dispatch` triggers. On
 
 Use `bin/release_prep <version>` before tagging. It:
 1. Bumps `version:` in both pubspec files
-2. Moves `## Unreleased` content into a dated `## [x.y.z] - YYYY-MM-DD` section
-3. Leaves a fresh `## Unreleased` header
+2. Compiles each package's `changelog.d/` fragments into a dated `## [x.y.z] - YYYY-MM-DD` section via `bin/changelog build` (towncrier), and deletes the fragments
+3. Commits and tags `vx.y.z`
 
 Do not automate this in the CI pipeline — the changelog rewrite should be in the tagged commit itself, not a commit pushed by the workflow after tagging.
+
+`.github/workflows/changelog.yml` runs `bin/changelog check` on PRs that touch fragments, so a misnamed fragment fails in the PR, not at release time.
 
 ## `dart format` and `pub get` ordering
 

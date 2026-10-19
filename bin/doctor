@@ -26,6 +26,7 @@ check flutter required
 check node    required
 check npm     required
 [ "$(uname)" = "Darwin" ] && check pod optional
+check uvx     optional  # bin/changelog (towncrier)
 
 if [ "$status" -ne 0 ]; then
   echo
