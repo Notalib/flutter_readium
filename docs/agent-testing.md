@@ -2,6 +2,16 @@
 
 Operational guide for AI agents (and humans driving the same tooling) exercising the **example app** — the canonical end-to-end smoke test. All UI / behavior changes should be verified here before a task is declared done. If a change can't be exercised in the example app (native-only, behind a flag, platform edge case), say so explicitly rather than claiming verification.
 
+## Integration-test timing and waits
+
+Run the single `integration_test/plugin_integration_test.dart` entrypoint to avoid rebuilding the app for each group. Compare execution time separately from build time; one warm local run does not establish safe CI deadlines.
+
+The harness prints `integration phase` timings for audio enable/play/state/pause and TTS publication opening, and `integration wait` timings for successful reader waits. These diagnostics remain visible with `READIUM_TEST_SKIP_LOGS=true`. Audio method phases have separate 60-second deadlines; the state-event budget starts after enable/play complete.
+
+Prefer waiting for the exact resource, page, or selector under test to adding a quiet-period delay. Keep stabilization where late initial restoration or preference-driven relayout can overwrite the result. Keep the 120-second reader-mount budget: CI has seen fresh WebContent launches take 59–83 seconds after warm-up.
+
+Use `expectConditionHolds` for negative assertions: it observes the full watchdog window on success but fails promptly on a recorded violation. Do not shorten these windows or speed up watchdog tests' playback; they verify real elapsed-time behavior. The newspaper cue-transition test seeks within the preceding cue, confirms its position, then crosses the boundary through normal playback.
+
 ## Launching the app (marionette)
 
 Run `bin/install` after checkout or dependency changes, then `bin/doctor` before native testing.

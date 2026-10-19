@@ -24,13 +24,20 @@ void main() {
         final initialLocator = pub.locatorFromLink(pub.readingOrder.first)!;
         final targetLocator = pub.locatorFromLink(pub.readingOrder[1])!;
         final locators = <Locator>[];
-        final locatorSub = harness.readium.onTextLocatorChanged.listen(locators.add);
+        final watch = Stopwatch()..start();
+        final events = <String>[];
+        final locatorSub = harness.readium.onTextLocatorChanged.listen((locator) {
+          locators.add(locator);
+          events.add('${watch.elapsedMilliseconds}ms locator=${locator.href}');
+        });
         addTearDown(locatorSub.cancel);
 
         await tester.pumpWidget(bareReaderApp(pub, initialLocator: initialLocator));
         await tester.pump();
 
+        events.add('${watch.elapsedMilliseconds}ms goToLocator requested');
         final navigated = await harness.readium.goToLocator(targetLocator);
+        events.add('${watch.elapsedMilliseconds}ms goToLocator returned $navigated');
         expect(navigated, isTrue, reason: 'goToLocator should report success');
 
         await waitWithPump(
@@ -38,14 +45,14 @@ void main() {
           () => locators.isNotEmpty && locators.last.href == targetLocator.href,
           timeout: firstMountTimeout,
           reason: 'Immediate goToLocator did not settle on the requested resource',
-          diagnostics: () => 'locators=$locators',
+          diagnostics: () => events.join(' | '),
         );
         await waitForListStable(tester, locators);
 
         expect(
           locators.last.href,
           equals(targetLocator.href),
-          reason: 'The initial restore must not overwrite the explicit jump',
+          reason: 'The initial restore must not overwrite the explicit jump | ${events.join(' | ')}',
         );
 
         await tester.pumpWidget(const SizedBox());
@@ -93,7 +100,6 @@ void main() {
         timeout: const Duration(seconds: 15),
         reason: 'goForward() did not produce a new textLocator',
       );
-      await waitForListStable(tester, locators);
       expect(
         locators.last,
         isNot(equals(initialLocator)),
@@ -145,11 +151,14 @@ void main() {
 
       await waitWithPump(
         tester,
-        () => locators.last != afterForward,
+        () =>
+            locators.last != afterForward &&
+            locators.last.href == savedLocator.href &&
+            (savedLocator.locations?.cssSelector == null ||
+                locators.last.locations?.cssSelector == savedLocator.locations?.cssSelector),
         timeout: const Duration(seconds: 30),
         reason: 'goToLocator() did not emit a new textLocator',
       );
-      await waitForListStable(tester, locators);
       expect(
         locators.last.href,
         equals(savedLocator.href),
@@ -248,11 +257,10 @@ void main() {
       await harness.readium.goForward();
       await waitWithPump(
         tester,
-        () => locators.last != initialLocator,
+        () => locators.last.href != initialLocator.href,
         timeout: const Duration(seconds: 15),
         reason: 'goForward() did not produce a new DiViNa locator',
       );
-      await waitForListStable(tester, locators);
       final afterForward = locators.last;
 
       expect(
@@ -264,12 +272,10 @@ void main() {
       await harness.readium.goBackward();
       await waitWithPump(
         tester,
-        () => locators.last != afterForward,
+        () => locators.last.href == initialLocator.href,
         timeout: const Duration(seconds: 15),
         reason: 'goBackward() did not produce a new DiViNa locator',
       );
-      await waitForListStable(tester, locators);
-
       expect(
         locators.last.href,
         equals(initialLocator.href),
@@ -431,7 +437,6 @@ void main() {
           timeout: const Duration(seconds: 15),
           reason: 'second goForward() did not produce a new locator (saved=$savedPage)',
         );
-        await waitForListStable(tester, locators);
         final afterSecondForward = locators.last;
 
         final ok = await harness.readium.goToLocator(savedLocator);
@@ -488,11 +493,10 @@ void main() {
         await harness.readium.goForward();
         await waitWithPump(
           tester,
-          () => locators.last != initialLocator,
+          () => locators.last.href != initialLocator.href,
           timeout: const Duration(seconds: 15),
           reason: 'goForward() did not produce a new textLocator in fixed-layout EPUB',
         );
-        await waitForListStable(tester, locators);
         final afterForward = locators.last;
 
         expect(
@@ -504,12 +508,10 @@ void main() {
         await harness.readium.goBackward();
         await waitWithPump(
           tester,
-          () => locators.last != afterForward,
+          () => locators.last.href == initialLocator.href,
           timeout: const Duration(seconds: 15),
           reason: 'goBackward() did not produce a new textLocator in fixed-layout EPUB',
         );
-        await waitForListStable(tester, locators);
-
         expect(
           locators.last.href,
           equals(initialLocator.href),
