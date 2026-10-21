@@ -168,6 +168,9 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
   StreamSubscription? textLocatorSub;
   StreamSubscription? errorEventSub;
 
+  /// Latest reader locator for the open publication, cleared on close.
+  Locator? currentLocator;
+
   final instance = FlutterReadium();
 
   PublicationBloc() : super(PublicationState()) {
@@ -197,6 +200,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
               timebasedLocatorReceived = true;
             });
         textLocatorSub = instance.onTextLocatorChanged.listen((locator) {
+          currentLocator = locator;
           _log.fine('onTextLocatorChanged: $locator');
           if ((publication.containsMediaOverlays || publication.containsGuidedNavigation) && timebasedLocatorReceived) {
             // TODO: would be better to check if audio is currently enabled for the publication.
@@ -247,6 +251,7 @@ class PublicationBloc extends HydratedBloc<PublicationEvent, PublicationState> {
           'Exception while closing publication: ${error.toString()}',
         );
       }
+      currentLocator = null;
       emit(PublicationState());
     });
   }

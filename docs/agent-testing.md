@@ -34,6 +34,44 @@ done
 
 - When adding interactive UI elements that should be exercisable via marionette, add a `ValueKey<String>` to the widget (especially `TextField`s inside `Autocomplete`). This makes `marionette tap --key` and `marionette enter-text --key` reliable.
 - Prefer `tap --key` or `tap --text` over coordinate-based taps (`tap --x --y`). Coordinate taps are fragile — elements can overlap or shift between devices, leading to flaky tests that hit the wrong target.
+- Bookshelf cards are keyed `book_card_<sanitizeForKey(title)>`, e.g. `book_card_The_Tale_of_Peter_Rabbit`. Tap by key directly; `get_interactive_elements` dumps full text styles (~8k tokens for the bookshelf).
+- Simulator screenshots: pass `scale: 0.4` for state checks. Full size only to read small text.
+
+## Choosing a control
+
+The reader is a native view. Marionette sees only the Flutter widgets around it.
+
+| Need | Tool |
+|---|---|
+| Flutter widgets (AppBar, pages, sheets) | marionette `tap --key` |
+| Reader steps: select text, run a selection action, tap a decoration, go to text | `example.*` extensions below |
+| App state: open publication, locator, highlights | `example.state` |
+| What the reader renders | simulator `screenshot` (`scale: 0.3`) |
+| A real tap on reader content | simulator `tap` in device points (screenshot px ÷ 3 on iPhone) |
+
+Drive with the extensions, assert with `example.state`, and confirm visuals with one screenshot.
+
+### `example.*` extensions
+
+Debug builds only, in `example/lib/utils/agent_extensions.dart`. Call them with marionette `call_custom_extension` (omit the `ext.flutter.` prefix). Args are strings; text matches come from `searchInPublication`.
+
+| Extension | Args | Result |
+|---|---|---|
+| `example.state` | — | `{publication, locator, highlights: [{id, text, tint, totalProgression}]}` |
+| `example.selectionAction` | `actionId` (`highlight`\|`note`), `text`, `occurrence`? | `{actionId, locator, highlightId?}` |
+| `example.decorationTap` | `id`, `group`? | `{opened}` |
+| `example.goToText` | `text`, `occurrence`? | `{locator}` |
+
+These call the app's own handlers, so they skip the plugin's native selection and decoration events. To test those events, use the steps below.
+
+### Native gestures (iOS simulator)
+
+- A simulator `tap` on a decoration fires `onDecorationInteraction`.
+- Select a word: `touch_path` holding ~1.6 s (`[{x,y,dt_ms:0},{x,y,dt_ms:800},{x+1,y,dt_ms:800}]`). `tap` with `duration` does not select.
+- Each tap on the selection toggles the edit menu.
+- Injected taps on edit-menu items have not fired `onSelectionAction`. After one failed try, ask the user to tap the item.
+
+Add an extension when a flow needs a native step the table above lacks.
 
 ## PDF / native views don't render in screenshots
 
