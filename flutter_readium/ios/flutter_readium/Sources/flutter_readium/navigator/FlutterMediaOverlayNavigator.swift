@@ -91,7 +91,7 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     let toc = publication.getFlattenedToC()
     var trees: [String: XhtmlIdTree] = [:]
     let items = overlays.flatMap(\.items)
-    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } })
+    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } }).union(overlays.flatMap { $0.narrationContainerTocHrefs })
     let boundaries = toc.filter { !represented.contains($0.href) }
     for href in Set(items.filter { $0.tocHref != nil }.map(\.textFile)).sorted() {
       if boundaries.contains(where: { $0.href.hasPrefix(href + "#") }),

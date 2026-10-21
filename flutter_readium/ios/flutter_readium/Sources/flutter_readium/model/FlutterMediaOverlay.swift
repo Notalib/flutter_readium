@@ -5,6 +5,15 @@ struct FlutterMediaOverlay {
   let items: [FlutterMediaOverlayItem]
   
   let readingOrderDuration: TimeInterval?
+
+  /// Matched narration containers can remain represented after every cue takes a deeper owner.
+  let narrationContainerTocHrefs: Set<String>
+
+  init(items: [FlutterMediaOverlayItem], readingOrderDuration: TimeInterval?, narrationContainerTocHrefs: Set<String> = []) {
+    self.items = items
+    self.readingOrderDuration = readingOrderDuration
+    self.narrationContainerTocHrefs = narrationContainerTocHrefs
+  }
   
   var audioFile: String? {
     items.first?.audioFile
@@ -43,7 +52,7 @@ struct FlutterMediaOverlay {
 
   func withTocBoundaries(_ toc: [Link], trees: [String: XhtmlIdTree]) -> FlutterMediaOverlay {
     // Represented narration containers retain their caller scope when traversal returns.
-    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } })
+    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } }).union(narrationContainerTocHrefs)
     let boundaries = toc.filter { !represented.contains($0.href) }
     let corrected = items.map { item -> FlutterMediaOverlayItem in
       guard let owner = item.tocHref,
@@ -55,7 +64,7 @@ struct FlutterMediaOverlay {
         tocIds: links.map { $0.href.components(separatedBy: "#").dropFirst().first ?? "" }) else { return item }
       return item.copyWith(tocTitle: links[index].title, tocHref: links[index].href)
     }
-    return FlutterMediaOverlay(items: corrected, readingOrderDuration: readingOrderDuration)
+    return FlutterMediaOverlay(items: corrected, readingOrderDuration: readingOrderDuration, narrationContainerTocHrefs: narrationContainerTocHrefs)
   }
 
   func withTocTitles(_ toc: [Link]) -> FlutterMediaOverlay {
@@ -63,7 +72,7 @@ struct FlutterMediaOverlay {
       guard let match = toc.first(where: { $0.href == item.tocHref }) else { return item }
       return item.copyWith(tocTitle: match.title, tocHref: match.href)
     }
-    return FlutterMediaOverlay(items: enriched, readingOrderDuration: readingOrderDuration ?? totalDuration)
+    return FlutterMediaOverlay(items: enriched, readingOrderDuration: readingOrderDuration ?? totalDuration, narrationContainerTocHrefs: narrationContainerTocHrefs)
   }
   
   /// `allowResourceFallback` gates the *imprecise* resource-first fallbacks (an
@@ -116,6 +125,7 @@ struct FlutterMediaOverlay {
   ) -> FlutterMediaOverlay? {
     guard let topNarration = json["narration"] as? [[String: Any]] else { return nil }
     var acc: [FlutterMediaOverlayItem] = []
+    var containerTocHrefs: Set<String> = []
     var currentTocHref = atTocHref
 
     for obj in topNarration {
@@ -130,6 +140,7 @@ struct FlutterMediaOverlay {
       let matchingTocHref = text.flatMap { text in tocHrefs.first(where: { $0 == text }) }
       let nodeTocHref = matchingTocHref ?? currentTocHref
       let hasChildren = (obj["narration"] as? [[String: Any]])?.isEmpty == false
+      if hasChildren, let matchingTocHref { containerTocHrefs.insert(matchingTocHref) }
 
       if let item = FlutterMediaOverlayItem.fromJson(
         obj, atPosition: position, atTocHref: nodeTocHref, readingOrderDuration: readingOrderDuration
@@ -145,9 +156,10 @@ struct FlutterMediaOverlay {
         tocHrefs: tocHrefs
       ) {
         acc.append(contentsOf: nested.items)
+        containerTocHrefs.formUnion(nested.narrationContainerTocHrefs)
       }
     }
-    return FlutterMediaOverlay(items: acc, readingOrderDuration: readingOrderDuration)
+    return FlutterMediaOverlay(items: acc, readingOrderDuration: readingOrderDuration, narrationContainerTocHrefs: containerTocHrefs)
   }
 }
 

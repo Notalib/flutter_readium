@@ -71,6 +71,16 @@ export class XhtmlIdTree {
   }
 }
 
+/** Child headings can hide a matched container from all flattened cue owners. */
+function representedTocHrefs(items: SyncNarrationItem[]): Set<string> {
+  const represented = new Set(items.flatMap((item) => [item.text, ...(item.tocHref ? [item.tocHref] : [])]));
+  const containers = new Set(items.map((item) => item.narrationContainerTocHrefs));
+  for (const hrefs of containers) {
+    if (hrefs) for (const href of hrefs) represented.add(href);
+  }
+  return represented;
+}
+
 /**
  * Fills unowned cues and ends stale heading continuation at XHTML section boundaries.
  * An unowned cue receives the ToC entry that precedes it in
@@ -85,7 +95,7 @@ export function assignUncuedTocOwners(
 ): void {
   const cueIds = new Set(resourceItems.map((item) => item.textId));
   // Represented narration containers retain their caller scope when traversal returns.
-  const represented = new Set(resourceItems.flatMap((item) => [item.text, item.tocHref]));
+  const represented = representedTocHrefs(resourceItems);
   const boundaries = resourceToc.filter((link) => !represented.has(link.href));
   const entries = new Map<number, Link>();
   for (const link of resourceToc) {
@@ -134,8 +144,7 @@ export class UncuedTocTargets {
   async prepareOwners(): Promise<void> {
     const resources = new Set(this.items.filter((item) => item.tocHref).map((item) => normalizeHref(item.textHref)));
     for (const resource of resources) {
-      const represented = new Set(this.items.filter((item) => normalizeHref(item.textHref) === resource)
-        .flatMap((item) => [item.text, item.tocHref]));
+      const represented = representedTocHrefs(this.items.filter((item) => normalizeHref(item.textHref) === resource));
       if (this.toc.some((link) => normalizeHref(link.href) === resource &&
         parseTextField(link.href).textId && !represented.has(link.href))) {
         await this.fillOwners(resource);

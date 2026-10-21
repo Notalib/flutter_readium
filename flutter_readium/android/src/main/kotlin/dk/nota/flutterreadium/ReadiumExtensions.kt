@@ -335,7 +335,7 @@ private fun Publication.enrichOverlaysWithToc(overlays: List<FlutterMediaOverlay
         }
     }
 
-    return overlays.map { overlay -> overlay?.let { ov -> FlutterMediaOverlay(ov.items.map { it.enrich() }) } }
+    return overlays.map { overlay -> overlay?.let { ov -> ov.copy(items = ov.items.map { it.enrich() }) } }
 }
 
 /**
@@ -406,7 +406,9 @@ private suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMedia
     val toc = tableOfContents.flattenChildren()
     val items = overlays.flatMap { it?.items.orEmpty() }
     val trees = mutableMapOf<String, XhtmlIdTree>()
-    val represented = items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet()
+    val represented =
+        items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet() +
+            overlays.flatMap { it?.narrationContainerTocHrefs.orEmpty() }
     val boundaries = toc.filter { it.href.resolve().toString() !in represented }
     for (href in items.filter { it.tocHref != null }.map { it.textFile }.distinct()) {
         if (boundaries.any {
@@ -464,10 +466,11 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                     }
                 val position = (roEntry?.index ?: -1) + 1
                 val duration = roEntry?.value?.duration ?: 0.0
-                FlutterMediaOverlay(
-                    overlay.items.map { item ->
-                        item.copy(position = position, readingOrderItemDuration = duration)
-                    },
+                overlay.copy(
+                    items =
+                        overlay.items.map { item ->
+                            item.copy(position = position, readingOrderItemDuration = duration)
+                        },
                 )
             }
         return resolveTocBoundaries(enrichOverlaysWithToc(rawOverlays)).filterNotNull()
@@ -519,13 +522,14 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                                     }
                                 val position = (roEntry?.index ?: -1) + 1
                                 val duration = roEntry?.value?.duration ?: 0.0
-                                FlutterMediaOverlay(
-                                    overlay.items.map { item ->
-                                        item.copy(
-                                            position = position,
-                                            readingOrderItemDuration = duration,
-                                        )
-                                    },
+                                overlay.copy(
+                                    items =
+                                        overlay.items.map { item ->
+                                            item.copy(
+                                                position = position,
+                                                readingOrderItemDuration = duration,
+                                            )
+                                        },
                                 )
                             }
                         }

@@ -157,6 +157,55 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
       ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#h"])
   }
 
+  func testXhtmlBoundaryPreservesContainerWhenEveryChildUsesDeeperOwner() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#sub","audio":"ch.mp3#t=5,10"},
+          {"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"}]},
+        {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"}]}
+      """, toc: ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#sub"])
+    let owners = ["ch.xhtml#h", "ch.xhtml#sub", "ch.xhtml#sub", "ch.xhtml#h"]
+    XCTAssertEqual(overlay.items.map(\.tocHref), owners)
+    XCTAssertEqual(overlay.narrationContainerTocHrefs, ["ch.xhtml#side"])
+    let tree = XhtmlIdTree(xhtml: Data("""
+      <html><body><h2 id="h"/><aside id="side"><h3 id="sub"/><p id="p2"/><p id="p3"/></aside></body></html>
+      """.utf8))
+    let toc = ["h", "side", "sub"].map { (id: String) in Link(href: "ch.xhtml#\(id)", title: id) }
+    let corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, trees: ["ch.xhtml": tree]).withTocTitles(toc)
+    XCTAssertEqual(corrected.items.map(\.tocHref), owners)
+    XCTAssertEqual(corrected.narrationContainerTocHrefs, overlay.narrationContainerTocHrefs)
+    XCTAssertEqual(corrected.itemFromTocHref("h", inHref: "ch.xhtml")?.audioStart, 0)
+    XCTAssertEqual(corrected.itemFromTocHref("sub", inHref: "ch.xhtml")?.audioStart, 5)
+    XCTAssertNil(corrected.itemFromTocHref("side", inHref: "ch.xhtml"))
+  }
+
+  func testNestedContainerMetadataKeepsResourceIdentity() {
+    let hrefs = ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#inner", "ch.xhtml#sub", "other.xhtml#h", "other.xhtml#side"]
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#side","narration":[{"narration":[{"text":"ch.xhtml#inner","narration":[
+          {"text":"ch.xhtml#sub","audio":"ch.mp3#t=5,10"},{"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"}]}]}]},
+        {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"},
+        {"text":"other.xhtml#h","audio":"other.mp3#t=0,5"},{"text":"other.xhtml#p","audio":"other.mp3#t=5,10"}]}
+      """, toc: hrefs)
+    let expectedContainers: Set<String> = ["ch.xhtml#side", "ch.xhtml#inner"]
+    XCTAssertEqual(overlay.narrationContainerTocHrefs, expectedContainers)
+    let toc = hrefs.map { (href: String) in Link(href: href, title: href) }
+    let trees = [
+      "ch.xhtml": XhtmlIdTree(xhtml: Data("""
+        <html><body><h2 id="h"/><aside id="side"><section id="inner"><h3 id="sub"/><p id="p2"/></section><p id="p3"/></aside></body></html>
+        """.utf8)),
+      "other.xhtml": XhtmlIdTree(xhtml: Data("""
+        <html><body><h2 id="h"/><aside id="side"><p id="p"/></aside></body></html>
+        """.utf8)),
+    ]
+    let corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, trees: trees).withTocTitles(toc)
+    XCTAssertEqual(corrected.narrationContainerTocHrefs, expectedContainers)
+    XCTAssertEqual(corrected.items.map(\.tocHref), ["ch.xhtml#h", "ch.xhtml#sub", "ch.xhtml#sub", "ch.xhtml#h", "other.xhtml#h", "other.xhtml#side"])
+    XCTAssertNil(corrected.itemFromTocHref("side", inHref: "ch.xhtml"))
+    XCTAssertEqual(corrected.itemFromTocHref("side", inHref: "other.xhtml")?.audioStart, 5)
+  }
+
   func testBoundaryPageUsesNextResourcesFileOnlyToc() {
     let overlay = parse("""
       {"narration":[{"text":"one.xhtml","narration":[
@@ -375,6 +424,7 @@ final class GuidedBoundaryInitializationTests: XCTestCase {
     let loaded = await publication.getSyncNarrationMediaOverlays()
     let overlays = try XCTUnwrap(loaded)
     XCTAssertEqual(overlays.flatMap(\.items).map(\.textId), ["h", "p1", "p2"])
+    XCTAssertTrue(overlays.allSatisfy { $0.narrationContainerTocHrefs.isEmpty })
     XCTAssertEqual(overlays.flatMap(\.items).last?.tocHref, "ch.xhtml#h")
     let navigator = FlutterMediaOverlayNavigator(publication: publication, preferences: FlutterAudioPreferences(), initialLocator: nil)
     let corrected = await navigator.resolveTocBoundaries(overlays)

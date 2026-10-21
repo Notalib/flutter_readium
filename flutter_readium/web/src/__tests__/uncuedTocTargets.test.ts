@@ -3,8 +3,8 @@
  * Sync Narration does not list (the local-newspaper `<section>` / `<aside>` shape).
  */
 
-import { getTime, Link, Locator, LocatorLocations } from "@readium/shared";
-import { SyncNarrationItem, textLocatorToAudioLocator } from "../mediaoverlay/syncNarration";
+import { getTime, Link, Links, Locator, LocatorLocations } from "@readium/shared";
+import { SyncNarrationItem, parseSyncNarration, textLocatorToAudioLocator } from "../mediaoverlay/syncNarration";
 import {
   IdTreeElement,
   UncuedTocTargets,
@@ -178,6 +178,34 @@ describe("UncuedTocTargets", () => {
     } as unknown as ReadiumPublication;
     return new UncuedTocTargets(publication, items, links);
   }
+
+  it.each([false, true])("preserves a narration container hidden by its child heading (other boundary: %s)", async (otherBoundary) => {
+    const narrated = (id: string, start: number) => ({text: `page.xhtml#${id}`, audio: `page.mp3#t=${start},${start + 5}`});
+    const narration = {narration: [narrated("h", 0),
+      {text: "page.xhtml#side", narration: [narrated("sub", 5), narrated("p2", 10)]}, narrated("p3", 15),
+      ...(otherBoundary ? [narrated("p4", 20)] : [])]};
+    const links = toc("h", "side", "sub", ...(otherBoundary ? ["sec2"] : []));
+    const publication = {
+      baseURL: "https://example.test/book/",
+      readingOrder: {items: [new Link({href: "page.xhtml", duration: 25,
+        alternates: new Links([new Link({href: "sync.json", type: "application/vnd.readium.narration+json"})])})]},
+      manifest: {toc: new Links(links)},
+      get: () => ({readAsJSON: async () => narration, readAsString: async () => {reads++; return "<html/>";}}),
+    } as unknown as ReadiumPublication;
+    const dom = el("", el("h"), el("side", el("sub"), el("p2"), el("p3")),
+      ...(otherBoundary ? [el("sec2", el("p4"))] : []));
+    (globalThis as any).DOMParser = class {
+      parseFromString() { return {getElementsByTagName: () => [], documentElement: dom}; }
+    };
+    const items = await parseSyncNarration(publication);
+    expect(items.slice(0, 4).map((item) => item.tocHref)).toEqual(toc("h", "sub", "sub", "h").map((link) => link.href));
+    await new UncuedTocTargets(publication, items, links).prepareOwners();
+    expect(items.map((item) => item.tocHref)).toEqual(toc("h", "sub", "sub", "h", ...(otherBoundary ? ["sec2"] : [])).map((link) => link.href));
+    expect(items.some((item) => item.tocHref === "page.xhtml#side")).toBe(false);
+    expect(getTime(textLocatorToAudioLocator(items, locator("h"), false, true)!.locations)).toBe(0);
+    if (otherBoundary) expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(20);
+    expect(reads).toBe(otherBoundary ? 1 : 0);
+  });
 
   it("anchors an uncued element to its first cue", async () => {
     const resolver = targets(cues(), toc("sec", "side"));

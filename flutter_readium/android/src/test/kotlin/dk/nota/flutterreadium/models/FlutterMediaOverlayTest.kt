@@ -82,6 +82,81 @@ internal class FlutterMediaOverlayTest {
     }
 
     @Test
+    fun xhtmlBoundaryPreservesContainerWhenEveryChildUsesDeeperOwner() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+          {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#sub","audio":"ch.mp3#t=5,10"},
+            {"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"}]},
+          {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"}]}""",
+                "ch.xhtml#h",
+                "ch.xhtml#side",
+                "ch.xhtml#sub",
+            )
+        val owners = listOf("ch.xhtml#h", "ch.xhtml#sub", "ch.xhtml#sub", "ch.xhtml#h")
+        assertEquals(owners, overlay.items.map { it.tocHref.toString() })
+        assertEquals(setOf("ch.xhtml#side"), overlay.narrationContainerTocHrefs)
+        val tree =
+            XhtmlIdTree(
+                """<html><body><h2 id="h"/><aside id="side"><h3 id="sub"/><p id="p2"/><p id="p3"/></aside></body></html>""".toByteArray(),
+            )
+        val toc = listOf("h", "side", "sub").map { Link(Href("ch.xhtml#$it")!!, title = it) }
+        val corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, mapOf("ch.xhtml" to tree)).withTocTitles(toc)
+        assertEquals(owners, corrected.items.map { it.tocHref.toString() })
+        assertEquals(overlay.narrationContainerTocHrefs, corrected.narrationContainerTocHrefs)
+        assertEquals(0.0, corrected.findItemFromTocHref(Url("ch.xhtml")!!, "h")?.audioStart)
+        assertEquals(5.0, corrected.findItemFromTocHref(Url("ch.xhtml")!!, "sub")?.audioStart)
+        assertNull(corrected.findItemFromTocHref(Url("ch.xhtml")!!, "side"))
+    }
+
+    @Test
+    fun nestedContainerMetadataKeepsResourceIdentity() {
+        val hrefs = arrayOf("ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#inner", "ch.xhtml#sub", "other.xhtml#h", "other.xhtml#side")
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+          {"text":"ch.xhtml#side","narration":[{"narration":[{"text":"ch.xhtml#inner","narration":[
+            {"text":"ch.xhtml#sub","audio":"ch.mp3#t=5,10"},{"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"}]}]}]},
+          {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"},
+          {"text":"other.xhtml#h","audio":"other.mp3#t=0,5"},{"text":"other.xhtml#p","audio":"other.mp3#t=5,10"}]}""",
+                *hrefs,
+            )
+        val expectedContainers = setOf("ch.xhtml#side", "ch.xhtml#inner")
+        assertEquals(expectedContainers, overlay.narrationContainerTocHrefs)
+        val toc = hrefs.map { Link(Href(it)!!, title = it) }
+        val trees =
+            mapOf(
+                "ch.xhtml" to
+                    XhtmlIdTree(
+                        """<html><body><h2 id="h"/><aside id="side"><section id="inner"><h3 id="sub"/><p id="p2"/></section>
+                          <p id="p3"/></aside></body></html>""".toByteArray(),
+                    ),
+                "other.xhtml" to
+                    XhtmlIdTree(
+                        """<html><body><h2 id="h"/><aside id="side"><p id="p"/></aside></body></html>""".toByteArray(),
+                    ),
+            )
+        val corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, trees).withTocTitles(toc)
+        assertEquals(expectedContainers, corrected.narrationContainerTocHrefs)
+        assertEquals(
+            listOf(
+                "ch.xhtml#h",
+                "ch.xhtml#sub",
+                "ch.xhtml#sub",
+                "ch.xhtml#h",
+                "other.xhtml#h",
+                "other.xhtml#side",
+            ),
+            corrected.items.map {
+                it.tocHref.toString()
+            },
+        )
+        assertNull(corrected.findItemFromTocHref(Url("ch.xhtml")!!, "side"))
+        assertEquals(5.0, corrected.findItemFromTocHref(Url("other.xhtml")!!, "side")?.audioStart)
+        assertEquals(expectedContainers, corrected.copy(items = corrected.items).narrationContainerTocHrefs)
+    }
+
+    @Test
     fun guidedFlatCuesWithLastMatchedHeadingUseTheSameXhtmlBoundaryCorrection() {
         val guided =
             GuidedNavigationDocument.fromJSON(
@@ -99,6 +174,7 @@ internal class FlutterMediaOverlayTest {
                         it.copy(tocHref = Url("ch.xhtml#h"), title = "Detail")
                     },
             )
+        assertEquals(emptySet<String>(), overlay.narrationContainerTocHrefs)
         val tree =
             XhtmlIdTree(
                 """<html><body><section id="s1"><h2 id="h"/><p id="p1"/></section>
