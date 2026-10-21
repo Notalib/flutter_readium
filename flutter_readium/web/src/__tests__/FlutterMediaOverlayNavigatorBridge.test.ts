@@ -160,3 +160,47 @@ it("emits the first cue without waiting for its owner and enriches subsequent ev
     ITEMS.splice(0, ITEMS.length, ...original);
   }
 });
+
+it("guided source with both interfaces prepares owners without enabling Sync Narration seeks", async () => {
+  const original = [...ITEMS];
+  const originalParser = (globalThis as any).DOMParser;
+  const cue = (id: string, start: number): SyncNarrationItem => ({
+    audio: `audio/01.mp3#t=${start},${start + 5}`, text: `chap.xhtml#${id}`, position: 0,
+    audioHref: "audio/01.mp3", audioStart: start, audioEnd: start + 5,
+    textHref: "chap.xhtml", textId: id, tocHref: "chap.xhtml#h", tocTitle: "Detail",
+  });
+  ITEMS.splice(0, ITEMS.length, cue("h", 0), cue("p1", 5), cue("p2", 10));
+  const el = (id: string, ...children: any[]) => ({id, children});
+  (globalThis as any).DOMParser = class {
+    parseFromString() {
+      return {getElementsByTagName: () => [], documentElement: el("", el("s1", el("h"), el("p1")), el("s2", el("p2")))};
+    }
+  };
+  try {
+    const manifest = Manifest.deserialize({
+      metadata: {title: "Boundary test"},
+      links: [{rel: "self", href: "https://example.test/pub/manifest.json"},
+        {href: "guided.json", type: "application/guided-navigation+json"}],
+      readingOrder: [{href: "chap.xhtml", type: "application/xhtml+xml",
+        alternate: [{href: "sync.json", type: "application/vnd.syncnarr+json"}]}],
+      toc: [{href: "chap.xhtml#s1", children: [{href: "chap.xhtml#h"}]}, {href: "chap.xhtml#s2", title: "Second"}],
+    })!;
+    const pub = new ReadiumPublication({manifest} as never);
+    jest.spyOn(pub, "get").mockReturnValue({readAsString: async () => "<html/>"} as never);
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const setNav = jest.fn();
+    const initial = new Locator({href: "chap.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({fragments: ["s2"]})});
+    await initializeGuidedNavigationNavigator(pub, initial, "{}", setNav);
+    const mapper = create.mock.calls[0][4]!;
+    const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
+    expect(mapper({currentTime: 12} as never, audio).stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#s2");
+    expect(create.mock.calls[0][1]?.locations.fragments).toEqual(["t=0"]);
+    const install = create.mock.calls[0][3];
+    // The guided path must not publish the Sync Narration anchor resolver to callers.
+    install({} as never);
+    expect(setNav.mock.calls[0][2]).toBeUndefined();
+  } finally {
+    ITEMS.splice(0, ITEMS.length, ...original);
+    (globalThis as any).DOMParser = originalParser;
+  }
+});

@@ -72,6 +72,16 @@ describe("XhtmlIdTree", () => {
     expect(tree.firstDescendant("side", new Set(["p3"]))).toBeUndefined();
   });
 
+  it("uses enclosing later starts without extending headings or losing caller scope", () => {
+    expect(tree.boundaryOwner("p1", "h", ["sec", "h", "side", "sec2"])).toBeUndefined();
+    expect(tree.boundaryOwner("p2", "h", ["sec", "h", "side", "sec2"])).toBe(2);
+    expect(tree.boundaryOwner("p3", "h", ["sec", "h", "side", "sec2"])).toBe(3);
+    expect(tree.boundaryOwner("p1", "sec", ["sec", "h", "side", "sec2"])).toBeUndefined();
+    expect(tree.boundaryOwner("p2", "missing", ["side"])).toBeUndefined();
+    expect(tree.boundaryOwner("missing", "h", ["side"])).toBeUndefined();
+    expect(tree.boundaryOwner("p1", undefined, ["h", "empty"])).toBeUndefined();
+  });
+
   it("returns undefined for empty or missing elements", () => {
     expect(tree.firstDescendant("empty", new Set(["p3"]))).toBeUndefined();
     expect(tree.firstDescendant("missing", new Set(["p3"]))).toBeUndefined();
@@ -113,6 +123,23 @@ describe("assignUncuedTocOwners", () => {
     items[1].tocHref = "page.xhtml#nested";
     assignUncuedTocOwners(items, toc("sec"), tree);
     expect(items[1].tocHref).toBe("page.xhtml#nested");
+  });
+
+  it("ends a narrated heading at the next XHTML section absent from narration", () => {
+    const items = cues();
+    items.forEach((item) => { item.tocHref = "page.xhtml#h"; });
+    assignUncuedTocOwners(items, toc("sec", "h", "side", "sec2"), tree);
+    expect(items.map((item) => item.tocHref)).toEqual([
+      "page.xhtml#h", "page.xhtml#h", "page.xhtml#side", "page.xhtml#sec2",
+    ]);
+    expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(3);
+  });
+
+  it("preserves the caller owner after a represented nested narration container", () => {
+    const items = [cue("h", 0, "page.xhtml#h"), cue("p2", 1, "page.xhtml#side"), cue("p3", 2, "page.xhtml#h")];
+    const nestedTree = new XhtmlIdTree(el("sec", el("h"), el("side", el("p2"), el("p3"))));
+    assignUncuedTocOwners(items, toc("sec", "h", "side"), nestedTree);
+    expect(items.map((item) => item.tocHref)).toEqual(["page.xhtml#h", "page.xhtml#side", "page.xhtml#h"]);
   });
 
   it("assigns nothing when no entry resolves to a cue", () => {
@@ -210,6 +237,16 @@ describe("UncuedTocTargets", () => {
     expect(anchored.locations.position).toBe(3);
     expect(anchored.locations.otherLocations?.get("custom")).toBe("preserved");
     expect(input.locations.fragments).toEqual(["side"]);
+  });
+
+  it("awaits correction before the first owner-based seek and shares concurrent resource work", async () => {
+    const items = cues();
+    items.forEach((item) => { item.tocHref = "page.xhtml#h"; });
+    const resolver = targets(items, toc("sec", "h", "side", "sec2"));
+    await Promise.all([resolver.prepareOwners(), resolver.prepareOwners()]);
+    expect(items[3].tocHref).toBe("page.xhtml#sec2");
+    expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(3);
+    expect(reads).toBe(1);
   });
 
   it("fills owners once per resource and reads the XHTML once", async () => {

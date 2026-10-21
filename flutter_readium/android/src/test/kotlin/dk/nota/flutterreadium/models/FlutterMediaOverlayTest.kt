@@ -1,5 +1,6 @@
 package dk.nota.flutterreadium.models
 
+import dk.nota.flutterreadium.XhtmlIdTree
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -33,6 +34,81 @@ internal class FlutterMediaOverlayTest {
         href: String,
         vararg fragments: String,
     ) = Locator(Url(href)!!, MediaType.XHTML, locations = Locator.Locations(fragments = fragments.toList()))
+
+    @Test
+    fun xhtmlBoundaryEndsHeadingContinuationBeforeOwnershipLookup() {
+        val overlay =
+            parse(
+                """{"narration":[
+          {"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+          {"text":"ch.xhtml#p1","audio":"ch.mp3#t=5,10"},
+          {"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"},
+          {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"}
+        ]}""",
+                "ch.xhtml#s1",
+                "ch.xhtml#h",
+                "ch.xhtml#side",
+                "ch.xhtml#s2",
+            )
+        val tree =
+            XhtmlIdTree(
+                """<html><body><section id="s1"><h2 id="h"/><p id="p1"/>
+          <aside id="side"><p id="p2"/></aside></section><section id="s2"><p id="p3"/></section></body></html>""".toByteArray(),
+            )
+        val toc = listOf("s1", "h", "side", "s2").map { Link(Href("ch.xhtml#$it")!!, title = it) }
+        val corrected = overlay.withTocBoundaries(toc, mapOf("ch.xhtml" to tree))
+        assertEquals(listOf("ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#s2"), corrected.items.map { it.tocHref.toString() })
+        assertEquals(15.0, corrected.findItemFromTocHref(Url("ch.xhtml")!!, "s2")?.audioStart)
+        assertEquals(0.0, corrected.findItemFromTocHref(Url("ch.xhtml")!!, "h")?.audioStart)
+        assertEquals(overlay, overlay.withTocBoundaries(toc, emptyMap()))
+    }
+
+    @Test
+    fun xhtmlBoundaryPreservesRepresentedNestedContainerCallerScope() {
+        val overlay =
+            parse(
+                """{"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+          {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#p2","audio":"ch.mp3#t=5,10"}]},
+          {"text":"ch.xhtml#p3","audio":"ch.mp3#t=10,15"}]}""",
+                "ch.xhtml#h",
+                "ch.xhtml#side",
+            )
+        val tree = XhtmlIdTree("""<html><body><h2 id="h"/><aside id="side"><p id="p2"/><p id="p3"/></aside></body></html>""".toByteArray())
+        val toc = listOf("h", "side").map { Link(Href("ch.xhtml#$it")!!) }
+        assertEquals(
+            listOf("ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#h"),
+            overlay.withTocBoundaries(toc, mapOf("ch.xhtml" to tree)).items.map { it.tocHref.toString() },
+        )
+    }
+
+    @Test
+    fun guidedFlatCuesWithLastMatchedHeadingUseTheSameXhtmlBoundaryCorrection() {
+        val guided =
+            GuidedNavigationDocument.fromJSON(
+                JSONObject(
+                    """{"guided":[
+          {"textref":"ch.xhtml#h","audioref":"ch.mp3#t=0,5"},
+          {"textref":"ch.xhtml#p1","audioref":"ch.mp3#t=5,10"},
+          {"textref":"ch.xhtml#p2","audioref":"ch.mp3#t=10,15"}]}""",
+                ),
+            )!!
+        val overlay =
+            guided.toMediaOverlays().single().copy(
+                items =
+                    guided.toMediaOverlays().single().items.map {
+                        it.copy(tocHref = Url("ch.xhtml#h"), title = "Detail")
+                    },
+            )
+        val tree =
+            XhtmlIdTree(
+                """<html><body><section id="s1"><h2 id="h"/><p id="p1"/></section>
+          <section id="s2"><p id="p2"/></section></body></html>""".toByteArray(),
+            )
+        val toc = listOf("s1", "h", "s2").map { Link(Href("ch.xhtml#$it")!!) }
+        val corrected = overlay.withTocBoundaries(toc, mapOf("ch.xhtml" to tree))
+        assertEquals(listOf("ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#s2"), corrected.items.map { it.tocHref.toString() })
+        assertEquals(10.0, corrected.findItemFromTocHref(Url("ch.xhtml")!!, "s2")?.audioStart)
+    }
 
     @Test
     fun audioLessParentOwnsNarratedChildren() {

@@ -121,6 +121,42 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
     XCTAssertEqual(overlay.items.map { $0.tocHref }, ["ch.xhtml#heading", "ch.xhtml#heading"])
   }
 
+  func testXhtmlBoundaryEndsHeadingContinuationBeforeOwnershipLookup() {
+    let overlay = parse("""
+      {"narration":[
+        {"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#p1","audio":"ch.mp3#t=5,10"},
+        {"text":"ch.xhtml#p2","audio":"ch.mp3#t=10,15"},
+        {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"}
+      ]}
+      """, toc: ["ch.xhtml#s1", "ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#s2"])
+    let tree = XhtmlIdTree(xhtml: Data("""
+      <html><body><section id="s1"><h2 id="h"/><p id="p1"/>
+      <aside id="side"><p id="p2"/></aside></section><section id="s2"><p id="p3"/></section></body></html>
+      """.utf8))
+    let toc = ["s1", "h", "side", "s2"].map { (id: String) in Link(href: "ch.xhtml#\(id)", title: id) }
+    let corrected = overlay.withTocBoundaries(toc, trees: ["ch.xhtml": tree])
+    XCTAssertEqual(corrected.items.map { $0.tocHref }, ["ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#s2"])
+    XCTAssertEqual(corrected.items.last?.asTextLocator?.locations.otherLocations["tocHref"], .string("ch.xhtml#s2"))
+    XCTAssertEqual(corrected.itemFromTocHref("s2", inHref: "ch.xhtml")?.audioStart, 15)
+    XCTAssertEqual(corrected.itemFromTocHref("h", inHref: "ch.xhtml")?.audioStart, 0)
+    XCTAssertEqual(overlay.withTocBoundaries(toc, trees: [:]).items.map { $0.tocHref }, overlay.items.map { $0.tocHref })
+  }
+
+  func testXhtmlBoundaryPreservesRepresentedNestedContainerCallerScope() {
+    let overlay = parse("""
+      {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
+        {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#p2","audio":"ch.mp3#t=5,10"}]},
+        {"text":"ch.xhtml#p3","audio":"ch.mp3#t=10,15"}]}
+      """, toc: ["ch.xhtml#h", "ch.xhtml#side"])
+    let tree = XhtmlIdTree(xhtml: Data("""
+      <html><body><h2 id="h"/><aside id="side"><p id="p2"/><p id="p3"/></aside></body></html>
+      """.utf8))
+    let toc = ["h", "side"].map { (id: String) in Link(href: "ch.xhtml#\(id)") }
+    XCTAssertEqual(overlay.withTocBoundaries(toc, trees: ["ch.xhtml": tree]).items.map { $0.tocHref },
+      ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#h"])
+  }
+
   func testBoundaryPageUsesNextResourcesFileOnlyToc() {
     let overlay = parse("""
       {"narration":[{"text":"one.xhtml","narration":[
@@ -300,5 +336,49 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
       let after = Locator(href: URL(string: href)!, mediaType: .xhtml, locations: .init(fragments: ["#p1", "t=20"]))
       XCTAssertNil(overlay.itemFromLocator(after, allowResourceFallback: true))
     }
+  }
+}
+
+private struct BoundaryFixtureContainer: Container {
+  let files: [String: String]
+  var sourceURL: AbsoluteURL? { nil }
+  var entries: Set<AnyURL> { Set(files.keys.compactMap { AnyURL(string: $0) }) }
+  subscript(url: any URLConvertible) -> Resource? {
+    files[url.anyURL.string].map { DataResource(data: Data($0.utf8)) }
+  }
+}
+
+@MainActor
+final class GuidedBoundaryInitializationTests: XCTestCase {
+  func testGuidedPriorityWithBothInterfacesCorrectsOwnersBeforeNavigation() async throws {
+    let container = BoundaryFixtureContainer(files: [
+      "guided.json": """
+        {"guided":[{"textref":"ch.xhtml#h","audioref":"ch.mp3#t=0,5"},
+          {"textref":"ch.xhtml#p1","audioref":"ch.mp3#t=5,10"},
+          {"textref":"ch.xhtml#p2","audioref":"ch.mp3#t=10,15"}]}
+        """,
+      "sync.json": #"{"narration":[{"text":"ch.xhtml#sync-only","audio":"ch.mp3#t=0,15"}]}"#,
+      "ch.xhtml": """
+        <html><body><section id="s1"><h2 id="h"/><p id="p1"/></section>
+          <section id="s2"><p id="p2"/></section></body></html>
+        """,
+    ])
+    let publication = Publication(manifest: Manifest(
+      metadata: Metadata(title: "Boundary test"),
+      links: [Link(href: "guided.json", mediaType: MediaType("application/guided-navigation+json")!)],
+      readingOrder: [Link(href: "ch.xhtml", mediaType: .xhtml, duration: 15,
+        alternates: [Link(href: "sync.json", mediaType: MediaType("application/vnd.syncnarr+json")!)])],
+      tableOfContents: [Link(href: "ch.xhtml#s1", title: "First", children: [Link(href: "ch.xhtml#h", title: "Detail")]),
+        Link(href: "ch.xhtml#s2", title: "Second")]), container: container)
+    XCTAssertTrue(publication.containsMediaOverlays)
+    XCTAssertTrue(publication.containsGuidedNavigationMediaOverlays)
+    let loaded = await publication.getSyncNarrationMediaOverlays()
+    let overlays = try XCTUnwrap(loaded)
+    XCTAssertEqual(overlays.flatMap(\.items).map(\.textId), ["h", "p1", "p2"])
+    XCTAssertEqual(overlays.flatMap(\.items).last?.tocHref, "ch.xhtml#h")
+    let navigator = FlutterMediaOverlayNavigator(publication: publication, preferences: FlutterAudioPreferences(), initialLocator: nil)
+    let corrected = await navigator.resolveTocBoundaries(overlays)
+    XCTAssertEqual(corrected.flatMap(\.items).map(\.tocHref), ["ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#s2"])
+    XCTAssertEqual(corrected.first?.itemFromTocHref("s2", inHref: "ch.xhtml")?.audioStart, 10)
   }
 }

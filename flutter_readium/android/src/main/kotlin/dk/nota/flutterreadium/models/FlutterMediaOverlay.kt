@@ -2,6 +2,7 @@ package dk.nota.flutterreadium.models
 
 import android.os.Parcelable
 import dk.nota.flutterreadium.PluginLog
+import dk.nota.flutterreadium.XhtmlIdTree
 import dk.nota.flutterreadium.getTextId
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.toSeconds
@@ -128,6 +129,34 @@ data class FlutterMediaOverlay(
             val tocHref = item.tocHref ?: return@firstOrNull false
             tocHref.fragment == textId && href.isEquivalent(tocHref.removeFragment())
         }
+    }
+
+    fun withTocBoundaries(
+        toc: List<Link>,
+        trees: Map<String, XhtmlIdTree>,
+    ): FlutterMediaOverlay {
+        // Represented narration containers retain their caller scope when traversal returns.
+        val represented = items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet()
+        val boundaries = toc.filter { it.href.resolve().toString() !in represented }
+        return copy(
+            items =
+                items.map { item ->
+                    val owner = item.tocHref ?: return@map item
+                    if (owner.removeFragment().isEquivalent(Url.invoke(item.textFile)) != true) return@map item
+                    val tree = trees[item.textFile] ?: return@map item
+                    val links =
+                        boundaries.filter {
+                            it.href
+                                .resolve()
+                                .removeFragment()
+                                .isEquivalent(Url.invoke(item.textFile))
+                        }
+                    val index =
+                        tree.boundaryOwner(item.textId, owner.fragment, links.map { it.href.resolve().fragment ?: "" })
+                            ?: return@map item
+                    item.copy(title = links[index].title ?: "", tocHref = links[index].href.resolve())
+                },
+        )
     }
 
     fun withTocTitles(toc: List<Link>): FlutterMediaOverlay =

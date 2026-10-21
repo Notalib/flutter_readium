@@ -124,10 +124,10 @@ async function _initializeFromItems(
   // three consumers — the mapper, textLocatorToAudioLocator (initial seek /
   // goToLocator), and the setNav callback — must see the same absolute hrefs.
   const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
-  const uncuedTocTargets =
-    sourceLabel === "SyncNarration"
-      ? new UncuedTocTargets(publication, resolvedItems, flattenToc(publication))
-      : undefined;
+  const ownerTargets = new UncuedTocTargets(publication, resolvedItems, flattenToc(publication));
+  await ownerTargets.prepareOwners();
+  // Guided Navigation shares owner correction, while retaining its existing seek policy.
+  const uncuedTocTargets = sourceLabel === "SyncNarration" ? ownerTargets : undefined;
 
   const anchoredInitialLocator = initialLocator && uncuedTocTargets
     ? await uncuedTocTargets.anchor(initialLocator)

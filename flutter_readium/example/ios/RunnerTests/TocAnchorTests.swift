@@ -20,6 +20,15 @@ final class TocAnchorTests: XCTestCase {
 
   private let content: Set<String> = ["h1", "p1", "p2", "p3"]
 
+  func testBoundaryPreservesHeadingContinuationAndCallerScope() {
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: "h1", tocIds: ["s1", "h1", "a1"]))
+    XCTAssertEqual(tree.boundaryOwner(textId: "p2", ownerId: "h1", tocIds: ["s1", "h1", "a1"]), 2)
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: "s1", tocIds: ["s1", "h1", "a1"]))
+    XCTAssertNil(tree.boundaryOwner(textId: "p2", ownerId: "missing", tocIds: ["a1"]))
+    XCTAssertNil(tree.boundaryOwner(textId: "missing", ownerId: "h1", tocIds: ["a1"]))
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: nil, tocIds: ["h1", "empty"]))
+  }
+
   func testContainerMapsToFirstContentDescendant() {
     XCTAssertEqual(tree.firstDescendant(of: "s1", in: content), "h1")
     XCTAssertEqual(tree.firstDescendant(of: "a1", in: content), "p2")

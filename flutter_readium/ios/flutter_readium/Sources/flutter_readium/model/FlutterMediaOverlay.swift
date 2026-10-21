@@ -41,6 +41,23 @@ struct FlutterMediaOverlay {
     items.first(where: { $0.tocHref == "\(href)#\(textId)" })
   }
 
+  func withTocBoundaries(_ toc: [Link], trees: [String: XhtmlIdTree]) -> FlutterMediaOverlay {
+    // Represented narration containers retain their caller scope when traversal returns.
+    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } })
+    let boundaries = toc.filter { !represented.contains($0.href) }
+    let corrected = items.map { item -> FlutterMediaOverlayItem in
+      guard let owner = item.tocHref,
+            owner.components(separatedBy: "#").first == item.textFile,
+            let tree = trees[item.textFile] else { return item }
+      let links = boundaries.filter { $0.href.components(separatedBy: "#").first == item.textFile }
+      let ownerId = owner.components(separatedBy: "#").dropFirst().first
+      guard let index = tree.boundaryOwner(textId: item.textId, ownerId: ownerId,
+        tocIds: links.map { $0.href.components(separatedBy: "#").dropFirst().first ?? "" }) else { return item }
+      return item.copyWith(tocTitle: links[index].title, tocHref: links[index].href)
+    }
+    return FlutterMediaOverlay(items: corrected, readingOrderDuration: readingOrderDuration)
+  }
+
   func withTocTitles(_ toc: [Link]) -> FlutterMediaOverlay {
     let enriched = items.map { item -> FlutterMediaOverlayItem in
       guard let match = toc.first(where: { $0.href == item.tocHref }) else { return item }

@@ -42,12 +42,14 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     
     let mediaOverlays = await publication.getSyncNarrationMediaOverlays()
     
-    guard let mediaOverlays = mediaOverlays else {
+    guard var mediaOverlays = mediaOverlays else {
       Log.navigator.error("Failed to get mediaOverlays for sync-narration book." +
                           "isGuided? \(self.publication.containsGuidedNavigationMediaOverlays)")
       return
     }
     
+    mediaOverlays = await resolveTocBoundaries(mediaOverlays)
+
     // Skip overlays with no items — a `narration` block with no valid audio/text pairs
     // yields an empty overlay, and force-unwrapping `.first` here would trap.
     let audioReadingOrder: [Link] = mediaOverlays.compactMap { narr in
@@ -84,6 +86,23 @@ public class FlutterMediaOverlayNavigator : FlutterAudioNavigator
     try await super.initNavigator()
   }
   
+  internal func resolveTocBoundaries(_ overlays: [FlutterMediaOverlay]) async -> [FlutterMediaOverlay] {
+    guard publication.containsSyncNarration else { return overlays }
+    let toc = publication.getFlattenedToC()
+    var trees: [String: XhtmlIdTree] = [:]
+    let items = overlays.flatMap(\.items)
+    let represented = Set(items.flatMap { [$0.text, $0.tocHref].compactMap { $0 } })
+    let boundaries = toc.filter { !represented.contains($0.href) }
+    for href in Set(items.filter { $0.tocHref != nil }.map(\.textFile)).sorted() {
+      if boundaries.contains(where: { $0.href.hasPrefix(href + "#") }),
+         let tree = await xhtmlIdTree(href: href) {
+        trees[href] = tree
+      }
+    }
+    // Resolve ownership before initial mapping and owner-based navigation use the items.
+    return overlays.map { $0.withTocBoundaries(boundaries, trees: trees) }
+  }
+
   /// Saves the media-overlays for later position matching, and maps the pending initial locator.
   internal func applyMediaOverlays(_ mediaOverlays: [FlutterMediaOverlay]) {
     self.mediaOverlays = mediaOverlays

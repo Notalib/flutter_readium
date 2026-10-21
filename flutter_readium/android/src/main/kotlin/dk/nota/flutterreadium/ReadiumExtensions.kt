@@ -399,7 +399,28 @@ suspend fun Publication.getMediaOverlays(): List<FlutterMediaOverlay?>? {
                 }.awaitAll()
         }
 
-    return parsed.map { it?.withTocTitles(toc) }
+    return resolveTocBoundaries(parsed)
+}
+
+private suspend fun Publication.resolveTocBoundaries(overlays: List<FlutterMediaOverlay?>): List<FlutterMediaOverlay?> {
+    val toc = tableOfContents.flattenChildren()
+    val items = overlays.flatMap { it?.items.orEmpty() }
+    val trees = mutableMapOf<String, XhtmlIdTree>()
+    val represented = items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet()
+    val boundaries = toc.filter { it.href.resolve().toString() !in represented }
+    for (href in items.filter { it.tocHref != null }.map { it.textFile }.distinct()) {
+        if (boundaries.any {
+                it.href
+                    .resolve()
+                    .removeFragment()
+                    .isEquivalent(Url.invoke(href)) && it.href.resolve().fragment != null
+            }
+        ) {
+            Url.invoke(href)?.let { xhtmlIdTree(it) }?.let { trees[href] = it }
+        }
+    }
+    // Correct ownership before initial mapping and owner-based navigation see the items.
+    return overlays.map { it?.withTocBoundaries(boundaries, trees)?.withTocTitles(toc) }
 }
 
 /**
@@ -449,7 +470,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                     },
                 )
             }
-        return enrichOverlaysWithToc(rawOverlays).filterNotNull()
+        return resolveTocBoundaries(enrichOverlaysWithToc(rawOverlays)).filterNotNull()
     }
 
     // Strategy 2: per-item alternates in reading order.
@@ -512,7 +533,7 @@ suspend fun Publication.getGuidedNavigationMediaOverlays(): List<FlutterMediaOve
                 }.awaitAll()
         }
 
-    return enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() }).filterNotNull()
+    return resolveTocBoundaries(enrichOverlaysWithToc(parsed.flatMap { it ?: emptyList() })).filterNotNull()
 }
 
 /**

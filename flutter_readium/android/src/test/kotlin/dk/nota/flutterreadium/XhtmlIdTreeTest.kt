@@ -26,6 +26,18 @@ internal class XhtmlIdTreeTest {
         )
 
     @Test
+    fun boundaryPreservesHeadingContinuationAndCallerScope() {
+        val tree = tree("""<section id="s1"><h2 id="h1"/><p id="p1"/><aside id="a1"><p id="p2"/></aside></section>""")
+        val ids = listOf("s1", "h1", "a1")
+        assertNull(tree.boundaryOwner("p1", "h1", ids))
+        assertEquals(2, tree.boundaryOwner("p2", "h1", ids))
+        assertNull(tree.boundaryOwner("p1", "s1", ids))
+        assertNull(tree.boundaryOwner("p2", "missing", ids))
+        assertNull(tree.boundaryOwner("missing", "h1", ids))
+        assertNull(tree.boundaryOwner("p1", null, listOf("h1")))
+    }
+
+    @Test
     fun containerMapsToItsFirstContentDescendant() {
         val tree =
             tree(
