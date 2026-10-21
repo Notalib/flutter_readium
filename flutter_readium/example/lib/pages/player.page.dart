@@ -121,6 +121,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       // "EPUB Settings" sheet (typography/layout/theme) is a poor fit, so
       // hide the visual settings icon for them.
       final isDivina = pubState.publication?.conformsToReadiumDivina ?? false;
+      final isPdf = pubState.publication?.conformsToReadiumPDF ?? false;
 
       return PopScope(
         canPop: true,
@@ -149,7 +150,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
                 pubState.error != null ? 'Error' : pubState.publication?.metadata.title ?? 'Unknown',
               ),
             ),
-            actions: _buildActionButtons(isAudioBook, isDivina),
+            actions: _buildActionButtons(isAudioBook, isDivina, isPdf),
           ),
           body: Stack(
             children: [
@@ -205,7 +206,7 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
     },
   );
 
-  List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina) => <Widget>[
+  List<Widget> _buildActionButtons(final bool isAudioBook, final bool isDivina, final bool isPdf) => <Widget>[
     if (!isAudioBook && !isDivina)
       IconButton(
         icon: const Icon(Icons.format_paint),
@@ -266,6 +267,22 @@ class _PlayerPageState extends State<PlayerPage> with RestorationMixin {
       },
       tooltip: 'Search in publication contents',
     ),
+    // Highlights are decorations on text content, which PDF and DiViNa don't support here.
+    if (!isAudioBook && !isDivina && !isPdf)
+      IconButton(
+        key: const ValueKey('highlights_button'),
+        icon: const Icon(Icons.bookmarks),
+        onPressed: () async {
+          final result = await Navigator.pushNamed<dynamic>(context, '/highlights');
+          if (!context.mounted) return;
+          if (result is Locator) {
+            await _deferWebGoToAfterRoutePop();
+            if (!context.mounted) return;
+            context.read<PlayerControlsBloc>().add(GoToLocator(result));
+          }
+        },
+        tooltip: 'Open highlights',
+      ),
     IconButton(
       icon: const Icon(Icons.toc),
       onPressed: () async {
