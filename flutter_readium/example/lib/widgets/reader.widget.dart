@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_readium/flutter_readium.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../state/index.dart';
 import 'full_screen_image_view.dart';
+import 'highlight_sheet.widget.dart';
 
 final _customFontFamilies = [
   ReaderFontFamily(
@@ -86,16 +88,7 @@ class ReaderWidget extends StatelessWidget {
                 onTextSelected: (event) {
                   debugPrint('[Selection] text="${event.selectedText}"');
                 },
-                onSelectionAction: (event) {
-                  debugPrint(
-                    '[SelectionAction] action=${event.actionId} text="${event.selectedText}"',
-                  );
-                  if (event.actionId == 'highlight') {
-                    _applyHighlight(context, event);
-                  } else if (event.actionId == 'note') {
-                    _showNoteDialog(context, event);
-                  }
-                },
+                onSelectionAction: (event) => handleSelectionAction(context, event),
                 onImageTapped: (event) {
                   debugPrint('[ImageTap] href=${event.href}');
                   Navigator.of(context).push(
@@ -104,19 +97,7 @@ class ReaderWidget extends StatelessWidget {
                     ),
                   );
                 },
-                onDecorationInteraction: (event) {
-                  debugPrint(
-                    '[DecorationInteraction] id=${event.decorationId} group=${event.group}',
-                  );
-                  if (event.decorationId.startsWith('highlight')) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Tapped highlight: ${event.decorationId}'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                },
+                onDecorationInteraction: (event) => handleDecorationInteraction(context, event),
               ),
             ],
           ),
@@ -129,40 +110,75 @@ class ReaderWidget extends StatelessWidget {
       );
     },
   );
+}
 
-  void _applyHighlight(BuildContext context, SelectionActionEvent event) {
-    final decoration = ReaderDecoration(
-      id: 'highlight_${DateTime.now().millisecondsSinceEpoch}',
-      locator: event.locator,
-      style: const ReaderDecorationStyle(
-        style: DecorationStyle.highlight,
-        tint: Color(0x80FFFF00),
-      ),
-    );
-    context.read<PublicationBloc>().add(AddHighlight(decoration));
-    debugPrint('[Highlight] Applied highlight decoration');
+/// Handles a selection-menu action. Top-level so the agent extensions can call it without the native view.
+/// Returns the new highlight's ID for `highlight`, null otherwise.
+String? handleSelectionAction(BuildContext context, SelectionActionEvent event) {
+  debugPrint('[SelectionAction] action=${event.actionId} text="${event.selectedText}"');
+  if (event.actionId == 'highlight') {
+    return _applyHighlight(context, event).decoration.id;
+  } else if (event.actionId == 'note') {
+    _showNoteDialog(context, event);
   }
+  return null;
+}
 
-  void _showNoteDialog(BuildContext context, SelectionActionEvent event) {
-    showDialog(
+/// Opens the highlight sheet for a tapped highlight. Returns whether the sheet was opened.
+bool handleDecorationInteraction(BuildContext context, DecorationInteractionEvent event) {
+  debugPrint('[DecorationInteraction] id=${event.decorationId} group=${event.group}');
+  final isKnownHighlight =
+      event.group == highlightsGroup &&
+      context.read<PublicationBloc>().state.highlights.containsKey(event.decorationId);
+  if (isKnownHighlight) {
+    // PointerInterceptor lets the sheet receive taps over the web platform view.
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Note'),
-        content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _applyHighlight(context, event);
-            },
-            child: const Text('Save & Highlight'),
-          ),
-        ],
-      ),
+      builder: (_) => PointerInterceptor(child: HighlightSheet(highlightId: event.decorationId)),
     );
   }
+  return isKnownHighlight;
+}
+
+// IDs only need to be unique within one app run.
+var _nextHighlightId = 0;
+
+Highlight _applyHighlight(BuildContext context, SelectionActionEvent event) {
+  final highlight = Highlight(
+    decoration: ReaderDecoration(
+      id: 'highlight_${_nextHighlightId++}',
+      locator: event.locator,
+      style: ReaderDecorationStyle(
+        style: DecorationStyle.highlight,
+        tint: highlightColors['yellow'],
+      ),
+    ),
+    text: event.selectedText ?? event.locator.text?.highlight,
+  );
+  context.read<PublicationBloc>().add(AddHighlight(highlight));
+  debugPrint('[Highlight] Applied highlight decoration');
+  return highlight;
+}
+
+void _showNoteDialog(BuildContext context, SelectionActionEvent event) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Add Note'),
+      content: Text('Selected: "${event.selectedText ?? '(no text)'}"'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(ctx);
+            _applyHighlight(context, event);
+          },
+          child: const Text('Save & Highlight'),
+        ),
+      ],
+    ),
+  );
 }

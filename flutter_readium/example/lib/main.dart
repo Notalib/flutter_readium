@@ -84,6 +84,7 @@ class _MyAppState extends State<MyApp> with RestorationMixin {
         '/toc': (context) => TableOfContentsPage(),
         '/pagelist': (context) => PageListPage(),
         '/search': (context) => SearchPage(),
+        '/highlights': (context) => HighlightsPage(),
       },
     );
   }
