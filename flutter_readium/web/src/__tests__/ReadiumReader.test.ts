@@ -448,11 +448,14 @@ describe("audioEnable restore sequencing", () => {
 
 
 describe("active Sync Narration navigation", () => {
+  const guidedNavigationLink = new Link({href: "guided.json", type: "application/guided-navigation+json"});
+
   function session(bothFormats = false) {
     const reader = new ReadiumReader();
     const publication = { readingOrder: new Links([new Link({href: "chap.xhtml", alternates: new Links([
       new Link({href: "overlay.json", type: "application/vnd.readium.narration+json"}),
-    ])})]), manifest: {links: new Links(bothFormats ? [new Link({href: "guided.json", type: "application/guided-navigation+json"})] : [])} };
+    ])})]), allLinks: [new Link({href: "chap.mp3", type: "audio/mpeg"})],
+      manifest: {links: new Links(bothFormats ? [guidedNavigationLink] : [])} };
     const currentLocator = new Locator({href: "chap.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
     const nav = {currentLocator, currentTime: 12, isPlaying: true, go: jest.fn(), play: jest.fn()};
     const seek = jest.spyOn(reader as any, "_seekAudioAndResume").mockResolvedValue(undefined);

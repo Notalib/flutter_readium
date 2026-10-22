@@ -6,7 +6,7 @@
  */
 
 import { Link, Links, Locator, LocatorLocations } from "@readium/shared";
-import { __testing__, parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
+import { __testing__, detectGuidedNavigation, parseGuidedNavigation } from "../mediaoverlay/guidedNavigation";
 import {
   combinedLocatorForItem,
   enrichItemsWithToc,
@@ -60,6 +60,50 @@ describe("guided-navigation reading-order position", () => {
 
     expect(item.position).toBe(1);
     expect(locator.locations.position).toBe(2);
+  });
+});
+
+describe("detectGuidedNavigation", () => {
+  const chapter = new Link({ href: "chapter1.xhtml", type: "application/xhtml+xml" });
+  const audio = new Link({ href: "chapter1.mp3", type: "audio/mpeg" });
+
+  function guidedNavigationEbook(readingOrder: Link[], resources: Link[]): ReadiumPublication {
+    return {
+      readingOrder: { items: readingOrder },
+      allLinks: [...readingOrder, ...resources],
+      manifest: {
+        links: new Links([
+          new Link({
+            href: "~readium/guided-navigation.json{?ref}",
+            templated: true,
+            type: "application/guided-navigation+json",
+          }),
+        ]),
+      },
+    } as unknown as ReadiumPublication;
+  }
+
+  it("detects a guided navigation link with audio resources", () => {
+    const publication = guidedNavigationEbook([chapter], [audio]);
+
+    expect(detectGuidedNavigation(publication)).toBe(true);
+  });
+
+  it("detects a guided navigation link with audio as a reading-order alternate", () => {
+    const chapterWithAudio = new Link({
+      href: "chapter1.xhtml",
+      type: "application/xhtml+xml",
+      alternates: new Links([audio]),
+    });
+    const publication = guidedNavigationEbook([chapterWithAudio], []);
+
+    expect(detectGuidedNavigation(publication)).toBe(true);
+  });
+
+  it("ignores a guided navigation link without audio resources", () => {
+    const publication = guidedNavigationEbook([chapter], [new Link({ href: "page01.jpg", type: "image/jpeg" })]);
+
+    expect(detectGuidedNavigation(publication)).toBe(false);
   });
 });
 
