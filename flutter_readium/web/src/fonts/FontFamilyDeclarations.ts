@@ -47,13 +47,29 @@ function cssString(value: string): string {
   return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
+/** Directory that Flutter web serves app assets from. */
+export function flutterAssetsUrl(baseUrl: string): string {
+  return new URL("assets/", baseUrl).href;
+}
+
+/**
+ * The EPUB frame CSP only allows fonts from the publication's origin, so the app's asset
+ * directory must be listed for the injected `@font-face` rules to load.
+ */
+export function fontFaceAllowedDomains(
+  declarations: FontFamilyDeclaration[],
+  baseUrl: string
+): string[] {
+  return declarations.length === 0 ? [] : [flutterAssetsUrl(baseUrl)];
+}
+
 export function fontFaceCss(
   declarations: FontFamilyDeclaration[],
   baseUrl: string
 ): string {
   return declarations
     .flatMap((family) => family.faces.map((face) => {
-      const assetUrl = new URL(`assets/${face.asset}`, baseUrl).href;
+      const assetUrl = new URL(face.asset, flutterAssetsUrl(baseUrl)).href;
       return `@font-face { font-family: ${cssString(family.name)}; src: url(${cssString(assetUrl)}); font-style: ${face.style}; font-weight: ${face.weight}; }`;
     }))
     .join("\n");
