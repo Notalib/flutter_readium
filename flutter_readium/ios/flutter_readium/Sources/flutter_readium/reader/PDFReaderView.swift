@@ -67,7 +67,11 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
     _view = UIView()
     super.init()
 
-    channel.setMethodCallHandler(onMethodCall)
+    // Weak capture for the same reason as in EPUBReaderView: a strong one leaks the view and can deadlock.
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self else { return result(FlutterMethodNotImplemented) }
+      self.onMethodCall(call: call, result: result)
+    }
     pdfViewController.delegate = self
 
     let child: UIView = pdfViewController.view

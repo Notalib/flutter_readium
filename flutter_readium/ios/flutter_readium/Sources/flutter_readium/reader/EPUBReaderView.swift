@@ -214,7 +214,12 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
     }
 
     containerView.readerView = self
-    channel.setMethodCallHandler(onMethodCall)
+    // Capture weakly: the engine owns this handler, so a strong capture leaks the view. Its deinit then runs
+    // when a same-named channel replaces the handler (view IDs restart after a hot restart) and deadlocks.
+    channel.setMethodCallHandler { [weak self] call, result in
+      guard let self else { return result(FlutterMethodNotImplemented) }
+      self.onMethodCall(call: call, result: result)
+    }
     readiumViewController.delegate = self
 
     let child: UIView = readiumViewController.view
