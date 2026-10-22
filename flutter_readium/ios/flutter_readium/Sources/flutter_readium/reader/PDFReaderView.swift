@@ -22,9 +22,15 @@ public class PDFReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, PD
 
   deinit {
     Log.reader.info("deinit PDFReaderView")
-    pdfViewController.view.removeFromSuperview()
-    pdfViewController.delegate = nil
-    channel.setMethodCallHandler(nil)
+    // Teardown must run on the main thread, as in EPUBReaderView.
+    let (channel, controller, view) = (channel, pdfViewController, _view)
+    let tearDown = {
+      controller.view.removeFromSuperview()
+      controller.delegate = nil
+      channel.setMethodCallHandler(nil)
+      withExtendedLifetime(view) {}
+    }
+    if Thread.isMainThread { tearDown() } else { DispatchQueue.main.async(execute: tearDown) }
     FlutterReadiumPlugin.instance?.clearCurrentReaderView(ifIs: self)
   }
 
