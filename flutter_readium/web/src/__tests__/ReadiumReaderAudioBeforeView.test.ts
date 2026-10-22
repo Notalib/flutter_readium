@@ -163,7 +163,7 @@ describe("audio before the reader view mounts", () => {
       fetchAndCache: jest.fn().mockResolvedValue({ publication, manifestJson: "{}" }),
     };
 
-    await reader.getPublication("https://example.test/book/manifest.json");
+    await reader.loadAsCurrentPublication("https://example.test/book/manifest.json");
 
     expect((reader as any)._hasGuidedNavigation).toBe(true);
     expect((reader as any)._nav).toBeUndefined();
@@ -253,7 +253,7 @@ describe("audio before the reader view mounts", () => {
   });
 
   it("stops narration when the open is for another book that loaded over the narrating one", async () => {
-    // getPublication assigns _publication before the reader view mounts, so publication
+    // loadAsCurrentPublication assigns _publication before the reader view mounts, so publication
     // identity alone cannot tell whether the running navigator belongs to this open.
     const reader = new ReadiumReader();
     const narrating = guidedNavPublication();
@@ -262,7 +262,7 @@ describe("audio before the reader view mounts", () => {
     (reader as any)._audioNav = audioNav;
     (reader as any)._audioNavPublication = narrating;
     (reader as any)._syncItems = [{ audio: "a.mp3", text: "chapter1.xhtml#p1" }];
-    // What getPublication leaves behind: a fresh instance already installed.
+    // What loadAsCurrentPublication leaves behind: a fresh instance already installed.
     (reader as any)._publication = opening;
     (reader as any)._pubManager = { getOrFetch: jest.fn().mockResolvedValue(opening) };
     (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
@@ -278,7 +278,7 @@ describe("audio before the reader view mounts", () => {
   });
 
   it("discards a navigator built for another book instead of replaying it", async () => {
-    // The audio-first flow's remaining hole: A narrates with no view, getPublication(B)
+    // The audio-first flow's remaining hole: A narrates with no view, loadAsCurrentPublication(B)
     // advances _publication, and audioEnable arrives before B's view mounts and runs
     // openPublication's teardown. The reuse branch must not play A "as" B.
     const reader = new ReadiumReader();
@@ -357,7 +357,7 @@ describe("audio before the reader view mounts", () => {
     expect((reader as any)._audioNavPublication).toBe(publication);
   });
 
-  it("enables audio straight after getPublication, with no open in between", async () => {
+  it("enables audio straight after loadAsCurrentPublication, with no open in between", async () => {
     const reader = new ReadiumReader();
     const publication = guidedNavPublication();
     (reader as any)._pubManager = {
@@ -369,8 +369,8 @@ describe("audio before the reader view mounts", () => {
     );
 
     // The sequence every client follows: await openPublication, then audioEnable.
-    // getPublication is the part of that which the JS side sees.
-    await reader.getPublication("https://example.test/book/manifest.json");
+    // loadAsCurrentPublication is the part of that which the JS side sees.
+    await reader.loadAsCurrentPublication("https://example.test/book/manifest.json");
     await reader.audioEnable('{"speed":1.0}', undefined);
 
     expect(initializeGuidedNavigationNavigator).toHaveBeenCalledTimes(1);
@@ -455,5 +455,95 @@ describe("audio before the reader view mounts", () => {
 
     expect(comicNav.go).toHaveBeenCalledTimes(1);
     expect((comicNav.go.mock.calls[0][0] as Locator).href).toBe("image0002.jpg");
+  });
+});
+
+describe("loading the publication that is already open", () => {
+  const url = "https://example.test/book/manifest.json";
+  let savedWindow: any;
+  let savedDocument: any;
+
+  beforeEach(() => {
+    savedWindow = (globalThis as any).window;
+    savedDocument = (globalThis as any).document;
+    (globalThis as any).window = { updateReaderStatus: jest.fn() };
+    (globalThis as any).document = {
+      getElementById: () => null,
+      body: { querySelector: () => ({ innerHTML: "" }) },
+    };
+  });
+
+  afterEach(() => {
+    if (savedWindow === undefined) delete (globalThis as any).window;
+    else (globalThis as any).window = savedWindow;
+    if (savedDocument === undefined) delete (globalThis as any).document;
+    else (globalThis as any).document = savedDocument;
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
+
+  /** A publication whose manifest serializes, as the re-open path returns it. */
+  function openablePublication(): ReadiumPublication {
+    const publication = guidedNavPublication() as any;
+    publication.manifest = { serialize: () => ({ metadata: { identifier: "urn:test:book" } }) };
+    return publication;
+  }
+
+  function readerWithManager(publication: ReadiumPublication) {
+    const reader = new ReadiumReader();
+    const pubManager = {
+      fetch: jest.fn().mockResolvedValue({ publication: guidedNavPublication(), manifestJson: "{}" }),
+      fetchAndCache: jest.fn().mockResolvedValue({ publication, manifestJson: "{}" }),
+      getOrFetch: jest.fn().mockResolvedValue(publication),
+    };
+    (reader as any)._pubManager = pubManager;
+    return { reader, pubManager };
+  }
+
+  it("getPublication leaves the current publication alone", async () => {
+    const open = guidedNavPublication();
+    const { reader, pubManager } = readerWithManager(open);
+    await reader.loadAsCurrentPublication(url);
+
+    await reader.getPublication(url);
+
+    expect(pubManager.fetch).toHaveBeenCalledTimes(1);
+    expect((reader as any)._publication).toBe(open);
+  });
+
+  it("returns the current publication without fetching it again", async () => {
+    const open = openablePublication();
+    const { reader, pubManager } = readerWithManager(open);
+    await reader.loadAsCurrentPublication(url);
+
+    const manifestJson = await reader.loadAsCurrentPublication(url);
+
+    expect(JSON.parse(manifestJson).metadata.identifier).toBe("urn:test:book");
+    expect(pubManager.fetchAndCache).toHaveBeenCalledTimes(1);
+    expect((reader as any)._publication).toBe(open);
+  });
+
+  it("still reuses it after the reader view mounted", async () => {
+    const open = openablePublication();
+    const { reader, pubManager } = readerWithManager(open);
+    (FlutterEpubNavigator.create as jest.Mock).mockImplementation(
+      async (_c, _p, _i, _prefs, setNav) => setNav({ destroy: jest.fn() })
+    );
+    await reader.loadAsCurrentPublication(url);
+    await reader.openPublication(url, "urn:test:book", undefined, "{}", "[]");
+
+    await reader.loadAsCurrentPublication(url);
+
+    expect(pubManager.fetchAndCache).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches it again after closePublication", async () => {
+    const { reader, pubManager } = readerWithManager(guidedNavPublication());
+    await reader.loadAsCurrentPublication(url);
+    reader.closePublication();
+
+    await reader.loadAsCurrentPublication(url);
+
+    expect(pubManager.fetchAndCache).toHaveBeenCalledTimes(2);
   });
 });

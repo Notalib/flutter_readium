@@ -100,7 +100,9 @@ class _ReadiumReader {
   }
 
   private _publication: ReadiumPublication | undefined;
-  private _nav: EpubNavigator | WebPubNavigator | undefined;
+  /** The URL `loadAsCurrentPublication` loaded `_publication` from, so a re-open can reuse it. */
+  private _publicationURL: string | undefined;
+  private _nav:EpubNavigator | WebPubNavigator | undefined;
   /**
    * Render-only navigator for the DiViNa / CBZ profile (image comics). Kept
    * separate from `_nav` because it is not an EPUB/WebPub navigator and does not
@@ -110,7 +112,7 @@ class _ReadiumReader {
   private _audioNav: AudioNavigator | undefined;
   /**
    * The publication `_audioNav` was built for. Publication identity alone cannot prove
-   * this: `getPublication` replaces `_publication` with a freshly fetched instance before
+   * this: `loadAsCurrentPublication` replaces `_publication` with a freshly fetched instance before
    * the reader view mounts, so `openPublication` would otherwise keep a navigator that
    * belongs to the previous book.
    */
@@ -176,20 +178,45 @@ class _ReadiumReader {
     return !!this._visualNav;
   }
 
+  /** Fetches a publication's manifest JSON. Leaves the current publication alone. */
   public async getPublication(publicationURL: string) {
     log.info("getPublication", publicationURL);
     try {
-      const { publication, manifestJson } = await this._pubManager.fetchAndCache(publicationURL);
-      this._publication = publication;
-      this._detectAudioCapabilities(publication);
+      const { publication, manifestJson } = await this._pubManager.fetch(publicationURL);
       log.info("Publication fetched:", publication.metadata.identifier ?? "unidentified");
       return manifestJson;
     } catch (error) {
-      log.error("Failed to get publication:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this._bridge.emitError("Failed to get publication: " + errorMessage);
+      this._reportFetchError(error);
       throw error;
     }
+  }
+
+  /**
+   * Makes the publication at `publicationURL` the current one and returns its manifest JSON.
+   * If it is already current it is returned without a reload, as on native: close it first to reload.
+   */
+  public async loadAsCurrentPublication(publicationURL: string) {
+    log.info("loadAsCurrentPublication", publicationURL);
+    if (this._publication && this._publicationURL === publicationURL) {
+      return JSON.stringify(this._publication.manifest.serialize());
+    }
+    try {
+      const { publication, manifestJson } = await this._pubManager.fetchAndCache(publicationURL);
+      this._publication = publication;
+      this._publicationURL = publicationURL;
+      this._detectAudioCapabilities(publication);
+      log.info("Publication loaded as current:", publication.metadata.identifier ?? "unidentified");
+      return manifestJson;
+    } catch (error) {
+      this._reportFetchError(error);
+      throw error;
+    }
+  }
+
+  private _reportFetchError(error: unknown): void {
+    log.error("Failed to get publication:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this._bridge.emitError("Failed to get publication: " + errorMessage);
   }
 
   /**
@@ -396,15 +423,18 @@ class _ReadiumReader {
       // cannot leak into this session. Audio for this same publication is kept: it starts
       // as soon as the manifest is loaded, so it is usually already narrating by the time
       // the reader view mounts and gets here. The keep is keyed on the navigator's own
-      // publication, not on `_publication`, which a preceding getPublication may already
-      // have advanced to another book.
+      // publication, not on `_publication`, which a preceding loadAsCurrentPublication may
+      // already have advanced to another book.
       const keepAudio = !!this._audioNav && this._audioNavPublication === publication;
+      // The close below forgets the URL, but this view still shows the publication it was loaded for.
+      const loadedURL = this._publication === publication ? this._publicationURL : undefined;
       this._close(undefined, keepAudio);
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
       this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
 
       this._publication = publication;
+      this._publicationURL = loadedURL;
       this._detectAudioCapabilities(publication);
 
       if (this._publication.conformsToAudiobook) {
@@ -735,6 +765,7 @@ class _ReadiumReader {
       this._syncItems = [];
       this._uncuedTocTargets = undefined;
       this._publication = undefined;
+      this._publicationURL = undefined;
       this._lastDeferredSyncLocator = null;
       this._lastDeferredSyncDurationMs = undefined;
       this._narrationSyncEnabled = true;
@@ -830,7 +861,7 @@ class _ReadiumReader {
 
   /**
    * Tears down a live audio navigator that belongs to a different publication than
-   * `_publication`. getPublication may have advanced the current publication while the
+   * `_publication`. loadAsCurrentPublication may have advanced the current publication while the
    * old one still narrated audio-only (no reader view, so openPublication's
    * keep/teardown never ran); reusing such a navigator would replay the old book
    * "as" the new one. Shared by audioEnable's guard and play()'s terminal-failure
@@ -886,7 +917,7 @@ class _ReadiumReader {
     // locator — mirrors iOS/Android's play()-after-failure contract.
     if (FlutterAudioNavigator.isTerminallyFailed()) {
       // A live navigator only proves the book it narrates via its own publication:
-      // getPublication may already have advanced `_publication` to another book
+      // loadAsCurrentPublication may already have advanced `_publication` to another book
       // while this one narrated audio-only (the same stacked state audioEnable's
       // guard discards). Rebuilding here would build the new book's audio tracks
       // from the dead session's locator and launder the mismatch through the
@@ -906,7 +937,7 @@ class _ReadiumReader {
         resumeLocator = textLocatorToAudioLocator(this._syncItems, resumeLocator, true, useSyncNarrationLookup) ?? this._audioNav.currentLocator;
       }
       // Stamp the captured instance, not `this._publication`: create() is async and
-      // a mid-flight getPublication would otherwise record the new book as owning
+      // a mid-flight loadAsCurrentPublication would otherwise record the new book as owning
       // this navigator.
       const retryPublication = this._audioNavPublication as ReadiumPublication;
       const recreating = FlutterAudioNavigator.recreateAfterFailure(
@@ -1391,7 +1422,7 @@ class _ReadiumReader {
   public async audioEnable(prefsJson: string, fromLocatorJson?: string): Promise<void> {
     log.info("audioEnable");
     if (!this._publication) {
-      // getPublication stores the publication and detects its audio capabilities, so an
+      // loadAsCurrentPublication stores the publication and detects its audio capabilities, so an
       // awaited openPublication always leaves something to enable here. Reaching this
       // means the caller did not await it — the same mistake fails on iOS and Android.
       const message = "audioEnable: call it only after openPublication has resolved";
@@ -1406,7 +1437,7 @@ class _ReadiumReader {
       : this._visualNav?.currentLocator;
 
     // A running navigator only proves the book it narrates via its own publication:
-    // getPublication may already have advanced `_publication` to another book while
+    // loadAsCurrentPublication may already have advanced `_publication` to another book while
     // this one narrates audio-only, and openPublication's keep/teardown (keyed the
     // same way) never ran because no reader view mounted. Reusing such a navigator
     // would replay the old book "as" the new one.

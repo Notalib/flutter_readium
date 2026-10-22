@@ -23,11 +23,17 @@ export class PublicationManager {
    */
   async fetchAndCache(publicationURL: string): Promise<{ publication: ReadiumPublication; manifestJson: string }> {
     log.info("fetchAndCache", publicationURL);
-    const { manifest, fetcher } = await fetchManifest(publicationURL);
-    const publication = new ReadiumPublication({ manifest, fetcher });
+    const { publication, manifestJson } = await this.fetch(publicationURL);
     const pubId = publication.metadata.identifier ?? "unidentified";
     PublicationManager._cache.set(pubId, publication);
     log.info("Publication fetched and cached:", pubId);
+    return { publication, manifestJson };
+  }
+
+  /** Fetch a publication manifest from `publicationURL` without caching it. */
+  async fetch(publicationURL: string): Promise<{ publication: ReadiumPublication; manifestJson: string }> {
+    const { manifest, fetcher } = await fetchManifest(publicationURL);
+    const publication = new ReadiumPublication({ manifest, fetcher });
     return { publication, manifestJson: JSON.stringify(manifest.serialize()) };
   }
 
