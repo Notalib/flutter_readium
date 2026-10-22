@@ -439,3 +439,33 @@ final class FlutterMediaOverlayNavigatorInitialLocatorTests: XCTestCase {
     XCTAssertEqual(audio.timeOffset, 5.5)
   }
 }
+
+final class GuidedNavigationDetectionTests: XCTestCase {
+  private let audio = Link(href: "chapter1.mp3", mediaType: .mp3)
+
+  private func guidedNavigationEbook(alternates: [Link] = [], resources: [Link] = []) -> Publication {
+    Publication(manifest: Manifest(
+      metadata: Metadata(conformsTo: [.epub], title: "Guided navigation publication"),
+      links: [Link(href: "guided-navigation.json", mediaType: MediaType("application/guided-navigation+json")!)],
+      readingOrder: [Link(href: "chapter1.xhtml", mediaType: .xhtml, alternates: alternates)],
+      resources: resources))
+  }
+
+  func testGuidedNavigationLinkWithAudioResourcesIsDetected() {
+    let publication = guidedNavigationEbook(resources: [audio])
+
+    XCTAssertTrue(publication.containsGuidedNavigationMediaOverlays)
+  }
+
+  func testGuidedNavigationLinkWithAudioAlternateIsDetected() {
+    let publication = guidedNavigationEbook(alternates: [audio])
+
+    XCTAssertTrue(publication.containsGuidedNavigationMediaOverlays)
+  }
+
+  func testGuidedNavigationLinkWithoutAudioResourcesIsIgnored() {
+    let publication = guidedNavigationEbook(resources: [Link(href: "page01.jpg", mediaType: .jpeg)])
+
+    XCTAssertFalse(publication.containsGuidedNavigationMediaOverlays)
+  }
+}
