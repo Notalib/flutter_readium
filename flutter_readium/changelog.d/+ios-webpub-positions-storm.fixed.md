@@ -1,0 +1,2 @@
+**iOS: opening a streamed Web Publication no longer HEAD-probes every chapter.**
+The EPUB positions service asked each reading-order resource for its length before first paint, which over HTTP costs one HEAD request per chapter, issued back-to-back before the reader appears. Streamed (HTTP-backed) EPUB-profile publications now compute one position per chapter without any network; local file EPUBs keep byte-granular positions. Progress-bar granularity for streamed publications is coarser: one step per chapter.
