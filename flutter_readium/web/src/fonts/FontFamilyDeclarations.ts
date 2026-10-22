@@ -65,12 +65,14 @@ export function injectFontFacesIntoWindow(
   baseUrl: string = document.baseURI
 ): void {
   if (declarations.length === 0) return;
-  const document = wnd.document;
-  const existing = document.getElementById("flutter-readium-font-faces");
+  // Don't name this `document`: terser then mangles the default parameter's global
+  // `document` to the same local, and the production bundle throws "Invalid URL".
+  const doc = wnd.document;
+  const existing = doc.getElementById("flutter-readium-font-faces");
   if (existing) existing.remove();
 
-  const style = document.createElement("style");
+  const style = doc.createElement("style");
   style.id = "flutter-readium-font-faces";
   style.textContent = fontFaceCss(declarations, baseUrl);
-  document.head.appendChild(style);
+  doc.head.appendChild(style);
 }
