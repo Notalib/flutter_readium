@@ -37,7 +37,6 @@ import org.readium.r2.shared.util.http.HttpError
 import org.readium.r2.shared.util.mediatype.MediaType
 import org.readium.r2.shared.util.resource.Resource
 import org.readium.r2.shared.util.resource.TransformingResource
-import org.readium.r2.shared.util.resource.filename
 import org.xmlpull.v1.XmlPullParser
 import java.io.StringReader
 import java.util.Locale
@@ -184,13 +183,15 @@ private val BUILT_IN_INJECTIONS =
 
 // Helper for injecting extra files into an epub.
 fun Resource.injectScriptsAndStyles(
+    filename: String?,
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
     extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
-        val props = this.properties().getOrNull()
-        val filename = props?.filename ?: return@TransformingResource Try.success(bytes)
+        // The filename comes from the caller's container URL: asking the resource for
+        // properties() would cost a HEAD request per chapter on streamed WebPub resources.
+        filename ?: return@TransformingResource Try.success(bytes)
 
         if (!filename.endsWith("html", ignoreCase = true)) {
             return@TransformingResource Try.success(bytes)

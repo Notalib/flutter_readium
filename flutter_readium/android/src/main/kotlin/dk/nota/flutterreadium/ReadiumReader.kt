@@ -53,11 +53,14 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.LocatorCollection
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.firstWithRel
 import org.readium.r2.shared.publication.html.cssSelector
+import org.readium.r2.shared.publication.services.PerResourcePositionsService
 import org.readium.r2.shared.publication.services.content.DefaultContentService
 import org.readium.r2.shared.publication.services.content.content
 import org.readium.r2.shared.publication.services.content.contentServiceFactory
 import org.readium.r2.shared.publication.services.positionsByReadingOrder
+import org.readium.r2.shared.publication.services.positionsServiceFactory
 import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import org.readium.r2.shared.util.AbsoluteUrl
@@ -619,6 +622,18 @@ object ReadiumReader :
                             DefaultContentService.createFactory(
                                 listOf(factory),
                             )
+                        // Streamed WebPubs (HTTP self link) get EpubPositionsService from
+                        // ReadiumWebPubParser, whose ArchiveEntryLength strategy falls back to
+                        // resource.length() per reading-order link: one HEAD, and via our
+                        // TransformingContainer one full GET, per chapter before first paint.
+                        // One position per chapter costs zero network. Zip EPUBs keep the
+                        // byte-granular positions service: archive metadata answers locally.
+                        val isHttpBacked =
+                            (manifest.links.firstWithRel("self")?.url() as? AbsoluteUrl)?.isHttp == true
+                        if (isHttpBacked) {
+                            servicesBuilder.positionsServiceFactory =
+                                PerResourcePositionsService.createFactory(MediaType.XHTML)
+                        }
                     }
                 })
                 .getOrElse { err: OpenError ->
@@ -755,9 +770,10 @@ object ReadiumReader :
                         navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(
-                            tocIds,
-                            epubPreferences,
-                            javaScriptInjections + cssInjections,
+                            filename = url.filename,
+                            tocIds = tocIds,
+                            epubPreferences = epubPreferences,
+                            extraInjections = javaScriptInjections + cssInjections,
                         )
                     } else {
                         resource
@@ -997,9 +1013,10 @@ object ReadiumReader :
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
         // EpubNavigatorFragment 3.4.0 reads this position list with runBlocking from its
-        // constructor. For a streamed Web Publication that can be a network request, which would
-        // otherwise park Android's main thread for seconds or minutes. Populate the service cache
-        // first on the I/O dispatcher so the constructor's lookup is immediate.
+        // constructor. Streamed WebPubs now answer from PerResourcePositionsService without
+        // network (see assetToPublication), but for zip EPUBs the lookup is O(chapters)
+        // archive reads - populate the service cache first on the I/O dispatcher so the
+        // constructor's lookup is immediate.
         withIOContext {
             pub.positionsByReadingOrder()
         }
