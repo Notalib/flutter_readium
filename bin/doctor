@@ -28,9 +28,15 @@ check npm     required
 [ "$(uname)" = "Darwin" ] && check pod optional
 check uvx     optional  # bin/changelog (towncrier)
 
+# The @readium ts-toolkit packages declare engines.node >=24.
+node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null)"
+if [ -n "$node_major" ] && [ "$node_major" -lt 24 ]; then
+  printf '  ✗ %-8s v%s is too old (need >= 24)\n' node "$node_major"; status=1
+fi
+
 if [ "$status" -ne 0 ]; then
   echo
-  echo "Missing a required tool. Put it on your PATH, or install fvm to use the"
+  echo "Missing or outdated required tool. Put it on your PATH, or install fvm to use the"
   echo ".fvmrc-pinned Flutter/Dart. bin/_common.sh prepends the usual locations"
   echo "(/opt/homebrew/bin, /usr/local/bin, ~/.pub-cache/bin, nvm node)."
 fi
