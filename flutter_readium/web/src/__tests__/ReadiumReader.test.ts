@@ -532,7 +532,7 @@ describe("active Sync Narration navigation", () => {
     const {reader, seek} = session();
     jest.spyOn(FlutterAudioNavigator, "isTerminallyFailed").mockReturnValue(false);
     const anchored = Locator.deserialize(JSON.parse(target("p2")))!;
-    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments.some((f) => f.startsWith("t=")), anchor: jest.fn(async () => anchored)};
+    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments?.some((f) => f.startsWith("t=")), anchor: jest.fn(async () => anchored)};
     (reader as any)._uncuedTocTargets = resolver;
     await reader.goTo(target("empty-heading"));
     reader.play(target("empty-heading"));
@@ -553,7 +553,7 @@ describe("active Sync Narration navigation", () => {
     jest.spyOn(FlutterAudioNavigator, "retryAfterFailure").mockImplementation(() => {});
     const recreate = jest.spyOn(FlutterAudioNavigator, "recreateAfterFailure").mockReturnValue(true);
     const anchored = Locator.deserialize(JSON.parse(target("p2")))!;
-    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments.some((f) => f.startsWith("t=")),
+    const resolver = {isUncued: (locator: Locator) => !locator.locations.fragments?.some((f) => f.startsWith("t=")),
       anchor: jest.fn(async () => anchored)};
     (reader as any)._uncuedTocTargets = resolver;
     reader.play(target("empty-heading"));
