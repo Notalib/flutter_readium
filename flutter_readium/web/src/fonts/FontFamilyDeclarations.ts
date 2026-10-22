@@ -52,17 +52,6 @@ export function flutterAssetsUrl(baseUrl: string): string {
   return new URL("assets/", baseUrl).href;
 }
 
-/**
- * The EPUB frame CSP only allows fonts from the publication's origin, so the app's asset
- * directory must be listed for the injected `@font-face` rules to load.
- */
-export function fontFaceAllowedDomains(
-  declarations: FontFamilyDeclaration[],
-  baseUrl: string
-): string[] {
-  return declarations.length === 0 ? [] : [flutterAssetsUrl(baseUrl)];
-}
-
 export function fontFaceCss(
   declarations: FontFamilyDeclaration[],
   baseUrl: string

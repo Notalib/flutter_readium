@@ -1,6 +1,5 @@
-import { Injector } from "@readium/navigator";
 import {
-  fontFaceAllowedDomains,
+  flutterAssetsUrl,
   fontFaceCss,
   parseFontFamilyDeclarations,
 } from "../fonts/FontFamilyDeclarations";
@@ -35,19 +34,14 @@ describe("font family declarations", () => {
     );
   });
 
-  it("allows the asset directory every generated font URL lives under", () => {
+  it("generates font URLs under the asset directory allowed in the frame CSP", () => {
     const baseUrl = "https://reader.example/app/";
-    const allowed = fontFaceAllowedDomains([declaration], baseUrl);
-    // The navigator copies these into the frame CSP, where a source ending in "/" matches by path prefix.
-    expect(new Injector({ rules: [], allowedDomains: allowed }).getAllowedDomains())
-      .toEqual(["https://reader.example/app/assets/"]);
+    // A CSP source ending in "/" matches by path prefix.
+    const allowed = flutterAssetsUrl(baseUrl);
+    expect(allowed).toBe("https://reader.example/app/assets/");
     const urls = [...fontFaceCss([declaration], baseUrl).matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
     expect(urls).toHaveLength(2);
-    for (const url of urls) expect(url.startsWith(allowed[0])).toBe(true);
-  });
-
-  it("allows no extra domains without declarations", () => {
-    expect(fontFaceAllowedDomains([], "https://reader.example/app/")).toEqual([]);
+    for (const url of urls) expect(url.startsWith(allowed)).toBe(true);
   });
 
   it("rejects a family without faces", () => {
