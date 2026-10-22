@@ -24,7 +24,11 @@ import {
 } from "../decorations/decorationFrameUtils";
 import { injectFlutterReadiumHelperScripts } from "../utils/iframeInjection";
 import { createLogger } from "../utils/ReadiumPluginLogger";
-import { FontFamilyDeclaration, injectFontFacesIntoWindow } from "../fonts/FontFamilyDeclarations";
+import {
+  FontFamilyDeclaration,
+  fontFaceAllowedDomains,
+  injectFontFacesIntoWindow,
+} from "../fonts/FontFamilyDeclarations";
 import { tryBuildImageTapPayload } from "../utils/ImageTapDetector";
 import {
   enrichWithTotalProgression,
@@ -102,6 +106,10 @@ export class FlutterEpubNavigator {
     const configuration: EpubNavigatorConfiguration = {
       preferences,
       defaults,
+      injectables: {
+        rules: [],
+        allowedDomains: fontFaceAllowedDomains(fontFamilyDeclarations, document.baseURI),
+      },
     };
 
     const p = new Peripherals({
