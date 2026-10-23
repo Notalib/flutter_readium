@@ -786,6 +786,12 @@ object ReadiumReader :
         return loadPublication(pubUrl)
     }
 
+    /** The open publication if [urlStr] is the URL it was opened from, otherwise null. */
+    fun currentPublicationFor(urlStr: String): Publication? {
+        val pubUrl = resolvePubUrl(urlStr).getOrNull() ?: return null
+        return currentPublication.takeIf { currentPublicationUrl == pubUrl.toString() }
+    }
+
     /**
      * Open a publication from a URL.
      *
