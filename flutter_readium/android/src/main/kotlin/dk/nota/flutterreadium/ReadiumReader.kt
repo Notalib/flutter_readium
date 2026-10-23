@@ -72,6 +72,7 @@ import org.readium.r2.shared.util.Try.Companion.failure
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.asset.Asset
 import org.readium.r2.shared.util.asset.AssetRetriever
+import org.readium.r2.shared.util.asset.ResourceAsset
 import org.readium.r2.shared.util.data.Container
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.http.DefaultHttpClient
@@ -622,15 +623,11 @@ object ReadiumReader :
                             DefaultContentService.createFactory(
                                 listOf(factory),
                             )
-                        // Streamed WebPubs (HTTP self link) get EpubPositionsService from
-                        // ReadiumWebPubParser, whose ArchiveEntryLength strategy falls back to
-                        // resource.length() per reading-order link: one HEAD, and via our
-                        // TransformingContainer one full GET, per chapter before first paint.
-                        // One position per chapter costs zero network. Zip EPUBs keep the
-                        // byte-granular positions service: archive metadata answers locally.
-                        val isHttpBacked =
-                            (manifest.links.firstWithRel("self")?.url() as? AbsoluteUrl)?.isHttp == true
-                        if (isHttpBacked) {
+                        // Bare-manifest (streamed) publications would otherwise get
+                        // EpubPositionsService, which HEADs every chapter before first
+                        // paint; one position per chapter costs zero network. Rationale:
+                        // docs/plans/android-webpub-head-storm.md.
+                        if (asset is ResourceAsset) {
                             servicesBuilder.positionsServiceFactory =
                                 PerResourcePositionsService.createFactory(MediaType.XHTML)
                         }
@@ -770,7 +767,8 @@ object ReadiumReader :
                         navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(
-                            filename = url.filename,
+                            // extension != null implies filename != null (Url.kt).
+                            filename = url.filename!!,
                             tocIds = tocIds,
                             epubPreferences = epubPreferences,
                             extraInjections = javaScriptInjections + cssInjections,

@@ -183,20 +183,14 @@ private val BUILT_IN_INJECTIONS =
 
 // Helper for injecting extra files into an epub.
 fun Resource.injectScriptsAndStyles(
-    filename: String?,
+    filename: String,
     tocIds: List<String>,
     epubPreferences: FlutterEpubPreferences?,
     extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
-        // The filename comes from the caller's container URL: asking the resource for
-        // properties() would cost a HEAD request per chapter on streamed WebPub resources.
-        filename ?: return@TransformingResource Try.success(bytes)
-
-        if (!filename.endsWith("html", ignoreCase = true)) {
-            return@TransformingResource Try.success(bytes)
-        }
-
+        // Caller only invokes us for HTML resources; filename comes from the container
+        // URL so streamed WebPub chapters never pay a properties() HEAD.
         val content = bytes.toString(Charsets.UTF_8).trim()
         val headEndIndex = content.indexOf("</head>", 0, true)
         if (headEndIndex == -1) {

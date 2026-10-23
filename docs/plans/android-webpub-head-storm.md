@@ -1,11 +1,11 @@
 > **✅ Implemented on Android and iOS (2026-10-22).** Plugin-side options A1 + B landed on `main`:
 > `ReadiumReader.assetToPublication` swaps in `PerResourcePositionsService` for
-> HTTP-backed EPUB-profile publications; `injectScriptsAndStyles` takes the filename
-> from the container URL instead of `resource.properties()`. Option C (upstream
+> bare-manifest (resource-asset) EPUB-profile publications; `injectScriptsAndStyles` takes
+> the filename from the container URL instead of `resource.properties()`. Option C (upstream
 > report) intentionally not filed. iOS (A1 equivalent): the `onCreatePublication` hook in
-> `FlutterReadiumPlugin.swift` overrides the positions factory for EPUB-profile publications
-> whose open URL is HTTP (`url.httpURL != nil` — the Swift parser strips the manifest self
-> link before the hook runs, unlike Kotlin). Both platforms device-verified; before/after
+> `FlutterReadiumPlugin.swift` applies the same override. Both platforms gate on the asset
+> kind (`asset is ResourceAsset` / `if case .resource = asset`) — streamed publications are
+> opened as a single resource, archives as a container. Both device-verified; before/after
 > captures in Verification.
 # Android streamed-WebPub HEAD/GET storm at player open — investigation + fix plan
 
@@ -89,10 +89,13 @@ resources:
   correct variant — fall back to a fixed position count per resource. Same granularity caveat
   as A1 unless Nota manifests carry per-link `length`.
 
-How to detect "streamed": the container handed to `onCreatePublication` is a
-`CompositeContainer`/`HttpContainer` (or: manifest has an absolute http(s) `self` link and the
-asset is a `ResourceAsset`). Prefer keying off the container/asset type over the profile so
-future formats inherit the fix.
+How to detect "streamed": the asset handed to the open pipeline is a **single-resource
+asset** (bare manifest) rather than a container asset — archives, including remote zips,
+open as containers and keep byte-granular positions. The shipped gate is `asset is
+ResourceAsset` (Kotlin) / `if case .resource = asset` (Swift), one predicate on both
+platforms. (The first iOS cut keyed off the HTTP open URL; review showed it also matches
+remote zip EPUBs, and the first Android cut keyed off an HTTP `self` link, which manifests
+without one legitimately lack — asset kind is the exact signal.)
 
 Note: neither built-in `EpubPositionsService` strategy is network-free for HTTP containers —
 `OriginalLength` only avoids the HEAD if `Link.properties.encryption.originalLength` is set
@@ -175,10 +178,10 @@ Behavior checks from the plan's checklist were exercised only as far as first pa
 reader rendered content and drew the seek slider at the start position in both captures.
 TOC jump, lastmark restore, and narration-sync scroll positioning were not exercised on
 device. The zip-EPUB and DiViNa regression (checklist item 4) was likewise not re-run;
-those profiles keep their own positions services — the A1 override is gated on an HTTP
-`self` link inside the `conformsTo(EPUB)` branch, and fix B touches only the injection
-filename source — so neither behavior changes, but that reasoning is not device-verified
-here.
+those profiles keep their own positions services — the A1 override is gated on the asset
+being a bare-manifest resource asset inside the `conformsTo(EPUB)` branch, and fix B touches
+only the injection filename source — so neither behavior changes, but that reasoning is not
+device-verified here.
 
 ### iOS capture (2026-10-22, iPhone 17 Pro simulator)
 
@@ -198,5 +201,5 @@ manifest GET ×2 then chapter GETs only — **zero chapter HEADs**; first conten
 0.49 s after the manifest vs 1.29 s pre-fix. The image HEAD+GET pairs are the
 navigator's own preload and are unchanged. The reader opened and rendered chapter 1;
 pagination and the progress bar behaved (one position per chapter). Zip-EPUB and DiViNa
-parsing were not re-run post-fix; the override is gated on an HTTP open URL and cannot
-fire for them — that reasoning is not device-verified here.
+parsing were not re-run post-fix; the override is gated on the asset being a bare-manifest
+resource asset and cannot fire for them — that reasoning is not device-verified here.

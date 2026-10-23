@@ -879,14 +879,11 @@ extension FlutterReadiumPlugin {
                 resourceContentIteratorFactories: [factory]
               )
             )
-            // Streamed WebPubs (HTTP open URL) get EPUBPositionsService from
-            // ReadiumWebPubParser, whose archive-entry-length strategy falls back to
-            // resource.estimatedLength() per reading-order link: one HEAD per chapter
-            // before first paint (the navigator awaits positions in initialize()). One
-            // position per chapter costs zero network. The parser strips the manifest's
-            // self link before this hook runs, so key off the open URL's scheme. Local
-            // (file) EPUBs keep byte-granular positions: archive metadata is local.
-            if url.httpURL != nil {
+            // Bare-manifest (streamed) publications would otherwise get
+            // EPUBPositionsService, which HEADs every chapter before first paint;
+            // one position per chapter costs zero network. Rationale:
+            // docs/plans/android-webpub-head-storm.md.
+            if case .resource = asset {
               services.setPositionsServiceFactory(
                 PerResourcePositionsService.makeFactory(fallbackMediaType: .xhtml)
               )
