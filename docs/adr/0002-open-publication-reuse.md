@@ -23,16 +23,17 @@ Both native shortcuts were added to avoid reloading the open publication (Androi
 
 - `openPublication` with the URL of the open publication returns the open publication without reloading it.
 - To get a fresh instance, call `closePublication()` first.
-- `loadPublication` never affects the open publication. It may parse a separate copy, or reuse the open one read-only, but it never closes or replaces it.
+- `loadPublication` never affects the open publication. For the open URL it reads the open publication's manifest without closing or replacing it.
+- The reader widget renders the open publication on every platform. Web no longer looks a publication up by identifier when the view mounts.
 
 The Dart API doc comments and [`docs/api-reference/flutter-readium.md`](../api-reference/flutter-readium.md) state this contract.
 
 ## Consequences
 
-- Android parses a separate copy when `loadPublication` hits the open URL, so a bookshelf load costs one extra parse of that book.
-- Web keeps the open publication's URL so a re-open can return it; `closePublication()` forgets it.
+- Web keeps the open publication's URL so a re-open can return it; `closePublication()` forgets it. An open or close that starts while another open is still fetching wins: the earlier fetch does not install its book.
+- On web, mounting the reader widget before `openPublication` has resolved shows the error view, as it already failed on native. Web holds no publication cache.
 - Re-opening returns the same publication instance, so state tied to it survives. An app that wants a clean instance must close first.
 
 ## Alternatives
 
-Reloading on every `openPublication` gives fresh resources without an explicit close, but drops playback and reader state on every re-open, and no caller asked for it. Making `loadPublication` open the publication, as web did, conflates reading a manifest with choosing what the reader shows.
+Reloading on every `openPublication` gives fresh resources without an explicit close, but drops playback and reader state on every re-open, and no caller asked for it. Making `loadPublication` open the publication, as web did, conflates reading a manifest with choosing what the reader shows. Having Android's `loadPublication` parse a separate copy of the open book also avoids closing it, but costs a full re-parse on every bookshelf load.

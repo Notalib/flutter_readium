@@ -1,2 +1,2 @@
 **Web: loading or re-opening the open publication no longer replaces it, matching iOS and Android.**
-`loadPublication` used to make the loaded book the current one, and `openPublication` with the open URL fetched and rebuilt it again. Now `loadPublication` never touches the open publication, and re-opening returns the open one; call `closePublication()` first to reload.
+`loadPublication` no longer makes the loaded book current, and `openPublication` with the open URL returns the open book; call `closePublication()` first to reload. `ReadiumReaderWidget` now renders the open publication, as on native, so mount it only after `openPublication` has resolved. See [ADR 0002](../docs/adr/0002-open-publication-reuse.md).
