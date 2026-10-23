@@ -52,7 +52,7 @@ This directory holds implementation plans, parity audits, and retained reference
 - **[resource-loading-watchdog.md](resource-loading-watchdog.md)** — one-shot audiobook
 	resource-loading watchdog with opt-in navigator rebuild recovery.
 - **[native-divina-sync-plan.md](native-divina-sync-plan.md)** — implemented shared narration-sync/manual-mode slice; remaining comic framing work was split out.
-- **[android-webpub-head-storm.md](android-webpub-head-storm.md)** — opening a streamed WebPub no longer HEAD-probes every HTML chapter on Android **or** iOS; HTTP-backed EPUB-profile publications use `PerResourcePositionsService`, and Android script/style injection derives its filename from the container URL instead of a `properties()` HEAD. *(Performance)*
+- **[android-webpub-head-storm.md](android-webpub-head-storm.md)** — opening a streamed WebPub no longer HEAD-probes every HTML chapter on Android **or** iOS; bare-manifest (resource-asset) EPUB-profile publications use `PerResourcePositionsService`, and Android script/style injection derives its filename from the container URL instead of a `properties()` HEAD. *(Performance)*
 
 ---
 
