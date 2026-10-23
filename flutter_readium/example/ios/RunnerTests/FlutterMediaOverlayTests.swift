@@ -121,7 +121,10 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
     XCTAssertEqual(overlay.items.map { $0.tocHref }, ["ch.xhtml#heading", "ch.xhtml#heading"])
   }
 
+  /// A narrated heading must stop owning cues at a later XHTML ToC section that the narration never lists.
+  /// Otherwise playback reports the wrong section, and selecting that section in the ToC finds no cue.
   func testXhtmlBoundaryEndsHeadingContinuationBeforeOwnershipLookup() {
+    // Given: narration only matches heading `h`, so `h` owns every cue. The XHTML puts `p2` in `side` and `p3` in `s2`.
     let overlay = parse("""
       {"narration":[
         {"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
@@ -135,15 +138,24 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
       <aside id="side"><p id="p2"/></aside></section><section id="s2"><p id="p3"/></section></body></html>
       """.utf8))
     let toc = ["s1", "h", "side", "s2"].map { (id: String) in Link(href: "ch.xhtml#\(id)", title: id) }
+    // When: the XHTML section boundaries are applied.
     let corrected = overlay.withTocBoundaries(toc, trees: ["ch.xhtml": tree])
+    // Then: `p1` stays with its heading, `side` and `s2` take over their cues, and the emitted text locator
+    // reports the corrected owner.
     XCTAssertEqual(corrected.items.map { $0.tocHref }, ["ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#s2"])
     XCTAssertEqual(corrected.items.last?.asTextLocator?.locations.otherLocations["tocHref"], .string("ch.xhtml#s2"))
+    // Then: seeking a section starts at its first cue.
     XCTAssertEqual(corrected.itemFromTocHref("s2", inHref: "ch.xhtml")?.audioStart, 15)
     XCTAssertEqual(corrected.itemFromTocHref("h", inHref: "ch.xhtml")?.audioStart, 0)
+    // Then: without a loaded XHTML tree, the narration owners are kept unchanged.
     XCTAssertEqual(overlay.withTocBoundaries(toc, trees: [:]).items.map { $0.tocHref }, overlay.items.map { $0.tocHref })
   }
 
+  /// When the narration already lists a ToC container, the narration structure wins over the XHTML.
+  /// A cue that the narration places after the container must not be pulled into it.
   func testXhtmlBoundaryPreservesRepresentedNestedContainerCallerScope() {
+    // Given: narration lists `side` as a container holding only `p2`, with `p3` after it. The XHTML nests `p3`
+    // inside `side`.
     let overlay = parse("""
       {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
         {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#p2","audio":"ch.mp3#t=5,10"}]},
@@ -153,11 +165,17 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
       <html><body><h2 id="h"/><aside id="side"><p id="p2"/><p id="p3"/></aside></body></html>
       """.utf8))
     let toc = ["h", "side"].map { (id: String) in Link(href: "ch.xhtml#\(id)") }
+    // When: the XHTML section boundaries are applied.
+    // Then: `p3` keeps the owner from before the container (`h`).
     XCTAssertEqual(overlay.withTocBoundaries(toc, trees: ["ch.xhtml": tree]).items.map { $0.tocHref },
       ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#h"])
   }
 
+  /// A narration container stays known even when a child heading owns all of its cues, so no cue owner shows it.
+  /// Otherwise the boundary correction treats it as missing and moves the cue after it into the container.
   func testXhtmlBoundaryPreservesContainerWhenEveryChildUsesDeeperOwner() {
+    // Given: `side` contains narrated heading `sub`, so the cue owners never show `side`. The XHTML nests `p3`
+    // inside `side`.
     let overlay = parse("""
       {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
         {"text":"ch.xhtml#side","narration":[{"text":"ch.xhtml#sub","audio":"ch.mp3#t=5,10"},
@@ -165,21 +183,29 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
         {"text":"ch.xhtml#p3","audio":"ch.mp3#t=15,20"}]}
       """, toc: ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#sub"])
     let owners = ["ch.xhtml#h", "ch.xhtml#sub", "ch.xhtml#sub", "ch.xhtml#h"]
+    // Then: parsing takes the owners from the narration and records `side` as a matched container.
     XCTAssertEqual(overlay.items.map(\.tocHref), owners)
     XCTAssertEqual(overlay.narrationContainerTocHrefs, ["ch.xhtml#side"])
     let tree = XhtmlIdTree(xhtml: Data("""
       <html><body><h2 id="h"/><aside id="side"><h3 id="sub"/><p id="p2"/><p id="p3"/></aside></body></html>
       """.utf8))
     let toc = ["h", "side", "sub"].map { (id: String) in Link(href: "ch.xhtml#\(id)", title: id) }
+    // When: the ToC titles and XHTML boundaries are applied.
     let corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, trees: ["ch.xhtml": tree]).withTocTitles(toc)
+    // Then: the owners and the container record are unchanged, and `p3` is not moved into `side`.
     XCTAssertEqual(corrected.items.map(\.tocHref), owners)
     XCTAssertEqual(corrected.narrationContainerTocHrefs, overlay.narrationContainerTocHrefs)
     XCTAssertEqual(corrected.itemFromTocHref("h", inHref: "ch.xhtml")?.audioStart, 0)
     XCTAssertEqual(corrected.itemFromTocHref("sub", inHref: "ch.xhtml")?.audioStart, 5)
+    // Then: `side` owns no cue, so an owner lookup for it finds nothing.
     XCTAssertNil(corrected.itemFromTocHref("side", inHref: "ch.xhtml"))
   }
 
+  /// Matched containers are keyed by resource and fragment. A `side` container in one file must not block the
+  /// boundary correction for a `side` section in another file.
   func testNestedContainerMetadataKeepsResourceIdentity() {
+    // Given: in ch.xhtml the narration lists `side` and `inner` as containers, with `inner` behind a wrapper
+    // that has no text. other.xhtml has a `side` section in its XHTML that its narration never lists.
     let hrefs = ["ch.xhtml#h", "ch.xhtml#side", "ch.xhtml#inner", "ch.xhtml#sub", "other.xhtml#h", "other.xhtml#side"]
     let overlay = parse("""
       {"narration":[{"text":"ch.xhtml#h","audio":"ch.mp3#t=0,5"},
@@ -189,6 +215,7 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
         {"text":"other.xhtml#h","audio":"other.mp3#t=0,5"},{"text":"other.xhtml#p","audio":"other.mp3#t=5,10"}]}
       """, toc: hrefs)
     let expectedContainers: Set<String> = ["ch.xhtml#side", "ch.xhtml#inner"]
+    // Then: parsing records both containers, including the one behind the wrapper.
     XCTAssertEqual(overlay.narrationContainerTocHrefs, expectedContainers)
     let toc = hrefs.map { (href: String) in Link(href: href, title: href) }
     let trees = [
@@ -199,7 +226,9 @@ final class FlutterMediaOverlayTocTests: XCTestCase {
         <html><body><h2 id="h"/><aside id="side"><p id="p"/></aside></body></html>
         """.utf8)),
     ]
+    // When: the ToC titles and XHTML boundaries are applied.
     let corrected = overlay.withTocTitles(toc).withTocBoundaries(toc, trees: trees).withTocTitles(toc)
+    // Then: ch.xhtml keeps its narration owners, and only `p` in other.xhtml moves to that file's `side`.
     XCTAssertEqual(corrected.narrationContainerTocHrefs, expectedContainers)
     XCTAssertEqual(corrected.items.map(\.tocHref), ["ch.xhtml#h", "ch.xhtml#sub", "ch.xhtml#sub", "ch.xhtml#h", "other.xhtml#h", "other.xhtml#side"])
     XCTAssertNil(corrected.itemFromTocHref("side", inHref: "ch.xhtml"))
@@ -399,7 +428,11 @@ private struct BoundaryFixtureContainer: Container {
 
 @MainActor
 final class GuidedBoundaryInitializationTests: XCTestCase {
+  /// When a publication has both Guided Navigation and Sync Narration, the guided cues are used, and the navigator
+  /// still corrects their owners at XHTML boundaries before navigation starts.
   func testGuidedPriorityWithBothInterfacesCorrectsOwnersBeforeNavigation() async throws {
+    // Given: a publication with both interfaces. The guided cues are `h`, `p1` and `p2`, Sync Narration has one
+    // `sync-only` cue, and the XHTML puts `p2` in section `s2`.
     let container = BoundaryFixtureContainer(files: [
       "guided.json": """
         {"guided":[{"textref":"ch.xhtml#h","audioref":"ch.mp3#t=0,5"},
@@ -421,13 +454,17 @@ final class GuidedBoundaryInitializationTests: XCTestCase {
         Link(href: "ch.xhtml#s2", title: "Second")]), container: container)
     XCTAssertTrue(publication.containsMediaOverlays)
     XCTAssertTrue(publication.containsGuidedNavigationMediaOverlays)
+    // When: the overlays are loaded.
     let loaded = await publication.getSyncNarrationMediaOverlays()
     let overlays = try XCTUnwrap(loaded)
+    // Then: the guided cues win, have no narration containers, and heading `h` still owns `p2` before correction.
     XCTAssertEqual(overlays.flatMap(\.items).map(\.textId), ["h", "p1", "p2"])
     XCTAssertTrue(overlays.allSatisfy { $0.narrationContainerTocHrefs.isEmpty })
     XCTAssertEqual(overlays.flatMap(\.items).last?.tocHref, "ch.xhtml#h")
+    // When: the navigator resolves the XHTML boundaries, as it does during initialization.
     let navigator = FlutterMediaOverlayNavigator(publication: publication, preferences: FlutterAudioPreferences(), initialLocator: nil)
     let corrected = await navigator.resolveTocBoundaries(overlays)
+    // Then: `p2` moves to `s2`, and seeking `s2` starts at its cue.
     XCTAssertEqual(corrected.flatMap(\.items).map(\.tocHref), ["ch.xhtml#h", "ch.xhtml#h", "ch.xhtml#s2"])
     XCTAssertEqual(corrected.first?.itemFromTocHref("s2", inHref: "ch.xhtml")?.audioStart, 10)
   }

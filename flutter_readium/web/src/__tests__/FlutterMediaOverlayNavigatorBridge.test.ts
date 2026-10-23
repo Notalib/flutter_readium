@@ -161,7 +161,11 @@ it("emits the first cue without waiting for its owner and enriches subsequent ev
   }
 });
 
+// Guided Navigation cues get the same XHTML owner correction as Sync Narration, but keep their own seek policy.
+// They must not start using the Sync Narration owner and anchor seeks.
 it("guided source with both interfaces prepares owners without enabling Sync Narration seeks", async () => {
+  // Given: a publication with both interfaces, and guided cues that all carry heading `h` as their owner.
+  // The XHTML puts `p2` in section `s2`, and the initial locator points at `s2`.
   const original = [...ITEMS];
   const originalParser = (globalThis as any).DOMParser;
   const cue = (id: string, start: number): SyncNarrationItem => ({
@@ -190,10 +194,13 @@ it("guided source with both interfaces prepares owners without enabling Sync Nar
     const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
     const setNav = jest.fn();
     const initial = new Locator({href: "chap.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({fragments: ["s2"]})});
+    // When: the guided navigator is initialized.
     await initializeGuidedNavigationNavigator(pub, initial, "{}", setNav);
     const mapper = create.mock.calls[0][4]!;
     const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
+    // Then: playback inside `p2` reports the corrected owner `s2`.
     expect(mapper({currentTime: 12} as never, audio).stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#s2");
+    // Then: the initial `s2` locator keeps the guided policy (start of the audio), not the first cue of `s2`.
     expect(create.mock.calls[0][1]?.locations.fragments).toEqual(["t=0"]);
     const install = create.mock.calls[0][3];
     // The guided path must not publish the Sync Narration anchor resolver to callers.

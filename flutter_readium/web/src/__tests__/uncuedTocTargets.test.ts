@@ -72,11 +72,18 @@ describe("XhtmlIdTree", () => {
     expect(tree.firstDescendant("side", new Set(["p3"]))).toBeUndefined();
   });
 
+  // `boundaryOwner` returns the index of the ToC id that replaces a cue's current owner, or undefined to keep it.
+  // Only an element that encloses the cue and starts after the owner's element can replace it.
   it("uses enclosing later starts without extending headings or losing caller scope", () => {
+    // Given: the shared tree at the top of this file.
+    // Then: `p1` follows heading `h` in the same section, so the heading keeps it.
     expect(tree.boundaryOwner("p1", "h", ["sec", "h", "side", "sec2"])).toBeUndefined();
+    // Then: `side` encloses `p2` and `sec2` encloses `p3`, and both start after `h`, so they take over.
     expect(tree.boundaryOwner("p2", "h", ["sec", "h", "side", "sec2"])).toBe(2);
     expect(tree.boundaryOwner("p3", "h", ["sec", "h", "side", "sec2"])).toBe(3);
+    // Then: the owner `sec` already encloses `p1`, so no later boundary applies.
     expect(tree.boundaryOwner("p1", "sec", ["sec", "h", "side", "sec2"])).toBeUndefined();
+    // Then: unknown ids and cues without an owner are left alone.
     expect(tree.boundaryOwner("p2", "missing", ["side"])).toBeUndefined();
     expect(tree.boundaryOwner("missing", "h", ["side"])).toBeUndefined();
     expect(tree.boundaryOwner("p1", undefined, ["h", "empty"])).toBeUndefined();
@@ -125,20 +132,30 @@ describe("assignUncuedTocOwners", () => {
     expect(items[1].tocHref).toBe("page.xhtml#nested");
   });
 
+  // A narrated heading must stop owning cues at a later XHTML ToC section that the narration never lists.
+  // Otherwise playback reports the wrong section, and selecting that section in the ToC finds no cue.
   it("ends a narrated heading at the next XHTML section absent from narration", () => {
+    // Given: narration only matches heading `h`, so `h` owns every cue. The XHTML puts `p2` in `side` and `p3` in `sec2`.
     const items = cues();
     items.forEach((item) => { item.tocHref = "page.xhtml#h"; });
+    // When: owners are assigned from the XHTML.
     assignUncuedTocOwners(items, toc("sec", "h", "side", "sec2"), tree);
+    // Then: `p1` stays with its heading, `side` and `sec2` take over their cues, and seeking `sec2` starts at `p3`.
     expect(items.map((item) => item.tocHref)).toEqual([
       "page.xhtml#h", "page.xhtml#h", "page.xhtml#side", "page.xhtml#sec2",
     ]);
     expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(3);
   });
 
+  // When the narration already lists a ToC container, the narration structure wins over the XHTML.
+  // A cue that the narration places after the container must not be pulled into it.
   it("preserves the caller owner after a represented nested narration container", () => {
+    // Given: narration owners put `p2` in `side` and `p3` back under `h`. The XHTML nests `p3` inside `side`.
     const items = [cue("h", 0, "page.xhtml#h"), cue("p2", 1, "page.xhtml#side"), cue("p3", 2, "page.xhtml#h")];
     const nestedTree = new XhtmlIdTree(el("sec", el("h"), el("side", el("p2"), el("p3"))));
+    // When: owners are assigned from the XHTML.
     assignUncuedTocOwners(items, toc("sec", "h", "side"), nestedTree);
+    // Then: `p3` keeps the owner from before the container (`h`).
     expect(items.map((item) => item.tocHref)).toEqual(["page.xhtml#h", "page.xhtml#side", "page.xhtml#h"]);
   });
 
@@ -179,7 +196,12 @@ describe("UncuedTocTargets", () => {
     return new UncuedTocTargets(publication, items, links);
   }
 
+  // A narration container stays known even when a child heading owns all of its cues, so no cue owner shows it.
+  // Otherwise the boundary correction treats it as missing and moves the cue after it into the container.
+  // With `otherBoundary`, a real missing section `sec2` is still corrected in the same pass.
   it.each([false, true])("preserves a narration container hidden by its child heading (other boundary: %s)", async (otherBoundary) => {
+    // Given: `side` contains narrated heading `sub`, so the cue owners never show `side`. The XHTML nests `p3`
+    // inside `side`. Optionally, `p4` is in section `sec2`, which the narration never lists.
     const narrated = (id: string, start: number) => ({text: `page.xhtml#${id}`, audio: `page.mp3#t=${start},${start + 5}`});
     const narration = {narration: [narrated("h", 0),
       {text: "page.xhtml#side", narration: [narrated("sub", 5), narrated("p2", 10)]}, narrated("p3", 15),
@@ -198,12 +220,16 @@ describe("UncuedTocTargets", () => {
       parseFromString() { return {getElementsByTagName: () => [], documentElement: dom}; }
     };
     const items = await parseSyncNarration(publication);
+    // Then: parsing takes the owners from the narration.
     expect(items.slice(0, 4).map((item) => item.tocHref)).toEqual(toc("h", "sub", "sub", "h").map((link) => link.href));
+    // When: owners are prepared, as during navigator initialization.
     await new UncuedTocTargets(publication, items, links).prepareOwners();
+    // Then: `p3` is not moved into `side`, and only `p4` moves to `sec2`.
     expect(items.map((item) => item.tocHref)).toEqual(toc("h", "sub", "sub", "h", ...(otherBoundary ? ["sec2"] : [])).map((link) => link.href));
     expect(items.some((item) => item.tocHref === "page.xhtml#side")).toBe(false);
     expect(getTime(textLocatorToAudioLocator(items, locator("h"), false, true)!.locations)).toBe(0);
     if (otherBoundary) expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(20);
+    // Then: the XHTML is read only when a missing section can apply. A known container alone needs no read.
     expect(reads).toBe(otherBoundary ? 1 : 0);
   });
 
@@ -267,11 +293,16 @@ describe("UncuedTocTargets", () => {
     expect(input.locations.fragments).toEqual(["side"]);
   });
 
+  // The correction must finish before the first owner-based seek. Otherwise that seek can resolve against stale
+  // owners, and the same request can land somewhere else later. Concurrent callers must share one XHTML read.
   it("awaits correction before the first owner-based seek and shares concurrent resource work", async () => {
+    // Given: heading `h` owns every cue, although `p3` is in section `sec2`.
     const items = cues();
     items.forEach((item) => { item.tocHref = "page.xhtml#h"; });
     const resolver = targets(items, toc("sec", "h", "side", "sec2"));
+    // When: two callers prepare the owners at the same time.
     await Promise.all([resolver.prepareOwners(), resolver.prepareOwners()]);
+    // Then: `p3` is owned by `sec2`, seeking `sec2` starts at `p3`, and the XHTML was read once.
     expect(items[3].tocHref).toBe("page.xhtml#sec2");
     expect(getTime(textLocatorToAudioLocator(items, locator("sec2"), false, true)!.locations)).toBe(3);
     expect(reads).toBe(1);

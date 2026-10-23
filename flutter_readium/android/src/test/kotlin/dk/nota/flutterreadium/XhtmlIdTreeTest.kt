@@ -25,13 +25,22 @@ internal class XhtmlIdTreeTest {
             """.trimIndent().toByteArray(),
         )
 
+    /**
+     * `boundaryOwner` returns the index of the ToC id that replaces a cue's current owner, or null to keep the owner.
+     * Only an element that encloses the cue and starts after the owner's element can replace it.
+     */
     @Test
     fun boundaryPreservesHeadingContinuationAndCallerScope() {
+        // Given: section `s1` holds heading `h1`, paragraph `p1`, and aside `a1`, which contains `p2`.
         val tree = tree("""<section id="s1"><h2 id="h1"/><p id="p1"/><aside id="a1"><p id="p2"/></aside></section>""")
         val ids = listOf("s1", "h1", "a1")
+        // Then: `p1` follows heading `h1` in the same section, so the heading keeps it.
         assertNull(tree.boundaryOwner("p1", "h1", ids))
+        // Then: `a1` encloses `p2` and starts after `h1`, so `a1` (index 2) takes over.
         assertEquals(2, tree.boundaryOwner("p2", "h1", ids))
+        // Then: the owner `s1` already encloses `p1`, so no later boundary applies.
         assertNull(tree.boundaryOwner("p1", "s1", ids))
+        // Then: unknown ids and cues without an owner are left alone.
         assertNull(tree.boundaryOwner("p2", "missing", ids))
         assertNull(tree.boundaryOwner("missing", "h1", ids))
         assertNull(tree.boundaryOwner("p1", null, listOf("h1")))
