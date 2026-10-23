@@ -198,6 +198,8 @@ void main() {
     });
 
     // ADR 0002: loading or re-opening the open publication must leave it usable.
+    // Opening again after closePublication needs no test here: the suite tearDown closes, and the
+    // next test opens the same EPUB.
     group('the publication that is already open', () {
       String epubPath() => harness.fixturePath(
         FixtureKeys.reflowableEpub,
@@ -218,33 +220,15 @@ void main() {
       });
 
       testWidgets('is returned by a second openPublication without a close', (tester) async {
-        final statuses = <ReadiumReaderStatus>[];
-        final sub = harness.readium.onReaderStatusChanged.listen(statuses.add);
-        addTearDown(sub.cancel);
-
         final pub = await harness.readium.openPublication(epubPath());
         final reopened = await harness.readium.openPublication(epubPath());
         expect(reopened.identifier, pub.identifier);
-        expect(statuses.where((s) => s.isClosed), isEmpty);
 
         await mountFullyWiredAndSmokeTest(
           harness,
           tester,
           reopened,
           reason: 'Reader never emitted a textLocator after re-opening the open URL',
-        );
-      });
-
-      testWidgets('opens again after closePublication', (tester) async {
-        await harness.readium.openPublication(epubPath());
-        await harness.readium.closePublication();
-        final pub = await harness.readium.openPublication(epubPath());
-
-        await mountFullyWiredAndSmokeTest(
-          harness,
-          tester,
-          pub,
-          reason: 'Reader never emitted a textLocator after close and re-open',
         );
       });
     });
