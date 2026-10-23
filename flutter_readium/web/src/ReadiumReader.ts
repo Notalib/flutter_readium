@@ -102,7 +102,9 @@ class _ReadiumReader {
   private _publication: ReadiumPublication | undefined;
   /** The URL `loadAsCurrentPublication` loaded `_publication` from, so a re-open can reuse it. */
   private _publicationURL: string | undefined;
-  private _nav:EpubNavigator | WebPubNavigator | undefined;
+  /** Bumped by every open and close, so a fetch that finishes late cannot install its book. */
+  private _openGeneration = 0;
+  private _nav: EpubNavigator | WebPubNavigator | undefined;
   /**
    * Render-only navigator for the DiViNa / CBZ profile (image comics). Kept
    * separate from `_nav` because it is not an EPUB/WebPub navigator and does not
@@ -112,7 +114,7 @@ class _ReadiumReader {
   private _audioNav: AudioNavigator | undefined;
   /**
    * The publication `_audioNav` was built for. Publication identity alone cannot prove
-   * this: `loadAsCurrentPublication` replaces `_publication` with a freshly fetched instance before
+   * this: `loadAsCurrentPublication` can install another book in `_publication` before
    * the reader view mounts, so `openPublication` would otherwise keep a navigator that
    * belongs to the previous book.
    */
@@ -178,17 +180,15 @@ class _ReadiumReader {
     return !!this._visualNav;
   }
 
-  /** Fetches a publication's manifest JSON. Leaves the current publication alone. */
+  /**
+   * Fetches a publication's manifest JSON. Leaves the current publication alone, and reports
+   * failures only to the caller: they do not concern the open publication's error stream.
+   */
   public async getPublication(publicationURL: string) {
     log.info("getPublication", publicationURL);
-    try {
-      const { publication, manifestJson } = await this._pubManager.fetch(publicationURL);
-      log.info("Publication fetched:", publication.metadata.identifier ?? "unidentified");
-      return manifestJson;
-    } catch (error) {
-      this._reportFetchError(error);
-      throw error;
-    }
+    const { publication, manifestJson } = await this._pubManager.fetch(publicationURL);
+    log.info("Publication fetched:", publication.metadata.identifier ?? "unidentified");
+    return manifestJson;
   }
 
   /**
@@ -197,26 +197,28 @@ class _ReadiumReader {
    */
   public async loadAsCurrentPublication(publicationURL: string) {
     log.info("loadAsCurrentPublication", publicationURL);
+    // Bumped before the reuse check too: the latest open wins over one still fetching.
+    const generation = ++this._openGeneration;
     if (this._publication && this._publicationURL === publicationURL) {
       return JSON.stringify(this._publication.manifest.serialize());
     }
     try {
-      const { publication, manifestJson } = await this._pubManager.fetchAndCache(publicationURL);
+      const { publication, manifestJson } = await this._pubManager.fetch(publicationURL);
+      if (generation !== this._openGeneration) {
+        log.info("loadAsCurrentPublication: a close or later open ran during the fetch; not installing", publicationURL);
+        return manifestJson;
+      }
       this._publication = publication;
       this._publicationURL = publicationURL;
       this._detectAudioCapabilities(publication);
       log.info("Publication loaded as current:", publication.metadata.identifier ?? "unidentified");
       return manifestJson;
     } catch (error) {
-      this._reportFetchError(error);
+      log.error("Failed to get publication:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this._bridge.emitError("Failed to get publication: " + errorMessage);
       throw error;
     }
-  }
-
-  private _reportFetchError(error: unknown): void {
-    log.error("Failed to get publication:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    this._bridge.emitError("Failed to get publication: " + errorMessage);
   }
 
   /**
@@ -416,28 +418,30 @@ class _ReadiumReader {
       parseFontFamilyDeclarations(fontFamilyDeclarationsJson);
 
     try {
-      // TODO: match native
-      const publication = await this._pubManager.getOrFetch(pubId, publicationURL);
+      // Like the native reader views, render the publication openPublication made current.
+      const publication = this._publication;
+      if (!publication) {
+        throw new ReadiumWebError(
+          "openPublication must resolve before the reader view mounts",
+          ReadiumWebErrorCode.noPublication
+        );
+      }
 
-      // Close the previous publication/navigator so its locator and media-overlay events
-      // cannot leak into this session. Audio for this same publication is kept: it starts
-      // as soon as the manifest is loaded, so it is usually already narrating by the time
-      // the reader view mounts and gets here. The keep is keyed on the navigator's own
-      // publication, not on `_publication`, which a preceding loadAsCurrentPublication may
-      // already have advanced to another book.
+      // Close the previous navigator so its locator and media-overlay events cannot leak
+      // into this session. Audio for this same publication is kept: it starts as soon as
+      // the manifest is loaded, so it is usually already narrating by the time the reader
+      // view mounts and gets here. The keep is keyed on the navigator's own publication,
+      // not on `_publication`, which a preceding loadAsCurrentPublication may already have
+      // advanced to another book.
       const keepAudio = !!this._audioNav && this._audioNavPublication === publication;
-      // The close below forgets the URL, but this view still shows the publication it was loaded for.
-      const loadedURL = this._publication === publication ? this._publicationURL : undefined;
       this._close(undefined, keepAudio);
 
       // Emitted after the close so Dart still sees closed-then-loading, never the reverse.
       this._bridge.emitReaderStatus(ReadiumReaderStatus.loading);
 
-      this._publication = publication;
-      this._publicationURL = loadedURL;
       this._detectAudioCapabilities(publication);
 
-      if (this._publication.conformsToAudiobook) {
+      if (publication.conformsToAudiobook) {
         log.info("Publication conforms to Audiobook profile");
         if (keepAudio) {
           // A second create() here would leave the running navigator orphaned but audible,
@@ -474,11 +478,11 @@ class _ReadiumReader {
           // opening the publication just like a missing-navigator guard.
           throw new ReadiumWebError("Container element not found", ReadiumWebErrorCode.noPublication);
         }
-        if (this._publication.conformsToEpub) {
+        if (publication.conformsToEpub) {
           log.info("Publication conforms to EPUB profile");
           await FlutterEpubNavigator.create(
             container,
-            this._publication,
+            publication,
             initialPosition,
             preferencesJsonString,
             (nav) => {
@@ -498,12 +502,12 @@ class _ReadiumReader {
             },
             fontFamilyDeclarations
           );
-        } else if (this._publication.conformsToDivina) {
+        } else if (publication.conformsToDivina) {
           log.info("Publication conforms to DiViNa profile (comic)");
           // ts-toolkit has no DiViNa/image navigator; render images ourselves.
           await FlutterDivinaNavigator.create(
             container,
-            this._publication,
+            publication,
             publicationURL,
             initialPosition,
             preferencesJsonString,
@@ -517,7 +521,7 @@ class _ReadiumReader {
           log.info("Publication conforms to WebPub profile");
           await FlutterWebPubNavigator.create(
             container,
-            this._publication,
+            publication,
             initialPosition,
             preferencesJsonString,
             (nav) => {
@@ -729,6 +733,10 @@ class _ReadiumReader {
   }
 
   public closePublication(error?: any) {
+    // Only a real close forgets the publication: the reader view's own teardown keeps it.
+    this._openGeneration++;
+    this._publication = undefined;
+    this._publicationURL = undefined;
     this._close(error, false);
   }
 
@@ -764,8 +772,6 @@ class _ReadiumReader {
       this._hasGuidedNavigation = false;
       this._syncItems = [];
       this._uncuedTocTargets = undefined;
-      this._publication = undefined;
-      this._publicationURL = undefined;
       this._lastDeferredSyncLocator = null;
       this._lastDeferredSyncDurationMs = undefined;
       this._narrationSyncEnabled = true;
