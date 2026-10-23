@@ -115,8 +115,6 @@ async function _initializeFromItems(
       : ""
   );
 
-  const syntheticPub = _buildAudiobookPublication(publication, audioReadingOrder);
-
   // Resolve relative audioHref values in items to the absolute form used in the
   // reading order. Narration JSON stores relative hrefs ("chap.mp3") but the
   // reading order and every locator the AudioNavigator emits use absolute URLs
@@ -126,6 +124,8 @@ async function _initializeFromItems(
   const resolvedItems = _resolveItemHrefs(items, audioReadingOrder);
   const ownerTargets = new UncuedTocTargets(publication, resolvedItems, flattenToc(publication));
   await ownerTargets.prepareOwners();
+  // Owner correction can change an audio file's first ToC title, so titles come from the corrected items.
+  const syntheticPub = _buildAudiobookPublication(publication, _withCueTitles(audioReadingOrder, resolvedItems));
   // Guided Navigation shares owner correction, while retaining its existing seek policy.
   const uncuedTocTargets = sourceLabel === "SyncNarration" ? ownerTargets : undefined;
 
@@ -296,7 +296,7 @@ function _buildAudioReadingOrder(
 ): Link[] {
   const seen = new Map<
     string,
-    { cueSum: number; declaredDuration?: number; title?: string }
+    { cueSum: number; declaredDuration?: number }
   >();
 
   for (const item of items) {
@@ -313,9 +313,6 @@ function _buildAudioReadingOrder(
         entry.declaredDuration ?? 0,
         item.readingOrderDuration
       );
-    }
-    if (!entry.title && item.tocTitle) {
-      entry.title = item.tocTitle;
     }
   }
 
@@ -344,10 +341,23 @@ function _buildAudioReadingOrder(
     return new Link({
       href: absoluteHref,
       type: _audioMimeType(href),
-      title: meta.title,
       duration,
     });
   });
+}
+
+/** Titles each audio link with the first ToC title among its cues. */
+function _withCueTitles(audioReadingOrder: Link[], items: SyncNarrationItem[]): Link[] {
+  const titles = new Map<string, string>();
+  for (const item of items) {
+    if (item.tocTitle && !titles.has(item.audioHref)) titles.set(item.audioHref, item.tocTitle);
+  }
+  return audioReadingOrder.map((link) => new Link({
+    href: link.href,
+    type: link.type,
+    title: titles.get(link.href),
+    duration: link.duration,
+  }));
 }
 
 function _audioMimeType(href: string): string {
@@ -398,4 +408,5 @@ export const __testing__ = {
   audioMimeType: _audioMimeType,
   resolveItemHrefs: _resolveItemHrefs,
   buildAudioReadingOrder: _buildAudioReadingOrder,
+  withCueTitles: _withCueTitles,
 };
