@@ -131,7 +131,7 @@ extension Publication {
         }
         return item
       }
-      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration)
+      return FlutterMediaOverlay(items: items, readingOrderDuration: overlay.readingOrderDuration ?? overlay.totalDuration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
     }
   }
 
@@ -217,7 +217,7 @@ extension Publication {
           FlutterMediaOverlayItem(
             audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
         }
-        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
       }
       guard !positionedOverlays.isEmpty else { return nil }
       return enrichOverlaysWithToc(positionedOverlays)
@@ -252,7 +252,7 @@ extension Publication {
           FlutterMediaOverlayItem(
             audio: item.audio, text: item.text, position: position, readingOrderDuration: duration)
         }
-        return FlutterMediaOverlay(items: items, readingOrderDuration: duration)
+        return FlutterMediaOverlay(items: items, readingOrderDuration: duration, narrationContainerTocHrefs: overlay.narrationContainerTocHrefs)
       }
       allOverlays += positionedOverlays
     }

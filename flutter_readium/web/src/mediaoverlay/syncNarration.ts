@@ -54,6 +54,8 @@ export interface SyncNarrationItem {
   textId: string;
   tocTitle?: string;
   tocHref?: string;
+  /** Matched narration containers, shared across a document's cues and never serialized. */
+  narrationContainerTocHrefs?: ReadonlySet<string>;
   /**
    * Duration in seconds of the parent reading-order item, when declared in the
    * manifest. Used as an authoritative fallback for synthetic audio Link.duration
@@ -522,7 +524,8 @@ function _parseNarrationJson(
   position: number,
   readingOrderDuration: number | undefined,
   toc: Link[],
-  inheritedTocHref?: string
+  inheritedTocHref?: string,
+  narrationContainerTocHrefs = new Set<string>()
 ): SyncNarrationItem[] {
   const items: SyncNarrationItem[] = [];
 
@@ -542,13 +545,14 @@ function _parseNarrationJson(
       }
       direct = toc.find((link) => link.href === text);
     }
+    if (direct && hasChildren) narrationContainerTocHrefs.add(direct.href);
     const effectiveTocHref = direct?.href ?? currentTocHref;
     if (typeof audio === "string" && typeof text === "string") {
-      items.push({ ..._parseEntry(audio, text, position, readingOrderDuration), tocHref: effectiveTocHref });
+      items.push({ ..._parseEntry(audio, text, position, readingOrderDuration), tocHref: effectiveTocHref, narrationContainerTocHrefs });
       if (direct && !hasChildren) currentTocHref = direct.href;
     }
     if (hasChildren) {
-      items.push(..._parseNarrationJson(entry, position, readingOrderDuration, toc, effectiveTocHref));
+      items.push(..._parseNarrationJson(entry, position, readingOrderDuration, toc, effectiveTocHref, narrationContainerTocHrefs));
     }
   }
 

@@ -160,3 +160,94 @@ it("emits the first cue without waiting for its owner and enriches subsequent ev
     ITEMS.splice(0, ITEMS.length, ...original);
   }
 });
+
+// Guided Navigation cues get the same XHTML owner correction as Sync Narration, but keep their own seek policy.
+// They must not start using the Sync Narration owner and anchor seeks.
+it("guided source with both interfaces prepares owners without enabling Sync Narration seeks", async () => {
+  // Given: a publication with both interfaces, and guided cues that all carry heading `h` as their owner.
+  // The XHTML puts `p2` in section `s2`, and the initial locator points at `s2`.
+  const original = [...ITEMS];
+  const originalParser = (globalThis as any).DOMParser;
+  const cue = (id: string, start: number): SyncNarrationItem => ({
+    audio: `audio/01.mp3#t=${start},${start + 5}`, text: `chap.xhtml#${id}`, position: 0,
+    audioHref: "audio/01.mp3", audioStart: start, audioEnd: start + 5,
+    textHref: "chap.xhtml", textId: id, tocHref: "chap.xhtml#h", tocTitle: "Detail",
+  });
+  ITEMS.splice(0, ITEMS.length, cue("h", 0), cue("p1", 5), cue("p2", 10));
+  const el = (id: string, ...children: any[]) => ({id, children});
+  (globalThis as any).DOMParser = class {
+    parseFromString() {
+      return {getElementsByTagName: () => [], documentElement: el("", el("s1", el("h"), el("p1")), el("s2", el("p2")))};
+    }
+  };
+  try {
+    const manifest = Manifest.deserialize({
+      metadata: {title: "Boundary test"},
+      links: [{rel: "self", href: "https://example.test/pub/manifest.json"},
+        {href: "guided.json", type: "application/guided-navigation+json"}],
+      readingOrder: [{href: "chap.xhtml", type: "application/xhtml+xml",
+        alternate: [{href: "sync.json", type: "application/vnd.syncnarr+json"}]}],
+      toc: [{href: "chap.xhtml#s1", children: [{href: "chap.xhtml#h"}]}, {href: "chap.xhtml#s2", title: "Second"}],
+    })!;
+    const pub = new ReadiumPublication({manifest} as never);
+    jest.spyOn(pub, "get").mockReturnValue({readAsString: async () => "<html/>"} as never);
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    const setNav = jest.fn();
+    const initial = new Locator({href: "chap.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({fragments: ["s2"]})});
+    // When: the guided navigator is initialized.
+    await initializeGuidedNavigationNavigator(pub, initial, "{}", setNav);
+    const mapper = create.mock.calls[0][4]!;
+    const audio = new Locator({href: "https://example.test/pub/audio/01.mp3", type: "audio/mpeg", locations: new LocatorLocations({fragments: ["t=12"]})});
+    // Then: playback inside `p2` reports the corrected owner `s2`.
+    expect(mapper({currentTime: 12} as never, audio).stateLocator.locations.otherLocations?.get("tocHref")).toBe("chap.xhtml#s2");
+    // Then: the initial `s2` locator keeps the guided policy (start of the audio), not the first cue of `s2`.
+    expect(create.mock.calls[0][1]?.locations.fragments).toEqual(["t=0"]);
+    const install = create.mock.calls[0][3];
+    // The guided path must not publish the Sync Narration anchor resolver to callers.
+    install({} as never);
+    expect(setNav.mock.calls[0][2]).toBeUndefined();
+  } finally {
+    ITEMS.splice(0, ITEMS.length, ...original);
+    (globalThis as any).DOMParser = originalParser;
+  }
+});
+
+// Each synthetic audio link is titled from its first owned cue. That title must come from the corrected
+// owners, as on iOS and Android, or the web player names an audio file after the stale heading.
+it("titles synthetic audio links from corrected owners", async () => {
+  // Given: heading `h` owns every cue. `p2`, the first cue of audio/02.mp3, is in section `s2` in the XHTML.
+  const original = [...ITEMS];
+  const originalParser = (globalThis as any).DOMParser;
+  const cue = (id: string, audio: string, start: number): SyncNarrationItem => ({
+    audio: `${audio}#t=${start},${start + 5}`, text: `chap.xhtml#${id}`, position: 0,
+    audioHref: audio, audioStart: start, audioEnd: start + 5,
+    textHref: "chap.xhtml", textId: id, tocHref: "chap.xhtml#h", tocTitle: "Detail",
+  });
+  ITEMS.splice(0, ITEMS.length, cue("h", "audio/01.mp3", 0), cue("p1", "audio/01.mp3", 5), cue("p2", "audio/02.mp3", 0));
+  const el = (id: string, ...children: any[]) => ({id, children});
+  (globalThis as any).DOMParser = class {
+    parseFromString() {
+      return {getElementsByTagName: () => [], documentElement: el("", el("s1", el("h"), el("p1")), el("s2", el("p2")))};
+    }
+  };
+  try {
+    const manifest = Manifest.deserialize({
+      metadata: {title: "Boundary test"},
+      links: [{rel: "self", href: "https://example.test/pub/manifest.json"}],
+      readingOrder: [{href: "chap.xhtml", type: "application/xhtml+xml"}],
+      toc: [{href: "chap.xhtml#s1", title: "First", children: [{href: "chap.xhtml#h", title: "Detail"}]},
+        {href: "chap.xhtml#s2", title: "Second"}],
+    })!;
+    const pub = new ReadiumPublication({manifest} as never);
+    jest.spyOn(pub, "get").mockReturnValue({readAsString: async () => "<html/>"} as never);
+    const create = jest.spyOn(FlutterAudioNavigator, "create").mockResolvedValue();
+    // When: the Sync Narration navigator is initialized.
+    await initializeMediaOverlayNavigator(pub, undefined, "{}", () => {});
+    // Then: audio/02.mp3 is titled after its corrected owner `s2`, not the stale heading.
+    const synthetic = create.mock.calls[0][0] as ReadiumPublication;
+    expect(synthetic.readingOrder.items.map((link) => link.title)).toEqual(["Detail", "Second"]);
+  } finally {
+    ITEMS.splice(0, ITEMS.length, ...original);
+    (globalThis as any).DOMParser = originalParser;
+  }
+});

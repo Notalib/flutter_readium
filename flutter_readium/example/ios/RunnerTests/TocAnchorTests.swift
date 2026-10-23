@@ -20,6 +20,22 @@ final class TocAnchorTests: XCTestCase {
 
   private let content: Set<String> = ["h1", "p1", "p2", "p3"]
 
+  /// `boundaryOwner` returns the index of the ToC id that replaces a cue's current owner, or nil to keep the owner.
+  /// Only an element that encloses the cue and starts after the owner's element can replace it.
+  func testBoundaryPreservesHeadingContinuationAndCallerScope() {
+    // Given: the shared tree, where `s1` holds `h1` and `p1`, and aside `a1`, which contains `p2`.
+    // Then: `p1` follows heading `h1` in the same section, so the heading keeps it.
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: "h1", tocIds: ["s1", "h1", "a1"]))
+    // Then: `a1` encloses `p2` and starts after `h1`, so `a1` (index 2) takes over.
+    XCTAssertEqual(tree.boundaryOwner(textId: "p2", ownerId: "h1", tocIds: ["s1", "h1", "a1"]), 2)
+    // Then: the owner `s1` already encloses `p1`, so no later boundary applies.
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: "s1", tocIds: ["s1", "h1", "a1"]))
+    // Then: unknown ids and cues without an owner are left alone.
+    XCTAssertNil(tree.boundaryOwner(textId: "p2", ownerId: "missing", tocIds: ["a1"]))
+    XCTAssertNil(tree.boundaryOwner(textId: "missing", ownerId: "h1", tocIds: ["a1"]))
+    XCTAssertNil(tree.boundaryOwner(textId: "p1", ownerId: nil, tocIds: ["h1", "empty"]))
+  }
+
   func testContainerMapsToFirstContentDescendant() {
     XCTAssertEqual(tree.firstDescendant(of: "s1", in: content), "h1")
     XCTAssertEqual(tree.firstDescendant(of: "a1", in: content), "p2")

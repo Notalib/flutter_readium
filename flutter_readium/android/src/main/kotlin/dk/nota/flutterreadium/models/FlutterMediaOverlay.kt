@@ -2,6 +2,7 @@ package dk.nota.flutterreadium.models
 
 import android.os.Parcelable
 import dk.nota.flutterreadium.PluginLog
+import dk.nota.flutterreadium.XhtmlIdTree
 import dk.nota.flutterreadium.getTextId
 import dk.nota.flutterreadium.progression
 import dk.nota.flutterreadium.toSeconds
@@ -24,6 +25,8 @@ private const val TAG = "FlutterMediaOverlay"
 @Parcelize
 data class FlutterMediaOverlay(
     val items: List<FlutterMediaOverlayItem>,
+    /** Matched narration containers remain represented when every cue takes a deeper owner. */
+    val narrationContainerTocHrefs: Set<String> = emptySet(),
 ) : Parcelable {
     /**
      * The audio file name (without fragment).
@@ -130,6 +133,34 @@ data class FlutterMediaOverlay(
         }
     }
 
+    fun withTocBoundaries(
+        toc: List<Link>,
+        trees: Map<String, XhtmlIdTree>,
+    ): FlutterMediaOverlay {
+        // Represented narration containers retain their caller scope when traversal returns.
+        val represented = items.flatMap { listOfNotNull(it.text, it.tocHref?.toString()) }.toSet() + narrationContainerTocHrefs
+        val boundaries = toc.filter { it.href.resolve().toString() !in represented }
+        return copy(
+            items =
+                items.map { item ->
+                    val owner = item.tocHref ?: return@map item
+                    if (owner.removeFragment().isEquivalent(Url.invoke(item.textFile)) != true) return@map item
+                    val tree = trees[item.textFile] ?: return@map item
+                    val links =
+                        boundaries.filter {
+                            it.href
+                                .resolve()
+                                .removeFragment()
+                                .isEquivalent(Url.invoke(item.textFile))
+                        }
+                    val index =
+                        tree.boundaryOwner(item.textId, owner.fragment, links.map { it.href.resolve().fragment ?: "" })
+                            ?: return@map item
+                    item.copy(title = links[index].title ?: "", tocHref = links[index].href.resolve())
+                },
+        )
+    }
+
     fun withTocTitles(toc: List<Link>): FlutterMediaOverlay =
         copy(
             items =
@@ -218,6 +249,7 @@ data class FlutterMediaOverlay(
         ): FlutterMediaOverlay? {
             val topNarration = json.opt("narration") as? JSONArray ?: return null
             val items = mutableListOf<FlutterMediaOverlayItem>()
+            val containerTocHrefs = mutableSetOf<String>()
             var currentTocHref = tocHref
 
             for (i in 0 until topNarration.length()) {
@@ -231,6 +263,7 @@ data class FlutterMediaOverlay(
                 val matchingTocHref = text?.let { href -> tocHrefs.firstOrNull { it.isEquivalent(href) } }
                 val nodeTocHref = matchingTocHref ?: currentTocHref
                 val hasChildren = (obj.optJSONArray("narration")?.length() ?: 0) > 0
+                if (hasChildren && matchingTocHref != null) containerTocHrefs.add(matchingTocHref.toString())
 
                 FlutterMediaOverlayItem
                     .fromJson(
@@ -244,9 +277,12 @@ data class FlutterMediaOverlay(
                         if (!hasChildren && matchingTocHref != null) currentTocHref = matchingTocHref
                     }
                 fromJson(obj, position, nodeTocHref, title, readiumOrderItemDuration, tocHrefs)
-                    ?.let { items.addAll(it.items) }
+                    ?.let {
+                        items.addAll(it.items)
+                        containerTocHrefs.addAll(it.narrationContainerTocHrefs)
+                    }
             }
-            return FlutterMediaOverlay(items)
+            return FlutterMediaOverlay(items, narrationContainerTocHrefs = containerTocHrefs)
         }
     }
 }

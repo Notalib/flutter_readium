@@ -33,6 +33,22 @@ struct XhtmlIdTree {
     return ids[(start + 1)..<subtreeEnd[start]].first(where: candidates.contains)
   }
 
+  /// A later enclosing ToC element ends continuation from an earlier heading.
+  func boundaryOwner(textId: String, ownerId: String?, tocIds: [String]) -> Int? {
+    guard let current = ids.firstIndex(of: textId) else { return nil }
+    let owner = ownerId.flatMap { ids.firstIndex(of: $0) } ?? -1
+    if ownerId != nil && owner == -1 { return nil }
+    var result: Int?
+    var latest = owner
+    for (index, id) in tocIds.enumerated() {
+      guard let start = ids.firstIndex(of: id), start > owner,
+            start <= current, current < subtreeEnd[start], start >= latest else { continue }
+      latest = start
+      result = index
+    }
+    return result
+  }
+
   /// A known cue-less element seeks forward; a missing id keeps the caller's fallback policy.
   func anchor(_ locator: Locator, textId: String, cueIds: Set<String>) -> Locator? {
     guard locator.locations.time == nil, let start = ids.firstIndex(of: textId) else { return locator }
