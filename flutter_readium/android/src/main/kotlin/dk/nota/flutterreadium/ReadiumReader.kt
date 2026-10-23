@@ -623,10 +623,8 @@ object ReadiumReader :
                             DefaultContentService.createFactory(
                                 listOf(factory),
                             )
-                        // Bare-manifest (streamed) publications would otherwise get
-                        // EpubPositionsService, which HEADs every chapter before first
-                        // paint; one position per chapter costs zero network. Rationale:
-                        // docs/plans/android-webpub-head-storm.md.
+                        // Bare manifests would otherwise HEAD every chapter before first
+                        // paint. See docs/plans/android-webpub-head-storm.md.
                         if (asset is ResourceAsset) {
                             servicesBuilder.positionsServiceFactory =
                                 PerResourcePositionsService.createFactory(MediaType.XHTML)
@@ -767,7 +765,7 @@ object ReadiumReader :
                         navigator.preferences?.effectiveForLayout(publication.metadata.layout)
                     if (url.extension?.value?.endsWith("html", ignoreCase = true) == true) {
                         resource.injectScriptsAndStyles(
-                            // extension != null implies filename != null (Url.kt).
+                            // A URL with an extension always has a filename.
                             filename = url.filename!!,
                             tocIds = tocIds,
                             epubPreferences = epubPreferences,
@@ -1010,11 +1008,8 @@ object ReadiumReader :
         // already disables synchronization, start in manual mode.
         narrationSyncEnabled = initialPreferences.disableSynchronization != true
 
-        // EpubNavigatorFragment 3.4.0 reads this position list with runBlocking from its
-        // constructor. Streamed WebPubs now answer from PerResourcePositionsService without
-        // network (see assetToPublication), but for zip EPUBs the lookup is O(chapters)
-        // archive reads - populate the service cache first on the I/O dispatcher so the
-        // constructor's lookup is immediate.
+        // EpubNavigatorFragment reads positions with runBlocking from its constructor.
+        // Populate the cache on the I/O dispatcher so the main thread never blocks.
         withIOContext {
             pub.positionsByReadingOrder()
         }

@@ -182,6 +182,7 @@ private val BUILT_IN_INJECTIONS =
     )
 
 // Helper for injecting extra files into an epub.
+// Filename comes from the caller so streamed chapters never pay a properties() HEAD.
 fun Resource.injectScriptsAndStyles(
     filename: String,
     tocIds: List<String>,
@@ -189,8 +190,6 @@ fun Resource.injectScriptsAndStyles(
     extraInjections: List<InjectionAsset> = emptyList(),
 ): Resource =
     TransformingResource(this) { bytes ->
-        // Caller only invokes us for HTML resources; filename comes from the container
-        // URL so streamed WebPub chapters never pay a properties() HEAD.
         val content = bytes.toString(Charsets.UTF_8).trim()
         val headEndIndex = content.indexOf("</head>", 0, true)
         if (headEndIndex == -1) {

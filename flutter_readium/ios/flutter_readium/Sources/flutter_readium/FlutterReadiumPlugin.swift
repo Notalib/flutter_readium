@@ -879,10 +879,8 @@ extension FlutterReadiumPlugin {
                 resourceContentIteratorFactories: [factory]
               )
             )
-            // Bare-manifest (streamed) publications would otherwise get
-            // EPUBPositionsService, which HEADs every chapter before first paint;
-            // one position per chapter costs zero network. Rationale:
-            // docs/plans/android-webpub-head-storm.md.
+            // Bare manifests would otherwise HEAD every chapter before first paint.
+            // See docs/plans/android-webpub-head-storm.md.
             if case .resource = asset {
               services.setPositionsServiceFactory(
                 PerResourcePositionsService.makeFactory(fallbackMediaType: .xhtml)
