@@ -196,5 +196,41 @@ void main() {
         },
       );
     });
+
+    // ADR 0002: loading or re-opening the open publication must leave it usable.
+    // Opening again after closePublication needs no test here: the suite tearDown closes, and the
+    // next test opens the same EPUB.
+    group('the publication that is already open', () {
+      String epubPath() => harness.fixturePath(
+        FixtureKeys.reflowableEpub,
+        reason: 'Fixture ${FixtureKeys.reflowableEpub} missing from asset bundle',
+      );
+
+      testWidgets('still renders after loadPublication of its URL', (tester) async {
+        final pub = await harness.readium.openPublication(epubPath());
+        final loaded = await harness.readium.loadPublication(epubPath());
+        expect(loaded.identifier, pub.identifier);
+
+        await mountFullyWiredAndSmokeTest(
+          harness,
+          tester,
+          pub,
+          reason: 'Reader never emitted a textLocator after loadPublication of the open URL',
+        );
+      });
+
+      testWidgets('is returned by a second openPublication without a close', (tester) async {
+        final pub = await harness.readium.openPublication(epubPath());
+        final reopened = await harness.readium.openPublication(epubPath());
+        expect(reopened.identifier, pub.identifier);
+
+        await mountFullyWiredAndSmokeTest(
+          harness,
+          tester,
+          reopened,
+          reason: 'Reader never emitted a textLocator after re-opening the open URL',
+        );
+      });
+    });
   });
 }
