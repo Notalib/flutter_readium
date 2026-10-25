@@ -33,7 +33,7 @@ extension EPUBReaderView {
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
-        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
+        await MainActor.run { self.beginUserNavigation() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -42,6 +42,7 @@ extension EPUBReaderView {
           success = await readiumViewController.goBackward(options: navOptions)
         }
         await MainActor.run() {
+          self.finishUserNavigation(moved: success)
           result(success)
         }
       }
@@ -53,7 +54,7 @@ extension EPUBReaderView {
       let scrollMode = self.readiumViewController.presentation.scroll
 
       Task.detached(priority: .high) {
-        await MainActor.run { self.enterManualModeIfNarrationPlaying() }
+        await MainActor.run { self.beginUserNavigation() }
         let layoutMode = await self.readiumViewController.publication.metadata.layout ?? Layout.reflowable
         let success: Bool
         if (layoutMode == .reflowable && scrollMode == true) {
@@ -62,6 +63,7 @@ extension EPUBReaderView {
           success = await readiumViewController.goForward(options: navOptions)
         }
         await MainActor.run() {
+          self.finishUserNavigation(moved: success)
           result(success)
         }
       }

@@ -11,6 +11,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'flutter_readium.dart';
 import 'reader_channel.dart';
+import 'reader_pointer_tracker.dart';
 
 const _viewType = 'dk.nota.flutter_readium/ReadiumReaderWidget';
 
@@ -138,9 +139,15 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
 
   mq.Orientation? _lastOrientation;
   late Widget _readerWidget;
-  final Map<int, ({Offset origin, double tapSlop, double navigationSlop})> _activePointers = {};
-  bool _didPointerSequenceMove = false;
-  bool _didNotifyUserNavigation = false;
+  late final ReaderPointerTracker _pointerTracker = ReaderPointerTracker(
+    onDeliberateDrag: _hideControls,
+    onUserNavigation: () => _channel?.notifyUserNavigation(),
+    onEdgeTap: () {
+      _hideControls();
+      _channel?.notifyUserNavigation();
+    },
+    onCenterTap: _toggleControls,
+  );
 
   EPUBPreferences? get _defaultPreferences => _readium.defaultPreferences;
 
@@ -159,6 +166,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _enableWakelock();
     _setCurrentWidgetInterface();
     _scrollMode = _defaultPreferences?.scroll ?? false;
+    _pointerTracker.scrollMode = _scrollMode;
   }
 
   @override
@@ -264,6 +272,7 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     _channel?.setEPUBPreferences(preferences);
 
     _scrollMode = preferences.scroll ?? false;
+    _pointerTracker.scrollMode = _scrollMode;
   }
 
   @override
@@ -376,7 +385,11 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
   void _onPlatformViewCreated(final int id) {
     _channel = ReadiumReaderChannel(
       '$_viewType:$id',
-      onReaderReady: _markReady,
+      onReaderReady: (final nativeTapFeedback) {
+        _pointerTracker.nativeTapFeedback = nativeTapFeedback;
+        _markReady();
+      },
+      onNativeTap: _onNativeTap,
       onPageChanged: (final locator) {
         _log.d(() => 'onPageChanged: ${locator.toJson()}');
         _currentLocator = locator;
@@ -456,93 +469,42 @@ class _ReadiumReaderWidgetState extends State<ReadiumReaderWidget> implements Re
     }
   }
 
-  void _handlePointerDown(final PointerDownEvent event) {
-    final hadActivePointers = _activePointers.isNotEmpty;
-    if (!hadActivePointers) {
-      _resetPointerSequence();
-    }
-
-    final gestureSettings = MediaQuery.gestureSettingsOf(context);
-    _activePointers[event.pointer] = (
-      origin: event.localPosition,
-      tapSlop: computeHitSlop(event.kind, gestureSettings),
-      // Pan slop (2x touch slop) so tiny drags that snap back don't enter narration manual mode.
-      navigationSlop: computePanSlop(event.kind, gestureSettings),
-    );
-
-    if (hadActivePointers) {
-      _didPointerSequenceMove = true;
-      _markUserNavigation();
-    }
-    _enableWakelock();
-  }
-
-  void _handlePointerMove(final PointerMoveEvent event) {
-    final pointer = _activePointers[event.pointer];
-    if (pointer == null || _didNotifyUserNavigation) {
-      return;
-    }
-
-    final distance = (event.localPosition - pointer.origin).distance;
-    if (distance > pointer.tapSlop) {
-      _didPointerSequenceMove = true;
-    }
-    if (distance > pointer.navigationSlop) {
-      _markUserNavigation();
-    }
-  }
-
-  void _handlePointerUp(final PointerUpEvent event) {
-    if (_activePointers.remove(event.pointer) == null || _activePointers.isNotEmpty) {
-      return;
-    }
-
-    final didPointerSequenceMove = _didPointerSequenceMove;
-    _resetPointerSequence();
-    if (didPointerSequenceMove) {
-      return;
-    }
-
-    final dx = event.localPosition.dx;
-    if (dx < 70.0 || ((context.size?.width ?? 0) - dx) < 70.0) {
-      _onInteraction();
-    } else {
-      _toggleControls();
-    }
-  }
-
-  void _handlePointerCancel(final PointerCancelEvent event) {
-    if (_activePointers.remove(event.pointer) != null && _activePointers.isEmpty) {
-      _resetPointerSequence();
-    }
-  }
-
-  void _resetPointerSequence() {
-    _didPointerSequenceMove = false;
-    _didNotifyUserNavigation = false;
-  }
-
-  void _markUserNavigation() {
-    if (_didNotifyUserNavigation) {
-      return;
-    }
-
-    _didNotifyUserNavigation = true;
-    _onInteraction();
-  }
-
-  void _onInteraction() {
+  void _hideControls() {
     if (widget.shouldShowControls?.value == true) {
       widget.shouldShowControls?.value = false;
       _lastTouchHideControls = DateTime.now();
     }
-
-    // A user drag / edge-tap is the unambiguous "user took manual control"
-    // signal (audio-driven page turns are programmatic and never reach this
-    // Listener). The native side enters narration manual mode only if narration
-    // is active, so this is a no-op during plain reading.
-    _channel?.notifyUserNavigation();
   }
+
+  /// A native tap that content did not consume. Narration manual mode is decided natively from
+  /// the navigation outcome, not here.
+  void _onNativeTap(final bool toggleControls) {
+    if (!mounted) return;
+    if (toggleControls) {
+      _toggleControls();
+    } else {
+      _hideControls();
+    }
+  }
+
+  void _handlePointerDown(final PointerDownEvent event) {
+    final gestureSettings = MediaQuery.gestureSettingsOf(context);
+    _pointerTracker.down(
+      event.pointer,
+      event.localPosition,
+      tapSlop: computeHitSlop(event.kind, gestureSettings),
+      // Pan slop (2x touch slop) so tiny drags that snap back don't enter narration manual mode.
+      panSlop: computePanSlop(event.kind, gestureSettings),
+    );
+    _enableWakelock();
+  }
+
+  void _handlePointerMove(final PointerMoveEvent event) => _pointerTracker.move(event.pointer, event.localPosition);
+
+  void _handlePointerUp(final PointerUpEvent event) =>
+      _pointerTracker.up(event.pointer, event.localPosition, width: context.size?.width ?? 0);
+
+  void _handlePointerCancel(final PointerCancelEvent event) => _pointerTracker.cancel(event.pointer);
 
   Widget _buildSemanticsPrevNextPage({
     required final String label,
