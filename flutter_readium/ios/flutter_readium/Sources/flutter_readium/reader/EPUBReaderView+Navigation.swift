@@ -102,6 +102,7 @@ extension EPUBReaderView {
     // while this Task is suspended awaiting the CSS-column page turn, sees
     // isJumpingToLocator == true, and silently drops the sync. The next utterance then
     // plays audio but the spotlight decoration and page position never advance.
+    guard !Task.isCancelled else { return false }
     return await readiumViewController.go(to: locator, options: NavigatorGoOptions(animated: animated))
   }
 
@@ -145,6 +146,9 @@ extension EPUBReaderView {
   /// Distinct from setNarrationSyncEnabled(true) which replays the last cue.
   @MainActor
   public func resetForNarrationStop() {
+    suppressedSyncCue = nil
+    pendingSyncReplay?.cancel()
+    pendingSyncReplay = nil
     narrationSyncEnabled = true
     lastSyncLocator = nil
     lastSyncSegmentDuration = nil
@@ -190,8 +194,9 @@ extension EPUBReaderView {
     guard userNavigationsInFlight == 0, let cue = suppressedSyncCue else { return }
     suppressedSyncCue = nil
     guard !moved else { return }
-    Task { @MainActor [weak self] in
-      guard let self, self.isCurrentReaderView else { return }
+    pendingSyncReplay?.cancel()
+    pendingSyncReplay = Task { @MainActor [weak self] in
+      guard !Task.isCancelled, let self, self.isCurrentReaderView else { return }
       _ = await self.syncToLocator(
         cue.locator, animated: false, segmentDuration: cue.segmentDuration, isWordRange: cue.isWordRange)
     }

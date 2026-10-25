@@ -42,6 +42,9 @@ Runtime checks used the normal example `PlayerPage` and its production controls 
 | Semantics | Normal iOS player previous/next/toggle actions dispatch correctly, preserving explicit-command controls behavior. TTS previous at the first page preserves following; successful next disables it. Android OS tree retains three reader buttons and hides native content. |
 | Automated gates | `bin/format`, `bin/analyze`, `bin/changelog check`, all 49 plugin Dart tests, Kotlin compilation/formatting and iOS no-sign build passed. Six Kotlin boundary tests passed. The targeted Dart tracker/channel file contains 17 tests. |
 | Review regressions | Independently reproduced multi-touch and overlapping iOS observer failures were corrected. An external pointer repro and a source-matched Swift proxy test against protocol stubs passed; the latter is not native iOS E2E or a committed test. |
+| Native iOS regressions | Five RunnerTests passed for image priority at both edges and the center, ignored page images, ordinary tap routing, and stopping narration before or after a failed-turn replay is queued. They use the real Readium observers/adapter and the reader's stop handling. The unsigned iOS build also passed after these corrections. |
+
+Image activation precedes page navigation so edge images keep their content action. Images intentionally excluded from image actions, such as comic page images, fall through to navigation and controls. Narration stop clears held cues and cancels queued replay tasks; cancellation is checked again after JavaScript awaits before navigation. These corrections preserve the tap and narration policy above.
 
 ## Remaining coverage and follow-up
 

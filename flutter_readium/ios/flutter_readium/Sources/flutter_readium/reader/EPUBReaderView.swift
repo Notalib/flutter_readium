@@ -57,6 +57,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
   /// they cannot undo the turn before manual mode is entered.
   var userNavigationsInFlight = 0
   var suppressedSyncCue: (locator: Locator, segmentDuration: TimeInterval?, isWordRange: Bool)?
+  var pendingSyncReplay: Task<Void, Never>?
 
   /// Retained: the adapter unbinds itself from the navigator when deallocated.
   private var directionalNavigationAdapter: DirectionalNavigationAdapter?
@@ -257,41 +258,18 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
         }
       }
     )
-    let adapter = DirectionalNavigationAdapter(pointerPolicy: .init(types: [.mouse, .touch]))
-    adapter.bind(to: proxy)
     inputNavigationProxy = proxy
-    directionalNavigationAdapter = adapter
+    directionalNavigationAdapter = bindEPUBInput(
+      to: proxy,
+      onImage: { [weak self] image, frame in self?.onImageTapped(image: image, frame: frame) ?? false },
+      onCenterTap: { [weak self] in self?.channel.onNativeTap(toggleControls: true) }
+    )
 
     // Observe decoration interactions for all groups that get applied later.
     // We register a global handler on the well-known "user-highlight" group.
     readiumViewController.observeDecorationInteractions(inGroup: "user-highlight") { [weak self] event in
       self?.onDecorationActivated(event: event)
     }
-
-    // Observe image-tap events via the ExperimentalTargetElement SPI.
-    // When the user taps an <img>, the navigator calls back with an
-    // ActivateEvent whose targetElement is an ImageContentElement.
-    readiumViewController.addObserver(.activate { [weak self] event in
-      guard let self = self else { return false }
-      guard let imageElement = event.targetElement?.content as? ImageContentElement else {
-        return false
-      }
-      self.onImageTapped(
-        image: imageElement,
-        frame: event.targetElement?.frame
-      )
-      return true
-    })
-
-    // Last, so a tap that no adapter or content observer handled is a center tap.
-    readiumViewController.addObserver(.tap { [weak self] _ in
-      self?.channel.onNativeTap(toggleControls: true)
-      return false
-    })
-    readiumViewController.addObserver(.click { [weak self] _ in
-      self?.channel.onNativeTap(toggleControls: true)
-      return false
-    })
 
     Log.reader.debug("init success")
   }
@@ -428,10 +406,10 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
 
   /// Called when the user taps an image element inside an EPUB resource.
   /// Forwards the event to the Flutter channel as an `onImageTapped` call.
-  private func onImageTapped(image: ImageContentElement, frame: CGRect?) {
+  private func onImageTapped(image: ImageContentElement, frame: CGRect?) -> Bool {
     if suppressesImageTapEvent(image: image) {
       Log.reader.debug("onImageTapped: suppressed for publication/content type")
-      return
+      return false
     }
     Log.reader.debug("onImageTapped: href=\(image.embeddedLink.href)")
     let href = image.embeddedLink.href
@@ -445,6 +423,7 @@ public class EPUBReaderView: NSObject, FlutterPlatformView, ReadiumReaderView, E
       alt: alt,
       frame: frame
     )
+    return true
   }
 
   private func suppressesImageTapEvent(image: ImageContentElement) -> Bool {

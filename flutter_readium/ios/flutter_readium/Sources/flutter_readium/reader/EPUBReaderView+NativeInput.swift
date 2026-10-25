@@ -1,7 +1,33 @@
 import Foundation
-import ReadiumNavigator
+@_spi(ExperimentalTargetElement) import ReadiumNavigator
 import ReadiumShared
 import UIKit
+
+/// Image actions consume taps before navigation; controls only see unhandled taps.
+@MainActor
+func bindEPUBInput(
+  to navigator: VisualNavigator,
+  onImage: @escaping (ImageContentElement, CGRect?) -> Bool,
+  onCenterTap: @escaping () -> Void
+) -> DirectionalNavigationAdapter {
+  navigator.addObserver(.activate { event in
+    guard let image = event.targetElement?.content as? ImageContentElement else { return false }
+    return onImage(image, event.targetElement?.frame)
+  })
+
+  let adapter = DirectionalNavigationAdapter(pointerPolicy: .init(types: [.mouse, .touch]))
+  adapter.bind(to: navigator)
+
+  navigator.addObserver(.tap { _ in
+    onCenterTap()
+    return false
+  })
+  navigator.addObserver(.click { _ in
+    onCenterTap()
+    return false
+  })
+  return adapter
+}
 
 /// The kind of input event whose dispatch triggered a navigation. Task-local, so it is scoped to
 /// one awaited observer dispatch and cannot leak between overlapping events.
