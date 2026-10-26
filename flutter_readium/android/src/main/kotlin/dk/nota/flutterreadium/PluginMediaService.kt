@@ -107,11 +107,14 @@ class PluginMediaService :
     private val notificationPlayerCustomCommandButtons =
         NotificationPlayerCustomCommandButton.entries.map { command -> command.commandButton }
 
-    override fun onConnect(
+    override fun onConnectAsync(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
-    ): MediaSession.ConnectionResult {
-        val connectionResult = super.onConnect(session, controller)
+    ): ListenableFuture<MediaSession.ConnectionResult> {
+        // Media3 1.11's synchronous default is a sentinel with empty commands.
+        // Start with controller-aware defaults so notification controls retain playback access.
+        val resultBuilder = MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+        val connectionResult = resultBuilder.build()
         val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
 
         // Registering custom player command buttons for player notification.
@@ -119,9 +122,10 @@ class PluginMediaService :
             commandButton.sessionCommand?.let(availableSessionCommands::add)
         }
 
-        return MediaSession.ConnectionResult.accept(
-            availableSessionCommands.build(),
-            connectionResult.availablePlayerCommands,
+        return Futures.immediateFuture(
+            resultBuilder
+                .setAvailableSessionCommands(availableSessionCommands.build())
+                .build(),
         )
     }
 
