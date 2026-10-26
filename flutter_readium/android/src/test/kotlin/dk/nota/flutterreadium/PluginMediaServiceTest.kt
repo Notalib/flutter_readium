@@ -2,6 +2,7 @@ package dk.nota.flutterreadium
 
 import android.os.Bundle
 import android.os.Looper
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -19,6 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -29,9 +31,11 @@ internal class PluginMediaServiceTest {
     private lateinit var callback: PluginMediaService
     private lateinit var player: ExoPlayer
     private lateinit var session: MediaSession
+    private var previousLogLevel = PluginLog.level
 
     @Before
     fun setUp() {
+        previousLogLevel = PluginLog.level
         val context = RuntimeEnvironment.getApplication()
         callback = PluginMediaService()
         player = ExoPlayer.Builder(context).build()
@@ -42,6 +46,7 @@ internal class PluginMediaServiceTest {
     fun tearDown() {
         session.release()
         player.release()
+        PluginLog.level = previousLogLevel
     }
 
     @Test
@@ -79,5 +84,40 @@ internal class PluginMediaServiceTest {
         assertEquals(MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_PLAYER_COMMANDS, result.availablePlayerCommands)
         assertTrue(result.availablePlayerCommands.contains(Player.COMMAND_GET_TIMELINE))
         assertFalse(result.availablePlayerCommands.contains(Player.COMMAND_PLAY_PAUSE))
+    }
+
+    @Test
+    fun notificationLoggingSkipsPlayerStateUnlessDebugEnabled() {
+        val unreadablePlayer =
+            object : ForwardingPlayer(player) {
+                override fun getPlaybackState(): Int = error("Debug logging must not read player state at this log level")
+            }
+        ShadowLog.clear()
+
+        PluginLogLevel.entries.filter { it != PluginLogLevel.DEBUG }.forEach { level ->
+            PluginLog.level = level
+            callback.logNotificationUpdate(unreadablePlayer, false)
+        }
+
+        assertTrue(ShadowLog.getLogsForTag("Flutter_Readium.MediaService").isEmpty())
+    }
+
+    @Test
+    fun notificationLoggingReportsStateChangesWithoutRepeatingSnapshots() {
+        PluginLog.level = PluginLogLevel.DEBUG
+        ShadowLog.clear()
+
+        callback.logNotificationUpdate(player, false)
+        callback.logNotificationUpdate(player, false)
+        player.playWhenReady = true
+        callback.logNotificationUpdate(player, false)
+        callback.logNotificationUpdate(player, false)
+        callback.logNotificationUpdate(player, true)
+
+        val logs = ShadowLog.getLogsForTag("Flutter_Readium.MediaService")
+        assertEquals(3, logs.size)
+        assertTrue(logs[0].msg.contains("playWhenReady=false"))
+        assertTrue(logs[1].msg.contains("playWhenReady=true"))
+        assertTrue(logs[2].msg.contains("foregroundRequired=true"))
     }
 }
