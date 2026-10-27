@@ -12,9 +12,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Android PDFs now open in paginated mode by default.**
 
   Previously, they opened in vertical scroll mode. To preserve that behavior, call `setDefaultPDFPreferences(PDFPreferences(layout: PDFLayout.scrollVertical))` before opening the reader.
-- **Android apps now require `compileSdk` 37 or later and Kotlin Gradle Plugin 2.3 or later.**
+- **Android apps now require `compileSdk` 37+, Android Gradle Plugin 9.1.1+, Gradle 9.3.1+, and Kotlin Gradle Plugin 2.3+.**
 
-  The Readium kotlin-toolkit 3.4.0 upgrade raises these build requirements. Update your app's Android configuration before upgrading; see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#compile-sdk-and-kotlin-version).
+  The Readium kotlin-toolkit 3.4.0 upgrade raises these build requirements. API 37 requires AGP 9.1.1 or newer, so AGP 8 is no longer supported. Gradle 9.3.1 is the minimum for AGP 9.1.x; newer AGP versions can require a newer wrapper. Update your app's Android configuration before upgrading; see the [installation guide](https://github.com/Notalib/flutter_readium/blob/main/docs/getting-started/installation.md#compile-sdk-and-kotlin-version).
 
 ### Added
 
