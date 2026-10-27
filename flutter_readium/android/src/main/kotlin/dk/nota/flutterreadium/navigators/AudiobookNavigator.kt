@@ -466,7 +466,7 @@ open class AudiobookNavigator(
     }
 
     override suspend fun resume() {
-        val navigator = ensureNavigator()
+        val navigator = ensureNavigatorWithOpenMediaSession()
 
         withMainContext {
             // TODO: Do we need to check if already playing?
