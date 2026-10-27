@@ -27,6 +27,7 @@ class PlayerControls extends StatelessWidget {
             runSpacing: 4,
             children: [
               IconButton(
+                key: const ValueKey('skip_previous_chapter_button'),
                 icon: const Icon(Icons.skip_previous),
                 onPressed: () => context.read<PlayerControlsBloc>().add(
                   SkipToPreviousChapter(publication: publication),
@@ -34,6 +35,7 @@ class PlayerControls extends StatelessWidget {
                 tooltip: 'Skip to previous chapter',
               ),
               IconButton(
+                key: const ValueKey('skip_previous_button'),
                 icon: const Icon(Icons.fast_rewind),
                 onPressed: () => context.read<PlayerControlsBloc>().add(
                   state.ttsEnabled || (state.audioEnabled && isAudioBook) ? SkipToPrevious() : SkipToPreviousPage(),
@@ -41,6 +43,7 @@ class PlayerControls extends StatelessWidget {
                 tooltip: state.ttsEnabled ? 'Skip to previous paragraph' : 'Skip to previous page',
               ),
               IconButton(
+                key: const ValueKey('play_pause_button'),
                 icon: state.playing ? const Icon(Icons.pause) : const Icon(Icons.play_arrow),
                 onPressed: state.playing
                     ? () => context.read<PlayerControlsBloc>().add(Pause())
@@ -65,11 +68,13 @@ class PlayerControls extends StatelessWidget {
                 tooltip: state.playing ? 'Pause' : 'Play',
               ),
               IconButton(
+                key: const ValueKey('stop_button'),
                 icon: const Icon(Icons.stop),
                 onPressed: () => context.read<PlayerControlsBloc>().add(Stop()),
                 tooltip: 'Stop',
               ),
               IconButton(
+                key: const ValueKey('skip_next_button'),
                 icon: const Icon(Icons.fast_forward),
                 onPressed: () {
                   context.read<PlayerControlsBloc>().add(
@@ -79,6 +84,7 @@ class PlayerControls extends StatelessWidget {
                 tooltip: state.ttsEnabled ? 'Skip to next paragraph' : 'Skip to next page',
               ),
               IconButton(
+                key: const ValueKey('skip_next_chapter_button'),
                 icon: const Icon(Icons.skip_next),
                 onPressed: () => context.read<PlayerControlsBloc>().add(
                   SkipToNextChapter(publication: publication),

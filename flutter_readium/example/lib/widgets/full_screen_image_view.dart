@@ -18,6 +18,7 @@ class FullScreenImageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      key: const ValueKey<String>('full_screen_image_dismiss_area'),
       onTap: () => Navigator.of(context).pop(),
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
@@ -39,6 +40,7 @@ class FullScreenImageView extends StatelessWidget {
                 top: 8,
                 right: 8,
                 child: IconButton(
+                  key: const ValueKey<String>('full_screen_image_close_button'),
                   icon: const Icon(Icons.close, color: Colors.white),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
