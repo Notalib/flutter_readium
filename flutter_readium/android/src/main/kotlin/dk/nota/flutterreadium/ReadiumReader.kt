@@ -671,13 +671,7 @@ object ReadiumReader :
         pubUrl: AbsoluteUrl,
         transformingContainerFactory: ((Container<Resource>) -> Container<Resource>)? = null,
     ): Try<Publication, PublicationError> {
-        if (currentPublicationUrl == pubUrl.toString()) {
-            // Current publication is the same as the one we are trying to load, return it.
-            currentPublication?.let {
-                return Try.success(it)
-            }
-        }
-
+        // Always load a new instance, even for the open publication: callers close what this returns.
         return withContext(Dispatchers.IO) {
             try {
                 // TODO: should client provide mediaType to assetRetriever?
@@ -790,6 +784,12 @@ object ReadiumReader :
         PluginLog.d(TAG, "loadPublicationFromUrl: $pubUrl")
 
         return loadPublication(pubUrl)
+    }
+
+    /** The open publication if [urlStr] is the URL it was opened from, otherwise null. */
+    fun currentPublicationFor(urlStr: String): Publication? {
+        val pubUrl = resolvePubUrl(urlStr).getOrNull() ?: return null
+        return currentPublication.takeIf { currentPublicationUrl == pubUrl.toString() }
     }
 
     /**

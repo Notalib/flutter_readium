@@ -6,8 +6,8 @@
 
 | Method | Description |
 |--------|-------------|
-| `loadPublication(url)` | Parse a publication manifest without opening it for reading |
-| `openPublication(url)` | Open a publication for reading; required before showing [ReadiumReaderWidget] or using any navigation API. :warning: Only one publication can be open at a time. |
+| `loadPublication(url)` | Parse a publication manifest without opening it for reading. Never affects the open publication. |
+| `openPublication(url)` | Open a publication for reading; required before showing [ReadiumReaderWidget] or using any navigation API. :warning: Only one publication can be open at a time. Opening the URL that is already open returns that publication without reloading it; call `closePublication()` first to reload. |
 | `closePublication()` | Close the current publication and release native resources |
 
 ```dart
