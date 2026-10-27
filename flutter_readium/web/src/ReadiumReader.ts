@@ -168,7 +168,7 @@ class _ReadiumReader {
   // Collaborators
   private readonly _bridge = new ReadiumBridge();
   private readonly _pubManager = new PublicationManager();
-  private readonly _decorations = new DecorationController();
+  private readonly _decorations = new DecorationController(this._bridge);
   private readonly _selectionToolbar = new SelectionToolbar((event) =>
     this._bridge.emitSelectionAction(event)
   );
@@ -689,12 +689,11 @@ class _ReadiumReader {
   /**
    * Replace the entire decoration group with the provided list.
    *
-   * Decorations are routed to one of three upstream subgroups based on style:
-   *   - `highlight` → `<group>` (filled rectangle behind text)
-   *   - `underline` → `<group>__underline` (border-bottom via injected CSS)
+   * Decorations are routed to one of two upstream subgroups based on style:
+   *   - `highlight`, `underline` → `<group>` (upstream Highlight / Underline styles)
    *   - `spotlight` → `<group>__spotlight` (filled rectangle + body-dim CSS)
    *
-   * All three subgroups are cleared on each call for replacement semantics. Spotlight
+   * Both subgroups are cleared on each call for replacement semantics. Spotlight
    * CSS is activated/deactivated automatically based on whether the spotlight subgroup
    * is non-empty after routing.
    *
@@ -708,6 +707,12 @@ class _ReadiumReader {
       console.warn("applyDecorations: navigator not ready, skipping");
       return;
     }
+    this._decorations.applyDecorations(this._nav, group, decorationsJson, { tappable: true });
+  }
+
+  /** Plugin-owned highlights (TTS, media overlay). Unlike {@link applyDecorations}, taps are not reported. */
+  private _applyInternalDecorations(group: string, decorationsJson: string): void {
+    if (!this._nav) return;
     this._decorations.applyDecorations(this._nav, group, decorationsJson);
   }
 
@@ -1042,7 +1047,7 @@ class _ReadiumReader {
       this._uncuedTocTargets = undefined;
       this._lastMediaOverlayLocatorKey = null;
       if (this._nav) {
-        this.applyDecorations("media_overlay_utterance", "[]");
+        this._applyInternalDecorations("media_overlay_utterance", "[]");
         this._removeMOBreakCSSOnIframes();
       }
     }
@@ -1146,7 +1151,7 @@ class _ReadiumReader {
       this._narrationSyncEnabled,
       this._decorations.utteranceStyle,
       this._decorations.rangeStyle,
-      (group, decorationsJson) => this.applyDecorations(group, decorationsJson)
+      (group, decorationsJson) => this._applyInternalDecorations(group, decorationsJson)
     );
     const fromLocator = fromLocatorJson
       ? Locator.deserialize(JSON.parse(fromLocatorJson)) ?? undefined
@@ -1371,7 +1376,7 @@ class _ReadiumReader {
             style: this._decorations.utteranceStyle,
           },
         ];
-        this.applyDecorations(
+        this._applyInternalDecorations(
           "media_overlay_utterance",
           JSON.stringify(decoration)
         );

@@ -33,6 +33,12 @@ declare global {
     onSelectionActionCallback?: (json: string) => void;
 
     /**
+     * Callback for decoration taps.
+     * @param json JSON-stringified DecorationInteractionEvent (matches Dart DecorationInteractionEvent.fromJson)
+     */
+    onDecorationInteractionCallback?: (json: string) => void;
+
+    /**
      * Forward a non-fatal reader error to the Flutter app.
      * @param errorJson JSON-stringified { message: string, code?: string }
      */

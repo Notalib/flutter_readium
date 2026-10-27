@@ -1,17 +1,4 @@
-// NOTE: decoration support here is experimental and will be replaced once
-// https://github.com/readium/ts-toolkit/pull/209 (Decorator API) merges.
-
 import { EpubNavigator, WebPubNavigator } from "@readium/navigator";
-import { Decoration } from "@readium/navigator-html-injectables";
-
-/**
- * Group-name suffix used to mark decorations whose Dart style is "underline".
- * Underline-style decorations are sent to a separate upstream group so the
- * in-iframe override stylesheet can target them with `[data-group$="__underline"]`
- * (DOM-fallback path) or with a sibling `<style>` augmentation
- * (CSS Custom Highlight API path).
- */
-export const UNDERLINE_GROUP_SUFFIX = "__underline";
 
 /**
  * Group-name suffix used to mark a decoration group as a "spotlight" group.
@@ -21,22 +8,16 @@ export const UNDERLINE_GROUP_SUFFIX = "__underline";
  */
 export const SPOTLIGHT_GROUP_SUFFIX = "__spotlight";
 
-const AUGMENT_STYLE_ID_PREFIX = "flutter-readium-augment-";
-const OVERRIDES_STYLE_ID = "flutter-readium-decoration-overrides";
 const OVERRIDES_DATASET_FLAG = "flutterReadiumOverrides";
 const IFRAME_STATE_KEY = "__flutterReadiumDecorationState";
 const SPOTLIGHT_CLASS = "flutter-readium-spotlight";
 const SPOTLIGHT_STYLE_ID = "flutter-readium-spotlight-style";
 
-interface PendingGroup {
-  group: string;
-  isUnderline: boolean;
-  tint: string;
-}
+const GROUP_STYLE_ID = /^readium-decoration-\d+-style$/;
 
 interface IframeDecorationState {
-  // FIFO of groups whose first-ever `add` is awaiting upstream's <style> creation
-  pendingNewGroups: PendingGroup[];
+  // Ids of upstream group <style> elements already seen (paired or not), so each is paired once.
+  seenStyleIds: Set<string>;
   // Our group name → upstream internal id (e.g. "readium-decoration-3")
   groupInternalId: Map<string, string>;
   // Currently-active spotlight groups (mirrors module state, kept for reapply).
@@ -53,36 +34,12 @@ function getIframeState(wnd: Window): IframeDecorationState {
   const w = wnd as any;
   if (!w[IFRAME_STATE_KEY]) {
     w[IFRAME_STATE_KEY] = {
-      pendingNewGroups: [],
+      seenStyleIds: new Set<string>(),
       groupInternalId: new Map<string, string>(),
       spotlightGroups: new Set<string>(),
     } as IframeDecorationState;
   }
   return w[IFRAME_STATE_KEY];
-}
-
-/**
- * Send a "decorate" message to the first content frame of a navigator.
- * Uses the upstream private `nav._cframes[0]?.msg` FrameComms channel — this is
- * intentional: @readium/navigator v2.2.4 does not expose a public decoration API.
- *
- * @param nav  The active EpubNavigator or WebPubNavigator.
- * @param group  Unique decoration group name.
- * @param action  One of "add", "remove", "clear", "update".
- * @param decoration  The decoration payload; may be undefined for "clear".
- */
-export function sendDecorate(
-  nav: EpubNavigator | WebPubNavigator,
-  group: string,
-  action: "add" | "remove" | "clear" | "update",
-  decoration: Decoration | undefined
-): void {
-  const frameComms = (nav as any)._cframes?.[0]?.msg;
-  if (!frameComms) {
-    console.warn("sendDecorate: no FrameComms channel available");
-    return;
-  }
-  frameComms.send("decorate", { group, action, decoration });
 }
 
 /**
@@ -96,26 +53,6 @@ export function navIframeWindows(
   return frames
     .map((f) => f?.window as Window | undefined)
     .filter((w): w is Window => !!w);
-}
-
-/**
- * Record that the next upstream-created decoration `<style>` element in each
- * iframe should be paired with this group (the parent–side FIFO contract).
- * Called before sending the first `add` to a group; deduplicated against
- * already-paired groups so re-applies on existing groups don't push stale entries.
- */
-export function registerPendingDecorationGroup(
-  iframes: Window[],
-  group: string,
-  isUnderline: boolean,
-  tint: string
-): void {
-  for (const wnd of iframes) {
-    const state = getIframeState(wnd);
-    if (state.groupInternalId.has(group)) continue;
-    if (state.pendingNewGroups.some((p) => p.group === group)) continue;
-    state.pendingNewGroups.push({ group, isUnderline, tint });
-  }
 }
 
 /**
@@ -174,14 +111,12 @@ function applySpotlightToIframe(wnd: Window): void {
     styleEl.textContent = "";
     return;
   }
-  // Collect the upstream internal ids of every active spotlight group (plus its
-  // underline sub-group, if any) so each gets its colour/fill restored.
+  // Collect the upstream internal ids of every active spotlight group so each
+  // gets its colour restored.
   const internalIds: string[] = [];
   for (const group of groups) {
-    const mainId = state.groupInternalId.get(group);
-    if (mainId) internalIds.push(mainId);
-    const underlineId = state.groupInternalId.get(group + UNDERLINE_GROUP_SUFFIX);
-    if (underlineId) internalIds.push(underlineId);
+    const id = state.groupInternalId.get(group);
+    if (id) internalIds.push(id);
   }
 
   // Restore the spotlit range's text colour so the body-wide dim doesn't apply
@@ -212,136 +147,60 @@ function applySpotlightToIframe(wnd: Window): void {
 }
 
 /**
- * Pair the just-added upstream `<style id="readium-decoration-N-style">` with
- * the head of the pending-groups queue and (if it's an underline group) emit
- * a sibling `<style>` whose rules win by cascade.
+ * Pair each newly created upstream `<style id="readium-decoration-N-style">`
+ * with the group of the `decorate` message that created it, so spotlight rules
+ * can target that group's `::highlight()`.
  *
- * The augmented stylesheet overrides the same `::highlight()` pseudo-element.
- * Upstream Readium calls `bi(tint)` to set a contrasting `color` (black or white)
- * on every decoration. For underline groups, that `color` can override the
- * utterance decoration's text colour when both highlights cover the same word
- * (range decorations are registered later and therefore have higher cascade
- * priority). `color: inherit` neutralises that override so the document's
- * natural text colour shows through instead.
+ * Upstream creates a group's style element synchronously while handling that
+ * group's first successful `add`. This runs from a `message` listener that is
+ * registered after upstream's, so by now upstream has handled `req`. Any style
+ * we have not seen yet was therefore created by `req.group`. Because it only
+ * reads the wire message, it needs no knowledge of the order in which
+ * upstream numbers its groups.
  */
-function pairWithPendingGroup(wnd: Window, styleEl: HTMLStyleElement): void {
-  const state = getIframeState(wnd);
-  const pending = state.pendingNewGroups.shift();
-  if (!pending) return;
-  const internalId = styleEl.id.replace(/-style$/, "");
-  state.groupInternalId.set(pending.group, internalId);
+function pairNewGroupStyles(wnd: Window, message: unknown): void {
+  const msg = message as { key?: unknown; data?: any } | null;
+  if (!msg || typeof msg !== "object" || msg.key !== "decorate") return;
+  const group = msg.data?.group;
+  if (typeof group !== "string") return;
 
-  if (pending.isUnderline) {
-    const augment = wnd.document.createElement("style");
-    augment.dataset.readium = "true";
-    augment.id = AUGMENT_STYLE_ID_PREFIX + internalId;
-    augment.textContent = `
-      ::highlight(${internalId}) {
-        color: inherit;
-        background-color: transparent;
-        text-decoration: underline 0.15em solid ${pending.tint};
-      }
-    `;
-    styleEl.parentNode?.insertBefore(augment, styleEl.nextSibling);
-  }
+  const state = getIframeState(wnd);
+  const styles = wnd.document.head.querySelectorAll<HTMLStyleElement>("style[id]");
+  let paired = false;
+  styles.forEach((styleEl) => {
+    if (!GROUP_STYLE_ID.test(styleEl.id) || state.seenStyleIds.has(styleEl.id)) return;
+    state.seenStyleIds.add(styleEl.id);
+    const internalId = styleEl.id.replace(/-style$/, "");
+    state.groupInternalId.set(group, internalId);
+    paired = true;
+  });
 
   // Spotlight rules may need to expand now that we know this group's internal id.
-  if (state.spotlightGroups.size > 0) {
+  if (paired && state.spotlightGroups.size > 0) {
     applySpotlightToIframe(wnd);
   }
 }
 
 /**
- * Inject our decoration override layer + group-pairing observer into a
- * freshly-loaded EPUB iframe. Idempotent: flagged on the iframe documentElement
- * so repeated `frameLoaded` calls are no-ops.
- *
- * What this layer adds on top of upstream's Decorator:
- *   1. **Underline via DOM-fallback path**: CSS rule on
- *      `[data-group$="__underline"] .readium-highlight` swaps the filled box
- *      for a border-bottom in the tint colour. A MutationObserver mirrors
- *      each upstream-injected box's inline `background-color` to a CSS custom
- *      property the rule reads for the underline colour.
- *   2. **Underline via Web Highlight API path**: a head MutationObserver
- *      watches for upstream's `<style id="readium-decoration-N-style">`
- *      additions and inserts a sibling style whose `text-decoration: underline`
- *      rule wins by cascade order.
- *   3. **Spotlight stylesheet stub**: empty `<style>` slot ready to be filled
- *      by {@link setSpotlightGroupOnIframes}.
+ * Install the group-pairing listener (see {@link pairNewGroupStyles}) in a
+ * freshly-loaded EPUB iframe and apply any active spotlight. Idempotent: flagged
+ * on the iframe documentElement so repeated `frameLoaded` calls are no-ops.
  */
 export function injectDecorationOverrides(wnd: Window): void {
   const doc = wnd.document;
   if (doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] === "true") return;
   doc.documentElement.dataset[OVERRIDES_DATASET_FLAG] = "true";
 
-  const overrides = doc.createElement("style");
-  overrides.dataset.readium = "true";
-  overrides.id = OVERRIDES_STYLE_ID;
-  overrides.textContent = `
-    [data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight {
-      background-color: transparent !important;
-      border-bottom: 0.15em solid var(--flutter-readium-underline-tint, currentColor) !important;
-      box-sizing: border-box !important;
-    }
-  `;
-  doc.head.appendChild(overrides);
-
-  // ── Underline tint mirror (DOM-fallback path) ───────────────────────────
-  const mirrorTint = (box: HTMLElement) => {
-    const tint = box.style.backgroundColor;
-    if (tint) {
-      box.style.setProperty("--flutter-readium-underline-tint", tint);
-    }
-  };
-  const isUnderlineBox = (el: HTMLElement): boolean =>
-    el.classList?.contains("readium-highlight") === true &&
-    el.closest(`[data-group$="${UNDERLINE_GROUP_SUFFIX}"]`) !== null;
-
-  const bodyObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
-      // to use its own iterator protocol, which fails for raw DOM Node objects.
-      for (let i = 0; i < m.addedNodes.length; i++) {
-        const node = m.addedNodes[i];
-        if (node.nodeType !== 1) continue;
-        const el = node as HTMLElement;
-        if (isUnderlineBox(el)) mirrorTint(el);
-        el.querySelectorAll?.(
-          `[data-group$="${UNDERLINE_GROUP_SUFFIX}"] .readium-highlight`
-        ).forEach((b) => mirrorTint(b as HTMLElement));
-      }
-    }
+  // Styles that already exist were created before we could see which group
+  // asked for them, so they stay unpaired rather than risk a wrong pairing.
+  const state = getIframeState(wnd);
+  doc.head.querySelectorAll("style[id]").forEach((el) => {
+    if (GROUP_STYLE_ID.test(el.id)) state.seenStyleIds.add(el.id);
   });
-  bodyObserver.observe(doc.body, { childList: true, subtree: true });
-
-  // ── Group pairing observer (Web Highlight API path) ─────────────────────
-  const isReadiumGroupStyle = (el: Element): el is HTMLStyleElement =>
-    el.tagName === "STYLE" &&
-    typeof (el as HTMLStyleElement).id === "string" &&
-    /^readium-decoration-\d+-style$/.test((el as HTMLStyleElement).id);
-
-  // Pair any pre-existing styles (in case Decorator mounted before us).
-  doc.head.querySelectorAll("style[data-readium]").forEach((el) => {
-    if (isReadiumGroupStyle(el)) pairWithPendingGroup(wnd, el);
-  });
-
-  const headObserver = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      // Avoid Array.from(NodeList) — in Flutter web, dart2js patches Array.from
-      // to use its own iterator protocol, which fails for raw DOM Node objects.
-      for (let i = 0; i < m.addedNodes.length; i++) {
-        const node = m.addedNodes[i];
-        if (node.nodeType !== 1) continue;
-        const el = node as Element;
-        if (isReadiumGroupStyle(el)) pairWithPendingGroup(wnd, el);
-      }
-    }
-  });
-  headObserver.observe(doc.head, { childList: true });
+  wnd.addEventListener("message", (event: MessageEvent) => pairNewGroupStyles(wnd, event.data));
 
   // Apply current spotlight groups (if any) to the freshly-loaded iframe.
   if (_spotlightGroups.size > 0) {
-    const state = getIframeState(wnd);
     state.spotlightGroups = new Set(_spotlightGroups);
     applySpotlightToIframe(wnd);
   }
